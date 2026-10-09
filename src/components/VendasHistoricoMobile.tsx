@@ -22,14 +22,23 @@ import {
   Printer,
   Mail,
   ArrowLeft,
-  Package
+  Package,
+  MessageCircle,
+  Truck,
+  Tag,
+  AlertTriangle
 } from 'lucide-react';
 import { Pedido, Cliente, UsuarioLoja } from '../types';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { extrairObservacaoLimpa } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { useFeedbackModal } from '../contexts/FeedbackContext';
+import { MelhorEnvioService } from '../services/melhorEnvioService';
+import { supabase } from '../lib/supabase';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
+import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
+import { ModalRastreioPedido } from './shipping/ModalRastreioPedido';
 
 interface VendasHistoricoMobileProps {
   vendas: Pedido[];
@@ -58,11 +67,15 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
   const { loja, usuario } = useAuth();
   const permissions = usePermissions();
 
+  const { mostrarToast } = useFeedbackModal();
   const [busca, setBusca] = useState<string>('');
   const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
   const [drawerFiltrosAberto, setDrawerFiltrosAberto] = useState<boolean>(false);
   const [vendaDetalhes, setVendaDetalhes] = useState<Pedido | null>(null);
-  const [copiado, setCopiado] = useState<boolean>(false);
+  const [modalReciboAberto, setModalReciboAberto] = useState<boolean>(false);
+  const [modalRastreioAberto, setModalRastreioAberto] = useState<boolean>(false);
+  const [modalConfirmarCancelamento, setModalConfirmarCancelamento] = useState<boolean>(false);
+  const [gerandoEtiqueta, setGerandoEtiqueta] = useState<boolean>(false);
 
   // Filtros
   const [periodoFiltro, setPeriodoFiltro] = useState<string>('todos');
@@ -192,17 +205,47 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
     return <CreditCard className="w-3.5 h-3.5 text-sky-600" />;
   };
 
-  const handleCopiarRecibo = (pedido: Pedido) => {
-    const pagInfo = obterDadosPagamentoRecibo(pedido);
-    let texto = `Pedido #${pedido.numero_pedido}\nData: ${pedido.data_venda || ''}\nTotal: R$ ${Number(pedido.valor_total).toFixed(2)}\nStatus: ${pagInfo.foiPago ? 'PAGO' : 'AGUARDANDO PAGAMENTO'}`;
-    if (pagInfo.foiPago && pagInfo.pagamentosDetalhados.length > 0) {
-      const forma = pagInfo.pagamentosDetalhados[0].forma;
-      const origem = pagInfo.pagamentosDetalhados[0].origemGateway;
-      texto += `\nForma: ${forma}${origem ? ` (${origem})` : ''}`;
+  const handleAbrirEtiqueta = async (ped: Pedido) => {
+    if (!loja?.id) {
+      mostrarToast('Loja não identificada.', 'erro');
+      return;
     }
-    navigator.clipboard.writeText(texto);
-    setCopiado(true);
-    setTimeout(() => setCopiado(false), 2000);
+    const pe: any = (ped as any)?.pedido_entrega || (Array.isArray((ped as any)?.pedido_entregas) ? (ped as any)?.pedido_entregas[0] : null);
+    const linkJaSalvo = String(pe?.link_etiqueta || (ped as any)?.link_etiqueta || pe?.etiqueta_url || (ped as any)?.etiqueta_url || '').trim();
+
+    // Evita links do painel administrativo ou páginas de login do Melhor Envio
+    const ehLinkLoginOuPainel = linkJaSalvo.includes('/painel') || linkJaSalvo.includes('/portal') || linkJaSalvo.includes('/login');
+    const ehPdfOuPublico = (linkJaSalvo.endsWith('.pdf') || linkJaSalvo.includes('/print') || linkJaSalvo.includes('storage') || linkJaSalvo.includes('public')) && !ehLinkLoginOuPainel;
+
+    if (linkJaSalvo && ehPdfOuPublico && (linkJaSalvo.startsWith('http://') || linkJaSalvo.startsWith('https://'))) {
+      window.open(linkJaSalvo, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    const ordemId = pe?.servico_codigo || (ped as any)?.servico_codigo || (ped.codigo_rastreio?.startsWith('ORD-') ? ped.codigo_rastreio : undefined);
+
+    setGerandoEtiqueta(true);
+    mostrarToast('Buscando Etiqueta Oficial...', 'info');
+    try {
+      const url = await MelhorEnvioService.obterEtiquetaOficialPdf(ped.id, loja.id, ordemId, 'etiqueta');
+      if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+        mostrarToast('Etiqueta oficial aberta!', 'sucesso');
+        if (pe?.id) {
+          supabase.from('pedido_entregas').update({ link_etiqueta: url }).eq('id', pe.id).then();
+        }
+      } else {
+        mostrarToast('Etiqueta não disponível para esta venda.', 'aviso');
+      }
+    } catch (err: any) {
+      if (linkJaSalvo && (linkJaSalvo.startsWith('http://') || linkJaSalvo.startsWith('https://'))) {
+        window.open(linkJaSalvo, '_blank', 'noopener,noreferrer');
+      } else {
+        mostrarToast(err?.message || 'Etiqueta de envio não encontrada para esta venda.', 'aviso');
+      }
+    } finally {
+      setGerandoEtiqueta(false);
+    }
   };
 
   // Se houver uma venda selecionada para detalhes (Sheet de Detalhes no tema claro)
@@ -376,9 +419,10 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
             </div>
           </div>
 
-          {/* Ações de Compartilhamento do Recibo */}
+          {/* Ações Padronizadas da Venda (Mobile) */}
           <div className="space-y-2 pt-2">
             <div className="grid grid-cols-2 gap-2">
+              {/* 1. WhatsApp */}
               <button
                 type="button"
                 onClick={() => {
@@ -387,49 +431,126 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                     PrintService.openWhatsApp(vendaDetalhes.cliente?.whatsapp || '', msg);
                   }
                 }}
-                className="p-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition"
+                className="h-11 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer active:scale-95"
+                title="Enviar recibo via WhatsApp"
               >
-                <Share2 className="w-4 h-4" />
-                <span>Enviar WhatsApp</span>
+                <MessageCircle className="w-4 h-4 shrink-0" />
+                <span>WhatsApp</span>
               </button>
 
+              {/* 2. Recibo */}
               <button
                 type="button"
-                onClick={() => handleCopiarRecibo(vendaDetalhes)}
-                className="p-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-2 border border-slate-200 transition"
+                onClick={() => setModalReciboAberto(true)}
+                className="h-11 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center gap-2 border border-slate-200/80 shadow-xs transition cursor-pointer active:scale-95"
+                title="Visualizar e imprimir recibo completo"
               >
-                {copiado ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                <span>{copiado ? 'Copiado!' : 'Copiar Recibo'}</span>
+                <Receipt className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Recibo</span>
+              </button>
+
+              {/* 3. Rastrear */}
+              <button
+                type="button"
+                onClick={() => setModalRastreioAberto(true)}
+                className="h-11 px-3 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 font-bold text-xs flex items-center justify-center gap-2 border border-sky-200/70 shadow-xs transition cursor-pointer active:scale-95"
+                title="Rastrear envio da venda"
+              >
+                <Truck className="w-4 h-4 text-sky-600 shrink-0" />
+                <span>Rastrear</span>
+              </button>
+
+              {/* 4. Etiqueta */}
+              <button
+                type="button"
+                disabled={gerandoEtiqueta}
+                onClick={() => handleAbrirEtiqueta(vendaDetalhes)}
+                className="h-11 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center gap-2 border border-slate-200/80 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-60"
+                title="Abrir ou imprimir etiqueta de envio"
+              >
+                <Tag className="w-4 h-4 text-slate-600 shrink-0" />
+                <span>{gerandoEtiqueta ? 'Buscando...' : 'Etiqueta'}</span>
               </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setVendaDetalhes(null);
-                navigate(`/orders?id=${vendaDetalhes.id}&origem=sales`);
-              }}
-              className="w-full mt-2 p-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer"
-            >
-              <Package className="w-4 h-4" />
-              <span>Ver Pedido Completo</span>
-            </button>
-
+            {/* 5. Cancelar Venda (com modal de confirmação defensivo) */}
             {!cancelado && permissions.ehAdmin && (
               <button
                 type="button"
-                onClick={() => {
-                  setVendaDetalhes(null);
-                  onCancelarVenda(vendaDetalhes);
-                }}
-                className="w-full mt-2 p-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold flex items-center justify-center gap-2 transition"
+                onClick={() => setModalConfirmarCancelamento(true)}
+                className="w-full mt-2 h-11 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/60 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-95"
+                title="Cancelar venda com estorno de estoque"
               >
-                <XCircle className="w-4 h-4" />
+                <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
                 <span>Cancelar Venda</span>
               </button>
             )}
           </div>
         </div>
+
+        {/* MODAL CANÔNICO DE RECIBO DA VENDA */}
+        {modalReciboAberto && (
+          <ReciboPedidoModal
+            isOpen={modalReciboAberto}
+            pedido={vendaDetalhes}
+            loja={loja}
+            onClose={() => setModalReciboAberto(false)}
+          />
+        )}
+
+        {/* MODAL OFICIAL DE RASTREAMENTO */}
+        {modalRastreioAberto && (
+          <ModalRastreioPedido
+            isOpen={modalRastreioAberto}
+            pedido={vendaDetalhes}
+            entrega={(vendaDetalhes as any)?.pedido_entrega || (Array.isArray((vendaDetalhes as any)?.pedido_entregas) ? (vendaDetalhes as any)?.pedido_entregas[0] : null)}
+            loja={loja}
+            onClose={() => setModalRastreioAberto(false)}
+          />
+        )}
+
+        {/* MODAL DE CONFIRMAÇÃO DEFENSIVO PARA CANCELAMENTO DA VENDA */}
+        {modalConfirmarCancelamento && (
+          <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+            <div className="bg-white rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl animate-in zoom-in-95 text-slate-900 border border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-rose-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900">Cancelar Venda #{vendaDetalhes.numero_pedido}</h3>
+                  <span className="text-[11px] text-slate-400">Confirmação obrigatória</span>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-rose-50/70 border border-rose-200/80 text-rose-800 text-xs leading-relaxed font-medium">
+                Tem certeza de que deseja cancelar esta venda? Esta ação não pode ser desfeita e os itens retornarão ao estoque.
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setModalConfirmarCancelamento(false)}
+                  className="flex-1 h-11 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+                >
+                  Voltar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalConfirmarCancelamento(false);
+                    const ped = vendaDetalhes;
+                    setVendaDetalhes(null);
+                    onCancelarVenda(ped);
+                  }}
+                  className="flex-1 h-11 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition cursor-pointer shadow-md active:scale-95"
+                >
+                  Sim, Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
