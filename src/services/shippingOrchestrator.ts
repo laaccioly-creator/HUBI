@@ -833,6 +833,7 @@ export class ShippingOrchestrator {
         endereco_entrega: textoEndereco,
         despachado_em: despachadoEm,
         despachado_por: usuarioId || null,
+        atualizado_por: usuarioId || null,
         atualizado_em: despachadoEm
       })
       .eq('id', pedido.id);
@@ -916,6 +917,7 @@ export class ShippingOrchestrator {
           link_rastreio: urlRastreioOficial || pedido.link_rastreio || null,
           despachado_em: despachadoEm,
           despachado_por: usuarioId || null,
+          atualizado_por: usuarioId || null,
           atualizado_em: despachadoEm
         })
         .eq('id', pedido.id);
@@ -983,6 +985,7 @@ export class ShippingOrchestrator {
         entregador_nome: entregadorNome || null,
         despachado_em: despachadoEm,
         despachado_por: usuarioId || null,
+        atualizado_por: usuarioId || null,
         atualizado_em: despachadoEm
       })
       .eq('id', pedidoId);
@@ -1040,6 +1043,7 @@ export class ShippingOrchestrator {
         status: statusDestinoManual,
         despachado_em: agora,
         despachado_por: usuarioLojaId || null,
+        atualizado_por: usuarioLojaId || null,
         atualizado_em: agora
       })
       .eq('id', pedidoId);
@@ -1094,6 +1098,7 @@ export class ShippingOrchestrator {
       .eq('pedido_id', pedidoId);
 
     // 2. Snapshot derivado em pedidos e conclusão de status
+    const { data: pedDbDesp } = await supabase.from('pedidos').select('loja_id, status').eq('id', pedidoId).maybeSingle();
     await supabase
       .from('pedidos')
       .update({
@@ -1102,9 +1107,29 @@ export class ShippingOrchestrator {
         link_rastreio: dadosDespacho.link_rastreio || null,
         despachado_em: despachadoEm,
         despachado_por: dadosDespacho.despachado_por || null,
+        atualizado_por: dadosDespacho.despachado_por || null,
         atualizado_em: despachadoEm
       })
       .eq('id', pedidoId);
+
+    // Auditoria em historico_pedidos
+    try {
+      if (pedDbDesp?.loja_id) {
+        await supabase.from('historico_pedidos').insert({
+          loja_id: pedDbDesp.loja_id,
+          pedido_id: pedidoId,
+          usuario_id: dadosDespacho.despachado_por || null,
+          tipo_evento: 'concluido',
+          status_anterior: pedDbDesp.status,
+          status_novo: 'concluido',
+          descricao: `Pedido concluído e despachado${dadosDespacho.entregador_nome ? ` por ${dadosDespacho.entregador_nome}` : ''}`,
+          motivo: 'Entrega concluída',
+          criado_em: despachadoEm
+        });
+      }
+    } catch (errHist) {
+      console.warn('[ShippingOrchestrator] Falha ao registrar historico_pedidos (despacharPedido):', errHist);
+    }
   }
 
   /**
@@ -1115,6 +1140,7 @@ export class ShippingOrchestrator {
     usuarioLojaId?: string | null
   ): Promise<void> {
     const agora = new Date().toISOString();
+    const { data: pedDbConc } = await supabase.from('pedidos').select('loja_id, status').eq('id', pedidoId).maybeSingle();
 
     await supabase
       .from('pedido_entregas')
@@ -1132,9 +1158,29 @@ export class ShippingOrchestrator {
         status: 'concluido',
         despachado_em: agora,
         despachado_por: usuarioLojaId || null,
+        atualizado_por: usuarioLojaId || null,
         atualizado_em: agora
       })
       .eq('id', pedidoId);
+
+    // Auditoria em historico_pedidos
+    try {
+      if (pedDbConc?.loja_id) {
+        await supabase.from('historico_pedidos').insert({
+          loja_id: pedDbConc.loja_id,
+          pedido_id: pedidoId,
+          usuario_id: usuarioLojaId || null,
+          tipo_evento: 'concluido',
+          status_anterior: pedDbConc.status,
+          status_novo: 'concluido',
+          descricao: 'Conclusão de entrega confirmada administrativamente',
+          motivo: 'Ação administrativa de conclusão',
+          criado_em: agora
+        });
+      }
+    } catch (errHist) {
+      console.warn('[ShippingOrchestrator] Falha ao registrar historico_pedidos (forcarConclusaoManual):', errHist);
+    }
   }
 
   /**
@@ -1678,6 +1724,7 @@ export class ShippingOrchestrator {
         tipo_operacao: dados.tipoOperacao || null,
         despachado_em: despachadoEm,
         despachado_por: dados.usuarioId || null,
+        atualizado_por: dados.usuarioId || null,
         atualizado_em: despachadoEm
       })
       .eq('id', pedidoId);

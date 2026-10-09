@@ -1125,7 +1125,7 @@ export const PedidosLista: React.FC = () => {
             loja_id: loja.id,
             pedido_id: pedidoId,
             usuario_id: usuario?.id || null,
-            tipo_evento: novoStatus === 'cancelado' ? 'cancelado' : 'status_alterado',
+            tipo_evento: novoStatus === 'cancelado' ? 'cancelado' : (novoStatus === 'concluido' ? 'concluido' : 'status_alterado'),
             status_anterior: pedAlvo?.status || null,
             status_novo: novoStatus,
             descricao: descHist,
@@ -1966,7 +1966,7 @@ export const PedidosLista: React.FC = () => {
           loja_id: loja.id,
           pedido_id: pedidoSelecionado.id,
           usuario_id: usuario?.id || null,
-          tipo_evento: 'status_alterado',
+          tipo_evento: 'concluido',
           status_anterior: pedidoSelecionado.status || null,
           status_novo: 'concluido',
           descricao: `Venda concluída e pagamento confirmado por ${usuario?.nome_completo || 'Operador'}`

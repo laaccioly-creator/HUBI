@@ -477,7 +477,8 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
         valor_pago: novoValorPago,
         saldo_devedor: novoSaldoDevedor,
         fiado_quitado: quitado,
-        atualizado_em: dataIso
+        atualizado_em: dataIso,
+        atualizado_por: usuario?.id || null
       };
 
       if (quitado) {
@@ -561,6 +562,33 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
           });
         } catch (errCaixa) {
           console.warn('Aviso ao registrar recebimento no caixa:', errCaixa);
+        }
+      }
+
+      // 5. Registrar evento financeiro de quitação/recebimento no histórico do pedido
+      if (loja?.id && totalLinhasPagamento > 0) {
+        try {
+          const resumoFormas = linhasAtivas
+            .filter(l => Number(l.valor) > 0)
+            .map(l => `${l.forma_nome}: R$ ${Number(l.valor).toFixed(2).replace('.', ',')}`)
+            .join(', ');
+          const descPag = quitado
+            ? `Pagamento integral registrado no valor de R$ ${totalLinhasPagamento.toFixed(2).replace('.', ',')} (${resumoFormas}). Pedido quitado.`
+            : `Pagamento parcial registrado no valor de R$ ${totalLinhasPagamento.toFixed(2).replace('.', ',')} (${resumoFormas}). Saldo restante: R$ ${novoSaldoDevedor.toFixed(2).replace('.', ',')}.`;
+
+          await supabase.from('historico_pedidos').insert([
+            {
+              loja_id: loja.id,
+              pedido_id: pedido.id,
+              usuario_id: usuario?.id || null,
+              tipo_evento: 'pagamento_recebido',
+              status_anterior: pedido.status,
+              status_novo: payloadUpdate.status || pedido.status,
+              descricao: descPag
+            }
+          ]);
+        } catch (errHist) {
+          console.warn('Aviso ao registrar histórico de pagamento:', errHist);
         }
       }
 
