@@ -28,10 +28,24 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
   const { mostrarToast, mostrarSucesso, mostrarErro } = useFeedbackModal();
   const etiquetaRef = useRef<HTMLDivElement>(null);
   const [obtendoEtiquetaOficial, setObtendoEtiquetaOficial] = useState(false);
+  const [entregaCarregada, setEntregaCarregada] = useState<PedidoEntrega | null>(null);
+
+  React.useEffect(() => {
+    if (pedido?.id && !entrega && !pedido.pedido_entrega && !(pedido as any).pedido_entregas) {
+      supabase
+        .from('pedido_entregas')
+        .select('*')
+        .eq('pedido_id', pedido.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) setEntregaCarregada(data as PedidoEntrega);
+        });
+    }
+  }, [pedido?.id, entrega, pedido?.pedido_entrega]);
 
   if (!isOpen || !pedido) return null;
 
-  const rawPe = entrega || (pedido as any).pedido_entregas || pedido.pedido_entrega;
+  const rawPe = entrega || (pedido as any).pedido_entregas || pedido.pedido_entrega || entregaCarregada;
   const pe: PedidoEntrega | null = Array.isArray(rawPe) ? (rawPe[0] || null) : (rawPe || null);
   const linkEtiquetaOficial = (pe?.link_etiqueta || (pedido as any).link_etiqueta || (pedido as any).metadados?.link_etiqueta || '').trim();
 
@@ -93,7 +107,11 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
       setObtendoEtiquetaOficial(true);
       mostrarToast('Obtendo etiqueta oficial em PDF com a transportadora...', 'info');
       const lojaId = loja?.id || pedido.loja_id;
-      const ordemId = (pedido.metadados as any)?.melhor_envio_order_id || pe?.codigo_rastreio;
+      const ordemId =
+        (pedido.metadados as any)?.melhor_envio_order_id ||
+        (pe as any)?.melhor_envio_order_id ||
+        (pe?.codigo_rastreio?.startsWith('ORD-') ? pe.codigo_rastreio : undefined) ||
+        (pedido.codigo_rastreio?.startsWith('ORD-') ? pedido.codigo_rastreio : undefined);
       const urlPdf = await MelhorEnvioService.obterEtiquetaOficialPdf(pedido.id, lojaId, ordemId);
       if (urlPdf) {
         mostrarSucesso('Etiqueta oficial pronta para impressão!');

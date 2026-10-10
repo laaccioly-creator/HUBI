@@ -59,7 +59,6 @@ import { ModalRastreioPedido } from './shipping/ModalRastreioPedido';
 import { ModalDespacharPedido } from './shipping/ModalDespacharPedido';
 import { ModalImprimirEtiqueta } from './shipping/ModalImprimirEtiqueta';
 import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
-import { MelhorEnvioService } from '../services/melhorEnvioService';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import {
   ROTULOS_STATUS_PEDIDO,
@@ -173,69 +172,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
   const [pedidoRastreioModal, setPedidoRastreioModal] = useState<Pedido | null>(null);
   const [pedidoEtiquetaModal, setPedidoEtiquetaModal] = useState<Pedido | null>(null);
-  const [gerandoEtiquetaOficial, setGerandoEtiquetaOficial] = useState<boolean>(false);
   const [modalDefinirEnvioAberto, setModalDefinirEnvioAberto] = useState<boolean>(false);
   const [modalConfirmarCancelamentoAberto, setModalConfirmarCancelamentoAberto] = useState<boolean>(false);
-
-  const handleImprimirEtiquetaOficialMelhorEnvio = async (ped: Pedido) => {
-    if (!loja?.id) {
-      mostrarToast('Loja não identificada.', 'erro');
-      return;
-    }
-    const pe = ped.pedido_entrega || entregaPedido;
-    const linkJaSalvo = String((pe as any)?.link_etiqueta || (ped as any)?.link_etiqueta || (pe as any)?.etiqueta_url || (ped as any)?.etiqueta_url || '').trim();
-    
-    // Evita links do painel administrativo ou páginas de login do Melhor Envio
-    const ehLinkLoginOuPainel = linkJaSalvo.includes('/painel') || linkJaSalvo.includes('/portal') || linkJaSalvo.includes('/login');
-    const ehPdfOuPublico = (linkJaSalvo.endsWith('.pdf') || linkJaSalvo.includes('/print') || linkJaSalvo.includes('storage') || linkJaSalvo.includes('public')) && !ehLinkLoginOuPainel;
-
-    if (linkJaSalvo && ehPdfOuPublico && (linkJaSalvo.startsWith('http://') || linkJaSalvo.startsWith('https://'))) {
-      window.open(linkJaSalvo, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
-    const ordemId = pe?.servico_codigo || (ped as any)?.servico_codigo || (ped.codigo_rastreio?.startsWith('ORD-') ? ped.codigo_rastreio : undefined);
-
-    setGerandoEtiquetaOficial(true);
-    mostrarToast('Buscando Etiqueta Oficial em PDF na Jadlog/Correios...', 'info');
-    try {
-      const url = await MelhorEnvioService.obterEtiquetaOficialPdf(ped.id, loja.id, ordemId, 'etiqueta');
-      if (url) {
-        window.open(url, '_blank', 'noopener,noreferrer');
-        mostrarToast('Etiqueta oficial aberta em nova aba!', 'sucesso');
-      } else {
-        mostrarToast('Não foi possível gerar a etiqueta oficial no momento. Abrindo etiqueta HUBI.', 'aviso');
-        setPedidoEtiquetaModal(ped);
-      }
-    } catch (err: any) {
-      mostrarToast(err?.message || 'Falha ao buscar etiqueta oficial. Abrindo etiqueta interna.', 'aviso');
-      setPedidoEtiquetaModal(ped);
-    } finally {
-      setGerandoEtiquetaOficial(false);
-    }
-  };
-
-  const handleImprimirDeclaracaoConteudoMelhorEnvio = async (ped: Pedido) => {
-    if (!loja?.id) return;
-    const pe = ped.pedido_entrega || entregaPedido;
-    const ordemId = pe?.servico_codigo || (ped as any)?.servico_codigo;
-
-    setGerandoEtiquetaOficial(true);
-    mostrarToast('Buscando Declaração de Conteúdo...', 'info');
-    try {
-      const url = await MelhorEnvioService.obterEtiquetaOficialPdf(ped.id, loja.id, ordemId, 'declaracao');
-      if (url) {
-        window.open(url, '_blank', 'noopener,noreferrer');
-        mostrarToast('Declaração de Conteúdo aberta!', 'sucesso');
-      } else {
-        mostrarToast('Declaração não disponível na transportadora.', 'aviso');
-      }
-    } catch (err: any) {
-      mostrarToast(err?.message || 'Erro ao gerar declaração de conteúdo.', 'erro');
-    } finally {
-      setGerandoEtiquetaOficial(false);
-    }
-  };
 
   // Estados de Despacho Logístico e Contingência RBAC
   const [modalDespachoAberto, setModalDespachoAberto] = useState<boolean>(false);
@@ -1704,7 +1642,6 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   pedidoSelecionado.status === 'pronto_para_retirar';
 
                 const temRastreio = Boolean(codigoRastreio || linkRastreio || (ehMelhorEnvio && emTransitoOuEntregue));
-                const temEtiquetaEmitida = !isRetirada && Boolean(linkEtiqueta || (ehMelhorEnvio && emTransitoOuEntregue));
 
                 const ehTranspManual =
                   !ehMelhorEnvio &&
@@ -1817,27 +1754,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       </button>
                     )}
 
-                    {/* Ação 4: Imprimir Etiqueta (APENAS se já enviado/entregue e houver etiqueta) */}
-                    {emTransitoOuEntregue && temEtiquetaEmitida && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setModalOpcoesPedido(false);
-                          if (linkEtiqueta && !linkEtiqueta.includes('/painel/') && (linkEtiqueta.startsWith('http://') || linkEtiqueta.startsWith('https://'))) {
-                            window.open(linkEtiqueta, '_blank', 'noopener,noreferrer');
-                          } else {
-                            handleImprimirEtiquetaOficialMelhorEnvio(pedidoSelecionado);
-                          }
-                        }}
-                        disabled={gerandoEtiquetaOficial}
-                        className="w-full h-11 px-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center gap-2.5 border border-slate-100 transition text-left cursor-pointer active:scale-98"
-                      >
-                        <Printer className="w-4 h-4 text-emerald-600 shrink-0" />
-                        <span>Imprimir Etiqueta</span>
-                      </button>
-                    )}
-
-                    {/* Ação 5: Etiqueta HUBI (APENAS se já enviado e não retirada) */}
+                    {/* Ação: Etiqueta (APENAS se já enviado e não retirada) */}
                     {emTransitoOuEntregue && !isRetirada && (
                       <button
                         type="button"
@@ -1848,7 +1765,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         className="w-full h-11 px-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center gap-2.5 border border-slate-100 transition text-left cursor-pointer active:scale-98"
                       >
                         <Tag className="w-4 h-4 text-slate-500 shrink-0" />
-                        <span>Etiqueta HUBI</span>
+                        <span>Etiqueta</span>
                       </button>
                     )}
 

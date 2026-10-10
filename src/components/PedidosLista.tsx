@@ -105,7 +105,21 @@ export const ehUrlEtiquetaValida = (url?: string | null): boolean => {
   if (!u || u === 'null' || u === 'undefined') return false;
   if (!u.startsWith('http://') && !u.startsWith('https://') && !u.startsWith('blob:')) return false;
   if (u.includes('404')) return false;
-  if (u.includes('/painel/envios') || u.includes('/painel/') || u.includes('/portal/login') || u.includes('/login') || u.includes('/portal')) return false;
+  // Bloqueia rotas de autenticação ou painéis administrativos que exigem login
+  if (
+    u.includes('/painel/envios') ||
+    u.includes('/painel/') ||
+    u.includes('/portal/login') ||
+    u.includes('/login') ||
+    u.includes('/entrar') ||
+    u.includes('/auth')
+  ) {
+    return false;
+  }
+  // Permite links públicos tokenizados de impressão de etiquetas e DACE do Melhor Envio
+  if (u.includes('/portal/imprimir') || u.includes('/imprimir/')) return true;
+  // Bloqueia acessos genéricos ao portal/painel sem rota direta de documento
+  if (u.includes('/portal') || u.includes('/painel')) return false;
   if (u.endsWith('.com.br') || u.endsWith('.com.br/')) return false;
   return true;
 };
