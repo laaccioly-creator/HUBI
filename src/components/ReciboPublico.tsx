@@ -346,11 +346,16 @@ export const ReciboPublico: React.FC = () => {
               <strong className="text-slate-800">{labelEndereco} </strong>
               <span>{enderecoExibicao}</span>
             </div>
-            {(pe?.codigo_corrida || (pedido as any)?.codigo_corrida) && (
-              <div className="text-emerald-700 font-bold pt-0.5">
-                Código da Corrida: {pe?.codigo_corrida || (pedido as any)?.codigo_corrida}
-              </div>
-            )}
+            {(() => {
+              const rawCod = pe?.codigo_corrida || (pedido as any)?.codigo_corrida || (pedido as any)?.metadados?.codigo_corrida;
+              const codCorrida = (rawCod && !String(rawCod).startsWith('dqt_') && (String(rawCod).startsWith('del_') || !String(rawCod).includes('_'))) ? rawCod : null;
+              if (!codCorrida) return null;
+              return (
+                <div className="text-emerald-700 font-bold pt-0.5">
+                  Código da Corrida: {codCorrida}
+                </div>
+              );
+            })()}
             {pe?.codigo_rastreio && (
               <div className="text-emerald-700 font-bold pt-0.5">
                 Rastreio: {pe.codigo_rastreio}

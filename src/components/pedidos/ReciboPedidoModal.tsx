@@ -46,7 +46,8 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
 
   let formaEntregaTexto = 'RETIRADA NA LOJA';
   const nomeApp = (pedido as any)?.nome_app || pe?.nome_app || (pedido as any)?.metadados?.nome_app;
-  const codigoCorrida = (pedido as any)?.codigo_corrida || pe?.codigo_corrida || (pedido as any)?.metadados?.codigo_corrida;
+  const rawCodigoCorrida = (pedido as any)?.codigo_corrida || pe?.codigo_corrida || (pedido as any)?.metadados?.codigo_corrida;
+  const codigoCorrida = (rawCodigoCorrida && !String(rawCodigoCorrida).startsWith('dqt_') && (String(rawCodigoCorrida).startsWith('del_') || !String(rawCodigoCorrida).includes('_'))) ? rawCodigoCorrida : null;
   const codigoRastreio = pe?.codigo_rastreio || pedido.codigo_rastreio || (pedido as any)?.metadados?.codigo_rastreio;
 
   if (!ehRetirada) {
@@ -273,9 +274,9 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 <strong className="text-slate-900">{ehRetirada ? 'Local de Retirada:' : 'Endereço de Entrega:'} </strong>
                 <span className="text-slate-700">{ehRetirada ? enderecoLojaFormatado : enderecoDestino}</span>
               </div>
-              {(pe?.codigo_corrida || (pedido as any)?.codigo_corrida) && (
+              {codigoCorrida && (
                 <div className="text-emerald-700 font-bold pt-0.5">
-                  Código da Corrida: {pe?.codigo_corrida || (pedido as any)?.codigo_corrida}
+                  Código da Corrida: {codigoCorrida}
                 </div>
               )}
               {pe?.codigo_rastreio && (

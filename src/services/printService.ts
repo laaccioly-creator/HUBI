@@ -225,7 +225,8 @@ export const obterInfoEntregaRecibo = (
   const servico = (pe?.servico_codigo || (pedido as any).metadados?.servico_frete_codigo || pe?.nome_app || '').toLowerCase();
 
   const nomeApp = (pedido as any)?.nome_app || pe?.nome_app || (pedido as any)?.metadados?.nome_app;
-  const codigoCorrida = (pedido as any)?.codigo_corrida || pe?.codigo_corrida || (pedido as any)?.metadados?.codigo_corrida;
+  const rawCodigoCorrida = (pedido as any)?.codigo_corrida || pe?.codigo_corrida || (pedido as any)?.metadados?.codigo_corrida;
+  const codigoCorrida = (rawCodigoCorrida && !String(rawCodigoCorrida).startsWith('dqt_') && (String(rawCodigoCorrida).startsWith('del_') || !String(rawCodigoCorrida).includes('_'))) ? rawCodigoCorrida : null;
 
   const temFreteCobrado = Number(pedido.valor_frete || 0) > 0 || Number(pe?.valor_frete || 0) > 0;
   const temProvedorEntrega = Boolean(

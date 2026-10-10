@@ -527,23 +527,29 @@ export const PedidosLista: React.FC = () => {
       textoConsolidado.includes('melhorenvio');
 
     const nomeApp = (pedido as any)?.nome_app || pe?.nome_app || (pedido as any)?.metadados?.nome_app;
-    const ehAppEntrega =
-      pe?.tipo_operacao === 'app_entrega' ||
-      (pedido as any)?.tipo_operacao === 'app_entrega' ||
-      Boolean(pe?.app_entrega_id) ||
-      Boolean(nomeApp);
-
-    const ehUberDirect =
+    const ehUber =
       !ehMelhorEnvio &&
-      !ehAppEntrega &&
       (peProvedor === 'uber' ||
       metaProvedor === 'uber' ||
       diretoProvedor === 'uber' ||
-      textoConsolidado.includes('uber direct'));
+      peTransp.toLowerCase().includes('uber') ||
+      metaTransp.toLowerCase().includes('uber') ||
+      diretoTransp.toLowerCase().includes('uber') ||
+      String(nomeApp || '').toLowerCase().includes('uber') ||
+      textoConsolidado.includes('uber direct') ||
+      textoConsolidado.includes('uber flash') ||
+      textoConsolidado.includes('uber'));
+
+    const ehAppEntrega =
+      !ehUber &&
+      (pe?.tipo_operacao === 'app_entrega' ||
+      (pedido as any)?.tipo_operacao === 'app_entrega' ||
+      Boolean(pe?.app_entrega_id) ||
+      Boolean(nomeApp));
 
     const ehTransportadoraPrivada =
       !ehMelhorEnvio &&
-      !ehUberDirect &&
+      !ehUber &&
       (pe?.tipo_operacao === 'transportadora' ||
       (pedido as any)?.tipo_operacao === 'transportadora' ||
       Boolean(pe?.transportadora_id) ||
@@ -561,7 +567,7 @@ export const PedidosLista: React.FC = () => {
 
     const ehCorreios =
       !ehMelhorEnvio &&
-      !ehUberDirect &&
+      !ehUber &&
       !ehTransportadoraPrivada &&
       (peProvedor === 'correios' ||
       metaProvedor === 'correios' ||
@@ -584,12 +590,12 @@ export const PedidosLista: React.FC = () => {
       } else {
         provNome = transpNomeBase || 'Melhor Envio';
       }
-    } else if (ehUberDirect) {
+    } else if (ehUber) {
       prov = 'uber';
-      provNome = peTransp || metaTransp || diretoTransp || 'Uber Direct';
+      provNome = peTransp || metaTransp || diretoTransp || (nomeApp && String(nomeApp).toLowerCase().includes('flash') ? 'Uber Flash' : 'Uber Direct');
     } else if (ehAppEntrega) {
       prov = 'frete_proprio';
-      provNome = nomeApp || (peTransp && peTransp.toLowerCase() !== 'entrega' && !peTransp.toLowerCase().includes('corrida') ? peTransp : 'Uber Flash');
+      provNome = nomeApp || peTransp || 'App de Entrega';
     } else if (ehTransportadoraPrivada) {
       prov = 'frete_proprio';
       provNome = formatarNomeTransportadora(peTransp || metaTransp || diretoTransp || 'Jadlog');
@@ -3085,34 +3091,50 @@ export const PedidosLista: React.FC = () => {
                       })()}
 
                       {/* Ação Primária de Despacho (se ainda não despachado e pagamento já quitado) */}
-                      {pedidoSelecionado.status !== 'cancelado' && pedidoSelecionado.status !== 'concluido' && (resolverStatusPagamento(pedidoSelecionado) === 'pago' || resolverStatusPagamento(pedidoSelecionado) === 'fiado') && !(linkRastreio || codigoRastreio || despachadoEm || pedidoSelecionado.status === 'enviado') && (
-                        <div className="pt-2">
-                          <button
-                            type="button"
-                            onClick={handleDespacharPedido}
-                            disabled={despachando}
-                            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider transition shadow-md shadow-emerald-600/20 cursor-pointer active:scale-95 disabled:opacity-50"
-                          >
-                            {despachando ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                <span>Despachando...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Truck className="w-4 h-4" />
-                                <span>
-                                  {prov === 'uber'
-                                    ? 'Chamar Uber Direct'
-                                    : prov === 'melhor_envio'
-                                    ? 'Gerar Etiqueta de Envio'
-                                    : 'Confirmar Envio'}
-                                </span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      )}
+                      {(() => {
+                        const isUber = prov === 'uber' || (pe?.transportadora_nome || '').toLowerCase().includes('uber');
+                        const isUberDespachado = Boolean(
+                          (pe?.codigo_corrida && pe.codigo_corrida.startsWith('del_')) ||
+                          (pedidoSelecionado.codigo_rastreio && pedidoSelecionado.codigo_rastreio.startsWith('del_')) ||
+                          (pe?.codigo_rastreio && pe.codigo_rastreio.startsWith('del_')) ||
+                          pe?.status_envio === 'em_transito' ||
+                          pe?.status_envio === 'entregue'
+                        );
+                        const jaDespachado = isUber ? isUberDespachado : Boolean(linkRastreio || codigoRastreio || despachadoEm || pedidoSelecionado.status === 'enviado');
+
+                        if (pedidoSelecionado.status === 'cancelado' || pedidoSelecionado.status === 'concluido' || !(resolverStatusPagamento(pedidoSelecionado) === 'pago' || resolverStatusPagamento(pedidoSelecionado) === 'fiado') || jaDespachado) {
+                          return null;
+                        }
+
+                        return (
+                          <div className="pt-2">
+                            <button
+                              type="button"
+                              onClick={handleDespacharPedido}
+                              disabled={despachando}
+                              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider transition shadow-md shadow-emerald-600/20 cursor-pointer active:scale-95 disabled:opacity-50"
+                            >
+                              {despachando ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  <span>Despachando...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Truck className="w-4 h-4" />
+                                  <span>
+                                    {isUber
+                                      ? 'Chamar Uber Direct'
+                                      : prov === 'melhor_envio'
+                                      ? 'Gerar Etiqueta de Envio'
+                                      : 'Confirmar Envio'}
+                                  </span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 );
@@ -3754,8 +3776,8 @@ export const PedidosLista: React.FC = () => {
                                   </button>
                                 ) : (pedido.status === 'aguardando_envio' || (pedido.status === 'confirmado' && !resolverProvedorEntrega(pedido).isRetirada)) ? (
                                   (() => {
-                                    const { prov } = resolverProvedorEntrega(pedido);
-                                    const isUber = prov === 'uber';
+                                    const { prov, pe } = resolverProvedorEntrega(pedido);
+                                    const isUber = prov === 'uber' || (pe?.transportadora_nome || '').toLowerCase().includes('uber');
                                     const isMelhorEnvio = prov === 'melhor_envio';
                                     const estaPagoOuFiado = statusPag === 'pago' || statusPag === 'fiado';
                                     const permiteDespachoSemPagamento = prov === 'frete_proprio' || prov === 'retirada_loja';

@@ -504,23 +504,29 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       textoConsolidado.includes('melhorenvio');
 
     const nomeApp = (pedido as any)?.nome_app || pe?.nome_app || (pedido as any)?.metadados?.nome_app;
-    const ehAppEntrega =
-      pe?.tipo_operacao === 'app_entrega' ||
-      (pedido as any)?.tipo_operacao === 'app_entrega' ||
-      Boolean(pe?.app_entrega_id) ||
-      Boolean(nomeApp);
-
-    const ehUberDirect =
+    const ehUber =
       !ehMelhorEnvio &&
-      !ehAppEntrega &&
       (peProvedor === 'uber' ||
       metaProvedor === 'uber' ||
       diretoProvedor === 'uber' ||
-      textoConsolidado.includes('uber direct'));
+      peTransp.toLowerCase().includes('uber') ||
+      metaTransp.toLowerCase().includes('uber') ||
+      diretoTransp.toLowerCase().includes('uber') ||
+      String(nomeApp || '').toLowerCase().includes('uber') ||
+      textoConsolidado.includes('uber direct') ||
+      textoConsolidado.includes('uber flash') ||
+      textoConsolidado.includes('uber'));
+
+    const ehAppEntrega =
+      !ehUber &&
+      (pe?.tipo_operacao === 'app_entrega' ||
+      (pedido as any)?.tipo_operacao === 'app_entrega' ||
+      Boolean(pe?.app_entrega_id) ||
+      Boolean(nomeApp));
 
     const ehTransportadoraPrivada =
       !ehMelhorEnvio &&
-      !ehUberDirect &&
+      !ehUber &&
       (pe?.tipo_operacao === 'transportadora' ||
       (pedido as any)?.tipo_operacao === 'transportadora' ||
       Boolean(pe?.transportadora_id) ||
@@ -538,7 +544,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
     const ehCorreios =
       !ehMelhorEnvio &&
-      !ehUberDirect &&
+      !ehUber &&
       !ehTransportadoraPrivada &&
       (peProvedor === 'correios' ||
       metaProvedor === 'correios' ||
@@ -561,12 +567,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       } else {
         provNome = transpNomeBase || 'Melhor Envio';
       }
-    } else if (ehUberDirect) {
+    } else if (ehUber) {
       prov = 'uber';
-      provNome = peTransp || metaTransp || diretoTransp || 'Uber Direct';
+      provNome = peTransp || metaTransp || diretoTransp || (nomeApp && String(nomeApp).toLowerCase().includes('flash') ? 'Uber Flash' : 'Uber Direct');
     } else if (ehAppEntrega) {
       prov = 'frete_proprio';
-      provNome = nomeApp || (peTransp && peTransp.toLowerCase() !== 'entrega' && !peTransp.toLowerCase().includes('corrida') ? peTransp : 'Uber Flash');
+      provNome = nomeApp || peTransp || 'App de Entrega';
     } else if (ehTransportadoraPrivada) {
       prov = 'frete_proprio';
       provNome = formatarNomeTransportadora(peTransp || metaTransp || diretoTransp || 'Jadlog');
@@ -1562,18 +1568,33 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
                 // Prioridade 3: Se status for aguardando_envio e já estiver pago/fiado
                 if (pedidoSelecionado.status === 'aguardando_envio') {
-                  const pe = entregaPedido || pedidoSelecionado.pedido_entrega;
-                  const prov = pe?.provedor || (pedidoSelecionado as any)?.entrega_provedor;
-                  const ehParceiro = prov === 'uber' || prov === 'melhor_envio';
+                  const { prov, pe } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
 
-                  if (ehParceiro) {
+                  if (prov === 'uber') {
                     return (
-                      <div className="flex-1 flex flex-col gap-1.5">
-                        <div className="h-11 px-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-800 font-bold text-[11px] uppercase flex items-center justify-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-amber-600" />
-                          <span>Aguardando Envio ({prov === 'uber' ? 'Uber Direct' : 'Melhor Envio'})</span>
-                        </div>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleAcionarDespacho(pedidoSelecionado)}
+                        className="flex-1 h-12 rounded-2xl bg-slate-950 hover:bg-black text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
+                        title="Chamar Uber Direct agora"
+                      >
+                        <Truck className="w-4 h-4 text-emerald-400" />
+                        <span>Chamar Uber</span>
+                      </button>
+                    );
+                  }
+
+                  if (prov === 'melhor_envio') {
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => handleAcionarDespacho(pedidoSelecionado)}
+                        className="flex-1 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
+                        title="Gerar envio no Melhor Envio"
+                      >
+                        <Truck className="w-4 h-4 text-white" />
+                        <span>Gerar Envio</span>
+                      </button>
                     );
                   }
 
@@ -1725,7 +1746,15 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               {/* Informações Logísticas e Operacionais Resolvidas com Lógica Oficial do Desktop */}
               {(() => {
                 const { prov, pe, provNome, isRetirada } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
-                const isUber = prov === 'uber';
+                const metaPed = (typeof pedidoSelecionado.metadados === 'object' && pedidoSelecionado.metadados !== null) ? pedidoSelecionado.metadados : {};
+                const isUber = prov === 'uber' ||
+                  (pe?.transportadora_nome || '').toLowerCase().includes('uber') ||
+                  (pe?.forma_entrega_nome || '').toLowerCase().includes('uber') ||
+                  (String((pedidoSelecionado as any).transportadora_nome || pedidoSelecionado.nome_transportadora || '')).toLowerCase().includes('uber') ||
+                  (pedidoSelecionado.forma_entrega?.nome || '').toLowerCase().includes('uber') ||
+                  (String((metaPed as any).transportadora_nome || '')).toLowerCase().includes('uber') ||
+                  (String((metaPed as any).nome_app || '')).toLowerCase().includes('uber') ||
+                  (pe?.nome_app || '').toLowerCase().includes('uber');
                 const ehMelhorEnvio = prov === 'melhor_envio';
                 const isMelhorEnvio = ehMelhorEnvio;
 
@@ -1738,15 +1767,26 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 const saldoDevedor = Number(pedidoSelecionado.saldo_devedor ?? (Number(pedidoSelecionado.valor_total || 0) - Number(pedidoSelecionado.valor_pago || 0)));
                 const precisaReceber = pedidoSelecionado.status !== 'cancelado' && (statusPag === 'aguardando_pagamento' || statusPag === 'parcialmente_pago' || saldoDevedor > 0.009);
 
+                const isUberDespachado = Boolean(
+                  (pe?.codigo_corrida && pe.codigo_corrida.startsWith('del_')) ||
+                  (pedidoSelecionado.codigo_rastreio && pedidoSelecionado.codigo_rastreio.startsWith('del_')) ||
+                  (pe?.codigo_rastreio && pe.codigo_rastreio.startsWith('del_')) ||
+                  pe?.status_envio === 'em_transito' ||
+                  pe?.status_envio === 'entregue'
+                );
+
                 const aguardaEnvio =
                   estaPagoOuFiado &&
-                  (pedidoSelecionado.status === 'aguardando_envio' ||
-                  (pedidoSelecionado.status === 'confirmado' && !isRetirada));
+                  pedidoSelecionado.status !== 'cancelado' &&
+                  pedidoSelecionado.status !== 'concluido' &&
+                  !isRetirada &&
+                  (isUber ? !isUberDespachado : (pedidoSelecionado.status === 'aguardando_envio' || pedidoSelecionado.status === 'confirmado'));
 
-                const emTransitoOuEntregue =
-                  pedidoSelecionado.status === 'enviado' ||
-                  pedidoSelecionado.status === 'saiu_para_entrega' ||
-                  pedidoSelecionado.status === 'entregue';
+                const emTransitoOuEntregue = isUber
+                  ? isUberDespachado
+                  : (pedidoSelecionado.status === 'enviado' ||
+                     pedidoSelecionado.status === 'saiu_para_entrega' ||
+                     pedidoSelecionado.status === 'entregue');
 
                 const prontoParaConcluir =
                   emTransitoOuEntregue ||

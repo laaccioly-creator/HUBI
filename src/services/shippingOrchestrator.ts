@@ -647,19 +647,39 @@ export class ShippingOrchestrator {
       : null;
 
     // Assegura conformidade com o CHECK (provedor IN ('uber', 'melhor_envio', 'retirada_loja', 'frete_proprio'))
+    const ehUber =
+      entrega.provedor === 'uber' ||
+      (entrega.transportadora_nome || '').toLowerCase().includes('uber') ||
+      (entrega.nome_app || '').toLowerCase().includes('uber') ||
+      (entrega.forma_entrega_nome || '').toLowerCase().includes('uber');
+
     let provedorFinal: 'uber' | 'melhor_envio' | 'retirada_loja' | 'frete_proprio' = 'melhor_envio';
     if (entrega.tipo_atendimento === 'retirada' || entrega.provedor === 'retirada_loja') {
       provedorFinal = 'retirada_loja';
-    } else if (entrega.provedor === 'melhor_envio') {
+    } else if (ehUber) {
+      provedorFinal = 'uber';
+    } else if (entrega.provedor === 'melhor_envio' || (entrega.transportadora_nome || '').toLowerCase().includes('melhor envio')) {
       provedorFinal = 'melhor_envio';
     } else if (entrega.tipo_operacao === 'app_entrega') {
       provedorFinal = 'frete_proprio';
-    } else if (entrega.provedor === 'uber' || (entrega.transportadora_nome || '').toLowerCase().includes('uber direct')) {
-      provedorFinal = 'uber';
     } else if (entrega.provedor === 'frete_proprio' || (entrega.transportadora_nome || '').toLowerCase().includes('frete próprio') || (entrega.transportadora_nome || '').toLowerCase().includes('próprio')) {
       provedorFinal = 'frete_proprio';
     } else {
       provedorFinal = 'melhor_envio';
+    }
+
+    // Sanitização estrita de tokens de cotação (dqt_... NUNCA pode ser gravado como corrida ou rastreio)
+    let cotacaoIdDefinido = (entrega as any).cotacao_id || null;
+    let codigoCorridaSanitizado = entrega.codigo_corrida || null;
+    let codigoRastreioSanitizado = entrega.codigo_rastreio || null;
+
+    if (codigoCorridaSanitizado && codigoCorridaSanitizado.startsWith('dqt_')) {
+      if (!cotacaoIdDefinido) cotacaoIdDefinido = codigoCorridaSanitizado;
+      codigoCorridaSanitizado = null;
+    }
+    if (codigoRastreioSanitizado && codigoRastreioSanitizado.startsWith('dqt_')) {
+      if (!cotacaoIdDefinido) cotacaoIdDefinido = codigoRastreioSanitizado;
+      codigoRastreioSanitizado = null;
     }
 
     const payload: any = {
@@ -668,6 +688,9 @@ export class ShippingOrchestrator {
       cliente_endereco_id: clienteEnderecoIdSanitizado,
       forma_entrega_id: formaEntregaIdSanitizado,
       provedor: provedorFinal,
+      codigo_corrida: codigoCorridaSanitizado,
+      codigo_rastreio: codigoRastreioSanitizado,
+      cotacao_id: cotacaoIdDefinido,
       atualizado_em: new Date().toISOString()
     };
 
@@ -1863,24 +1886,26 @@ export class ShippingOrchestrator {
       }
     }
 
+    const ehUberSolicitado =
+      pe.provedor === 'uber' ||
+      resultado.opcao_frete?.provedor === 'uber' ||
+      (resultado.opcao_frete?.transportadora_nome || '').toLowerCase().includes('uber') ||
+      (pe.transportadora_nome || '').toLowerCase().includes('uber') ||
+      (pe.nome_app || '').toLowerCase().includes('uber') ||
+      (pe.forma_entrega_nome || '').toLowerCase().includes('uber');
+
     // Identificação do provedor
     let provedorFinal: 'uber' | 'melhor_envio' | 'retirada_loja' | 'frete_proprio' = 'frete_proprio';
     if (resultado.tipo_atendimento === 'retirada') {
       provedorFinal = 'retirada_loja';
+    } else if (ehUberSolicitado) {
+      provedorFinal = 'uber';
     } else if (
       pe.provedor === 'melhor_envio' ||
       resultado.opcao_frete?.provedor === 'melhor_envio' ||
       (pe.transportadora_nome || '').toLowerCase().includes('melhor envio')
     ) {
       provedorFinal = 'melhor_envio';
-    } else if (
-      pe.tipo_operacao !== 'app_entrega' && (
-        pe.provedor === 'uber' ||
-        resultado.opcao_frete?.provedor === 'uber' ||
-        ((pe.transportadora_nome || '').toLowerCase().includes('uber direct'))
-      )
-    ) {
-      provedorFinal = 'uber';
     } else if (
       pe.tipo_operacao === 'app_entrega' ||
       pe.tipo_operacao === 'transportadora' ||
@@ -1914,6 +1939,9 @@ export class ShippingOrchestrator {
       (resultado.opcao_frete?.id?.startsWith('dqt_') ? resultado.opcao_frete.id : null) ||
       null;
 
+    const codigoCorridaLimpo = (pe.codigo_corrida && !pe.codigo_corrida.startsWith('dqt_')) ? pe.codigo_corrida : null;
+    const codigoRastreioLimpo = (pe.codigo_rastreio && !pe.codigo_rastreio.startsWith('dqt_')) ? pe.codigo_rastreio : null;
+
     const dadosEntrega: Partial<PedidoEntrega> = {
       tipo_atendimento: resultado.tipo_atendimento || 'entrega',
       provedor: provedorFinal,
@@ -1924,8 +1952,8 @@ export class ShippingOrchestrator {
       nome_app: pe.nome_app || (provedorFinal === 'uber' ? 'Uber Direct' : null),
       app_entrega_id: pe.app_entrega_id || null,
       transportadora_id: pe.transportadora_id || null,
-      codigo_corrida: pe.codigo_corrida || (provedorFinal === 'uber' ? cotacaoIdResolvido : null),
-      codigo_rastreio: pe.codigo_rastreio || null,
+      codigo_corrida: codigoCorridaLimpo,
+      codigo_rastreio: codigoRastreioLimpo,
       link_rastreio: pe.link_rastreio || null,
       servico_codigo: pe.servico_codigo || (provedorFinal === 'uber' ? 'uber_direct' : null),
       valor_frete: Number(valorFrete || 0),
@@ -1984,11 +2012,11 @@ export class ShippingOrchestrator {
     const metaAtual = (pedAtual?.metadados && typeof pedAtual.metadados === 'object') ? { ...pedAtual.metadados } : {};
     metaAtual.transportadora_nome = nomeRealFrete;
     metaAtual.nome_app = pe.nome_app || null;
-    metaAtual.codigo_corrida = pe.codigo_corrida || (provedorFinal === 'uber' ? cotacaoIdResolvido : null);
+    metaAtual.codigo_corrida = codigoCorridaLimpo;
     if (cotacaoIdResolvido) {
       metaAtual.cotacao_id = cotacaoIdResolvido;
     }
-    metaAtual.codigo_rastreio = pe.codigo_rastreio || null;
+    metaAtual.codigo_rastreio = codigoRastreioLimpo;
     metaAtual.link_rastreio = pe.link_rastreio || null;
     metaAtual.provedor_frete = provedorFinal;
     metaAtual.servico_frete_codigo = pe.servico_codigo || (provedorFinal === 'uber' ? 'uber_direct' : null);
@@ -2023,8 +2051,8 @@ export class ShippingOrchestrator {
         forma_entrega_id: (pe.forma_entrega_id && isUuidValido(pe.forma_entrega_id)) ? pe.forma_entrega_id : null,
         tipo_operacao: pe.tipo_operacao || (provedorFinal === 'uber' ? 'proprio' : null),
         nome_app: pe.nome_app || (provedorFinal === 'uber' ? 'Uber Direct' : null),
-        codigo_corrida: pe.codigo_corrida || null,
-        codigo_rastreio: pe.codigo_rastreio || null,
+        codigo_corrida: codigoCorridaLimpo,
+        codigo_rastreio: codigoRastreioLimpo,
         link_rastreio: pe.link_rastreio || null,
         servico_correios: pe.servico_correios || null,
         nome_transportadora: nomeRealFrete,

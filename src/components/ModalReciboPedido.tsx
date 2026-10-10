@@ -258,11 +258,16 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
                   <strong className="text-slate-900">{ehRetirada ? 'Local de Retirada:' : 'Endereço de Entrega:'} </strong>
                   <span className="text-slate-700">{ehRetirada ? (enderecoLojaFormatado || 'Balcão da Loja') : enderecoDestino}</span>
                 </div>
-                {(pe?.codigo_corrida || (pedAtual as any)?.codigo_corrida) && (
-                  <div className="text-emerald-700 font-bold pt-0.5">
-                    Código da Corrida: {pe?.codigo_corrida || (pedAtual as any)?.codigo_corrida}
-                  </div>
-                )}
+                {(() => {
+                  const rawCod = pe?.codigo_corrida || (pedAtual as any)?.codigo_corrida || (pedAtual as any)?.metadados?.codigo_corrida;
+                  const codCorrida = (rawCod && !String(rawCod).startsWith('dqt_') && (String(rawCod).startsWith('del_') || !String(rawCod).includes('_'))) ? rawCod : null;
+                  if (!codCorrida) return null;
+                  return (
+                    <div className="text-emerald-700 font-bold pt-0.5">
+                      Código da Corrida: {codCorrida}
+                    </div>
+                  );
+                })()}
                 {pe?.codigo_rastreio && (
                   <div className="text-emerald-700 font-bold pt-0.5">
                     Rastreio: {pe.codigo_rastreio}
