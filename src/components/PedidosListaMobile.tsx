@@ -69,103 +69,14 @@ import {
   podeEditarPedido
 } from '../utils/statusPedidoUtils';
 
-interface HistoricoItemMobile {
-  status: string;
-  data: string;
-  usuario?: string;
-  tipo?: 'status' | 'edicao' | 'criacao';
-  detalhes?: string;
-}
+import {
+  HistoricoItem,
+  extrairHistoricoPedidoConsolidado,
+  formatarDataHoraHistorico
+} from '../utils/historicoPedidoUtils';
 
-const extrairHistoricoPedidoMobile = (pedido: Pedido): HistoricoItemMobile[] => {
-  const itens: HistoricoItemMobile[] = [];
-
-  // 1. Tabela relacional historico_pedidos (Prioridade Máxima)
-  if (Array.isArray(pedido.historico) && pedido.historico.length > 0) {
-    pedido.historico.forEach(h => {
-      itens.push({
-        status: h.status_novo || h.tipo_evento,
-        data: h.criado_em,
-        usuario: h.usuario?.nome_completo || 'Operador',
-        tipo: (h.tipo_evento === 'pedido_editado' || h.tipo_evento === 'edicao_pdv') ? 'edicao' : 'status',
-        detalhes: h.descricao || (h.detalhes ? JSON.stringify(h.detalhes) : undefined)
-      });
-    });
-  }
-
-  // 2. Tentar ler do metadados.historico_status (Fallback retrocompatível)
-  if (pedido.metadados && typeof pedido.metadados === 'object') {
-    const historicoMeta = (pedido.metadados as any).historico_status;
-    if (Array.isArray(historicoMeta) && historicoMeta.length > 0) {
-      itens.push(...historicoMeta.map((item: any) => ({
-        status: item.status,
-        data: item.data,
-        usuario: item.usuario,
-        tipo: item.tipo || 'status',
-        detalhes: item.detalhes
-      })));
-    }
-  }
-
-  // 3. Fallback para tag legacy em observacoes <!--HUBI_HISTORICO:[...]--> se nao achou metadados.historico_status
-  if (itens.length === 0) {
-    try {
-      const match = pedido.observacoes?.match(/<!--HUBI_HISTORICO:(.*?)-->/);
-      if (match && match[1]) {
-        const parsed = JSON.parse(match[1]);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          itens.push(...parsed);
-        }
-      }
-    } catch {
-      // fallback
-    }
-  }
-
-  // 4. Histórico de edições do pedido (metadados.historico_edicoes)
-  if (pedido.metadados && typeof pedido.metadados === 'object') {
-    const historicoEdicoes = (pedido.metadados as any).historico_edicoes;
-    if (Array.isArray(historicoEdicoes) && historicoEdicoes.length > 0) {
-      historicoEdicoes.forEach((ed: any) => {
-        itens.push({
-          status: ed.acao || 'Edição no PDV',
-          data: ed.data,
-          usuario: ed.usuario_nome || 'Operador',
-          tipo: 'edicao',
-          detalhes: ed.detalhes
-        });
-      });
-    }
-  }
-
-  if (itens.length === 0) {
-    if (pedido.criado_em) {
-      itens.push({
-        status: 'pendente',
-        data: pedido.criado_em,
-        usuario: pedido.vendedor?.nome_completo || (pedido.origem === 'catalogo_online' ? 'Catálogo Online' : 'Sistema'),
-        tipo: 'status'
-      });
-    }
-    if (pedido.status && pedido.status !== 'pendente') {
-      itens.push({
-        status: pedido.status,
-        data: pedido.atualizado_em || pedido.data_venda || new Date().toISOString(),
-        usuario: pedido.vendedor?.nome_completo || 'Operador',
-        tipo: 'status'
-      });
-    }
-  }
-
-  const vistos = new Set<string>();
-  const itensUnicos = itens.filter(item => {
-    const chave = `${item.data}_${item.status}_${item.usuario}_${item.detalhes || ''}`;
-    if (vistos.has(chave)) return false;
-    vistos.add(chave);
-    return true;
-  });
-
-  return itensUnicos.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+const extrairHistoricoPedidoMobile = (pedido: Pedido): HistoricoItem[] => {
+  return extrairHistoricoPedidoConsolidado(pedido);
 };
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { ClientePerfilMobile } from './ClientePerfilMobile';
@@ -1374,7 +1285,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                                 {item.status.replace(/_/g, ' ')}
                               </p>
                               <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-normal">
-                                <span>{new Date(item.data).toLocaleString('pt-BR')}</span>
+                                <span>{formatarDataHoraHistorico(item.data)}</span>
                                 {item.usuario && <span>• {item.usuario}</span>}
                               </div>
                               {item.detalhes && (

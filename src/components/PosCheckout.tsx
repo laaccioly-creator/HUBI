@@ -1608,7 +1608,14 @@ export const PosCheckout: React.FC = () => {
           return;
         } catch (nuvemErr: any) {
           console.error('[PosCheckout] Erro ao gravar venda no Supabase:', nuvemErr);
-          mostrarErro(nuvemErr?.message || 'Falha ao gravar pedido no banco de dados. Verifique a conexão.', 'Erro na Gravação');
+          let msgAmigavel = 'Falha ao gravar pedido no banco de dados. Verifique a conexão.';
+          const rawMsg = nuvemErr?.message || '';
+          if (rawMsg.includes('foreign key constraint') || rawMsg.includes('violates')) {
+            msgAmigavel = 'Inconsistência cadastral de usuário/operador ao registrar o pedido. Verifique o operador selecionado ou reconecte sua sessão.';
+          } else if (rawMsg) {
+            msgAmigavel = rawMsg;
+          }
+          mostrarErro(msgAmigavel, 'Erro na Gravação');
           return;
         }
       }

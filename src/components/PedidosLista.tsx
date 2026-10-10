@@ -93,13 +93,11 @@ import { orderGuardJevService, RestricaoOperacionalPedido } from '../services/or
 type OrdenacaoCampo = 'data' | 'valor' | 'codigo';
 type OrdenacaoDirecao = 'asc' | 'desc';
 
-interface HistoricoItem {
-  status: string;
-  data: string;
-  usuario?: string;
-  tipo?: 'status' | 'edicao' | 'criacao';
-  detalhes?: string;
-}
+import {
+  HistoricoItem,
+  extrairHistoricoPedidoConsolidado,
+  formatarDataHoraHistorico
+} from '../utils/historicoPedidoUtils';
 
 export const ehUrlEtiquetaValida = (url?: string | null): boolean => {
   if (!url || typeof url !== 'string') return false;
@@ -683,92 +681,7 @@ export const PedidosLista: React.FC = () => {
   };
 
   const extrairHistoricoPedido = (pedido: Pedido): HistoricoItem[] => {
-    const itens: HistoricoItem[] = [];
-    
-    // 1. Tabela relacional historico_pedidos (Prioridade Máxima)
-    if (Array.isArray(pedido.historico) && pedido.historico.length > 0) {
-      pedido.historico.forEach(h => {
-        itens.push({
-          status: h.status_novo || h.tipo_evento,
-          data: h.criado_em,
-          usuario: h.usuario?.nome_completo || 'Operador',
-          tipo: (h.tipo_evento === 'pedido_editado' || h.tipo_evento === 'edicao_pdv') ? 'edicao' : 'status',
-          detalhes: h.descricao || (h.detalhes ? JSON.stringify(h.detalhes) : undefined)
-        });
-      });
-    }
-
-    // 2. Status de metadados.historico_status (Fallback retrocompatível)
-    if (pedido.metadados && typeof pedido.metadados === 'object') {
-      const historicoMeta = (pedido.metadados as any).historico_status;
-      if (Array.isArray(historicoMeta) && historicoMeta.length > 0) {
-        historicoMeta.forEach((it: any) => {
-          itens.push({
-            status: it.status,
-            data: it.data,
-            usuario: it.usuario,
-            tipo: 'status'
-          });
-        });
-      }
-    }
-
-    // 3. Histórico de edições do pedido (metadados.historico_edicoes)
-    if (pedido.metadados && typeof pedido.metadados === 'object') {
-      const historicoEdicoes = (pedido.metadados as any).historico_edicoes;
-      if (Array.isArray(historicoEdicoes) && historicoEdicoes.length > 0) {
-        historicoEdicoes.forEach((ed: any) => {
-          itens.push({
-            status: ed.acao || 'Edição no PDV',
-            data: ed.data,
-            usuario: ed.usuario_nome || 'Operador',
-            tipo: 'edicao',
-            detalhes: ed.detalhes
-          });
-        });
-      }
-    }
-
-    // 4. Fallback inicial se não houver histórico estruturado
-    if (itens.length === 0) {
-      if (pedido.criado_em) {
-        itens.push({
-          status: 'pendente',
-          data: pedido.criado_em,
-          usuario: pedido.vendedor?.nome_completo || 'Sistema',
-          tipo: 'criacao'
-        });
-      }
-      if (pedido.status && pedido.status !== 'pendente') {
-        itens.push({
-          status: pedido.status,
-          data: pedido.atualizado_em || pedido.data_venda || new Date().toISOString(),
-          usuario: pedido.vendedor?.nome_completo || 'Operador',
-          tipo: 'status'
-        });
-      }
-    }
-
-    // Remove duplicatas exatas se houver sobreposição entre tabela e metadados antigos
-    const vistos = new Set<string>();
-    const itensUnicos = itens.filter(item => {
-      const chave = `${item.data}_${item.status}_${item.usuario}_${item.detalhes || ''}`;
-      if (vistos.has(chave)) return false;
-      vistos.add(chave);
-      return true;
-    });
-
-    const ordenados = itensUnicos.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
-
-    // Não permitir transições consecutivas repetidas para o mesmo status quando não há observação distinta
-    return ordenados.filter((item, idx, arr) => {
-      if (idx === 0) return true;
-      const anterior = arr[idx - 1];
-      if (item.tipo === 'status' && anterior.tipo === 'status' && item.status === anterior.status && (!item.detalhes || item.detalhes === anterior.detalhes)) {
-        return false;
-      }
-      return true;
-    });
+    return extrairHistoricoPedidoConsolidado(pedido);
   };
 
   const adicionarHistoricoMetadados = (pedido: Pedido | null | undefined, novoStatus: string, usuarioNome?: string): Record<string, any> => {
@@ -3412,7 +3325,7 @@ export const PedidosLista: React.FC = () => {
                             {rotuloStatus}
                           </p>
                           <div className="flex items-center gap-2 text-[10px] text-slate-500 font-normal">
-                            <span>{formatarData(item.data)}</span>
+                            <span>{formatarDataHoraHistorico(item.data)}</span>
                             {item.usuario && <span>• Por {item.usuario}</span>}
                           </div>
                           {item.detalhes && (

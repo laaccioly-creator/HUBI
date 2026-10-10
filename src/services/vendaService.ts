@@ -185,7 +185,8 @@ export class VendaService {
       fiado_quitado: fiadoQuitado,
       observacoes: observacoes || null,
       metadados: metaExistente,
-      data_venda: pedidoEmEdicao?.data_venda || dataIso
+      data_venda: pedidoEmEdicao?.data_venda || dataIso,
+      atualizado_por: vendedorIdSanitizado
     };
 
     let pedidoGravado: any;
@@ -399,7 +400,7 @@ export class VendaService {
         await supabase.from('historico_pedidos').insert({
           loja_id: lojaId,
           pedido_id: pedidoId,
-          usuario_id: usuarioId || null,
+          usuario_id: vendedorIdSanitizado || null,
           tipo_evento: pedidoEmEdicao ? 'edicao_pdv' : 'criacao',
           status_anterior: pedidoEmEdicao?.status || null,
           status_novo: statusFinal,

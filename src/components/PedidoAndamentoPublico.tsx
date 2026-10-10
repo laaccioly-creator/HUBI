@@ -25,6 +25,10 @@ import {
   PrintService
 } from '../services/printService';
 import { ReceiptPdfService } from '../services/receiptPdfService';
+import {
+  consolidarHistoricoPedidos,
+  formatarDataHoraHistorico
+} from '../utils/historicoPedidoUtils';
 
 export const PedidoAndamentoPublico: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -100,16 +104,8 @@ export const PedidoAndamentoPublico: React.FC = () => {
             .order('criado_em', { ascending: true });
 
           if (histData && !cancelado) {
-            // Deduplica status consecutivos idênticos
-            const dedup = histData.filter((item, idx, arr) => {
-              if (idx === 0) return true;
-              const ant = arr[idx - 1];
-              if (item.status_novo && ant.status_novo && item.status_novo === ant.status_novo) {
-                return false;
-              }
-              return true;
-            });
-            setHistorico(dedup);
+            const consolidado = consolidarHistoricoPedidos(histData);
+            setHistorico(consolidado);
           }
         }
       } catch (err) {
@@ -258,12 +254,7 @@ export const PedidoAndamentoPublico: React.FC = () => {
   };
 
   const formatarDataHora = (dataStr: string) => {
-    try {
-      const d = new Date(dataStr);
-      return `${d.toLocaleDateString('pt-BR')} às ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
-    } catch {
-      return dataStr;
-    }
+    return formatarDataHoraHistorico(dataStr);
   };
 
   const mapearStatusParaTitulo = (st: string) => {
