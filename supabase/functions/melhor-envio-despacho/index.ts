@@ -260,6 +260,50 @@ serve(async (req: Request) => {
 
     if (acao === "imprimir_etiqueta" || acao === "obter_etiqueta" || acao === "declaracao_conteudo") {
       console.log(`[MelhorEnvio-Edge] Solicitando URL de impressão da etiqueta para o pedido ${pedidoId}...`);
+      const forcarGeracao = Boolean(body.forcar_geracao || body.force);
+      const caminhoCompletoStorage = `${lojaId}/${pedidoId}_etiqueta_completa.pdf`;
+
+      // 1. Verificação de Cache Permanente no bucket 'etiquetas'
+      if (!forcarGeracao && pedidoId && lojaId) {
+        try {
+          const { data: filesExistentes, error: errList } = await supabaseAdmin.storage
+            .from("etiquetas")
+            .list(lojaId, { search: `${pedidoId}_etiqueta_completa.pdf` });
+
+          const jaExiste =
+            !errList &&
+            Array.isArray(filesExistentes) &&
+            filesExistentes.some((f: any) => f.name === `${pedidoId}_etiqueta_completa.pdf`);
+
+          if (jaExiste) {
+            const { data: pubData } = supabaseAdmin.storage
+              .from("etiquetas")
+              .getPublicUrl(caminhoCompletoStorage);
+            const urlPermanente = pubData.publicUrl;
+            console.log(`[MelhorEnvio-Edge] Etiqueta encontrada em cache no Supabase Storage: ${urlPermanente}`);
+
+            // Garante consistência no banco
+            await supabaseAdmin
+              .from("pedido_entregas")
+              .update({ link_etiqueta: urlPermanente, atualizado_em: new Date().toISOString() })
+              .eq("pedido_id", pedidoId);
+
+            return new Response(
+              JSON.stringify({
+                sucesso: true,
+                cached: true,
+                url: urlPermanente,
+                link_etiqueta: urlPermanente,
+                declaracao_url: urlPermanente,
+              }),
+              { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+        } catch (eCache) {
+          console.warn("[MelhorEnvio-Edge] Falha ao verificar cache no Supabase Storage:", eCache);
+        }
+      }
+
       let orderId =
         body.ordem_id ||
         body.ordemId ||
@@ -317,7 +361,7 @@ serve(async (req: Request) => {
         );
       }
 
-      // 1. Garante que a etiqueta foi solicitada para geração caso ainda esteja pendente
+      // 2. Garante que a etiqueta foi solicitada para geração caso ainda esteja pendente
       try {
         await fetch(`${baseUrl}/api/v2/me/shipment/generate`, {
           method: "POST",
@@ -328,14 +372,11 @@ serve(async (req: Request) => {
         console.warn("[MelhorEnvio-Edge] Aviso na geração antes do print:", eGen);
       }
 
-      // Delay seguro de 1 segundo para processamento
+      // Delay seguro de 1 segundo para processamento dos PDFs no Melhor Envio
       await new Promise((r) => setTimeout(r, 1000));
 
-      // 2. Prioridade 1: Obter link direto de download do arquivo PDF (.pdf) via /api/v2/me/imprimir/pdf/:id
-      // Esse link aponta diretamente para o S3 da AWS e evita o redirecionamento mobile do portal web Nuxt
+      // 3. Obter link direto de download da Etiqueta em PDF (.pdf) via /api/v2/me/imprimir/pdf/:id
       let urlEtiquetaFinal = "";
-      let urlPdfDireto = "";
-
       try {
         const directFileRes = await fetch(`${baseUrl}/api/v2/me/imprimir/pdf/${orderId}`, {
           method: "GET",
@@ -347,9 +388,8 @@ serve(async (req: Request) => {
           if (Array.isArray(directFileData) && directFileData.length > 0) {
             const primeiraUrl = String(directFileData[0] || "").trim();
             if (primeiraUrl && (primeiraUrl.includes(".pdf") || primeiraUrl.includes("s3.amazonaws.com"))) {
-              urlPdfDireto = primeiraUrl;
               urlEtiquetaFinal = primeiraUrl;
-              console.log("[MelhorEnvio-Edge] Link de PDF direto obtido com sucesso:", urlPdfDireto);
+              console.log("[MelhorEnvio-Edge] Link de PDF da Etiqueta obtido:", urlEtiquetaFinal);
             }
           }
         }
@@ -357,7 +397,7 @@ serve(async (req: Request) => {
         console.warn("[MelhorEnvio-Edge] Falha ao consultar endpoint de PDF direto:", eDir);
       }
 
-      // 3. Fallback: Se não retornou o PDF direto, chama POST /api/v2/me/shipment/print (modo público)
+      // Fallback para Etiqueta: POST /api/v2/me/shipment/print (modo público)
       if (!urlEtiquetaFinal) {
         try {
           const printRes = await fetch(`${baseUrl}/api/v2/me/shipment/print`, {
@@ -366,7 +406,6 @@ serve(async (req: Request) => {
             body: JSON.stringify({ mode: "public", orders: [orderId] }),
           });
           const printData = await printRes.json().catch(() => ({}));
-          console.log("[MelhorEnvio-Edge] Fallback printData retornado:", JSON.stringify(printData));
           const rawUrl = String(printData?.url || "").trim();
           const ehUrlPublica =
             Boolean(rawUrl) &&
@@ -384,22 +423,121 @@ serve(async (req: Request) => {
         }
       }
 
-      if (!urlEtiquetaFinal) {
+      // 4. Obter link da Declaração de Conteúdo (DACE) em PDF (.pdf) via /api/v2/me/imprimir/dace/pdf/:id
+      let urlDaceFinal = "";
+      try {
+        const daceRes = await fetch(`${baseUrl}/api/v2/me/imprimir/dace/pdf/${orderId}`, {
+          method: "GET",
+          headers: headersComuns,
+        });
+
+        if (daceRes.ok) {
+          const daceData = await daceRes.json().catch(() => null);
+          if (Array.isArray(daceData) && daceData.length > 0) {
+            const primeiraUrlDace = String(daceData[0] || "").trim();
+            if (primeiraUrlDace && (primeiraUrlDace.includes(".pdf") || primeiraUrlDace.includes("s3.amazonaws.com"))) {
+              urlDaceFinal = primeiraUrlDace;
+              console.log("[MelhorEnvio-Edge] Link de PDF da DACE obtido:", urlDaceFinal);
+            }
+          }
+        }
+      } catch (eDace) {
+        console.warn("[MelhorEnvio-Edge] Falha ao buscar DACE no Melhor Envio:", eDace);
+      }
+
+      if (!urlEtiquetaFinal && !urlDaceFinal) {
         return new Response(
           JSON.stringify({
             sucesso: false,
-            error: "Não foi possível obter o link público da etiqueta. Verifique a integração do Melhor Envio.",
+            error: "Não foi possível obter os arquivos da etiqueta ou declaração no Melhor Envio.",
             code: "LINK_PUBLICO_INDISPONIVEL",
           }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      if (pedidoId) {
+      // 5. Download server-side dos buffers dos arquivos PDF
+      let bufferEtiqueta: ArrayBuffer | null = null;
+      if (urlEtiquetaFinal) {
+        try {
+          const resEtq = await fetch(urlEtiquetaFinal);
+          if (resEtq.ok) {
+            bufferEtiqueta = await resEtq.arrayBuffer();
+          }
+        } catch (eDownEtq) {
+          console.warn("[MelhorEnvio-Edge] Falha no download do buffer da Etiqueta:", eDownEtq);
+        }
+      }
+
+      let bufferDace: ArrayBuffer | null = null;
+      if (urlDaceFinal) {
+        try {
+          const resDace = await fetch(urlDaceFinal);
+          if (resDace.ok) {
+            bufferDace = await resDace.arrayBuffer();
+          }
+        } catch (eDownDace) {
+          console.warn("[MelhorEnvio-Edge] Falha no download do buffer da DACE:", eDownDace);
+        }
+      }
+
+      // 6. Mesclagem (Merge) dos buffers: Etiqueta + DACE em um único PDF completo
+      let finalPdfBytes: Uint8Array | null = null;
+      if (bufferEtiqueta && bufferDace) {
+        try {
+          const { PDFDocument } = await import("npm:pdf-lib@1.17.9");
+          const docMerged = await PDFDocument.create();
+
+          const docEtq = await PDFDocument.load(bufferEtiqueta);
+          const pagesEtq = await docMerged.copyPages(docEtq, docEtq.getPageIndices());
+          pagesEtq.forEach((p: any) => docMerged.addPage(p));
+
+          const docDace = await PDFDocument.load(bufferDace);
+          const pagesDace = await docMerged.copyPages(docDace, docDace.getPageIndices());
+          pagesDace.forEach((p: any) => docMerged.addPage(p));
+
+          finalPdfBytes = await docMerged.save();
+          console.log("[MelhorEnvio-Edge] Sucesso: Etiqueta e DACE mescladas em folha única!");
+        } catch (eMerge) {
+          console.warn("[MelhorEnvio-Edge] Aviso ao mesclar com pdf-lib, utilizando buffer da etiqueta:", eMerge);
+          finalPdfBytes = new Uint8Array(bufferEtiqueta);
+        }
+      } else if (bufferEtiqueta) {
+        finalPdfBytes = new Uint8Array(bufferEtiqueta);
+      } else if (bufferDace) {
+        finalPdfBytes = new Uint8Array(bufferDace);
+      }
+
+      // 7. Upload do PDF completo para o bucket permanente 'etiquetas' no Supabase Storage
+      let urlPermanente = urlEtiquetaFinal || urlDaceFinal;
+      if (finalPdfBytes && pedidoId && lojaId) {
+        try {
+          const { error: uploadErr } = await supabaseAdmin.storage
+            .from("etiquetas")
+            .upload(caminhoCompletoStorage, finalPdfBytes, {
+              contentType: "application/pdf",
+              upsert: true,
+            });
+
+          if (!uploadErr) {
+            const { data: pubData } = supabaseAdmin.storage
+              .from("etiquetas")
+              .getPublicUrl(caminhoCompletoStorage);
+            urlPermanente = pubData.publicUrl;
+            console.log(`[MelhorEnvio-Edge] Upload permanente concluído com sucesso: ${urlPermanente}`);
+          } else {
+            console.warn("[MelhorEnvio-Edge] Erro no upload para Supabase Storage:", uploadErr);
+          }
+        } catch (eUp) {
+          console.warn("[MelhorEnvio-Edge] Exceção no upload para Supabase Storage:", eUp);
+        }
+      }
+
+      if (pedidoId && urlPermanente) {
         await supabaseAdmin
           .from("pedido_entregas")
           .update({
-            link_etiqueta: urlEtiquetaFinal,
+            link_etiqueta: urlPermanente,
             atualizado_em: new Date().toISOString(),
           })
           .eq("pedido_id", pedidoId);
@@ -408,10 +546,11 @@ serve(async (req: Request) => {
       return new Response(
         JSON.stringify({
           sucesso: true,
+          cached: false,
           ordem_id: String(orderId),
-          url: urlEtiquetaFinal,
-          link_etiqueta: urlEtiquetaFinal,
-          declaracao_url: urlEtiquetaFinal,
+          url: urlPermanente,
+          link_etiqueta: urlPermanente,
+          declaracao_url: urlPermanente,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
