@@ -279,6 +279,7 @@ export const PedidosLista: React.FC = () => {
   const [nomeTransportadoraDespacho, setNomeTransportadoraDespacho] = useState<string>('');
   const [despachando, setDespachando] = useState<boolean>(false);
   const [despachandoPedidoId, setDespachandoPedidoId] = useState<string | null>(null);
+  const [despachandoMensagem, setDespachandoMensagem] = useState<string>('Solicitando motorista Uber Direct... Por favor, aguarde.');
   const [pedidoParaDespacho, setPedidoParaDespacho] = useState<Pedido | null>(null);
   const [modalContingenciaAberto, setModalContingenciaAberto] = useState<boolean>(false);
   const [executandoContingencia, setExecutandoContingencia] = useState<boolean>(false);
@@ -1280,6 +1281,11 @@ export const PedidosLista: React.FC = () => {
     try {
       setDespachando(true);
       setDespachandoPedidoId(ped.id);
+      if (prov === 'uber') {
+        setDespachandoMensagem('Solicitando motorista Uber Direct... Por favor, aguarde.');
+      } else {
+        setDespachandoMensagem('Gerando envio junto à transportadora... Por favor, aguarde.');
+      }
       const agora = new Date().toISOString();
       const config = await ShippingOrchestrator.buscarConfigLoja(loja.id);
       if (!config) {
@@ -4537,6 +4543,28 @@ export const PedidosLista: React.FC = () => {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* OVERLAY BLOQUEADOR DE DESPACHO INTEGRADO (UBER DIRECT / MELHOR ENVIO) */}
+      {despachando && (
+        <div className="fixed inset-0 z-[99999] bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl flex flex-col items-center space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-inner">
+              <Loader2 className="w-8 h-8 animate-spin" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-white tracking-wide">
+                Despachando Pedido
+              </h3>
+              <p className="text-xs text-slate-300 mt-1.5 font-medium leading-relaxed">
+                {despachandoMensagem || 'Solicitando motorista Uber Direct... Por favor, aguarde.'}
+              </p>
+            </div>
+            <div className="text-[11px] text-slate-500 font-medium">
+              Esta operação pode levar alguns instantes.
             </div>
           </div>
         </div>

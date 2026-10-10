@@ -26,6 +26,7 @@ import { caixaService } from '../services/caixaService';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { formatarMoeda, formatarValorBRL } from '../utils/formatters';
 import { ModalDefinirEnvio } from './pedidos/ModalDefinirEnvio';
+import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 
 interface MoneyInputProps {
   valor: number;
@@ -981,15 +982,32 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                     <span className="text-[11px]">✏️</span>
                   </button>
                 ) : (
-                  <span className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                    {Number(pedAtivo.valor_frete || 0) > 0 ? (
-                      formatarMoeda(Number(pedAtivo.valor_frete || 0))
-                    ) : rawPe?.is_frete_gratis ? (
-                      'Grátis'
-                    ) : (
-                      formatarMoeda(0)
-                    )}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      {rawPe?.transportadora_nome || pedAtivo.nome_transportadora ? (
+                        <span>
+                          {rawPe?.transportadora_nome || pedAtivo.nome_transportadora}
+                          {Number(pedAtivo.valor_frete || 0) > 0
+                            ? ` (+ ${formatarMoeda(Number(pedAtivo.valor_frete || 0))})`
+                            : (rawPe?.is_frete_gratis ? ' (Grátis)' : '')}
+                        </span>
+                      ) : Number(pedAtivo.valor_frete || 0) > 0 ? (
+                        formatarMoeda(Number(pedAtivo.valor_frete || 0))
+                      ) : rawPe?.is_frete_gratis ? (
+                        'Grátis'
+                      ) : (
+                        formatarMoeda(0)
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setModalDefinirEnvioAberto(true)}
+                      className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer"
+                      title="Alterar opção de frete"
+                    >
+                      <span className="text-[11px]">✏️</span>
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -1132,6 +1150,20 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
             loja={loja}
             usuario={usuario}
             onClose={() => setModalDefinirEnvioAberto(false)}
+            onConfirmarEnvio={async (resultado) => {
+              try {
+                await ShippingOrchestrator.definirEnvioPedido(
+                  pedAtivo.id,
+                  resultado,
+                  usuario?.id || null
+                );
+                await recarregarPedido();
+                setModalDefinirEnvioAberto(false);
+              } catch (err: any) {
+                console.error('Erro ao confirmar frete no fechamento:', err);
+                setErroMsg(err?.message || 'Erro ao definir opção de frete.');
+              }
+            }}
             onSucesso={async () => {
               setModalDefinirEnvioAberto(false);
               await recarregarPedido();

@@ -689,21 +689,46 @@ export class ShippingOrchestrator {
     delete payload.quantidade_volumes;
     delete payload.pacote;
 
-    let { data, error } = await supabase
+    // 1. Busca registro existente para evitar erro de falta de UNIQUE em onConflict
+    const { data: existente } = await supabase
       .from('pedido_entregas')
-      .upsert(payload, { onConflict: 'pedido_id' })
-      .select()
-      .single();
+      .select('id')
+      .eq('pedido_id', pedidoId)
+      .maybeSingle();
+
+    const executarPersistencia = async (dados: any) => {
+      if (existente?.id) {
+        return await supabase
+          .from('pedido_entregas')
+          .update(dados)
+          .eq('id', existente.id)
+          .select()
+          .single();
+      } else {
+        return await supabase
+          .from('pedido_entregas')
+          .insert(dados)
+          .select()
+          .single();
+      }
+    };
+
+    let { data, error } = await executarPersistencia(payload);
+
+    // Fallback caso a coluna cotacao_id ainda não exista na migration remota
+    if (error && (error.code === '42703' || error.message?.includes('cotacao_id'))) {
+      console.warn('[ShippingOrchestrator] Coluna cotacao_id não existe em pedido_entregas, salvando sem ela:', error.message);
+      delete payload.cotacao_id;
+      const retryCol = await executarPersistencia(payload);
+      data = retryCol.data;
+      error = retryCol.error;
+    }
 
     // Fallback caso ocorra restrição de integridade referencial com cliente_endereco_id
     if (error && (error.code === '23503' || error.message?.includes('foreign key') || error.message?.includes('cliente_endereco_id'))) {
       console.warn('[ShippingOrchestrator] Falha de FK em cliente_endereco_id, tentando salvar com null:', error.message);
       payload.cliente_endereco_id = null;
-      const retry = await supabase
-        .from('pedido_entregas')
-        .upsert(payload, { onConflict: 'pedido_id' })
-        .select()
-        .single();
+      const retry = await executarPersistencia(payload);
       data = retry.data;
       error = retry.error;
     }
@@ -1878,16 +1903,23 @@ export class ShippingOrchestrator {
 
     const prazoTexto = pe.prazo_estimado_texto || resultado.opcao_frete?.prazo_estimado_texto || null;
 
+    const cotacaoIdResolvido =
+      (pe as any).cotacao_id ||
+      resultado.opcao_frete?.cotacao_id ||
+      (resultado.opcao_frete?.id?.startsWith('dqt_') ? resultado.opcao_frete.id : null) ||
+      null;
+
     const dadosEntrega: Partial<PedidoEntrega> = {
       tipo_atendimento: resultado.tipo_atendimento || 'entrega',
       provedor: provedorFinal,
+      cotacao_id: cotacaoIdResolvido,
       cliente_endereco_id: clienteEnderecoId,
       transportadora_nome: nomeTransportadora,
       nome_transportadora: nomeTransportadora,
       nome_app: pe.nome_app || (provedorFinal === 'uber' ? 'Uber Direct' : null),
       app_entrega_id: pe.app_entrega_id || null,
       transportadora_id: pe.transportadora_id || null,
-      codigo_corrida: pe.codigo_corrida || null,
+      codigo_corrida: pe.codigo_corrida || (provedorFinal === 'uber' ? cotacaoIdResolvido : null),
       codigo_rastreio: pe.codigo_rastreio || null,
       link_rastreio: pe.link_rastreio || null,
       servico_codigo: pe.servico_codigo || (provedorFinal === 'uber' ? 'uber_direct' : null),
@@ -1947,7 +1979,10 @@ export class ShippingOrchestrator {
     const metaAtual = (pedAtual?.metadados && typeof pedAtual.metadados === 'object') ? { ...pedAtual.metadados } : {};
     metaAtual.transportadora_nome = nomeRealFrete;
     metaAtual.nome_app = pe.nome_app || null;
-    metaAtual.codigo_corrida = pe.codigo_corrida || null;
+    metaAtual.codigo_corrida = pe.codigo_corrida || (provedorFinal === 'uber' ? cotacaoIdResolvido : null);
+    if (cotacaoIdResolvido) {
+      metaAtual.cotacao_id = cotacaoIdResolvido;
+    }
     metaAtual.codigo_rastreio = pe.codigo_rastreio || null;
     metaAtual.link_rastreio = pe.link_rastreio || null;
     metaAtual.provedor_frete = provedorFinal;

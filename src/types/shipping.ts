@@ -153,6 +153,7 @@ export interface PedidoEntrega {
   altura_cm?: number | null;
   comprimento_cm?: number | null;
   quantidade_volumes?: number | null;
+  cotacao_id?: string | null;
   criado_em?: string;
   atualizado_em?: string;
 }
@@ -167,6 +168,7 @@ export interface PacoteEnvioCotacao {
 
 export interface OpcaoFreteCotada {
   id: string;
+  cotacao_id?: string | null;
   forma_entrega_id?: string | null;
   provedor: ProvedorFrete;
   transportadora_nome: string;

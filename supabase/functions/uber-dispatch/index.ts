@@ -107,21 +107,33 @@ function formatarEnderecoUber(
   cidade?: string | null,
   estado?: string | null,
   cep?: string | null,
-  enderecoCompletoFallback?: string | null
-): string {
-  // Se o fallback já for um JSON válido com street_address, sanitiza e retorna
-  if (enderecoCompletoFallback && enderecoCompletoFallback.trim().startsWith("{")) {
+  enderecoCompletoFallback?: any
+): UberAddressObj {
+  // Se o fallback já for um objeto com street_address
+  if (enderecoCompletoFallback && typeof enderecoCompletoFallback === "object") {
+    if (enderecoCompletoFallback.street_address && Array.isArray(enderecoCompletoFallback.street_address)) {
+      return {
+        street_address: enderecoCompletoFallback.street_address.map((s: any) => sanitizarLinhaEndereco(String(s))),
+        city: enderecoCompletoFallback.city || cidade || "Fortaleza",
+        state: (enderecoCompletoFallback.state || estado || "CE").toUpperCase(),
+        zip_code: String(enderecoCompletoFallback.zip_code || cep || "60710790").replace(/\D/g, ""),
+        country: "BR",
+      };
+    }
+  }
+
+  // Se o fallback já for um JSON válido com street_address em string, sanitiza e retorna objeto
+  if (typeof enderecoCompletoFallback === "string" && enderecoCompletoFallback.trim().startsWith("{")) {
     try {
       const parsed = JSON.parse(enderecoCompletoFallback);
       if (parsed.street_address && Array.isArray(parsed.street_address)) {
-        const objValido: UberAddressObj = {
+        return {
           street_address: parsed.street_address.map((s: string) => sanitizarLinhaEndereco(String(s))),
           city: parsed.city || cidade || "Fortaleza",
           state: (parsed.state || estado || "CE").toUpperCase(),
           zip_code: String(parsed.zip_code || cep || "60710790").replace(/\D/g, ""),
           country: "BR",
         };
-        return JSON.stringify(objValido);
       }
     } catch {
       // continua para a montagem normal
@@ -136,15 +148,17 @@ function formatarEnderecoUber(
   let cid = (cidade || "").trim();
   let uf = (estado || "").trim().toUpperCase();
 
-  if ((!rua || !cid || !zipCode) && enderecoCompletoFallback) {
-    const partes = enderecoCompletoFallback.split(",").map((p: string) => p.trim());
+  const fallbackStr = typeof enderecoCompletoFallback === "string" ? enderecoCompletoFallback : "";
+
+  if ((!rua || !cid || !zipCode) && fallbackStr) {
+    const partes = fallbackStr.split(",").map((p: string) => p.trim());
     if (!rua && partes.length > 0) rua = partes[0];
     if (!num && partes.length > 1) {
       const matchNum = partes[1].match(/\d+/);
       if (matchNum) num = matchNum[0];
     }
     if (!zipCode) {
-      const matchCep = enderecoCompletoFallback.match(/\d{5}-?\d{3}|\d{8}/);
+      const matchCep = fallbackStr.match(/\d{5}-?\d{3}|\d{8}/);
       if (matchCep) zipCode = matchCep[0].replace(/\D/g, "");
     }
     if (!cid && partes.length >= 3) {
@@ -171,15 +185,13 @@ function formatarEnderecoUber(
   const partesLinha2 = [comp, bair].filter(Boolean).join(" - ").trim().replace(/,+$/, "");
   const streetAddress = partesLinha2 ? [linha1, partesLinha2] : [linha1];
 
-  const obj: UberAddressObj = {
+  return {
     street_address: streetAddress,
     city: cid,
     state: uf,
     zip_code: zipCode,
     country: "BR",
   };
-
-  return JSON.stringify(obj);
 }
 
 serve(async (req: Request) => {
@@ -605,7 +617,16 @@ serve(async (req: Request) => {
           },
         ];
 
+    const quoteId =
+      customPayload?.quote_id ||
+      customPayload?.quoteId ||
+      body.quote_id ||
+      body.quoteId ||
+      entrega?.cotacao_id ||
+      pedido?.metadados?.cotacao_id;
+
     const deliveryPayload: Record<string, any> = {
+      ...(quoteId ? { quote_id: quoteId } : {}),
       pickup_name: pickupName,
       pickup_address: pickupAddressStr,
       pickup_phone_number: pickupPhone,
@@ -625,10 +646,11 @@ serve(async (req: Request) => {
     }
 
     // 4. Log Detalhado de Depuração
-    console.log("PAYLOAD ENVIADO UBER:", JSON.stringify(deliveryPayload));
+    console.log(`PAYLOAD ENVIADO UBER (${isSandbox ? "Sandbox" : "Produção"}):`, JSON.stringify(deliveryPayload));
 
     // 5. Chamada à API da Uber Direct
-    const deliveryEndpoint = `https://api.uber.com/v1/customers/${encodeURIComponent(uberCustomerId)}/deliveries`;
+    const baseUrl = isSandbox ? "https://sandbox-api.uber.com" : "https://api.uber.com";
+    const deliveryEndpoint = `${baseUrl}/v1/customers/${encodeURIComponent(uberCustomerId)}/deliveries`;
     const uberResponse = await fetch(deliveryEndpoint, {
       method: "POST",
       headers: {
@@ -638,10 +660,16 @@ serve(async (req: Request) => {
       body: JSON.stringify(deliveryPayload),
     });
 
-    const uberData = await uberResponse.json();
+    const uberResponseText = await uberResponse.text();
+    let uberData: any = {};
+    try {
+      uberData = JSON.parse(uberResponseText);
+    } catch {
+      uberData = { message: uberResponseText };
+    }
 
     if (!uberResponse.ok) {
-      console.error("UBER ERROR DETAILS:", JSON.stringify(uberData));
+      console.error("[uber-dispatch] Erro API Uber Direct:", uberResponse.status, uberResponseText);
 
       const rawCode = String(uberData.code || "").toLowerCase();
       const rawMsg = String(uberData.message || "").toLowerCase();

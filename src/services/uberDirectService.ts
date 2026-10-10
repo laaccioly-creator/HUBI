@@ -124,8 +124,11 @@ export class UberDirectService {
       ? `Aprox. ${duracaoMinutos} min (Entrega Imediata)`
       : `Aprox. ${(duracaoMinutos / 60).toFixed(1)} h (Entrega Imediata)`;
 
+    const cotacaoId = responseData.id || undefined;
+
     return {
-      id: `uber-direct-${Date.now()}`,
+      id: cotacaoId || `uber-direct-${Date.now()}`,
+      cotacao_id: cotacaoId,
       provedor: 'uber',
       transportadora_nome: 'Uber Direct',
       servico_codigo: 'uber_flash',
@@ -503,22 +506,22 @@ export class UberDirectService {
     };
 
     const linha1Origem = sanitizarLinha(ruaOrigem, numOrigem);
-    const pickupAddressJson = JSON.stringify({
+    const pickupAddressObj = {
       street_address: [linha1Origem],
       city: (config.origem_cidade || loja.endereco_cidade || 'Fortaleza').trim(),
       state: (config.origem_uf || loja.endereco_estado || 'CE').trim().toUpperCase(),
       zip_code: cepOrigemLimpo.length === 8 ? cepOrigemLimpo : '60710790',
       country: 'BR'
-    });
+    };
 
     const linha1Destino = sanitizarLinha(destinoLogradouro || 'Rua Principal', destinoNumero || 'S/N');
-    const dropoffAddressJson = JSON.stringify({
+    const dropoffAddressObj = {
       street_address: [linha1Destino],
       city: (destinoCidade || 'Fortaleza').trim(),
       state: (destinoUf || 'CE').trim().toUpperCase(),
       zip_code: destinoCepLimpo.length === 8 ? destinoCepLimpo : '60710790',
       country: 'BR'
-    });
+    };
 
     const manifestItems = (pedido.itens && pedido.itens.length > 0)
       ? pedido.itens.map(i => ({
@@ -528,12 +531,15 @@ export class UberDirectService {
         }))
       : [{ name: `Pedido #${pedido.numero_pedido || pedido.id.slice(0, 6)}`, quantity: 1, size: 'small' }];
 
+    const quoteIdFinal = entrega.cotacao_id || (entrega as any).quote_id || (pedido.metadados as any)?.cotacao_id || undefined;
+
     const payload = {
+      ...(quoteIdFinal ? { quote_id: quoteIdFinal } : {}),
       pickup_name: loja.nome_fantasia || 'HUBI PDV',
-      pickup_address: pickupAddressJson,
+      pickup_address: pickupAddressObj,
       pickup_phone_number: pickupPhone,
       dropoff_name: clienteNome || 'Cliente',
-      dropoff_address: dropoffAddressJson,
+      dropoff_address: dropoffAddressObj,
       dropoff_phone_number: dropoffPhone,
       manifest_items: manifestItems,
       ...(isSandbox ? { test_specifications: { robo_courier_specification: { mode: 'auto' } } } : {})
@@ -543,6 +549,7 @@ export class UberDirectService {
     const { data: edgeData, error: edgeErr } = await supabase.functions.invoke('uber-dispatch', {
       body: {
         pedidoId: pedido.id,
+        quote_id: quoteIdFinal,
         isSandbox,
         loja_id: config.loja_id,
         payload
