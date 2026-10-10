@@ -134,43 +134,22 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
   );
 
   const handleAbrirMelhorEnvio = async () => {
-    // Se já temos a URL direta do PDF (.pdf / S3), abre diretamente
-    if (ehLinkPdfDireto(linkEtiquetaOficial)) {
-      abrirDocumentoPdf(linkEtiquetaOficial);
-      return;
-    }
-
-    // Se no Desktop já tivermos a URL pública tokenizada, também pode abrir
-    if (!isMobileDispositivo && ehUrlPublicaValida(linkEtiquetaOficial)) {
-      abrirDocumentoPdf(linkEtiquetaOficial);
-      return;
-    }
-
     try {
       setObtendoEtiquetaOficial(true);
-      mostrarToast('Obtendo arquivo PDF oficial da etiqueta...', 'info');
-
-      // Tenta recuperar do banco de dados antes da chamada caso tenha acabado de ser atualizado
-      const { data: entregaAtualizada } = await supabase
-        .from('pedido_entregas')
-        .select('*')
-        .eq('pedido_id', pedido.id)
-        .maybeSingle();
-
-      const linkNoBanco = (entregaAtualizada?.link_etiqueta || '').trim();
-      if (ehLinkPdfDireto(linkNoBanco)) {
-        setEntregaCarregada(entregaAtualizada as PedidoEntrega);
-        abrirDocumentoPdf(linkNoBanco);
-        return;
-      }
+      mostrarToast('Gerando etiqueta oficial com o Melhor Envio...', 'info');
 
       const lojaId = loja?.id || pedido.loja_id;
+      const rawPe = entregaCarregada || entrega || (pedido as any).pedido_entregas || pedido.pedido_entrega;
+      const peCurrent: PedidoEntrega | null = Array.isArray(rawPe) ? (rawPe[0] || null) : (rawPe || null);
+
       const ordemId =
         (pedido.metadados as any)?.melhor_envio_order_id ||
-        (entregaAtualizada as any)?.melhor_envio_order_id ||
-        (pe as any)?.melhor_envio_order_id ||
-        (entregaAtualizada?.codigo_rastreio?.startsWith('ORD-') ? entregaAtualizada.codigo_rastreio : undefined) ||
-        (pe?.codigo_rastreio?.startsWith('ORD-') ? pe.codigo_rastreio : undefined) ||
+        (entregaCarregada as any)?.melhor_envio_order_id ||
+        (peCurrent as any)?.melhor_envio_order_id ||
+        entregaCarregada?.cotacao_id ||
+        peCurrent?.cotacao_id ||
+        (entregaCarregada?.codigo_rastreio?.startsWith('ORD-') ? entregaCarregada.codigo_rastreio : undefined) ||
+        (peCurrent?.codigo_rastreio?.startsWith('ORD-') ? peCurrent.codigo_rastreio : undefined) ||
         (pedido.codigo_rastreio?.startsWith('ORD-') ? pedido.codigo_rastreio : undefined);
 
       const urlPdf = await MelhorEnvioService.obterEtiquetaOficialPdf(pedido.id, lojaId, ordemId);
@@ -178,13 +157,21 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
       if (ehUrlPublicaValida(urlPdf)) {
         mostrarSucesso('Etiqueta oficial pronta para impressão!');
 
-        // Atualiza estado local e banco de dados
-        setEntregaCarregada((prev) => prev ? { ...prev, link_etiqueta: urlPdf } : ({ link_etiqueta: urlPdf } as any));
-        const entregaId = entregaAtualizada?.id || pe?.id;
+        // Atualiza estado local e banco de dados com a nova URL
+        setEntregaCarregada((prev) => (prev ? { ...prev, link_etiqueta: urlPdf } : ({ link_etiqueta: urlPdf } as any)));
+        const entregaId = entregaCarregada?.id || peCurrent?.id;
         if (entregaId) {
-          supabase.from('pedido_entregas').update({ link_etiqueta: urlPdf, atualizado_em: new Date().toISOString() }).eq('id', entregaId).then();
+          supabase
+            .from('pedido_entregas')
+            .update({ link_etiqueta: urlPdf, atualizado_em: new Date().toISOString() })
+            .eq('id', entregaId)
+            .then();
         } else {
-          supabase.from('pedido_entregas').update({ link_etiqueta: urlPdf, atualizado_em: new Date().toISOString() }).eq('pedido_id', pedido.id).then();
+          supabase
+            .from('pedido_entregas')
+            .update({ link_etiqueta: urlPdf, atualizado_em: new Date().toISOString() })
+            .eq('pedido_id', pedido.id)
+            .then();
         }
 
         abrirDocumentoPdf(urlPdf);
@@ -474,7 +461,7 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
               {obtendoEtiquetaOficial ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Obtendo...</span>
+                  <span>Gerando etiqueta...</span>
                 </>
               ) : (
                 <>

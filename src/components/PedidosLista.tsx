@@ -1422,7 +1422,7 @@ export const PedidosLista: React.FC = () => {
     const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
     const linkEtq = (pe?.link_etiqueta || (ped as any).link_etiqueta || (ped as any).metadados?.link_etiqueta || '').trim();
 
-    if (ehUrlEtiquetaValida(linkEtq)) {
+    if (ehUrlEtiquetaValida(linkEtq) && !linkEtq.includes('amazonaws.com') && !linkEtq.includes('s3.')) {
       window.open(linkEtq, '_blank', 'noopener,noreferrer');
       return;
     }

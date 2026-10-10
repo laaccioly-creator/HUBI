@@ -251,7 +251,7 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
     const ehLinkLoginOuPainel = linkJaSalvo.includes('/painel') || linkJaSalvo.includes('/portal') || linkJaSalvo.includes('/login');
     const ehPdfOuPublico = (linkJaSalvo.endsWith('.pdf') || linkJaSalvo.includes('/print') || linkJaSalvo.includes('storage') || linkJaSalvo.includes('public')) && !ehLinkLoginOuPainel;
 
-    if (linkJaSalvo && ehPdfOuPublico && (linkJaSalvo.startsWith('http://') || linkJaSalvo.startsWith('https://'))) {
+    if (linkJaSalvo && ehPdfOuPublico && !linkJaSalvo.includes('amazonaws.com') && !linkJaSalvo.includes('s3.') && (linkJaSalvo.startsWith('http://') || linkJaSalvo.startsWith('https://'))) {
       window.open(linkJaSalvo, '_blank', 'noopener,noreferrer');
       return;
     }

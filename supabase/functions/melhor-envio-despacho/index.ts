@@ -263,7 +263,10 @@ serve(async (req: Request) => {
       let orderId =
         body.ordem_id ||
         body.ordemId ||
+        body.order_id ||
+        body.orderId ||
         pedido?.metadados?.melhor_envio_order_id ||
+        entrega?.cotacao_id ||
         null;
 
       const codExistente = (entrega?.codigo_rastreio || pedido?.codigo_rastreio || "").trim();
