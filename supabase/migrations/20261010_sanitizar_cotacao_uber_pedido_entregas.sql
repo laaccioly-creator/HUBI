@@ -20,11 +20,17 @@ SET
 WHERE codigo_corrida LIKE 'dqt_%' OR codigo_rastreio LIKE 'dqt_%';
 
 -- 4. Consolidar provedor = 'uber' para entregas cuja transportadora ou app seja Uber
-UPDATE public.pedido_entregas
+UPDATE public.pedido_entregas pe
 SET provedor = 'uber'
-WHERE provedor <> 'uber'
+WHERE pe.provedor <> 'uber'
   AND (
-    LOWER(COALESCE(transportadora_nome, '')) LIKE '%uber%'
-    OR LOWER(COALESCE(nome_app, '')) LIKE '%uber%'
-    OR LOWER(COALESCE(forma_entrega_nome, '')) LIKE '%uber%'
+    LOWER(COALESCE(pe.transportadora_nome, '')) LIKE '%uber%'
+    OR EXISTS (
+      SELECT 1 FROM public.pedidos p
+      WHERE p.id = pe.pedido_id
+        AND (
+          LOWER(COALESCE(p.nome_transportadora, '')) LIKE '%uber%'
+          OR LOWER(COALESCE(p.nome_app, '')) LIKE '%uber%'
+        )
+    )
   );
