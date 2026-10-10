@@ -848,7 +848,7 @@ export class ShippingOrchestrator {
         ? 'cancelado'
         : 'enviado';
 
-    await supabase
+    const { error: errUpdateUber } = await supabase
       .from('pedidos')
       .update({
         status: statusDestinoUber,
@@ -863,6 +863,11 @@ export class ShippingOrchestrator {
       })
       .eq('id', pedido.id);
 
+    if (errUpdateUber) {
+      console.error('[ShippingOrchestrator] Falha ao atualizar status do pedido para enviado:', errUpdateUber);
+      throw new Error(`Falha ao persistir status enviado no pedido: ${errUpdateUber.message}`);
+    }
+
     // Auditoria de despacho em historico_pedidos
     try {
       await supabase.from('historico_pedidos').insert({
@@ -873,7 +878,7 @@ export class ShippingOrchestrator {
         status_anterior: pedDbUber?.status || pedido.status,
         status_novo: statusDestinoUber,
         descricao: `Envio registrado via Uber Direct - Corrida ${resultado.delivery_id}${resultado.pin_entrega ? ` (PIN: ${resultado.pin_entrega})` : ''}`,
-        motivo: 'Despacho solicitado via Uber Direct',
+        detalhes: 'Despacho solicitado via Uber Direct',
         criado_em: despachadoEm
       });
     } catch (errHist) {
