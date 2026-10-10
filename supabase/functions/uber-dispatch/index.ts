@@ -373,9 +373,12 @@ serve(async (req: Request) => {
         rawDropoff
       );
 
+      const pickupAddressJsonStr = typeof pickupAddressStr === "string" ? pickupAddressStr : JSON.stringify(pickupAddressStr);
+      const dropoffAddressJsonStr = typeof dropoffAddressStr === "string" ? dropoffAddressStr : JSON.stringify(dropoffAddressStr);
+
       const quotePayload = {
-        pickup_address: pickupAddressStr,
-        dropoff_address: dropoffAddressStr,
+        pickup_address: pickupAddressJsonStr,
+        dropoff_address: dropoffAddressJsonStr,
       };
 
       console.log(`[uber-dispatch] Solicitando cotação oficial Uber Direct (${isSandbox ? "Sandbox" : "Produção"}):`, quotePayload);
@@ -625,13 +628,16 @@ serve(async (req: Request) => {
       entrega?.cotacao_id ||
       pedido?.metadados?.cotacao_id;
 
+    const pickupAddressDeliveryStr = typeof pickupAddressStr === "string" ? pickupAddressStr : JSON.stringify(pickupAddressStr);
+    const dropoffAddressDeliveryStr = typeof dropoffAddressStr === "string" ? dropoffAddressStr : JSON.stringify(dropoffAddressStr);
+
     const deliveryPayload: Record<string, any> = {
       ...(quoteId ? { quote_id: quoteId } : {}),
       pickup_name: pickupName,
-      pickup_address: pickupAddressStr,
+      pickup_address: pickupAddressDeliveryStr,
       pickup_phone_number: pickupPhone,
       dropoff_name: clienteNome,
-      dropoff_address: dropoffAddressStr,
+      dropoff_address: dropoffAddressDeliveryStr,
       dropoff_phone_number: dropoffPhone,
       manifest_items: manifestItems,
     };
