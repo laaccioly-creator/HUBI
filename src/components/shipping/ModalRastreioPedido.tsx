@@ -220,14 +220,24 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
           setLinkRastreioLocal(dadosSinc.link_rastreio);
         }
 
-        const statusMapeadoFinal = dadosSinc.status_envio || 'aguardando_postagem';
+        const ehEntregueSinc =
+          dadosSinc.status_consolidado === 'entregue' ||
+          dadosSinc.status_envio === 'entregue' ||
+          dadosSinc.entregue === true;
+
+        const statusMapeadoFinal = ehEntregueSinc
+          ? 'entregue'
+          : (dadosSinc.status_envio || dadosSinc.status_consolidado || 'aguardando_postagem');
+
         setStatusEnvioLocal(statusMapeadoFinal);
         setDataPostagemLocal(dadosSinc.data_postagem || null);
-        setDataEntregaLocal(dadosSinc.data_entrega || null);
-        const evs = Array.isArray(dadosSinc.eventos_rastreio) ? dadosSinc.eventos_rastreio : [];
+        setDataEntregaLocal(dadosSinc.data_entrega || (ehEntregueSinc ? new Date().toISOString() : null));
+        const evs = Array.isArray(dadosSinc.eventos)
+          ? dadosSinc.eventos
+          : (Array.isArray(dadosSinc.eventos_rastreio) ? dadosSinc.eventos_rastreio : []);
         setEventosRastreioLocal(evs);
 
-        if (statusMapeadoFinal === 'entregue') {
+        if (statusMapeadoFinal === 'entregue' || ehEntregueSinc) {
           const agora = new Date().toISOString();
           const lojaId = loja?.id || pedido.loja_id;
 
@@ -270,7 +280,9 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
         }
 
         if (!silencioso) {
-          if (evs.length === 0 && statusMapeadoFinal !== 'entregue') {
+          if (ehEntregueSinc || statusMapeadoFinal === 'entregue') {
+            mostrarSucesso('Status atualizado: Pedido entregue com sucesso!');
+          } else if (evs.length === 0 && statusMapeadoFinal !== 'entregue') {
             mostrarToast('Aguardando primeira postagem ou atualização na agência.', 'info');
           } else {
             const statusLabel =

@@ -2071,6 +2071,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
           loja={loja}
           onAtualizarStatus={() => {
             if (onRecarregar) onRecarregar();
+            setPedidoRastreioModal((prev: any) => (prev ? { ...prev, status: 'entregue' } : null));
           }}
         />
 
@@ -2702,6 +2703,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         loja={loja}
         onAtualizarStatus={() => {
           if (onRecarregar) onRecarregar();
+          setPedidoRastreioModal((prev: any) => (prev ? { ...prev, status: 'entregue' } : null));
         }}
       />
 

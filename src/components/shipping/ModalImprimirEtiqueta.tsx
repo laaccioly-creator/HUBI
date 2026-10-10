@@ -55,12 +55,36 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
     ''
   ).trim();
 
-  const ehUrlPublicaTokenizada = (url?: string | null): boolean => {
+  const ehLinkPdfDireto = (url?: string | null): boolean => {
+    if (!url || typeof url !== 'string') return false;
+    const u = url.trim().toLowerCase();
+    if (!u.startsWith('http://') && !u.startsWith('https://') && !u.startsWith('blob:')) return false;
+    if (u.includes('/painel') || u.includes('/login') || u.includes('/entrar') || u.includes('/auth')) return false;
+    return u.includes('.pdf') || u.includes('s3.amazonaws.com') || u.startsWith('blob:');
+  };
+
+  const ehUrlPublicaValida = (url?: string | null): boolean => {
     if (!url || typeof url !== 'string') return false;
     const u = url.trim();
-    if (!u.startsWith('http://') && !u.startsWith('https://')) return false;
+    if (!u.startsWith('http://') && !u.startsWith('https://') && !u.startsWith('blob:')) return false;
     if (u.includes('/painel') || u.includes('/login') || u.includes('/entrar') || u.includes('/auth')) return false;
-    return u.includes('/portal/imprimir/') || u.includes('/imprimir/') || u.endsWith('.pdf');
+    return u.includes('.pdf') || u.includes('s3.amazonaws.com') || u.includes('/portal/imprimir/') || u.includes('/imprimir/');
+  };
+
+  const isMobileDispositivo = typeof navigator !== 'undefined' && (
+    /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent) ||
+    Boolean(navigator.maxTouchPoints && navigator.maxTouchPoints > 1 && window.innerWidth < 1024)
+  );
+
+  const abrirDocumentoPdf = (url: string) => {
+    console.log('[DEBUG_ETIQUETA_MOBILE] Abrindo documento PDF:', url);
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const transportadora =
@@ -110,15 +134,21 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
   );
 
   const handleAbrirMelhorEnvio = async () => {
-    if (ehUrlPublicaTokenizada(linkEtiquetaOficial)) {
-      console.log('[DEBUG_ETIQUETA_MOBILE]', linkEtiquetaOficial);
-      window.open(linkEtiquetaOficial, '_blank', 'noopener,noreferrer');
+    // Se já temos a URL direta do PDF (.pdf / S3), abre diretamente
+    if (ehLinkPdfDireto(linkEtiquetaOficial)) {
+      abrirDocumentoPdf(linkEtiquetaOficial);
+      return;
+    }
+
+    // Se no Desktop já tivermos a URL pública tokenizada, também pode abrir
+    if (!isMobileDispositivo && ehUrlPublicaValida(linkEtiquetaOficial)) {
+      abrirDocumentoPdf(linkEtiquetaOficial);
       return;
     }
 
     try {
       setObtendoEtiquetaOficial(true);
-      mostrarToast('Obtendo link oficial da etiqueta com o Melhor Envio...', 'info');
+      mostrarToast('Obtendo arquivo PDF oficial da etiqueta...', 'info');
 
       // Tenta recuperar do banco de dados antes da chamada caso tenha acabado de ser atualizado
       const { data: entregaAtualizada } = await supabase
@@ -128,10 +158,9 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
         .maybeSingle();
 
       const linkNoBanco = (entregaAtualizada?.link_etiqueta || '').trim();
-      if (ehUrlPublicaTokenizada(linkNoBanco)) {
-        console.log('[DEBUG_ETIQUETA_MOBILE]', linkNoBanco);
+      if (ehLinkPdfDireto(linkNoBanco)) {
         setEntregaCarregada(entregaAtualizada as PedidoEntrega);
-        window.open(linkNoBanco, '_blank', 'noopener,noreferrer');
+        abrirDocumentoPdf(linkNoBanco);
         return;
       }
 
@@ -146,8 +175,7 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
 
       const urlPdf = await MelhorEnvioService.obterEtiquetaOficialPdf(pedido.id, lojaId, ordemId);
 
-      if (ehUrlPublicaTokenizada(urlPdf)) {
-        console.log('[DEBUG_ETIQUETA_MOBILE]', urlPdf);
+      if (ehUrlPublicaValida(urlPdf)) {
         mostrarSucesso('Etiqueta oficial pronta para impressão!');
 
         // Atualiza estado local e banco de dados
@@ -159,14 +187,14 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
           supabase.from('pedido_entregas').update({ link_etiqueta: urlPdf, atualizado_em: new Date().toISOString() }).eq('pedido_id', pedido.id).then();
         }
 
-        window.open(urlPdf, '_blank', 'noopener,noreferrer');
+        abrirDocumentoPdf(urlPdf);
       } else {
-        console.warn('[DEBUG_ETIQUETA_MOBILE] URL retornada não é pública tokenizada:', urlPdf);
-        mostrarErro('Não foi possível obter o link público da etiqueta. Verifique a integração do Melhor Envio.');
+        console.warn('[DEBUG_ETIQUETA_MOBILE] URL retornada não é válida:', urlPdf);
+        mostrarErro('Não foi possível obter o link do PDF da etiqueta. Verifique a integração do Melhor Envio.');
       }
     } catch (err: any) {
       console.error('[DEBUG_ETIQUETA_MOBILE] Erro ao obter etiqueta:', err);
-      mostrarErro(err.message || 'Não foi possível obter o link público da etiqueta. Verifique a integração do Melhor Envio.');
+      mostrarErro(err.message || 'Não foi possível obter o link do PDF da etiqueta. Verifique a integração do Melhor Envio.');
     } finally {
       setObtendoEtiquetaOficial(false);
     }

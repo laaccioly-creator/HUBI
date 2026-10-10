@@ -328,29 +328,57 @@ serve(async (req: Request) => {
       // Delay seguro de 1 segundo para processamento
       await new Promise((r) => setTimeout(r, 1000));
 
-      // 2. Chama /api/v2/me/shipment/print para obter PDF público oficial
+      // 2. Prioridade 1: Obter link direto de download do arquivo PDF (.pdf) via /api/v2/me/imprimir/pdf/:id
+      // Esse link aponta diretamente para o S3 da AWS e evita o redirecionamento mobile do portal web Nuxt
       let urlEtiquetaFinal = "";
-      try {
-        const printRes = await fetch(`${baseUrl}/api/v2/me/shipment/print`, {
-          method: "POST",
-          headers: headersComuns,
-          body: JSON.stringify({ mode: "public", orders: [orderId] }),
-        });
-        const printData = await printRes.json().catch(() => ({}));
-        const rawUrl = String(printData?.url || "").trim();
-        const ehUrlPublica =
-          Boolean(rawUrl) &&
-          (rawUrl.includes("/portal/imprimir/") || rawUrl.includes("/imprimir/") || rawUrl.endsWith(".pdf")) &&
-          !rawUrl.includes("/painel") &&
-          !rawUrl.includes("/login") &&
-          !rawUrl.includes("/entrar") &&
-          !rawUrl.includes("/auth");
+      let urlPdfDireto = "";
 
-        if (ehUrlPublica) {
-          urlEtiquetaFinal = rawUrl;
+      try {
+        const directFileRes = await fetch(`${baseUrl}/api/v2/me/imprimir/pdf/${orderId}`, {
+          method: "GET",
+          headers: headersComuns,
+        });
+
+        if (directFileRes.ok) {
+          const directFileData = await directFileRes.json().catch(() => null);
+          if (Array.isArray(directFileData) && directFileData.length > 0) {
+            const primeiraUrl = String(directFileData[0] || "").trim();
+            if (primeiraUrl && (primeiraUrl.includes(".pdf") || primeiraUrl.includes("s3.amazonaws.com"))) {
+              urlPdfDireto = primeiraUrl;
+              urlEtiquetaFinal = primeiraUrl;
+              console.log("[MelhorEnvio-Edge] Link de PDF direto obtido com sucesso:", urlPdfDireto);
+            }
+          }
         }
-      } catch (ePrint) {
-        console.warn("[MelhorEnvio-Edge] Falha ao chamar print da etiqueta:", ePrint);
+      } catch (eDir) {
+        console.warn("[MelhorEnvio-Edge] Falha ao consultar endpoint de PDF direto:", eDir);
+      }
+
+      // 3. Fallback: Se não retornou o PDF direto, chama POST /api/v2/me/shipment/print (modo público)
+      if (!urlEtiquetaFinal) {
+        try {
+          const printRes = await fetch(`${baseUrl}/api/v2/me/shipment/print`, {
+            method: "POST",
+            headers: headersComuns,
+            body: JSON.stringify({ mode: "public", orders: [orderId] }),
+          });
+          const printData = await printRes.json().catch(() => ({}));
+          console.log("[MelhorEnvio-Edge] Fallback printData retornado:", JSON.stringify(printData));
+          const rawUrl = String(printData?.url || "").trim();
+          const ehUrlPublica =
+            Boolean(rawUrl) &&
+            (rawUrl.includes("/portal/imprimir/") || rawUrl.includes("/imprimir/") || rawUrl.endsWith(".pdf")) &&
+            !rawUrl.includes("/painel") &&
+            !rawUrl.includes("/login") &&
+            !rawUrl.includes("/entrar") &&
+            !rawUrl.includes("/auth");
+
+          if (ehUrlPublica) {
+            urlEtiquetaFinal = rawUrl;
+          }
+        } catch (ePrint) {
+          console.warn("[MelhorEnvio-Edge] Falha ao chamar print da etiqueta:", ePrint);
+        }
       }
 
       if (!urlEtiquetaFinal) {
@@ -398,7 +426,14 @@ serve(async (req: Request) => {
       
       const ehOrdemInterna = codRastreioExistente.startsWith("ORD-") || /^[0-9a-fA-F-]{36}$/.test(codRastreioExistente);
 
-      const isCorreios =
+      const ehDoMelhorEnvio =
+        entrega?.provedor === "melhor_envio" ||
+        Boolean(pedido?.metadados?.melhor_envio_order_id) ||
+        Boolean(body.ordem_id || body.ordemId) ||
+        ehOrdemInterna;
+
+      const isCorreiosBalcao =
+        !ehDoMelhorEnvio &&
         !ehOrdemInterna &&
         (transpNome.toLowerCase().includes("correios") ||
         (entrega?.tipo_operacao === "correios") ||
@@ -407,8 +442,8 @@ serve(async (req: Request) => {
         Boolean(servicoCorreios) ||
         /^[a-zA-Z]{2}\d{9}[a-zA-Z]{2}$/.test(codRastreioExistente));
 
-      // Tratamento Dedicado para Envios Correios (balcão ou contrato direto)
-      if (isCorreios && codRastreioExistente) {
+      // Tratamento Dedicado para Envios Correios diretos de balcão (sem Melhor Envio)
+      if (isCorreiosBalcao && codRastreioExistente) {
         console.log(`[MelhorEnvio-Edge] Sincronizando rastreio Correios para código ${codRastreioExistente}...`);
         let statusEnvioMapeado = entrega?.status_envio || (pedido?.status === "entregue" ? "entregue" : "despachado");
         let dataEntrega = (pedido?.metadados as any)?.data_entrega || null;
@@ -543,6 +578,8 @@ serve(async (req: Request) => {
         body.ordem_id ||
         body.ordemId ||
         pedido?.metadados?.melhor_envio_order_id ||
+        (entrega?.cotacao_id && /^[0-9a-fA-F-]{36}$/.test(entrega.cotacao_id) ? entrega.cotacao_id : null) ||
+        (entrega?.servico_codigo && /^[0-9a-fA-F-]{36}$/.test(entrega.servico_codigo) ? entrega.servico_codigo : null) ||
         (ehOrdemInterna ? codRastreioExistente : null) ||
         null;
 
@@ -744,6 +781,49 @@ serve(async (req: Request) => {
       const dataPostagem = orderData.posted_at || (statusEnvioMapeado === "em_transito" ? (entrega?.despachado_em || atualizadoEm) : null);
       const dataEntrega = orderData.delivered_at || (statusEnvioMapeado === "entregue" ? ((pedido?.metadados as any)?.data_entrega || atualizadoEm) : null);
 
+      // Gera eventos sintéticos caso o GraphQL não possua eventos indexados (ex: Sandbox ou delay Correios)
+      if (!Array.isArray(eventosFinais) || eventosFinais.length === 0) {
+        eventosFinais = [];
+        if (dataPostagem) {
+          const dtPostFmt = new Date(String(dataPostagem).replace(" ", "T")).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+          eventosFinais.push({
+            status: "Objeto Postado",
+            titulo: "Objeto Postado na Agência",
+            descricao: `Objeto postado via ${orderData.service?.company?.name || "transportadora"}`,
+            data: dtPostFmt,
+            concluido: true,
+          });
+        }
+        if (statusEnvioMapeado === "em_transito") {
+          const dtPostFmt = dataPostagem ? new Date(String(dataPostagem).replace(" ", "T")).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : new Date().toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+          eventosFinais.push({
+            status: "Em Trânsito",
+            titulo: "Em Trânsito",
+            descricao: "Objeto em transferência entre centros operacionais",
+            data: dtPostFmt,
+            concluido: true,
+          });
+        } else if (statusEnvioMapeado === "saiu_para_entrega") {
+          eventosFinais.push({
+            status: "Saiu para Entrega",
+            titulo: "Saiu para Entrega",
+            descricao: "Objeto saiu para entrega ao destinatário",
+            data: new Date().toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }),
+            concluido: true,
+          });
+        }
+        if (statusEnvioMapeado === "entregue") {
+          const dtEntFmt = dataEntrega ? new Date(String(dataEntrega).replace(" ", "T")).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : new Date().toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+          eventosFinais.push({
+            status: "Objeto Entregue",
+            titulo: "Objeto Entregue",
+            descricao: "Entrega finalizada com sucesso ao destinatário",
+            data: dtEntFmt,
+            concluido: true,
+          });
+        }
+      }
+
       // 7. Atualiza o banco de dados Supabase
       if (pedidoId) {
         await supabaseAdmin
@@ -757,8 +837,15 @@ serve(async (req: Request) => {
           })
           .eq("pedido_id", pedidoId);
 
-        // NUNCA marcar pedidos.status como 'concluido' por sincronização da transportadora.
-        // A conclusão da venda é uma operação comercial manual exclusiva do lojista no HUBI.
+        // Busca status anterior do pedido
+        const { data: pedDb } = await supabaseAdmin
+          .from("pedidos")
+          .select("status")
+          .eq("id", pedidoId)
+          .maybeSingle();
+
+        const statusAnterior = pedDb?.status || pedido?.status || "enviado";
+
         const updatePedidoPayload: Record<string, any> = {
           codigo_rastreio: codigoRastreioFinal,
           link_rastreio: linkRastreioFinal,
@@ -776,8 +863,8 @@ serve(async (req: Request) => {
           atualizado_em: atualizadoEm,
         };
 
-        // Evolui pedidos.status para 'entregue' se o pedido estava 'enviado' ou 'confirmado' e não foi concluído/cancelado
-        if (statusEnvioMapeado === "entregue" && pedido?.status !== "concluido" && pedido?.status !== "cancelado") {
+        // Evolui pedidos.status para 'entregue' se o pedido não estiver concluído/cancelado
+        if (statusEnvioMapeado === "entregue" && statusAnterior !== "concluido" && statusAnterior !== "cancelado") {
           updatePedidoPayload.status = "entregue";
         }
 
@@ -785,6 +872,25 @@ serve(async (req: Request) => {
           .from("pedidos")
           .update(updatePedidoPayload)
           .eq("id", pedidoId);
+
+        // Insere evento de auditoria no histórico de pedidos
+        if (statusEnvioMapeado === "entregue" && statusAnterior !== "entregue") {
+          try {
+            await supabaseAdmin.from("historico_pedidos").insert({
+              loja_id: lojaId,
+              pedido_id: pedidoId,
+              usuario_id: usuarioId || null,
+              tipo_evento: "status_alterado",
+              status_anterior: statusAnterior,
+              status_novo: "entregue",
+              descricao: "Entrega confirmada pelo Melhor Envio",
+              motivo: "Sincronização oficial de rastreamento",
+              criado_em: atualizadoEm,
+            });
+          } catch (eHist) {
+            console.warn("[MelhorEnvio-Edge] Falha ao registrar historico_pedidos:", eHist);
+          }
+        }
       }
 
       console.log(`[MelhorEnvio-Edge] Sincronização concluída com sucesso! Rastreio: ${codigoRastreioFinal}, Status: ${statusEnvioMapeado}`);
@@ -795,15 +901,18 @@ serve(async (req: Request) => {
           acao: "sincronizar_rastreio",
           ordem_id: String(orderId),
           protocolo: orderData.protocol,
+          status_consolidado: statusEnvioMapeado,
           status_melhor_envio: rawStatus,
           status_envio: statusEnvioMapeado,
+          entregue: statusEnvioMapeado === "entregue",
           codigo_rastreio: codigoRastreioFinal,
           link_rastreio: linkRastreioFinal,
           link_etiqueta: entrega?.link_etiqueta || null,
           data_postagem: dataPostagem,
           data_entrega: dataEntrega,
+          eventos: eventosFinais,
           eventos_rastreio: eventosFinais,
-          transportadora: orderData.service?.company?.name || entrega?.transportadora_nome || "Jadlog",
+          transportadora: orderData.service?.company?.name || entrega?.transportadora_nome || "Melhor Envio",
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -1353,34 +1462,55 @@ serve(async (req: Request) => {
     if (generateLiberado) {
       // Aguarda o processamento assíncrono do Melhor Envio
       await new Promise((resolve) => setTimeout(resolve, 2000));
-      console.log('[ME-Despacho][4-Print] Solicitando impressao para:', [orderId]);
+      console.log('[ME-Despacho][4-Print] Solicitando link PDF direto para:', [orderId]);
       try {
-        const printRes = await fetch(`${baseUrl}/api/v2/me/shipment/print`, {
-          method: "POST",
+        const directFileRes = await fetch(`${baseUrl}/api/v2/me/imprimir/pdf/${orderId}`, {
+          method: "GET",
           headers: headersComuns,
-          body: JSON.stringify({ mode: "public", orders: [orderId] }),
         });
-        const printText = await printRes.clone().text();
-        console.log('[ME-Despacho][4-Print] Status:', printRes.status, 'Resposta:', printText);
-        try { debugPrint = JSON.parse(printText); } catch { debugPrint = printText; }
-
-        if (printRes.ok && debugPrint && typeof debugPrint === 'object') {
-          const rawPrintUrl = String(debugPrint?.url || '').trim();
-          const ehUrlPublicaPrint =
-            Boolean(rawPrintUrl) &&
-            (rawPrintUrl.includes('/portal/imprimir/') || rawPrintUrl.includes('/imprimir/') || rawPrintUrl.endsWith('.pdf')) &&
-            !rawPrintUrl.includes('/painel') &&
-            !rawPrintUrl.includes('/login') &&
-            !rawPrintUrl.includes('/entrar') &&
-            !rawPrintUrl.includes('/auth');
-
-          if (ehUrlPublicaPrint) {
-            linkEtiqueta = rawPrintUrl;
+        if (directFileRes.ok) {
+          const directFileData = await directFileRes.json().catch(() => null);
+          if (Array.isArray(directFileData) && directFileData.length > 0) {
+            const primeiraUrl = String(directFileData[0] || "").trim();
+            if (primeiraUrl && (primeiraUrl.includes(".pdf") || primeiraUrl.includes("s3.amazonaws.com"))) {
+              linkEtiqueta = primeiraUrl;
+              console.log('[ME-Despacho][4-Print] PDF direto obtido no despacho:', linkEtiqueta);
+            }
           }
         }
-      } catch (ePrint: any) {
-        console.warn("[ME-Despacho][4-Print] Exceção ao imprimir:", ePrint);
-        debugPrint = ePrint?.message || String(ePrint);
+      } catch (eDir) {
+        console.warn("[ME-Despacho][4-Print] Falha ao consultar endpoint de PDF direto:", eDir);
+      }
+
+      if (!linkEtiqueta) {
+        try {
+          const printRes = await fetch(`${baseUrl}/api/v2/me/shipment/print`, {
+            method: "POST",
+            headers: headersComuns,
+            body: JSON.stringify({ mode: "public", orders: [orderId] }),
+          });
+          const printText = await printRes.clone().text();
+          console.log('[ME-Despacho][4-Print] Status:', printRes.status, 'Resposta:', printText);
+          try { debugPrint = JSON.parse(printText); } catch { debugPrint = printText; }
+
+          if (printRes.ok && debugPrint && typeof debugPrint === 'object') {
+            const rawPrintUrl = String(debugPrint?.url || '').trim();
+            const ehUrlPublicaPrint =
+              Boolean(rawPrintUrl) &&
+              (rawPrintUrl.includes('/portal/imprimir/') || rawPrintUrl.includes('/imprimir/') || rawPrintUrl.endsWith('.pdf')) &&
+              !rawPrintUrl.includes('/painel') &&
+              !rawPrintUrl.includes('/login') &&
+              !rawPrintUrl.includes('/entrar') &&
+              !rawPrintUrl.includes('/auth');
+
+            if (ehUrlPublicaPrint) {
+              linkEtiqueta = rawPrintUrl;
+            }
+          }
+        } catch (ePrint: any) {
+          console.warn("[ME-Despacho][4-Print] Exceção ao imprimir:", ePrint);
+          debugPrint = ePrint?.message || String(ePrint);
+        }
       }
     } else {
       console.warn(`[ME-Despacho][4-Print] Geração não confirmada ou pendente: "${generateMensagem || 'não liberado'}". Chamada de print cancelada.`);

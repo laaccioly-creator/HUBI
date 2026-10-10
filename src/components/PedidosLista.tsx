@@ -117,10 +117,10 @@ export const ehUrlEtiquetaValida = (url?: string | null): boolean => {
     return false;
   }
 
-  // Regra estrita para o Melhor Envio: DEVE ser URL tokenizada pública de impressão ou PDF
-  if (u.includes('melhorenvio.com.br')) {
+  // Regra estrita para o Melhor Envio e S3: DEVE ser URL de PDF direto ou tokenizada pública
+  if (u.includes('melhorenvio.com.br') || u.includes('s3.amazonaws.com')) {
     return (
-      (u.includes('/portal/imprimir/') || u.includes('/imprimir/') || u.endsWith('.pdf')) &&
+      (u.includes('.pdf') || u.includes('/portal/imprimir/') || u.includes('/imprimir/')) &&
       !u.includes('/painel') &&
       !u.includes('/login') &&
       !u.includes('/entrar') &&
@@ -4357,7 +4357,12 @@ export const PedidosLista: React.FC = () => {
         entrega={entregaPedido}
         loja={loja}
         onClose={() => setPedidoRastreioModal(null)}
-        onAtualizarStatus={() => carregarPedidos()}
+        onAtualizarStatus={async () => {
+          await carregarPedidos();
+          if (pedidoRastreioModal) {
+            setPedidoRastreioModal((prev: any) => (prev ? { ...prev, status: 'entregue' } : null));
+          }
+        }}
       />
 
       {/* MODAL DEFINIR ENVIO (FLUXO ESTÁTICO DE EXPEDIÇÃO COM CONFIRMAÇÃO EXPLÍCITA) */}
