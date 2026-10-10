@@ -1,12 +1,11 @@
 -- Migration: 20261009_corrigir_trigger_e_adicionar_motivo_historico.sql
--- Objetivo: Adicionar coluna 'motivo' na tabela 'historico_pedidos' e 'cotacao_id' em 'pedido_entregas',
--- corrigindo a trigger nativa para gravar tanto em 'motivo' quanto em 'detalhes'.
+-- Objetivo: Garantir compatibilidade exata com o schema de historico_pedidos (onde detalhes é do tipo JSONB e motivo é TEXT)
 
--- 1. Adicionar colunas faltantes nas tabelas relacionais
+-- 1. Garantir que as colunas existem
 ALTER TABLE public.historico_pedidos ADD COLUMN IF NOT EXISTS motivo TEXT;
 ALTER TABLE public.pedido_entregas ADD COLUMN IF NOT EXISTS cotacao_id TEXT;
 
--- 2. Atualizar a trigger de auditoria de pedidos para suportar motivo e detalhes sem falhas de coluna
+-- 2. Atualizar a trigger com casting correto para JSONB na coluna detalhes
 CREATE OR REPLACE FUNCTION public.fn_auditar_transicao_status_pedidos()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -84,7 +83,7 @@ BEGIN
     -- Resolução segura do usuário responsável
     v_usuario_id := COALESCE(NEW.atualizado_por, auth.uid(), NEW.vendedor_id);
 
-    -- Inserção na tabela historico_pedidos (com detalhes e motivo)
+    -- Inserção na tabela historico_pedidos (detalhes construído como JSONB)
     INSERT INTO public.historico_pedidos (
       loja_id,
       pedido_id,
@@ -105,7 +104,7 @@ BEGIN
       NEW.status,
       v_descricao,
       NEW.motivo_cancelamento,
-      v_descricao,
+      jsonb_build_object('descricao', v_descricao, 'motivo', NEW.motivo_cancelamento),
       COALESCE(NEW.atualizado_em, v_agora)
     );
 

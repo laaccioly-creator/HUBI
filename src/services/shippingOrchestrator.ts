@@ -878,7 +878,7 @@ export class ShippingOrchestrator {
         status_anterior: pedDbUber?.status || pedido.status,
         status_novo: statusDestinoUber,
         descricao: `Envio registrado via Uber Direct - Corrida ${resultado.delivery_id}${resultado.pin_entrega ? ` (PIN: ${resultado.pin_entrega})` : ''}`,
-        detalhes: 'Despacho solicitado via Uber Direct',
+        detalhes: { info: 'Despacho solicitado via Uber Direct' },
         criado_em: despachadoEm
       });
     } catch (errHist) {
