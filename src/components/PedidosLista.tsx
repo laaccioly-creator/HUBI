@@ -116,10 +116,19 @@ export const ehUrlEtiquetaValida = (url?: string | null): boolean => {
   ) {
     return false;
   }
-  // Permite links públicos tokenizados de impressão de etiquetas e DACE do Melhor Envio
-  if (u.includes('/portal/imprimir') || u.includes('/imprimir/')) return true;
-  // Bloqueia acessos genéricos ao portal/painel sem rota direta de documento
-  if (u.includes('/portal') || u.includes('/painel')) return false;
+
+  // Regra estrita para o Melhor Envio: DEVE ser URL tokenizada pública de impressão ou PDF
+  if (u.includes('melhorenvio.com.br')) {
+    return (
+      (u.includes('/portal/imprimir/') || u.includes('/imprimir/') || u.endsWith('.pdf')) &&
+      !u.includes('/painel') &&
+      !u.includes('/login') &&
+      !u.includes('/entrar') &&
+      !u.includes('/auth')
+    );
+  }
+
+  // Para outros provedores (PDFs diretos, blobs, etc.)
   if (u.endsWith('.com.br') || u.endsWith('.com.br/')) return false;
   return true;
 };

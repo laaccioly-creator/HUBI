@@ -337,19 +337,34 @@ serve(async (req: Request) => {
           body: JSON.stringify({ mode: "public", orders: [orderId] }),
         });
         const printData = await printRes.json().catch(() => ({}));
-        if (
-          printData?.url &&
-          !printData.url.includes("/painel/envios") &&
-          !printData.url.includes("/portal/login") &&
-          !printData.url.includes("/login")
-        ) {
-          urlEtiquetaFinal = printData.url;
+        const rawUrl = String(printData?.url || "").trim();
+        const ehUrlPublica =
+          Boolean(rawUrl) &&
+          (rawUrl.includes("/portal/imprimir/") || rawUrl.includes("/imprimir/") || rawUrl.endsWith(".pdf")) &&
+          !rawUrl.includes("/painel") &&
+          !rawUrl.includes("/login") &&
+          !rawUrl.includes("/entrar") &&
+          !rawUrl.includes("/auth");
+
+        if (ehUrlPublica) {
+          urlEtiquetaFinal = rawUrl;
         }
       } catch (ePrint) {
         console.warn("[MelhorEnvio-Edge] Falha ao chamar print da etiqueta:", ePrint);
       }
 
-      if (urlEtiquetaFinal && pedidoId) {
+      if (!urlEtiquetaFinal) {
+        return new Response(
+          JSON.stringify({
+            sucesso: false,
+            error: "Não foi possível obter o link público da etiqueta. Verifique a integração do Melhor Envio.",
+            code: "LINK_PUBLICO_INDISPONIVEL",
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (pedidoId) {
         await supabaseAdmin
           .from("pedido_entregas")
           .update({
@@ -361,7 +376,7 @@ serve(async (req: Request) => {
 
       return new Response(
         JSON.stringify({
-          sucesso: Boolean(urlEtiquetaFinal),
+          sucesso: true,
           ordem_id: String(orderId),
           url: urlEtiquetaFinal,
           link_etiqueta: urlEtiquetaFinal,
@@ -1350,8 +1365,17 @@ serve(async (req: Request) => {
         try { debugPrint = JSON.parse(printText); } catch { debugPrint = printText; }
 
         if (printRes.ok && debugPrint && typeof debugPrint === 'object') {
-          if (debugPrint?.url && !debugPrint.url.includes('/painel/envios')) {
-            linkEtiqueta = debugPrint.url;
+          const rawPrintUrl = String(debugPrint?.url || '').trim();
+          const ehUrlPublicaPrint =
+            Boolean(rawPrintUrl) &&
+            (rawPrintUrl.includes('/portal/imprimir/') || rawPrintUrl.includes('/imprimir/') || rawPrintUrl.endsWith('.pdf')) &&
+            !rawPrintUrl.includes('/painel') &&
+            !rawPrintUrl.includes('/login') &&
+            !rawPrintUrl.includes('/entrar') &&
+            !rawPrintUrl.includes('/auth');
+
+          if (ehUrlPublicaPrint) {
+            linkEtiqueta = rawPrintUrl;
           }
         }
       } catch (ePrint: any) {
@@ -1429,10 +1453,10 @@ serve(async (req: Request) => {
       linkRastreioOficial = `https://melhorrastreio.com.br/app/${codigoRastreio}`;
     }
 
-    // Se a etiqueta ainda não estiver pronta (status !== 'released'), marque link_etiqueta = null
+    // Se a etiqueta ainda não estiver pronta (status !== 'released') e ainda não obtivemos link público tokenizado, marque link_etiqueta = null
     // e não interrompa a persistência do código de rastreio já gerado.
-    if (statusOrdemME && statusOrdemME !== 'released') {
-      console.log(`[MelhorEnvio-Edge] Ordem com status '${statusOrdemME}'. link_etiqueta definido como null até ser released.`);
+    if (statusOrdemME && statusOrdemME !== 'released' && !linkEtiqueta) {
+      console.log(`[MelhorEnvio-Edge] Ordem com status '${statusOrdemME}'. link_etiqueta mantido como null até liberação.`);
       linkEtiqueta = null;
     }
 

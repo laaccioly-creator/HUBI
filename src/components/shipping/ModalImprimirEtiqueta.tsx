@@ -31,7 +31,7 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
   const [entregaCarregada, setEntregaCarregada] = useState<PedidoEntrega | null>(null);
 
   React.useEffect(() => {
-    if (pedido?.id && !entrega && !pedido.pedido_entrega && !(pedido as any).pedido_entregas) {
+    if (pedido?.id) {
       supabase
         .from('pedido_entregas')
         .select('*')
@@ -41,13 +41,27 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
           if (data) setEntregaCarregada(data as PedidoEntrega);
         });
     }
-  }, [pedido?.id, entrega, pedido?.pedido_entrega]);
+  }, [pedido?.id]);
 
   if (!isOpen || !pedido) return null;
 
-  const rawPe = entrega || (pedido as any).pedido_entregas || pedido.pedido_entrega || entregaCarregada;
+  const rawPe = entregaCarregada || entrega || (pedido as any).pedido_entregas || pedido.pedido_entrega;
   const pe: PedidoEntrega | null = Array.isArray(rawPe) ? (rawPe[0] || null) : (rawPe || null);
-  const linkEtiquetaOficial = (pe?.link_etiqueta || (pedido as any).link_etiqueta || (pedido as any).metadados?.link_etiqueta || '').trim();
+  const linkEtiquetaOficial = (
+    entregaCarregada?.link_etiqueta ||
+    pe?.link_etiqueta ||
+    (pedido as any).link_etiqueta ||
+    (pedido as any).metadados?.link_etiqueta ||
+    ''
+  ).trim();
+
+  const ehUrlPublicaTokenizada = (url?: string | null): boolean => {
+    if (!url || typeof url !== 'string') return false;
+    const u = url.trim();
+    if (!u.startsWith('http://') && !u.startsWith('https://')) return false;
+    if (u.includes('/painel') || u.includes('/login') || u.includes('/entrar') || u.includes('/auth')) return false;
+    return u.includes('/portal/imprimir/') || u.includes('/imprimir/') || u.endsWith('.pdf');
+  };
 
   const transportadora =
     pe?.transportadora_nome ||
@@ -89,8 +103,6 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
     pe?.provedor === 'uber' ||
     pe?.provedor === 'frete_proprio';
 
-  const temEtiquetaOficialValida = ehUrlEtiquetaValida(linkEtiquetaOficial);
-
   const ehMelhorEnvio = !ehAppOuManual && (
     pe?.provedor === 'melhor_envio' ||
     (pedido as any).metadados?.provedor_frete === 'melhor_envio' ||
@@ -98,30 +110,63 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
   );
 
   const handleAbrirMelhorEnvio = async () => {
-    if (temEtiquetaOficialValida) {
+    if (ehUrlPublicaTokenizada(linkEtiquetaOficial)) {
+      console.log('[DEBUG_ETIQUETA_MOBILE]', linkEtiquetaOficial);
       window.open(linkEtiquetaOficial, '_blank', 'noopener,noreferrer');
       return;
     }
 
     try {
       setObtendoEtiquetaOficial(true);
-      mostrarToast('Obtendo etiqueta oficial em PDF com a transportadora...', 'info');
+      mostrarToast('Obtendo link oficial da etiqueta com o Melhor Envio...', 'info');
+
+      // Tenta recuperar do banco de dados antes da chamada caso tenha acabado de ser atualizado
+      const { data: entregaAtualizada } = await supabase
+        .from('pedido_entregas')
+        .select('*')
+        .eq('pedido_id', pedido.id)
+        .maybeSingle();
+
+      const linkNoBanco = (entregaAtualizada?.link_etiqueta || '').trim();
+      if (ehUrlPublicaTokenizada(linkNoBanco)) {
+        console.log('[DEBUG_ETIQUETA_MOBILE]', linkNoBanco);
+        setEntregaCarregada(entregaAtualizada as PedidoEntrega);
+        window.open(linkNoBanco, '_blank', 'noopener,noreferrer');
+        return;
+      }
+
       const lojaId = loja?.id || pedido.loja_id;
       const ordemId =
         (pedido.metadados as any)?.melhor_envio_order_id ||
+        (entregaAtualizada as any)?.melhor_envio_order_id ||
         (pe as any)?.melhor_envio_order_id ||
+        (entregaAtualizada?.codigo_rastreio?.startsWith('ORD-') ? entregaAtualizada.codigo_rastreio : undefined) ||
         (pe?.codigo_rastreio?.startsWith('ORD-') ? pe.codigo_rastreio : undefined) ||
         (pedido.codigo_rastreio?.startsWith('ORD-') ? pedido.codigo_rastreio : undefined);
+
       const urlPdf = await MelhorEnvioService.obterEtiquetaOficialPdf(pedido.id, lojaId, ordemId);
-      if (urlPdf) {
+
+      if (ehUrlPublicaTokenizada(urlPdf)) {
+        console.log('[DEBUG_ETIQUETA_MOBILE]', urlPdf);
         mostrarSucesso('Etiqueta oficial pronta para impressão!');
-        window.open(urlPdf, '_blank', 'noopener,noreferrer');
-        if (pe?.id) {
-          supabase.from('pedido_entregas').update({ link_etiqueta: urlPdf }).eq('id', pe.id).then();
+
+        // Atualiza estado local e banco de dados
+        setEntregaCarregada((prev) => prev ? { ...prev, link_etiqueta: urlPdf } : ({ link_etiqueta: urlPdf } as any));
+        const entregaId = entregaAtualizada?.id || pe?.id;
+        if (entregaId) {
+          supabase.from('pedido_entregas').update({ link_etiqueta: urlPdf, atualizado_em: new Date().toISOString() }).eq('id', entregaId).then();
+        } else {
+          supabase.from('pedido_entregas').update({ link_etiqueta: urlPdf, atualizado_em: new Date().toISOString() }).eq('pedido_id', pedido.id).then();
         }
+
+        window.open(urlPdf, '_blank', 'noopener,noreferrer');
+      } else {
+        console.warn('[DEBUG_ETIQUETA_MOBILE] URL retornada não é pública tokenizada:', urlPdf);
+        mostrarErro('Não foi possível obter o link público da etiqueta. Verifique a integração do Melhor Envio.');
       }
     } catch (err: any) {
-      mostrarErro(err.message || 'Etiqueta oficial ainda não liberada no Melhor Envio.');
+      console.error('[DEBUG_ETIQUETA_MOBILE] Erro ao obter etiqueta:', err);
+      mostrarErro(err.message || 'Não foi possível obter o link público da etiqueta. Verifique a integração do Melhor Envio.');
     } finally {
       setObtendoEtiquetaOficial(false);
     }
