@@ -1833,9 +1833,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   // -------------------------------------------------------------------------
   if (telaAtiva === 'filtros') {
     return (
-      <div className="fixed inset-0 z-40 bg-slate-100 dark:bg-[#0F172A] flex flex-col text-slate-900 dark:text-white select-none">
+      <div className="fixed inset-0 z-40 bg-slate-100 dark:bg-[#0D111A] flex flex-col text-slate-900 dark:text-white select-none">
         {/* Header TELA006 */}
-        <div className="h-16 border-b border-slate-200 dark:border-slate-800 px-4 flex items-center justify-between bg-white dark:bg-black shrink-0">
+        <div className="h-16 border-b border-slate-200 dark:border-slate-800/80 px-4 flex items-center justify-between bg-white dark:bg-[#0D111A] shrink-0">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -2033,7 +2033,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         </div>
 
         {/* Botão Filtrar TELA006 */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-black shrink-0">
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#0D111A] shrink-0">
           <button
             type="button"
             onClick={() => setTelaAtiva('lista')}
@@ -2051,9 +2051,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   // -------------------------------------------------------------------------
   if (telaAtiva === 'movimentacoes') {
     return (
-      <div className="fixed inset-0 z-40 bg-slate-100 dark:bg-[#0F172A] flex flex-col text-slate-900 dark:text-white select-none">
+      <div className="fixed inset-0 z-40 bg-slate-100 dark:bg-[#0D111A] flex flex-col text-slate-900 dark:text-white select-none">
         {/* Header TELA011 */}
-        <div className="h-16 border-b border-slate-200 dark:border-slate-800 px-4 flex items-center justify-between bg-white dark:bg-black shrink-0">
+        <div className="h-16 border-b border-slate-200 dark:border-slate-800/80 px-4 flex items-center justify-between bg-white dark:bg-[#0D111A] shrink-0">
           <button
             type="button"
             onClick={() => setTelaAtiva('detalhes')}
@@ -2132,9 +2132,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   // -------------------------------------------------------------------------
   if (telaAtiva === 'variacoes') {
     return (
-      <div className="fixed inset-0 z-40 bg-slate-100 dark:bg-[#0F172A] flex flex-col text-slate-900 dark:text-white select-none">
+      <div className="fixed inset-0 z-40 bg-slate-100 dark:bg-[#0D111A] flex flex-col text-slate-900 dark:text-white select-none">
         {/* Header TELA020 */}
-        <div className="h-16 border-b border-slate-200 dark:border-slate-800 px-4 flex items-center justify-between bg-white dark:bg-black shrink-0">
+        <div className="h-16 border-b border-slate-200 dark:border-slate-800/80 px-4 flex items-center justify-between bg-white dark:bg-[#0D111A] shrink-0">
           <button
             type="button"
             onClick={() => setTelaAtiva('detalhes')}
@@ -2154,7 +2154,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
         {/* Ilustração e Descrição TELA020 */}
         <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center text-center space-y-6">
-          <div className="w-52 h-40 border border-slate-200 dark:border-slate-800 rounded-3xl bg-white dark:bg-black flex flex-col items-center justify-center p-4 relative shadow-sm">
+          <div className="w-52 h-40 border border-slate-200 dark:border-slate-800/80 rounded-3xl bg-white dark:bg-black flex flex-col items-center justify-center p-4 relative shadow-sm">
             <div className="flex gap-2.5 items-center">
               <div className="w-11 h-11 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-black text-sm">P</div>
               <div className="w-11 h-11 rounded-xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 font-black text-sm">M</div>
@@ -2178,7 +2178,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 setFormData(prev => ({ ...prev, variacoes: [...prev.variacoes, nova] }));
                 setMensagemFeedback({ texto: 'Variação adicionada!', tipo: 'sucesso' });
               }}
-              className="w-full p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-black flex items-center justify-between text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 transition cursor-pointer"
+              className="w-full p-4 rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-black flex items-center justify-between text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-900 transition cursor-pointer"
             >
               <span>Adicionar variação</span>
               <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
@@ -2189,7 +2189,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         </div>
 
         {/* Botão Voltar TELA020 */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-black shrink-0">
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#0D111A] shrink-0">
           <button
             type="button"
             onClick={() => setTelaAtiva('detalhes')}
@@ -2646,7 +2646,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     const textoTarjaResumo = (formData.nome || 'PRODUTO').slice(0, 22).toUpperCase();
 
     return (
-      <div className="flex flex-col h-full bg-slate-100 dark:bg-[#0F172A] text-slate-900 dark:text-white overflow-hidden select-none">
+      <div className="flex flex-col h-full bg-slate-100 dark:bg-[#0D111A] text-slate-900 dark:text-white overflow-hidden select-none">
         {renderToast()}
 
         {/* Inputs de arquivo ocultos para Captura de Câmera e Galeria */}
@@ -2667,7 +2667,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         />
 
         {/* Header Superior (TELA004 / TELA007 / TELA008) */}
-        <div className="h-16 border-b border-slate-200 dark:border-slate-800 px-4 flex items-center justify-between bg-white dark:bg-black shrink-0">
+        <div className="h-16 border-b border-slate-200 dark:border-slate-800/80 px-4 flex items-center justify-between bg-white dark:bg-[#0D111A] shrink-0">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -3399,7 +3399,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         )}
 
         {/* Botão Inferior Salvar / Adicionar */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-black shrink-0">
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#0D111A] shrink-0">
           <button
             type="button"
             disabled={salvandoProduto}
@@ -4305,11 +4305,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   // TELA 001 & TELA 002: LISTA PRINCIPAL DE PRODUTOS E ESTOQUE MOBILE
   // =========================================================================
   return (
-    <div className="flex flex-col h-full bg-slate-100 dark:bg-[#0F172A] text-slate-900 dark:text-white overflow-hidden select-none relative">
+    <div className="flex flex-col h-full bg-slate-100 dark:bg-[#0D111A] text-slate-900 dark:text-white overflow-hidden select-none relative">
       {renderToast()}
 
       {/* Header Superior Mobile (TELA001 / TELA002) */}
-      <div className="h-16 border-b border-slate-200 dark:border-slate-800 px-4 flex items-center justify-between bg-white dark:bg-black shrink-0">
+      <div className="h-16 border-b border-slate-200 dark:border-slate-800/80 px-4 flex items-center justify-between bg-white dark:bg-[#0D111A] shrink-0">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -4338,7 +4338,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       </div>
 
       {/* Abas Superiores: ITENS (TELA001) | ESTOQUE (TELA002) */}
-      <div className="flex bg-transparent border-b border-slate-200 dark:border-slate-800 shrink-0">
+      <div className="flex bg-transparent border-b border-slate-200 dark:border-slate-800/80 shrink-0">
         <button
           type="button"
           onClick={() => {
@@ -4370,7 +4370,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       </div>
 
       {/* Barra de Busca com Pesquisa por Voz (TELA001 / TELA002 / TELA003) */}
-      <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-black flex items-center gap-3 shrink-0">
+      <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#0D111A] flex items-center gap-3 shrink-0">
         {buscaAtiva ? (
           // Busca Ativa (TELA003)
           <div className="flex-1 flex items-center gap-2">
@@ -4412,7 +4412,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               setBuscaAtiva(true);
               setTimeout(() => inputBuscaRef.current?.focus(), 100);
             }}
-            className="flex-1 flex items-center justify-between text-slate-400 py-1.5 px-1 cursor-pointer"
+            className="flex-1 flex items-center justify-between text-slate-400 py-1.5 px-3 bg-slate-50 dark:bg-black rounded-xl border border-slate-200 dark:border-slate-800/80 cursor-pointer"
           >
             <div className="flex items-center gap-2">
               <Search className="w-4 h-4 text-slate-400" />
@@ -4483,7 +4483,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
       {/* Chips dos Filtros Ativos com 'X' para Desmarcar Imediatamente */}
       {qtdFiltrosAtivos > 0 && (
-        <div className="bg-slate-50 border-b border-slate-200 px-3 py-2 flex items-center gap-1.5 overflow-x-auto shrink-0 no-scrollbar">
+        <div className="bg-slate-50 dark:bg-[#0D111A] border-b border-slate-200 dark:border-slate-800/80 px-3 py-2 flex items-center gap-1.5 overflow-x-auto shrink-0 no-scrollbar">
           <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider shrink-0 mr-0.5">
             Filtros:
           </span>
@@ -4597,8 +4597,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       )}
 
       {/* Lista de Produtos (TELA001 ou TELA002) */}
-      {/* Lista de Produtos (TELA001 ou TELA002) */}
-      <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 pb-36">
+      <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/80 pb-40">
         {carregando ? (
           <div className="p-8 text-center text-slate-400 dark:text-slate-500 text-xs flex flex-col items-center justify-center space-y-2">
             <Loader2 className="w-6 h-6 animate-spin text-emerald-600 dark:text-emerald-400" />
@@ -4745,7 +4744,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       {abaLista === 'itens' && (
         <div
           onClick={() => setModalCatalogoAberto(true)}
-          className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-black/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-4 py-3 pb-safe shadow-2xl flex items-center justify-between cursor-pointer"
+          className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-black border-t border-slate-200 dark:border-slate-800/60 px-4 pt-3 pb-6 pb-safe shadow-[0_-8px_24px_rgba(0,0,0,0.8)] flex items-center justify-between cursor-pointer"
         >
           <div className="flex items-center gap-3">
             <Store className="w-5 h-5 text-slate-700 dark:text-slate-300" />
@@ -4764,7 +4763,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
       {/* RODAPÉ FIXO: RESUMO DE ESTOQUE (TELA002) */}
       {abaLista === 'estoque' && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-black/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-4 py-3 pb-safe shadow-2xl flex items-center justify-between">
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-black border-t border-slate-200 dark:border-slate-800/60 px-4 pt-3 pb-6 pb-safe shadow-[0_-8px_24px_rgba(0,0,0,0.8)] flex items-center justify-between">
           <div>
             <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white">
               Total: R$ {valorTotalEstoque.toFixed(2).replace('.', ',')}
@@ -4787,14 +4786,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
       {/* MODAL / BOTTOM SHEET: PEDIDOS E CATÁLOGO ONLINE (TELA005) */}
       {modalCatalogoAberto && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end justify-center">
-          <div className="bg-white rounded-t-3xl w-full max-w-md p-6 shadow-2xl space-y-4 animate-in slide-in-from-bottom duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-black text-sm sm:text-base text-slate-800">Pedidos e Catálogo Online</h3>
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end justify-center">
+          <div className="bg-white dark:bg-black border-t border-slate-200 dark:border-slate-800/80 rounded-t-3xl w-full max-w-md p-6 shadow-2xl space-y-4 animate-in slide-in-from-bottom duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3">
+              <h3 className="font-black text-sm sm:text-base text-slate-800 dark:text-slate-100">Pedidos e Catálogo Online</h3>
               <button
                 type="button"
                 onClick={() => setModalCatalogoAberto(false)}
-                className="p-1 text-slate-400 hover:text-slate-700"
+                className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -4803,7 +4802,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             <div className="space-y-3">
               {/* Publicado para todos verem */}
               <div className="flex items-center justify-between py-1">
-                <span className="text-xs sm:text-sm font-bold text-slate-700">Publicado para todos verem</span>
+                <span className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300">Publicado para todos verem</span>
                 <button
                   type="button"
                   onClick={async () => {
@@ -4822,7 +4821,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     }
                   }}
                   className={`w-12 h-6 flex items-center rounded-full p-1 transition duration-200 cursor-pointer ${
-                    loja?.configuracoes_extras?.catalogo?.publicar_catalogo !== false ? 'bg-teal-500' : 'bg-slate-300'
+                    loja?.configuracoes_extras?.catalogo?.publicar_catalogo !== false ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
                   }`}
                 >
                   <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition duration-200 ${
@@ -4832,14 +4831,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               </div>
 
               {/* Ações TELA005 */}
-              <div className="pt-2 border-t border-slate-100 space-y-1.5">
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 space-y-1.5">
                 <a
                   href={catalogUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full p-3 rounded-2xl hover:bg-slate-50 flex items-center gap-3 text-xs sm:text-sm font-bold text-slate-700"
+                  className="w-full p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 flex items-center gap-3 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 transition"
                 >
-                  <Store className="w-5 h-5 text-slate-500" />
+                  <Store className="w-5 h-5 text-slate-500 dark:text-slate-400" />
                   <span>Abrir catálogo</span>
                 </a>
 
@@ -4849,9 +4848,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     compartilharLink(catalogUrl, loja?.nome_fantasia || 'Catálogo Online', 'Confira nosso catálogo online e faça seu pedido direto pelo WhatsApp!');
                     setModalCatalogoAberto(false);
                   }}
-                  className="w-full p-3 rounded-2xl hover:bg-slate-50 flex items-center gap-3 text-xs sm:text-sm font-bold text-slate-700 text-left"
+                  className="w-full p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 flex items-center gap-3 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 text-left transition cursor-pointer"
                 >
-                  <Share2 className="w-5 h-5 text-slate-500" />
+                  <Share2 className="w-5 h-5 text-slate-500 dark:text-slate-400" />
                   <span>Compartilhar</span>
                 </button>
 
@@ -4861,9 +4860,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     setModalCatalogoAberto(false);
                     navigate('/catalog-config');
                   }}
-                  className="w-full p-3 rounded-2xl hover:bg-slate-50 flex items-center gap-3 text-xs sm:text-sm font-bold text-slate-700 text-left"
+                  className="w-full p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 flex items-center gap-3 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 text-left transition cursor-pointer"
                 >
-                  <Settings className="w-5 h-5 text-slate-500" />
+                  <Settings className="w-5 h-5 text-slate-500 dark:text-slate-400" />
                   <span>Configurações</span>
                 </button>
               </div>
