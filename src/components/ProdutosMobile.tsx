@@ -2211,18 +2211,18 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     );
 
     return (
-      <div className="fixed inset-0 z-50 bg-white flex flex-col text-slate-900 select-none">
+      <div className="fixed inset-0 z-50 bg-white dark:bg-[#0B0F17] flex flex-col text-slate-900 dark:text-white select-none">
         {/* Header TELA016 */}
-        <div className="h-16 border-b border-slate-200 px-4 flex items-center justify-between bg-white shrink-0">
+        <div className="h-16 border-b border-slate-200 dark:border-[#1E293B] px-4 flex items-center justify-between bg-white dark:bg-[#0B0F17] shrink-0">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setModalCategoriasAberto(false)}
-              className="p-2 text-slate-600 hover:text-slate-900"
+              className="p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
-            <h1 className="font-extrabold text-base sm:text-lg text-slate-800">
+            <h1 className="font-extrabold text-base sm:text-lg text-slate-800 dark:text-slate-100">
               Categorias ({categorias.length})
             </h1>
           </div>
@@ -2235,14 +2235,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 salvarNovaCategoria();
               }
             }}
-            className="p-2 text-teal-600 hover:text-teal-700 font-extrabold"
+            className="p-2 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 font-extrabold cursor-pointer"
           >
             <Plus className="w-6 h-6" />
           </button>
         </div>
 
         {/* Campo de Busca TELA016 com Pesquisa por Voz */}
-        <div className="p-3 border-b border-slate-100 bg-white shrink-0">
+        <div className="p-3 border-b border-slate-100 dark:border-[#1E293B] bg-white dark:bg-[#0B0F17] shrink-0">
           <div className="relative flex items-center">
             <Search className="w-4 h-4 text-slate-400 absolute left-3" />
             <input
@@ -2250,13 +2250,13 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               value={buscaCategoria}
               onChange={(e) => setBuscaCategoria(e.target.value)}
               placeholder="Buscar categoria ou falar..."
-              className="w-full pl-9 pr-10 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:border-teal-500 font-medium"
+              className="w-full pl-9 pr-10 py-2.5 text-xs sm:text-sm bg-slate-50 dark:bg-[#000000] border border-slate-200 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 font-medium"
             />
             <button
               type="button"
               onClick={() => alternarPesquisaPorVoz(setBuscaCategoria)}
               className={`absolute right-2.5 p-1.5 rounded-lg transition ${
-                ouvindoVoz ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-400 hover:text-slate-700'
+                ouvindoVoz ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
               }`}
               title="Pesquisar por voz"
             >
@@ -2266,17 +2266,17 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         </div>
 
         {/* Lista de Categorias TELA016 */}
-        <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
+        <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-[#1E293B] p-2 space-y-1">
           <button
             type="button"
             onClick={() => {
               setFormData(prev => ({ ...prev, categoriaId: '' }));
               setModalCategoriasAberto(false);
             }}
-            className="w-full px-4 py-4 text-left text-xs sm:text-sm font-bold text-slate-800 hover:bg-slate-50 transition flex items-center justify-between"
+            className="w-full px-4 py-3.5 text-left text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] rounded-xl hover:bg-slate-50 dark:hover:bg-[#0D111A] transition flex items-center justify-between cursor-pointer"
           >
             <span>Sem Categoria</span>
-            {!formData.categoriaId && <Check className="w-5 h-5 text-teal-600" />}
+            {!formData.categoriaId && <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
           </button>
 
           {categoriasFiltradasModal.map((cat) => (
@@ -2287,10 +2287,10 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 setFormData(prev => ({ ...prev, categoriaId: cat.id }));
                 setModalCategoriasAberto(false);
               }}
-              className="w-full px-4 py-4 text-left text-xs sm:text-sm font-bold text-slate-800 uppercase hover:bg-slate-50 transition flex items-center justify-between"
+              className="w-full px-4 py-3.5 text-left text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 uppercase bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] rounded-xl hover:bg-slate-50 dark:hover:bg-[#0D111A] transition flex items-center justify-between cursor-pointer"
             >
               <span>{cat.nome}</span>
-              {formData.categoriaId === cat.id && <Check className="w-5 h-5 text-teal-600" />}
+              {formData.categoriaId === cat.id && <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
             </button>
           ))}
         </div>
@@ -2303,23 +2303,23 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   // -------------------------------------------------------------------------
   if (modalDescricaoAberto) {
     return (
-      <div className="fixed inset-0 z-50 bg-white flex flex-col text-slate-900 select-none">
+      <div className="fixed inset-0 z-50 bg-white dark:bg-[#0B0F17] flex flex-col text-slate-900 dark:text-white select-none">
         {/* Header TELA017 */}
-        <div className="h-16 border-b border-slate-200 px-4 flex items-center justify-between bg-white shrink-0">
+        <div className="h-16 border-b border-slate-200 dark:border-[#1E293B] px-4 flex items-center justify-between bg-white dark:bg-[#0B0F17] shrink-0">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setModalDescricaoAberto(false)}
-              className="p-2 text-slate-600 hover:text-slate-900"
+              className="p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
-            <h1 className="font-extrabold text-base sm:text-lg text-slate-800">Descrição Comercial</h1>
+            <h1 className="font-extrabold text-base sm:text-lg text-slate-800 dark:text-slate-100">Descrição Comercial</h1>
           </div>
           <button
             type="button"
             onClick={() => setFormData(prev => ({ ...prev, descricao: '' }))}
-            className="text-xs sm:text-sm font-extrabold text-teal-600 hover:text-teal-700 px-2 py-1"
+            className="text-xs sm:text-sm font-extrabold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 px-2 py-1 cursor-pointer"
           >
             Limpar
           </button>
@@ -2328,7 +2328,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         {/* Conteúdo TELA017 */}
         <div className="flex-1 p-4 flex flex-col justify-between overflow-y-auto space-y-4">
           <div className="space-y-2">
-            <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
+            <label className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               Texto da Descrição
             </label>
             <textarea
@@ -2336,27 +2336,27 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               value={formData.descricao}
               onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
               placeholder="Digite os detalhes do produto, benefícios, modo de uso ou deixe a IA criar uma descrição exclusiva para você..."
-              className="w-full p-4 border-2 border-teal-500/80 text-xs sm:text-sm font-medium uppercase leading-relaxed text-slate-800 focus:outline-none bg-slate-50/60 rounded-2xl resize-none shadow-sm"
+              className="w-full p-4 border-2 border-emerald-500/80 text-xs sm:text-sm font-medium uppercase leading-relaxed text-slate-800 dark:text-white focus:outline-none bg-slate-50/60 dark:bg-[#000000] dark:border-[#1E293B] rounded-2xl resize-none shadow-sm"
             />
           </div>
 
           {/* Card IA Inferior */}
           <div className="space-y-4 pt-4">
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-teal-50 to-indigo-50 border border-teal-200/60 shadow-sm">
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-emerald-50 to-indigo-50 dark:from-[#000000] dark:to-[#0B0F17] border border-emerald-200/60 dark:border-[#1E293B] shadow-sm">
               <div className="text-left">
-                <p className="text-xs sm:text-sm font-black text-slate-800">Melhorar com Inteligência Artificial</p>
-                <p className="text-[11px] text-slate-500 font-medium mt-0.5">Gera um texto exclusivo, detalhado e persuasivo</p>
+                <p className="text-xs sm:text-sm font-black text-slate-800 dark:text-slate-100">Melhorar com Inteligência Artificial</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Gera um texto exclusivo, detalhado e persuasivo</p>
               </div>
               <button
                 type="button"
                 disabled={gerandoDescricaoIA}
                 onClick={melhorarDescricaoComIA}
-                className="px-4 py-2.5 rounded-xl bg-slate-900 text-white text-xs sm:text-sm font-extrabold flex items-center gap-2 hover:bg-slate-800 transition shadow-md cursor-pointer disabled:opacity-50 shrink-0 ml-2"
+                className="px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 dark:hover:bg-emerald-500 text-white text-xs sm:text-sm font-extrabold flex items-center gap-2 transition shadow-md cursor-pointer disabled:opacity-50 shrink-0 ml-2"
               >
                 {gerandoDescricaoIA ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-teal-400" />
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
                 ) : (
-                  <Sparkles className="w-4 h-4 text-teal-400" />
+                  <Sparkles className="w-4 h-4 text-emerald-400" />
                 )}
                 <span>{gerandoDescricaoIA ? 'Gerando...' : 'Melhorar IA'}</span>
               </button>
@@ -2365,11 +2365,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         </div>
 
         {/* Botão Salvar TELA017 */}
-        <div className="p-4 border-t border-slate-200 bg-white shrink-0">
+        <div className="p-4 border-t border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#0B0F17] shrink-0">
           <button
             type="button"
             onClick={() => setModalDescricaoAberto(false)}
-            className="w-full py-4 rounded-2xl bg-teal-500 hover:bg-teal-600 text-white font-extrabold text-sm sm:text-base shadow-md transition cursor-pointer"
+            className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-sm sm:text-base shadow-md transition cursor-pointer"
           >
             Salvar Descrição
           </button>
@@ -2383,36 +2383,36 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   // -------------------------------------------------------------------------
   if (modalGaleriaFotosAberto) {
     return (
-      <div className="fixed inset-0 z-50 bg-white flex flex-col text-slate-900 select-none">
+      <div className="fixed inset-0 z-50 bg-white dark:bg-[#0B0F17] flex flex-col text-slate-900 dark:text-white select-none">
         {/* Header TELA015 */}
-        <div className="h-16 border-b border-slate-200 px-4 flex items-center gap-3 bg-white shrink-0">
+        <div className="h-16 border-b border-slate-200 dark:border-[#1E293B] px-4 flex items-center gap-3 bg-white dark:bg-[#0B0F17] shrink-0">
           <button
             type="button"
             onClick={() => setModalGaleriaFotosAberto(false)}
-            className="p-2 text-slate-600 hover:text-slate-900"
+            className="p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
-          <h1 className="font-extrabold text-base sm:text-lg text-slate-800">Galeria de Fotos</h1>
+          <h1 className="font-extrabold text-base sm:text-lg text-slate-800 dark:text-slate-100">Galeria de Fotos</h1>
         </div>
 
         {/* Conteúdo com Foto Principal e Grade de Slots */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6 flex flex-col items-center">
           {/* Foto Principal */}
           {formData.fotos[0] ? (
-            <div className="relative w-64 h-64 border border-slate-200 rounded-3xl overflow-hidden shadow-md flex items-center justify-center bg-slate-50">
+            <div className="relative w-64 h-64 border border-slate-200 dark:border-[#1E293B] rounded-3xl overflow-hidden shadow-md flex items-center justify-center bg-slate-50 dark:bg-[#000000]">
               <img src={formData.fotos[0]} alt="Principal" className="w-full h-full object-contain" />
               <button
                 type="button"
                 onClick={() => setFormData(prev => ({ ...prev, fotos: prev.fotos.slice(1) }))}
-                className="absolute top-3 right-3 p-2 rounded-full bg-slate-900/80 text-white hover:bg-rose-600 transition"
+                className="absolute top-3 right-3 p-2 rounded-full bg-slate-900/80 text-white hover:bg-rose-600 transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
           ) : (
-            <div className="w-64 h-64 border-2 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center text-slate-400 bg-slate-50">
-              <Camera className="w-12 h-12 mb-2 text-slate-300" />
+            <div className="w-64 h-64 border-2 border-dashed border-slate-200 dark:border-[#1E293B] rounded-3xl flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-[#000000]">
+              <Camera className="w-12 h-12 mb-2 text-slate-300 dark:text-slate-600" />
               <span className="text-xs sm:text-sm font-bold">Nenhuma foto adicionada</span>
             </div>
           )}
@@ -2420,7 +2420,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           {/* Grade 2x3 de Slots */}
           <div className="grid grid-cols-3 gap-3 w-full max-w-xs">
             {/* Slot 1: Botão Adicionar */}
-            <label className="h-24 rounded-2xl border-2 border-dashed border-teal-400 bg-teal-50/50 flex flex-col items-center justify-center text-teal-600 hover:bg-teal-50 transition cursor-pointer">
+            <label className="h-24 rounded-2xl border-2 border-dashed border-emerald-500/80 dark:border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/20 flex flex-col items-center justify-center text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 transition cursor-pointer">
               <Plus className="w-6 h-6 mb-0.5" />
               <span className="text-[10px] font-bold uppercase">Adicionar</span>
               <input
@@ -2436,12 +2436,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               const foto = formData.fotos[idx];
               if (foto) {
                 return (
-                  <div key={idx} className="relative h-24 rounded-2xl border border-slate-200 overflow-hidden bg-slate-50 shadow-sm">
+                  <div key={idx} className="relative h-24 rounded-2xl border border-slate-200 dark:border-[#1E293B] overflow-hidden bg-slate-50 dark:bg-[#000000] shadow-sm">
                     <img src={foto} alt={`Foto ${idx}`} className="w-full h-full object-cover" />
                     <button
                       type="button"
                       onClick={() => setFormData(prev => ({ ...prev, fotos: prev.fotos.filter((_, i) => i !== idx) }))}
-                      className="absolute top-1.5 right-1.5 p-1 rounded-full bg-slate-900/80 text-white"
+                      className="absolute top-1.5 right-1.5 p-1 rounded-full bg-slate-900/80 text-white cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -2449,18 +2449,18 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 );
               }
               return (
-                <div key={idx} className="h-24 rounded-2xl border border-slate-100 bg-slate-50/60" />
+                <div key={idx} className="h-24 rounded-2xl border border-slate-100 dark:border-[#1E293B] bg-slate-50/60 dark:bg-[#000000]" />
               );
             })}
           </div>
         </div>
 
         {/* Botão Salvar TELA015 */}
-        <div className="p-4 border-t border-slate-200 bg-white shrink-0">
+        <div className="p-4 border-t border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#0B0F17] shrink-0">
           <button
             type="button"
             onClick={() => setModalGaleriaFotosAberto(false)}
-            className="w-full py-4 rounded-2xl bg-teal-500 hover:bg-teal-600 text-white font-extrabold text-sm sm:text-base shadow-md transition cursor-pointer"
+            className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-sm sm:text-base shadow-md transition cursor-pointer"
           >
             Concluir Fotos
           </button>
@@ -2482,34 +2482,34 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     };
 
     return (
-      <div className="fixed inset-0 z-50 bg-white flex flex-col text-slate-900 select-none">
+      <div className="fixed inset-0 z-50 bg-white dark:bg-[#0B0F17] flex flex-col text-slate-900 dark:text-white select-none">
         {/* Header TELA012 */}
-        <div className="h-16 border-b border-slate-200 px-4 flex items-center gap-3 bg-white shrink-0">
+        <div className="h-16 border-b border-slate-200 dark:border-[#1E293B] px-4 flex items-center gap-3 bg-white dark:bg-[#0B0F17] shrink-0">
           <button
             type="button"
             onClick={() => setModalEstoqueMinimoAberto(false)}
-            className="p-2 text-slate-600 hover:text-slate-900"
+            className="p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
-          <h1 className="font-extrabold text-base sm:text-lg text-slate-800">Estoque mínimo</h1>
+          <h1 className="font-extrabold text-base sm:text-lg text-slate-800 dark:text-slate-100">Estoque mínimo</h1>
         </div>
 
         {/* Visor Grande TELA012 */}
         <div className="flex-1 flex flex-col items-center justify-center p-6">
-          <div className="border-b-4 border-slate-900 px-10 py-3 mb-8">
-            <span className="font-light text-7xl sm:text-8xl text-slate-900 tracking-tight">{tecladoValorEstoqueMin}</span>
+          <div className="border-b-4 border-slate-900 dark:border-emerald-500 px-10 py-3 mb-8">
+            <span className="font-light text-7xl sm:text-8xl text-slate-900 dark:text-white tracking-tight">{tecladoValorEstoqueMin}</span>
           </div>
         </div>
 
         {/* Teclado Numérico Virtual TELA012 */}
-        <div className="border-t border-slate-100 bg-white grid grid-cols-3 divide-x divide-y divide-slate-100 text-center">
+        <div className="border-t border-slate-100 dark:border-[#1E293B] bg-white dark:bg-[#000000] grid grid-cols-3 divide-x divide-y divide-slate-100 dark:divide-[#1E293B] text-center">
           {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(num => (
             <button
               key={num}
               type="button"
               onClick={() => handleDigitoTeclado(num)}
-              className="py-6 text-2xl font-bold text-slate-800 active:bg-slate-100"
+              className="py-6 text-2xl font-bold text-slate-800 dark:text-slate-100 active:bg-slate-100 dark:active:bg-[#0D111A] cursor-pointer"
             >
               {num}
             </button>
@@ -2518,21 +2518,21 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           <button
             type="button"
             onClick={() => handleDigitoTeclado('0')}
-            className="py-6 text-2xl font-bold text-slate-800 active:bg-slate-100"
+            className="py-6 text-2xl font-bold text-slate-800 dark:text-slate-100 active:bg-slate-100 dark:active:bg-[#0D111A] cursor-pointer"
           >
             0
           </button>
           <button
             type="button"
             onClick={() => handleDigitoTeclado('backspace')}
-            className="py-6 flex items-center justify-center text-slate-700 active:bg-slate-100"
+            className="py-6 flex items-center justify-center text-slate-700 dark:text-slate-300 active:bg-slate-100 dark:active:bg-[#0D111A] cursor-pointer"
           >
             <X className="w-7 h-7" />
           </button>
         </div>
 
         {/* Botão OK TELA012 */}
-        <div className="p-4 border-t border-slate-200 bg-white shrink-0">
+        <div className="p-4 border-t border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#0B0F17] shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -2540,7 +2540,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               setFormData(prev => ({ ...prev, estoqueMinimo: val }));
               setModalEstoqueMinimoAberto(false);
             }}
-            className="w-full py-4 rounded-2xl bg-teal-500 hover:bg-teal-600 text-white font-extrabold text-sm sm:text-base shadow-md transition cursor-pointer"
+            className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-sm sm:text-base shadow-md transition cursor-pointer"
           >
             OK
           </button>
@@ -2557,13 +2557,13 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     const precoPromoFmt = formData.precoPromocional ? parseFloat(formData.precoPromocional).toFixed(2).replace('.', ',') : null;
 
     return (
-      <div className="fixed inset-0 z-50 bg-white flex flex-col text-slate-900 select-none">
+      <div className="fixed inset-0 z-50 bg-white dark:bg-[#0B0F17] flex flex-col text-slate-900 dark:text-white select-none">
         {/* Botão Fechar TELA009 */}
         <div className="p-4 flex justify-start">
           <button
             type="button"
             onClick={() => setModalPublicCardAberto(false)}
-            className="p-2 text-slate-700 hover:text-slate-900"
+            className="p-2 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
           >
             <X className="w-6 h-6" />
           </button>
@@ -2571,50 +2571,50 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
         {/* Conteúdo Visual TELA009 */}
         <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-4">
-          <div className="w-full h-72 rounded-3xl border border-slate-100 bg-slate-50 overflow-hidden flex items-center justify-center shadow-inner">
+          <div className="w-full h-72 rounded-3xl border border-slate-100 dark:border-[#1E293B] bg-slate-50 dark:bg-[#000000] overflow-hidden flex items-center justify-center shadow-inner">
             {formData.fotos[0] ? (
               <img src={formData.fotos[0]} alt="Produto" className="max-w-full max-h-full object-contain" />
             ) : (
-              <Tag className="w-16 h-16 text-slate-300" />
+              <Tag className="w-16 h-16 text-slate-300 dark:text-slate-600" />
             )}
           </div>
 
           <div className="space-y-1">
-            <h1 className="font-black text-lg sm:text-xl text-slate-900 uppercase">
+            <h1 className="font-black text-lg sm:text-xl text-slate-900 dark:text-white uppercase">
               {formData.nome || 'NOME DO PRODUTO'}
             </h1>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
               {mapaCategorias.get(formData.categoriaId) || 'SEM CATEGORIA'}
             </p>
           </div>
 
           <div className="flex items-center justify-between pt-1">
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-black text-teal-600">
+              <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
                 R$ {precoPromoFmt || precoVendaFmt}
               </span>
               {precoPromoFmt && (
-                <span className="text-xs text-slate-400 line-through">
+                <span className="text-xs text-slate-400 dark:text-slate-500 line-through">
                   R$ {precoVendaFmt}
                 </span>
               )}
             </div>
             {formData.codigoBarras && (
-              <span className="text-xs text-slate-400 font-semibold">
+              <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold">
                 COD. {formData.codigoBarras}
               </span>
             )}
           </div>
 
           {formData.descricao && (
-            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed uppercase pt-2">
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed uppercase pt-2">
               {formData.descricao}
             </p>
           )}
         </div>
 
         {/* Botão Compartilhar TELA009 */}
-        <div className="p-4 border-t border-slate-200 bg-slate-900 text-white shrink-0">
+        <div className="p-4 border-t border-slate-200 dark:border-[#1E293B] bg-slate-900 dark:bg-[#000000] text-white shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -2624,7 +2624,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 `Confira ${formData.nome} por apenas R$ ${precoPromoFmt || precoVendaFmt} no nosso catálogo!`
               );
             }}
-            className="w-full py-3.5 flex items-center justify-center gap-2 text-sm sm:text-base font-extrabold text-slate-200 hover:text-white"
+            className="w-full py-3.5 flex items-center justify-center gap-2 text-sm sm:text-base font-extrabold text-slate-200 dark:text-white hover:text-white cursor-pointer"
           >
             <Share2 className="w-5 h-5" />
             <span>Compartilhar Produto</span>
@@ -3559,17 +3559,17 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
         {/* Modal Cor da Etiqueta / Tarja (TELA013) com Opção Individual vs Todos os Produtos da Loja */}
         {modalCorEtiquetaAberto && (
-          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-sm p-6 shadow-2xl space-y-5 animate-in slide-in-from-bottom duration-200">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div className="bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] rounded-t-3xl sm:rounded-3xl w-full max-w-sm p-6 shadow-2xl space-y-5 animate-in slide-in-from-bottom duration-200 text-slate-900 dark:text-slate-100">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#1E293B] pb-3">
                 <div>
-                  <h3 className="font-black text-sm sm:text-base text-slate-800">Cor da Tarja Inferior</h3>
+                  <h3 className="font-black text-sm sm:text-base text-slate-800 dark:text-white">Cor da Tarja Inferior</h3>
                   <p className="text-[11px] text-slate-400 font-semibold">Selecione o tom desejado</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setModalCorEtiquetaAberto(false)}
-                  className="p-1 text-slate-400 hover:text-slate-700"
+                  className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -3582,8 +3582,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     key={cor}
                     type="button"
                     onClick={() => setCorSelecionadaModal(cor)}
-                    className={`h-14 rounded-2xl shadow-sm border transition active:scale-95 flex items-center justify-center ${
-                      corSelecionadaModal === cor ? 'border-4 border-slate-900 scale-105 shadow-md' : 'border-black/10'
+                    className={`h-14 rounded-2xl shadow-sm border transition active:scale-95 flex items-center justify-center cursor-pointer ${
+                      corSelecionadaModal === cor ? 'border-4 border-slate-900 dark:border-white scale-105 shadow-md' : 'border-black/10'
                     }`}
                     style={{ backgroundColor: cor }}
                   >
@@ -3593,8 +3593,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               </div>
 
               {/* Opção de Escopo: Apenas este produto VS Todos os produtos da Loja */}
-              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2.5">
-                <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">
+              <div className="bg-slate-50 dark:bg-[#0B0F17] p-3.5 rounded-2xl border border-slate-200 dark:border-[#1E293B] space-y-2.5">
+                <label className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
                   Onde aplicar a cor?
                 </label>
 
@@ -3602,7 +3602,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   <label
                     onClick={() => setAplicarCorEmMassa(false)}
                     className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition ${
-                      !aplicarCorEmMassa ? 'bg-white border-teal-500 shadow-sm text-slate-800' : 'border-transparent text-slate-600'
+                      !aplicarCorEmMassa ? 'bg-white dark:bg-[#000000] border-emerald-500 shadow-sm text-slate-800 dark:text-slate-200' : 'border-transparent text-slate-600 dark:text-slate-400'
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
@@ -3611,7 +3611,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                         name="escopo_cor"
                         checked={!aplicarCorEmMassa}
                         onChange={() => setAplicarCorEmMassa(false)}
-                        className="text-teal-600 focus:ring-teal-500 w-4 h-4"
+                        className="text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
                       />
                       <span className="text-xs font-bold">Apenas neste produto</span>
                     </div>
@@ -3620,7 +3620,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   <label
                     onClick={() => setAplicarCorEmMassa(true)}
                     className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition ${
-                      aplicarCorEmMassa ? 'bg-white border-teal-500 shadow-sm text-slate-800' : 'border-transparent text-slate-600'
+                      aplicarCorEmMassa ? 'bg-white dark:bg-[#000000] border-emerald-500 shadow-sm text-slate-800 dark:text-slate-200' : 'border-transparent text-slate-600 dark:text-slate-400'
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
@@ -3629,14 +3629,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                         name="escopo_cor"
                         checked={aplicarCorEmMassa}
                         onChange={() => setAplicarCorEmMassa(true)}
-                        className="text-teal-600 focus:ring-teal-500 w-4 h-4"
+                        className="text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
                       />
                       <div>
-                        <span className="text-xs font-black text-slate-800 block">Todos os produtos da loja</span>
+                        <span className="text-xs font-black text-slate-800 dark:text-slate-200 block">Todos os produtos da loja</span>
                         <span className="text-[10px] text-slate-400 font-medium">Define como padrão para todo o catálogo</span>
                       </div>
                     </div>
-                    <span className="px-2 py-0.5 rounded-full bg-teal-500/15 text-teal-700 text-[10px] font-extrabold uppercase">
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[10px] font-extrabold uppercase">
                       Em massa
                     </span>
                   </label>
@@ -3648,7 +3648,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setModalCorEtiquetaAberto(false)}
-                  className="flex-1 py-3.5 rounded-2xl border border-slate-200 text-xs font-extrabold text-slate-600 hover:bg-slate-50"
+                  className="flex-1 py-3.5 rounded-2xl border border-slate-200 dark:border-[#1E293B] text-xs font-extrabold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#0D111A] cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -3665,7 +3665,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                       setMensagemFeedback({ texto: 'Cor da tarja atualizada para este produto!', tipo: 'sucesso' });
                     }
                   }}
-                  className="flex-1 py-3.5 rounded-2xl bg-teal-500 hover:bg-teal-600 text-white text-xs sm:text-sm font-black shadow-lg transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  className="flex-1 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-black shadow-lg transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
                   {salvandoProduto ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -3680,23 +3680,23 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
         {/* Diálogo de Clonar (TELA010) */}
         {modalClonarAberto && (
-          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl w-full max-w-xs p-6 shadow-2xl space-y-4 text-left">
-              <h3 className="font-black text-base sm:text-lg text-slate-900">Atenção</h3>
-              <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed">Deseja clonar este produto?</p>
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] rounded-3xl w-full max-w-xs p-6 shadow-2xl space-y-4 text-left">
+              <h3 className="font-black text-base sm:text-lg text-slate-900 dark:text-white">Atenção</h3>
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 font-medium leading-relaxed">Deseja clonar este produto?</p>
 
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setModalClonarAberto(false)}
-                  className="px-3 py-2 text-xs font-extrabold text-slate-600 hover:text-slate-800 uppercase"
+                  className="px-3 py-2 text-xs font-extrabold text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 uppercase cursor-pointer"
                 >
                   Descartar
                 </button>
                 <button
                   type="button"
                   onClick={executarClonagem}
-                  className="px-4 py-2 text-xs font-black text-teal-600 hover:text-teal-700 uppercase"
+                  className="px-4 py-2 text-xs font-black text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 uppercase cursor-pointer"
                 >
                   Sim
                 </button>
@@ -3707,14 +3707,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
         {/* Modal Vender por (TELA019) */}
         {modalVenderPorAberto && (
-          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end justify-center">
-            <div className="bg-white rounded-t-3xl w-full max-w-md p-6 shadow-2xl space-y-4 animate-in slide-in-from-bottom duration-200">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 className="font-black text-sm sm:text-base text-slate-800">Vender por</h3>
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end justify-center">
+            <div className="bg-white dark:bg-[#000000] border-t border-slate-200 dark:border-[#1E293B] rounded-t-3xl w-full max-w-md p-6 shadow-2xl space-y-4 animate-in slide-in-from-bottom duration-200 text-slate-900 dark:text-slate-100">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#1E293B] pb-3">
+                <h3 className="font-black text-sm sm:text-base text-slate-800 dark:text-white">Vender por</h3>
                 <button
                   type="button"
                   onClick={() => setModalVenderPorAberto(false)}
-                  className="p-1 text-slate-400 hover:text-slate-700"
+                  className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -3727,12 +3727,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     setFormData(prev => ({ ...prev, tipoUnidade: 'un' }));
                     setModalVenderPorAberto(false);
                   }}
-                  className={`w-full p-4 rounded-2xl text-left text-xs sm:text-sm font-extrabold flex items-center justify-between transition ${
-                    formData.tipoUnidade === 'un' ? 'bg-teal-50 text-teal-700' : 'text-slate-700 hover:bg-slate-50'
+                  className={`w-full p-4 rounded-2xl text-left text-xs sm:text-sm font-extrabold flex items-center justify-between transition border cursor-pointer ${
+                    formData.tipoUnidade === 'un'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-500'
+                      : 'bg-white dark:bg-[#000000] text-slate-700 dark:text-slate-200 border-slate-200 dark:border-[#1E293B] hover:bg-slate-50 dark:hover:bg-[#0D111A]'
                   }`}
                 >
                   <span>Unidade</span>
-                  {formData.tipoUnidade === 'un' && <Check className="w-5 h-5 text-teal-600" />}
+                  {formData.tipoUnidade === 'un' && <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
                 </button>
 
                 <button
@@ -3741,12 +3743,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     setFormData(prev => ({ ...prev, tipoUnidade: 'kg' }));
                     setModalVenderPorAberto(false);
                   }}
-                  className={`w-full p-4 rounded-2xl text-left text-xs sm:text-sm font-extrabold flex items-center justify-between transition ${
-                    formData.tipoUnidade !== 'un' ? 'bg-teal-50 text-teal-700' : 'text-slate-700 hover:bg-slate-50'
+                  className={`w-full p-4 rounded-2xl text-left text-xs sm:text-sm font-extrabold flex items-center justify-between transition border cursor-pointer ${
+                    formData.tipoUnidade !== 'un'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-500'
+                      : 'bg-white dark:bg-[#000000] text-slate-700 dark:text-slate-200 border-slate-200 dark:border-[#1E293B] hover:bg-slate-50 dark:hover:bg-[#0D111A]'
                   }`}
                 >
                   <span>Fração (Kilo, Litro, Metro, etc.)</span>
-                  {formData.tipoUnidade !== 'un' && <Check className="w-5 h-5 text-teal-600" />}
+                  {formData.tipoUnidade !== 'un' && <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
                 </button>
               </div>
             </div>
@@ -3755,18 +3759,18 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
         {/* MODAL RADAR DE PREÇOS DE MERCADO (IA GEMINI) */}
         {modalRadarAberto && (
-          <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in">
-            <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg p-5 shadow-2xl space-y-4 max-h-[85vh] flex flex-col animate-in slide-in-from-bottom duration-200">
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in">
+            <div className="bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] rounded-t-3xl sm:rounded-3xl w-full max-w-lg p-5 shadow-2xl space-y-4 max-h-[85vh] flex flex-col animate-in slide-in-from-bottom duration-200 text-slate-900 dark:text-slate-100">
               {/* Header */}
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#1E293B] pb-3 shrink-0">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-sm">
+                  <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-emerald-500 to-indigo-500 flex items-center justify-center text-white shadow-sm">
                     <Zap className="w-5 h-5 fill-white" />
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5">
-                      <h3 className="font-black text-sm sm:text-base text-slate-900">Radar de Preços</h3>
-                      <span className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded-full font-bold">
+                      <h3 className="font-black text-sm sm:text-base text-slate-900 dark:text-white">Radar de Preços</h3>
+                      <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 px-1.5 py-0.5 rounded-full font-bold">
                         IA Gemini
                       </span>
                     </div>
@@ -3779,7 +3783,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setModalRadarAberto(false)}
-                  className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition cursor-pointer"
+                  className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-[#0D111A] text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -3795,13 +3799,13 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     />
                   </div>
                 ) : erroMercado ? (
-                  <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl space-y-2 text-center">
+                  <div className="p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-2xl space-y-2 text-center">
                     <AlertCircle className="w-6 h-6 text-rose-500 mx-auto" />
-                    <p className="text-xs text-rose-800 font-bold">{erroMercado}</p>
+                    <p className="text-xs text-rose-800 dark:text-rose-300 font-bold">{erroMercado}</p>
                     <button
                       type="button"
                       onClick={buscarConcorrentesMercado}
-                      className="px-3 py-1.5 bg-rose-600 text-white text-xs font-bold rounded-xl shadow-sm hover:bg-rose-700 transition"
+                      className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-sm transition cursor-pointer"
                     >
                       Tentar Novamente
                     </button>
@@ -3809,16 +3813,16 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 ) : dadosMercado ? (
                   <div className="space-y-3">
                     {/* Preço Médio Card */}
-                    <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-2xl space-y-2.5">
+                    <div className="p-4 bg-gradient-to-r from-emerald-50 to-indigo-50 dark:from-[#0B0F17] dark:to-[#000000] border border-emerald-200 dark:border-[#1E293B] rounded-2xl space-y-2.5">
                       <div className="flex items-baseline justify-between">
                         <div>
-                          <span className="text-[10px] uppercase font-bold text-indigo-800 block">Preço Médio</span>
-                          <span className="text-2xl font-black text-indigo-950">R$ {dadosMercado.precoMedio.toFixed(2)}</span>
+                          <span className="text-[10px] uppercase font-bold text-emerald-800 dark:text-emerald-400 block">Preço Médio</span>
+                          <span className="text-2xl font-black text-slate-900 dark:text-white">R$ {dadosMercado.precoMedio.toFixed(2)}</span>
                         </div>
                         <button
                           type="button"
                           onClick={() => handleAplicarPrecoMercado(dadosMercado.precoMedio)}
-                          className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-sm flex items-center gap-1.5 transition active:scale-95"
+                          className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl shadow-sm flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
                         >
                           <Zap className="w-3.5 h-3.5 fill-white" />
                           <span>Aplicar Sugerido (R$ {Math.floor(dadosMercado.precoMedio).toFixed(2)})</span>
@@ -3826,14 +3830,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                       </div>
 
                       {/* Menor e Maior Preço */}
-                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-indigo-200/60 text-xs">
-                        <div className="bg-white/80 p-2 rounded-xl border border-indigo-100">
-                          <span className="text-[10px] text-slate-500 block">Menor Preço</span>
-                          <span className="font-extrabold text-emerald-700">R$ {dadosMercado.menorPreco.toFixed(2)}</span>
+                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-emerald-200/60 dark:border-[#1E293B] text-xs">
+                        <div className="bg-white/80 dark:bg-[#000000] p-2 rounded-xl border border-emerald-100 dark:border-[#1E293B]">
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Menor Preço</span>
+                          <span className="font-extrabold text-emerald-700 dark:text-emerald-400">R$ {dadosMercado.menorPreco.toFixed(2)}</span>
                         </div>
-                        <div className="bg-white/80 p-2 rounded-xl border border-indigo-100">
-                          <span className="text-[10px] text-slate-500 block">Maior Preço</span>
-                          <span className="font-extrabold text-indigo-900">R$ {dadosMercado.maiorPreco.toFixed(2)}</span>
+                        <div className="bg-white/80 dark:bg-[#000000] p-2 rounded-xl border border-indigo-100 dark:border-[#1E293B]">
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 block">Maior Preço</span>
+                          <span className="font-extrabold text-indigo-900 dark:text-indigo-300">R$ {dadosMercado.maiorPreco.toFixed(2)}</span>
                         </div>
                       </div>
                     </div>
@@ -3844,18 +3848,18 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                       {dadosMercado.concorrentes.map((conc, idx) => (
                         <div
                           key={idx}
-                          className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between hover:bg-slate-100 transition"
+                          className="p-2.5 bg-slate-50 dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] rounded-xl flex items-center justify-between hover:bg-slate-100 dark:hover:bg-[#0D111A] transition"
                         >
                           <div>
-                            <span className="font-bold text-xs text-slate-800 block">{conc.loja}</span>
+                            <span className="font-bold text-xs text-slate-800 dark:text-slate-200 block">{conc.loja}</span>
                             {conc.tipo && <span className="text-[10px] text-slate-400">{conc.tipo}</span>}
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="font-black text-xs text-slate-900">R$ {conc.preco.toFixed(2)}</span>
+                            <span className="font-black text-xs text-slate-900 dark:text-white">R$ {conc.preco.toFixed(2)}</span>
                             <button
                               type="button"
                               onClick={() => handleAplicarPrecoMercado(conc.preco)}
-                              className="px-2 py-1 bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-300 font-bold text-[10px] rounded-lg transition"
+                              className="px-2 py-1 bg-white dark:bg-[#0B0F17] hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700/60 font-bold text-[10px] rounded-lg transition cursor-pointer"
                             >
                               Aplicar
                             </button>
@@ -3867,7 +3871,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     <button
                       type="button"
                       onClick={buscarConcorrentesMercado}
-                      className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5"
+                      className="w-full py-2 bg-slate-100 hover:bg-slate-200 dark:bg-[#0B0F17] dark:hover:bg-[#0D111A] text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-[#1E293B] font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
                       <span>Atualizar Pesquisa</span>
@@ -3881,16 +3885,16 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
         {/* MODAL COMPLETO DE PREENCHIMENTO AUTOMÁTICO VIA IA (EQUIPARADO AO DESKTOP) */}
         {modalCriarComIAAberto && (
-          <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-sm p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div className="bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] rounded-t-3xl sm:rounded-3xl w-full max-w-sm p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto text-slate-900 dark:text-slate-100">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#1E293B] pb-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-teal-500 flex items-center justify-center text-white font-bold">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold">
                     <Sparkles className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-black text-sm sm:text-base text-slate-900">Preenchimento com IA</h3>
-                    <p className="text-[11px] text-teal-600 font-bold uppercase">Google Gemini Multimodal</p>
+                    <h3 className="font-black text-sm sm:text-base text-slate-900 dark:text-white">Preenchimento com IA</h3>
+                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">Google Gemini Multimodal</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -3901,7 +3905,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                       setTempApiKey(k);
                       setModalKeyGemini(true);
                     }}
-                    className="px-2 py-1 rounded-xl bg-teal-50 text-teal-700 hover:bg-teal-100 flex items-center gap-1 text-[11px] font-bold transition border border-teal-200"
+                    className="px-2 py-1 rounded-xl bg-emerald-50 dark:bg-[#0B0F17] text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-[#0D111A] flex items-center gap-1 text-[11px] font-bold transition border border-emerald-200 dark:border-[#1E293B] cursor-pointer"
                     title="Configurar Chave Gemini"
                   >
                     <Key className="w-3.5 h-3.5" />
@@ -3910,7 +3914,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   <button
                     type="button"
                     onClick={() => setModalCriarComIAAberto(false)}
-                    className="p-1 text-slate-400 hover:text-slate-700"
+                    className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -3919,12 +3923,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
               {/* Botão de Destaque: Atualizar Produto com IA (quando em modo de edição) */}
               {produtoEditando && (
-                <div className="p-3.5 bg-gradient-to-r from-teal-50 to-indigo-50 border border-teal-200/80 rounded-2xl space-y-2 shadow-xs">
+                <div className="p-3.5 bg-gradient-to-r from-emerald-50 to-indigo-50 dark:from-[#0B0F17] dark:to-[#000000] border border-emerald-200/80 dark:border-[#1E293B] rounded-2xl space-y-2 shadow-xs">
                   <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-teal-600 animate-pulse" />
-                    <span className="text-xs font-black text-slate-800">Atualizar Produto com IA</span>
+                    <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400 animate-pulse" />
+                    <span className="text-xs font-black text-slate-800 dark:text-slate-200">Atualizar Produto com IA</span>
                   </div>
-                  <p className="text-[11px] text-slate-500 leading-tight">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
                     Pesquisa e enriquece os dados utilizando o nome, descrição atual e fotos cadastradas.
                   </p>
                   <button
@@ -3933,7 +3937,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                       setModalCriarComIAAberto(false);
                       await handleAtualizarProdutoExistenteIA();
                     }}
-                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-indigo-600 hover:from-teal-500 hover:to-indigo-500 text-white font-black text-xs shadow-sm flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-98"
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white font-black text-xs shadow-sm flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-98"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                     <span>Atualizar o Produto</span>
@@ -3942,12 +3946,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               )}
 
               {/* Abas do Modal IA: Foto | Texto/Nome | Código de Barras */}
-              <div className="flex bg-slate-100 rounded-2xl p-1 gap-1">
+              <div className="flex bg-slate-100 dark:bg-[#0B0F17] rounded-2xl p-1 gap-1 border border-slate-200 dark:border-[#1E293B]">
                 <button
                   type="button"
                   onClick={() => setAbaModalIA('foto')}
-                  className={`flex-1 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition ${
-                    abaModalIA === 'foto' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500'
+                  className={`flex-1 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                    abaModalIA === 'foto' ? 'bg-white dark:bg-[#000000] text-emerald-700 dark:text-emerald-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'
                   }`}
                 >
                   <Camera className="w-3.5 h-3.5" />
@@ -3956,8 +3960,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setAbaModalIA('texto')}
-                  className={`flex-1 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition ${
-                    abaModalIA === 'texto' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500'
+                  className={`flex-1 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                    abaModalIA === 'texto' ? 'bg-white dark:bg-[#000000] text-emerald-700 dark:text-emerald-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'
                   }`}
                 >
                   <FileText className="w-3.5 h-3.5" />
@@ -3966,8 +3970,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setAbaModalIA('codigo')}
-                  className={`flex-1 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition ${
-                    abaModalIA === 'codigo' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500'
+                  className={`flex-1 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                    abaModalIA === 'codigo' ? 'bg-white dark:bg-[#000000] text-emerald-700 dark:text-emerald-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'
                   }`}
                 >
                   <Barcode className="w-3.5 h-3.5" />
@@ -3978,7 +3982,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               {/* Conteúdo Aba Foto */}
               {abaModalIA === 'foto' && (
                 <div className="space-y-4">
-                  <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
                     Envie ou tire uma foto do produto para preencher nome, categoria, preço sugerido e descrição comercial completa automaticamente.
                   </p>
 
@@ -3990,14 +3994,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                         setModalCriarComIAAberto(false);
                         iniciarCameraFoto('environment');
                       }}
-                      className="p-4 rounded-2xl border-2 border-dashed border-teal-400 bg-teal-50/50 flex flex-col items-center justify-center text-teal-700 hover:bg-teal-100 transition cursor-pointer text-center active:scale-95"
+                      className="p-4 rounded-2xl border-2 border-dashed border-emerald-500/80 dark:border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/20 flex flex-col items-center justify-center text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition cursor-pointer text-center active:scale-95"
                     >
                       <Camera className="w-8 h-8 mb-1.5" />
                       <span className="text-xs font-extrabold">Tirar Foto</span>
                     </button>
 
-                    <label className="p-4 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 flex flex-col items-center justify-center text-slate-700 hover:bg-slate-100 transition cursor-pointer text-center active:scale-95">
-                      <Upload className="w-8 h-8 mb-1.5 text-slate-500" />
+                    <label className="p-4 rounded-2xl border-2 border-dashed border-slate-300 dark:border-[#1E293B] bg-slate-50 dark:bg-[#000000] flex flex-col items-center justify-center text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#0D111A] transition cursor-pointer text-center active:scale-95">
+                      <Upload className="w-8 h-8 mb-1.5 text-slate-500 dark:text-slate-400" />
                       <span className="text-xs font-extrabold">Enviar Imagem</span>
                       <input
                         type="file"
@@ -4021,7 +4025,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               {/* Conteúdo Aba Texto / Nome */}
               {abaModalIA === 'texto' && (
                 <div className="space-y-4">
-                  <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
                     Digite o nome ou uma breve descrição do item (ex: <em>"Cerveja Heineken Long Neck 330ml"</em>).
                   </p>
 
@@ -4031,12 +4035,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                       value={promptTextoIA}
                       onChange={(e) => setPromptTextoIA(e.target.value)}
                       placeholder="Ex: Camiseta Algodão Básica Preta"
-                      className="w-full pl-3 pr-10 py-3 rounded-xl border border-slate-300 text-xs sm:text-sm font-semibold text-slate-800"
+                      className="w-full pl-3 pr-10 py-3 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-[#000000] text-xs sm:text-sm font-semibold text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
                     />
                     <button
                       type="button"
                       onClick={() => alternarPesquisaPorVoz(setPromptTextoIA)}
-                      className="absolute right-2 top-2.5 p-1 text-slate-400 hover:text-teal-600"
+                      className="absolute right-2 top-2.5 p-1 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 cursor-pointer"
                     >
                       <Mic className="w-4 h-4" />
                     </button>
@@ -4046,7 +4050,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     type="button"
                     disabled={processandoIA || !promptTextoIA.trim()}
                     onClick={() => processarPreenchimentoIA('texto')}
-                    className="w-full py-3.5 rounded-2xl bg-teal-500 hover:bg-teal-600 text-white font-extrabold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     {processandoIA ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                     <span>Preencher Dados via IA</span>
@@ -4057,7 +4061,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               {/* Conteúdo Aba Código de Barras */}
               {abaModalIA === 'codigo' && (
                 <div className="space-y-4">
-                  <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
                     Aponte a câmera para ler o código ou digite o código de barras (EAN/GTIN) para buscar as informações oficiais do produto.
                   </p>
 
@@ -4069,15 +4073,15 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                       setModalCriarComIAAberto(false);
                       iniciarScannerCamera();
                     }}
-                    className="w-full py-3.5 rounded-2xl bg-teal-50 border border-teal-300 text-teal-800 font-black text-xs sm:text-sm flex items-center justify-center gap-2 hover:bg-teal-100 transition cursor-pointer shadow-sm active:scale-98"
+                    className="w-full py-3.5 rounded-2xl bg-emerald-50 dark:bg-[#0B0F17] border border-emerald-300 dark:border-[#1E293B] text-emerald-800 dark:text-emerald-300 font-black text-xs sm:text-sm flex items-center justify-center gap-2 hover:bg-emerald-100 dark:hover:bg-[#0D111A] transition cursor-pointer shadow-sm active:scale-98"
                   >
-                    <Camera className="w-5 h-5 text-teal-600" />
+                    <Camera className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                     <span>Ler Código com a Câmera</span>
                   </button>
 
                   <div className="relative flex items-center justify-center my-2">
-                    <div className="border-t border-slate-200 w-full" />
-                    <span className="bg-white px-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider absolute">OU</span>
+                    <div className="border-t border-slate-200 dark:border-[#1E293B] w-full" />
+                    <span className="bg-white dark:bg-[#000000] px-2 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider absolute">OU</span>
                   </div>
 
                   <input
@@ -4085,14 +4089,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     value={promptCodigoIA}
                     onChange={(e) => setPromptCodigoIA(e.target.value)}
                     placeholder="Digite o código (ex: 7891000100103)"
-                    className="w-full px-3.5 py-3 rounded-xl border border-slate-300 text-xs sm:text-sm font-semibold text-slate-800"
+                    className="w-full px-3.5 py-3 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-[#000000] text-xs sm:text-sm font-semibold text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
                   />
 
                   <button
                     type="button"
                     disabled={processandoIA || !promptCodigoIA.trim()}
                     onClick={() => processarPreenchimentoIA('codigo')}
-                    className="w-full py-3.5 rounded-2xl bg-teal-500 hover:bg-teal-600 text-white font-extrabold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     {processandoIA ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                     <span>Consultar Código via IA</span>
@@ -4101,8 +4105,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               )}
 
               {processandoIA && (
-                <div className="p-4 rounded-2xl bg-teal-50 border border-teal-200 text-teal-800 flex items-center gap-3">
-                  <Loader2 className="w-5 h-5 animate-spin text-teal-600 shrink-0" />
+                <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-[#0B0F17] border border-emerald-200 dark:border-[#1E293B] text-emerald-800 dark:text-emerald-300 flex items-center gap-3">
+                  <Loader2 className="w-5 h-5 animate-spin text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <span className="text-xs font-bold leading-snug">Consultando inteligência artificial e gerando descrição comercial...</span>
                 </div>
               )}
@@ -4190,52 +4194,52 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         {/* MODAL CONFIGURAR CHAVE GEMINI */}
         {modalKeyGemini && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-5 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 text-white">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] rounded-3xl w-full max-w-sm p-5 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 text-slate-900 dark:text-white">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#1E293B] pb-3">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-400 to-indigo-500 flex items-center justify-center text-white">
                     <Sparkles className="w-4 h-4" />
                   </div>
-                  <h3 className="font-bold text-sm text-slate-100">Chave Google Gemini IA</h3>
+                  <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Chave Google Gemini IA</h3>
                 </div>
                 <button
                   type="button"
                   onClick={() => setModalKeyGemini(false)}
-                  className="p-1 text-slate-400 hover:text-white"
+                  className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="space-y-2 text-xs text-slate-300">
+              <div className="space-y-2 text-xs text-slate-600 dark:text-slate-300">
                 <p>
-                  Para habilitar o preenchimento por foto e geração de descrições, insira sua chave gratuita do <strong className="text-white">Google Gemini</strong>.
+                  Para habilitar o preenchimento por foto e geração de descrições, insira sua chave gratuita do <strong className="text-slate-900 dark:text-white">Google Gemini</strong>.
                 </p>
-                <div className="p-3 bg-slate-800/80 rounded-xl border border-slate-700 space-y-1.5">
-                  <p className="text-[11px] text-amber-400 font-bold">Como obter sua chave gratuita (1 min):</p>
-                  <p className="text-[11px] text-slate-300">
+                <div className="p-3 bg-slate-50 dark:bg-[#0B0F17] rounded-xl border border-slate-200 dark:border-[#1E293B] space-y-1.5">
+                  <p className="text-[11px] text-amber-500 font-bold">Como obter sua chave gratuita (1 min):</p>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300">
                     1. Acesse o <a
                       href="https://aistudio.google.com/app/apikey"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-emerald-400 underline font-bold"
+                      className="text-emerald-600 dark:text-emerald-400 underline font-bold"
                     >
                       Google AI Studio (clique aqui)
                     </a>
                   </p>
-                  <p className="text-[11px] text-slate-300">2. Faça login com sua conta Google</p>
-                  <p className="text-[11px] text-slate-300">3. Clique em <strong>"Create API key"</strong> e copie o código</p>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300">2. Faça login com sua conta Google</p>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300">3. Clique em <strong>"Create API key"</strong> e copie o código</p>
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">Chave da API (Gemini API Key):</label>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Chave da API (Gemini API Key):</label>
                 <input
                   type="password"
                   placeholder="AIzaSy..."
                   value={tempApiKey}
                   onChange={(e) => setTempApiKey(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-teal-400"
+                  className="w-full bg-slate-50 dark:bg-[#000000] border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
@@ -4243,7 +4247,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setModalKeyGemini(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-bold transition cursor-pointer"
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-[#1E293B] hover:bg-slate-50 dark:hover:bg-[#0D111A] text-slate-700 dark:text-slate-300 text-xs font-bold transition cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -4282,7 +4286,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                       setSalvandoKeyGemini(false);
                     }
                   }}
-                  className="flex-1 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5"
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   {salvandoKeyGemini ? (
                     <>
