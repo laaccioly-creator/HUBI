@@ -2724,6 +2724,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           </div>
         </div>
 
+        {/* BANNER DE TESTE VISUAL */}
+        <div style={{ backgroundColor: 'red', color: 'white', padding: '20px', fontSize: '24px', zIndex: 99999 }}>
+          TESTE DE ATUALIZACAO ATIVA
+        </div>
+
         {/* Abas: CADASTRO | ESTOQUE (TELA007 / TELA008) */}
         <div className="flex bg-transparent border-b border-slate-200 dark:border-[#1E293B] shrink-0">
           <button
