@@ -304,7 +304,7 @@ export const ProdutosEstoque: React.FC = () => {
   const qtdFiltrosAtivos = categoriasFiltro.length + (filtroEstoque !== 'todos' ? 1 : 0) + (filtroAtivo !== 'todos' ? 1 : 0);
 
   return (
-    <div className="h-full w-full overflow-hidden bg-slate-950 text-slate-100">
+    <div className="h-full w-full overflow-hidden bg-slate-100 dark:bg-[#0B131F] text-slate-900 dark:text-slate-100">
       {/* 1. VISUALIZAÇÃO MOBILE EXCLUSIVA (TELAS 001 A 020) */}
       <div className="block md:hidden h-full overflow-hidden">
         <ProdutosMobile
@@ -316,15 +316,15 @@ export const ProdutosEstoque: React.FC = () => {
       </div>
 
       {/* 2. VISUALIZAÇÃO DESKTOP (UNIFICADA COM DESIGN SYSTEM) */}
-      <div className={`hidden md:flex flex-col h-full overflow-hidden font-sans ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+      <div className={`hidden md:flex flex-col h-full overflow-hidden font-sans ${isDark ? 'bg-[#0B131F] text-slate-100' : 'bg-slate-100 text-slate-900'}`}>
         {/* Header Superior */}
-        <div className={`p-4 md:p-6 border-b space-y-4 backdrop-blur ${isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-200 bg-white/80'}`}>
+        <div className={`p-4 md:p-6 border-b space-y-4 backdrop-blur ${isDark ? 'border-slate-700/60 bg-[#131D2D]/90' : 'border-slate-200/80 bg-white'}`}>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className={`p-2.5 rounded-2xl border transition cursor-pointer ${isDark ? 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-slate-300' : 'bg-white border-slate-200 hover:bg-slate-100 text-slate-700'}`}
+              className={`p-2.5 rounded-xl border transition cursor-pointer ${isDark ? 'bg-[#131D2D] border-slate-700/60 hover:bg-slate-800 text-slate-300' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'}`}
               title="Voltar"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -333,11 +333,11 @@ export const ProdutosEstoque: React.FC = () => {
               <h1 className={`text-2xl font-black flex items-center gap-2 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
                 <Package className="w-6 h-6 text-emerald-500" />
                 <span>Produtos & Estoque</span>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30">
                   {produtos.length}
                 </span>
               </h1>
-              <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                 Gerencie seus produtos, dê entrada em compras, controle custos e inventário
               </p>
             </div>
@@ -349,7 +349,7 @@ export const ProdutosEstoque: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalCategorias(true)}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border text-xs font-bold transition cursor-pointer shadow-sm ${isDark ? 'bg-slate-800/80 hover:bg-slate-800 border-slate-700/80 text-slate-200' : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'}`}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border text-xs font-semibold transition cursor-pointer shadow-sm ${isDark ? 'bg-[#131D2D] hover:bg-slate-800 border-slate-700/60 text-slate-200' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'}`}
                 title="Gerenciar Categorias de Produtos"
               >
                 <FolderPlus className="w-4 h-4 text-indigo-500" />
@@ -361,7 +361,7 @@ export const ProdutosEstoque: React.FC = () => {
             {permissions.podeCadastrarAlterarProdutos && (
               <Link
                 to="/products/create"
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold text-xs shadow-md transition cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>+ Novo Produto</span>
@@ -375,25 +375,25 @@ export const ProdutosEstoque: React.FC = () => {
           const controlaEstoque = loja?.configuracoes_extras?.controlar_estoque !== false && loja?.configuracoes_extras?.geral?.controlar_estoque !== false;
           return (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className={`rounded-2xl p-3.5 shadow-xs border text-center flex flex-col items-center justify-center space-y-1 ${
-                isDark ? 'bg-slate-900 border-slate-700/80' : 'bg-slate-50/80 border-slate-200/80'
+              <div className={`rounded-2xl p-3.5 shadow-sm border text-center flex flex-col items-center justify-center space-y-1 ${
+                isDark ? 'bg-[#131D2D] border-slate-700/60' : 'bg-white border-slate-200/80'
               }`}>
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 block text-center">
+                <span className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 block text-center">
                   Total de Produtos
                 </span>
-                <span className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white block text-center font-mono">
+                <span className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 block text-center font-mono">
                   {produtos.length} itens
                 </span>
               </div>
 
-              <div className={`rounded-2xl p-3.5 shadow-xs border text-center flex flex-col items-center justify-center space-y-1 ${
-                isDark ? 'bg-slate-900 border-slate-700/80' : 'bg-slate-50/80 border-slate-200/80'
+              <div className={`rounded-2xl p-3.5 shadow-sm border text-center flex flex-col items-center justify-center space-y-1 ${
+                isDark ? 'bg-[#131D2D] border-slate-700/60' : 'bg-white border-slate-200/80'
               }`}>
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 block text-center">
+                <span className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 block text-center">
                   Estoque Físico Total
                 </span>
                 {controlaEstoque ? (
-                  <span className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white block text-center font-mono">
+                  <span className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 block text-center font-mono">
                     {totalItensEstoque} un
                   </span>
                 ) : (
@@ -403,14 +403,14 @@ export const ProdutosEstoque: React.FC = () => {
                 )}
               </div>
 
-              <div className={`rounded-2xl p-3.5 shadow-xs border text-center flex flex-col items-center justify-center space-y-1 ${
-                isDark ? 'bg-slate-900 border-slate-700/80' : 'bg-slate-50/80 border-slate-200/80'
+              <div className={`rounded-2xl p-3.5 shadow-sm border text-center flex flex-col items-center justify-center space-y-1 ${
+                isDark ? 'bg-[#131D2D] border-slate-700/60' : 'bg-white border-slate-200/80'
               }`}>
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 block text-center">
+                <span className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 block text-center">
                   Valor em Venda (Varejo)
                 </span>
                 {controlaEstoque ? (
-                  <span className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white block text-center font-mono">
+                  <span className="text-lg sm:text-xl font-bold tracking-tight text-emerald-700 dark:text-emerald-400 block text-center font-mono">
                     {formatarMoeda(valorTotalEstoque)}
                   </span>
                 ) : (
@@ -421,14 +421,14 @@ export const ProdutosEstoque: React.FC = () => {
               </div>
 
               {permissions.podeVerPrecoCusto && (
-                <div className={`rounded-2xl p-3.5 shadow-xs border text-center flex flex-col items-center justify-center space-y-1 ${
-                  isDark ? 'bg-slate-900 border-slate-700/80' : 'bg-slate-50/80 border-slate-200/80'
+                <div className={`rounded-2xl p-3.5 shadow-sm border text-center flex flex-col items-center justify-center space-y-1 ${
+                  isDark ? 'bg-[#131D2D] border-slate-700/60' : 'bg-white border-slate-200/80'
                 }`}>
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 block text-center">
+                  <span className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 block text-center">
                     Valor em Custo
                   </span>
                   {controlaEstoque ? (
-                    <span className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white block text-center font-mono">
+                    <span className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100 block text-center font-mono">
                       {formatarMoeda(valorCustoEstoque)}
                     </span>
                   ) : (
@@ -452,10 +452,10 @@ export const ProdutosEstoque: React.FC = () => {
               placeholder="Buscar por nome, código SKU ou código de barras..."
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              className={`w-full border rounded-xl pl-10 pr-9 py-2 text-xs transition shadow-xs focus:outline-none focus:border-emerald-500 ${
+              className={`w-full border rounded-xl pl-10 pr-9 py-2 text-xs transition shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 ${
                 isDark
-                  ? 'bg-slate-800/80 border-slate-700/80 text-slate-100 placeholder:text-slate-500'
-                  : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400'
+                  ? 'bg-[#0D1624] border-slate-700 text-white placeholder-slate-400 focus:border-emerald-500'
+                  : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-emerald-600'
               }`}
             />
             {busca && (
@@ -475,19 +475,19 @@ export const ProdutosEstoque: React.FC = () => {
             <button
               type="button"
               onClick={() => setModalFiltroAberto(true)}
-              className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-bold transition cursor-pointer shadow-xs shrink-0 ${
+              className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-semibold transition cursor-pointer shadow-sm shrink-0 ${
                 temFiltroAtivo
-                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-sm shadow-emerald-600/20'
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-md'
                   : isDark
-                  ? 'bg-slate-800 hover:bg-slate-750 border-slate-700 text-slate-300'
-                  : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-900'
+                  ? 'bg-[#131D2D] hover:bg-slate-800 border-slate-700/60 text-slate-300'
+                  : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
               }`}
               title="Filtrar por Categoria, Estoque e Ativo"
             >
               <Filter className={`w-4 h-4 ${temFiltroAtivo ? 'text-white' : 'text-slate-400'}`} />
               <span>Filtros</span>
               {qtdFiltrosAtivos > 0 && (
-                <span className="w-5 h-5 rounded-full bg-white text-emerald-800 font-black text-[10px] flex items-center justify-center shadow-xs">
+                <span className="w-5 h-5 rounded-full bg-white text-emerald-800 font-bold text-[10px] flex items-center justify-center shadow-xs">
                   {qtdFiltrosAtivos}
                 </span>
               )}
@@ -500,13 +500,13 @@ export const ProdutosEstoque: React.FC = () => {
               return (
                 <div
                   key={catId}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-medium shadow-xs shrink-0 animate-in fade-in"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-500/30 text-xs font-medium shadow-xs shrink-0 animate-in fade-in"
                 >
                   <span>{nomeCat}</span>
                   <button
                     type="button"
                     onClick={() => setCategoriasFiltro(prev => prev.filter(id => id !== catId))}
-                    className="p-0.5 rounded-md hover:bg-emerald-500/30 text-emerald-300 hover:text-white transition cursor-pointer"
+                    className="p-0.5 rounded-md hover:bg-emerald-500/30 text-emerald-600 dark:text-emerald-300 hover:text-emerald-800 dark:hover:text-white transition cursor-pointer"
                     title={`Remover filtro ${nomeCat}`}
                   >
                     <X className="w-3.5 h-3.5" />
@@ -516,12 +516,12 @@ export const ProdutosEstoque: React.FC = () => {
             })}
 
             {filtroEstoque !== 'todos' && (
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-medium shadow-xs shrink-0 animate-in fade-in">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800/40 text-xs font-medium shadow-xs shrink-0 animate-in fade-in">
                 <span>{filtroEstoque === 'baixo' ? 'Estoque Baixo' : 'Sem Estoque'}</span>
                 <button
                   type="button"
                   onClick={() => setFiltroEstoque('todos')}
-                  className="p-0.5 rounded-md hover:bg-indigo-500/30 text-indigo-300 hover:text-white transition cursor-pointer"
+                  className="p-0.5 rounded-md hover:bg-indigo-500/30 text-indigo-600 dark:text-indigo-300 hover:text-indigo-800 dark:hover:text-white transition cursor-pointer"
                   title="Remover filtro de estoque"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -530,12 +530,12 @@ export const ProdutosEstoque: React.FC = () => {
             )}
 
             {filtroAtivo !== 'todos' && (
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-teal-500/15 border border-teal-500/30 text-teal-300 text-xs font-medium shadow-xs shrink-0 animate-in fade-in">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-500/30 text-xs font-medium shadow-xs shrink-0 animate-in fade-in">
                 <span>{filtroAtivo === 'ativos' ? 'Ativos' : 'Inativos'}</span>
                 <button
                   type="button"
                   onClick={() => setFiltroAtivo('todos')}
-                  className="p-0.5 rounded-md hover:bg-teal-500/30 text-teal-300 hover:text-white transition cursor-pointer"
+                  className="p-0.5 rounded-md hover:bg-teal-500/30 text-teal-600 dark:text-teal-300 hover:text-teal-800 dark:hover:text-white transition cursor-pointer"
                   title="Remover filtro de status"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -563,9 +563,9 @@ export const ProdutosEstoque: React.FC = () => {
             </Link>
           </div>
         ) : (
-          <div className={`flex-1 min-h-0 border rounded-2xl shadow-sm overflow-y-auto overflow-x-auto ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200'}`}>
+          <div className={`flex-1 min-h-0 border rounded-2xl shadow-sm overflow-y-auto overflow-x-auto ${isDark ? 'bg-[#131D2D] border-slate-700/60' : 'bg-white border-slate-200/80'}`}>
             <table className={`w-full text-left text-xs border-collapse ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-              <thead className={`sticky top-0 z-20 shadow-xs border-b uppercase text-[10px] tracking-wider font-semibold ${isDark ? 'bg-slate-900 text-slate-400 border-slate-800' : 'bg-slate-100 text-slate-900 border-slate-200 font-bold'}`}>
+              <thead className={`sticky top-0 z-20 shadow-xs border-b uppercase text-[10px] tracking-wider font-semibold ${isDark ? 'bg-[#0D1624] text-slate-300 border-slate-700/60' : 'bg-slate-50 text-slate-700 border-slate-200/80 font-bold'}`}>
                 <tr>
                   <th className="p-3.5">Produto</th>
                   <th className="p-3.5">Categoria</th>
@@ -577,7 +577,7 @@ export const ProdutosEstoque: React.FC = () => {
                   <th className="p-3.5 text-right">Ações</th>
                 </tr>
               </thead>
-              <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
+              <tbody className={`divide-y ${isDark ? 'divide-slate-800' : 'divide-slate-200/80'}`}>
                   {produtosFiltrados.map((produto) => {
                     const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
                     const estoqueQtd = getEstoqueReal(produto);
@@ -585,7 +585,7 @@ export const ProdutosEstoque: React.FC = () => {
                     const temVariacoesGrade = Boolean(produto.tem_variacoes && Array.isArray(produto.variacoes) && produto.variacoes.length > 0);
 
                     return (
-                      <tr key={produto.id} className={`transition group ${isDark ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'}`}>
+                      <tr key={produto.id} className={`transition group ${isDark ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50/80'}`}>
                         <td className="p-3.5">
                           <div
                             onClick={() => setProdutoDetalhes(produto)}
@@ -595,7 +595,7 @@ export const ProdutosEstoque: React.FC = () => {
                             <img
                               src={fotoUrl}
                               alt={produto.nome}
-                              className={`w-11 h-11 rounded-xl object-cover border shrink-0 group-hover/prod:scale-105 transition duration-150 ${isDark ? 'bg-slate-950 border-slate-800 group-hover/prod:border-emerald-500/50' : 'bg-slate-100 border-slate-200 group-hover/prod:border-emerald-400'}`}
+                              className={`w-11 h-11 rounded-xl object-cover border shrink-0 group-hover/prod:scale-105 transition duration-150 ${isDark ? 'bg-[#0D1624] border-slate-700/60 group-hover/prod:border-emerald-500/50' : 'bg-slate-100 border-slate-200 group-hover/prod:border-emerald-400'}`}
                             />
                             <div className="min-w-0">
                               <span className={`font-bold block text-xs group-hover/prod:underline transition truncate ${isDark ? 'text-slate-100 group-hover/prod:text-emerald-400' : 'text-slate-900 group-hover/prod:text-emerald-600'}`}>
@@ -610,15 +610,15 @@ export const ProdutosEstoque: React.FC = () => {
                           </div>
                         </td>
 
-                        <td className={`p-3.5 font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
+                        <td className={`p-3.5 font-medium ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
                           {produto.categoria?.nome || 'Geral'}
                         </td>
 
-                        <td className={`p-3.5 font-bold font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        <td className={`p-3.5 font-semibold font-mono ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
                           {formatarMoeda(produto.preco_venda_varejo)}
                         </td>
 
-                        <td className={`p-3.5 font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                        <td className={`p-3.5 font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                           {produto.preco_venda_atacado ? (
                             <span className="font-medium font-mono">
                               {formatarMoeda(produto.preco_venda_atacado)}{' '}
@@ -637,10 +637,10 @@ export const ProdutosEstoque: React.FC = () => {
                                 estoqueQtd <= 0
                                   ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
                                   : estoqueBaixo
-                                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                                   : isDark
-                                  ? 'bg-slate-800 text-slate-200 border border-slate-700'
-                                  : 'bg-slate-100 text-slate-900 border border-slate-300'
+                                  ? 'bg-[#0D1624] text-slate-200 border border-slate-700'
+                                  : 'bg-slate-100 text-slate-800 border border-slate-200'
                               }`}
                             >
                               {estoqueBaixo && <AlertTriangle className="w-3 h-3 text-amber-400" />}
@@ -652,10 +652,10 @@ export const ProdutosEstoque: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => setProdutoGradeModal(produto)}
-                                className="px-2 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/30 border border-indigo-500/30 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer shadow-sm"
+                                className="px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-800/40 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer shadow-xs"
                                 title="Ver estoque detalhado por cor, tamanho ou variação"
                               >
-                                <Layers className="w-3 h-3 text-indigo-400" />
+                                <Layers className="w-3 h-3 text-indigo-500 dark:text-indigo-400" />
                                 <span>Detalhar Grade ({produto.variacoes?.length})</span>
                               </button>
                             )}
@@ -665,10 +665,10 @@ export const ProdutosEstoque: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => setProdutoEstoqueAlvo(produto)}
-                                className="px-2 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
+                                className="px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
                                 title="Dar entrada por compra ou ajustar estoque"
                               >
-                                <PackagePlus className="w-3 h-3 text-emerald-400" />
+                                <PackagePlus className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                                 <span>+ Entrada</span>
                               </button>
                             )}
@@ -685,26 +685,26 @@ export const ProdutosEstoque: React.FC = () => {
                               title={produto.ativo !== false ? 'Clique para desativar produto' : 'Clique para ativar produto'}
                             >
                               {produto.ativo !== false ? (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                   Sim
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25 transition">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 hover:bg-rose-500/25 transition">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
                                   Não
                                 </span>
                               )}
                             </button>
                           ) : (
                             produto.ativo !== false ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                 Sim
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">
-                                <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
                                 Não
                               </span>
                             )
@@ -717,15 +717,15 @@ export const ProdutosEstoque: React.FC = () => {
                               onClick={() => toggleExibirCatalogo(produto.id, produto.exibir_catalogo)}
                               className={`p-1.5 rounded-lg transition cursor-pointer ${
                                 produto.exibir_catalogo
-                                  ? 'text-emerald-400 hover:bg-emerald-500/10'
-                                  : 'text-slate-600 hover:bg-slate-800'
+                                  ? 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10'
+                                  : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                               }`}
                               title={produto.exibir_catalogo ? 'Visível no Catálogo' : 'Oculto do Catálogo'}
                             >
                               {produto.exibir_catalogo ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                             </button>
                           ) : (
-                            <span className={produto.exibir_catalogo ? 'text-emerald-400' : 'text-slate-600'}>
+                            <span className={produto.exibir_catalogo ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}>
                               {produto.exibir_catalogo ? <Eye className="w-4 h-4 inline" /> : <EyeOff className="w-4 h-4 inline" />}
                             </span>
                           )}
@@ -737,7 +737,7 @@ export const ProdutosEstoque: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setProdutoDetalhes(produto)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition cursor-pointer"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition cursor-pointer"
                               title="Ver Ficha Completa do Produto"
                             >
                               <Info className="w-4 h-4" />
@@ -748,7 +748,7 @@ export const ProdutosEstoque: React.FC = () => {
                                 {/* Botão Alterar / Editar Produto */}
                                 <Link
                                   to={`/products/edit/${produto.id}`}
-                                  className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/10 transition cursor-pointer"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition cursor-pointer"
                                   title="Alterar Produto"
                                 >
                                   <Edit2 className="w-4 h-4" />
@@ -757,7 +757,7 @@ export const ProdutosEstoque: React.FC = () => {
                                 <button
                                   onClick={() => toggleDestaque(produto.id, produto.destaque)}
                                   className={`p-1.5 rounded-lg transition cursor-pointer ${
-                                    produto.destaque ? 'text-amber-400' : 'text-slate-600 hover:text-slate-400'
+                                    produto.destaque ? 'text-amber-500' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                                   }`}
                                   title={produto.destaque ? 'Produto em Destaque' : 'Destacar Produto'}
                                 >
@@ -818,22 +818,22 @@ export const ProdutosEstoque: React.FC = () => {
             if (e.target === e.currentTarget) setModalFiltroAberto(false);
           }}
         >
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-5 shadow-2xl text-slate-900 dark:text-slate-100 animate-in zoom-in-95 duration-150">
+          <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl w-full max-w-lg p-6 space-y-5 shadow-sm text-slate-900 dark:text-slate-100 animate-in zoom-in-95 duration-150">
             {/* Cabeçalho do Modal */}
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3.5">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700/60 pb-3.5">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-800 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-500/30 dark:text-emerald-300 flex items-center justify-center">
                   <Filter className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Filtrar Produtos & Estoque</h3>
+                  <h3 className="font-bold dark:font-semibold text-base text-slate-900 dark:text-slate-100">Filtrar Produtos & Estoque</h3>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">Escolha as categorias e a situação de estoque desejadas</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setModalFiltroAberto(false)}
-                className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition cursor-pointer"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                 title="Fechar"
               >
                 <X className="w-5 h-5" />
@@ -845,14 +845,14 @@ export const ProdutosEstoque: React.FC = () => {
               {/* Categoria */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                     Categoria
                   </label>
                   {categoriasFiltro.length > 0 && (
                     <button
                       type="button"
                       onClick={() => setCategoriasFiltro([])}
-                      className="text-[11px] text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:underline cursor-pointer font-semibold"
+                      className="text-[11px] text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:underline cursor-pointer font-semibold"
                     >
                       Limpar categorias
                     </button>
@@ -865,12 +865,12 @@ export const ProdutosEstoque: React.FC = () => {
                     onClick={() => setCategoriasFiltro([])}
                     className={`p-2.5 rounded-xl border text-xs font-semibold text-left transition cursor-pointer flex items-center justify-between ${
                       categoriasFiltro.length === 0
-                        ? 'bg-emerald-100 border-emerald-400 text-slate-950 font-bold dark:bg-emerald-500/15 dark:border-emerald-500 dark:text-emerald-300'
-                        : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-900 dark:bg-slate-950/60 dark:border-slate-800 dark:text-slate-300 dark:hover:border-slate-700'
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-800 font-bold dark:bg-emerald-950/40 dark:border-emerald-500 dark:text-emerald-300'
+                        : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 dark:bg-[#0D1624] dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600'
                     }`}
                   >
                     <span>Todas as Categorias</span>
-                    {categoriasFiltro.length === 0 && <Check className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400" />}
+                    {categoriasFiltro.length === 0 && <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />}
                   </button>
 
                   {categorias.map((c) => {
@@ -887,12 +887,12 @@ export const ProdutosEstoque: React.FC = () => {
                         }}
                         className={`p-2.5 rounded-xl border text-xs font-semibold text-left transition cursor-pointer flex items-center justify-between truncate ${
                           isSelected
-                            ? 'bg-emerald-100 border-emerald-400 text-slate-950 font-bold dark:bg-emerald-500/15 dark:border-emerald-500 dark:text-emerald-300'
-                            : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-900 dark:bg-slate-950/60 dark:border-slate-800 dark:text-slate-300 dark:hover:border-slate-700'
+                            ? 'bg-emerald-50 border-emerald-500 text-emerald-800 font-bold dark:bg-emerald-950/40 dark:border-emerald-500 dark:text-emerald-300'
+                            : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 dark:bg-[#0D1624] dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600'
                         }`}
                       >
                         <span className="truncate">{c.icone ? `${c.icone} ` : ''}{c.nome} ({qtdProdutosNaCat})</span>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 shrink-0 ml-1" />}
+                        {isSelected && <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 ml-1" />}
                       </button>
                     );
                   })}
@@ -901,7 +901,7 @@ export const ProdutosEstoque: React.FC = () => {
 
               {/* Situação do Estoque */}
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                   Situação do Estoque
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -910,8 +910,8 @@ export const ProdutosEstoque: React.FC = () => {
                     onClick={() => setFiltroEstoque('todos')}
                     className={`p-3 rounded-xl border text-xs font-semibold text-center transition cursor-pointer flex flex-col items-center gap-1 ${
                       filtroEstoque === 'todos'
-                        ? 'bg-emerald-100 border-emerald-400 text-slate-950 font-bold dark:bg-emerald-500/15 dark:border-emerald-500 dark:text-emerald-300'
-                        : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-900 dark:bg-slate-950/60 dark:border-slate-800 dark:text-slate-300 dark:hover:border-slate-700'
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-800 font-bold dark:bg-emerald-950/40 dark:border-emerald-500 dark:text-emerald-300'
+                        : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 dark:bg-[#0D1624] dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600'
                     }`}
                   >
                     <span>Todos</span>
@@ -923,8 +923,8 @@ export const ProdutosEstoque: React.FC = () => {
                     onClick={() => setFiltroEstoque('baixo')}
                     className={`p-3 rounded-xl border text-xs font-semibold text-center transition cursor-pointer flex flex-col items-center gap-1 ${
                       filtroEstoque === 'baixo'
-                        ? 'bg-amber-100 border-amber-400 text-amber-950 font-bold dark:bg-amber-500/15 dark:border-amber-500 dark:text-amber-300'
-                        : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-900 dark:bg-slate-950/60 dark:border-slate-800 dark:text-slate-300 dark:hover:border-slate-700'
+                        ? 'bg-amber-50 border-amber-400 text-amber-900 font-bold dark:bg-amber-950/40 dark:border-amber-500 dark:text-amber-300'
+                        : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 dark:bg-[#0D1624] dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600'
                     }`}
                   >
                     <span>⚠️ Estoque Baixo</span>
@@ -936,8 +936,8 @@ export const ProdutosEstoque: React.FC = () => {
                     onClick={() => setFiltroEstoque('zerado')}
                     className={`p-3 rounded-xl border text-xs font-semibold text-center transition cursor-pointer flex flex-col items-center gap-1 ${
                       filtroEstoque === 'zerado'
-                        ? 'bg-rose-100 border-rose-400 text-rose-950 font-bold dark:bg-rose-500/15 dark:border-rose-500 dark:text-rose-300'
-                        : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-900 dark:bg-slate-950/60 dark:border-slate-800 dark:text-slate-300 dark:hover:border-slate-700'
+                        ? 'bg-rose-50 border-rose-400 text-rose-900 font-bold dark:bg-rose-950/40 dark:border-rose-500 dark:text-rose-300'
+                        : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 dark:bg-[#0D1624] dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600'
                     }`}
                   >
                     <span>🚫 Sem Estoque</span>
@@ -948,7 +948,7 @@ export const ProdutosEstoque: React.FC = () => {
 
               {/* Status do Produto (Ativo / Inativo) */}
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                   Status do Produto
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -957,8 +957,8 @@ export const ProdutosEstoque: React.FC = () => {
                     onClick={() => setFiltroAtivo('todos')}
                     className={`p-3 rounded-xl border text-xs font-semibold text-center transition cursor-pointer flex flex-col items-center gap-1 ${
                       filtroAtivo === 'todos'
-                        ? 'bg-emerald-100 border-emerald-400 text-slate-950 font-bold dark:bg-emerald-500/15 dark:border-emerald-500 dark:text-emerald-300'
-                        : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-900 dark:bg-slate-950/60 dark:border-slate-800 dark:text-slate-300 dark:hover:border-slate-700'
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-800 font-bold dark:bg-emerald-950/40 dark:border-emerald-500 dark:text-emerald-300'
+                        : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 dark:bg-[#0D1624] dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600'
                     }`}
                   >
                     <span>Todos</span>
@@ -970,8 +970,8 @@ export const ProdutosEstoque: React.FC = () => {
                     onClick={() => setFiltroAtivo('ativos')}
                     className={`p-3 rounded-xl border text-xs font-semibold text-center transition cursor-pointer flex flex-col items-center gap-1 ${
                       filtroAtivo === 'ativos'
-                        ? 'bg-emerald-100 border-emerald-400 text-slate-950 font-bold dark:bg-emerald-500/15 dark:border-emerald-500 dark:text-emerald-300'
-                        : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-900 dark:bg-slate-950/60 dark:border-slate-800 dark:text-slate-300 dark:hover:border-slate-700'
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-800 font-bold dark:bg-emerald-950/40 dark:border-emerald-500 dark:text-emerald-300'
+                        : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 dark:bg-[#0D1624] dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600'
                     }`}
                   >
                     <span>✅ Ativos</span>
@@ -983,8 +983,8 @@ export const ProdutosEstoque: React.FC = () => {
                     onClick={() => setFiltroAtivo('inativos')}
                     className={`p-3 rounded-xl border text-xs font-semibold text-center transition cursor-pointer flex flex-col items-center gap-1 ${
                       filtroAtivo === 'inativos'
-                        ? 'bg-rose-100 border-rose-400 text-rose-950 font-bold dark:bg-rose-500/15 dark:border-rose-500 dark:text-rose-300'
-                        : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-900 dark:bg-slate-950/60 dark:border-slate-800 dark:text-slate-300 dark:hover:border-slate-700'
+                        ? 'bg-rose-50 border-rose-400 text-rose-900 font-bold dark:bg-rose-950/40 dark:border-rose-500 dark:text-rose-300'
+                        : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 dark:bg-[#0D1624] dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600'
                     }`}
                   >
                     <span>🚫 Inativos</span>
@@ -995,7 +995,7 @@ export const ProdutosEstoque: React.FC = () => {
             </div>
 
             {/* Rodapé do Modal */}
-            <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-700/60">
               <button
                 type="button"
                 onClick={() => {
@@ -1003,7 +1003,7 @@ export const ProdutosEstoque: React.FC = () => {
                   setFiltroEstoque('todos');
                   setFiltroAtivo('todos');
                 }}
-                className="px-3.5 py-2 rounded-xl border border-slate-300 text-slate-700 hover:text-rose-600 hover:border-rose-300 text-xs font-semibold dark:border-slate-800 dark:text-slate-400 dark:hover:text-rose-400 transition cursor-pointer"
+                className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white hover:bg-slate-50 dark:bg-[#131D2D] dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold transition cursor-pointer"
               >
                 Limpar Filtros
               </button>
@@ -1011,7 +1011,7 @@ export const ProdutosEstoque: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalFiltroAberto(false)}
-                className="px-5 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white dark:font-semibold text-xs shadow-sm transition cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold text-xs shadow-md transition cursor-pointer"
               >
                 Aplicar e Ver ({produtosFiltrados.length})
               </button>

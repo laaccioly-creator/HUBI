@@ -48,22 +48,22 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
   if (apenasGrade) {
     return (
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150 text-slate-900 dark:text-slate-100">
+        <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl w-full max-w-lg overflow-hidden shadow-sm flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150 text-slate-900 dark:text-slate-100">
           {/* Header */}
-          <div className="p-4 sm:px-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900/90">
+          <div className="p-4 sm:px-6 border-b border-slate-200 dark:border-slate-700/60 flex items-center justify-between bg-white dark:bg-[#131D2D]">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-2xl bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
+              <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-800/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
                 <Layers className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 line-clamp-1">{produto.nome}</h3>
+                <h3 className="font-bold dark:font-semibold text-sm sm:text-base text-slate-900 dark:text-slate-100 line-clamp-1">{produto.nome}</h3>
                 <span className="text-[11px] text-slate-500 dark:text-slate-400">Estoque por Variação / Grade</span>
               </div>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition cursor-pointer"
+              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -82,7 +82,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
                   return (
                     <div
                       key={v.id}
-                      className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700/80 transition flex items-center justify-between gap-3 shadow-sm"
+                      className="p-3 rounded-xl bg-slate-50 dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700/60 hover:border-slate-300 dark:hover:border-slate-600 transition flex items-center justify-between gap-3 shadow-xs"
                     >
                       <div className="min-w-0 flex-1">
                         <span className="text-slate-900 dark:text-slate-100 font-bold text-xs block truncate">
@@ -104,7 +104,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
                         <span className="text-xs font-mono font-bold text-slate-900 dark:text-slate-300">
                           R$ {Number(v.preco_venda_varejo || produto.preco_venda_varejo).toFixed(2)}
                         </span>
-                        <span className={`px-2.5 py-1 rounded-xl font-mono font-black text-xs ${
+                        <span className={`px-2.5 py-1 rounded-xl font-mono font-bold text-xs ${
                           vEstoque <= 0
                             ? 'bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-800/60'
                             : isBaixo
@@ -126,15 +126,15 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
           </div>
 
           {/* Rodapé com Resumo Total */}
-          <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 flex items-center justify-between">
+          <div className="p-4 border-t border-slate-200 dark:border-slate-700/60 bg-white dark:bg-[#131D2D] flex items-center justify-between">
             <div className="text-xs text-slate-600 dark:text-slate-400">
               Total em Grade:{' '}
-              <strong className="text-emerald-700 dark:text-emerald-400 font-black text-sm">{estoqueReal} {produto.tipo_unidade || 'un'}</strong>
+              <strong className="text-emerald-700 dark:text-emerald-400 font-bold text-sm">{estoqueReal} {produto.tipo_unidade || 'un'}</strong>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white dark:font-semibold text-xs transition cursor-pointer"
+              className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-xs font-semibold transition cursor-pointer"
             >
               Fechar
             </button>
@@ -147,22 +147,22 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
   // MODO COMPLETO (FICHA TÉCNICA E DETALHES GERAIS)
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150 text-slate-900 dark:text-slate-100">
+      <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl w-full max-w-2xl overflow-hidden shadow-sm flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150 text-slate-900 dark:text-slate-100">
         {/* Header do Modal */}
-        <div className="p-4 sm:px-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900/90">
+        <div className="p-4 sm:px-6 border-b border-slate-200 dark:border-slate-700/60 flex items-center justify-between bg-white dark:bg-[#131D2D]">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-800 dark:bg-emerald-500/15 dark:border-emerald-500/20 dark:text-emerald-400 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-500/30 dark:text-emerald-300 flex items-center justify-center">
               <Package className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 line-clamp-1">{produto.nome}</h3>
+              <h3 className="font-bold dark:font-semibold text-sm sm:text-base text-slate-900 dark:text-slate-100 line-clamp-1">{produto.nome}</h3>
               <span className="text-[11px] text-slate-500 dark:text-slate-400">Consulta e Ficha Técnica do Produto</span>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition cursor-pointer"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -173,7 +173,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {/* Galeria de Fotos */}
             <div className="space-y-2.5 flex flex-col items-center">
-              <div className="relative w-full max-w-[220px] sm:max-w-[240px] aspect-square bg-slate-100 dark:bg-slate-950 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex items-center justify-center shadow-lg">
+              <div className="relative w-full max-w-[220px] sm:max-w-[240px] aspect-square bg-slate-100 dark:bg-[#0D1624] rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 flex items-center justify-center shadow-xs">
                 <img
                   src={fotoPrincipal}
                   alt={produto.nome}
@@ -185,7 +185,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
                   </span>
                 )}
                 {produto.exibir_catalogo && (
-                  <span className="absolute top-2 right-2 bg-emerald-500/90 text-white font-bold text-[9px] px-2 py-0.5 rounded-full flex items-center gap-1 shadow">
+                  <span className="absolute top-2 right-2 bg-emerald-600 text-white font-bold text-[9px] px-2 py-0.5 rounded-full flex items-center gap-1 shadow">
                     <Eye className="w-2.5 h-2.5" /> No Catálogo
                   </span>
                 )}
@@ -202,7 +202,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
                       className={`relative w-11 h-11 rounded-lg overflow-hidden border shrink-0 transition ${
                         fotoSelecionadaIdx === idx
                           ? 'border-emerald-500 ring-2 ring-emerald-500/30'
-                          : 'border-slate-300 dark:border-slate-800 opacity-60 hover:opacity-100'
+                          : 'border-slate-200 dark:border-slate-700 opacity-60 hover:opacity-100'
                       }`}
                     >
                       <img src={f} alt="" className="w-full h-full object-cover" />
@@ -215,7 +215,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
             {/* Informações Comerciais e Preços */}
             <div className="space-y-3.5">
               {/* Categoria, Status Ativo e Código */}
-              <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 pb-2 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 pb-2 border-b border-slate-200 dark:border-slate-700/60">
                 <div className="flex items-center gap-2">
                   <span className="flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
                     <Folder className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
@@ -231,31 +231,31 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
                   </span>
                 </div>
                 {produto.codigo_interno && (
-                  <span className="font-mono text-[11px] bg-slate-100 border border-slate-200 dark:border-transparent dark:bg-slate-800 px-2 py-0.5 rounded text-slate-700 dark:text-slate-300">
+                  <span className="font-mono text-[11px] bg-slate-100 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-700 dark:text-slate-300">
                     SKU #{produto.codigo_interno}
                   </span>
                 )}
               </div>
 
               {/* Bloco de Preços */}
-              <div className="bg-slate-50 dark:bg-slate-950/70 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
+              <div className="bg-slate-50 dark:bg-[#0D1624] p-3.5 rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-2">
                 <span className="text-[11px] font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider block">
                   Tabelas de Preço
                 </span>
 
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-700 dark:text-slate-300">Preço Varejo:</span>
-                  <span className="font-bold text-emerald-700 dark:text-emerald-400 text-sm">
+                  <span className="text-slate-700 dark:text-slate-300 font-medium">Preço Varejo:</span>
+                  <span className="font-semibold text-emerald-700 dark:text-emerald-400 text-sm">
                     R$ {Number(produto.preco_venda_varejo).toFixed(2)}
                   </span>
                 </div>
 
                 {Number(produto.preco_venda_atacado) > 0 && (
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-700 dark:text-slate-300">
+                    <span className="text-slate-700 dark:text-slate-300 font-medium">
                       Preço Atacado ({produto.qtd_minima_atacado || 1}+ un):
                     </span>
-                    <span className="font-bold text-blue-700 dark:text-blue-400">
+                    <span className="font-bold text-indigo-600 dark:text-indigo-400">
                       R$ {Number(produto.preco_venda_atacado).toFixed(2)}
                     </span>
                   </div>
@@ -263,10 +263,10 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
 
                 {Number(produto.preco_venda_autoatacado) > 0 && (
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-700 dark:text-slate-300">
+                    <span className="text-slate-700 dark:text-slate-300 font-medium">
                       Preço Distribuidor ({produto.qtd_minima_autoatacado || 1}+ un):
                     </span>
-                    <span className="font-bold text-indigo-700 dark:text-indigo-400">
+                    <span className="font-bold text-purple-600 dark:text-purple-400">
                       R$ {Number(produto.preco_venda_autoatacado).toFixed(2)}
                     </span>
                   </div>
@@ -275,7 +275,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
 
               {/* Estoque e Unidade */}
               <div className="grid grid-cols-2 gap-2.5">
-                <div className="p-3 bg-slate-50 dark:bg-slate-950/70 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1">
+                <div className="p-3 bg-slate-50 dark:bg-[#0D1624] rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-1">
                   <span className="text-[10px] text-slate-600 dark:text-slate-400 font-medium block">
                     {temVariacoes ? 'Estoque Total (Grade)' : 'Estoque Atual'}
                   </span>
@@ -289,7 +289,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
                   </div>
                 </div>
 
-                <div className="p-3 bg-slate-50 dark:bg-slate-950/70 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1">
+                <div className="p-3 bg-slate-50 dark:bg-[#0D1624] rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-1">
                   <span className="text-[10px] text-slate-600 dark:text-slate-400 font-medium block">Código de Barras</span>
                   <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-300 truncate block">
                     {produto.codigo_barras || (produto.codigo_interno ? `Cód: ${produto.codigo_interno}` : 'Não cadastrado')}
@@ -299,7 +299,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
 
               {/* Variações do Produto se houver */}
               {temVariacoes && produto.variacoes && produto.variacoes.length > 0 && (
-                <div className="p-3.5 bg-slate-50 dark:bg-slate-950/70 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
+                <div className="p-3.5 bg-slate-50 dark:bg-[#0D1624] rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider block">
                       Estoque por Variação / Grade ({produto.variacoes.length})
@@ -314,7 +314,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
                       const rotulo1 = produto.rotulo_variacao_1 || 'Variação';
                       const rotulo2 = produto.rotulo_variacao_2;
                       return (
-                        <div key={v.id} className="flex justify-between items-center text-xs p-2 rounded-xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 transition">
+                        <div key={v.id} className="flex justify-between items-center text-xs p-2 rounded-xl bg-white dark:bg-[#131D2D] border border-slate-200 dark:border-slate-700/60 hover:border-slate-300 dark:hover:border-slate-600 transition">
                           <div className="min-w-0 pr-2">
                             <span className="text-slate-900 dark:text-slate-200 font-bold block truncate">
                               {rotulo1 ? <span className="text-slate-500 dark:text-slate-400 font-normal text-[11px]">{rotulo1}: </span> : null}
@@ -354,7 +354,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
 
           {/* Descrição do Produto */}
           {produto.descricao && (
-            <div className="p-3.5 bg-slate-50 dark:bg-slate-950/50 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1.5">
+            <div className="p-3.5 bg-slate-50 dark:bg-[#0D1624] rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-1.5">
               <span className="text-xs font-bold text-slate-800 dark:text-slate-300 flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Descrição do Produto
               </span>
@@ -366,11 +366,11 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
         </div>
 
         {/* Rodapé */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 flex justify-end">
+        <div className="p-4 border-t border-slate-200 dark:border-slate-700/60 bg-white dark:bg-[#131D2D] flex justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white dark:font-semibold text-xs transition cursor-pointer"
+            className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-xs font-semibold transition cursor-pointer"
           >
             Fechar
           </button>

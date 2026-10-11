@@ -494,11 +494,11 @@ export const AppLayout: React.FC = () => {
                     className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1.5 lg:px-2 py-1.5 rounded-xl text-[11px] lg:text-xs font-semibold transition-all duration-150 text-center select-none relative truncate cursor-pointer ${
                       isActive
                         ? isDark
-                          ? 'bg-slate-800/90 hover:bg-slate-800 text-white font-bold border-2 border-emerald-400 shadow-xs translate-y-[1px]'
-                          : 'bg-slate-100 hover:bg-slate-200/90 border border-emerald-500/50 ring-1 ring-emerald-500/30 shadow-inner translate-y-[1px] text-slate-950 font-bold'
+                          ? 'border-2 border-emerald-500 text-white bg-slate-900 shadow-xs translate-y-[1px]'
+                          : 'border-2 border-emerald-600 text-slate-900 bg-emerald-50/30 shadow-inner translate-y-[1px]'
                         : isDark
-                        ? 'bg-slate-800/80 text-slate-100 hover:bg-slate-700/80 hover:text-white border-2 border-slate-400 shadow-xs'
-                        : 'bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 font-semibold shadow-xs'
+                        ? 'bg-[#131D2D] text-slate-300 border border-slate-700/60 hover:bg-slate-800 shadow-xs'
+                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 shadow-xs'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5 shrink-0" />
@@ -527,11 +527,11 @@ export const AppLayout: React.FC = () => {
                     className={`flex items-center justify-center gap-1 lg:gap-1.5 px-1 lg:px-1.5 py-1.5 rounded-xl text-[11px] lg:text-xs font-semibold transition-all duration-150 text-center select-none relative truncate cursor-pointer ${
                       isActive
                         ? isDark
-                          ? 'bg-slate-800/90 hover:bg-slate-800 text-white font-bold border-2 border-emerald-400 shadow-xs translate-y-[1px]'
-                          : 'bg-slate-100 hover:bg-slate-200/90 border border-emerald-500/50 ring-1 ring-emerald-500/30 shadow-inner translate-y-[1px] text-slate-950 font-bold'
+                          ? 'border-2 border-emerald-500 text-white bg-slate-900 shadow-xs translate-y-[1px]'
+                          : 'border-2 border-emerald-600 text-slate-900 bg-emerald-50/30 shadow-inner translate-y-[1px]'
                         : isDark
-                        ? 'bg-slate-800/80 text-slate-100 hover:bg-slate-700/80 hover:text-white border-2 border-slate-400 shadow-xs'
-                        : 'bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 font-semibold shadow-xs'
+                        ? 'bg-[#131D2D] text-slate-300 border border-slate-700/60 hover:bg-slate-800 shadow-xs'
+                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 shadow-xs'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5 shrink-0" />

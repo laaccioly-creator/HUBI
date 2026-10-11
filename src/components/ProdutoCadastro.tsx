@@ -1464,14 +1464,14 @@ export const ProdutoCadastro: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-3 sm:p-6 lg:p-8 font-sans">
+    <div className="flex flex-col h-full overflow-y-auto bg-slate-100 dark:bg-[#0B131F] text-slate-900 dark:text-slate-100 p-3 sm:p-6 lg:p-8 font-sans">
       <div className="max-w-4xl mx-auto w-full space-y-6">
         {/* Header Superior */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => verificarSaidaComConfirmacao(() => navigate('/products'))}
-              className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white transition cursor-pointer"
+              className="p-2 rounded-xl bg-white dark:bg-[#131D2D] border border-slate-200 dark:border-slate-700/60 text-slate-700 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white transition cursor-pointer"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
@@ -1490,11 +1490,11 @@ export const ProdutoCadastro: React.FC = () => {
         {/* ========================================================================= */}
         {/* SEÇÃO 1: FOTOS DO PRODUTO & AÇÕES INTELIGENTES                           */}
         {/* ========================================================================= */}
-        <div className="bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-xs relative overflow-hidden">
+        <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-5 sm:p-6 space-y-4 shadow-sm relative overflow-hidden">
           {/* Mensagem de Sucesso da IA */}
           {sucessoIAMsg && (
-            <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center gap-2.5 text-xs text-emerald-300 animate-in fade-in">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-500/30 rounded-xl flex items-center gap-2.5 text-xs text-emerald-700 dark:text-emerald-300 animate-in fade-in">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
               <span>{sucessoIAMsg}</span>
             </div>
           )}
@@ -1526,8 +1526,8 @@ export const ProdutoCadastro: React.FC = () => {
             {/* Foto Principal / Preview */}
             <div className="md:col-span-5 flex flex-col items-center justify-center">
               {fazendoUploadFoto ? (
-                <div className="w-full aspect-square max-w-[280px] rounded-2xl border-2 border-emerald-500/50 bg-emerald-500/10 flex flex-col items-center justify-center p-6 text-center space-y-3 animate-pulse">
-                  <Loader2 className="w-10 h-10 text-emerald-400 animate-spin" />
+                <div className="w-full aspect-square max-w-[280px] rounded-2xl border-2 border-emerald-500/50 bg-emerald-50 dark:bg-emerald-950/40 flex flex-col items-center justify-center p-6 text-center space-y-3 animate-pulse">
+                  <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
                   <div>
                     <span className="font-bold text-xs text-emerald-800 dark:text-emerald-200 block">
                       {uploadStatusMsg || 'Comprimindo & Enviando...'}
@@ -1538,7 +1538,7 @@ export const ProdutoCadastro: React.FC = () => {
                   </div>
                 </div>
               ) : fotoPrincipal ? (
-                <div className="relative w-full aspect-square max-w-[280px] rounded-2xl overflow-hidden border-2 border-slate-300 dark:border-slate-700 bg-slate-950 shadow-xl group">
+                <div className="relative w-full aspect-square max-w-[280px] rounded-2xl overflow-hidden border-2 border-slate-200 dark:border-slate-700 bg-slate-950 shadow-sm group">
                   <img
                     src={fotoPrincipal}
                     alt="Foto do Produto"
@@ -1572,13 +1572,13 @@ export const ProdutoCadastro: React.FC = () => {
               ) : (
                 <div
                   onClick={() => galleryInputRef.current?.click()}
-                  className="w-full aspect-square max-w-[280px] rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-400 bg-slate-100 dark:bg-slate-900/60 hover:bg-slate-200 dark:hover:bg-slate-800/80 flex flex-col items-center justify-center p-6 text-center space-y-3 cursor-pointer transition group"
+                  className="w-full aspect-square max-w-[280px] rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-400 bg-slate-50 dark:bg-[#0D1624] hover:bg-slate-100 dark:hover:bg-slate-800/80 flex flex-col items-center justify-center p-6 text-center space-y-3 cursor-pointer transition group"
                 >
-                  <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-400 flex items-center justify-center group-hover:scale-110 transition shadow-sm border border-emerald-300 dark:border-emerald-500/30">
+                  <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 flex items-center justify-center group-hover:scale-110 transition shadow-sm border border-emerald-200 dark:border-emerald-500/30">
                     <Camera className="w-7 h-7" />
                   </div>
                   <div>
-                    <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-200 block">
+                    <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 block">
                       Toque para Selecionar Foto
                     </span>
                     <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
@@ -1596,10 +1596,10 @@ export const ProdutoCadastro: React.FC = () => {
                 type="button"
                 disabled={fotosUrls.length >= 7}
                 onClick={() => cameraInputRef.current?.click()}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex md:hidden items-center justify-between gap-2 cursor-pointer shadow-xs bg-slate-800/80 text-slate-100 border-2 border-slate-400 hover:border-emerald-400 hover:text-white transition-all duration-150 disabled:opacity-40"
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex md:hidden items-center justify-between gap-2 cursor-pointer shadow-sm bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 dark:bg-[#131D2D] dark:hover:bg-slate-800 dark:border-slate-700/60 dark:text-slate-100 transition-all duration-150 disabled:opacity-40"
               >
                 <div className="flex items-center gap-2 truncate">
-                  <Camera className="w-4 h-4 text-slate-300 shrink-0" />
+                  <Camera className="w-4 h-4 text-slate-500 dark:text-slate-300 shrink-0" />
                   <span className="font-bold truncate">Tirar Foto</span>
                 </div>
                 <span className="text-[10px] text-slate-400 font-mono shrink-0">
@@ -1615,14 +1615,14 @@ export const ProdutoCadastro: React.FC = () => {
                   setTempApiKey(k);
                   setModalKeyGemini(true);
                 }}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer shadow-xs bg-slate-800/80 text-slate-100 border-2 border-slate-400 hover:border-emerald-400 hover:text-white transition-all duration-150 select-none group"
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer shadow-sm bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 hover:border-emerald-500 hover:text-emerald-700 dark:bg-[#131D2D] dark:text-slate-200 dark:border-slate-700/60 dark:hover:border-emerald-500 dark:hover:text-white transition-all duration-150 select-none group"
                 title="Configurar Chave Google Gemini AI"
               >
                 <div className="flex items-center gap-2 truncate">
-                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                  <Sparkles className="w-4 h-4 text-amber-500 dark:text-amber-400 shrink-0" />
                   <span className="font-bold truncate">Chave Gemini IA</span>
                 </div>
-                <span className="text-[10px] text-slate-400 group-hover:text-emerald-300 font-normal shrink-0">
+                <span className="text-[10px] text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-300 font-normal shrink-0">
                   Configurar
                 </span>
               </button>
@@ -1632,14 +1632,14 @@ export const ProdutoCadastro: React.FC = () => {
                 type="button"
                 disabled={analisandoIA}
                 onClick={() => handleExecutarPreenchimentoIA('atualizar')}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer shadow-xs bg-slate-800/80 text-slate-100 border-2 border-slate-400 hover:border-emerald-400 hover:text-white transition-all duration-150 select-none disabled:opacity-50 disabled:cursor-not-allowed group"
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer shadow-sm bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 dark:border-emerald-500/30 dark:text-emerald-300 transition-all duration-150 select-none disabled:opacity-50 disabled:cursor-not-allowed group"
                 title="Atualizar o produto com nossa inteligência artificial"
               >
                 <div className="flex items-center gap-2 truncate">
                   {analisandoIA ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-emerald-400 shrink-0" />
+                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600 dark:text-emerald-400 shrink-0" />
                   ) : (
-                    <RefreshCw className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <RefreshCw className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   )}
                   <span className="font-bold truncate">Atualizar o Produto com nossa IA</span>
                 </div>
@@ -1650,18 +1650,18 @@ export const ProdutoCadastro: React.FC = () => {
                 type="button"
                 disabled={analisandoIA}
                 onClick={() => handleExecutarPreenchimentoIA('preencher')}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer shadow-xs bg-slate-800/80 text-slate-100 border-2 border-slate-400 hover:border-emerald-400 hover:text-white transition-all duration-150 select-none disabled:opacity-50 disabled:cursor-not-allowed group"
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer shadow-sm bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 dark:border-emerald-500/30 dark:text-emerald-300 transition-all duration-150 select-none disabled:opacity-50 disabled:cursor-not-allowed group"
                 title="Preencher com nossa IA (a partir da foto ou nome do produto)"
               >
                 <div className="flex items-center gap-2 truncate">
                   {analisandoIA ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-emerald-400 shrink-0" />
+                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600 dark:text-emerald-400 shrink-0" />
                   ) : (
-                    <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                    <Sparkles className="w-4 h-4 text-amber-500 dark:text-amber-400 shrink-0" />
                   )}
                   <span className="font-bold truncate">Preencher com nossa IA</span>
                 </div>
-                <span className="text-[10px] text-slate-400 group-hover:text-emerald-300 font-normal shrink-0 hidden sm:inline">
+                <span className="text-[10px] text-slate-500 group-hover:text-emerald-700 dark:text-slate-400 dark:group-hover:text-emerald-300 font-normal shrink-0 hidden sm:inline">
                   (a partir da foto ou nome do produto)
                 </span>
               </button>
@@ -1671,11 +1671,11 @@ export const ProdutoCadastro: React.FC = () => {
                 type="button"
                 disabled={fotosUrls.length >= 7}
                 onClick={() => galleryInputRef.current?.click()}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer shadow-xs bg-slate-800/80 text-slate-100 border-2 border-slate-400 hover:border-emerald-400 hover:text-white transition-all duration-150 select-none disabled:opacity-40 disabled:cursor-not-allowed group"
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer shadow-sm bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 hover:border-emerald-500 dark:bg-[#131D2D] dark:text-slate-200 dark:border-slate-700/60 dark:hover:border-emerald-500 dark:hover:text-white transition-all duration-150 select-none disabled:opacity-40 disabled:cursor-not-allowed group"
                 title="Escolher fotos do dispositivo"
               >
                 <div className="flex items-center gap-2 truncate">
-                  <Upload className="w-4 h-4 text-slate-300 shrink-0" />
+                  <Upload className="w-4 h-4 text-slate-500 dark:text-slate-300 shrink-0" />
                   <span className="font-bold truncate">Galeria (Até 7 fotos)</span>
                 </div>
                 <span className="text-[10px] text-slate-400 font-mono shrink-0">
@@ -1688,18 +1688,18 @@ export const ProdutoCadastro: React.FC = () => {
                 type="button"
                 disabled={fotosUrls.length >= 7}
                 onClick={handleAbrirPesquisaFotos}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer shadow-xs bg-slate-800/80 text-slate-100 border-2 border-slate-400 hover:border-emerald-400 hover:text-white transition-all duration-150 select-none disabled:opacity-40 disabled:cursor-not-allowed group"
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer shadow-sm bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 hover:border-emerald-500 dark:bg-[#131D2D] dark:text-slate-200 dark:border-slate-700/60 dark:hover:border-emerald-500 dark:hover:text-white transition-all duration-150 select-none disabled:opacity-40 disabled:cursor-not-allowed group"
                 title="Pesquisar fotos na internet com boa qualidade"
               >
                 <div className="flex items-center gap-2 truncate">
-                  <Globe className="w-4 h-4 text-slate-300 shrink-0" />
+                  <Globe className="w-4 h-4 text-slate-500 dark:text-slate-300 shrink-0" />
                   <span className="font-bold truncate">Pesquisar Fotos na Internet</span>
                 </div>
               </button>
 
               {/* Miniaturas das Fotos Cadastradas e Botão + Foto */}
               {fotosUrls.length > 0 && (
-                <div className="pt-2.5 mt-1 border-t border-slate-800 space-y-2">
+                <div className="pt-2.5 mt-1 border-t border-slate-200 dark:border-slate-800 space-y-2">
                   <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
                     <span>Fotos Cadastradas ({fotosUrls.length}/7):</span>
                     <span className="text-[10px] text-slate-500">Clique para definir a foto principal</span>
@@ -1711,8 +1711,8 @@ export const ProdutoCadastro: React.FC = () => {
                       return (
                         <div
                           key={i}
-                          className={`relative aspect-square rounded-xl overflow-hidden bg-slate-950 border transition group ${
-                            ehPrincipal ? 'border-emerald-400 ring-2 ring-emerald-500/40' : 'border-slate-800 hover:border-slate-600'
+                          className={`relative aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-950 border transition group ${
+                            ehPrincipal ? 'border-emerald-500 ring-2 ring-emerald-500/40' : 'border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600'
                           }`}
                         >
                           <img
@@ -1722,7 +1722,7 @@ export const ProdutoCadastro: React.FC = () => {
                             className="w-full h-full object-cover cursor-pointer"
                           />
                           {ehPrincipal && (
-                            <span className="absolute bottom-0 inset-x-0 bg-emerald-500/90 text-white text-[9px] font-bold text-center py-0.5">
+                            <span className="absolute bottom-0 inset-x-0 bg-emerald-600/90 text-white text-[9px] font-bold text-center py-0.5">
                               Capa
                             </span>
                           )}
@@ -1749,7 +1749,7 @@ export const ProdutoCadastro: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => galleryInputRef.current?.click()}
-                        className="aspect-square rounded-xl border-2 border-dashed border-slate-300 hover:border-emerald-500 dark:border-slate-600 dark:hover:border-emerald-400 bg-white hover:bg-slate-50 dark:bg-slate-800/40 dark:hover:bg-slate-800/60 flex flex-col items-center justify-center text-slate-500 hover:text-emerald-600 dark:text-slate-300 dark:hover:text-emerald-300 font-medium transition cursor-pointer shadow-xs"
+                        className="aspect-square rounded-xl border-2 border-dashed border-slate-300 hover:border-emerald-500 dark:border-slate-700 dark:hover:border-emerald-400 bg-white hover:bg-slate-50 dark:bg-[#0D1624] dark:hover:bg-slate-800/60 flex flex-col items-center justify-center text-slate-500 hover:text-emerald-600 dark:text-slate-300 dark:hover:text-emerald-300 font-medium transition cursor-pointer shadow-xs"
                         title="Adicionar mais foto"
                       >
                         <Plus className="w-4 h-4" />
@@ -1768,17 +1768,17 @@ export const ProdutoCadastro: React.FC = () => {
         {/* ========================================================================= */}
         <form onSubmit={salvarProduto} className="space-y-6">
           {/* SEÇÃO 2: IDENTIFICAÇÃO DO PRODUTO (ORDEM AJUSTADA) */}
-          <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 md:p-6 space-y-4 shadow-xl">
+          <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-5 md:p-6 space-y-4 shadow-sm">
             {/* Header da Seção com Toggle de Produto Ativo */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
-              <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                <Tag className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-700/60">
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <Tag className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 <span>2. Identificação do Produto</span>
               </h2>
 
               {/* Interruptor (Toggle Switch) Produto Ativo */}
               <div className="flex items-center gap-3">
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Produto:</span>
+                <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Produto:</span>
                 <button
                   type="button"
                   role="switch"
@@ -1792,7 +1792,7 @@ export const ProdutoCadastro: React.FC = () => {
                   </span>
                   <div
                     className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                      ativo ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                      ativo ? 'bg-emerald-500 dark:bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
                     }`}
                   >
                     <span
@@ -1809,17 +1809,17 @@ export const ProdutoCadastro: React.FC = () => {
             {/* Compactação do Tipo do Item (Posicionado logo abaixo do toggle de ativo em linha única) */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 py-1">
               <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">Tipo do Item *</label>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">Mercadoria física ou serviço / cobrança de taxa</span>
+                <label className="text-xs font-medium text-slate-700 dark:text-slate-300 block">Tipo do Item *</label>
+                <span className="text-xs text-slate-500 dark:text-slate-400">Mercadoria física ou serviço / cobrança de taxa</span>
               </div>
-              <div className="inline-flex p-1 bg-slate-100 dark:bg-slate-950/70 rounded-xl border border-slate-200 dark:border-slate-800 gap-1 self-start sm:self-auto">
+              <div className="inline-flex p-1 bg-slate-100 dark:bg-[#0D1624] rounded-xl border border-slate-200 dark:border-slate-700 gap-1 self-start sm:self-auto">
                 <button
                   type="button"
                   onClick={() => setTipoItem('produto')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                     tipoItem === 'produto'
-                      ? 'bg-emerald-600 dark:bg-emerald-500 text-white shadow-xs'
-                      : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/80 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/60'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   <Package className="w-3.5 h-3.5" />
@@ -1835,8 +1835,8 @@ export const ProdutoCadastro: React.FC = () => {
                   }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                     tipoItem === 'servico'
-                      ? 'bg-emerald-600 dark:bg-emerald-500 text-white shadow-xs'
-                      : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/80 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/60'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   <Wrench className="w-3.5 h-3.5" />
@@ -1849,25 +1849,25 @@ export const ProdutoCadastro: React.FC = () => {
 
               {/* Nome do Produto */}
               <div className="md:col-span-2 space-y-1">
-                <label className="text-xs font-semibold text-slate-300">Nome do Produto *</label>
+                <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Nome do Produto *</label>
                 <input
                   type="text"
                   required
                   placeholder="Ex: Coca-Cola Lata 350ml ou Camiseta Algodão Básica"
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 font-medium"
+                  className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-medium"
                 />
               </div>
 
               {/* LINHA 1: Categoria e Unidade de Medida (ANTES do Código) */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-300">Categoria *</label>
+                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Categoria *</label>
                   <button
                     type="button"
                     onClick={() => setModalCategorias(true)}
-                    className="text-[11px] text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 cursor-pointer"
+                    className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-bold flex items-center gap-1 cursor-pointer"
                   >
                     <FolderPlus className="w-3.5 h-3.5" />
                     <span>+ Criar / Gerenciar</span>
@@ -1876,7 +1876,7 @@ export const ProdutoCadastro: React.FC = () => {
                 <select
                   value={categoriaId}
                   onChange={(e) => handleSelecionarCategoria(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                 >
                   <option value="">Selecione uma Categoria...</option>
                   {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
@@ -1885,11 +1885,11 @@ export const ProdutoCadastro: React.FC = () => {
 
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-300">Unidade de Medida</label>
+                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Unidade de Medida</label>
                   <button
                     type="button"
                     onClick={() => handleNavegarParaAuxiliares('unidades')}
-                    className="text-[10px] text-slate-400 hover:text-emerald-400 font-semibold cursor-pointer"
+                    className="text-[10px] text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 font-semibold cursor-pointer"
                     title="Gerenciar Unidades de Medida"
                   >
                     + Gerenciar
@@ -1898,7 +1898,7 @@ export const ProdutoCadastro: React.FC = () => {
                 <select
                   value={tipoUnidade}
                   onChange={(e) => setTipoUnidade(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none"
+                  className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
                 >
                   {unidadesLista.map(u => (
                     <option key={u.sigla} value={u.sigla}>
@@ -1911,9 +1911,9 @@ export const ProdutoCadastro: React.FC = () => {
               {/* LINHA 2: Código Interno (Sugerido após Categoria) e Código de Barras */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-300">Código Interno (SKU)</label>
+                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Código Interno (SKU)</label>
                   {codigoInterno && (
-                    <span className="text-[10px] text-emerald-400 font-medium">Sugerido p/ Categoria</span>
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Sugerido p/ Categoria</span>
                   )}
                 </div>
                 <input
@@ -1921,29 +1921,29 @@ export const ProdutoCadastro: React.FC = () => {
                   placeholder="Ex: BE0001"
                   value={codigoInterno}
                   onChange={(e) => setCodigoInterno(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 uppercase font-mono"
+                  className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 uppercase font-mono"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-300">Código de Barras (EAN / Leitor)</label>
+                <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Código de Barras (EAN / Leitor)</label>
                 <input
                   type="text"
                   placeholder="Ex: 789123456789"
                   value={codigoBarras}
                   onChange={(e) => setCodigoBarras(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none font-mono"
+                  className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 font-mono"
                 />
               </div>
 
               {/* Fornecedor (Opcional) */}
               <div className="space-y-1 md:col-span-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-300">Fornecedor (Opcional)</label>
+                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Fornecedor (Opcional)</label>
                   <button
                     type="button"
                     onClick={() => handleNavegarParaAuxiliares('fornecedores')}
-                    className="text-[10px] text-slate-400 hover:text-emerald-400 font-semibold cursor-pointer"
+                    className="text-[10px] text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 font-semibold cursor-pointer"
                     title="Gerenciar Fornecedores"
                   >
                     + Gerenciar
@@ -1952,7 +1952,7 @@ export const ProdutoCadastro: React.FC = () => {
                 <select
                   value={fornecedorId}
                   onChange={(e) => setFornecedorId(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none"
+                  className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
                 >
                   <option value="">Nenhum Fornecedor Vinculado</option>
                   {fornecedores.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
@@ -1961,23 +1961,23 @@ export const ProdutoCadastro: React.FC = () => {
 
               {/* Descrição Comercial */}
               <div className="md:col-span-2 space-y-1">
-                <label className="text-xs font-semibold text-slate-300">Descrição Comercial (Catálogo & WhatsApp)</label>
+                <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Descrição Comercial (Catálogo & WhatsApp)</label>
                 <textarea
                   rows={3}
                   placeholder="Informações adicionais do produto, material, diferenciais e modo de uso..."
                   value={descricao}
                   onChange={(e) => setDescricao(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 focus:outline-none resize-none"
+                  className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl p-3 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 resize-none"
                 ></textarea>
               </div>
             </div>
           </div>
 
           {/* SEÇÃO 3: PREÇOS E CUSTOS */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-4 shadow-xl">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
-              <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-                <Tag className="w-4 h-4 text-emerald-400" />
+          <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-5 md:p-6 space-y-4 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-700/60 pb-3">
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <Tag className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 <span>3. Tabelas de Preço & Custos</span>
               </h2>
 
@@ -1985,7 +1985,7 @@ export const ProdutoCadastro: React.FC = () => {
               <button
                 type="button"
                 onClick={handleAbrirRadarPrecos}
-                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 text-emerald-950 font-bold dark:bg-emerald-500/15 dark:hover:bg-emerald-500/25 dark:border-emerald-500/30 dark:text-emerald-300 text-xs transition shadow-xs cursor-pointer group"
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-500/30 dark:hover:bg-emerald-900/50 text-xs font-bold transition shadow-xs cursor-pointer group"
                 title="Comparar preços praticados por concorrentes e marketplaces na internet"
               >
                 <Search className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 group-hover:scale-110 transition" />
@@ -1998,19 +1998,19 @@ export const ProdutoCadastro: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-400">Preço de Custo (R$)</label>
+                <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Preço de Custo (R$)</label>
                 <input
                   type="number"
                   step="0.01"
                   value={precoCusto}
                   onChange={(e) => setPrecoCusto(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
                 />
-                <span className="text-[10px] text-slate-500 block">Custo de compra/produção</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 block">Custo de compra/produção</span>
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-bold text-emerald-400">Preço Varejo (R$) *</label>
+                <label className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Preço Varejo (R$) *</label>
                 <input
                   type="number"
                   step="0.01"
@@ -2018,16 +2018,16 @@ export const ProdutoCadastro: React.FC = () => {
                   placeholder="Ex: 49.90"
                   value={precoVendaVarejo}
                   onChange={(e) => handlePrecoVarejoChange(e.target.value)}
-                  className="w-full bg-slate-800 border border-emerald-500/50 rounded-xl px-3.5 py-2 text-xs font-bold text-emerald-400 focus:outline-none focus:border-emerald-400"
+                  className="w-full bg-white dark:bg-[#0D1624] border-2 border-emerald-500/70 dark:border-emerald-500/50 rounded-xl px-3.5 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-400"
                 />
-                <span className="text-[10px] text-slate-500 block">Preço base de balcão</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 block">Preço base de balcão</span>
               </div>
 
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-300">Preço Atacado (R$)</label>
+                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Preço Atacado (R$)</label>
                   {precoVendaVarejo && (
-                    <span className="text-[10px] bg-emerald-500/15 text-emerald-400 px-1.5 py-0.5 rounded font-bold">
+                    <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800/40 px-1.5 py-0.5 rounded-lg font-bold">
                       -{regrasPrecificacao.descontoAtacado}%
                     </span>
                   )}
@@ -2038,16 +2038,16 @@ export const ProdutoCadastro: React.FC = () => {
                   placeholder="Ex: 39.90"
                   value={precoVendaAtacado}
                   onChange={(e) => setPrecoVendaAtacado(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
                 />
-                <span className="text-[10px] text-slate-500 block">Conforme regra da loja</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 block">Conforme regra da loja</span>
               </div>
 
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-300">Preço Autoatacado (R$)</label>
+                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Preço Autoatacado (R$)</label>
                   {precoVendaVarejo && (
-                    <span className="text-[10px] bg-indigo-500/15 text-indigo-400 px-1.5 py-0.5 rounded font-bold">
+                    <span className="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800/40 px-1.5 py-0.5 rounded-lg font-bold">
                       -{regrasPrecificacao.descontoAutoatacado}%
                     </span>
                   )}
@@ -2058,82 +2058,82 @@ export const ProdutoCadastro: React.FC = () => {
                   placeholder="Ex: 32.90"
                   value={precoVendaAutoatacado}
                   onChange={(e) => setPrecoVendaAutoatacado(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
                 />
-                <span className="text-[10px] text-slate-500 block">Conforme regra da loja</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 block">Conforme regra da loja</span>
               </div>
             </div>
           </div>
 
           {/* SEÇÃO 4: ESTOQUE & VALIDADE */}
           {tipoItem === 'servico' ? (
-            <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-3xl p-5 md:p-6 space-y-2 shadow-xl">
-              <div className="flex items-center gap-2 text-indigo-400 font-bold text-sm">
+            <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-500/30 rounded-2xl p-5 md:p-6 space-y-2 shadow-sm">
+              <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-400 font-bold text-sm">
                 <Wrench className="w-4 h-4" />
                 <span>4. Controle de Estoque (Dispensado para Serviços / Taxas)</span>
               </div>
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-slate-600 dark:text-slate-300">
                 Itens do tipo Serviço / Taxa não movimentam saldo de estoque físico. Vendas são ilimitadas e não bloqueiam no PDV ou carrinho por falta de quantidade.
               </p>
             </div>
           ) : (
-            <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-4 shadow-xl">
+            <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-5 md:p-6 space-y-4 shadow-sm">
               <div>
-                <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-                  <Boxes className="w-4 h-4 text-emerald-400" />
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <Boxes className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <span>4. Controle de Estoque & Entrada Inicial</span>
                 </h2>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   Informe a quantidade inicial que você tem agora em loja. Você poderá dar entrada em novas compras a qualquer momento.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-emerald-400">Estoque Inicial em Loja</label>
+                  <label className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Estoque Inicial em Loja</label>
                   <input
                     type="number"
                     value={quantidadeEstoque}
                     onChange={(e) => setQuantidadeEstoque(e.target.value)}
-                    className="w-full bg-slate-800 border border-emerald-500/50 rounded-xl px-3.5 py-2 text-xs font-bold text-emerald-400"
+                    className="w-full bg-white dark:bg-[#0D1624] border-2 border-emerald-500/70 dark:border-emerald-500/50 rounded-xl px-3.5 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-400"
                   />
-                  <span className="text-[10px] text-slate-500">Saldo inicial para venda</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Saldo inicial para venda</span>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-300">Alerta de Estoque Mínimo</label>
+                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Alerta de Estoque Mínimo</label>
                   <input
                     type="number"
                     value={estoqueMinimoAlerta}
                     onChange={(e) => setEstoqueMinimoAlerta(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
+                    className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
                   />
-                  <span className="text-[10px] text-slate-500">Avisa quando estiver acabando</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Avisa quando estiver acabando</span>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-300">Data de Validade (Opcional)</label>
+                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Data de Validade (Opcional)</label>
                   <input
                     type="date"
                     value={dataValidade}
                     onChange={(e) => setDataValidade(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100"
+                    className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
                   />
-                  <span className="text-[10px] text-slate-500">Para perecíveis / cosméticos</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Para perecíveis / cosméticos</span>
                 </div>
               </div>
             </div>
           )}
 
           {/* SEÇÃO 5: GRADE DE VARIAÇÕES (SIMPLIFICADA E INTUITIVA) */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-4 shadow-xl">
+          <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-5 md:p-6 space-y-4 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-emerald-400" />
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <span>5. Variações do Produto (Cor, Tamanho, Sabor...)</span>
                 </h2>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   Ative se o produto tiver opções diferentes com controle de estoque individual.
                 </p>
               </div>
@@ -2150,16 +2150,16 @@ export const ProdutoCadastro: React.FC = () => {
                   }}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
               </label>
             </div>
 
             {temVariacoes && (
-              <div className="space-y-4 pt-4 border-t border-slate-800 animate-in fade-in">
+              <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-700/60 animate-in fade-in">
                 {/* ETAPA 1: Definir o Nome do Tipo da Variação */}
                 {etapaVariacao === 1 ? (
-                  <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3">
-                    <label className="text-xs font-bold text-slate-200 block">
+                  <div className="bg-slate-50 dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 rounded-xl p-4 sm:p-5 space-y-3">
+                    <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
                       Qual é o tipo de variação deste produto?
                     </label>
                     <div className="flex flex-col sm:flex-row gap-2.5">
@@ -2174,7 +2174,7 @@ export const ProdutoCadastro: React.FC = () => {
                             if (nomeTipoVariacao.trim()) setEtapaVariacao(2);
                           }
                         }}
-                        className="flex-1 bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none"
+                        className="flex-1 bg-white dark:bg-[#131D2D] border border-slate-200 dark:border-slate-700 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-4 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
                       />
                       <button
                         type="button"
@@ -2185,7 +2185,7 @@ export const ProdutoCadastro: React.FC = () => {
                           }
                           setEtapaVariacao(2);
                         }}
-                        className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 font-bold text-white text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 shrink-0 shadow-md shadow-emerald-500/20"
+                        className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 font-semibold text-white text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 shrink-0 shadow-sm"
                       >
                         <span>Continuar</span>
                         <ArrowRight className="w-4 h-4" />
@@ -2196,28 +2196,28 @@ export const ProdutoCadastro: React.FC = () => {
                   /* ETAPA 2: Adicionar Opções e Gerenciar Estoques */
                   <div className="space-y-4">
                     {/* Header do Tipo Ativo */}
-                    <div className="flex items-center justify-between bg-slate-950/80 px-4 py-3 rounded-2xl border border-slate-800">
+                    <div className="flex items-center justify-between bg-slate-50 dark:bg-[#0D1624] px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-400">Tipo de variação:</span>
-                        <span className="text-xs font-black text-emerald-400 uppercase tracking-wide bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-lg">
+                        <span className="text-xs text-slate-500 dark:text-slate-400">Tipo de variação:</span>
+                        <span className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wide bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 px-2.5 py-0.5 rounded-lg">
                           {nomeTipoVariacao}
                         </span>
                       </div>
                       <button
                         type="button"
                         onClick={() => setEtapaVariacao(1)}
-                        className="text-[11px] text-slate-400 hover:text-slate-200 underline cursor-pointer"
+                        className="text-[11px] text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 underline cursor-pointer"
                       >
                         Alterar tipo
                       </button>
                     </div>
 
                     {/* Formulário para Inserir Nova Opção */}
-                    <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3">
-                      <span className="text-xs font-bold text-slate-300 block">Adicionar nova opção:</span>
+                    <div className="bg-slate-50 dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-3">
+                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-300 block">Adicionar nova opção:</span>
                       <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
                         <div className="sm:col-span-7 space-y-1">
-                          <label className="text-[11px] text-slate-400 block">
+                          <label className="text-xs text-slate-500 dark:text-slate-400 block">
                             Digite uma opção para {nomeTipoVariacao || 'a variação'}
                           </label>
                           <input
@@ -2231,12 +2231,12 @@ export const ProdutoCadastro: React.FC = () => {
                                 handleAdicionarOpcao();
                               }
                             }}
-                            className="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none"
+                            className="w-full bg-white dark:bg-[#131D2D] border border-slate-200 dark:border-slate-700 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
                           />
                         </div>
 
                         <div className="sm:col-span-3 space-y-1">
-                          <label className="text-[11px] text-slate-400 block">Estoque da opção</label>
+                          <label className="text-xs text-slate-500 dark:text-slate-400 block">Estoque da opção</label>
                           <input
                             type="number"
                             min="0"
@@ -2249,7 +2249,7 @@ export const ProdutoCadastro: React.FC = () => {
                                 handleAdicionarOpcao();
                               }
                             }}
-                            className="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-100 font-bold text-emerald-400 focus:outline-none"
+                            className="w-full bg-white dark:bg-[#131D2D] border border-slate-200 dark:border-slate-700 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white font-bold text-emerald-700 dark:text-emerald-400 focus:outline-none"
                           />
                         </div>
 
@@ -2257,7 +2257,7 @@ export const ProdutoCadastro: React.FC = () => {
                           <button
                             type="button"
                             onClick={handleAdicionarOpcao}
-                            className="w-full py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1 shadow-md shadow-emerald-500/20"
+                            className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1 shadow-sm"
                           >
                             <Plus className="w-4 h-4" />
                             <span>Adicionar</span>
@@ -2269,7 +2269,7 @@ export const ProdutoCadastro: React.FC = () => {
                     {/* Lista de Opções Cadastradas */}
                     {opcoesVariacao.length > 0 ? (
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between text-xs text-slate-400 px-1">
+                        <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 px-1">
                           <span className="font-semibold">Opções cadastradas ({opcoesVariacao.length}):</span>
                           <span>Estoque individual</span>
                         </div>
@@ -2278,30 +2278,30 @@ export const ProdutoCadastro: React.FC = () => {
                           {opcoesVariacao.map((opc) => (
                             <div
                               key={opc.id}
-                              className="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800 gap-3"
+                              className="flex items-center justify-between bg-slate-50 dark:bg-[#0D1624] p-3 rounded-xl border border-slate-200 dark:border-slate-700 gap-3"
                             >
                               <div className="flex items-center gap-2.5">
-                                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                                <span className="text-xs font-bold text-slate-100">{opc.nome}</span>
+                                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{opc.nome}</span>
                               </div>
 
                               <div className="flex items-center gap-3">
                                 <div className="flex items-center gap-1.5">
-                                  <span className="text-[11px] text-slate-400">Estoque:</span>
+                                  <span className="text-xs text-slate-500 dark:text-slate-400">Estoque:</span>
                                   <input
                                     type="number"
                                     min="0"
                                     value={opc.estoque}
                                     onChange={(e) => handleAtualizarEstoqueOpcao(opc.id, e.target.value)}
-                                    className="w-16 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs text-center font-bold text-emerald-400 focus:outline-none focus:border-emerald-500"
+                                    className="w-16 bg-white dark:bg-[#131D2D] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-center font-bold text-emerald-700 dark:text-emerald-400 focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
                                   />
-                                  <span className="text-[11px] text-slate-500">un</span>
+                                  <span className="text-xs text-slate-400">un</span>
                                 </div>
 
                                 <button
                                   type="button"
                                   onClick={() => handleRemoverOpcao(opc.id)}
-                                  className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition cursor-pointer"
                                   title="Remover opção"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -2312,21 +2312,21 @@ export const ProdutoCadastro: React.FC = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="text-center p-4 bg-slate-950/40 rounded-xl border border-dashed border-slate-800 text-xs text-slate-400">
+                      <div className="text-center p-4 bg-slate-50 dark:bg-[#0D1624] rounded-xl border border-dashed border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400">
                         Nenhuma opção adicionada ainda. Digite uma opção acima (ex: Azul, P, Sabor Morango) e clique em Adicionar.
                       </div>
                     )}
 
                     {/* Resumo de Conferência de Estoque */}
                     {opcoesVariacao.length > 0 && (
-                      <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                        <div className="flex items-center gap-2 text-emerald-300">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-500/30 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                        <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                           <span>
                             Soma do estoque das variações: <strong>{opcoesVariacao.reduce((acc, o) => acc + (Number(o.estoque) || 0), 0)} un</strong>
                           </span>
                         </div>
-                        <span className="text-[11px] text-emerald-400 font-medium">
+                        <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
                           O estoque total do produto será sincronizado com {opcoesVariacao.reduce((acc, o) => acc + (Number(o.estoque) || 0), 0)} un
                         </span>
                       </div>
@@ -2339,14 +2339,14 @@ export const ProdutoCadastro: React.FC = () => {
 
           {/* SEÇÃO 6: DIMENSÕES E PESO PARA FRETE (IA / CORREIOS / JADLOG) */}
           {tipoItem !== 'servico' && (
-            <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 space-y-4 shadow-xl">
+            <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-5 md:p-6 space-y-4 shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-                    <Truck className="w-4 h-4 text-emerald-400" />
+                  <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <Truck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     <span>6. Dimensões e Peso para Envio (Melhor Envio / Correios / Jadlog)</span>
                   </h2>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                     Preenchido automaticamente pela IA do HUBI. Usado para cotação exata de frete e emissão de etiquetas.
                   </p>
                 </div>
@@ -2381,7 +2381,7 @@ export const ProdutoCadastro: React.FC = () => {
                       setDetectandoDimensoes(false);
                     }
                   }}
-                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 text-emerald-950 font-bold dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:border-emerald-700/60 dark:text-emerald-300 text-xs transition shadow-xs cursor-pointer self-start sm:self-auto group disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-500/30 dark:hover:bg-emerald-900/50 text-xs font-bold transition shadow-xs cursor-pointer self-start sm:self-auto group disabled:opacity-50"
                   title="Detectar ou estimar medidas e peso com inteligência artificial"
                 >
                   {detectandoDimensoes ? (
@@ -2404,8 +2404,8 @@ export const ProdutoCadastro: React.FC = () => {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-slate-300">Peso (kg)</label>
-                    <span className="text-[10px] text-emerald-400 font-medium">Balança</span>
+                    <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Peso (kg)</label>
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Balança</span>
                   </div>
                   <input
                     type="number"
@@ -2414,13 +2414,13 @@ export const ProdutoCadastro: React.FC = () => {
                     placeholder="Ex: 0.350"
                     value={pesoKg}
                     onChange={(e) => setPesoKg(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-100 font-mono focus:outline-none"
+                    className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white font-mono focus:outline-none"
                   />
-                  <span className="text-[10px] text-slate-500 block">Ex: 0.500 para 500g</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 block">Ex: 0.500 para 500g</span>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-300">Altura (cm)</label>
+                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Altura (cm)</label>
                   <input
                     type="number"
                     step="0.1"
@@ -2428,13 +2428,13 @@ export const ProdutoCadastro: React.FC = () => {
                     placeholder="Ex: 10"
                     value={alturaCm}
                     onChange={(e) => setAlturaCm(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-100 font-mono focus:outline-none"
+                    className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white font-mono focus:outline-none"
                   />
-                  <span className="text-[10px] text-slate-500 block">Mínimo: 4 cm</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 block">Mínimo: 4 cm</span>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-300">Largura (cm)</label>
+                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Largura (cm)</label>
                   <input
                     type="number"
                     step="0.1"
@@ -2442,13 +2442,13 @@ export const ProdutoCadastro: React.FC = () => {
                     placeholder="Ex: 15"
                     value={larguraCm}
                     onChange={(e) => setLarguraCm(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-100 font-mono focus:outline-none"
+                    className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white font-mono focus:outline-none"
                   />
-                  <span className="text-[10px] text-slate-500 block">Mínimo: 10 cm</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 block">Mínimo: 10 cm</span>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-300">Comprimento (cm)</label>
+                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Comprimento (cm)</label>
                   <input
                     type="number"
                     step="0.1"
@@ -2456,36 +2456,36 @@ export const ProdutoCadastro: React.FC = () => {
                     placeholder="Ex: 20"
                     value={comprimentoCm}
                     onChange={(e) => setComprimentoCm(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-100 font-mono focus:outline-none"
+                    className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white font-mono focus:outline-none"
                   />
-                  <span className="text-[10px] text-slate-500 block">Mínimo: 15 cm</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 block">Mínimo: 15 cm</span>
                 </div>
               </div>
             </div>
           )}
 
-          {/* SEÇÃO 6: CATÁLOGO ONLINE E DESTAQUE */}
-          <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 md:p-6 space-y-4 shadow-xs">
-            <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+          {/* SEÇÃO 7: CATÁLOGO ONLINE E DESTAQUE */}
+          <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-5 md:p-6 space-y-4 shadow-sm">
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Eye className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span>6. Visibilidade no Catálogo Online</span>
+              <span>7. Visibilidade no Catálogo Online</span>
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <label className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl cursor-pointer hover:border-slate-300 dark:hover:border-slate-700 transition">
+              <label className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 rounded-2xl cursor-pointer hover:border-emerald-500 dark:hover:border-emerald-500 transition">
                 <input
                   type="checkbox"
                   checked={exibirCatalogo}
                   onChange={(e) => setExibirCatalogo(e.target.checked)}
-                  className="w-4 h-4 rounded text-emerald-500 focus:ring-0"
+                  className="w-4 h-4 rounded text-emerald-600 focus:ring-0"
                 />
                 <div>
-                  <span className="font-bold text-xs text-slate-800 dark:text-slate-200 block">Exibir no Catálogo Online</span>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Ficará visível para os clientes comprarem pelo link</span>
+                  <span className="font-semibold text-xs text-slate-900 dark:text-slate-100 block">Exibir no Catálogo Online</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 block">Ficará visível para os clientes comprarem pelo link</span>
                 </div>
               </label>
 
-              <label className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl cursor-pointer hover:border-slate-300 dark:hover:border-slate-700 transition">
+              <label className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 rounded-2xl cursor-pointer hover:border-amber-500 dark:hover:border-amber-500 transition">
                 <input
                   type="checkbox"
                   checked={destaque}
@@ -2493,21 +2493,21 @@ export const ProdutoCadastro: React.FC = () => {
                   className="w-4 h-4 rounded text-amber-500 focus:ring-0"
                 />
                 <div>
-                  <span className="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                  <span className="font-semibold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1">
                     <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
                     <span>Destacar Produto na Vitrine</span>
                   </span>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Aparecerá no topo da página de vendas</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 block">Aparecerá no topo da página de vendas</span>
                 </div>
               </label>
             </div>
           </div>
 
-          {/* Botão Salvar Produto */}
+          {/* Botão Principal de Submissão ("Salvar Alterações") */}
           <button
             type="submit"
             disabled={salvando}
-            className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold text-white border border-emerald-500 shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 text-sm transition disabled:opacity-50 cursor-pointer"
+            className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold rounded-xl shadow-md transition-colors flex items-center justify-center gap-2 text-sm disabled:opacity-50 cursor-pointer"
           >
             {salvando ? (
               <>
@@ -2528,29 +2528,29 @@ export const ProdutoCadastro: React.FC = () => {
       {/* MODAL DE CONFIGURAÇÃO DE CHAVE GOOGLE GEMINI AI                           */}
       {/* ========================================================================= */}
       {modalKeyGemini && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2.5 text-emerald-400">
-                <Sparkles className="w-5 h-5 text-amber-400" />
-                <h3 className="font-bold text-base text-slate-100">Chave Google Gemini IA</h3>
+        <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-white dark:bg-[#131D2D] border border-slate-200 dark:border-slate-700/60 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700/60 pb-3">
+              <div className="flex items-center gap-2.5">
+                <Sparkles className="w-5 h-5 text-amber-500 dark:text-amber-400" />
+                <h3 className="font-semibold text-base text-slate-900 dark:text-slate-100">Chave Google Gemini IA</h3>
               </div>
-              <button onClick={() => setModalKeyGemini(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setModalKeyGemini(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-2 text-xs text-slate-300 leading-relaxed">
+            <div className="space-y-2 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
               <p>
                 Para habilitar o reconhecimento multimodal em alta precisão de fotos de produtos, você pode inserir sua chave gratuita do <strong>Google Gemini</strong>.
               </p>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Você pode obter sua chave gratuitamente no{' '}
                 <a
                   href="https://aistudio.google.com/app/apikey"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-emerald-400 underline font-bold"
+                  className="text-emerald-600 dark:text-emerald-400 underline font-bold"
                 >
                   Google AI Studio
                 </a>.
@@ -2558,13 +2558,13 @@ export const ProdutoCadastro: React.FC = () => {
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-300">Chave da API (Gemini API Key):</label>
+              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Chave da API (Gemini API Key):</label>
               <input
                 type="password"
                 placeholder="AIzaSy..."
                 value={tempApiKey}
                 onChange={(e) => setTempApiKey(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
+                className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
               />
             </div>
 
@@ -2572,7 +2572,7 @@ export const ProdutoCadastro: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalKeyGemini(false)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-bold transition cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold transition cursor-pointer"
               >
                 Cancelar
               </button>
@@ -2605,7 +2605,7 @@ export const ProdutoCadastro: React.FC = () => {
                     setSalvandoKeyGemini(false);
                   }
                 }}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white dark:font-semibold disabled:opacity-50 text-xs transition cursor-pointer flex items-center justify-center gap-1.5"
+                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold disabled:opacity-50 text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
               >
                 {salvandoKeyGemini ? (
                   <>
@@ -2623,24 +2623,24 @@ export const ProdutoCadastro: React.FC = () => {
 
       {/* Modal Radar de Preços de Mercado (IA) */}
       {modalRadarAberto && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50 animate-in fade-in">
+          <div className="bg-white dark:bg-[#131D2D] border border-slate-200 dark:border-slate-700/60 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-xl overflow-hidden animate-in zoom-in-95 duration-150">
             {/* Header do Modal */}
-            <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-700/60 flex items-center justify-between bg-white dark:bg-[#131D2D]">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-600 dark:bg-emerald-500 flex items-center justify-center text-white shadow-md">
+                <div className="w-10 h-10 rounded-xl bg-emerald-600 dark:bg-emerald-500 flex items-center justify-center text-white shadow-sm">
                   <Search className="w-5 h-5" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-sm sm:text-base text-slate-100">
+                    <h3 className="font-semibold text-sm sm:text-base text-slate-900 dark:text-slate-100">
                       Radar de Preços de Mercado
                     </h3>
-                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+                    <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
                       IA Gemini
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400 truncate max-w-md mt-0.5">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-md mt-0.5">
                     {nome ? `Comparativo de concorrentes para: "${nome}"` : 'Pesquisa de preços na internet'}
                   </p>
                 </div>
@@ -2649,7 +2649,7 @@ export const ProdutoCadastro: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalRadarAberto(false)}
-                className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -2665,16 +2665,16 @@ export const ProdutoCadastro: React.FC = () => {
                   />
                 </div>
               ) : erroMercado ? (
-                <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl space-y-3 text-center">
-                  <AlertCircle className="w-8 h-8 text-rose-400 mx-auto" />
+                <div className="p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-xl space-y-3 text-center">
+                  <AlertCircle className="w-8 h-8 text-rose-500 dark:text-rose-400 mx-auto" />
                   <div>
-                    <h4 className="font-bold text-xs text-rose-300">Não foi possível consultar os preços</h4>
-                    <p className="text-[11px] text-slate-400 mt-1">{erroMercado}</p>
+                    <h4 className="font-bold text-xs text-rose-700 dark:text-rose-300">Não foi possível consultar os preços</h4>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">{erroMercado}</p>
                   </div>
                   <button
                     type="button"
                     onClick={buscarConcorrentesMercado}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition cursor-pointer"
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold rounded-xl transition cursor-pointer"
                   >
                     Tentar Novamente
                   </button>
@@ -2682,17 +2682,17 @@ export const ProdutoCadastro: React.FC = () => {
               ) : dadosMercado ? (
                 <>
                   {/* CARD DE RESUMO GERAL (MÉDIA & DESTAQUES) */}
-                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3 shadow-lg">
+                  <div className="bg-slate-50 dark:bg-[#0D1624] p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3 shadow-xs">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div>
-                        <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">
+                        <span className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold block">
                           Preço Médio de Mercado
                         </span>
                         <div className="flex items-baseline gap-2 mt-0.5">
-                          <span className="text-2xl sm:text-3xl font-black text-white">
+                          <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
                             R$ {dadosMercado.precoMedio.toFixed(2)}
                           </span>
-                          <span className="text-[11px] text-slate-400 font-medium">
+                          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                             (Baseado em {dadosMercado.totalPesquisados} lojas)
                           </span>
                         </div>
@@ -2701,21 +2701,21 @@ export const ProdutoCadastro: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleAplicarPrecoMercado(dadosMercado.precoMedio)}
-                        className="px-4 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white dark:font-semibold text-xs shadow-md shadow-emerald-500/20 flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
+                        className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-sm flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
                       >
                         <Zap className="w-4 h-4 fill-current" />
                         <span>Aplicar Preço Sugerido (R$ {Math.floor(dadosMercado.precoMedio).toFixed(2)})</span>
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800 text-xs">
-                      <div className="flex items-center gap-2 text-emerald-400 font-semibold">
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 dark:border-slate-700 text-xs">
+                      <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-semibold">
                         <TrendingDown className="w-4 h-4 shrink-0" />
                         <span className="truncate">
                           Menor: <b>R$ {dadosMercado.menorPreco.toFixed(2)}</b> ({dadosMercado.menoresPrecos[0]?.loja || 'Concorrente'})
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-slate-300 font-semibold">
+                      <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold">
                         <TrendingUp className="w-4 h-4 shrink-0" />
                         <span className="truncate">
                           Maior: <b>R$ {dadosMercado.maiorPreco.toFixed(2)}</b> ({dadosMercado.maioresPrecos[0]?.loja || 'Concorrente'})
@@ -2728,7 +2728,7 @@ export const ProdutoCadastro: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* 5 MENORES PREÇOS */}
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs font-bold text-emerald-400 px-1">
+                      <div className="flex items-center justify-between text-xs font-bold text-emerald-700 dark:text-emerald-400 px-1">
                         <span className="flex items-center gap-1.5">
                           <TrendingDown className="w-3.5 h-3.5" />
                           5 Menores Preços Localizados
@@ -2738,31 +2738,31 @@ export const ProdutoCadastro: React.FC = () => {
 
                       <div className="space-y-2">
                         {dadosMercado.menoresPrecos.length === 0 ? (
-                          <div className="text-center py-6 text-slate-500 text-xs">Nenhum registro listado.</div>
+                          <div className="text-center py-6 text-slate-400 text-xs">Nenhum registro listado.</div>
                         ) : (
                           dadosMercado.menoresPrecos.map((item, idx) => (
                             <div
                               key={idx}
-                              className="bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 rounded-xl p-2.5 flex items-center justify-between gap-2 transition group"
+                              className="bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/60 rounded-xl p-2.5 flex items-center justify-between gap-2 transition group"
                             >
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5">
-                                  <Store className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                  <h5 className="font-bold text-xs text-slate-200 truncate">{item.loja}</h5>
+                                  <Store className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
+                                  <h5 className="font-semibold text-xs text-slate-800 dark:text-slate-200 truncate">{item.loja}</h5>
                                 </div>
-                                <span className="text-[10px] text-slate-400 block mt-0.5 truncate">
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5 truncate">
                                   {item.tipo || 'Varejo'}
                                 </span>
                               </div>
 
                               <div className="text-right shrink-0">
-                                <span className="font-black text-xs sm:text-sm text-emerald-400 block">
+                                <span className="font-bold text-xs sm:text-sm text-emerald-700 dark:text-emerald-400 block">
                                   R$ {item.preco.toFixed(2)}
                                 </span>
                                 <button
                                   type="button"
                                   onClick={() => handleAplicarPrecoMercado(item.preco)}
-                                  className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 underline mt-0.5 cursor-pointer block"
+                                  className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 underline mt-0.5 cursor-pointer block"
                                 >
                                   Usar este
                                 </button>
@@ -2775,7 +2775,7 @@ export const ProdutoCadastro: React.FC = () => {
 
                     {/* 5 MAIORES PREÇOS */}
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs font-bold text-slate-200 px-1">
+                      <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200 px-1">
                         <span className="flex items-center gap-1.5">
                           <TrendingUp className="w-3.5 h-3.5" />
                           5 Maiores Preços Localizados
@@ -2785,31 +2785,31 @@ export const ProdutoCadastro: React.FC = () => {
 
                       <div className="space-y-2">
                         {dadosMercado.maioresPrecos.length === 0 ? (
-                          <div className="text-center py-6 text-slate-500 text-xs">Nenhum registro listado.</div>
+                          <div className="text-center py-6 text-slate-400 text-xs">Nenhum registro listado.</div>
                         ) : (
                           dadosMercado.maioresPrecos.map((item, idx) => (
                             <div
                               key={idx}
-                              className="bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 rounded-xl p-2.5 flex items-center justify-between gap-2 transition group"
+                              className="bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/60 rounded-xl p-2.5 flex items-center justify-between gap-2 transition group"
                             >
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5">
-                                  <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                  <h5 className="font-bold text-xs text-slate-200 truncate">{item.loja}</h5>
+                                  <Building2 className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
+                                  <h5 className="font-semibold text-xs text-slate-800 dark:text-slate-200 truncate">{item.loja}</h5>
                                 </div>
-                                <span className="text-[10px] text-slate-400 block mt-0.5 truncate">
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5 truncate">
                                   {item.tipo || 'Varejo'}
                                 </span>
                               </div>
 
                               <div className="text-right shrink-0">
-                                <span className="font-black text-xs sm:text-sm text-slate-200 block">
+                                <span className="font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-200 block">
                                   R$ {item.preco.toFixed(2)}
                                 </span>
                                 <button
                                   type="button"
                                   onClick={() => handleAplicarPrecoMercado(item.preco)}
-                                  className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 underline mt-0.5 cursor-pointer block"
+                                  className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 underline mt-0.5 cursor-pointer block"
                                 >
                                   Usar este
                                 </button>
@@ -2822,13 +2822,13 @@ export const ProdutoCadastro: React.FC = () => {
                   </div>
                 </>
               ) : (
-                <div className="text-center py-12 text-slate-400 space-y-2">
-                  <Search className="w-8 h-8 text-slate-500 mx-auto" />
+                <div className="text-center py-12 text-slate-500 dark:text-slate-400 space-y-2">
+                  <Search className="w-8 h-8 text-slate-400 dark:text-slate-500 mx-auto" />
                   <p className="text-xs">Nenhuma pesquisa realizada ainda.</p>
                   <button
                     type="button"
                     onClick={buscarConcorrentesMercado}
-                    className="px-4 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs cursor-pointer"
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition cursor-pointer shadow-sm"
                   >
                     Iniciar Pesquisa
                   </button>
@@ -2837,8 +2837,8 @@ export const ProdutoCadastro: React.FC = () => {
             </div>
 
             {/* Rodapé do Modal */}
-            <div className="p-4 border-t border-slate-800 bg-slate-900/90 flex items-center justify-between">
-              <span className="text-[11px] text-slate-400">
+            <div className="p-4 border-t border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-[#131D2D] flex items-center justify-between">
+              <span className="text-xs text-slate-500 dark:text-slate-400">
                 {dadosMercado ? `Pesquisa atualizada em ${dadosMercado.dataConsulta}` : 'Inteligência de mercado integrada'}
               </span>
 
@@ -2847,7 +2847,7 @@ export const ProdutoCadastro: React.FC = () => {
                   type="button"
                   onClick={buscarConcorrentesMercado}
                   disabled={buscandoMercado || !nome.trim()}
-                  className="px-3 py-1.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
                   title="Atualizar cotações de concorrentes"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${buscandoMercado ? 'animate-spin' : ''}`} />
@@ -2857,7 +2857,7 @@ export const ProdutoCadastro: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalRadarAberto(false)}
-                  className="px-4 py-1.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs transition cursor-pointer"
+                  className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition cursor-pointer shadow-sm"
                 >
                   Fechar
                 </button>

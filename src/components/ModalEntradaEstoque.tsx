@@ -258,16 +258,16 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
-      <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full ${temVariacoes ? 'max-w-2xl' : 'max-w-lg'} p-6 space-y-5 shadow-2xl my-8 animate-in zoom-in-95 duration-150 text-slate-900 dark:text-slate-100`}>
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
+      <div className={`bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl w-full ${temVariacoes ? 'max-w-2xl' : 'max-w-lg'} p-6 space-y-5 shadow-sm my-8 animate-in zoom-in-95 duration-150 text-slate-900 dark:text-slate-100`}>
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700/60 pb-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-500/15 border border-emerald-300 dark:border-transparent text-emerald-800 dark:text-emerald-400 font-bold flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-500/30 font-bold flex items-center justify-center">
               <PackagePlus className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Entrada / Ajuste de Estoque</h3>
+              <h3 className="font-bold dark:font-semibold text-base text-slate-900 dark:text-slate-100">Entrada / Ajuste de Estoque</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-md">
                 {produtoAtual ? produtoAtual.nome : 'Selecione o produto para movimentar'}
               </p>
@@ -276,14 +276,14 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl bg-slate-100 dark:bg-transparent hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition cursor-pointer"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {erroMsg && (
-          <div className="p-3 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-2xl flex items-center gap-2 text-xs text-rose-700 dark:text-rose-300">
+          <div className="p-3 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-xl flex items-center gap-2 text-xs text-rose-700 dark:text-rose-300">
             <AlertCircle className="w-4 h-4 text-rose-500 dark:text-rose-400 shrink-0" />
             <span>{erroMsg}</span>
           </div>
@@ -299,7 +299,7 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
                 value={buscaProduto}
                 onChange={(e) => setBuscaProduto(e.target.value)}
                 placeholder="Pesquisar produto por nome ou código..."
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-semibold text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
+                className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
               />
             </div>
 
@@ -315,7 +315,7 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
                     <div
                       key={p.id}
                       onClick={() => setProdutoAtual(p)}
-                      className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 hover:bg-emerald-50/70 dark:hover:bg-slate-800 hover:border-emerald-300 dark:hover:border-slate-700 transition cursor-pointer flex items-center justify-between gap-3"
+                      className="p-3 rounded-xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-[#0D1624] hover:bg-emerald-50/50 dark:hover:bg-slate-800/80 hover:border-emerald-300 dark:hover:border-slate-600 transition cursor-pointer flex items-center justify-between gap-3"
                     >
                       <div className="min-w-0 flex-1">
                         <span className="font-bold text-xs text-slate-900 dark:text-slate-100 block truncate">
@@ -328,7 +328,7 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-xs font-bold px-2 py-1 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-300">
+                        <span className="text-xs font-bold px-2 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
                           {estQtd} un
                         </span>
                         <ChevronRight className="w-4 h-4 text-slate-400" />
@@ -343,14 +343,14 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
           <>
             {/* Barra do Produto Ativo com botão de Trocar se múltiplos produtos estiverem disponíveis */}
             {produtos.length > 0 && !produto && (
-              <div className="p-2.5 bg-slate-50 dark:bg-slate-950/60 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+              <div className="p-2.5 bg-slate-50 dark:bg-[#0D1624] rounded-xl border border-slate-200 dark:border-slate-700/60 flex items-center justify-between text-xs">
                 <span className="text-slate-600 dark:text-slate-400 font-medium truncate">
                   Produto selecionado: <strong className="text-slate-900 dark:text-slate-100">{produtoAtual.nome}</strong>
                 </span>
                 <button
                   type="button"
                   onClick={() => setProdutoAtual(null)}
-                  className="px-2.5 py-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:underline cursor-pointer"
+                  className="px-2.5 py-1 text-[11px] font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:underline cursor-pointer"
                 >
                   Trocar produto
                 </button>
@@ -362,39 +362,39 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
               <button
                 type="button"
                 onClick={() => setTipoMovimento('entrada_compra')}
-                className={`p-2.5 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer ${
+                className={`p-2.5 rounded-xl border text-xs font-semibold flex flex-col items-center gap-1.5 transition cursor-pointer ${
                   tipoMovimento === 'entrada_compra'
-                    ? 'bg-emerald-100 border-emerald-500 text-emerald-950 font-bold dark:bg-emerald-500/20 dark:border-emerald-500 dark:text-emerald-300 shadow-xs dark:shadow-md dark:shadow-emerald-500/15'
-                    : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-900 dark:bg-slate-950/60 dark:border-slate-800 dark:text-slate-400 dark:hover:border-slate-700'
+                    ? 'bg-emerald-50 border-emerald-500 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-500 dark:text-emerald-300 shadow-xs'
+                    : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 dark:bg-[#0D1624] dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800/60'
                 }`}
               >
-                <ArrowDownLeft className={`w-4 h-4 ${tipoMovimento === 'entrada_compra' ? 'text-emerald-800 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-400'}`} />
+                <ArrowDownLeft className={`w-4 h-4 ${tipoMovimento === 'entrada_compra' ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`} />
                 <span>+ Compra</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setTipoMovimento('baixa_perda')}
-                className={`p-2.5 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer ${
+                className={`p-2.5 rounded-xl border text-xs font-semibold flex flex-col items-center gap-1.5 transition cursor-pointer ${
                   tipoMovimento === 'baixa_perda'
-                    ? 'bg-rose-100 border-rose-500 text-rose-950 font-bold dark:bg-rose-500/20 dark:border-rose-500 dark:text-rose-300 shadow-xs dark:shadow-md dark:shadow-rose-500/15'
-                    : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-900 dark:bg-slate-950/60 dark:border-slate-800 dark:text-slate-400 dark:hover:border-slate-700'
+                    ? 'bg-rose-50 border-rose-500 text-rose-700 dark:bg-rose-950/40 dark:border-rose-500 dark:text-rose-300 shadow-xs'
+                    : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 dark:bg-[#0D1624] dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800/60'
                 }`}
               >
-                <ArrowUpRight className={`w-4 h-4 ${tipoMovimento === 'baixa_perda' ? 'text-rose-800 dark:text-rose-400' : 'text-slate-600 dark:text-slate-400'}`} />
+                <ArrowUpRight className={`w-4 h-4 ${tipoMovimento === 'baixa_perda' ? 'text-rose-700 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`} />
                 <span>- Baixa / Avaria</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setTipoMovimento('ajuste_inventario')}
-                className={`p-2.5 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer ${
+                className={`p-2.5 rounded-xl border text-xs font-semibold flex flex-col items-center gap-1.5 transition cursor-pointer ${
                   tipoMovimento === 'ajuste_inventario'
-                    ? 'bg-indigo-100 border-indigo-500 text-indigo-950 font-bold dark:bg-indigo-500/20 dark:border-indigo-500 dark:text-indigo-300 shadow-xs dark:shadow-md dark:shadow-indigo-500/15'
-                    : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-900 dark:bg-slate-950/60 dark:border-slate-800 dark:text-slate-400 dark:hover:border-slate-700'
+                    ? 'bg-indigo-50 border-indigo-500 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-500 dark:text-indigo-300 shadow-xs'
+                    : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 dark:bg-[#0D1624] dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800/60'
                 }`}
               >
-                <Sliders className={`w-4 h-4 ${tipoMovimento === 'ajuste_inventario' ? 'text-indigo-800 dark:text-indigo-400' : 'text-slate-600 dark:text-slate-400'}`} />
+                <Sliders className={`w-4 h-4 ${tipoMovimento === 'ajuste_inventario' ? 'text-indigo-700 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`} />
                 <span>Balanço Real</span>
               </button>
             </div>
@@ -414,10 +414,10 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
                     </span>
                   </div>
 
-                  <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-950/80 shadow-xs dark:shadow-inner">
+                  <div className="border border-slate-200 dark:border-slate-700/60 rounded-xl overflow-hidden bg-white dark:bg-[#0D1624] shadow-xs">
                     <div className="overflow-x-auto max-h-72">
                       <table className="w-full text-left text-xs border-collapse">
-                        <thead className="bg-slate-50 dark:bg-slate-900/90 text-slate-700 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-10 text-[11px] uppercase tracking-wider font-semibold">
+                        <thead className="bg-slate-50 dark:bg-[#131D2D] text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700/60 sticky top-0 z-10 text-[11px] uppercase tracking-wider font-semibold">
                           <tr>
                             <th className="p-3">Variação</th>
                             <th className="p-3 text-center">Estoque Atual</th>
@@ -438,7 +438,7 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
                           {linhasVariacoes.map((linha) => {
                             const novoEstoque = calcularNovoEstoqueLinha(linha.estoqueAtual, linha.quantidade);
                             return (
-                              <tr key={linha.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition">
+                              <tr key={linha.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
                                 <td className="p-3">
                                   <span className="font-bold text-slate-900 dark:text-slate-100 block">{linha.nome}</span>
                                   {linha.sku && <span className="text-[10px] text-slate-500 dark:text-slate-500 font-mono">SKU: {linha.sku}</span>}
@@ -461,7 +461,7 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
                                     placeholder="0"
                                     value={linha.quantidade}
                                     onChange={(e) => handleAtualizarQtdVariacao(linha.id, e.target.value)}
-                                    className="w-20 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:border-emerald-500 focus:ring-emerald-500/20 rounded-xl px-2.5 py-1.5 text-center text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none shadow-2xs"
+                                    className="w-20 bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-2.5 py-1.5 text-center text-xs font-bold text-slate-900 dark:text-white focus:outline-none shadow-xs"
                                   />
                                 </td>
 
@@ -473,7 +473,7 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
                                       min="0"
                                       value={linha.precoCusto}
                                       onChange={(e) => handleAtualizarCustoVariacao(linha.id, e.target.value)}
-                                      className="w-24 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:border-emerald-500 focus:ring-emerald-500/20 rounded-xl px-2.5 py-1.5 text-center text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none shadow-2xs"
+                                      className="w-24 bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-2.5 py-1.5 text-center text-xs font-bold text-slate-900 dark:text-white focus:outline-none shadow-xs"
                                     />
                                   </td>
                                 )}
@@ -497,7 +497,7 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
                     </div>
 
                     {/* Resumo da Grade */}
-                    <div className="p-3 bg-slate-50 dark:bg-slate-900/90 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+                    <div className="p-3 bg-slate-50 dark:bg-[#131D2D] border-t border-slate-200 dark:border-slate-700/60 flex items-center justify-between text-xs">
                       <span className="text-slate-600 dark:text-slate-400">
                         Total em Grade: <strong className="text-slate-900 dark:text-slate-200">{totalEstoqueAtual} un</strong>
                       </span>
@@ -511,7 +511,7 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
               ) : (
                 /* PRODUTO SIMPLES SEM VARIAÇÃO */
                 <div className="space-y-4">
-                  <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                  <div className="bg-slate-50 dark:bg-[#0D1624] p-4 rounded-xl border border-slate-200 dark:border-slate-700/60 flex items-center justify-between">
                     <div className="space-y-0.5">
                       <span className="text-[11px] text-slate-600 dark:text-slate-400 block font-medium">Estoque Atual em Loja:</span>
                       <span className="text-xl font-black text-slate-900 dark:text-slate-200">
@@ -528,7 +528,7 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
                         {tipoMovimento === 'entrada_compra'
                           ? 'Quantidade a Adicionar:'
                           : tipoMovimento === 'baixa_perda'
@@ -541,20 +541,20 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
                         min="0"
                         value={quantidadeSimples}
                         onChange={(e) => setQuantidadeSimples(e.target.value)}
-                        className="w-full bg-white dark:bg-slate-800 border border-emerald-500 rounded-xl px-3.5 py-2.5 text-base font-bold text-emerald-800 dark:text-emerald-400 focus:outline-none shadow-2xs"
+                        className="w-full bg-white dark:bg-[#0D1624] border border-emerald-500 rounded-xl px-3.5 py-2.5 text-base font-bold text-emerald-700 dark:text-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 shadow-xs"
                       />
                     </div>
 
                     {tipoMovimento === 'entrada_compra' && (
                       <div className="space-y-1">
-                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Custo Unitário da Compra (R$):</label>
+                        <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Custo Unitário da Compra (R$):</label>
                         <input
                           type="number"
                           step="0.01"
                           min="0"
                           value={custoSimples}
                           onChange={(e) => setCustoSimples(e.target.value)}
-                          className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none shadow-2xs focus:border-emerald-500"
+                          className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 shadow-xs"
                         />
                       </div>
                     )}
@@ -564,7 +564,7 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
 
               {/* Lançamento financeiro de compra */}
               {tipoMovimento === 'entrada_compra' && valorTotalCompra > 0 && (
-                <label className="flex items-start gap-2.5 p-3 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl cursor-pointer hover:bg-slate-100/80 dark:hover:border-slate-700 transition">
+                <label className="flex items-start gap-2.5 p-3 bg-slate-50 dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700/60 rounded-xl cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/40 transition">
                   <input
                     type="checkbox"
                     checked={lancarDespesaFinanceira}
@@ -583,13 +583,13 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
               )}
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-400">Observações da Movimentação (Opcional):</label>
+                <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Observações da Movimentação (Opcional):</label>
                 <input
                   type="text"
                   placeholder="Ex: Nota Fiscal 1452, Compra Fornecedor Silva, Devolução..."
                   value={observacao}
                   onChange={(e) => setObservacao(e.target.value)}
-                  className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none shadow-2xs focus:border-emerald-500 placeholder-slate-400"
+                  className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 placeholder-slate-400 shadow-xs"
                 />
               </div>
 
@@ -597,14 +597,14 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-transparent dark:hover:bg-slate-800 dark:text-slate-300 text-xs font-bold transition cursor-pointer"
+                  className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white hover:bg-slate-50 dark:bg-[#131D2D] dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold transition cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={salvando}
-                  className="flex-1 py-3 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white dark:font-semibold text-xs shadow-sm flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer"
+                  className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold rounded-xl shadow-md transition-colors flex items-center justify-center gap-2 cursor-pointer text-xs disabled:opacity-50"
                 >
                   {salvando ? (
                     <>
