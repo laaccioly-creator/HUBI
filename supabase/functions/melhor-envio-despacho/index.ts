@@ -258,9 +258,11 @@ serve(async (req: Request) => {
     // -------------------------------------------------------------------------
     const acao = body.acao || body.action || "despachar";
 
-    if (acao === "imprimir_etiqueta" || acao === "obter_etiqueta" || acao === "declaracao_conteudo") {
+    if (acao === "imprimir_etiqueta" || acao === "obter_etiqueta" || acao === "declaracao_conteudo" || acao === "consultar_documentos") {
       console.log(`[MelhorEnvio-Edge] Solicitando URL de impressão da etiqueta para o pedido ${pedidoId}...`);
       const forcarGeracao = Boolean(body.forcar_geracao || body.force);
+      const caminhoEtiqueta = `${lojaId}/${pedidoId}_etiqueta.pdf`;
+      const caminhoDace = `${lojaId}/${pedidoId}_dace.pdf`;
       const caminhoCompletoStorage = `${lojaId}/${pedidoId}_etiqueta_completa.pdf`;
 
       // 1. Verificação de Cache Permanente no bucket 'etiquetas'
@@ -268,36 +270,45 @@ serve(async (req: Request) => {
         try {
           const { data: filesExistentes, error: errList } = await supabaseAdmin.storage
             .from("etiquetas")
-            .list(lojaId, { search: `${pedidoId}_etiqueta_completa.pdf` });
+            .list(lojaId);
 
-          const jaExiste =
-            !errList &&
-            Array.isArray(filesExistentes) &&
-            filesExistentes.some((f: any) => f.name === `${pedidoId}_etiqueta_completa.pdf`);
-
-          if (jaExiste) {
-            const { data: pubData } = supabaseAdmin.storage
-              .from("etiquetas")
-              .getPublicUrl(caminhoCompletoStorage);
-            const urlPermanente = pubData.publicUrl;
-            console.log(`[MelhorEnvio-Edge] Etiqueta encontrada em cache no Supabase Storage: ${urlPermanente}`);
-
-            // Garante consistência no banco
-            await supabaseAdmin
-              .from("pedido_entregas")
-              .update({ link_etiqueta: urlPermanente, atualizado_em: new Date().toISOString() })
-              .eq("pedido_id", pedidoId);
-
-            return new Response(
-              JSON.stringify({
-                sucesso: true,
-                cached: true,
-                url: urlPermanente,
-                link_etiqueta: urlPermanente,
-                declaracao_url: urlPermanente,
-              }),
-              { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          if (!errList && Array.isArray(filesExistentes)) {
+            const fileEtq = filesExistentes.find(
+              (f: any) => f.name === `${pedidoId}_etiqueta.pdf` || f.name === `${pedidoId}_etiqueta_completa.pdf`
             );
+            const fileDace = filesExistentes.find((f: any) => f.name === `${pedidoId}_dace.pdf`);
+
+            if (fileEtq) {
+              const caminhoEscolhidoEtq = `${lojaId}/${fileEtq.name}`;
+              const { data: pubEtq } = supabaseAdmin.storage.from("etiquetas").getPublicUrl(caminhoEscolhidoEtq);
+              const urlEtqPermanente = pubEtq.publicUrl;
+
+              let urlDacePermanente = urlEtqPermanente;
+              if (fileDace) {
+                const { data: pubDace } = supabaseAdmin.storage.from("etiquetas").getPublicUrl(caminhoDace);
+                urlDacePermanente = pubDace.publicUrl;
+              }
+
+              console.log(`[MelhorEnvio-Edge] Cache hit no Storage: Etiqueta=${urlEtqPermanente}, DACE=${urlDacePermanente}`);
+
+              await supabaseAdmin
+                .from("pedido_entregas")
+                .update({ link_etiqueta: urlEtqPermanente, atualizado_em: new Date().toISOString() })
+                .eq("pedido_id", pedidoId);
+
+              return new Response(
+                JSON.stringify({
+                  sucesso: true,
+                  cached: true,
+                  url_etiqueta: urlEtqPermanente,
+                  url_dace: urlDacePermanente,
+                  url: urlEtqPermanente,
+                  link_etiqueta: urlEtqPermanente,
+                  declaracao_url: urlDacePermanente,
+                }),
+                { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+              );
+            }
           }
         } catch (eCache) {
           console.warn("[MelhorEnvio-Edge] Falha ao verificar cache no Supabase Storage:", eCache);
@@ -508,36 +519,70 @@ serve(async (req: Request) => {
         finalPdfBytes = new Uint8Array(bufferDace);
       }
 
-      // 7. Upload do PDF completo para o bucket permanente 'etiquetas' no Supabase Storage
-      let urlPermanente = urlEtiquetaFinal || urlDaceFinal;
-      if (finalPdfBytes && pedidoId && lojaId) {
-        try {
-          const { error: uploadErr } = await supabaseAdmin.storage
-            .from("etiquetas")
-            .upload(caminhoCompletoStorage, finalPdfBytes, {
-              contentType: "application/pdf",
-              upsert: true,
-            });
+      // 7. Upload dos PDFs para o bucket permanente 'etiquetas' no Supabase Storage
+      let urlEtqPermanente = urlEtiquetaFinal;
+      let urlDacePermanente = urlDaceFinal || urlEtiquetaFinal;
 
-          if (!uploadErr) {
-            const { data: pubData } = supabaseAdmin.storage
+      if (pedidoId && lojaId) {
+        // A. Upload da Etiqueta individual
+        const bytesEtq = bufferEtiqueta ? new Uint8Array(bufferEtiqueta) : finalPdfBytes;
+        if (bytesEtq) {
+          try {
+            const { error: upErrEtq } = await supabaseAdmin.storage
               .from("etiquetas")
-              .getPublicUrl(caminhoCompletoStorage);
-            urlPermanente = pubData.publicUrl;
-            console.log(`[MelhorEnvio-Edge] Upload permanente concluído com sucesso: ${urlPermanente}`);
-          } else {
-            console.warn("[MelhorEnvio-Edge] Erro no upload para Supabase Storage:", uploadErr);
+              .upload(caminhoEtiqueta, bytesEtq, {
+                contentType: "application/pdf",
+                upsert: true,
+              });
+            if (!upErrEtq) {
+              const { data: pubEtq } = supabaseAdmin.storage.from("etiquetas").getPublicUrl(caminhoEtiqueta);
+              urlEtqPermanente = pubEtq.publicUrl;
+            }
+          } catch (eUpEtq) {
+            console.warn("[MelhorEnvio-Edge] Erro no upload da etiqueta individual:", eUpEtq);
           }
-        } catch (eUp) {
-          console.warn("[MelhorEnvio-Edge] Exceção no upload para Supabase Storage:", eUp);
+        }
+
+        // B. Upload da Declaração de Conteúdo (DACE) individual
+        if (bufferDace) {
+          try {
+            const { error: upErrDace } = await supabaseAdmin.storage
+              .from("etiquetas")
+              .upload(caminhoDace, new Uint8Array(bufferDace), {
+                contentType: "application/pdf",
+                upsert: true,
+              });
+            if (!upErrDace) {
+              const { data: pubDace } = supabaseAdmin.storage.from("etiquetas").getPublicUrl(caminhoDace);
+              urlDacePermanente = pubDace.publicUrl;
+            }
+          } catch (eUpDace) {
+            console.warn("[MelhorEnvio-Edge] Erro no upload da DACE individual:", eUpDace);
+          }
+        } else {
+          urlDacePermanente = urlEtqPermanente;
+        }
+
+        // C. Upload da folha mesclada completa (backup de conveniência)
+        if (finalPdfBytes) {
+          try {
+            await supabaseAdmin.storage
+              .from("etiquetas")
+              .upload(caminhoCompletoStorage, finalPdfBytes, {
+                contentType: "application/pdf",
+                upsert: true,
+              });
+          } catch (eUpFull) {
+            console.warn("[MelhorEnvio-Edge] Erro no upload da folha completa:", eUpFull);
+          }
         }
       }
 
-      if (pedidoId && urlPermanente) {
+      if (pedidoId && urlEtqPermanente) {
         await supabaseAdmin
           .from("pedido_entregas")
           .update({
-            link_etiqueta: urlPermanente,
+            link_etiqueta: urlEtqPermanente,
             atualizado_em: new Date().toISOString(),
           })
           .eq("pedido_id", pedidoId);
@@ -548,9 +593,11 @@ serve(async (req: Request) => {
           sucesso: true,
           cached: false,
           ordem_id: String(orderId),
-          url: urlPermanente,
-          link_etiqueta: urlPermanente,
-          declaracao_url: urlPermanente,
+          url_etiqueta: urlEtqPermanente,
+          url_dace: urlDacePermanente,
+          url: urlEtqPermanente,
+          link_etiqueta: urlEtqPermanente,
+          declaracao_url: urlDacePermanente,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

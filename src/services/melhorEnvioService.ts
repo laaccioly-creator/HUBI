@@ -795,11 +795,53 @@ export class MelhorEnvioService {
       throw new Error(error.message || 'Falha ao obter etiqueta oficial do Melhor Envio.');
     }
 
-    if (!data?.sucesso || !data?.url) {
+    if (!data?.sucesso) {
       throw new Error(data?.error || data?.erro || 'Etiqueta oficial ainda não liberada no Melhor Envio.');
     }
 
-    return data.url;
+    if (tipo === 'declaracao') {
+      const urlDace = data?.url_dace || data?.declaracao_url || data?.url_etiqueta || data?.url;
+      if (!urlDace) throw new Error('Declaração de Conteúdo (DACE) não encontrada.');
+      return urlDace;
+    }
+
+    const urlEtq = data?.url_etiqueta || data?.url || data?.link_etiqueta;
+    if (!urlEtq) throw new Error('Etiqueta oficial não liberada no Melhor Envio.');
+    return urlEtq;
+  }
+
+  /**
+   * Obtém tanto a Etiqueta quanto a Declaração de Conteúdo (DACE) cacheadas no Supabase Storage
+   */
+  public static async obterDocumentosOficiais(
+    pedidoId: string,
+    lojaId: string,
+    ordemId?: string | null
+  ): Promise<{ url_etiqueta: string; url_dace: string }> {
+    const { data, error } = await supabase.functions.invoke('melhor-envio-despacho', {
+      body: {
+        pedidoId,
+        loja_id: lojaId,
+        acao: 'imprimir_etiqueta',
+        ordem_id: ordemId || undefined
+      }
+    });
+
+    if (error) {
+      throw new Error(error.message || 'Falha ao obter documentos do Melhor Envio.');
+    }
+
+    if (!data?.sucesso) {
+      throw new Error(data?.error || data?.erro || 'Documentos ainda não liberados no Melhor Envio.');
+    }
+
+    const urlEtiqueta = data?.url_etiqueta || data?.url || data?.link_etiqueta || '';
+    const urlDace = data?.url_dace || data?.declaracao_url || urlEtiqueta;
+
+    return {
+      url_etiqueta: urlEtiqueta,
+      url_dace: urlDace
+    };
   }
 
   /**

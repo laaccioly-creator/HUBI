@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { X, Printer, Package, Truck, MapPin, Building2, User, Tag, ExternalLink, Loader2, FileText, Download, Eye } from 'lucide-react';
+import { X, Printer, Package, Truck, MapPin, Building2, User, Tag, Loader2, FileText, Download } from 'lucide-react';
 import { Pedido, Loja } from '../../types';
 import { PedidoEntrega } from '../../types/shipping';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
@@ -28,10 +28,11 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
   const { mostrarToast, mostrarSucesso, mostrarErro } = useFeedbackModal();
   const etiquetaRef = useRef<HTMLDivElement>(null);
   const [obtendoEtiquetaOficial, setObtendoEtiquetaOficial] = useState(false);
+  const [obtendoDace, setObtendoDace] = useState(false);
   const [baixandoPdf, setBaixandoPdf] = useState(false);
-  const [imprimindoPdf, setImprimindoPdf] = useState(false);
   const [entregaCarregada, setEntregaCarregada] = useState<PedidoEntrega | null>(null);
   const [urlEtiquetaOficial, setUrlEtiquetaOficial] = useState<string | null>(null);
+  const [urlDaceOficial, setUrlDaceOficial] = useState<string | null>(null);
 
   React.useEffect(() => {
     if (pedido?.id) {
@@ -146,77 +147,114 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
     return url.includes('/storage/v1/object/public/etiquetas/');
   };
 
-  const urlFinalStorage =
-    urlEtiquetaOficial ||
-    (ehUrlStorageSupabase(linkEtiquetaOficial) ? linkEtiquetaOficial : null);
-
-  const obterEtiquetaOficialStorage = async (forcar: boolean = false): Promise<string> => {
-    if (!forcar && urlFinalStorage) {
-      return urlFinalStorage;
+  const obterDocumentosOficiais = async (): Promise<{ url_etiqueta: string; url_dace: string }> => {
+    if (urlEtiquetaOficial && urlDaceOficial) {
+      return { url_etiqueta: urlEtiquetaOficial, url_dace: urlDaceOficial };
     }
 
-    setObtendoEtiquetaOficial(true);
-    try {
-      const lojaId = loja?.id || pedido.loja_id;
-      const rawPe = entregaCarregada || entrega || (pedido as any).pedido_entregas || pedido.pedido_entrega;
-      const peCurrent: PedidoEntrega | null = Array.isArray(rawPe) ? (rawPe[0] || null) : (rawPe || null);
+    const lojaId = loja?.id || pedido.loja_id;
+    const rawPe = entregaCarregada || entrega || (pedido as any).pedido_entregas || pedido.pedido_entrega;
+    const peCurrent: PedidoEntrega | null = Array.isArray(rawPe) ? (rawPe[0] || null) : (rawPe || null);
 
-      const ordemId =
-        (pedido.metadados as any)?.melhor_envio_order_id ||
-        (entregaCarregada as any)?.melhor_envio_order_id ||
-        (peCurrent as any)?.melhor_envio_order_id ||
-        entregaCarregada?.cotacao_id ||
-        peCurrent?.cotacao_id ||
-        (entregaCarregada?.codigo_rastreio?.startsWith('ORD-') ? entregaCarregada.codigo_rastreio : undefined) ||
-        (peCurrent?.codigo_rastreio?.startsWith('ORD-') ? peCurrent.codigo_rastreio : undefined) ||
-        (pedido.codigo_rastreio?.startsWith('ORD-') ? pedido.codigo_rastreio : undefined);
+    const ordemId =
+      (pedido.metadados as any)?.melhor_envio_order_id ||
+      (entregaCarregada as any)?.melhor_envio_order_id ||
+      (peCurrent as any)?.melhor_envio_order_id ||
+      entregaCarregada?.cotacao_id ||
+      peCurrent?.cotacao_id ||
+      (entregaCarregada?.codigo_rastreio?.startsWith('ORD-') ? entregaCarregada.codigo_rastreio : undefined) ||
+      (peCurrent?.codigo_rastreio?.startsWith('ORD-') ? peCurrent.codigo_rastreio : undefined) ||
+      (pedido.codigo_rastreio?.startsWith('ORD-') ? pedido.codigo_rastreio : undefined);
 
-      const urlPdf = await MelhorEnvioService.obterEtiquetaOficialPdf(pedido.id, lojaId, ordemId);
-      if (!urlPdf) {
-        throw new Error('Falha ao obter URL da etiqueta oficial.');
+    const docs = await MelhorEnvioService.obterDocumentosOficiais(pedido.id, lojaId, ordemId);
+    if (!docs.url_etiqueta) {
+      throw new Error('Falha ao obter URL da etiqueta oficial.');
+    }
+
+    setUrlEtiquetaOficial(docs.url_etiqueta);
+    if (docs.url_dace) setUrlDaceOficial(docs.url_dace);
+    setEntregaCarregada((prev) => (prev ? { ...prev, link_etiqueta: docs.url_etiqueta } : ({ link_etiqueta: docs.url_etiqueta } as any)));
+    return docs;
+  };
+
+  const abrirOuImprimir = (url: string) => {
+    console.log('[DEBUG_ETIQUETA_MOBILE] Abrindo/imprimindo documento:', url);
+    const win = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!win) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    // Se estiver em desktop, também tenta acionar o diálogo de impressão silencioso via iframe
+    if (!isMobileDispositivo) {
+      try {
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        iframe.src = url;
+        document.body.appendChild(iframe);
+        iframe.onload = () => {
+          try {
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+          } catch {
+            // Ignora se bloqueado pelo browser
+          }
+          setTimeout(() => {
+            if (document.body.contains(iframe)) {
+              document.body.removeChild(iframe);
+            }
+          }, 60000);
+        };
+      } catch {
+        // Fallback silencioso
       }
+    }
+  };
 
-      setUrlEtiquetaOficial(urlPdf);
-      setEntregaCarregada((prev) => (prev ? { ...prev, link_etiqueta: urlPdf } : ({ link_etiqueta: urlPdf } as any)));
-      return urlPdf;
+  const handleAbrirEtiquetaMelhorEnvio = async () => {
+    try {
+      setObtendoEtiquetaOficial(true);
+      mostrarToast('Abrindo Etiqueta Oficial do Melhor Envio...', 'info');
+      const docs = await obterDocumentosOficiais();
+      if (docs.url_etiqueta) {
+        abrirOuImprimir(docs.url_etiqueta);
+      } else {
+        mostrarErro('Etiqueta oficial não encontrada.');
+      }
+    } catch (err: any) {
+      console.error('[DEBUG_ETIQUETA] Erro ao abrir etiqueta:', err);
+      mostrarErro(err?.message || 'Falha ao abrir a Etiqueta Oficial.');
     } finally {
       setObtendoEtiquetaOficial(false);
     }
   };
 
-  const handleImprimirPdf = async () => {
+  const handleAbrirDace = async () => {
     try {
-      setImprimindoPdf(true);
-      mostrarToast('Preparando impressão da etiqueta oficial...', 'info');
-      const url = await obterEtiquetaOficialStorage();
-
-      const iframe = document.createElement('iframe');
-      iframe.style.position = 'fixed';
-      iframe.style.right = '0';
-      iframe.style.bottom = '0';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = '0';
-      iframe.src = url;
-      document.body.appendChild(iframe);
-
-      iframe.onload = () => {
-        try {
-          iframe.contentWindow?.focus();
-          iframe.contentWindow?.print();
-        } catch {
-          window.open(url, '_blank', 'noopener,noreferrer');
-        }
-        setTimeout(() => {
-          if (document.body.contains(iframe)) {
-            document.body.removeChild(iframe);
-          }
-        }, 60000);
-      };
+      setObtendoDace(true);
+      mostrarToast('Abrindo Declaração de Conteúdo (DACE)...', 'info');
+      const docs = await obterDocumentosOficiais();
+      const urlDaceFinal = docs.url_dace || docs.url_etiqueta;
+      if (urlDaceFinal) {
+        abrirOuImprimir(urlDaceFinal);
+      } else {
+        mostrarToast('Declaração de Conteúdo não disponível para esta ordem.', 'aviso');
+      }
     } catch (err: any) {
-      mostrarErro(err?.message || 'Não foi possível imprimir a etiqueta oficial.');
+      console.error('[DEBUG_ETIQUETA] Erro ao abrir DACE:', err);
+      mostrarErro(err?.message || 'Falha ao abrir a Declaração de Conteúdo.');
     } finally {
-      setImprimindoPdf(false);
+      setObtendoDace(false);
     }
   };
 
@@ -224,7 +262,8 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
     try {
       setBaixandoPdf(true);
       mostrarToast('Baixando PDF da etiqueta...', 'info');
-      const url = await obterEtiquetaOficialStorage();
+      const docs = await obterDocumentosOficiais();
+      const url = docs.url_etiqueta;
       const nomeArquivo = `Etiqueta_Pedido_${pedido.numero_pedido || pedido.id.slice(0, 6)}.pdf`;
 
       try {
@@ -242,7 +281,6 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
         window.URL.revokeObjectURL(blobUrl);
         mostrarSucesso('Download concluído com sucesso!');
       } catch {
-        // Fallback de download direto
         const a = document.createElement('a');
         a.href = url;
         a.download = nomeArquivo;
@@ -255,19 +293,6 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
       mostrarErro(err?.message || 'Falha ao baixar o PDF.');
     } finally {
       setBaixandoPdf(false);
-    }
-  };
-
-  const handleVisualizarPdf = async () => {
-    try {
-      setObtendoEtiquetaOficial(true);
-      mostrarToast('Abrindo visualizador de etiqueta...', 'info');
-      const url = await obterEtiquetaOficialStorage();
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } catch (err: any) {
-      mostrarErro(err?.message || 'Não foi possível visualizar a etiqueta.');
-    } finally {
-      setObtendoEtiquetaOficial(false);
     }
   };
 
@@ -441,62 +466,6 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
           </button>
         </div>
 
-        {/* Banner com Ações Oficiais do Melhor Envio (Etiqueta + DACE em PDF permanente) */}
-        {!ehAppOuManual && ehMelhorEnvio && (
-          <div className="mx-4 sm:mx-6 mt-3 p-3.5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs shrink-0">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0">
-                <FileText className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                  <span>Etiqueta Oficial + Declaração (DACE)</span>
-                  {urlFinalStorage && (
-                    <span className="text-[10px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded-md font-mono">
-                      Permanente
-                    </span>
-                  )}
-                </p>
-                <p className="text-[11px] text-slate-600 dark:text-slate-400">
-                  {urlFinalStorage
-                    ? 'PDF completo salvo permanentemente no Supabase Storage.'
-                    : 'Gere a folha oficial com código de barras dos Correios/Jadlog e DACE.'}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0 w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={handleImprimirPdf}
-                disabled={imprimindoPdf || obtendoEtiquetaOficial}
-                className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95 disabled:opacity-50 shadow-xs"
-                title="Disparar impressão direta da Etiqueta Oficial"
-              >
-                {imprimindoPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
-                <span>Imprimir</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleBaixarPdf}
-                disabled={baixandoPdf || obtendoEtiquetaOficial}
-                className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95 disabled:opacity-50 shadow-xs"
-                title="Baixar arquivo PDF no dispositivo"
-              >
-                {baixandoPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                <span>Baixar PDF</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleVisualizarPdf}
-                disabled={obtendoEtiquetaOficial}
-                className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 font-bold text-xs flex items-center justify-center transition cursor-pointer active:scale-95 disabled:opacity-50 shadow-xs"
-                title="Abrir PDF em tela cheia"
-              >
-                {obtendoEtiquetaOficial ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Área Interna da Etiqueta Harmonizada */}
         <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 bg-slate-100 dark:bg-slate-900/60 flex justify-center items-start custom-scrollbar">
@@ -595,24 +564,39 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
             <>
               <button
                 type="button"
-                disabled={imprimindoPdf || obtendoEtiquetaOficial}
-                onClick={handleImprimirPdf}
+                disabled={obtendoEtiquetaOficial || obtendoDace}
+                onClick={handleAbrirEtiquetaMelhorEnvio}
                 className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50"
-                title="Disparar impressão direta da Etiqueta Oficial"
+                title="Abrir e imprimir Etiqueta Oficial do Melhor Envio"
               >
-                {imprimindoPdf ? (
+                {obtendoEtiquetaOficial ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
-                  <Printer className="w-3.5 h-3.5" />
+                  <Tag className="w-3.5 h-3.5" />
                 )}
-                <span>Imprimir Oficial</span>
+                <span>Etiqueta Melhor Envio</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={obtendoDace || obtendoEtiquetaOficial}
+                onClick={handleAbrirDace}
+                className="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50"
+                title="Abrir e imprimir Declaração de Conteúdo (DACE)"
+              >
+                {obtendoDace ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <FileText className="w-3.5 h-3.5" />
+                )}
+                <span>Declaração (DACE)</span>
               </button>
 
               <button
                 type="button"
                 disabled={baixandoPdf || obtendoEtiquetaOficial}
                 onClick={handleBaixarPdf}
-                className="px-4 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50"
+                className="px-4 py-2.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 border border-emerald-300/60 text-emerald-950 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-100 font-bold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50"
                 title="Baixar arquivo PDF da Etiqueta no dispositivo"
               >
                 {baixandoPdf ? (
@@ -621,21 +605,6 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
                   <Download className="w-3.5 h-3.5" />
                 )}
                 <span>Baixar PDF</span>
-              </button>
-
-              <button
-                type="button"
-                disabled={obtendoEtiquetaOficial}
-                onClick={handleVisualizarPdf}
-                className="px-3.5 py-2.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50"
-                title="Visualizar PDF em tela cheia"
-              >
-                {obtendoEtiquetaOficial ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Eye className="w-3.5 h-3.5" />
-                )}
-                <span>Visualizar</span>
               </button>
             </>
           )}
