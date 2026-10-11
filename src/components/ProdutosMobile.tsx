@@ -1833,18 +1833,24 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   // -------------------------------------------------------------------------
   if (telaAtiva === 'filtros') {
     return (
-      <div className="fixed inset-0 z-40 bg-slate-100 dark:bg-[#0B0F17] flex flex-col text-slate-900 dark:text-white select-none">
+      <div
+        className="fixed inset-0 z-40 flex flex-col text-slate-900 dark:text-white select-none"
+        style={{ backgroundColor: '#0B0F17' }}
+      >
         {/* Header TELA006 */}
-        <div className="h-16 border-b border-slate-200 dark:border-[#1E293B] px-4 flex items-center justify-between bg-white dark:bg-[#0B0F17] shrink-0">
+        <div
+          className="h-16 border-b px-4 flex items-center justify-between shrink-0"
+          style={{ backgroundColor: '#0B0F17', borderColor: '#1E293B' }}
+        >
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setTelaAtiva('lista')}
-              className="p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              className="p-2 text-slate-300 hover:text-white"
             >
               <X className="w-6 h-6" />
             </button>
-            <h1 className="font-extrabold text-base sm:text-lg text-slate-800 dark:text-slate-100">Filtros</h1>
+            <h1 className="font-extrabold text-base sm:text-lg text-slate-100">Filtros</h1>
           </div>
           <button
             type="button"
@@ -1857,7 +1863,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               setFiltroAtivo('todos');
               setOrdenacaoEstoque('menor_estoque');
             }}
-            className="text-xs sm:text-sm font-extrabold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 px-2 py-1"
+            className="text-xs sm:text-sm font-extrabold text-emerald-400 hover:text-emerald-300 px-2 py-1"
           >
             Limpar
           </button>
@@ -1900,19 +1906,21 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 <div
                   key={item.id}
                   onClick={item.toggle}
-                  className={`flex items-center justify-between p-3 transition cursor-pointer select-none rounded-xl ${
+                  className={`flex items-center justify-between p-3 transition cursor-pointer select-none rounded-xl border ${
                     item.checked
-                      ? 'bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-600 dark:border-[#10B981] text-emerald-700 dark:text-emerald-400 font-bold'
-                      : 'bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#0D111A]'
+                      ? 'border-2 border-emerald-500 text-emerald-400 font-bold'
+                      : ''
                   }`}
+                  style={item.checked ? { backgroundColor: '#000000', borderColor: '#10B981' } : { backgroundColor: '#000000', borderColor: '#1E293B', color: '#E2E8F0' }}
                 >
                   <div className="flex items-center gap-3">
                     <div
                       className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
                         item.checked
                           ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
-                          : 'border-slate-300 dark:border-[#1E293B] bg-white dark:bg-[#000000]'
+                          : ''
                       }`}
+                      style={item.checked ? undefined : { borderColor: '#1E293B', backgroundColor: '#000000' }}
                     >
                       {item.checked && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
                     </div>
@@ -1926,7 +1934,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
           {/* Seção Status do Produto */}
           <div className="space-y-3">
-            <h2 className="text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Status do Produto</h2>
+            <h2 className="text-xs sm:text-sm font-extrabold text-slate-300 uppercase tracking-wider">Status do Produto</h2>
             <div className="grid grid-cols-3 gap-2">
               {[
                 { id: 'todos', label: 'Todos' },
@@ -1939,16 +1947,18 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     key={opt.id}
                     type="button"
                     onClick={() => setFiltroAtivo(opt.id as any)}
-                    className={`py-3 px-2 transition flex flex-col items-center justify-center gap-2 cursor-pointer rounded-xl ${
+                    className={`py-3 px-2 transition flex flex-col items-center justify-center gap-2 cursor-pointer rounded-xl border ${
                       ativo
-                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-600 dark:border-[#10B981] text-emerald-700 dark:text-emerald-400 font-bold'
-                        : 'bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#0D111A]'
+                        ? 'border-2 border-emerald-500 text-emerald-400 font-bold'
+                        : ''
                     }`}
+                    style={ativo ? { backgroundColor: '#000000', borderColor: '#10B981' } : { backgroundColor: '#000000', borderColor: '#1E293B', color: '#E2E8F0' }}
                   >
                     <div
                       className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition shrink-0 ${
-                        ativo ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs' : 'border-slate-300 dark:border-[#1E293B] bg-white dark:bg-[#000000]'
+                        ativo ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs' : ''
                       }`}
+                      style={ativo ? undefined : { borderColor: '#1E293B', backgroundColor: '#000000' }}
                     >
                       {ativo && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
                     </div>
@@ -1961,7 +1971,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
           {/* Seção Categorias */}
           <div className="space-y-3">
-            <h2 className="text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Categorias</h2>
+            <h2 className="text-xs sm:text-sm font-extrabold text-slate-300 uppercase tracking-wider">Categorias</h2>
             <div className="grid grid-cols-2 gap-2">
               {categorias.map((cat) => {
                 const checked = categoriasFiltro.includes(cat.id);
@@ -1975,16 +1985,18 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                         setCategoriasFiltro(prev => [...prev, cat.id]);
                       }
                     }}
-                    className={`flex items-center gap-2.5 p-2.5 transition cursor-pointer select-none rounded-xl ${
+                    className={`flex items-center gap-2.5 p-2.5 transition cursor-pointer select-none rounded-xl border ${
                       checked
-                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-600 dark:border-[#10B981] text-emerald-700 dark:text-emerald-400 font-semibold'
-                        : 'bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#0D111A]'
+                        ? 'border-2 border-emerald-500 text-emerald-400 font-semibold'
+                        : ''
                     }`}
+                    style={checked ? { backgroundColor: '#000000', borderColor: '#10B981' } : { backgroundColor: '#000000', borderColor: '#1E293B', color: '#E2E8F0' }}
                   >
                     <div
                       className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
-                        checked ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs' : 'border-slate-300 dark:border-[#1E293B] bg-white dark:bg-[#000000]'
+                        checked ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs' : ''
                       }`}
+                      style={checked ? undefined : { borderColor: '#1E293B', backgroundColor: '#000000' }}
                     >
                       {checked && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
                     </div>
@@ -1997,7 +2009,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
           {/* Seção Ordenar Por */}
           <div className="space-y-3">
-            <h2 className="text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Ordenar por</h2>
+            <h2 className="text-xs sm:text-sm font-extrabold text-slate-300 uppercase tracking-wider">Ordenar por</h2>
             <div className="grid grid-cols-2 gap-2">
               {[
                 { id: 'menor_estoque', label: 'Menor estoque' },
@@ -2011,18 +2023,20 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     key={ord.id}
                     type="button"
                     onClick={() => setOrdenacaoEstoque(ord.id as any)}
-                    className={`p-3 transition flex items-center gap-2.5 cursor-pointer text-left rounded-xl ${
+                    className={`p-3 transition flex items-center gap-2.5 cursor-pointer text-left rounded-xl border ${
                       ativa
-                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-600 dark:border-[#10B981] text-emerald-700 dark:text-emerald-400 font-semibold'
-                        : 'bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#0D111A]'
+                        ? 'border-2 border-emerald-500 text-emerald-400 font-semibold'
+                        : ''
                     }`}
+                    style={ativa ? { backgroundColor: '#000000', borderColor: '#10B981' } : { backgroundColor: '#000000', borderColor: '#1E293B', color: '#E2E8F0' }}
                   >
                     <div
                       className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition ${
-                        ativa ? 'border-emerald-600 dark:border-[#10B981] bg-emerald-50 dark:bg-emerald-950/40' : 'border-slate-300 dark:border-[#1E293B] bg-white dark:bg-[#000000]'
+                        ativa ? 'border-emerald-500' : ''
                       }`}
+                      style={ativa ? undefined : { borderColor: '#1E293B', backgroundColor: '#000000' }}
                     >
-                      {ativa && <div className="w-2 h-2 rounded-full bg-emerald-600 dark:bg-emerald-400" />}
+                      {ativa && <div className="w-2 h-2 rounded-full bg-emerald-400" />}
                     </div>
                     <span className="text-xs font-bold truncate">{ord.label}</span>
                   </button>
@@ -2033,7 +2047,10 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         </div>
 
         {/* Botão Filtrar TELA006 */}
-        <div className="p-4 border-t border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#0B0F17] shrink-0">
+        <div
+          className="p-4 border-t shrink-0"
+          style={{ backgroundColor: '#0B0F17', borderColor: '#1E293B' }}
+        >
           <button
             type="button"
             onClick={() => setTelaAtiva('lista')}
@@ -2646,7 +2663,10 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     const textoTarjaResumo = (formData.nome || 'PRODUTO').slice(0, 22).toUpperCase();
 
     return (
-      <div className="flex flex-col h-full bg-slate-100 dark:bg-[#0B0F17] text-slate-900 dark:text-white overflow-hidden select-none">
+      <div
+        className="flex flex-col h-full text-slate-900 dark:text-white overflow-hidden select-none"
+        style={{ backgroundColor: '#0B0F17' }}
+      >
         {renderToast()}
 
         {/* Inputs de arquivo ocultos para Captura de Câmera e Galeria */}
@@ -2667,16 +2687,19 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         />
 
         {/* Header Superior (TELA004 / TELA007 / TELA008) */}
-        <div className="h-16 border-b border-slate-200 dark:border-[#1E293B] px-4 flex items-center justify-between bg-white dark:bg-[#0B0F17] shrink-0">
+        <div
+          className="h-16 border-b px-4 flex items-center justify-between shrink-0"
+          style={{ backgroundColor: '#0B0F17', borderColor: '#1E293B' }}
+        >
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={fecharFormularioComConfirmacao}
-              className="p-1 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+              className="p-1 text-slate-300 hover:text-white cursor-pointer"
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
-            <h1 className="font-extrabold text-sm sm:text-base text-slate-800 dark:text-slate-100 truncate max-w-[170px]">
+            <h1 className="font-extrabold text-sm sm:text-base text-slate-100 truncate max-w-[170px]">
               {isNovo ? 'Novo produto' : formData.nome || 'Editar Produto'}
             </h1>
           </div>
@@ -2686,10 +2709,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             <button
               type="button"
               onClick={() => setModalCriarComIAAberto(true)}
-              className="px-3 py-1.5 rounded-xl border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-[#000000] text-xs sm:text-sm font-extrabold flex items-center gap-1.5 hover:bg-emerald-100 dark:hover:bg-[#0D111A] shadow-sm cursor-pointer transition"
+              className="px-3 py-1.5 rounded-xl border text-emerald-400 text-xs sm:text-sm font-extrabold flex items-center gap-1.5 shadow-sm cursor-pointer transition"
+              style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
               title="Preencher com Inteligência Artificial"
             >
-              <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <Sparkles className="w-4 h-4 text-emerald-400" />
               <span>IA</span>
             </button>
 
@@ -2698,7 +2722,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setModalPublicCardAberto(true)}
-                  className="p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+                  className="p-2 text-slate-300 hover:text-white cursor-pointer"
                   title="Compartilhar Card Público"
                 >
                   <Share2 className="w-4 h-4" />
@@ -2706,7 +2730,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setModalClonarAberto(true)}
-                  className="p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+                  className="p-2 text-slate-300 hover:text-white cursor-pointer"
                   title="Clonar Produto"
                 >
                   <Copy className="w-4 h-4" />
@@ -2714,7 +2738,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 <button
                   type="button"
                   onClick={handleExcluirProduto}
-                  className="p-2 text-slate-600 dark:text-slate-300 hover:text-rose-600 cursor-pointer"
+                  className="p-2 text-slate-300 hover:text-rose-600 cursor-pointer"
                   title="Excluir Produto"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -2724,20 +2748,18 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           </div>
         </div>
 
-        {/* BANNER DE TESTE VISUAL */}
-        <div style={{ backgroundColor: 'red', color: 'white', padding: '20px', fontSize: '24px', zIndex: 99999 }}>
-          TESTE DE ATUALIZACAO ATIVA
-        </div>
-
         {/* Abas: CADASTRO | ESTOQUE (TELA007 / TELA008) */}
-        <div className="flex bg-transparent border-b border-slate-200 dark:border-[#1E293B] shrink-0">
+        <div
+          className="flex shrink-0 border-b"
+          style={{ backgroundColor: '#0B0F17', borderColor: '#1E293B' }}
+        >
           <button
             type="button"
             onClick={() => setAbaFormulario('cadastro')}
             className={`flex-1 py-3.5 text-xs sm:text-sm uppercase tracking-wider transition relative cursor-pointer ${
               abaFormulario === 'cadastro'
-                ? 'text-emerald-600 dark:text-emerald-400 font-bold border-b-2 border-emerald-500'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-medium'
+                ? 'text-emerald-400 font-bold border-b-2 border-emerald-500'
+                : 'text-slate-400 hover:text-slate-300 font-medium'
             }`}
           >
             Cadastro
@@ -2762,7 +2784,10 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         {abaFormulario === 'cadastro' && (
           <div className="flex-1 overflow-y-auto p-4 space-y-5">
             {/* Card Superior: Mídia à Esquerda e Destaque de Cadastro com IA à Direita */}
-            <div className="flex items-center justify-between gap-2 sm:gap-3 p-4 bg-white dark:bg-[#000000] rounded-2xl border border-slate-200/80 dark:border-[#1E293B] shadow-sm">
+            <div
+              className="flex items-center justify-between gap-2 sm:gap-3 p-4 rounded-2xl border shadow-sm"
+              style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
+            >
               {/* Lado Esquerdo: Cor, Foto do Produto Ampliada e Câmera */}
               <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
                 {/* Botão Cor da Etiqueta / Tarja (TELA013) */}
@@ -2781,10 +2806,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 {/* Preview do Card Ampliado */}
                 <div
                   onClick={() => formData.fotos[0] && setModalFotoFullscreen(formData.fotos[0])}
-                  className="w-32 sm:w-36 h-36 sm:h-40 rounded-2xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] p-0 flex flex-col justify-between shadow-md relative overflow-hidden cursor-pointer shrink-0"
+                  className="w-32 sm:w-36 h-36 sm:h-40 rounded-2xl border p-0 flex flex-col justify-between shadow-md relative overflow-hidden cursor-pointer shrink-0"
+                  style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
                 >
                   {/* Imagem do Produto */}
-                  <div className="flex-1 w-full bg-slate-50 dark:bg-[#0B0F17] flex items-center justify-center overflow-hidden">
+                  <div
+                    className="flex-1 w-full flex items-center justify-center overflow-hidden"
+                    style={{ backgroundColor: '#0B0F17' }}
+                  >
                     {formData.fotos[0] ? (
                       <img
                         src={formData.fotos[0]}
@@ -2792,7 +2821,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <Tag className="w-8 h-8 sm:w-10 sm:h-10 text-slate-300 dark:text-slate-600" />
+                      <Tag className="w-8 h-8 sm:w-10 sm:h-10 text-slate-500" />
                     )}
                   </div>
 
@@ -2821,10 +2850,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setModalOpcoesFotoAberto(true)}
-                  className="relative p-2 sm:p-2.5 rounded-2xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white shadow-sm transition active:scale-95 cursor-pointer shrink-0"
+                  className="relative p-2 sm:p-2.5 rounded-2xl border text-slate-200 hover:text-white shadow-sm transition active:scale-95 cursor-pointer shrink-0"
+                  style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
                   title="Tirar Foto ou Escolher da Galeria"
                 >
-                  <Camera className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 dark:text-emerald-400" />
+                  <Camera className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400" />
                   {formData.fotos.length > 0 && (
                     <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 text-white rounded-full text-[9px] flex items-center justify-center font-black shadow">
                       {formData.fotos.length}
@@ -2839,20 +2869,21 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setModalCriarComIAAberto(true)}
-                  className="flex-1 w-full rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#0D111A] p-2 flex flex-col items-center justify-center gap-1 transition cursor-pointer text-center shadow-xs"
+                  className="flex-1 w-full rounded-xl border p-2 flex flex-col items-center justify-center gap-1 transition cursor-pointer text-center shadow-xs"
+                  style={{ backgroundColor: '#000000', borderColor: '#1E293B', color: '#E2E8F0' }}
                   title={produtoEditando ? 'Atualize o seu produto usando a nossa IA' : 'Cadastre usando nossa Inteligência Artificial'}
                 >
                   <div className="flex items-center gap-1">
-                    <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                    <span className="text-[8px] font-black uppercase px-1 py-0.2 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-600/30">
+                    <Sparkles className="w-4 h-4 text-emerald-400" />
+                    <span className="text-[8px] font-black uppercase px-1 py-0.2 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-600/30">
                       IA
                     </span>
                   </div>
                   <div className="flex flex-col items-center leading-tight">
-                    <span className="text-[10px] sm:text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate max-w-full">
+                    <span className="text-[10px] sm:text-[11px] font-bold text-slate-300 truncate max-w-full">
                       {produtoEditando ? 'Atualizar com' : 'Cadastrar com'}
                     </span>
-                    <span className="text-[11px] sm:text-[12px] font-black text-emerald-600 dark:text-emerald-400">
+                    <span className="text-[11px] sm:text-[12px] font-black text-emerald-400">
                       nossa IA
                     </span>
                   </div>
@@ -2862,14 +2893,15 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 <button
                   type="button"
                   onClick={handleAbrirPesquisaFotos}
-                  className="h-[56px] sm:h-[62px] w-full rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#0D111A] p-2 flex flex-col items-center justify-center gap-0.5 transition cursor-pointer text-center shadow-xs"
+                  className="h-[56px] sm:h-[62px] w-full rounded-xl border p-2 flex flex-col items-center justify-center gap-0.5 transition cursor-pointer text-center shadow-xs"
+                  style={{ backgroundColor: '#000000', borderColor: '#1E293B', color: '#E2E8F0' }}
                   title="Pesquisar fotos na internet de boa qualidade"
                 >
-                  <Globe className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-none text-center">
+                  <Globe className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="text-[10px] sm:text-[11px] font-bold text-slate-200 leading-none text-center">
                     Fotos na Internet
                   </span>
-                  <span className="text-[8px] font-semibold text-slate-500 dark:text-slate-400 leading-none">
+                  <span className="text-[8px] font-semibold text-slate-400 leading-none">
                     Buscar Online
                   </span>
                 </button>
@@ -2880,7 +2912,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             <div className="space-y-4">
               {/* Tipo do Item (Produto Físico vs Serviço / Taxa) */}
               <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider block mb-1.5">
+                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block mb-1.5">
                   Tipo do Item
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -2890,8 +2922,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     className={`py-2.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
                       formData.tipoItem !== 'servico'
                         ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                        : 'bg-slate-100 dark:bg-[#000000] text-slate-600 dark:text-slate-200 border-slate-200 dark:border-[#1E293B] hover:bg-slate-200/60 dark:hover:bg-[#0D111A]'
+                        : 'text-slate-200'
                     }`}
+                    style={formData.tipoItem !== 'servico' ? undefined : { backgroundColor: '#000000', borderColor: '#1E293B' }}
                   >
                     <Package className="w-4 h-4" />
                     <span>Produto Físico</span>
@@ -2902,8 +2935,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     className={`py-2.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
                       formData.tipoItem === 'servico'
                         ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                        : 'bg-slate-100 dark:bg-[#000000] text-slate-600 dark:text-slate-200 border-slate-200 dark:border-[#1E293B] hover:bg-slate-200/60 dark:hover:bg-[#0D111A]'
+                        : 'text-slate-200'
                     }`}
+                    style={formData.tipoItem === 'servico' ? undefined : { backgroundColor: '#000000', borderColor: '#1E293B' }}
                   >
                     <Wrench className="w-4 h-4" />
                     <span>Serviço / Taxa</span>
@@ -2912,7 +2946,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider block mb-1.5">
+                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block mb-1.5">
                   Nome do Produto
                 </label>
                 <input
@@ -2920,33 +2954,39 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   value={formData.nome}
                   onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
                   placeholder="Informe o nome completo do item"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#000000] text-slate-900 dark:text-white placeholder-slate-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm font-semibold uppercase transition"
+                  className="w-full px-3.5 py-2.5 rounded-xl border placeholder-slate-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm font-semibold uppercase transition"
+                  style={{ backgroundColor: '#000000', borderColor: '#1E293B', color: '#FFFFFF' }}
                 />
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
+                  <label className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">
                     Preço de Venda (Varejo)
                   </label>
                   <button
                     type="button"
                     onClick={handleAbrirRadarPrecos}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-[#000000] hover:bg-emerald-100 dark:hover:bg-[#0D111A] text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-[#1E293B] text-xs font-semibold transition cursor-pointer shadow-2xs"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-emerald-400 border text-xs font-semibold transition cursor-pointer shadow-2xs"
+                    style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
                     title="Pesquisar concorrentes de mercado com IA"
                   >
-                    <Zap className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <Zap className="w-3.5 h-3.5 text-emerald-400" />
                     <span>Radar de Preços IA</span>
                   </button>
                 </div>
-                <div className="flex items-center px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#000000] focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition">
-                  <span className="text-sm font-bold text-slate-400 dark:text-slate-500 mr-2">R$</span>
+                <div
+                  className="flex items-center px-3.5 py-2.5 rounded-xl border focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition"
+                  style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
+                >
+                  <span className="text-sm font-bold text-slate-400 mr-2">R$</span>
                   <input
                     type="text"
                     value={formData.precoVenda}
                     onChange={(e) => handlePrecoVendaChange(e.target.value)}
                     placeholder="0,00"
-                    className="w-full text-sm font-bold text-slate-900 dark:text-white bg-transparent focus:outline-none"
+                    className="w-full text-sm font-bold bg-transparent focus:outline-none"
+                    style={{ color: '#FFFFFF' }}
                   />
                 </div>
                 {(() => {
@@ -2956,9 +2996,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   const margem = pv > 0 ? (lucro / pv) * 100 : 0;
                   if (pv <= 0 || pc <= 0) return null;
                   return (
-                    <div className="mt-2 p-2.5 rounded-xl bg-emerald-50 dark:bg-black border border-emerald-200 dark:border-emerald-500/30 flex items-center justify-between text-xs animate-in fade-in">
-                      <span className="font-semibold text-emerald-800 dark:text-emerald-300">Lucro: R$ {lucro.toFixed(2)}</span>
-                      <span className="font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-lg text-xs">
+                    <div
+                      className="mt-2 p-2.5 rounded-xl border flex items-center justify-between text-xs animate-in fade-in"
+                      style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
+                    >
+                      <span className="font-semibold text-emerald-300">Lucro: R$ {lucro.toFixed(2)}</span>
+                      <span className="font-semibold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-lg text-xs">
                         Margem: {margem.toFixed(1)}%
                       </span>
                     </div>
@@ -2968,15 +3011,15 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             </div>
 
             {/* Accordion: Opcionais (TELA008 & TELA008A) */}
-            <div className="border-t border-slate-200 dark:border-[#1E293B] pt-3 space-y-4">
+            <div className="border-t border-slate-800 pt-3 space-y-4">
               <button
                 type="button"
                 onClick={() => setOpcionaisExpandido(!opcionaisExpandido)}
                 className="w-full flex items-center justify-between text-left cursor-pointer"
               >
                 <div>
-                  <h3 className="font-extrabold text-xs sm:text-sm text-slate-800 dark:text-slate-100">Opcionais</h3>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Experimente a descrição gerada com IA</p>
+                  <h3 className="font-extrabold text-xs sm:text-sm text-slate-100">Opcionais</h3>
+                  <p className="text-[11px] text-slate-400 font-medium">Experimente a descrição gerada com IA</p>
                 </div>
                 {opcionaisExpandido ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
               </button>
@@ -2985,27 +3028,31 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 <div className="space-y-4 pt-1">
                   {/* Preço promocional */}
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider block mb-1">Preço promocional</label>
-                    <div className="relative flex items-center px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#000000] focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition">
-                      <span className="text-sm font-bold text-slate-400 dark:text-slate-500 mr-2">R$</span>
+                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block mb-1">Preço promocional</label>
+                    <div
+                      className="relative flex items-center px-3.5 py-2.5 rounded-xl border focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition"
+                      style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
+                    >
+                      <span className="text-sm font-bold text-slate-400 mr-2">R$</span>
                       <input
                         type="text"
                         value={formData.precoPromocional}
                         onChange={(e) => setFormData(prev => ({ ...prev, precoPromocional: e.target.value }))}
                         placeholder="0,00"
-                        className="w-full text-sm font-bold text-slate-900 dark:text-white bg-transparent focus:outline-none pr-6"
+                        className="w-full text-sm font-bold bg-transparent focus:outline-none pr-6"
+                        style={{ color: '#FFFFFF' }}
                       />
                       {formData.precoPromocional && (
                         <button
                           type="button"
                           onClick={() => setFormData(prev => ({ ...prev, precoPromocional: '' }))}
-                          className="absolute right-2.5 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                          className="absolute right-2.5 p-1 text-slate-400 hover:text-slate-200"
                         >
                           <X className="w-4 h-4" />
                         </button>
                       )}
                     </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
+                    <p className="text-xs text-slate-400 mt-1 font-medium">
                        O preço de venda será riscado (ex: de R$ 10,00 por R$ 5,00)
                     </p>
                   </div>
@@ -3013,11 +3060,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   {/* Seletor de Categoria (TELA016) */}
                   <div
                     onClick={() => setModalCategoriasAberto(true)}
-                    className="p-3.5 rounded-xl border border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#000000] flex items-center justify-between cursor-pointer hover:border-slate-300 dark:hover:border-slate-700 transition"
+                    className="p-3.5 rounded-xl border flex items-center justify-between cursor-pointer transition"
+                    style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
                   >
                     <div>
-                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Categoria</span>
-                      <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 uppercase">
+                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Categoria</span>
+                      <span className="text-xs sm:text-sm font-bold text-slate-100 uppercase">
                         {mapaCategorias.get(formData.categoriaId) || 'Selecione uma categoria'}
                       </span>
                     </div>
@@ -3027,11 +3075,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   {/* Seletor de Descrição (TELA017) */}
                   <div
                     onClick={() => setModalDescricaoAberto(true)}
-                    className="p-3.5 rounded-xl border border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#000000] flex items-center justify-between cursor-pointer hover:border-slate-300 dark:hover:border-slate-700 transition"
+                    className="p-3.5 rounded-xl border flex items-center justify-between cursor-pointer transition"
+                    style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
                   >
                     <div className="flex-1 pr-2">
-                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Descrição Comercial</span>
-                      <span className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-100 uppercase line-clamp-2">
+                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Descrição Comercial</span>
+                      <span className="text-xs sm:text-sm font-semibold text-slate-100 uppercase line-clamp-2">
                         {formData.descricao || 'Toque para adicionar uma descrição exclusiva...'}
                       </span>
                     </div>
@@ -3040,19 +3089,23 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
                   {/* Código com Leitor de Código de Barras (TELA018) */}
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider block mb-1">Código de Barras / EAN</label>
-                    <div className="relative flex items-center px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#000000] focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition">
+                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block mb-1">Código de Barras / EAN</label>
+                    <div
+                      className="relative flex items-center px-3.5 py-2.5 rounded-xl border focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition"
+                      style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
+                    >
                       <input
                         type="text"
                         value={formData.codigoBarras}
                         onChange={(e) => setFormData(prev => ({ ...prev, codigoBarras: e.target.value }))}
                         placeholder="Código de barras ou interno"
-                        className="w-full text-sm font-semibold text-slate-900 dark:text-white bg-transparent focus:outline-none pr-8"
+                        className="w-full text-sm font-semibold bg-transparent focus:outline-none pr-8"
+                        style={{ color: '#FFFFFF' }}
                       />
                       <button
                         type="button"
                         onClick={iniciarScannerCamera}
-                        className="absolute right-2 p-1 text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 cursor-pointer"
+                        className="absolute right-2 p-1 text-emerald-400 hover:text-emerald-500 cursor-pointer"
                         title="Ler Código de Barras com a Câmera"
                       >
                         <QrCode className="w-5 h-5" />
@@ -3062,75 +3115,92 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
                   {/* Preço de Custo */}
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider block mb-1">Custo do Produto</label>
-                    <div className="flex items-center px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#000000] focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition">
-                      <span className="text-sm font-bold text-slate-400 dark:text-slate-500 mr-2">R$</span>
+                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block mb-1">Custo do Produto</label>
+                    <div
+                      className="flex items-center px-3.5 py-2.5 rounded-xl border focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition"
+                      style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
+                    >
+                      <span className="text-sm font-bold text-slate-400 mr-2">R$</span>
                       <input
                         type="text"
                         value={formData.precoCusto}
                         onChange={(e) => setFormData(prev => ({ ...prev, precoCusto: e.target.value }))}
                         placeholder="0,00"
-                        className="w-full text-sm font-bold text-slate-900 dark:text-white bg-transparent focus:outline-none"
+                        className="w-full text-sm font-bold bg-transparent focus:outline-none"
+                        style={{ color: '#FFFFFF' }}
                       />
                     </div>
                   </div>
 
                   {/* Tabelas de Atacado & Distribuidor */}
-                  <div className="p-4 bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl space-y-3.5 shadow-sm">
+                  <div
+                    className="p-4 border rounded-2xl space-y-3.5 shadow-sm"
+                    style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
+                  >
                     <div>
-                      <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
-                        <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      <span className="text-xs font-black text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
+                        <TrendingUp className="w-4 h-4 text-emerald-400" />
                         <span>Tabelas de Atacado & Distribuidor</span>
                       </span>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Preços diferenciados ativados por regra da loja no PDV</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Preços diferenciados ativados por regra da loja no PDV</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <label className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 uppercase">Preço Atacado</label>
+                          <label className="text-[10px] font-semibold text-slate-300 uppercase">Preço Atacado</label>
                           {formData.precoVenda && (
-                            <span className="text-[9px] bg-emerald-50 dark:bg-[#000000] text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 px-1.5 py-0.2 rounded font-bold">
+                            <span className="text-[9px] bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.2 rounded font-bold">
                               -{regrasPrecificacaoLoja.descontoAtacado}%
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center px-3 py-2 rounded-xl border border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#000000] focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition">
-                          <span className="text-xs font-bold text-slate-400 dark:text-slate-500 mr-1.5">R$</span>
+                        <div
+                          className="flex items-center px-3 py-2 rounded-xl border focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition"
+                          style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
+                        >
+                          <span className="text-xs font-bold text-slate-400 mr-1.5">R$</span>
                           <input
                             type="text"
                             value={formData.precoAtacado}
                             onChange={(e) => setFormData(prev => ({ ...prev, precoAtacado: e.target.value }))}
                             placeholder="0,00"
-                            className="w-full text-xs sm:text-sm font-bold text-slate-900 dark:text-white bg-transparent focus:outline-none"
+                            className="w-full text-xs sm:text-sm font-bold bg-transparent focus:outline-none"
+                            style={{ color: '#FFFFFF' }}
                           />
                         </div>
                       </div>
 
                       {regrasPrecificacaoLoja.tipoMinAtacado === 'valor' ? (
                         <div>
-                          <label className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 uppercase block mb-1">Valor Mínimo (R$)</label>
-                          <div className="flex items-center px-3 py-2 rounded-xl border border-dashed border-slate-200 dark:border-[#1E293B] bg-slate-50 dark:bg-[#000000]">
+                          <label className="text-[10px] font-semibold text-slate-300 uppercase block mb-1">Valor Mínimo (R$)</label>
+                          <div
+                            className="flex items-center px-3 py-2 rounded-xl border border-dashed"
+                            style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
+                          >
                             <span className="text-xs font-bold text-slate-400 mr-1.5">R$</span>
                             <input
                               type="text"
                               readOnly
                               disabled
                               value={regrasPrecificacaoLoja.valMinAtacado > 0 ? regrasPrecificacaoLoja.valMinAtacado.toFixed(2).replace('.', ',') : '300,00'}
-                              className="w-full text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400 bg-transparent cursor-not-allowed focus:outline-none"
+                              className="w-full text-xs sm:text-sm font-bold text-slate-400 bg-transparent cursor-not-allowed focus:outline-none"
                             />
                           </div>
                         </div>
                       ) : (
                         <div>
-                          <label className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 uppercase block mb-1">Qtd Mínima (Unidades)</label>
-                          <div className="flex items-center px-3 py-2 rounded-xl border border-dashed border-slate-200 dark:border-[#1E293B] bg-slate-50 dark:bg-[#000000]">
+                          <label className="text-[10px] font-semibold text-slate-300 uppercase block mb-1">Qtd Mínima (Unidades)</label>
+                          <div
+                            className="flex items-center px-3 py-2 rounded-xl border border-dashed"
+                            style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
+                          >
                             <input
                               type="text"
                               readOnly
                               disabled
                               value={`${regrasPrecificacaoLoja.qtdMinAtacado || 6} un`}
-                              className="w-full text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400 bg-transparent cursor-not-allowed focus:outline-none"
+                              className="w-full text-xs sm:text-sm font-bold text-slate-400 bg-transparent cursor-not-allowed focus:outline-none"
                             />
                           </div>
                         </div>
@@ -3138,21 +3208,25 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <label className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 uppercase">Preço Distribuidor</label>
+                          <label className="text-[10px] font-semibold text-slate-300 uppercase">Preço Distribuidor</label>
                           {formData.precoVenda && (
-                            <span className="text-[9px] bg-indigo-50 dark:bg-[#000000] text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/40 px-1.5 py-0.2 rounded font-bold">
+                            <span className="text-[9px] bg-indigo-950/60 text-indigo-300 border border-indigo-800/40 px-1.5 py-0.2 rounded font-bold">
                               -{regrasPrecificacaoLoja.descontoAutoatacado}%
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center px-3 py-2 rounded-xl border border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#000000] focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition">
-                          <span className="text-xs font-bold text-slate-400 dark:text-slate-500 mr-1.5">R$</span>
+                        <div
+                          className="flex items-center px-3 py-2 rounded-xl border focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition"
+                          style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
+                        >
+                          <span className="text-xs font-bold text-slate-400 mr-1.5">R$</span>
                           <input
                             type="text"
                             value={formData.precoAutoatacado}
                             onChange={(e) => setFormData(prev => ({ ...prev, precoAutoatacado: e.target.value }))}
                             placeholder="0,00"
-                            className="w-full text-xs sm:text-sm font-bold text-slate-900 dark:text-white bg-transparent focus:outline-none"
+                            className="w-full text-xs sm:text-sm font-bold bg-transparent focus:outline-none"
+                            style={{ color: '#FFFFFF' }}
                           />
                         </div>
                       </div>
@@ -3193,66 +3267,75 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
                   {/* Seção 4: Controle de Estoque & Entrada Inicial */}
                   {formData.tipoItem === 'servico' ? (
-                    <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-500/30 rounded-2xl space-y-1">
-                      <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-bold text-xs">
+                    <div
+                      className="p-4 border rounded-2xl space-y-1"
+                      style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
+                    >
+                      <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-xs">
                         <Wrench className="w-4 h-4" />
                         <span>Controle de Estoque (Dispensado para Serviços / Taxas)</span>
                       </div>
-                      <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                      <p className="text-[11px] text-slate-400">
                         Itens de serviço não movimentam estoque físico. Vendas são ilimitadas e não bloqueiam por falta de saldo.
                       </p>
                     </div>
                   ) : (
-                    <div className="p-4 bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl space-y-3.5 shadow-sm">
+                    <div
+                      className="p-4 border rounded-2xl space-y-3.5 shadow-sm"
+                      style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
+                    >
                       <div>
-                        <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
-                          <Package className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <span className="text-xs font-black text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
+                          <Package className="w-4 h-4 text-emerald-400" />
                           <span>4. Controle de Estoque & Entrada Inicial</span>
                         </span>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        <p className="text-[11px] text-slate-400 mt-0.5">
                           Informe a quantidade inicial em loja e parâmetros de estoque
                         </p>
                       </div>
 
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase block mb-1">
+                          <label className="text-[10px] font-semibold text-emerald-400 uppercase block mb-1">
                             Estoque Inicial em Loja
                           </label>
                           <input
                             type="number"
                             value={formData.quantidadeEstoque}
                             onChange={(e) => setFormData(prev => ({ ...prev, quantidadeEstoque: parseFloat(e.target.value) || 0 }))}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#000000] text-slate-900 dark:text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-xs sm:text-sm font-bold transition"
+                            className="w-full px-3.5 py-2.5 rounded-xl border focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-xs sm:text-sm font-bold transition"
+                            style={{ backgroundColor: '#000000', borderColor: '#1E293B', color: '#FFFFFF' }}
                           />
-                          <span className="text-[9px] text-slate-500 dark:text-slate-400 block mt-1">Saldo inicial para venda</span>
+                          <span className="text-[9px] text-slate-400 block mt-1">Saldo inicial para venda</span>
                         </div>
 
                         <div>
-                          <label className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 uppercase block mb-1">
+                          <label className="text-[10px] font-semibold text-slate-300 uppercase block mb-1">
                             Alerta Estoque Mínimo
                           </label>
                           <input
                             type="number"
                             value={formData.estoqueMinimo}
                             onChange={(e) => setFormData(prev => ({ ...prev, estoqueMinimo: parseFloat(e.target.value) || 0 }))}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#000000] text-slate-900 dark:text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-xs sm:text-sm font-bold transition"
+                            className="w-full px-3.5 py-2.5 rounded-xl border focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-xs sm:text-sm font-bold transition"
+                            style={{ backgroundColor: '#000000', borderColor: '#1E293B', color: '#FFFFFF' }}
                           />
-                          <span className="text-[9px] text-slate-500 dark:text-slate-400 block mt-1">Avisa quando estiver acabando</span>
+                          <span className="text-[9px] text-slate-400 block mt-1">Avisa quando estiver acabando</span>
                         </div>
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 uppercase block mb-1">
+                        <label className="text-[10px] font-semibold text-slate-300 uppercase block mb-1">
                           Data de Validade (Opcional)
                         </label>
                         <input
                           type="date"
                           value={formData.dataValidade || ''}
                           onChange={(e) => setFormData(prev => ({ ...prev, dataValidade: e.target.value }))}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#000000] text-slate-900 dark:text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-xs sm:text-sm font-semibold transition"
+                          className="w-full px-3.5 py-2.5 rounded-xl border focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-xs sm:text-sm font-semibold transition"
+                          style={{ backgroundColor: '#000000', borderColor: '#1E293B', color: '#FFFFFF' }}
                         />
-                        <span className="text-[9px] text-slate-500 dark:text-slate-400 block mt-1">Para perecíveis / cosméticos</span>
+                        <span className="text-[9px] text-slate-400 block mt-1">Para perecíveis / cosméticos</span>
                       </div>
                     </div>
                   )}
@@ -3260,11 +3343,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   {/* Vender por (TELA019) */}
                   <div
                     onClick={() => setModalVenderPorAberto(true)}
-                    className="p-3.5 rounded-xl border border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#000000] flex items-center justify-between cursor-pointer hover:border-slate-300 dark:hover:border-slate-700 transition"
+                    className="p-3.5 rounded-xl border flex items-center justify-between cursor-pointer transition"
+                    style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
                   >
                     <div>
-                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Vender por</span>
-                      <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100">
+                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Vender por</span>
+                      <span className="text-xs sm:text-sm font-bold text-slate-100">
                         {formData.tipoUnidade === 'un' ? 'Unidade' : 'Fração (Kilo, Litro, Metro, etc.)'}
                       </span>
                     </div>
@@ -3349,16 +3433,19 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               </div>
 
               {/* Display Central Grande de Estoque */}
-              <div className="flex flex-col items-center justify-center py-8 text-center bg-white dark:bg-[#000000] rounded-2xl border border-slate-200/80 dark:border-[#1E293B] p-6 shadow-sm">
-                <span className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">
+              <div
+                className="flex flex-col items-center justify-center py-8 text-center rounded-2xl border p-6 shadow-sm"
+                style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
+              >
+                <span className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
                   Estoque atual
                 </span>
                 <span className={`text-6xl sm:text-7xl font-black tracking-tight ${
-                  formData.quantidadeEstoque < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'
+                  formData.quantidadeEstoque < 0 ? 'text-rose-400' : 'text-white'
                 }`}>
                   {formData.quantidadeEstoque}
                 </span>
-                <span className="text-xs text-slate-400 dark:text-slate-500 mt-3 font-semibold">
+                <span className="text-xs text-slate-400 mt-3 font-semibold">
                   Atualizado em {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
@@ -3368,7 +3455,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setTelaAtiva('movimentacoes')}
-                  className="w-full p-4 rounded-xl border border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#000000] flex items-center justify-between text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#0D111A] transition shadow-sm cursor-pointer"
+                  className="w-full p-4 rounded-xl border flex items-center justify-between text-xs sm:text-sm font-bold text-slate-200 transition shadow-sm cursor-pointer"
+                  style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
                 >
                   <span>Histórico de movimentações</span>
                   <ChevronRight className="w-5 h-5 text-slate-400" />
@@ -3380,22 +3468,27 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     setTecladoValorEstoqueMin(String(formData.estoqueMinimo));
                     setModalEstoqueMinimoAberto(true);
                   }}
-                  className="w-full p-4 rounded-xl border border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#000000] flex items-center justify-between text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#0D111A] transition shadow-sm cursor-pointer"
+                  className="w-full p-4 rounded-xl border flex items-center justify-between text-xs sm:text-sm font-bold text-slate-200 transition shadow-sm cursor-pointer"
+                  style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
                 >
                   <span>Estoque mínimo: {formData.estoqueMinimo}</span>
                   <ChevronRight className="w-5 h-5 text-slate-400" />
                 </button>
 
-                <div className="w-full p-4 rounded-xl border border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#000000] flex items-center justify-between text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 shadow-sm">
+                <div
+                  className="w-full p-4 rounded-xl border flex items-center justify-between text-xs sm:text-sm font-bold text-slate-200 shadow-sm"
+                  style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
+                >
                   <div>
                     <span className="block">Data de Validade (Opcional)</span>
-                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">Para perecíveis / cosméticos</span>
+                    <span className="text-[10px] text-slate-400 font-normal">Para perecíveis / cosméticos</span>
                   </div>
                   <input
                     type="date"
                     value={formData.dataValidade || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, dataValidade: e.target.value }))}
-                    className="p-2 border border-slate-200 dark:border-[#1E293B] rounded-xl text-xs font-semibold text-slate-800 dark:text-white bg-slate-50 dark:bg-[#000000] focus:outline-none focus:border-emerald-500"
+                    className="p-2 border rounded-xl text-xs font-semibold text-white focus:outline-none focus:border-emerald-500"
+                    style={{ backgroundColor: '#000000', borderColor: '#1E293B' }}
                   />
                 </div>
               </div>
@@ -3404,7 +3497,10 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         )}
 
         {/* Botão Inferior Salvar / Adicionar */}
-        <div className="p-4 border-t border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#0B0F17] shrink-0">
+        <div
+          className="p-4 border-t shrink-0"
+          style={{ backgroundColor: '#0B0F17', borderColor: '#1E293B' }}
+        >
           <button
             type="button"
             disabled={salvandoProduto}
