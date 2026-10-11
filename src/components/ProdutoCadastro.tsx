@@ -1464,14 +1464,14 @@ export const ProdutoCadastro: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto bg-slate-100 dark:bg-[#0B131F] text-slate-900 dark:text-slate-100 p-3 sm:p-6 lg:p-8 font-sans">
+    <div className="flex flex-col h-full overflow-y-auto bg-slate-100 dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 p-3 sm:p-6 lg:p-8 font-sans">
       <div className="max-w-4xl mx-auto w-full space-y-6">
         {/* Header Superior */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => verificarSaidaComConfirmacao(() => navigate('/products'))}
-              className="p-2 rounded-xl bg-white dark:bg-[#131D2D] border border-slate-200 dark:border-slate-700/60 text-slate-700 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white transition cursor-pointer"
+              className="p-2 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] text-slate-700 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white transition cursor-pointer"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
@@ -1490,7 +1490,7 @@ export const ProdutoCadastro: React.FC = () => {
         {/* ========================================================================= */}
         {/* SEÇÃO 1: FOTOS DO PRODUTO & AÇÕES INTELIGENTES                           */}
         {/* ========================================================================= */}
-        <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-4 sm:p-6 md:p-8 space-y-4 shadow-sm relative overflow-hidden">
+        <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl p-4 sm:p-6 md:p-8 space-y-4 shadow-sm relative overflow-hidden">
           {/* Mensagem de Sucesso da IA */}
           {sucessoIAMsg && (
             <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-500/30 rounded-xl flex items-center gap-2.5 text-xs text-emerald-700 dark:text-emerald-300 animate-in fade-in">
@@ -1538,7 +1538,7 @@ export const ProdutoCadastro: React.FC = () => {
                   </div>
                 </div>
               ) : fotoPrincipal ? (
-                <div className="relative w-full aspect-square max-w-[280px] rounded-2xl overflow-hidden border-2 border-slate-200 dark:border-slate-700 bg-slate-950 shadow-sm group">
+                <div className="relative w-full aspect-square max-w-[280px] rounded-2xl overflow-hidden border-2 border-slate-200 dark:border-[#1E293B] bg-slate-100 dark:bg-[#000000] shadow-sm group">
                   <img
                     src={fotoPrincipal}
                     alt="Foto do Produto"
@@ -1572,7 +1572,7 @@ export const ProdutoCadastro: React.FC = () => {
               ) : (
                 <div
                   onClick={() => galleryInputRef.current?.click()}
-                  className="w-full aspect-square max-w-[280px] rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-400 bg-slate-50 dark:bg-[#0D1624] hover:bg-slate-100 dark:hover:bg-slate-800/80 flex flex-col items-center justify-center p-6 text-center space-y-3 cursor-pointer transition group"
+                  className="w-full aspect-square max-w-[280px] rounded-2xl border-2 border-dashed border-slate-300 dark:border-[#1E293B] hover:border-emerald-500 dark:hover:border-emerald-400 bg-slate-50 dark:bg-[#000000] hover:bg-slate-100 dark:hover:bg-[#0D111A] flex flex-col items-center justify-center p-6 text-center space-y-3 cursor-pointer transition group"
                 >
                   <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 flex items-center justify-center group-hover:scale-110 transition shadow-sm border border-emerald-200 dark:border-emerald-500/30">
                     <Camera className="w-7 h-7" />
@@ -1596,7 +1596,7 @@ export const ProdutoCadastro: React.FC = () => {
                 type="button"
                 disabled={fotosUrls.length >= 7}
                 onClick={() => cameraInputRef.current?.click()}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex md:hidden items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-transparent dark:hover:bg-slate-800/60 border border-slate-300 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 transition-all duration-150 disabled:opacity-40"
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex md:hidden items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-[#000000] dark:hover:bg-[#0D111A] border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 transition-all duration-150 disabled:opacity-40"
               >
                 <div className="flex items-center gap-2 truncate">
                   <Camera className="w-4 h-4 text-slate-500 dark:text-slate-300 shrink-0" />
@@ -1615,7 +1615,7 @@ export const ProdutoCadastro: React.FC = () => {
                   setTempApiKey(k);
                   setModalKeyGemini(true);
                 }}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-transparent dark:hover:bg-slate-800/60 border border-slate-300 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 transition-all duration-150 select-none group"
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-[#000000] dark:hover:bg-[#0D111A] border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 transition-all duration-150 select-none group"
                 title="Configurar Chave Google Gemini AI"
               >
                 <div className="flex items-center gap-2 truncate">
@@ -1632,7 +1632,7 @@ export const ProdutoCadastro: React.FC = () => {
                 type="button"
                 disabled={analisandoIA}
                 onClick={() => handleExecutarPreenchimentoIA('atualizar')}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-transparent dark:hover:bg-slate-800/60 border border-slate-300 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 transition-all duration-150 select-none disabled:opacity-50 disabled:cursor-not-allowed group"
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-[#000000] dark:hover:bg-[#0D111A] border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 transition-all duration-150 select-none disabled:opacity-50 disabled:cursor-not-allowed group"
                 title="Atualizar o produto com nossa inteligência artificial"
               >
                 <div className="flex items-center gap-2 truncate">
@@ -1650,7 +1650,7 @@ export const ProdutoCadastro: React.FC = () => {
                 type="button"
                 disabled={analisandoIA}
                 onClick={() => handleExecutarPreenchimentoIA('preencher')}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-transparent dark:hover:bg-slate-800/60 border border-slate-300 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 transition-all duration-150 select-none disabled:opacity-50 disabled:cursor-not-allowed group"
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-[#000000] dark:hover:bg-[#0D111A] border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 transition-all duration-150 select-none disabled:opacity-50 disabled:cursor-not-allowed group"
                 title="Preencher com nossa IA (a partir da foto ou nome do produto)"
               >
                 <div className="flex items-center gap-2 truncate">
@@ -1671,7 +1671,7 @@ export const ProdutoCadastro: React.FC = () => {
                 type="button"
                 disabled={fotosUrls.length >= 7}
                 onClick={() => galleryInputRef.current?.click()}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-transparent dark:hover:bg-slate-800/60 border border-slate-300 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 transition-all duration-150 select-none disabled:opacity-40 disabled:cursor-not-allowed group"
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-[#000000] dark:hover:bg-[#0D111A] border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 transition-all duration-150 select-none disabled:opacity-40 disabled:cursor-not-allowed group"
                 title="Escolher fotos do dispositivo"
               >
                 <div className="flex items-center gap-2 truncate">
@@ -1688,7 +1688,7 @@ export const ProdutoCadastro: React.FC = () => {
                 type="button"
                 disabled={fotosUrls.length >= 7}
                 onClick={handleAbrirPesquisaFotos}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-transparent dark:hover:bg-slate-800/60 border border-slate-300 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 transition-all duration-150 select-none disabled:opacity-40 disabled:cursor-not-allowed group"
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-[#000000] dark:hover:bg-[#0D111A] border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 transition-all duration-150 select-none disabled:opacity-40 disabled:cursor-not-allowed group"
                 title="Pesquisar fotos na internet com boa qualidade"
               >
                 <div className="flex items-center gap-2 truncate">
@@ -1699,7 +1699,7 @@ export const ProdutoCadastro: React.FC = () => {
 
               {/* Miniaturas das Fotos Cadastradas e Botão + Foto */}
               {fotosUrls.length > 0 && (
-                <div className="pt-2.5 mt-1 border-t border-slate-200 dark:border-slate-800 space-y-2">
+                <div className="pt-2.5 mt-1 border-t border-slate-200 dark:border-[#1E293B] space-y-2">
                   <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
                     <span>Fotos Cadastradas ({fotosUrls.length}/7):</span>
                     <span className="text-[10px] text-slate-500">Clique para definir a foto principal</span>
@@ -1711,8 +1711,8 @@ export const ProdutoCadastro: React.FC = () => {
                       return (
                         <div
                           key={i}
-                          className={`relative aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-950 border transition group ${
-                            ehPrincipal ? 'border-emerald-500 ring-2 ring-emerald-500/40' : 'border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600'
+                          className={`relative aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-[#000000] border transition group ${
+                            ehPrincipal ? 'border-emerald-500 ring-2 ring-emerald-500/40' : 'border-slate-200 dark:border-[#1E293B] hover:border-slate-400 dark:hover:border-slate-600'
                           }`}
                         >
                           <img
@@ -1749,7 +1749,7 @@ export const ProdutoCadastro: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => galleryInputRef.current?.click()}
-                        className="aspect-square rounded-xl border-2 border-dashed border-slate-300 hover:border-emerald-500 dark:border-slate-700 dark:hover:border-emerald-400 bg-white hover:bg-slate-50 dark:bg-[#0D1624] dark:hover:bg-slate-800/60 flex flex-col items-center justify-center text-slate-500 hover:text-emerald-600 dark:text-slate-300 dark:hover:text-emerald-300 font-medium transition cursor-pointer shadow-xs"
+                        className="aspect-square rounded-xl border-2 border-dashed border-slate-300 hover:border-emerald-500 dark:border-[#1E293B] dark:hover:border-emerald-400 bg-white hover:bg-slate-50 dark:bg-[#000000] dark:hover:bg-[#0D111A] flex flex-col items-center justify-center text-slate-500 hover:text-emerald-600 dark:text-slate-300 dark:hover:text-emerald-300 font-medium transition cursor-pointer shadow-xs"
                         title="Adicionar mais foto"
                       >
                         <Plus className="w-4 h-4" />
@@ -1768,9 +1768,9 @@ export const ProdutoCadastro: React.FC = () => {
         {/* ========================================================================= */}
         <form onSubmit={salvarProduto} className="space-y-6">
           {/* SEÇÃO 2: IDENTIFICAÇÃO DO PRODUTO (ORDEM AJUSTADA) */}
-          <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-4 sm:p-6 md:p-8 space-y-4 shadow-sm">
+          <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl p-4 sm:p-6 md:p-8 space-y-4 shadow-sm">
             {/* Header da Seção com Toggle de Produto Ativo */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-700/60">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-[#1E293B]">
               <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Tag className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 <span>2. Identificação do Produto</span>
@@ -1812,7 +1812,7 @@ export const ProdutoCadastro: React.FC = () => {
                 <label className="text-xs font-medium text-slate-700 dark:text-slate-300 block">Tipo do Item *</label>
                 <span className="text-xs text-slate-500 dark:text-slate-400">Mercadoria física ou serviço / cobrança de taxa</span>
               </div>
-              <div className="inline-flex p-1 bg-slate-100 dark:bg-[#0D1624] rounded-xl border border-slate-200 dark:border-slate-700 gap-1 self-start sm:self-auto">
+              <div className="inline-flex p-1 bg-slate-100 dark:bg-[#000000] rounded-xl border border-slate-200 dark:border-[#1E293B] gap-1 self-start sm:self-auto">
                 <button
                   type="button"
                   onClick={() => setTipoItem('produto')}
@@ -1856,7 +1856,7 @@ export const ProdutoCadastro: React.FC = () => {
                   placeholder="Ex: Coca-Cola Lata 350ml ou Camiseta Algodão Básica"
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
-                  className="w-full h-11 bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-medium"
+                  className="w-full h-11 bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-medium"
                 />
               </div>
 
@@ -1876,7 +1876,7 @@ export const ProdutoCadastro: React.FC = () => {
                 <select
                   value={categoriaId}
                   onChange={(e) => handleSelecionarCategoria(e.target.value)}
-                  className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                  className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                 >
                   <option value="">Selecione uma Categoria...</option>
                   {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
@@ -1898,7 +1898,7 @@ export const ProdutoCadastro: React.FC = () => {
                 <select
                   value={tipoUnidade}
                   onChange={(e) => setTipoUnidade(e.target.value)}
-                  className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
+                  className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
                 >
                   {unidadesLista.map(u => (
                     <option key={u.sigla} value={u.sigla}>
@@ -1921,7 +1921,7 @@ export const ProdutoCadastro: React.FC = () => {
                   placeholder="Ex: BE0001"
                   value={codigoInterno}
                   onChange={(e) => setCodigoInterno(e.target.value)}
-                  className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 uppercase font-mono"
+                  className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 uppercase font-mono"
                 />
               </div>
 
@@ -1932,7 +1932,7 @@ export const ProdutoCadastro: React.FC = () => {
                   placeholder="Ex: 789123456789"
                   value={codigoBarras}
                   onChange={(e) => setCodigoBarras(e.target.value)}
-                  className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 font-mono"
+                  className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 font-mono"
                 />
               </div>
 
@@ -1952,7 +1952,7 @@ export const ProdutoCadastro: React.FC = () => {
                 <select
                   value={fornecedorId}
                   onChange={(e) => setFornecedorId(e.target.value)}
-                  className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
+                  className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
                 >
                   <option value="">Nenhum Fornecedor Vinculado</option>
                   {fornecedores.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
@@ -1967,15 +1967,15 @@ export const ProdutoCadastro: React.FC = () => {
                   placeholder="Informações adicionais do produto, material, diferenciais e modo de uso..."
                   value={descricao}
                   onChange={(e) => setDescricao(e.target.value)}
-                  className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl p-3 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 resize-none"
+                  className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl p-3 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 resize-none"
                 ></textarea>
               </div>
             </div>
           </div>
 
           {/* SEÇÃO 3: PREÇOS E CUSTOS */}
-          <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-4 sm:p-6 md:p-8 space-y-4 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-700/60 pb-3">
+          <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl p-4 sm:p-6 md:p-8 space-y-4 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-[#1E293B] pb-3">
               <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Tag className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 <span>3. Tabelas de Preço & Custos</span>
@@ -1985,7 +1985,7 @@ export const ProdutoCadastro: React.FC = () => {
               <button
                 type="button"
                 onClick={handleAbrirRadarPrecos}
-                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-500/30 dark:hover:bg-emerald-900/50 text-xs font-bold transition shadow-xs cursor-pointer group"
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 dark:bg-[#000000] dark:text-emerald-400 dark:border-emerald-500/30 dark:hover:bg-[#0D111A] text-xs font-bold transition shadow-xs cursor-pointer group"
                 title="Comparar preços praticados por concorrentes e marketplaces na internet"
               >
                 <Search className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 group-hover:scale-110 transition" />
@@ -2004,7 +2004,7 @@ export const ProdutoCadastro: React.FC = () => {
                   step="0.01"
                   value={precoCusto}
                   onChange={(e) => setPrecoCusto(e.target.value)}
-                  className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
+                  className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
                 />
                 <span className="text-xs text-slate-500 dark:text-slate-400 block">Custo de compra/produção</span>
               </div>
@@ -2018,7 +2018,7 @@ export const ProdutoCadastro: React.FC = () => {
                   placeholder="Ex: 49.90"
                   value={precoVendaVarejo}
                   onChange={(e) => handlePrecoVarejoChange(e.target.value)}
-                  className="w-full bg-white dark:bg-[#0D1624] border-2 border-emerald-500/70 dark:border-emerald-500/50 rounded-xl px-3.5 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-400"
+                  className="w-full bg-white dark:bg-[#000000] border-2 border-emerald-500/70 dark:border-emerald-500/50 rounded-xl px-3.5 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-400"
                 />
                 <span className="text-xs text-slate-500 dark:text-slate-400 block">Preço base de balcão</span>
               </div>
@@ -2027,7 +2027,7 @@ export const ProdutoCadastro: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Preço Atacado (R$)</label>
                   {precoVendaVarejo && (
-                    <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800/40 px-1.5 py-0.5 rounded-lg font-bold">
+                    <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-[#000000] dark:text-emerald-400 dark:border-emerald-800/40 px-1.5 py-0.5 rounded-lg font-bold">
                       -{regrasPrecificacao.descontoAtacado}%
                     </span>
                   )}
@@ -2038,7 +2038,7 @@ export const ProdutoCadastro: React.FC = () => {
                   placeholder="Ex: 39.90"
                   value={precoVendaAtacado}
                   onChange={(e) => setPrecoVendaAtacado(e.target.value)}
-                  className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
+                  className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
                 />
                 <span className="text-xs text-slate-500 dark:text-slate-400 block">Conforme regra da loja</span>
               </div>
@@ -2047,7 +2047,7 @@ export const ProdutoCadastro: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Preço Autoatacado (R$)</label>
                   {precoVendaVarejo && (
-                    <span className="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800/40 px-1.5 py-0.5 rounded-lg font-bold">
+                    <span className="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-100 dark:bg-[#000000] dark:text-indigo-300 dark:border-indigo-800/40 px-1.5 py-0.5 rounded-lg font-bold">
                       -{regrasPrecificacao.descontoAutoatacado}%
                     </span>
                   )}
@@ -2058,7 +2058,7 @@ export const ProdutoCadastro: React.FC = () => {
                   placeholder="Ex: 32.90"
                   value={precoVendaAutoatacado}
                   onChange={(e) => setPrecoVendaAutoatacado(e.target.value)}
-                  className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
+                  className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
                 />
                 <span className="text-xs text-slate-500 dark:text-slate-400 block">Conforme regra da loja</span>
               </div>
@@ -2077,7 +2077,7 @@ export const ProdutoCadastro: React.FC = () => {
               </p>
             </div>
           ) : (
-            <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-4 sm:p-6 md:p-8 space-y-4 shadow-sm">
+            <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl p-4 sm:p-6 md:p-8 space-y-4 shadow-sm">
               <div>
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                   <Boxes className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
@@ -2095,7 +2095,7 @@ export const ProdutoCadastro: React.FC = () => {
                     type="number"
                     value={quantidadeEstoque}
                     onChange={(e) => setQuantidadeEstoque(e.target.value)}
-                    className="w-full bg-white dark:bg-[#0D1624] border-2 border-emerald-500/70 dark:border-emerald-500/50 rounded-xl px-3.5 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-400"
+                    className="w-full bg-white dark:bg-[#000000] border-2 border-emerald-500/70 dark:border-emerald-500/50 rounded-xl px-3.5 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-400"
                   />
                   <span className="text-xs text-slate-500 dark:text-slate-400">Saldo inicial para venda</span>
                 </div>
@@ -2106,7 +2106,7 @@ export const ProdutoCadastro: React.FC = () => {
                     type="number"
                     value={estoqueMinimoAlerta}
                     onChange={(e) => setEstoqueMinimoAlerta(e.target.value)}
-                    className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
+                    className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
                   />
                   <span className="text-xs text-slate-500 dark:text-slate-400">Avisa quando estiver acabando</span>
                 </div>
@@ -2117,7 +2117,7 @@ export const ProdutoCadastro: React.FC = () => {
                     type="date"
                     value={dataValidade}
                     onChange={(e) => setDataValidade(e.target.value)}
-                    className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
+                    className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
                   />
                   <span className="text-xs text-slate-500 dark:text-slate-400">Para perecíveis / cosméticos</span>
                 </div>
@@ -2126,7 +2126,7 @@ export const ProdutoCadastro: React.FC = () => {
           )}
 
           {/* SEÇÃO 5: GRADE DE VARIAÇÕES (SIMPLIFICADA E INTUITIVA) */}
-          <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-5 md:p-6 space-y-4 shadow-sm">
+          <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl p-5 md:p-6 space-y-4 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -2155,10 +2155,10 @@ export const ProdutoCadastro: React.FC = () => {
             </div>
 
             {temVariacoes && (
-              <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-700/60 animate-in fade-in">
+              <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-[#1E293B] animate-in fade-in">
                 {/* ETAPA 1: Definir o Nome do Tipo da Variação */}
                 {etapaVariacao === 1 ? (
-                  <div className="bg-slate-50 dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 rounded-xl p-4 sm:p-5 space-y-3">
+                  <div className="bg-slate-50 dark:bg-[#000000] border border-slate-200 dark:border-slate-800 rounded-xl p-4 sm:p-5 space-y-3">
                     <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
                       Qual é o tipo de variação deste produto?
                     </label>
@@ -2174,7 +2174,7 @@ export const ProdutoCadastro: React.FC = () => {
                             if (nomeTipoVariacao.trim()) setEtapaVariacao(2);
                           }
                         }}
-                        className="flex-1 bg-white dark:bg-[#131D2D] border border-slate-200 dark:border-slate-700 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-4 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
+                        className="flex-1 bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-4 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
                       />
                       <button
                         type="button"
@@ -2196,7 +2196,7 @@ export const ProdutoCadastro: React.FC = () => {
                   /* ETAPA 2: Adicionar Opções e Gerenciar Estoques */
                   <div className="space-y-4">
                     {/* Header do Tipo Ativo */}
-                    <div className="flex items-center justify-between bg-slate-50 dark:bg-[#0D1624] px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between bg-slate-50 dark:bg-[#000000] px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800">
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-slate-500 dark:text-slate-400">Tipo de variação:</span>
                         <span className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wide bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 px-2.5 py-0.5 rounded-lg">
@@ -2213,7 +2213,7 @@ export const ProdutoCadastro: React.FC = () => {
                     </div>
 
                     {/* Formulário para Inserir Nova Opção */}
-                    <div className="bg-slate-50 dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-3">
+                    <div className="bg-slate-50 dark:bg-[#000000] border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-3">
                       <span className="text-xs font-semibold text-slate-800 dark:text-slate-300 block">Adicionar nova opção:</span>
                       <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
                         <div className="sm:col-span-7 space-y-1">
@@ -2231,7 +2231,7 @@ export const ProdutoCadastro: React.FC = () => {
                                 handleAdicionarOpcao();
                               }
                             }}
-                            className="w-full bg-white dark:bg-[#131D2D] border border-slate-200 dark:border-slate-700 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
+                            className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
                           />
                         </div>
 
@@ -2249,7 +2249,7 @@ export const ProdutoCadastro: React.FC = () => {
                                 handleAdicionarOpcao();
                               }
                             }}
-                            className="w-full bg-white dark:bg-[#131D2D] border border-slate-200 dark:border-slate-700 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white font-bold text-emerald-700 dark:text-emerald-400 focus:outline-none"
+                            className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white font-bold text-emerald-700 dark:text-emerald-400 focus:outline-none"
                           />
                         </div>
 
@@ -2278,7 +2278,7 @@ export const ProdutoCadastro: React.FC = () => {
                           {opcoesVariacao.map((opc) => (
                             <div
                               key={opc.id}
-                              className="flex items-center justify-between bg-slate-50 dark:bg-[#0D1624] p-3 rounded-xl border border-slate-200 dark:border-slate-700 gap-3"
+                              className="flex items-center justify-between bg-slate-50 dark:bg-[#000000] p-3 rounded-xl border border-slate-200 dark:border-slate-800 gap-3"
                             >
                               <div className="flex items-center gap-2.5">
                                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
@@ -2293,7 +2293,7 @@ export const ProdutoCadastro: React.FC = () => {
                                     min="0"
                                     value={opc.estoque}
                                     onChange={(e) => handleAtualizarEstoqueOpcao(opc.id, e.target.value)}
-                                    className="w-16 bg-white dark:bg-[#131D2D] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-center font-bold text-emerald-700 dark:text-emerald-400 focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
+                                    className="w-16 bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 rounded-lg px-2 py-1 text-xs text-center font-bold text-emerald-700 dark:text-emerald-400 focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
                                   />
                                   <span className="text-xs text-slate-400">un</span>
                                 </div>
@@ -2312,7 +2312,7 @@ export const ProdutoCadastro: React.FC = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="text-center p-4 bg-slate-50 dark:bg-[#0D1624] rounded-xl border border-dashed border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400">
+                      <div className="text-center p-4 bg-slate-50 dark:bg-[#000000] rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
                         Nenhuma opção adicionada ainda. Digite uma opção acima (ex: Azul, P, Sabor Morango) e clique em Adicionar.
                       </div>
                     )}
@@ -2339,7 +2339,7 @@ export const ProdutoCadastro: React.FC = () => {
 
           {/* SEÇÃO 6: DIMENSÕES E PESO PARA FRETE (IA / CORREIOS / JADLOG) */}
           {tipoItem !== 'servico' && (
-            <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-4 sm:p-6 md:p-8 space-y-4 shadow-sm">
+            <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl p-4 sm:p-6 md:p-8 space-y-4 shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -2414,7 +2414,7 @@ export const ProdutoCadastro: React.FC = () => {
                     placeholder="Ex: 0.350"
                     value={pesoKg}
                     onChange={(e) => setPesoKg(e.target.value)}
-                    className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white font-mono focus:outline-none"
+                    className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white font-mono focus:outline-none"
                   />
                   <span className="text-xs text-slate-500 dark:text-slate-400 block">Ex: 0.500 para 500g</span>
                 </div>
@@ -2428,7 +2428,7 @@ export const ProdutoCadastro: React.FC = () => {
                     placeholder="Ex: 10"
                     value={alturaCm}
                     onChange={(e) => setAlturaCm(e.target.value)}
-                    className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white font-mono focus:outline-none"
+                    className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white font-mono focus:outline-none"
                   />
                   <span className="text-xs text-slate-500 dark:text-slate-400 block">Mínimo: 4 cm</span>
                 </div>
@@ -2442,7 +2442,7 @@ export const ProdutoCadastro: React.FC = () => {
                     placeholder="Ex: 15"
                     value={larguraCm}
                     onChange={(e) => setLarguraCm(e.target.value)}
-                    className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white font-mono focus:outline-none"
+                    className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white font-mono focus:outline-none"
                   />
                   <span className="text-xs text-slate-500 dark:text-slate-400 block">Mínimo: 10 cm</span>
                 </div>
@@ -2456,7 +2456,7 @@ export const ProdutoCadastro: React.FC = () => {
                     placeholder="Ex: 20"
                     value={comprimentoCm}
                     onChange={(e) => setComprimentoCm(e.target.value)}
-                    className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white font-mono focus:outline-none"
+                    className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white font-mono focus:outline-none"
                   />
                   <span className="text-xs text-slate-500 dark:text-slate-400 block">Mínimo: 15 cm</span>
                 </div>
@@ -2465,14 +2465,14 @@ export const ProdutoCadastro: React.FC = () => {
           )}
 
           {/* SEÇÃO 7: CATÁLOGO ONLINE E DESTAQUE */}
-          <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-4 sm:p-6 md:p-8 space-y-4 shadow-sm">
+          <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl p-4 sm:p-6 md:p-8 space-y-4 shadow-sm">
             <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Eye className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>7. Visibilidade no Catálogo Online</span>
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <label className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 rounded-2xl cursor-pointer hover:border-emerald-500 dark:hover:border-emerald-500 transition">
+              <label className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-[#000000] border border-slate-200 dark:border-slate-800 rounded-2xl cursor-pointer hover:border-emerald-500 dark:hover:border-emerald-500 transition">
                 <input
                   type="checkbox"
                   checked={exibirCatalogo}
@@ -2485,7 +2485,7 @@ export const ProdutoCadastro: React.FC = () => {
                 </div>
               </label>
 
-              <label className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 rounded-2xl cursor-pointer hover:border-amber-500 dark:hover:border-amber-500 transition">
+              <label className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-[#000000] border border-slate-200 dark:border-slate-800 rounded-2xl cursor-pointer hover:border-amber-500 dark:hover:border-amber-500 transition">
                 <input
                   type="checkbox"
                   checked={destaque}
@@ -2529,8 +2529,8 @@ export const ProdutoCadastro: React.FC = () => {
       {/* ========================================================================= */}
       {modalKeyGemini && (
         <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white dark:bg-[#131D2D] border border-slate-200 dark:border-slate-700/60 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700/60 pb-3">
+          <div className="bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#1E293B] pb-3">
               <div className="flex items-center gap-2.5">
                 <Sparkles className="w-5 h-5 text-amber-500 dark:text-amber-400" />
                 <h3 className="font-semibold text-base text-slate-900 dark:text-slate-100">Chave Google Gemini IA</h3>
@@ -2564,7 +2564,7 @@ export const ProdutoCadastro: React.FC = () => {
                 placeholder="AIzaSy..."
                 value={tempApiKey}
                 onChange={(e) => setTempApiKey(e.target.value)}
-                className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
               />
             </div>
 
@@ -2624,9 +2624,9 @@ export const ProdutoCadastro: React.FC = () => {
       {/* Modal Radar de Preços de Mercado (IA) */}
       {modalRadarAberto && (
         <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50 animate-in fade-in">
-          <div className="bg-white dark:bg-[#131D2D] border border-slate-200 dark:border-slate-700/60 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-xl overflow-hidden animate-in zoom-in-95 duration-150">
+          <div className="bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-xl overflow-hidden animate-in zoom-in-95 duration-150">
             {/* Header do Modal */}
-            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-700/60 flex items-center justify-between bg-white dark:bg-[#131D2D]">
+            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-[#1E293B] flex items-center justify-between bg-white dark:bg-[#000000]">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-emerald-600 dark:bg-emerald-500 flex items-center justify-center text-white shadow-sm">
                   <Search className="w-5 h-5" />
@@ -2649,7 +2649,7 @@ export const ProdutoCadastro: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalRadarAberto(false)}
-                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white transition cursor-pointer"
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-[#0D111A] text-slate-400 hover:text-slate-700 dark:hover:text-white transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -2682,7 +2682,7 @@ export const ProdutoCadastro: React.FC = () => {
               ) : dadosMercado ? (
                 <>
                   {/* CARD DE RESUMO GERAL (MÉDIA & DESTAQUES) */}
-                  <div className="bg-slate-50 dark:bg-[#0D1624] p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3 shadow-xs">
+                  <div className="bg-slate-50 dark:bg-[#000000] p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div>
                         <span className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold block">
@@ -2708,7 +2708,7 @@ export const ProdutoCadastro: React.FC = () => {
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 dark:border-slate-700 text-xs">
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 dark:border-slate-800 text-xs">
                       <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-semibold">
                         <TrendingDown className="w-4 h-4 shrink-0" />
                         <span className="truncate">
@@ -2743,7 +2743,7 @@ export const ProdutoCadastro: React.FC = () => {
                           dadosMercado.menoresPrecos.map((item, idx) => (
                             <div
                               key={idx}
-                              className="bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/60 rounded-xl p-2.5 flex items-center justify-between gap-2 transition group"
+                              className="bg-slate-50 hover:bg-slate-100 dark:bg-[#000000] dark:hover:bg-[#0D111A] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex items-center justify-between gap-2 transition group"
                             >
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5">
@@ -2790,7 +2790,7 @@ export const ProdutoCadastro: React.FC = () => {
                           dadosMercado.maioresPrecos.map((item, idx) => (
                             <div
                               key={idx}
-                              className="bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/60 rounded-xl p-2.5 flex items-center justify-between gap-2 transition group"
+                              className="bg-slate-50 hover:bg-slate-100 dark:bg-[#000000] dark:hover:bg-[#0D111A] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex items-center justify-between gap-2 transition group"
                             >
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5">
@@ -2837,7 +2837,7 @@ export const ProdutoCadastro: React.FC = () => {
             </div>
 
             {/* Rodapé do Modal */}
-            <div className="p-4 border-t border-slate-200 dark:border-slate-700/60 bg-slate-50 dark:bg-[#131D2D] flex items-center justify-between">
+            <div className="p-4 border-t border-slate-200 dark:border-[#1E293B] bg-slate-50 dark:bg-[#000000] flex items-center justify-between">
               <span className="text-xs text-slate-500 dark:text-slate-400">
                 {dadosMercado ? `Pesquisa atualizada em ${dadosMercado.dataConsulta}` : 'Inteligência de mercado integrada'}
               </span>
@@ -2847,7 +2847,7 @@ export const ProdutoCadastro: React.FC = () => {
                   type="button"
                   onClick={buscarConcorrentesMercado}
                   disabled={buscandoMercado || !nome.trim()}
-                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-[#0D111A] text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
                   title="Atualizar cotações de concorrentes"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${buscandoMercado ? 'animate-spin' : ''}`} />
