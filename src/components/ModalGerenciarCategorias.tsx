@@ -141,9 +141,9 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-      <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl w-full max-w-md p-6 space-y-5 shadow-sm text-slate-900 dark:text-slate-100">
+      <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl w-full max-w-md p-6 space-y-5 shadow-sm text-slate-900 dark:text-slate-100">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700/60 pb-3">
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#1E293B] pb-3">
           <div className="flex items-center gap-2.5 text-emerald-600 dark:text-emerald-400">
             <FolderPlus className="w-5 h-5" />
             <h3 className="font-bold dark:font-semibold text-base text-slate-900 dark:text-slate-100">Gerenciar Categorias</h3>
@@ -173,7 +173,7 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
               placeholder="Ex: Bebidas, Roupas, Alimentos..."
               value={novoNome}
               onChange={(e) => setNovoNome(e.target.value)}
-              className="flex-1 bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              className="flex-1 bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
             />
             <button
               type="submit"
@@ -187,7 +187,7 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
         </form>
 
         {/* Lista de Categorias */}
-        <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-700/60">
+        <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-[#1E293B]">
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
             <span className="font-semibold">Categorias Cadastradas:</span>
             <span>{categorias.length} categorias</span>
@@ -202,7 +202,7 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
               categorias.map((cat) => (
                 <div
                   key={cat.id}
-                  className="flex items-center justify-between bg-slate-50 dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700/60 rounded-xl px-3.5 py-2 text-xs group hover:border-slate-300 dark:hover:border-slate-600 transition"
+                  className="flex items-center justify-between bg-slate-50 dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] rounded-xl px-3.5 py-2 text-xs group hover:border-slate-300 dark:hover:border-slate-700 transition"
                 >
                   {categoriaEditando?.id === cat.id ? (
                     <div className="flex items-center gap-2 flex-1 mr-2">
@@ -210,7 +210,7 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
                         type="text"
                         value={nomeEdicao}
                         onChange={(e) => setNomeEdicao(e.target.value)}
-                        className="flex-1 bg-white dark:bg-[#0D1624] border border-emerald-500 text-slate-900 dark:text-white rounded-lg px-2.5 py-1 text-xs focus:outline-none"
+                        className="flex-1 bg-white dark:bg-[#000000] border border-emerald-500 text-slate-900 dark:text-white rounded-lg px-2.5 py-1 text-xs focus:outline-none"
                         autoFocus
                       />
                       <button
@@ -225,7 +225,7 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
                       <button
                         type="button"
                         onClick={() => setCategoriaEditando(null)}
-                        className="p-1 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+                        className="p-1 rounded bg-slate-200 dark:bg-[#0B0F17] text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
                         title="Cancelar"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -272,7 +272,7 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
         <button
           type="button"
           onClick={onClose}
-          className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-xs font-semibold transition cursor-pointer"
+          className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#000000] dark:hover:bg-[#0D111A] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-[#1E293B] text-xs font-semibold transition cursor-pointer"
         >
           Concluir
         </button>

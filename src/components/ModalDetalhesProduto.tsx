@@ -48,9 +48,9 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
   if (apenasGrade) {
     return (
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-        <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl w-full max-w-lg overflow-hidden shadow-sm flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150 text-slate-900 dark:text-slate-100">
+        <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl w-full max-w-lg overflow-hidden shadow-sm flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150 text-slate-900 dark:text-slate-100">
           {/* Header */}
-          <div className="p-4 sm:px-6 border-b border-slate-200 dark:border-slate-700/60 flex items-center justify-between bg-white dark:bg-[#131D2D]">
+          <div className="p-4 sm:px-6 border-b border-slate-200 dark:border-[#1E293B] flex items-center justify-between bg-white dark:bg-[#000000]">
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-800/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
                 <Layers className="w-5 h-5" />
@@ -82,7 +82,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
                   return (
                     <div
                       key={v.id}
-                      className="p-3 rounded-xl bg-slate-50 dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700/60 hover:border-slate-300 dark:hover:border-slate-600 transition flex items-center justify-between gap-3 shadow-xs"
+                      className="p-3 rounded-xl bg-slate-50 dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] hover:border-slate-300 dark:hover:border-slate-700 transition flex items-center justify-between gap-3 shadow-xs"
                     >
                       <div className="min-w-0 flex-1">
                         <span className="text-slate-900 dark:text-slate-100 font-bold text-xs block truncate">
@@ -126,7 +126,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
           </div>
 
           {/* Rodapé com Resumo Total */}
-          <div className="p-4 border-t border-slate-200 dark:border-slate-700/60 bg-white dark:bg-[#131D2D] flex items-center justify-between">
+          <div className="p-4 border-t border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#000000] flex items-center justify-between">
             <div className="text-xs text-slate-600 dark:text-slate-400">
               Total em Grade:{' '}
               <strong className="text-emerald-700 dark:text-emerald-400 font-bold text-sm">{estoqueReal} {produto.tipo_unidade || 'un'}</strong>
@@ -134,7 +134,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-xs font-semibold transition cursor-pointer"
+              className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#0B0F17] dark:hover:bg-[#0D111A] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-[#1E293B] text-xs font-semibold transition cursor-pointer"
             >
               Fechar
             </button>
@@ -147,9 +147,9 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
   // MODO COMPLETO (FICHA TÉCNICA E DETALHES GERAIS)
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-      <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl w-full max-w-2xl overflow-hidden shadow-sm flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150 text-slate-900 dark:text-slate-100">
+      <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl w-full max-w-2xl overflow-hidden shadow-sm flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150 text-slate-900 dark:text-slate-100">
         {/* Header do Modal */}
-        <div className="p-4 sm:px-6 border-b border-slate-200 dark:border-slate-700/60 flex items-center justify-between bg-white dark:bg-[#131D2D]">
+        <div className="p-4 sm:px-6 border-b border-slate-200 dark:border-[#1E293B] flex items-center justify-between bg-white dark:bg-[#000000]">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-500/30 dark:text-emerald-300 flex items-center justify-center">
               <Package className="w-4 h-4" />
@@ -173,7 +173,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {/* Galeria de Fotos */}
             <div className="space-y-2.5 flex flex-col items-center">
-              <div className="relative w-full max-w-[220px] sm:max-w-[240px] aspect-square bg-slate-100 dark:bg-[#0D1624] rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 flex items-center justify-center shadow-xs">
+              <div className="relative w-full max-w-[220px] sm:max-w-[240px] aspect-square bg-slate-100 dark:bg-[#000000] rounded-2xl overflow-hidden border border-slate-200 dark:border-[#1E293B] flex items-center justify-center shadow-xs">
                 <img
                   src={fotoPrincipal}
                   alt={produto.nome}
@@ -202,7 +202,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
                       className={`relative w-11 h-11 rounded-lg overflow-hidden border shrink-0 transition ${
                         fotoSelecionadaIdx === idx
                           ? 'border-emerald-500 ring-2 ring-emerald-500/30'
-                          : 'border-slate-200 dark:border-slate-700 opacity-60 hover:opacity-100'
+                          : 'border-slate-200 dark:border-[#1E293B] opacity-60 hover:opacity-100'
                       }`}
                     >
                       <img src={f} alt="" className="w-full h-full object-cover" />
@@ -215,7 +215,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
             {/* Informações Comerciais e Preços */}
             <div className="space-y-3.5">
               {/* Categoria, Status Ativo e Código */}
-              <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 pb-2 border-b border-slate-200 dark:border-slate-700/60">
+              <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 pb-2 border-b border-slate-200 dark:border-[#1E293B]">
                 <div className="flex items-center gap-2">
                   <span className="flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
                     <Folder className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
@@ -231,14 +231,14 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
                   </span>
                 </div>
                 {produto.codigo_interno && (
-                  <span className="font-mono text-[11px] bg-slate-100 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-700 dark:text-slate-300">
+                  <span className="font-mono text-[11px] bg-slate-100 border border-slate-200 dark:border-[#1E293B] dark:bg-[#0B0F17] px-2 py-0.5 rounded text-slate-700 dark:text-slate-300">
                     SKU #{produto.codigo_interno}
                   </span>
                 )}
               </div>
 
               {/* Bloco de Preços */}
-              <div className="bg-slate-50 dark:bg-[#0D1624] p-3.5 rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-2">
+              <div className="bg-slate-50 dark:bg-[#000000] p-3.5 rounded-xl border border-slate-200 dark:border-[#1E293B] space-y-2">
                 <span className="text-[11px] font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider block">
                   Tabelas de Preço
                 </span>
@@ -275,7 +275,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
 
               {/* Estoque e Unidade */}
               <div className="grid grid-cols-2 gap-2.5">
-                <div className="p-3 bg-slate-50 dark:bg-[#0D1624] rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-1">
+                <div className="p-3 bg-slate-50 dark:bg-[#000000] rounded-xl border border-slate-200 dark:border-[#1E293B] space-y-1">
                   <span className="text-[10px] text-slate-600 dark:text-slate-400 font-medium block">
                     {temVariacoes ? 'Estoque Total (Grade)' : 'Estoque Atual'}
                   </span>
@@ -289,7 +289,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
                   </div>
                 </div>
 
-                <div className="p-3 bg-slate-50 dark:bg-[#0D1624] rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-1">
+                <div className="p-3 bg-slate-50 dark:bg-[#000000] rounded-xl border border-slate-200 dark:border-[#1E293B] space-y-1">
                   <span className="text-[10px] text-slate-600 dark:text-slate-400 font-medium block">Código de Barras</span>
                   <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-300 truncate block">
                     {produto.codigo_barras || (produto.codigo_interno ? `Cód: ${produto.codigo_interno}` : 'Não cadastrado')}
@@ -299,7 +299,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
 
               {/* Variações do Produto se houver */}
               {temVariacoes && produto.variacoes && produto.variacoes.length > 0 && (
-                <div className="p-3.5 bg-slate-50 dark:bg-[#0D1624] rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-2">
+                <div className="p-3.5 bg-slate-50 dark:bg-[#000000] rounded-xl border border-slate-200 dark:border-[#1E293B] space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider block">
                       Estoque por Variação / Grade ({produto.variacoes.length})
@@ -314,7 +314,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
                       const rotulo1 = produto.rotulo_variacao_1 || 'Variação';
                       const rotulo2 = produto.rotulo_variacao_2;
                       return (
-                        <div key={v.id} className="flex justify-between items-center text-xs p-2 rounded-xl bg-white dark:bg-[#131D2D] border border-slate-200 dark:border-slate-700/60 hover:border-slate-300 dark:hover:border-slate-600 transition">
+                        <div key={v.id} className="flex justify-between items-center text-xs p-2 rounded-xl bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-[#1E293B] hover:border-slate-300 dark:hover:border-slate-700 transition">
                           <div className="min-w-0 pr-2">
                             <span className="text-slate-900 dark:text-slate-200 font-bold block truncate">
                               {rotulo1 ? <span className="text-slate-500 dark:text-slate-400 font-normal text-[11px]">{rotulo1}: </span> : null}
@@ -354,7 +354,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
 
           {/* Descrição do Produto */}
           {produto.descricao && (
-            <div className="p-3.5 bg-slate-50 dark:bg-[#0D1624] rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-1.5">
+            <div className="p-3.5 bg-slate-50 dark:bg-[#000000] rounded-xl border border-slate-200 dark:border-[#1E293B] space-y-1.5">
               <span className="text-xs font-bold text-slate-800 dark:text-slate-300 flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Descrição do Produto
               </span>
@@ -366,11 +366,11 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
         </div>
 
         {/* Rodapé */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-700/60 bg-white dark:bg-[#131D2D] flex justify-end">
+        <div className="p-4 border-t border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#000000] flex justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-xs font-semibold transition cursor-pointer"
+            className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#0B0F17] dark:hover:bg-[#0D111A] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-[#1E293B] text-xs font-semibold transition cursor-pointer"
           >
             Fechar
           </button>

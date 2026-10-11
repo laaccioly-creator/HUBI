@@ -36,7 +36,7 @@ export const ModalConfirmacaoExclusao: React.FC<ModalConfirmacaoExclusaoProps> =
       }}
     >
       <div
-        className="w-full max-w-md overflow-hidden rounded-2xl bg-white border border-slate-200 shadow-2xl dark:bg-[#1E293B] dark:border-slate-700/60 p-6 space-y-4 animate-in zoom-in-95 duration-150"
+        className="w-full max-w-md overflow-hidden rounded-2xl bg-white border border-slate-200 shadow-2xl dark:bg-[#000000] dark:border-[#1E293B] p-6 space-y-4 animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
@@ -78,12 +78,12 @@ export const ModalConfirmacaoExclusao: React.FC<ModalConfirmacaoExclusaoProps> =
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-700/50">
+        <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-[#1E293B]">
           <button
             type="button"
             disabled={carregando}
             onClick={onClose}
-            className="border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl px-4 py-2 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            className="border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-[#000000] dark:hover:bg-[#0D111A] rounded-xl px-4 py-2 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
           >
             {textoCancelar}
           </button>
