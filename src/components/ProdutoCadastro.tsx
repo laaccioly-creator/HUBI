@@ -1490,7 +1490,7 @@ export const ProdutoCadastro: React.FC = () => {
         {/* ========================================================================= */}
         {/* SEÇÃO 1: FOTOS DO PRODUTO & AÇÕES INTELIGENTES                           */}
         {/* ========================================================================= */}
-        <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-5 sm:p-6 space-y-4 shadow-sm relative overflow-hidden">
+        <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-4 sm:p-6 md:p-8 space-y-4 shadow-sm relative overflow-hidden">
           {/* Mensagem de Sucesso da IA */}
           {sucessoIAMsg && (
             <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-500/30 rounded-xl flex items-center gap-2.5 text-xs text-emerald-700 dark:text-emerald-300 animate-in fade-in">
@@ -1596,7 +1596,7 @@ export const ProdutoCadastro: React.FC = () => {
                 type="button"
                 disabled={fotosUrls.length >= 7}
                 onClick={() => cameraInputRef.current?.click()}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex md:hidden items-center justify-between gap-2 cursor-pointer shadow-sm bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 dark:bg-[#131D2D] dark:hover:bg-slate-800 dark:border-slate-700/60 dark:text-slate-100 transition-all duration-150 disabled:opacity-40"
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex md:hidden items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-transparent dark:hover:bg-slate-800/60 border border-slate-300 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 transition-all duration-150 disabled:opacity-40"
               >
                 <div className="flex items-center gap-2 truncate">
                   <Camera className="w-4 h-4 text-slate-500 dark:text-slate-300 shrink-0" />
@@ -1615,14 +1615,14 @@ export const ProdutoCadastro: React.FC = () => {
                   setTempApiKey(k);
                   setModalKeyGemini(true);
                 }}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer shadow-sm bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 hover:border-emerald-500 hover:text-emerald-700 dark:bg-[#131D2D] dark:text-slate-200 dark:border-slate-700/60 dark:hover:border-emerald-500 dark:hover:text-white transition-all duration-150 select-none group"
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-transparent dark:hover:bg-slate-800/60 border border-slate-300 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 transition-all duration-150 select-none group"
                 title="Configurar Chave Google Gemini AI"
               >
                 <div className="flex items-center gap-2 truncate">
                   <Sparkles className="w-4 h-4 text-amber-500 dark:text-amber-400 shrink-0" />
                   <span className="font-bold truncate">Chave Gemini IA</span>
                 </div>
-                <span className="text-[10px] text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-300 font-normal shrink-0">
+                <span className="text-[10px] text-slate-400 font-normal shrink-0">
                   Configurar
                 </span>
               </button>
@@ -1632,14 +1632,14 @@ export const ProdutoCadastro: React.FC = () => {
                 type="button"
                 disabled={analisandoIA}
                 onClick={() => handleExecutarPreenchimentoIA('atualizar')}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer shadow-sm bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 dark:border-emerald-500/30 dark:text-emerald-300 transition-all duration-150 select-none disabled:opacity-50 disabled:cursor-not-allowed group"
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-transparent dark:hover:bg-slate-800/60 border border-slate-300 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 transition-all duration-150 select-none disabled:opacity-50 disabled:cursor-not-allowed group"
                 title="Atualizar o produto com nossa inteligência artificial"
               >
                 <div className="flex items-center gap-2 truncate">
                   {analisandoIA ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <Loader2 className="w-4 h-4 animate-spin text-emerald-500 dark:text-emerald-400 shrink-0" />
                   ) : (
-                    <RefreshCw className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <RefreshCw className="w-4 h-4 text-emerald-500 dark:text-emerald-400 shrink-0" />
                   )}
                   <span className="font-bold truncate">Atualizar o Produto com nossa IA</span>
                 </div>
@@ -1650,18 +1650,18 @@ export const ProdutoCadastro: React.FC = () => {
                 type="button"
                 disabled={analisandoIA}
                 onClick={() => handleExecutarPreenchimentoIA('preencher')}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer shadow-sm bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 dark:border-emerald-500/30 dark:text-emerald-300 transition-all duration-150 select-none disabled:opacity-50 disabled:cursor-not-allowed group"
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-transparent dark:hover:bg-slate-800/60 border border-slate-300 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 transition-all duration-150 select-none disabled:opacity-50 disabled:cursor-not-allowed group"
                 title="Preencher com nossa IA (a partir da foto ou nome do produto)"
               >
                 <div className="flex items-center gap-2 truncate">
                   {analisandoIA ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <Loader2 className="w-4 h-4 animate-spin text-emerald-500 dark:text-emerald-400 shrink-0" />
                   ) : (
                     <Sparkles className="w-4 h-4 text-amber-500 dark:text-amber-400 shrink-0" />
                   )}
                   <span className="font-bold truncate">Preencher com nossa IA</span>
                 </div>
-                <span className="text-[10px] text-slate-500 group-hover:text-emerald-700 dark:text-slate-400 dark:group-hover:text-emerald-300 font-normal shrink-0 hidden sm:inline">
+                <span className="text-[10px] text-slate-400 font-normal shrink-0 hidden sm:inline">
                   (a partir da foto ou nome do produto)
                 </span>
               </button>
@@ -1671,11 +1671,11 @@ export const ProdutoCadastro: React.FC = () => {
                 type="button"
                 disabled={fotosUrls.length >= 7}
                 onClick={() => galleryInputRef.current?.click()}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer shadow-sm bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 hover:border-emerald-500 dark:bg-[#131D2D] dark:text-slate-200 dark:border-slate-700/60 dark:hover:border-emerald-500 dark:hover:text-white transition-all duration-150 select-none disabled:opacity-40 disabled:cursor-not-allowed group"
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-transparent dark:hover:bg-slate-800/60 border border-slate-300 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 transition-all duration-150 select-none disabled:opacity-40 disabled:cursor-not-allowed group"
                 title="Escolher fotos do dispositivo"
               >
                 <div className="flex items-center gap-2 truncate">
-                  <Upload className="w-4 h-4 text-slate-500 dark:text-slate-300 shrink-0" />
+                  <Upload className="w-4 h-4 text-slate-400 dark:text-slate-300 shrink-0" />
                   <span className="font-bold truncate">Galeria (Até 7 fotos)</span>
                 </div>
                 <span className="text-[10px] text-slate-400 font-mono shrink-0">
@@ -1688,11 +1688,11 @@ export const ProdutoCadastro: React.FC = () => {
                 type="button"
                 disabled={fotosUrls.length >= 7}
                 onClick={handleAbrirPesquisaFotos}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer shadow-sm bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 hover:border-emerald-500 dark:bg-[#131D2D] dark:text-slate-200 dark:border-slate-700/60 dark:hover:border-emerald-500 dark:hover:text-white transition-all duration-150 select-none disabled:opacity-40 disabled:cursor-not-allowed group"
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-transparent dark:hover:bg-slate-800/60 border border-slate-300 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 transition-all duration-150 select-none disabled:opacity-40 disabled:cursor-not-allowed group"
                 title="Pesquisar fotos na internet com boa qualidade"
               >
                 <div className="flex items-center gap-2 truncate">
-                  <Globe className="w-4 h-4 text-slate-500 dark:text-slate-300 shrink-0" />
+                  <Globe className="w-4 h-4 text-slate-400 dark:text-slate-300 shrink-0" />
                   <span className="font-bold truncate">Pesquisar Fotos na Internet</span>
                 </div>
               </button>
@@ -1768,7 +1768,7 @@ export const ProdutoCadastro: React.FC = () => {
         {/* ========================================================================= */}
         <form onSubmit={salvarProduto} className="space-y-6">
           {/* SEÇÃO 2: IDENTIFICAÇÃO DO PRODUTO (ORDEM AJUSTADA) */}
-          <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-5 md:p-6 space-y-4 shadow-sm">
+          <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-4 sm:p-6 md:p-8 space-y-4 shadow-sm">
             {/* Header da Seção com Toggle de Produto Ativo */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-700/60">
               <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -1856,7 +1856,7 @@ export const ProdutoCadastro: React.FC = () => {
                   placeholder="Ex: Coca-Cola Lata 350ml ou Camiseta Algodão Básica"
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
-                  className="w-full bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-medium"
+                  className="w-full h-11 bg-white dark:bg-[#0D1624] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-medium"
                 />
               </div>
 
@@ -1974,7 +1974,7 @@ export const ProdutoCadastro: React.FC = () => {
           </div>
 
           {/* SEÇÃO 3: PREÇOS E CUSTOS */}
-          <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-5 md:p-6 space-y-4 shadow-sm">
+          <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-4 sm:p-6 md:p-8 space-y-4 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-700/60 pb-3">
               <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Tag className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
@@ -2067,7 +2067,7 @@ export const ProdutoCadastro: React.FC = () => {
 
           {/* SEÇÃO 4: ESTOQUE & VALIDADE */}
           {tipoItem === 'servico' ? (
-            <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-500/30 rounded-2xl p-5 md:p-6 space-y-2 shadow-sm">
+            <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-500/30 rounded-2xl p-4 sm:p-6 md:p-8 space-y-2 shadow-sm">
               <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-400 font-bold text-sm">
                 <Wrench className="w-4 h-4" />
                 <span>4. Controle de Estoque (Dispensado para Serviços / Taxas)</span>
@@ -2077,7 +2077,7 @@ export const ProdutoCadastro: React.FC = () => {
               </p>
             </div>
           ) : (
-            <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-5 md:p-6 space-y-4 shadow-sm">
+            <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-4 sm:p-6 md:p-8 space-y-4 shadow-sm">
               <div>
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                   <Boxes className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
@@ -2339,7 +2339,7 @@ export const ProdutoCadastro: React.FC = () => {
 
           {/* SEÇÃO 6: DIMENSÕES E PESO PARA FRETE (IA / CORREIOS / JADLOG) */}
           {tipoItem !== 'servico' && (
-            <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-5 md:p-6 space-y-4 shadow-sm">
+            <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-4 sm:p-6 md:p-8 space-y-4 shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -2465,7 +2465,7 @@ export const ProdutoCadastro: React.FC = () => {
           )}
 
           {/* SEÇÃO 7: CATÁLOGO ONLINE E DESTAQUE */}
-          <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-5 md:p-6 space-y-4 shadow-sm">
+          <div className="bg-white dark:bg-[#131D2D] border border-slate-200/80 dark:border-slate-700/60 rounded-2xl p-4 sm:p-6 md:p-8 space-y-4 shadow-sm">
             <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Eye className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>7. Visibilidade no Catálogo Online</span>
