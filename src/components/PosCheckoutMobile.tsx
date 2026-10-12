@@ -347,7 +347,11 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
       }
 
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: {
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
+          facingMode: 'environment'
+        },
         audio: false
       });
 

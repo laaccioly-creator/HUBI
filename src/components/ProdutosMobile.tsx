@@ -79,6 +79,7 @@ import { ModalOnboardingSerpApi } from './ModalOnboardingSerpApi';
 import { SpinnerPesquisandoIA } from './SpinnerPesquisandoIA';
 import { ModalDuvidaProdutoIA } from './ModalDuvidaProdutoIA';
 import { obterSerpApiKey, obterOuBuscarSerpApiKey } from '../services/serpApiService';
+import { comprimirFotoProduto } from '../utils/imageCompressor';
 
 interface ProdutosMobileProps {
   produtos: Produto[];
@@ -100,45 +101,15 @@ const CORES_ETIQUETA = [
   '#84CC16'  // Verde Limão
 ];
 
-// Utilitário de compressão segura via HTML5 Canvas (evita OOM no Android)
-const comprimirArquivoImagem = (file: File, maxDim = 1024, quality = 0.82): Promise<string> => {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onerror = () => resolve('');
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      if (!dataUrl) {
-        resolve('');
-        return;
-      }
-      const img = new Image();
-      img.onerror = () => resolve(dataUrl);
-      img.onload = () => {
-        let { width, height } = img;
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve(dataUrl);
-          return;
-        }
-        ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', quality));
-      };
-      img.src = dataUrl;
-    };
-    reader.readAsDataURL(file);
-  });
+// Utilitário de compressão segura via HTML5 Canvas (evita OOM no Android/iOS)
+const comprimirArquivoImagem = async (file: File | Blob, maxDim = 1024, quality = 0.75): Promise<string> => {
+  try {
+    const res = await comprimirFotoProduto(file, { maxDimension: maxDim, quality });
+    return res.base64;
+  } catch (err) {
+    console.warn('Erro ao comprimir imagem:', err);
+    return '';
+  }
 };
 
 export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
@@ -1316,7 +1287,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       setModalScannerAberto(true);
 
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: {
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
+          facingMode: 'environment'
+        },
         audio: false
       });
 
@@ -1599,9 +1574,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       const targetFacing = facingModeParam || cameraFotoFacingMode;
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: { ideal: targetFacing },
-          width: { ideal: 1280 },
-          height: { ideal: 1280 }
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
+          facingMode: { ideal: targetFacing }
         },
         audio: false
       });
@@ -1670,7 +1645,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       if (!ctx) return;
 
       ctx.drawImage(video, 0, 0, width, height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+
+      // Limpeza imediata do buffer gráfico do canvas
+      ctx.clearRect(0, 0, width, height);
+      canvas.width = 0;
+      canvas.height = 0;
 
       audioService.playBeep();
       encerrarCameraFoto();
@@ -1704,18 +1684,18 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const handleProcessarArquivoFoto = async (file?: File) => {
     if (!file) return;
     try {
-      const dataUrl = await comprimirArquivoImagem(file, 1024, 0.82);
+      const { base64: dataUrl } = await comprimirFotoProduto(file, { maxDimension: 1024, quality: 0.75 });
       if (dataUrl) {
         setFormData(prev => ({
           ...prev,
           fotos: [dataUrl, ...prev.fotos.filter(f => f !== dataUrl)].slice(0, 6)
         }));
         setModalOpcoesFotoAberto(false);
-        setMensagemFeedback({ texto: 'Foto adicionada e otimizada!', tipo: 'sucesso' });
+        setMensagemFeedback({ texto: 'Foto adicionada e otimizada com sucesso!', tipo: 'sucesso' });
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Erro ao processar arquivo de foto:', e);
-      setMensagemFeedback({ texto: 'Erro ao carregar a foto.', tipo: 'erro' });
+      setMensagemFeedback({ texto: e?.message || 'Não foi possível carregar e comprimir a foto.', tipo: 'erro' });
     }
   };
 
@@ -4255,31 +4235,43 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                           const file = e.target.files?.[0];
                           if (file) {
                             setModalCriarComIAAberto(false);
-                            const compressed = await comprimirArquivoImagem(file, 640, 0.85);
-                            if (compressed) {
-                              processarPreenchimentoIA('foto', compressed);
+                            try {
+                              const { base64 } = await comprimirFotoProduto(file, { maxDimension: 1024, quality: 0.75 });
+                              if (base64) {
+                                processarPreenchimentoIA('foto', base64);
+                              }
+                            } catch (err: any) {
+                              console.error('Erro ao comprimir foto para IA:', err);
+                              setMensagemFeedback({ texto: err?.message || 'Não foi possível processar a foto para a IA.', tipo: 'erro' });
                             }
                           }
+                          e.target.value = '';
                         }}
                         className="hidden"
                       />
                     </label>
 
                     <label className="p-4 rounded-2xl border-2 border-dashed border-slate-300 dark:border-[#1E293B] bg-slate-50 dark:bg-[#000000] flex flex-col items-center justify-center text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#0D111A] transition cursor-pointer text-center active:scale-95">
-                      <Upload className="w-8 h-8 mb-1.5 text-slate-500 dark:text-slate-400" />
-                      <span className="text-xs font-extrabold">Enviar Imagem</span>
-                      <input
+                       <Upload className="w-8 h-8 mb-1.5 text-slate-500 dark:text-slate-400" />
+                       <span className="text-xs font-extrabold">Enviar Imagem</span>
+                       <input
                         type="file"
                         accept="image/*"
                         onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (file) {
                             setModalCriarComIAAberto(false);
-                            const compressed = await comprimirArquivoImagem(file, 640, 0.85);
-                            if (compressed) {
-                              processarPreenchimentoIA('foto', compressed);
+                            try {
+                              const { base64 } = await comprimirFotoProduto(file, { maxDimension: 1024, quality: 0.75 });
+                              if (base64) {
+                                processarPreenchimentoIA('foto', base64);
+                              }
+                            } catch (err: any) {
+                              console.error('Erro ao comprimir imagem para IA:', err);
+                              setMensagemFeedback({ texto: err?.message || 'Não foi possível processar a imagem selecionada.', tipo: 'erro' });
                             }
                           }
+                          e.target.value = '';
                         }}
                         className="hidden"
                       />

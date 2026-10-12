@@ -1,7 +1,7 @@
 # 📘 DOCUMENTAÇÃO TÉCNICA E ARQUITETURAL DO SISTEMA HUBI
 
-> **Versão do Documento:** 1.4.0  
-> **Data de Atualização:** 30/09/2026  
+> **Versão do Documento:** 1.5.0  
+> **Data de Atualização:** 12/10/2026  
 > **Classificação:** Documento Técnico de Arquitetura, Engenharia e Operações  
 > **Público-alvo:** Desenvolvedores, Engenheiros de Software, Arquitetos e Agentes de IA
 
@@ -29,6 +29,10 @@
    - [4.4 Sistema de Autenticação e Isolamento Multi-tenant](#44-sistema-de-autenticação-e-isolamento-multi-tenant)
    - [4.5 Fluxo de Despacho Manual e Rastreamento dos Correios (PAC e SEDEX)](#45-fluxo-de-despacho-manual-e-rastreamento-dos-correios-pac-e-sedex)
    - [4.6 Arquitetura de Despacho Manual e Rastreamento Multimodal](#46-arquitetura-de-despacho-manual-e-rastreamento-multimodal)
+   - [4.7 Módulo Cockpit Executivo F1 & Gestão de Metas da Loja](#47-módulo-cockpit-executivo-f1--gestão-de-metas-da-loja)
+   - [4.8 Módulo Área do Cliente e Onboarding no Catálogo Online](#48-módulo-área-do-cliente-e-onboarding-no-catálogo-online)
+   - [4.9 Fluxo Idempotente de Controle e Movimentação de Estoque (Fase 3)](#49-fluxo-idempotente-de-controle-e-movimentação-de-estoque-fase-3)
+   - [4.10 Central Unificada de Importação e Exportação (Planilhas XLSX e Feeds)](#410-central-unificada-de-importação-e-exportação-planilhas-xlsx-e-feeds)
 5. [Serviços e Utilitários Globais](#5-serviços-e-utilitários-globais)
    - [5.1 Supabase Client e Camada de Acesso a Dados](#51-supabase-client-e-camada-de-acesso-a-dados)
    - [5.2 Orquestrador e Serviços de Logística (Uber Direct, Melhor Envio e Despachos Manuais)](#52-orquestrador-e-serviços-de-logística-uber-direct-melhor-envio-e-despachos-manuais)
@@ -39,6 +43,9 @@
    - [5.7 Ciclo de Vida PWA, Persistência Resiliente e Padrão Visual Mobile](#57-ciclo-de-vida-pwa-persistência-resiliente-e-padrão-visual-mobile)
    - [5.8 Motor de Validação e Rastreamento Oficial dos Correios (`correiosValidator.ts` & `ModalRastreioPedido.tsx`)](#58-motor-de-validação-e-rastreamento-oficial-dos-correios-correiosvalidatorts--modalrastreiopedidotsx)
    - [5.9 Motor de Inteligência Calibrada System One (TypeSafe AI / Jev)](#59-motor-de-inteligência-calibrada-system-one-typesafe-ai--jev)
+   - [5.10 Suíte Especializada de Micro-serviços Jev / TypeSafe AI](#510-suíte-especializada-de-micro-serviços-jev--typesafe-ai)
+   - [5.11 Gerenciamento de Pilha de Overlays e Histórico Mobile (`overlayStackService.ts` & `useRegisterOverlay.ts`)](#511-gerenciamento-de-pilha-de-overlays-e-histórico-mobile-overlaystackservicets--useregisteroverlayts)
+   - [5.12 Roteamento Híbrido da Rubi IA e Base de Conhecimento Local (`rubiRouterService.ts`)](#512-roteamento-híbrido-da-rubi-ia-e-base-de-conhecimento-local-rubirouterservicets)
 
 ---
 
@@ -175,12 +182,18 @@ erDiagram
     lojas ||--o{ caixas : abre_fecha
     lojas ||--o{ sessoes_caixa : audita
     lojas ||--o{ loja_shipping_configs : configura
+    lojas ||--o| loja_metas : define_metas
+    lojas ||--o{ movimentacoes_estoque : audita_estoque
     
     produtos ||--o{ variacoes_produto : grade
     produtos ||--o{ itens_combo : compoe
+    produtos ||--o{ movimentacoes_estoque : registra_movimentacao
     
     clientes ||--o{ cliente_enderecos : reside
     clientes ||--o{ movimentacoes_saldo_cliente : fiado_historico
+    clientes ||--o{ cliente_carrinho_itens : persiste_sacola
+    clientes ||--o{ cliente_favoritos : favorita
+    clientes ||--o{ cliente_notificacoes : recebe_avisos
     
     pedidos ||--o{ itens_pedido : contem
     pedidos ||--o{ pagamentos_pedido : liquida
@@ -217,6 +230,13 @@ erDiagram
 | `endereco_estado` | VARCHAR(2) | NULL | UF (ex: PE, SP) |
 | `endereco_cep` | VARCHAR(10) | NULL | CEP da loja física |
 | `serpapi_key` | TEXT | NULL | Chave SerpApi BYOK do lojista para busca de fotos |
+| `status_em_separacao` | BOOLEAN | DEFAULT FALSE | Habilita status intermediário 'em_separacao' no kanban |
+| `status_em_expedicao` | BOOLEAN | DEFAULT FALSE | Habilita status intermediário 'em_expedicao' no kanban |
+| `status_aguardando_envio` | BOOLEAN | DEFAULT FALSE | Habilita status intermediário 'aguardando_envio' no kanban |
+| `status_enviado` | BOOLEAN | DEFAULT FALSE | Habilita status intermediário 'enviado' no kanban |
+| `status_entregue` | BOOLEAN | DEFAULT FALSE | Habilita status final 'entregue' no fluxo operacional |
+| `status_pronto_para_retirar` | BOOLEAN | DEFAULT FALSE | Habilita status 'pronto_para_retirar' para retiradas na loja |
+| `tipos_venda` | JSONB | DEFAULT '{"varejo":true,"atacado":true,"distribuidor":true}' | Flags de tipos de venda habilitados no PDV |
 | `configuracoes_extras` | JSONB | DEFAULT '{}' | Preferências de layout, recibo e interface |
 | `criado_em` / `atualizado_em` | TIMESTAMPTZ | DEFAULT NOW() | Carimbos de auditoria temporal |
 
@@ -229,6 +249,7 @@ erDiagram
 | `nome_completo` | VARCHAR(150) | NOT NULL | Nome do operador/vendedor |
 | `email` | VARCHAR(150) | NOT NULL | E-mail de login |
 | `perfil` | VARCHAR(20) | CHECK in ('admin', 'gerente', 'vendedor') | Nível hierárquico de acesso |
+| `tela_inicial` | VARCHAR(50) | DEFAULT 'dashboard' | Rota/tela de pouso padrão após login do operador |
 | `pode_ver_preco_custo` | BOOLEAN | DEFAULT FALSE | Permissão para visualizar custo e margens de lucro |
 | `pode_exportar_relatorios` | BOOLEAN | DEFAULT FALSE | Permissão para exportar dados para planilhas |
 | `pode_editar_vendas_passadas` | BOOLEAN | DEFAULT FALSE | Permissão de edição em vendas já concluídas |
@@ -298,6 +319,7 @@ erDiagram
 | `tabela_preco_aplicada` | VARCHAR(20) | DEFAULT 'varejo' | Tabela de precificação adotada na venda |
 | `status` | VARCHAR(50) | CHECK in ('pendente', 'confirmado', 'em_separacao', 'em_producao', 'em_expedicao', 'saiu_para_entrega', 'pronto_para_retirar', 'entregue', 'concluido', 'cancelado', 'vencido') | Estado do fluxo operacional |
 | `status_pagamento` | VARCHAR(30) | DEFAULT 'aguardando_pagamento' | Estado da quitação financeira |
+| `estoque_baixado` | BOOLEAN | DEFAULT FALSE | Flag de controle idempotente indicando se os itens já tiveram saída física realizada |
 | `subtotal_produtos` | NUMERIC(10,2) | NOT NULL DEFAULT 0.00 | Soma dos produtos puros (sem taxas ou frete) |
 | `subtotal` | NUMERIC(12,2) | NOT NULL DEFAULT 0.00 | Subtotal de compatibilidade |
 | `valor_desconto` | NUMERIC(10,2) | DEFAULT 0.00 | Desconto total concedido |
@@ -338,6 +360,7 @@ erDiagram
 | `destino_uf` | VARCHAR(2) | NULL | Estado (UF) |
 | `destino_latitude` / `destino_longitude` | NUMERIC | NULL | Coordenadas para geolocalização e rotas |
 | `provedor` | VARCHAR(30) | NULL | Provedor logístico responsável ('uber', 'melhor_envio', 'correios', 'frete_proprio', 'retirada_loja') |
+| `cotacao_id` | TEXT | NULL | Identificador do token de cotação da transportadora (ex: dqt_ da Uber Direct) |
 | `transportadora_nome` | VARCHAR(100) | NULL | Ex: 'Uber Direct', 'Correios', 'Jadlog' |
 | `servico_codigo` | VARCHAR(100) | NULL | Código da rota/serviço no provedor |
 | `servico_correios` | VARCHAR(20) | NULL | Subserviço dos Correios ('PAC' ou 'SEDEX') |
@@ -377,6 +400,7 @@ erDiagram
 | `tipo_evento` | VARCHAR(50) | NOT NULL | 'status_alterado', 'pedido_editado', 'criacao', 'pagamento_recebido', 'cancelado' |
 | `status_anterior` | VARCHAR(50) | NULL | Status em que o pedido estava |
 | `status_novo` | VARCHAR(50) | NULL | Novo status atribuído |
+| `motivo` | TEXT | NULL | Justificativa ou motivo registrado pelo operador/sistema |
 | `descricao` | TEXT | NULL | Descrição detalhada da ação em linguagem natural |
 | `criado_em` | TIMESTAMPTZ | DEFAULT NOW() | Carimbo de data/hora do evento |
 
@@ -520,6 +544,67 @@ erDiagram
 | `ativo` | BOOLEAN | DEFAULT TRUE | Ativação da transportadora na loja |
 | `criado_em` / `atualizado_em` | TIMESTAMPTZ | DEFAULT NOW() | Carimbos de auditoria |
 
+#### 15. Tabela `loja_metas` (Cockpit Executivo F1 e Metas Operacionais)
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | ID do registro de metas |
+| `loja_id` | UUID | UNIQUE, NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Vínculo 1:1 com a loja |
+| `meta_faturamento` | NUMERIC(12,2) | NOT NULL DEFAULT 50000.00 | Meta de faturamento bruto do período |
+| `meta_pedidos` | INTEGER | NOT NULL DEFAULT 300 | Meta de volume de pedidos finalizados |
+| `meta_lucro_liquido` | NUMERIC(12,2) | NOT NULL DEFAULT 15000.00 | Meta de lucro líquido real (deduzindo CMV e despesas) |
+| `meta_ticket_medio` | NUMERIC(10,2) | NOT NULL DEFAULT 166.00 | Meta de valor médio gasto por venda |
+| `meta_inadimplencia_maxima`| NUMERIC(5,2) | NOT NULL DEFAULT 5.00 | Teto percentual tolerado de fiado atrasado |
+| `meta_giro_estoque` | NUMERIC(5,2) | NOT NULL DEFAULT 25.00 | Percentual alvo de giro e renovação de estoque |
+| `criado_em` / `atualizado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Carimbos de controle temporal |
+
+#### 16. Tabela `movimentacoes_estoque` (Auditoria e Log Físico de Estoque)
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | ID da movimentação física |
+| `loja_id` | UUID | NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Vínculo tenant obrigatório |
+| `produto_id` | UUID | NOT NULL, FK -> produtos(id) ON DELETE CASCADE | Produto movimentado |
+| `variacao_id` | UUID | NULL, FK -> variacoes_produto(id) ON DELETE SET NULL | Variação específica (se aplicável) |
+| `pedido_id` | UUID | NULL, FK -> pedidos(id) ON DELETE SET NULL | Pedido originador (em saídas ou estornos) |
+| `usuario_id` | UUID | NULL, FK -> usuarios_loja(id) ON DELETE SET NULL | Operador responsável pelo lançamento |
+| `tipo_movimentacao` | VARCHAR(50) | NOT NULL | 'saida_venda', 'entrada_estorno_cancelamento', 'entrada_compra', 'baixa_perda', 'ajuste_inventario' |
+| `quantidade` | NUMERIC(12,3) | NOT NULL | Quantidade movimentada |
+| `saldo_anterior` | NUMERIC(12,3) | NULL | Saldo físico antes da operação |
+| `saldo_posterior` | NUMERIC(12,3) | NULL | Saldo físico após a operação |
+| `motivo` | TEXT | NULL | Justificativa ou documento de referência |
+| `criado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Carimbo temporal do registro |
+
+#### 17. Tabela `cliente_carrinho_itens` (Persistência Relacional do Carrinho PWA)
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | ID da linha da sacola |
+| `cliente_id` | UUID | NOT NULL, FK -> clientes(id) ON DELETE CASCADE | Cliente proprietário do carrinho |
+| `loja_id` | UUID | NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Vínculo tenant |
+| `produto_id` | UUID | NOT NULL, FK -> produtos(id) ON DELETE CASCADE | Produto adicionado |
+| `variacao_id` | UUID | NULL, FK -> variacoes_produto(id) ON DELETE CASCADE | Variação selecionada |
+| `quantidade` | NUMERIC(12,3) | NOT NULL DEFAULT 1 | Quantidade de itens no carrinho |
+| `criado_em` / `atualizado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Carimbos de auditoria temporal |
+
+#### 18. Tabela `cliente_favoritos` (Produtos Salvos pelo Cliente)
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | ID do item favoritado |
+| `cliente_id` | UUID | NOT NULL, FK -> clientes(id) ON DELETE CASCADE | Cliente que favoritou |
+| `produto_id` | UUID | NOT NULL, FK -> produtos(id) ON DELETE CASCADE | Produto salvo na lista |
+| `loja_id` | UUID | NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Vínculo tenant |
+| `criado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Data/hora do favoritamento |
+
+#### 19. Tabela `cliente_notificacoes` (Central de Mensagens do Cliente)
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | ID da notificação |
+| `cliente_id` | UUID | NOT NULL, FK -> clientes(id) ON DELETE CASCADE | Destinatário da notificação |
+| `loja_id` | UUID | NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Vínculo tenant |
+| `titulo` | VARCHAR(200) | NOT NULL | Título da mensagem |
+| `mensagem` | TEXT | NOT NULL | Corpo descritivo do comunicado |
+| `lida` | BOOLEAN | NOT NULL DEFAULT FALSE | Status de visualização pelo cliente |
+| `link_acao` | VARCHAR(500) | NULL | URL ou rota interna para ação rápida |
+| `criado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Carimbo temporal da emissão |
+
 ### 3.3 Triggers, Automações e Segurança no Banco (RLS)
 1. **Baixa e Reajuste Automático de Estoque (`fn_atualizar_estoque_pedido`):**
    - Disparado em `AFTER INSERT` na tabela `itens_pedido`.
@@ -528,7 +613,13 @@ erDiagram
    - Se o produto for um kit/combo (`eh_combo = true`), consulta `itens_combo` e deduz o estoque dos produtos filhos proporcionalmente.
 2. **Estorno de Estoque em Cancelamento (`trg_cancelar_pedido_estornar_estoque`):**
    - Disparado em `AFTER UPDATE` na tabela `pedidos` quando `status` muda para `cancelado`. Estorna instantaneamente as quantidades dos itens de volta aos seus respectivos produtos ou variações.
-3. **Funções Security Definer:**
+3. **Auditoria Automática de Transição de Status (`fn_auditar_transicao_status_pedidos`):**
+   - Disparado em `AFTER UPDATE` na tabela `pedidos` quando `OLD.status IS DISTINCT FROM NEW.status`.
+   - Previne duplicidade com janela de idempotência defensiva (3 segundos).
+   - Registra automaticamente o evento na tabela `historico_pedidos` contendo `status_anterior`, `status_novo`, `motivo`, transportadora/app envolvido e descrição humana detalhada.
+4. **Cálculo RPC de Métricas do Cockpit Executivo F1 (`obter_metricas_cockpit_f1`):**
+   - Stored procedure otimizada para consolidar faturamento bruto, CMV real, taxas de cartões, volume de pedidos, ticket médio e contas a pagar em uma única chamada de alta performance.
+5. **Funções Security Definer:**
    - `public.usuario_pertence_loja(p_loja_id UUID)`: Valida em tempo real se `auth.uid()` possui vínculo ativo com a loja solicitada.
    - `public.eh_gerente_ou_admin(p_loja_id UUID)`: Valida se o usuário tem privilégio gerencial para visualizar relatórios ou alterar parâmetros globais.
 
@@ -655,6 +746,67 @@ Para atender a cenários onde a operação logística é executada manualmente p
    - **Seção 7 (Aplicativos de Corrida):** CRUD completo da tabela `apps_entrega` (listagem, inclusão, edição, exclusão e toggle de status ativo/inativo).
    - **Seção 8 (Transportadoras Privadas & Cargas):** CRUD completo da tabela `transportadoras` (listagem, inclusão com suporte ao placeholder `{{codigo}}` na URL de rastreio, edição, exclusão e toggle de ativação).
    - **Eliminação de Redundâncias:** A antiga opção duplicada *"Trabalho com entregas"* na tela `ConfiguracoesLoja.tsx` foi removida em favor da centralização unificada em `ShippingSettingsScreen.tsx`.
+
+### 4.7 Módulo Cockpit Executivo F1 & Gestão de Metas da Loja
+O Cockpit Executivo F1 é o centro de comando analítico da loja, projetado para oferecer telemetria em tempo real com visual inspirado em painéis esportivos de alta precisão (*Cockpit F1*):
+1. **Velocímetros Analógicos de Alta Precisão (`CockpitGaugeF1.tsx`):**
+   - Renderização vetorial dinâmica em SVG com agulha indicadora, arcos coloridos por faixa de tolerância (Vermelho para crítico, Amarelo para atenção e Esmeralda para meta atingida) e valor absoluto central.
+   - 6 Métricas Vitais Monitoradas:
+     1. **Faturamento Bruto:** Receita total acumulada no período selecionado vs. meta financeira.
+     2. **Volume de Pedidos:** Quantidade total de vendas finalizadas vs. meta de operações.
+     3. **Lucro Líquido Real:** Lucro apurado após dedução exata de CMV (Custo das Mercadorias Vendidas), taxas contratuais de cartões/gateways e despesas operacionais lançadas.
+     4. **Ticket Médio:** Valor médio por venda vs. alvo comercial da loja.
+     5. **Inadimplência Máxima:** Percentual de débitos fiado em atraso vs. teto tolerado de risco.
+     6. **Giro de Estoque:** Velocidade de renovação do catálogo físico vs. índice ótimo.
+2. **Drawer Analítico Profundo (`CockpitMetricDrawer.tsx`):**
+   - Ao clicar em qualquer velocímetro, abre-se uma gaveta lateral com decomposição multidimensional:
+     - *Por Canal:* Divisão de receita entre PDV Desktop, PDV Mobile e Catálogo Online.
+     - *Por Meio de Pagamento:* Participação relativa de Dinheiro, PIX, Cartão de Crédito/Débito e Fiado.
+     - *Por Faixa Horária:* Identificação dos horários de pico (madrugada, manhã, tarde, noite) para otimização de escalas de atendentes.
+     - *DRE de Lucro Real:* Detalhamento em cascata (Faturamento - CMV - Taxas - Despesas = Lucro Real).
+     - *Diagnóstico Jev / System One:* Análise textual sem alucinação gerada pelo serviço `dashboardJevService.ts` com alertas de gargalos e recomendações de ação.
+3. **Parametrização de Metas (`ConfiguracoesMetas.tsx` & `loja_metas`):**
+   - Interface gerencial para os gestores configurarem suas metas mensais/semanais. Caso a loja não tenha metas cadastradas, o sistema adota as constantes `METAS_PADRAO_LOJA` do `dashboardService.ts`.
+
+### 4.8 Módulo Área do Cliente e Onboarding no Catálogo Online
+O Catálogo Virtual PWA conta com uma camada completa de fidelização e autoatendimento para o cliente final:
+1. **Onboarding e Autenticação Criptográfica (`ModalOnboardingCliente.tsx` & `clienteCatalogoService.ts`):**
+   - O cliente se identifica informando seu WhatsApp (telefone) e uma senha pessoal.
+   - A senha é criptografada no próprio navegador utilizando a **Web Crypto API** nativa (`crypto.subtle.digest('SHA-256')`) com salt determinístico escopado por `loja_id`, garantindo que senhas em texto puro jamais transitem ou sejam gravadas desprotegidas no banco.
+2. **Persistência Relacional da Sacola (`cliente_carrinho_itens`):**
+   - Ao efetuar login, os itens selecionados na vitrine deixam de depender apenas do navegador local e são sincronizados na tabela `cliente_carrinho_itens` com índice único `(cliente_id, produto_id, variacao_id)`.
+   - Se o cliente iniciar a compra no celular e depois abrir o catálogo no computador, seus produtos e quantidades são recuperados instantaneamente.
+3. **Painel do Cliente e Histórico de Pedidos (`ModalPedidosCliente.tsx`):**
+   - Exibe a lista completa de compras passadas com status em tempo real, transportadora utilizada e valor total.
+   - Fornece botão de **"Comprar Novamente"** (adiciona todos os itens ao carrinho em 1 clique).
+4. **Produtos Favoritos e Notificações (`cliente_favoritos` & `cliente_notificacoes`):**
+   - O cliente pode salvar produtos com o ícone de coração (`ModalFavoritosCliente.tsx`), armazenando as escolhas na tabela relacional `cliente_favoritos`.
+   - Central de notificações (`ModalNotificacoesCliente.tsx`) para receber avisos sobre status de entrega, promoções relâmpago e mensagens do lojista.
+
+### 4.9 Fluxo Idempotente de Controle e Movimentação de Estoque (Fase 3)
+A arquitetura de estoque do HUBI adota controle estritamente idempotente para prevenir saídas duplicadas ou furos de estoque em ambientes de alta concorrência:
+1. **Flag de Baixa Idempotente (`pedidos.estoque_baixado`):**
+   - A coluna booleana `estoque_baixado` atua como trava definitiva de estado.
+   - O serviço centralizador `EstoquePedidoService.ts` inspeciona o estado atômico no banco:
+     - Apenas quando o pedido transita para status que consomem estoque (`confirmado`, `em_separacao`, `enviado`, `concluido`) e `estoque_baixado === false`, é efetuada a saída física e a flag é alternada para `true`.
+     - Caso uma chamada concorrente ou re-tentativa ocorra, a operação é imediatamente ignorada sem duplo decremento.
+2. **Estorno Seguro em Cancelamentos:**
+   - Ao cancelar um pedido, o estorno só é aplicado se `estoque_baixado === true`. Pedidos cancelados antes de terem estoque consumido não provocam acréscimo indevido de saldo.
+3. **Ajuste Delta em Edições de Pedidos:**
+   - Em alterações de quantidades de pedidos em andamento, o serviço calcula a diferença líquida ($\Delta = \text{qtd\_nova} - \text{qtd\_antiga}$), debitando ou creditando estritamente a variação.
+4. **Auditoria Contínua (`movimentacoes_estoque`):**
+   - Cada evento físico de saída, estorno, entrada de compra ou inventário gera uma linha imutável com `saldo_anterior`, `saldo_posterior`, `quantidade`, `tipo_movimentacao`, `motivo`, `pedido_id` e operador responsável.
+
+### 4.10 Central Unificada de Importação e Exportação (Planilhas XLSX e Feeds)
+Para facilitar migrações de sistemas legados e integrações com canais externos de marketing:
+1. **Hub Centralizado (`CentralImportarExportar.tsx`):**
+   - Interface unificada com abas especializadas para Catálogo de Produtos, Clientes, Histórico de Pedidos e Financeiro.
+2. **Processamento em Lote com SheetJS (`xlsx`):**
+   - **Produtos (`ImportarExportarProdutos.tsx` & `productImportExportService.ts`):** Suporte a produtos simples e variações com grade de 2 eixos, preços de atacado, código EAN e links de fotos.
+   - **Clientes (`ImportarClientes.tsx` & `clientImportExportService.ts`):** Higienização automática de CPFs/telefones com DDD e importação com saldos de crediário fiado.
+   - **Pedidos e Finanças (`financeExportService.ts` & `orderImportExportService.ts`):** Exportação de relatórios contábeis para conferência tributária.
+3. **Geração de Feeds para Marketplaces (`feedExportService.ts`):**
+   - Geração dinâmica de catálogo estruturado em formato compatível com **Google Shopping** (XML/RSS) e **Meta Catalog** (Facebook/Instagram Shops CSV), permitindo campanhas de anúncios sincronizadas com os preços e estoques da loja.
 
 ---
 
@@ -792,6 +944,45 @@ O HUBI integra a tecnologia **TypeSafe AI (modelo Jev)** para tomada de decisõe
      - Triagem de intenção e urgência em mensagens recebidas via WhatsApp.
      - Classificação automática de dúvidas comerciais vs. operacionais no atendimento do Catálogo Online.
      - Detecção inteligente de comandos de sacola e pedidos de atacado por volume.
+
+### 5.10 Suíte Especializada de Micro-serviços Jev / TypeSafe AI
+Para evitar LLMs generalistas lentos e custosos nas operações transacionais diárias, o HUBI dispõe de uma suíte de micro-serviços construídos com julgamentos calibrados do modelo **Jev (System One)**:
+1. **`addressParserJevService.ts` (Parser de Endereços):**
+   - Transforma mensagens de texto livre enviadas por clientes em WhatsApp em objetos estruturados de endereço (`logradouro`, `numero`, `bairro`, `cidade`, `uf`, `cep`), contornando abreviações ou falta de pontuação.
+2. **`cashAuditJevService.ts` (Auditoria Inteligente de Caixa):**
+   - Analisa discrepâncias entre saldo esperado e saldo declarado em fechamentos de turno, identificando se a quebra/sobra decorre de erro operacional isolado, taxa de cartão não lançada ou padrão recorrente que demande atenção do gerente.
+3. **`creditRiskJevService.ts` (Risco de Crédito no Fiado):**
+   - Avalia o perfil de pontualidade, histórico de quitações e limite comprometido do cliente para sugerir aprovação, redução ou bloqueio preventivo de novas vendas a prazo.
+4. **`orderGuardJevService.ts` (Guardião de Integridade de Pedidos):**
+   - Analisa pedidos antes do despacho para alertar contra inconsistências de cubagem, divergências entre modalidade de frete e CEP de destino ou tentativas de fraude de valores.
+5. **`dashboardJevService.ts` (Diagnósticos do Cockpit F1):**
+   - Gera diagnósticos operacionais sintéticos baseados nos dados das metas da loja (ex: alertando sobre queda de ticket médio ou aumento de CMV) sem alucinações.
+6. **`rubiCatalogoJevService.ts` & `catalogJevService.ts` (Atendimento Virtual na Vitrine):**
+   - Atua na vitrine auxiliando o consumidor a escolher variações compatíveis, sugerindo produtos complementares e tirando dúvidas comerciais instantaneamente.
+
+### 5.11 Gerenciamento de Pilha de Overlays e Histórico Mobile (`overlayStackService.ts` & `useRegisterOverlay.ts`)
+Para garantir uma experiência de navegação nativa e fluida em dispositivos móveis e navegadores:
+1. **Pilha LIFO de Modais (`overlayStackService.ts`):**
+   - Mantém uma lista ordenada em memória de todas as caixas de diálogo, gavetas (*drawers*) e modais abertos no aplicativo.
+2. **Sincronização com o Botão Voltar do Dispositivo (`popstate`):**
+   - A cada abertura de overlay, registra um estado leve no histórico do navegador (`window.history.pushState({ hubiOverlayId })`).
+   - Quando o operador pressiona o botão físico ou gesto de "Voltar" do celular, o serviço intercepta o evento `popstate`, desempilha exclusivamente o modal superior (`onClose()`) e cancela a navegação, impedindo que a aplicação saia da tela do PDV ou descarregue o carrinho.
+3. **Interceptação da Tecla ESC:**
+   - No computador desktop, a tecla ESC fecha progressivamente os modais de trás para frente, garantindo descarte ordenado.
+4. **Hook Reativo `useRegisterOverlay`:**
+   - Permite que qualquer componente registre e desregistre seus modais na pilha com uma única linha de código e descarte automático ao desmontar o componente.
+
+### 5.12 Roteamento Híbrido da Rubi IA e Base de Conhecimento Local (`rubiRouterService.ts`)
+O assistente da loja opera sob uma arquitetura de 3 estágios que prioriza velocidade de resposta e economia de recursos:
+1. **Orçamento Rígido de Latência (< 800ms):**
+   - O usuário não aguarda carregamentos sequenciais pesados de todo o banco de dados.
+2. **Estágio 1 — Classificação Instantânea com Jev (~250ms):**
+   - A pergunta do operador é classificada pelo modelo Jev em categorias estritas: `CONSULTA_CAIXA`, `GIRO_ESTOQUE`, `VENDAS_PERIODO`, `CREDITO_FIADO`, `TUTORIAL_SISTEMA` ou `CONVERSA_GERAL`.
+3. **Estágio 2 — Execução Direcionada sob Demanda:**
+   - **Tutoriais e Dúvidas de Sistema:** Atendidos instantaneamente via base de conhecimento local compilada em `tutoriaisHubiService.ts`, sem custo de chamada externa.
+   - **Consultas Operacionais:** Apenas a tabela necessária é consultada com filtros estritos (ex: se o usuário perguntou sobre o caixa, busca apenas a sessão de caixa ativa).
+4. **Estágio 3 — Motor Gerativo (`geminiService.ts`):**
+   - Acionado apenas quando a pergunta envolver conselhos criativos abertos, estratégias de marketing ou análise textual aprofundada, recebendo o contexto já sintetizado e seguro.
 
 ---
 

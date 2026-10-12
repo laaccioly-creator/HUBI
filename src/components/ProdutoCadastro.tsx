@@ -65,6 +65,7 @@ import {
 } from '../services/geminiService';
 import { obterSerpApiKey, obterOuBuscarSerpApiKey } from '../services/serpApiService';
 import { catalogJevService } from '../services/catalogJevService';
+import { comprimirFotoProduto } from '../utils/imageCompressor';
 
 export interface PrecoConcorrente {
   loja: string;
@@ -103,56 +104,12 @@ export interface ProdutoSugeridoIA {
   foto_url?: string;
 }
 
-const comprimirArquivoImagem = async (file: File): Promise<{ blob: Blob; dataUrl: string }> => {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      const img = new Image();
-      img.onload = () => {
-        const maxDim = 1200;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          fetch(dataUrl).then(res => res.blob()).then(blob => resolve({ blob, dataUrl }));
-          return;
-        }
-
-        ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              resolve({ blob, dataUrl: canvas.toDataURL('image/jpeg', 0.82) });
-            } else {
-              fetch(dataUrl).then(res => res.blob()).then(b => resolve({ blob: b, dataUrl }));
-            }
-          },
-          'image/jpeg',
-          0.82
-        );
-      };
-      img.onerror = () => {
-        fetch(dataUrl).then(res => res.blob()).then(blob => resolve({ blob, dataUrl }));
-      };
-      img.src = dataUrl;
-    };
-    reader.readAsDataURL(file);
+const comprimirArquivoImagem = async (file: File | Blob): Promise<{ blob: Blob; dataUrl: string }> => {
+  const { file: blob, base64: dataUrl } = await comprimirFotoProduto(file, {
+    maxDimension: 1024,
+    quality: 0.75
   });
+  return { blob, dataUrl };
 };
 
 // Cache em memória do Base64 das fotos para análise instantânea pela IA sem precisar baixar da nuvem
@@ -1048,8 +1005,9 @@ export const ProdutoCadastro: React.FC = () => {
           setFotoPrincipal(novasUrls[0]);
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao processar imagens:', err);
+      mostrarErro(err?.message || 'Falha ao processar e comprimir a imagem da câmera.');
     } finally {
       setFazendoUploadFoto(false);
       setUploadStatusMsg('');
@@ -1508,6 +1466,7 @@ export const ProdutoCadastro: React.FC = () => {
             className="hidden"
             onChange={(e) => {
               if (e.target.files) handleProcessarArquivosImagens(e.target.files);
+              e.target.value = '';
             }}
           />
           <input
@@ -1518,6 +1477,7 @@ export const ProdutoCadastro: React.FC = () => {
             className="hidden"
             onChange={(e) => {
               if (e.target.files) handleProcessarArquivosImagens(e.target.files);
+              e.target.value = '';
             }}
           />
 
