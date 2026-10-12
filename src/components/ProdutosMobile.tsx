@@ -2779,16 +2779,29 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             {/* Botão de Preenchimento Automático com IA */}
             <button
               type="button"
-              onClick={() => setModalCriarComIAAberto(true)}
-              className="px-3 py-1.5 rounded-xl border text-xs sm:text-sm font-extrabold flex items-center gap-1.5 shadow-sm cursor-pointer transition"
+              disabled={processandoIA}
+              onClick={() => {
+                if (!isNovo) {
+                  handleAtualizarProdutoExistenteIA();
+                } else {
+                  setModalCriarComIAAberto(true);
+                }
+              }}
+              className="px-3 py-1.5 rounded-xl border text-xs sm:text-sm font-extrabold flex items-center gap-1.5 shadow-sm cursor-pointer transition disabled:opacity-50 select-none"
               style={{
                 backgroundColor: temaCores.bgCard,
                 borderColor: isDark ? '#1E293B' : '#A7F3D0',
                 color: isDark ? '#34D399' : '#059669'
               }}
-              title="Preencher com Inteligência Artificial"
+              title={!isNovo ? 'Atualizar o Produto com nossa IA' : 'Preencher com nossa IA'}
             >
-              <Sparkles className="w-4 h-4 text-emerald-500" />
+              {processandoIA ? (
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+              ) : !isNovo ? (
+                <RefreshCw className="w-4 h-4 text-emerald-500" />
+              ) : (
+                <Sparkles className="w-4 h-4 text-emerald-500" />
+              )}
               <span>IA</span>
             </button>
 
@@ -2947,49 +2960,97 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 </button>
               </div>
 
-              {/* Lado Direito: Botões IA + Pesquisar Fotos na Internet */}
-              <div className="flex flex-col justify-between w-28 sm:w-34 h-36 sm:h-40 gap-1.5 shrink-0">
-                {/* 1. Botão de IA */}
+              {/* Lado Direito: Ações (Chave Gemini, IA, Galeria e Fotos na Internet) */}
+              <div className="flex flex-col justify-between flex-1 min-w-[124px] sm:min-w-[140px] h-36 sm:h-40 gap-1 shrink-0">
+                {/* 1. Chave Gemini IA */}
                 <button
                   type="button"
-                  onClick={() => setModalCriarComIAAberto(true)}
-                  className="flex-1 w-full rounded-xl border p-2 flex flex-col items-center justify-center gap-1 transition cursor-pointer text-center shadow-xs"
-                  style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
-                  title={produtoEditando ? 'Atualize o seu produto usando a nossa IA' : 'Cadastre usando nossa Inteligência Artificial'}
+                  onClick={async () => {
+                    const k = getGeminiApiKey(loja) || (loja?.id ? await obterOuBuscarGeminiApiKey(loja) : '');
+                    setTempApiKey(k);
+                    setModalKeyGemini(true);
+                  }}
+                  className="flex-1 w-full rounded-xl border px-2 py-1 flex items-center justify-between gap-1 transition active:scale-95 cursor-pointer shadow-xs select-none"
+                  style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard, color: temaCores.textoPrincipal }}
+                  title="Configurar Chave Google Gemini AI"
                 >
-                  <div className="flex items-center gap-1">
-                    <Sparkles className="w-4 h-4 text-emerald-500" />
-                    <span className={`text-[8px] font-black uppercase px-1 py-0.2 rounded border ${
-                      isDark ? 'bg-emerald-950/60 text-emerald-400 border-emerald-600/30' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    }`}>
-                      IA
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center leading-tight">
-                    <span className="text-[10px] sm:text-[11px] font-bold truncate max-w-full" style={{ color: temaCores.textoSecundario }}>
-                      {produtoEditando ? 'Atualizar com' : 'Cadastrar com'}
-                    </span>
-                    <span className="text-[11px] sm:text-[12px] font-black" style={{ color: isDark ? '#34D399' : '#059669' }}>
-                      nossa IA
-                    </span>
+                  <div className="flex items-center gap-1.5 truncate">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <span className="text-[10px] sm:text-[11px] font-bold truncate">Chave Gemini IA</span>
                   </div>
                 </button>
 
-                {/* 2. Botão: Pesquisar Fotos na Internet */}
+                {/* 2. Botão de IA (Atualizar ou Preencher) */}
+                {!isNovo ? (
+                  <button
+                    type="button"
+                    disabled={processandoIA}
+                    onClick={handleAtualizarProdutoExistenteIA}
+                    className="flex-1 w-full rounded-xl border px-2 py-1 flex items-center justify-between gap-1 transition active:scale-95 cursor-pointer shadow-xs select-none disabled:opacity-50"
+                    style={{
+                      backgroundColor: temaCores.bgCard,
+                      borderColor: temaCores.bordaCard,
+                      color: isDark ? '#34D399' : '#059669'
+                    }}
+                    title="Atualizar o produto com nossa Inteligência Artificial"
+                  >
+                    <div className="flex items-center gap-1.5 truncate">
+                      {processandoIA ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500 shrink-0" />
+                      ) : (
+                        <RefreshCw className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      )}
+                      <span className="text-[10px] sm:text-[11px] font-extrabold truncate">Atualizar com nossa IA</span>
+                    </div>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setModalCriarComIAAberto(true)}
+                    className="flex-1 w-full rounded-xl border px-2 py-1 flex items-center justify-between gap-1 transition active:scale-95 cursor-pointer shadow-xs select-none"
+                    style={{
+                      backgroundColor: temaCores.bgCard,
+                      borderColor: temaCores.bordaCard,
+                      color: isDark ? '#34D399' : '#059669'
+                    }}
+                    title="Preencher com nossa Inteligência Artificial"
+                  >
+                    <div className="flex items-center gap-1.5 truncate">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span className="text-[10px] sm:text-[11px] font-extrabold truncate">Preencher com nossa IA</span>
+                    </div>
+                  </button>
+                )}
+
+                {/* 3. Galeria (Até 7 fotos) */}
+                <button
+                  type="button"
+                  onClick={() => setModalGaleriaFotosAberto(true)}
+                  className="flex-1 w-full rounded-xl border px-2 py-1 flex items-center justify-between gap-1 transition active:scale-95 cursor-pointer shadow-xs select-none"
+                  style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard, color: temaCores.textoPrincipal }}
+                  title="Gerenciar galeria de fotos (até 7 fotos)"
+                >
+                  <div className="flex items-center gap-1.5 truncate">
+                    <Upload className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="text-[10px] sm:text-[11px] font-bold truncate">Galeria</span>
+                  </div>
+                  <span className="text-[9px] sm:text-[10px] font-mono font-bold shrink-0" style={{ color: temaCores.textoSecundario }}>
+                    ({formData.fotos.length}/7)
+                  </span>
+                </button>
+
+                {/* 4. Pesquisar Fotos na Internet */}
                 <button
                   type="button"
                   onClick={handleAbrirPesquisaFotos}
-                  className="h-[56px] sm:h-[62px] w-full rounded-xl border p-2 flex flex-col items-center justify-center gap-0.5 transition cursor-pointer text-center shadow-xs"
-                  style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
+                  className="flex-1 w-full rounded-xl border px-2 py-1 flex items-center justify-between gap-1 transition active:scale-95 cursor-pointer shadow-xs select-none"
+                  style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard, color: temaCores.textoPrincipal }}
                   title="Pesquisar fotos na internet de boa qualidade"
                 >
-                  <Globe className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span className="text-[10px] sm:text-[11px] font-bold leading-none text-center" style={{ color: temaCores.textoPrincipal }}>
-                    Fotos na Internet
-                  </span>
-                  <span className="text-[8px] font-semibold leading-none" style={{ color: temaCores.textoSecundario }}>
-                    Buscar Online
-                  </span>
+                  <div className="flex items-center gap-1.5 truncate">
+                    <Globe className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    <span className="text-[10px] sm:text-[11px] font-bold truncate">Fotos na Internet</span>
+                  </div>
                 </button>
               </div>
             </div>
@@ -3625,7 +3686,10 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               <div className="space-y-2.5">
                 <button
                   type="button"
-                  onClick={() => iniciarCameraFoto('environment')}
+                  onClick={() => {
+                    setModalOpcoesFotoAberto(false);
+                    fileInputCameraRef.current?.click();
+                  }}
                   className="w-full p-4 rounded-2xl bg-emerald-50 dark:bg-black text-emerald-800 dark:text-emerald-300 font-extrabold text-xs sm:text-sm flex items-center gap-3 border border-emerald-200 dark:border-emerald-500/30 hover:bg-emerald-100 dark:hover:bg-slate-900 transition shadow-sm cursor-pointer active:scale-98"
                 >
                   <Camera className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
@@ -4180,18 +4244,26 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   </p>
 
                   <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOrigemCameraParaIA(true);
-                        setModalCriarComIAAberto(false);
-                        iniciarCameraFoto('environment');
-                      }}
-                      className="p-4 rounded-2xl border-2 border-dashed border-emerald-500/80 dark:border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/20 flex flex-col items-center justify-center text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition cursor-pointer text-center active:scale-95"
-                    >
+                    <label className="p-4 rounded-2xl border-2 border-dashed border-emerald-500/80 dark:border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/20 flex flex-col items-center justify-center text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition cursor-pointer text-center active:scale-95">
                       <Camera className="w-8 h-8 mb-1.5" />
                       <span className="text-xs font-extrabold">Tirar Foto</span>
-                    </button>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setModalCriarComIAAberto(false);
+                            const compressed = await comprimirArquivoImagem(file, 640, 0.85);
+                            if (compressed) {
+                              processarPreenchimentoIA('foto', compressed);
+                            }
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </label>
 
                     <label className="p-4 rounded-2xl border-2 border-dashed border-slate-300 dark:border-[#1E293B] bg-slate-50 dark:bg-[#000000] flex flex-col items-center justify-center text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#0D111A] transition cursor-pointer text-center active:scale-95">
                       <Upload className="w-8 h-8 mb-1.5 text-slate-500 dark:text-slate-400" />
@@ -4202,6 +4274,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                         onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (file) {
+                            setModalCriarComIAAberto(false);
                             const compressed = await comprimirArquivoImagem(file, 640, 0.85);
                             if (compressed) {
                               processarPreenchimentoIA('foto', compressed);

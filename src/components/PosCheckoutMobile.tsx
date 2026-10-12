@@ -1711,11 +1711,11 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                   onClick={() => handleClicarProduto(produto)}
                   className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:border-emerald-400 active:scale-95 transition-all duration-100 flex flex-col justify-between cursor-pointer group"
                 >
-                  <div className="relative aspect-square bg-slate-50">
+                  <div className="relative aspect-square bg-slate-50 p-2 flex items-center justify-center">
                     <img
                       src={fotoUrl}
                       alt={produto.nome}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain"
                       loading="lazy"
                     />
 

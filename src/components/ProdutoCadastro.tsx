@@ -1627,44 +1627,48 @@ export const ProdutoCadastro: React.FC = () => {
                 </span>
               </button>
 
-              {/* 2. Atualizar o Produto com nossa IA */}
-              <button
-                type="button"
-                disabled={analisandoIA}
-                onClick={() => handleExecutarPreenchimentoIA('atualizar')}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-[#000000] dark:hover:bg-[#0D111A] border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 transition-all duration-150 select-none disabled:opacity-50 disabled:cursor-not-allowed group"
-                title="Atualizar o produto com nossa inteligência artificial"
-              >
-                <div className="flex items-center gap-2 truncate">
-                  {analisandoIA ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-emerald-500 dark:text-emerald-400 shrink-0" />
-                  ) : (
-                    <RefreshCw className="w-4 h-4 text-emerald-500 dark:text-emerald-400 shrink-0" />
-                  )}
-                  <span className="font-bold truncate">Atualizar o Produto com nossa IA</span>
-                </div>
-              </button>
+              {/* 2. Atualizar o Produto com nossa IA (exclusivo para edição) */}
+              {ehEdicao && (
+                <button
+                  type="button"
+                  disabled={analisandoIA}
+                  onClick={() => handleExecutarPreenchimentoIA('atualizar')}
+                  className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-[#000000] dark:hover:bg-[#0D111A] border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 transition-all duration-150 select-none disabled:opacity-50 disabled:cursor-not-allowed group"
+                  title="Atualizar o produto com nossa inteligência artificial"
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    {analisandoIA ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-emerald-500 dark:text-emerald-400 shrink-0" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4 text-emerald-500 dark:text-emerald-400 shrink-0" />
+                    )}
+                    <span className="font-bold truncate">Atualizar o Produto com nossa IA</span>
+                  </div>
+                </button>
+              )}
 
-              {/* 3. Preencher com nossa IA (a partir da foto ou nome do produto) */}
-              <button
-                type="button"
-                disabled={analisandoIA}
-                onClick={() => handleExecutarPreenchimentoIA('preencher')}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-[#000000] dark:hover:bg-[#0D111A] border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 transition-all duration-150 select-none disabled:opacity-50 disabled:cursor-not-allowed group"
-                title="Preencher com nossa IA (a partir da foto ou nome do produto)"
-              >
-                <div className="flex items-center gap-2 truncate">
-                  {analisandoIA ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-emerald-500 dark:text-emerald-400 shrink-0" />
-                  ) : (
-                    <Sparkles className="w-4 h-4 text-amber-500 dark:text-amber-400 shrink-0" />
-                  )}
-                  <span className="font-bold truncate">Preencher com nossa IA</span>
-                </div>
-                <span className="text-[10px] text-slate-400 font-normal shrink-0 hidden sm:inline">
-                  (a partir da foto ou nome do produto)
-                </span>
-              </button>
+              {/* 3. Preencher com nossa IA (exclusivo para novo cadastro) */}
+              {!ehEdicao && (
+                <button
+                  type="button"
+                  disabled={analisandoIA}
+                  onClick={() => handleExecutarPreenchimentoIA('preencher')}
+                  className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-[#000000] dark:hover:bg-[#0D111A] border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 transition-all duration-150 select-none disabled:opacity-50 disabled:cursor-not-allowed group"
+                  title="Preencher com nossa IA (a partir da foto ou nome do produto)"
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    {analisandoIA ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-emerald-500 dark:text-emerald-400 shrink-0" />
+                    ) : (
+                      <Sparkles className="w-4 h-4 text-amber-500 dark:text-amber-400 shrink-0" />
+                    )}
+                    <span className="font-bold truncate">Preencher com nossa IA</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-normal shrink-0 hidden sm:inline">
+                    (a partir da foto ou nome do produto)
+                  </span>
+                </button>
+              )}
 
               {/* 4. Galeria (Até 7 fotos) */}
               <button
