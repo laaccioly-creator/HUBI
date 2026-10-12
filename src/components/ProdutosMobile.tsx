@@ -85,6 +85,7 @@ import { SpinnerPesquisandoIA } from './SpinnerPesquisandoIA';
 import { ModalDuvidaProdutoIA } from './ModalDuvidaProdutoIA';
 import { obterSerpApiKey, obterOuBuscarSerpApiKey } from '../services/serpApiService';
 import { comprimirFotoProduto } from '../utils/imageCompressor';
+import { formatarMoeda } from '../utils/formatters';
 
 interface ProdutosMobileProps {
   produtos: Produto[];
@@ -5231,6 +5232,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     );
   }
 
+  const voltarMobile = () => {
+    if (typeof window !== 'undefined' && window.history && window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/pos');
+    }
+  };
+
   // =========================================================================
   // TELA 001 & TELA 002: LISTA PRINCIPAL DE PRODUTOS E ESTOQUE MOBILE
   // =========================================================================
@@ -5243,7 +5252,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={voltarMobile}
             className="p-2 rounded-2xl hover:bg-slate-100 dark:hover:bg-[#0D111A] text-slate-600 dark:text-slate-300 transition cursor-pointer"
             title="Voltar"
           >
@@ -5370,14 +5379,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             onClick={() => setTelaAtiva('filtros')}
             className={`p-2 rounded-xl transition relative cursor-pointer ${
               qtdFiltrosAtivos > 0
-                ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-[#000000] border border-emerald-300 dark:border-[#10B981]'
+                ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-500 dark:border-emerald-500'
                 : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#0D111A]'
             }`}
             title="Filtros"
           >
             <Filter className="w-5 h-5" />
             {qtdFiltrosAtivos > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-600 text-white font-black text-[9px] flex items-center justify-center shadow-xs">
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-slate-950 font-bold text-[9px] flex items-center justify-center shadow-xs">
                 {qtdFiltrosAtivos}
               </span>
             )}
@@ -5423,13 +5432,13 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             return (
               <div
                 key={catId}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-teal-100/80 border border-teal-300 text-teal-800 text-[11px] font-semibold shrink-0"
+                className="border border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 shrink-0 font-medium"
               >
                 <span className="truncate max-w-[120px]">{catNome}</span>
                 <button
                   type="button"
                   onClick={() => setCategoriasFiltro(prev => prev.filter(id => id !== catId))}
-                  className="p-0.5 rounded-full hover:bg-teal-200 text-teal-700 transition cursor-pointer"
+                  className="p-0.5 rounded-full hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 transition cursor-pointer"
                   title={`Remover filtro ${catNome}`}
                 >
                   <X className="w-3 h-3" />
@@ -5439,12 +5448,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           })}
 
           {filtroSemEstoque && (
-            <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-100 border border-rose-300 text-rose-800 text-[11px] font-semibold shrink-0">
+            <div className="border border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-400 text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 shrink-0 font-medium">
               <span>Sem estoque 🔴</span>
               <button
                 type="button"
                 onClick={() => setFiltroSemEstoque(false)}
-                className="p-0.5 rounded-full hover:bg-rose-200 text-rose-700 transition cursor-pointer"
+                className="p-0.5 rounded-full hover:bg-rose-500/20 text-rose-700 dark:text-rose-400 transition cursor-pointer"
                 title="Remover filtro sem estoque"
               >
                 <X className="w-3 h-3" />
@@ -5453,12 +5462,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           )}
 
           {filtroMinimo && (
-            <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-800 text-[11px] font-semibold shrink-0">
+            <div className="border border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 shrink-0 font-medium">
               <span>Mínimo 🟡</span>
               <button
                 type="button"
                 onClick={() => setFiltroMinimo(false)}
-                className="p-0.5 rounded-full hover:bg-amber-200 text-amber-700 transition cursor-pointer"
+                className="p-0.5 rounded-full hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 transition cursor-pointer"
                 title="Remover filtro estoque mínimo"
               >
                 <X className="w-3 h-3" />
@@ -5467,12 +5476,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           )}
 
           {filtroAcimaMinimo && (
-            <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-800 text-[11px] font-semibold shrink-0">
+            <div className="border border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 shrink-0 font-medium">
               <span>Acima do mínimo</span>
               <button
                 type="button"
                 onClick={() => setFiltroAcimaMinimo(false)}
-                className="p-0.5 rounded-full hover:bg-emerald-200 text-emerald-700 transition cursor-pointer"
+                className="p-0.5 rounded-full hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 transition cursor-pointer"
                 title="Remover filtro acima do mínimo"
               >
                 <X className="w-3 h-3" />
@@ -5481,12 +5490,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           )}
 
           {filtroSemControle && (
-            <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-200 border border-slate-300 text-slate-700 text-[11px] font-semibold shrink-0">
+            <div className="border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 shrink-0 font-medium">
               <span>Sem controle</span>
               <button
                 type="button"
                 onClick={() => setFiltroSemControle(false)}
-                className="p-0.5 rounded-full hover:bg-slate-300 text-slate-600 transition cursor-pointer"
+                className="p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 transition cursor-pointer"
                 title="Remover filtro sem controle"
               >
                 <X className="w-3 h-3" />
@@ -5495,12 +5504,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           )}
 
           {filtroAtivo !== 'todos' && (
-            <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-teal-100 border border-teal-300 text-teal-800 text-[11px] font-semibold shrink-0">
+            <div className="border border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 shrink-0 font-medium">
               <span>{filtroAtivo === 'ativos' ? 'Ativos' : 'Inativos'}</span>
               <button
                 type="button"
                 onClick={() => setFiltroAtivo('todos')}
-                className="p-0.5 rounded-full hover:bg-teal-200 text-teal-700 transition cursor-pointer"
+                className="p-0.5 rounded-full hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 transition cursor-pointer"
                 title="Remover filtro status"
               >
                 <X className="w-3 h-3" />
@@ -5541,9 +5550,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         ) : (
           produtosFiltrados.map((p) => {
             const estoque = getEstoqueReal(p);
-            const precoVendaFmt = Number(p.preco_venda_varejo || 0).toFixed(2).replace('.', ',');
-            const precoPromoFmt = p.preco_promocional ? Number(p.preco_promocional).toFixed(2).replace('.', ',') : null;
             const catNome = (p.categoria_id && mapaCategorias.get(p.categoria_id)) || 'SEM CATEGORIA';
+            const temPromocao = Boolean(p.promocao_ativa && p.preco_promocional && Number(p.preco_promocional) > 0);
+            const precoExibicao = temPromocao ? Number(p.preco_promocional) : Number(p.preco_venda_varejo || 0);
 
             // Visualização da Aba ITENS (TELA001)
             if (abaLista === 'itens') {
@@ -5551,9 +5560,10 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 <div
                   key={p.id}
                   onClick={() => abrirEditarProduto(p, 'cadastro')}
-                  className="p-4 flex items-center justify-between bg-white dark:bg-[#000000] hover:bg-slate-50 dark:hover:bg-[#0D111A] transition cursor-pointer gap-3"
+                  className="p-4 flex items-center justify-between bg-white dark:bg-[#000000] hover:bg-slate-50 dark:hover:bg-[#0D111A] transition cursor-pointer"
                 >
-                  <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                  {/* Container Esquerda: Informações com flex-1 min-w-0 pr-2 */}
+                  <div className="flex items-center gap-3.5 flex-1 min-w-0 pr-2">
                     {/* Thumbnail / Foto */}
                     <div className="w-12 h-12 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex items-center justify-center shrink-0 shadow-sm bg-white dark:bg-slate-900">
                       {p.fotos_urls && p.fotos_urls[0] ? (
@@ -5580,18 +5590,20 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     </div>
                   </div>
 
-                  {/* Destaque Visual Acentuado ao Preço */}
-                  <div className="text-right shrink-0">
-                    {precoPromoFmt ? (
+                  {/* Coluna de Preço Fixada à Direita */}
+                  <div className="flex-shrink-0 ml-3 text-right">
+                    {temPromocao ? (
                       <div className="flex flex-col items-end">
-                        <span className="text-[11px] text-slate-400 line-through font-semibold">R$ {precoVendaFmt}</span>
-                        <span className="font-bold text-xs bg-emerald-50 dark:bg-[#000000] text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-[#10B981] px-2.5 py-1 rounded-lg shadow-sm">
-                          R$ {precoPromoFmt}
+                        <span className="text-[10px] text-slate-400 line-through font-semibold mb-0.5">
+                          {formatarMoeda(Number(p.preco_venda_varejo || 0))}
+                        </span>
+                        <span className="inline-block px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500 text-emerald-700 dark:text-emerald-400 font-semibold text-xs tracking-tight shadow-sm">
+                          {formatarMoeda(precoExibicao)}
                         </span>
                       </div>
                     ) : (
-                      <span className="font-bold text-xs bg-slate-100 dark:bg-[#000000] text-slate-800 dark:text-white border border-slate-200 dark:border-[#1E293B] px-2.5 py-1 rounded-lg shadow-sm">
-                        R$ {precoVendaFmt}
+                      <span className="inline-block px-2.5 py-1 rounded-lg bg-slate-800/80 border border-slate-700/60 text-white font-semibold text-xs tracking-tight shadow-sm">
+                        {formatarMoeda(precoExibicao)}
                       </span>
                     )}
                   </div>
