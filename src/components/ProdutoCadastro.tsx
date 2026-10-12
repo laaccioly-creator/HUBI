@@ -61,7 +61,8 @@ import {
   identificarProdutoPorFoto,
   identificarProdutoPorTextoOuEan,
   comprimirImagemParaIA,
-  executarRequisicaoGemini
+  executarRequisicaoGemini,
+  gerarDescricaoExclusivaIA
 } from '../services/geminiService';
 import { obterSerpApiKey, obterOuBuscarSerpApiKey } from '../services/serpApiService';
 import { catalogJevService } from '../services/catalogJevService';
@@ -383,6 +384,7 @@ export const ProdutoCadastro: React.FC = () => {
   const [larguraCm, setLarguraCm] = useState<string>(() => rascunhoSalvo?.larguraCm || '');
   const [comprimentoCm, setComprimentoCm] = useState<string>(() => rascunhoSalvo?.comprimentoCm || '');
   const [detectandoDimensoes, setDetectandoDimensoes] = useState<boolean>(false);
+  const [melhorandoDescricaoIA, setMelhorandoDescricaoIA] = useState<boolean>(false);
 
   // Preços
   const [precoCusto, setPrecoCusto] = useState<string>(() => rascunhoSalvo?.precoCusto || '0.00');
@@ -1251,6 +1253,33 @@ export const ProdutoCadastro: React.FC = () => {
   const handlePreencherComIA = () => handleExecutarPreenchimentoIA('preencher');
   const handleAtualizarComIA = () => handleExecutarPreenchimentoIA('atualizar');
 
+  const handleMelhorarDescricaoComIA = async () => {
+    if (!nome.trim() && !descricao.trim()) {
+      mostrarAviso('Por favor, informe o Nome ou rascunho da Descrição para que a IA possa aprimorar.', 'Descrição Comercial');
+      return;
+    }
+    setMelhorandoDescricaoIA(true);
+    try {
+      const catNome = categorias.find(c => c.id === categoriaId)?.nome || 'Geral';
+      const novaDescricao = await gerarDescricaoExclusivaIA(
+        nome || 'Produto',
+        catNome,
+        descricao,
+        segmentoLoja,
+        loja
+      );
+      if (novaDescricao) {
+        setDescricao(novaDescricao);
+        mostrarSucesso('Descrição comercial aprimorada com sucesso!');
+      }
+    } catch (err: any) {
+      console.error('Erro ao aprimorar descrição com IA:', err);
+      mostrarErro('Não foi possível gerar a descrição com IA.');
+    } finally {
+      setMelhorandoDescricaoIA(false);
+    }
+  };
+
   // Funções do Radar de Preços de Mercado
   const handleAbrirRadarPrecos = async () => {
     setModalRadarAberto(true);
@@ -2019,7 +2048,30 @@ export const ProdutoCadastro: React.FC = () => {
 
               {/* Descrição Comercial */}
               <div className="md:col-span-2 space-y-1">
-                <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Descrição Comercial (Catálogo & WhatsApp)</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                    Descrição Comercial (Catálogo & WhatsApp)
+                  </label>
+                  <button
+                    type="button"
+                    disabled={melhorandoDescricaoIA}
+                    onClick={handleMelhorarDescricaoComIA}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-500/30 dark:hover:bg-emerald-900/50 text-[11px] font-bold transition shadow-2xs cursor-pointer disabled:opacity-50"
+                    title="Aprimorar descrição comercial com inteligência artificial"
+                  >
+                    {melhorandoDescricaoIA ? (
+                      <>
+                        <Loader2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400 animate-spin" />
+                        <span>Melhorando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                        <span>Melhorar com IA</span>
+                      </>
+                    )}
+                  </button>
+                </div>
                 <textarea
                   rows={3}
                   placeholder="Informações adicionais do produto, material, diferenciais e modo de uso..."

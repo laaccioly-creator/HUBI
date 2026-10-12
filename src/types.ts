@@ -396,6 +396,7 @@ export interface Produto {
   descricao?: string | null;
   fotos_urls: string[];
   tipo_unidade: TipoUnidade;
+  unidade_medida?: string | null;
   preco_custo: number;
   preco_venda_varejo: number;
   preco_venda_atacado?: number | null;
@@ -436,6 +437,7 @@ export interface VariacaoProduto {
   produto_id: string;
   valor_variacao_1: string;
   valor_variacao_2?: string | null;
+  combinacao_nome?: string | null;
   sku?: string | null;
   codigo_barras?: string | null;
   preco_custo?: number | null;

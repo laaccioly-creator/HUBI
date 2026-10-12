@@ -678,3 +678,26 @@ input[type="checkbox"]:not(.sr-only):not(.hidden):focus {
   box-shadow: 0 1px 3px 0 rgba(16, 185, 129, 0.1);
 }
 
+/* ==========================================================================
+   TRAVA DE ORIENTAÇÃO PORTRAIT NO MOBILE / PWA
+   Impede que a rotação para horizontal quebre telas, breakpoints ou formulários
+   ========================================================================== */
+@media screen and (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
+  body::after {
+    content: "📱 Por favor, gire o seu celular para a vertical (em pé) para continuar usando o HUBI.";
+    position: fixed;
+    inset: 0;
+    z-index: 999999;
+    background-color: #020617;
+    color: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.5;
+  }
+}
+

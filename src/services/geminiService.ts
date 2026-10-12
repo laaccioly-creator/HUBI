@@ -914,28 +914,24 @@ export const gerarDescricaoExclusivaIA = async (
   if (apiKey && nomeProduto.trim()) {
     try {
       const prompt = `
-Você é um copywriter sênior de elite especializado em e-commerce, catálogo online e varejo de alto padrão no Brasil${segmentoLoja ? ` no segmento de "${segmentoLoja}"` : ''}.
-Escreva uma descrição comercial COMPLETA, envolvente, rica e altamente persuasiva para o seguinte produto:
+Você é um especialista em copy comercial e vendas de alta conversão para varejo, catálogo digital e WhatsApp${segmentoLoja ? ` no segmento de "${segmentoLoja}"` : ''}.
+Escreva uma descrição comercial DIRETA, ATRAENTE e CONCISA para o seguinte produto:
 
 PRODUTO: "${nomeProduto}"
 ${categoria ? `CATEGORIA: "${categoria}"` : ''}
-${descricaoAtual ? `RASCUNHO / DADOS INICIAIS FORNECIDOS PELO LOJISTA: "${descricaoAtual}"` : ''}
-${segmentoLoja ? `SEGMENTO DE MERCADO: "${segmentoLoja}"` : ''}
+${descricaoAtual ? `RASCUNHO / DADOS DO LOJISTA: "${descricaoAtual}"` : ''}
 
-DIRETRIZES OBRIGATÓRIAS DE REDAÇÃO:
-1. NÃO RESUMA! NUNCA faça um texto curto ou telegráfico. NUNCA deixe frases cortadas ou pela metade. Complete todas as frases e ideias perfeitamente.
-2. Crie uma apresentação comercial apaixonante, que valorize o produto, destacando a experiência de uso, qualidade de construção e os benefícios práticos.
-3. Estruture a descrição de forma visualmente agradável e clara para leitura no celular e WhatsApp, incluindo:
-   • Um parágrafo inicial envolvente e marcante apresentando o produto.
-   • Principais Benefícios e Diferenciais (em tópicos com bullets claros).
-   • Características, especificações ou modo de uso recomendados.
-4. Evite clichês vazios; use argumentos reais de valorização que incentivem a decisão imediata de compra.
-5. Retorne APENAS o texto completo da descrição comercial em português, sem aspas e sem tags markdown estranhas.
+DIRETRIZES ESTRITAS:
+1. MÁXIMO DE 2 A 3 FRASES OBJETIVAS ou 2-3 bullet points rápidos e apelativos.
+2. NUNCA gere blocos de texto longos, cansativos ou prolixos. O cliente precisa ler em menos de 5 segundos no celular.
+3. Foque nos benefícios reais, diferenciais do produto e chamada sutil para ação.
+4. Formato perfeitamente adaptado para leitura instantânea no Catálogo Digital e compartilhamento via WhatsApp.
+5. Retorne APENAS o texto da descrição comercial em português, sem aspas e sem markdown desnecessário.
 `;
 
       const requestBody = {
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.65, maxOutputTokens: 2500 }
+        generationConfig: { temperature: 0.6, maxOutputTokens: 500 }
       };
 
       const resData = await executarRequisicaoGemini(apiKey, requestBody);
@@ -944,11 +940,11 @@ DIRETRIZES OBRIGATÓRIAS DE REDAÇÃO:
         return texto.trim();
       }
     } catch (err) {
-      console.warn('Erro ao gerar descrição exclusiva com Gemini:', err);
+      console.warn('Erro ao gerar descrição concisa com Gemini:', err);
     }
   }
 
-  return `${nomeProduto}. Desenvolvido para entregar máxima qualidade, conforto e praticidade no seu dia a dia. Composição de alto padrão, acabamento refinado e excelente durabilidade. Produto original e garantido.`;
+  return `${nomeProduto}. Ideal para quem busca qualidade, praticidade e excelente custo-benefício no dia a dia. Produto original com garantia.`;
 };
 
 export interface FotoResultadoInternet {

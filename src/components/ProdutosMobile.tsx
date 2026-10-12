@@ -44,12 +44,15 @@ import {
   Mic,
   MicOff,
   Image as ImageIcon,
+  ImageOff,
   FileText,
   Barcode,
   RefreshCw,
   Key,
   Zap,
-  TrendingUp
+  TrendingUp,
+  Truck,
+  Layers
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -60,12 +63,14 @@ import { audioService } from '../services/audioService';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { ModalEntradaEstoque } from './ModalEntradaEstoque';
 import { pesquisarPrecosMercadoIA, DadosMercadoIA } from './ProdutoCadastro';
+import { UNIDADES_PADRAO } from './CadastrosAuxiliares';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import {
   identificarProdutoPorFoto,
   identificarProdutoPorTextoOuEan,
   gerarDescricaoExclusivaIA,
   atualizarProdutoExistenteComIA,
+  estimarDimensoesEPesoProduto,
   getGeminiApiKey,
   setGeminiApiKey,
   salvarGeminiApiKey,
@@ -166,7 +171,13 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const [modalCategoriasAberto, setModalCategoriasAberto] = useState<boolean>(false); // TELA016
   const [modalDescricaoAberto, setModalDescricaoAberto] = useState<boolean>(false); // TELA017
   const [modalScannerAberto, setModalScannerAberto] = useState<boolean>(false); // TELA018
-  const [modalVenderPorAberto, setModalVenderPorAberto] = useState<boolean>(false); // TELA019
+  const [modalUnidadeMedidaAberto, setModalUnidadeMedidaAberto] = useState<boolean>(false); // Seletor Unidade de Medida
+  const [unidadesLista, setUnidadesLista] = useState<Array<{ sigla: string; nome: string }>>(() =>
+    UNIDADES_PADRAO.map(u => ({ sigla: u.sigla, nome: u.nome }))
+  );
+  const [detectandoDimensoes, setDetectandoDimensoes] = useState<boolean>(false);
+  const [rotuloVariacao1, setRotuloVariacao1] = useState<string>('Tamanho');
+  const [rotuloVariacao2, setRotuloVariacao2] = useState<string>('');
   const [modalEstoqueMinimoAberto, setModalEstoqueMinimoAberto] = useState<boolean>(false); // TELA012
   const [modalPublicCardAberto, setModalPublicCardAberto] = useState<boolean>(false); // TELA009
   const [modalCriarComIAAberto, setModalCriarComIAAberto] = useState<boolean>(false); // Criar / Preencher com IA completo
@@ -440,15 +451,18 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     descricao: string;
     codigoBarras: string;
     tipoUnidade: TipoUnidade;
+    unidadeMedida?: string;
     tipoItem?: 'produto' | 'servico';
     destaque: boolean;
     exibirCatalogo: boolean;
+    ativo: boolean;
     corEtiqueta: string; // Cor da tarja de descrição/valor
     fotos: string[];
     estoqueMinimo: number;
     gerenciarEstoque: boolean;
     quantidadeEstoque: number;
     dataValidade: string;
+    temVariacoes?: boolean;
     variacoes: Partial<VariacaoProduto>[];
     pesoKg?: string;
     alturaCm?: string;
@@ -467,15 +481,18 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     descricao: '',
     codigoBarras: '',
     tipoUnidade: 'un',
+    unidadeMedida: 'un',
     tipoItem: 'produto',
     destaque: false,
     exibirCatalogo: true,
+    ativo: true,
     corEtiqueta: '#1F2937',
     fotos: [],
     estoqueMinimo: 0,
     gerenciarEstoque: true,
     quantidadeEstoque: 0,
     dataValidade: '',
+    temVariacoes: false,
     variacoes: [],
     pesoKg: '',
     alturaCm: '',
@@ -546,6 +563,34 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     };
     carregarChaveGemini();
   }, [loja]);
+
+  // Carregar unidades de medida da loja (ou padrao) com isolamento RLS
+  useEffect(() => {
+    if (!loja?.id) return;
+    const carregarUnidades = async () => {
+      try {
+        const { data: u } = await supabase
+          .from('unidades_medida')
+          .select('sigla, nome')
+          .eq('loja_id', loja.id)
+          .order('sigla');
+
+        const combinadas: Array<{ sigla: string; nome: string }> = [];
+        if (u && u.length > 0) {
+          combinadas.push(...u);
+        }
+        UNIDADES_PADRAO.forEach(up => {
+          if (!combinadas.some(item => item.sigla.toLowerCase() === up.sigla.toLowerCase())) {
+            combinadas.push({ sigla: up.sigla, nome: up.nome });
+          }
+        });
+        setUnidadesLista(combinadas);
+      } catch (err) {
+        console.warn('Falha ao carregar unidades de medida:', err);
+      }
+    };
+    carregarUnidades();
+  }, [loja?.id]);
 
   // Estados para Teclado Numérico (TELA012)
   const [tecladoValorEstoqueMin, setTecladoValorEstoqueMin] = useState<string>('0');
@@ -782,17 +827,26 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       descricao: '',
       codigoBarras: '',
       tipoUnidade: 'un' as TipoUnidade,
+      unidadeMedida: 'un',
       tipoItem: 'produto' as 'produto' | 'servico',
       destaque: false,
       exibirCatalogo: true,
+      ativo: true,
       corEtiqueta: '#1F2937',
       fotos: [],
       estoqueMinimo: 0,
       gerenciarEstoque: true,
       quantidadeEstoque: 0,
       dataValidade: '',
-      variacoes: []
+      temVariacoes: false,
+      variacoes: [],
+      pesoKg: '',
+      alturaCm: '',
+      larguraCm: '',
+      comprimentoCm: ''
     };
+    setRotuloVariacao1('Tamanho');
+    setRotuloVariacao2('');
     setFormData(initialData);
     setSnapshotInicialForm(JSON.stringify(initialData));
     setAbaFormulario('cadastro');
@@ -1021,21 +1075,26 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       descricao: p.descricao || '',
       codigoBarras: p.codigo_barras || '',
       tipoUnidade: p.tipo_unidade || 'un',
+      unidadeMedida: (p as any).unidade_medida || p.tipo_unidade || 'un',
       tipoItem: (p.tipo_item as any) || 'produto',
       destaque: Boolean(p.destaque),
       exibirCatalogo: p.exibir_catalogo !== false,
+      ativo: p.ativo !== false,
       corEtiqueta: corSalva,
       fotos: p.fotos_urls || [],
       estoqueMinimo: Number(p.estoque_minimo_alerta || 0),
       gerenciarEstoque: true,
       quantidadeEstoque: getEstoqueReal(p),
       dataValidade: p.data_validade ? p.data_validade.split('T')[0] : '',
+      temVariacoes: Boolean(p.tem_variacoes || (p.variacoes && p.variacoes.length > 0)),
       variacoes: p.variacoes ? [...p.variacoes] : [],
       pesoKg: (p as any).peso_kg != null ? String((p as any).peso_kg) : '',
       alturaCm: (p as any).altura_cm != null ? String((p as any).altura_cm) : '',
       larguraCm: (p as any).largura_cm != null ? String((p as any).largura_cm) : '',
       comprimentoCm: (p as any).comprimento_cm != null ? String((p as any).comprimento_cm) : ''
     };
+    setRotuloVariacao1(p.rotulo_variacao_1 || 'Tamanho');
+    setRotuloVariacao2(p.rotulo_variacao_2 || '');
     setFormData(initialEditData);
     setSnapshotInicialForm(JSON.stringify(initialEditData));
     setAbaFormulario(aba);
@@ -1093,20 +1152,30 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         descricao: formData.descricao.trim() || null,
         codigo_barras: formData.codigoBarras.trim() || null,
         tipo_unidade: formData.tipoUnidade,
+        unidade_medida: formData.unidadeMedida || formData.tipoUnidade,
         tipo_item: formData.tipoItem || 'produto',
         destaque: formData.destaque,
         exibir_catalogo: formData.exibirCatalogo,
         fotos_urls: formData.fotos,
         estoque_minimo_alerta: formData.tipoItem === 'servico' ? 0 : formData.estoqueMinimo,
-        quantidade_estoque: formData.tipoItem === 'servico' ? 0 : formData.quantidadeEstoque,
+        quantidade_estoque: formData.tipoItem === 'servico'
+          ? 0
+          : (formData.temVariacoes && formData.variacoes.length > 0
+              ? formData.variacoes.reduce((acc, v) => acc + (Number(v.quantidade_estoque) || 0), 0)
+              : formData.quantidadeEstoque),
+        tem_variacoes: Boolean(formData.temVariacoes && formData.variacoes.length > 0),
+        rotulo_variacao_1: formData.temVariacoes ? rotuloVariacao1 || 'Tamanho' : null,
+        rotulo_variacao_2: (formData.temVariacoes && rotuloVariacao2.trim()) ? rotuloVariacao2.trim() : null,
         data_validade: formData.tipoItem === 'servico' ? null : (formData.dataValidade || null),
         cor_etiqueta: formData.corEtiqueta,
-        ativo: true,
+        ativo: formData.ativo !== false,
         peso_kg: formData.pesoKg ? Number(formData.pesoKg.replace(',', '.')) : null,
         altura_cm: formData.alturaCm ? Number(formData.alturaCm.replace(',', '.')) : null,
         largura_cm: formData.larguraCm ? Number(formData.larguraCm.replace(',', '.')) : null,
         comprimento_cm: formData.comprimentoCm ? Number(formData.comprimentoCm.replace(',', '.')) : null
       };
+
+      let produtoSalvoId = produtoEditando?.id;
 
       if (produtoEditando?.id) {
         // Atualizar produto existente
@@ -1122,10 +1191,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           error.message?.includes('tipo_item') || 
           error.message?.includes('peso_kg') || 
           error.message?.includes('altura_cm') ||
+          error.message?.includes('unidade_medida') ||
           (error as any).details?.includes('peso_kg')
         )) {
           console.warn('Colunas novas ausentes no schema de produtos. Tentando atualizar sem elas...');
-          const { tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, ...payloadBase } = payload;
+          const { tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, unidade_medida, ...payloadBase } = payload;
           const retry = await supabase
             .from('produtos')
             .update({
@@ -1155,10 +1225,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           error.message?.includes('tipo_item') || 
           error.message?.includes('peso_kg') || 
           error.message?.includes('altura_cm') ||
+          error.message?.includes('unidade_medida') ||
           (error as any).details?.includes('peso_kg')
         )) {
           console.warn('Colunas novas ausentes no schema de produtos. Tentando cadastrar sem elas...');
-          const { tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, ...payloadBase } = payload;
+          const { tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, unidade_medida, ...payloadBase } = payload;
           const retry = await supabase
             .from('produtos')
             .insert([{
@@ -1190,9 +1261,42 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
         if (error) throw error;
         if (prodCriado?.id) {
+          produtoSalvoId = prodCriado.id;
           await persistirCorProdutoSupabase(prodCriado.id, formData.corEtiqueta);
         }
         setMensagemFeedback({ texto: 'Produto cadastrado com sucesso!', tipo: 'sucesso' });
+      }
+
+      // Persistência relacional em variacoes_produto (SEM JSONB) com blindagem RLS por loja_id
+      if (produtoSalvoId) {
+        if (formData.temVariacoes && formData.variacoes.length > 0) {
+          await supabase.from('variacoes_produto').delete().eq('produto_id', produtoSalvoId);
+          const variacoesFormatadas = formData.variacoes.map(v => {
+            const rot1 = (v.valor_variacao_1 || '').trim();
+            const rot2 = (v.valor_variacao_2 || '').trim();
+            const combNome = rot2 ? `${rot1} / ${rot2}` : rot1;
+            return {
+              loja_id: loja.id,
+              produto_id: produtoSalvoId,
+              valor_variacao_1: rot1 || 'Padrão',
+              valor_variacao_2: rot2 || null,
+              combinacao_nome: combNome || null,
+              codigo_barras: v.codigo_barras || null,
+              sku: v.sku || null,
+              preco_venda_varejo: Number(v.preco_venda_varejo) || precoVendaNum,
+              preco_venda_atacado: v.preco_venda_atacado ? Number(v.preco_venda_atacado) : null,
+              quantidade_estoque: Number(v.quantidade_estoque) || 0,
+              estoque_minimo_alerta: Number(v.estoque_minimo_alerta || formData.estoqueMinimo) || 0,
+              ativo: v.ativo !== false
+            };
+          });
+          const { error: erroVar } = await supabase.from('variacoes_produto').insert(variacoesFormatadas);
+          if (erroVar) {
+            console.warn('Aviso ao sincronizar variações:', erroVar);
+          }
+        } else {
+          await supabase.from('variacoes_produto').delete().eq('produto_id', produtoSalvoId);
+        }
       }
 
       await onRecarregar();
@@ -2205,65 +2309,157 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         <div className="h-16 border-b border-slate-200 dark:border-[#1E293B] px-4 flex items-center justify-between bg-white dark:bg-[#0B0F17] shrink-0">
           <button
             type="button"
-            onClick={() => setTelaAtiva('detalhes')}
+            onClick={() => setTelaAtiva(produtoEditando ? 'detalhes' : 'novo')}
             className="p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
-          <h1 className="font-extrabold text-sm sm:text-base text-slate-800 dark:text-slate-100">Variações</h1>
+          <h1 className="font-extrabold text-sm sm:text-base text-slate-800 dark:text-slate-100">Variações do Produto</h1>
           <button
             type="button"
-            onClick={() => alert('Use variações para cadastrar produtos com múltiplos atributos como cor, tamanho, voltagem ou sabor.')}
+            onClick={() => alert('Cadastre atributos combinados (ex: Cor e Tamanho) com controle de estoque individual.')}
             className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
           >
             <HelpCircle className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Ilustração e Descrição TELA020 */}
-        <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center text-center space-y-6">
-          <div className="w-52 h-40 border border-slate-200 dark:border-[#1E293B] rounded-3xl bg-white dark:bg-[#000000] flex flex-col items-center justify-center p-4 relative shadow-sm">
-            <div className="flex gap-2.5 items-center">
-              <div className="w-11 h-11 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-black text-sm">P</div>
-              <div className="w-11 h-11 rounded-xl bg-slate-200 dark:bg-[#1E293B] flex items-center justify-center text-slate-700 dark:text-slate-200 font-black text-sm">M</div>
-              <div className="w-11 h-11 rounded-xl bg-slate-700 dark:bg-[#0D111A] flex items-center justify-center text-white font-black text-sm">G</div>
-            </div>
-            <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase mt-3">Camiseta / Variações</span>
-          </div>
-
-          <div className="space-y-2 max-w-xs">
-            <h2 className="font-extrabold text-base sm:text-lg text-slate-800 dark:text-slate-100">Produtos com variações</h2>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-              Adicione variações como <strong className="text-slate-700 dark:text-slate-300">cor, tamanho, voltagem ou sabor</strong> aos seus produtos, mantenha seu estoque organizado e facilite as vendas
+        {/* Ilustração e Conteúdo TELA020 */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="text-center space-y-1">
+            <h2 className="font-extrabold text-sm sm:text-base text-slate-800 dark:text-slate-100">Grade de Variações</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Configure tamanhos, cores ou sabores com preços e estoques específicos
             </p>
           </div>
 
-          <div className="w-full space-y-3 pt-2">
+          <div className="space-y-3">
+            {formData.variacoes.map((v, idx) => (
+              <div
+                key={v.id || idx}
+                className="p-3.5 rounded-2xl border bg-white dark:bg-[#000000] border-slate-200 dark:border-[#1E293B] space-y-2.5 shadow-xs"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1 grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      value={v.valor_variacao_1 || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFormData(prev => {
+                          const list = [...prev.variacoes];
+                          list[idx] = { ...list[idx], valor_variacao_1: val };
+                          return { ...prev, variacoes: list };
+                        });
+                      }}
+                      placeholder={`1º Atributo (${rotuloVariacao1 || 'Opção'})`}
+                      className="px-2.5 py-1.5 rounded-lg border text-xs font-bold bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800"
+                    />
+                    <input
+                      type="text"
+                      value={v.valor_variacao_2 || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFormData(prev => {
+                          const list = [...prev.variacoes];
+                          list[idx] = { ...list[idx], valor_variacao_2: val };
+                          return { ...prev, variacoes: list };
+                        });
+                      }}
+                      placeholder={`2º Atributo (Opcional)`}
+                      className="px-2.5 py-1.5 rounded-lg border text-xs font-bold bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData(prev => ({
+                        ...prev,
+                        variacoes: prev.variacoes.filter((_, i) => i !== idx)
+                      }));
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-rose-500 transition cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-400 uppercase block mb-0.5">Estoque</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={v.quantidade_estoque ?? 0}
+                      onChange={(e) => {
+                        const q = parseFloat(e.target.value) || 0;
+                        setFormData(prev => {
+                          const list = [...prev.variacoes];
+                          list[idx] = { ...list[idx], quantidade_estoque: q };
+                          const somaEstoque = list.reduce((acc, item) => acc + (Number(item.quantidade_estoque) || 0), 0);
+                          return { ...prev, variacoes: list, quantidadeEstoque: somaEstoque };
+                        });
+                      }}
+                      className="w-full px-2.5 py-1.5 rounded-lg border text-xs font-bold text-center text-emerald-600 dark:text-emerald-400 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-400 uppercase block mb-0.5">Preço (R$)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={v.preco_venda_varejo ?? ''}
+                      onChange={(e) => {
+                        const p = parseFloat(e.target.value) || 0;
+                        setFormData(prev => {
+                          const list = [...prev.variacoes];
+                          list[idx] = { ...list[idx], preco_venda_varejo: p };
+                          return { ...prev, variacoes: list };
+                        });
+                      }}
+                      placeholder={formData.precoVenda || '0,00'}
+                      className="w-full px-2.5 py-1.5 rounded-lg border text-xs font-bold text-right bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+
             <button
               type="button"
               onClick={() => {
-                const nova = { valor_variacao_1: 'Tamanho P', quantidade_estoque: 0, preco_venda_varejo: parseFloat(formData.precoVenda) || 0 };
-                setFormData(prev => ({ ...prev, variacoes: [...prev.variacoes, nova] }));
-                setMensagemFeedback({ texto: 'Variação adicionada!', tipo: 'sucesso' });
+                const nova: Partial<VariacaoProduto> = {
+                  id: Date.now().toString(),
+                  valor_variacao_1: '',
+                  valor_variacao_2: '',
+                  combinacao_nome: '',
+                  quantidade_estoque: 0,
+                  preco_venda_varejo: parseFloat(formData.precoVenda.replace(',', '.')) || 0,
+                  codigo_barras: '',
+                  sku: ''
+                };
+                setFormData(prev => ({
+                  ...prev,
+                  temVariacoes: true,
+                  variacoes: [...prev.variacoes, nova]
+                }));
               }}
-              className="w-full p-4 rounded-2xl border border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#000000] flex items-center justify-between text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#0D111A] transition cursor-pointer"
+              className="w-full p-3.5 rounded-2xl border-2 border-dashed border-emerald-500/60 text-emerald-600 dark:text-emerald-400 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 hover:bg-emerald-500/10 transition cursor-pointer"
             >
-              <span>Adicionar variação</span>
-              <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
-                <Plus className="w-5 h-5" />
-              </div>
+              <Plus className="w-5 h-5" />
+              <span>Adicionar Variação</span>
             </button>
           </div>
         </div>
 
-        {/* Botão Voltar TELA020 */}
+        {/* Botão Concluir / Voltar TELA020 */}
         <div className="p-4 border-t border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#0B0F17] shrink-0">
           <button
             type="button"
-            onClick={() => setTelaAtiva('detalhes')}
-            className="w-full py-4 rounded-2xl border border-emerald-500 text-emerald-600 dark:text-emerald-400 font-extrabold text-sm sm:text-base hover:bg-emerald-50 dark:hover:bg-[#0D111A] transition cursor-pointer"
+            onClick={() => setTelaAtiva(produtoEditando ? 'detalhes' : 'novo')}
+            className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm sm:text-base transition cursor-pointer shadow-md"
           >
-            Voltar
+            Concluir Variações
           </button>
         </div>
       </div>
@@ -2867,88 +3063,38 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         {/* CORPO DA ABA CADASTRO (TELA008 & TELA008A) */}
         {abaFormulario === 'cadastro' && (
           <div className="flex-1 overflow-y-auto p-4 space-y-5">
-            {/* Card Superior: Mídia à Esquerda e Destaque de Cadastro com IA à Direita */}
+            {/* Card Superior: Mídia à Esquerda e Pílulas de Ações à Direita */}
             <div
-              className="flex items-center justify-between gap-2 sm:gap-3 p-4 rounded-2xl border shadow-sm"
+              className="flex items-center gap-3 p-3.5 rounded-2xl border shadow-sm"
               style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
             >
-              {/* Lado Esquerdo: Cor, Foto do Produto Ampliada e Câmera */}
-              <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-                {/* Botão Cor da Etiqueta / Tarja (TELA013) */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCorSelecionadaModal(formData.corEtiqueta);
-                    setAplicarCorEmMassa(false);
-                    setModalCorEtiquetaAberto(true);
-                  }}
-                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl border-2 shadow-md transition active:scale-95 shrink-0 cursor-pointer"
-                  style={{ backgroundColor: formData.corEtiqueta, borderColor: temaCores.bordaCard }}
-                  title="Alterar Cor da Tarja Inferior"
-                />
-
-                {/* Preview do Card Ampliado */}
-                <div
-                  onClick={() => formData.fotos[0] && setModalFotoFullscreen(formData.fotos[0])}
-                  className="w-32 sm:w-36 h-36 sm:h-40 rounded-2xl border p-0 flex flex-col justify-between shadow-md relative overflow-hidden cursor-pointer shrink-0"
-                  style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
-                >
-                  {/* Imagem do Produto */}
-                  <div
-                    className="flex-1 w-full flex items-center justify-center overflow-hidden"
-                    style={{ backgroundColor: isDark ? '#0B0F17' : '#F8FAFC' }}
-                  >
-                    {formData.fotos[0] ? (
-                      <img
-                        src={formData.fotos[0]}
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <Tag className="w-8 h-8 sm:w-10 sm:h-10" style={{ color: temaCores.textoSecundario }} />
-                    )}
+              {/* Lado Esquerdo: Box da Foto Alinhado à Margem Esquerda */}
+              <div
+                onClick={() => formData.fotos[0] ? setModalFotoFullscreen(formData.fotos[0]) : setModalOpcoesFotoAberto(true)}
+                className="aspect-square w-28 h-28 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer shadow-sm relative group"
+                title={formData.fotos[0] ? 'Clique para ampliar ou gerenciar foto' : 'Clique para adicionar foto'}
+              >
+                {formData.fotos[0] ? (
+                  <img
+                    src={formData.fotos[0]}
+                    alt="Foto do Produto"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center p-2 text-slate-400 dark:text-slate-500 text-center select-none bg-slate-50 dark:bg-slate-900/80">
+                    <ImageOff className="w-6 h-6 opacity-40 mb-1" />
+                    <span className="text-[10px] font-medium leading-none tracking-tight">Sem foto</span>
                   </div>
-
-                  {/* Tarja Inferior do Card */}
-                  <div
-                    className="w-full px-2 py-1 text-white flex flex-col justify-center shrink-0"
-                    style={{ backgroundColor: formData.corEtiqueta }}
-                  >
-                    <p className="text-[10px] font-extrabold uppercase truncate leading-tight">
-                      {textoTarjaResumo}
-                    </p>
-                    <div className="flex items-baseline justify-between gap-1 mt-0.5">
-                      <p className="text-xs font-black text-white">
-                        R$ {precoPromoFmt || precoVendaFmt}
-                      </p>
-                      {precoPromoFmt && (
-                        <p className="text-[9px] text-white/70 line-through">
-                          R$ {precoVendaFmt}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Botão de Opções de Foto (Câmera ao vivo / Galeria / Gerenciador) */}
-                <button
-                  type="button"
-                  onClick={() => setModalOpcoesFotoAberto(true)}
-                  className="relative p-2 sm:p-2.5 rounded-2xl border shadow-sm transition active:scale-95 cursor-pointer shrink-0"
-                  style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard, color: temaCores.textoPrincipal }}
-                  title="Tirar Foto ou Escolher da Galeria"
-                >
-                  <Camera className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-500" />
-                  {formData.fotos.length > 0 && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 text-white rounded-full text-[9px] flex items-center justify-center font-black shadow">
-                      {formData.fotos.length}
-                    </span>
-                  )}
-                </button>
+                )}
+                {formData.fotos.length > 1 && (
+                  <span className="absolute bottom-1.5 right-1.5 bg-black/70 text-white rounded-md px-1.5 py-0.5 text-[9px] font-mono font-bold backdrop-blur-xs">
+                    +{formData.fotos.length - 1}
+                  </span>
+                )}
               </div>
 
-              {/* Lado Direito: Ações (Chave Gemini, IA, Galeria e Fotos na Internet) */}
-              <div className="flex flex-col justify-between flex-1 min-w-[124px] sm:min-w-[140px] h-36 sm:h-40 gap-1 shrink-0">
+              {/* Lado Direito: Pílulas de Ação no Padrão do Desktop */}
+              <div className="flex flex-col justify-between flex-1 gap-1.5 min-w-0">
                 {/* 1. Chave Gemini IA */}
                 <button
                   type="button"
@@ -2957,14 +3103,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     setTempApiKey(k);
                     setModalKeyGemini(true);
                   }}
-                  className="flex-1 w-full rounded-xl border px-2 py-1 flex items-center justify-between gap-1 transition active:scale-95 cursor-pointer shadow-xs select-none"
-                  style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard, color: temaCores.textoPrincipal }}
+                  className="h-9 px-3 rounded-xl text-xs font-medium border flex items-center justify-between transition-all w-full shadow-sm bg-white hover:bg-slate-50 dark:bg-slate-900/90 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer"
                   title="Configurar Chave Google Gemini AI"
                 >
-                  <div className="flex items-center gap-1.5 truncate">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                    <span className="text-[10px] sm:text-[11px] font-bold truncate">Chave Gemini IA</span>
+                  <div className="flex items-center gap-2 truncate">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
+                    <span className="font-semibold truncate">Chave Gemini IA</span>
                   </div>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal shrink-0">Configurar</span>
                 </button>
 
                 {/* 2. Botão de IA (Atualizar ou Preencher) */}
@@ -2973,38 +3119,28 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     type="button"
                     disabled={processandoIA}
                     onClick={handleAtualizarProdutoExistenteIA}
-                    className="flex-1 w-full rounded-xl border px-2 py-1 flex items-center justify-between gap-1 transition active:scale-95 cursor-pointer shadow-xs select-none disabled:opacity-50"
-                    style={{
-                      backgroundColor: temaCores.bgCard,
-                      borderColor: temaCores.bordaCard,
-                      color: isDark ? '#34D399' : '#059669'
-                    }}
+                    className="h-9 px-3 rounded-xl text-xs font-medium border flex items-center justify-between transition-all w-full shadow-sm bg-white hover:bg-slate-50 dark:bg-slate-900/90 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer disabled:opacity-50"
                     title="Atualizar o produto com nossa Inteligência Artificial"
                   >
-                    <div className="flex items-center gap-1.5 truncate">
+                    <div className="flex items-center gap-2 truncate">
                       {processandoIA ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500 shrink-0" />
                       ) : (
-                        <RefreshCw className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                        <RefreshCw className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 shrink-0" />
                       )}
-                      <span className="text-[10px] sm:text-[11px] font-extrabold truncate">Atualizar com nossa IA</span>
+                      <span className="font-semibold truncate text-emerald-600 dark:text-emerald-400">Atualizar com nossa IA</span>
                     </div>
                   </button>
                 ) : (
                   <button
                     type="button"
                     onClick={() => setModalCriarComIAAberto(true)}
-                    className="flex-1 w-full rounded-xl border px-2 py-1 flex items-center justify-between gap-1 transition active:scale-95 cursor-pointer shadow-xs select-none"
-                    style={{
-                      backgroundColor: temaCores.bgCard,
-                      borderColor: temaCores.bordaCard,
-                      color: isDark ? '#34D399' : '#059669'
-                    }}
+                    className="h-9 px-3 rounded-xl text-xs font-medium border flex items-center justify-between transition-all w-full shadow-sm bg-white hover:bg-slate-50 dark:bg-slate-900/90 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer"
                     title="Preencher com nossa Inteligência Artificial"
                   >
-                    <div className="flex items-center gap-1.5 truncate">
-                      <Sparkles className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <span className="text-[10px] sm:text-[11px] font-extrabold truncate">Preencher com nossa IA</span>
+                    <div className="flex items-center gap-2 truncate">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 shrink-0" />
+                      <span className="font-semibold truncate text-emerald-600 dark:text-emerald-400">Preencher com nossa IA</span>
                     </div>
                   </button>
                 )}
@@ -3013,15 +3149,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setModalGaleriaFotosAberto(true)}
-                  className="flex-1 w-full rounded-xl border px-2 py-1 flex items-center justify-between gap-1 transition active:scale-95 cursor-pointer shadow-xs select-none"
-                  style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard, color: temaCores.textoPrincipal }}
+                  className="h-9 px-3 rounded-xl text-xs font-medium border flex items-center justify-between transition-all w-full shadow-sm bg-white hover:bg-slate-50 dark:bg-slate-900/90 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer"
                   title="Gerenciar galeria de fotos (até 7 fotos)"
                 >
-                  <div className="flex items-center gap-1.5 truncate">
-                    <Upload className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span className="text-[10px] sm:text-[11px] font-bold truncate">Galeria</span>
+                  <div className="flex items-center gap-2 truncate">
+                    <Upload className="w-3.5 h-3.5 text-slate-400 dark:text-slate-300 shrink-0" />
+                    <span className="font-semibold truncate">Galeria</span>
                   </div>
-                  <span className="text-[9px] sm:text-[10px] font-mono font-bold shrink-0" style={{ color: temaCores.textoSecundario }}>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono shrink-0">
                     ({formData.fotos.length}/7)
                   </span>
                 </button>
@@ -3030,16 +3165,42 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 <button
                   type="button"
                   onClick={handleAbrirPesquisaFotos}
-                  className="flex-1 w-full rounded-xl border px-2 py-1 flex items-center justify-between gap-1 transition active:scale-95 cursor-pointer shadow-xs select-none"
-                  style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard, color: temaCores.textoPrincipal }}
+                  className="h-9 px-3 rounded-xl text-xs font-medium border flex items-center justify-between transition-all w-full shadow-sm bg-white hover:bg-slate-50 dark:bg-slate-900/90 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer"
                   title="Pesquisar fotos na internet de boa qualidade"
                 >
-                  <div className="flex items-center gap-1.5 truncate">
-                    <Globe className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                    <span className="text-[10px] sm:text-[11px] font-bold truncate">Fotos na Internet</span>
+                  <div className="flex items-center gap-2 truncate">
+                    <Globe className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400 shrink-0" />
+                    <span className="font-semibold truncate">Fotos na Internet</span>
                   </div>
                 </button>
               </div>
+            </div>
+
+            {/* Status de Ativação do Produto */}
+            <div className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Produto:</span>
+                {formData.ativo ? (
+                  <span className="text-emerald-500 font-semibold text-xs">Ativo</span>
+                ) : (
+                  <span className="text-slate-400 font-semibold text-xs">Inativo</span>
+                )}
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={formData.ativo}
+                onClick={() => setFormData(prev => ({ ...prev, ativo: !prev.ativo }))}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none cursor-pointer ${
+                  formData.ativo ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    formData.ativo ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
             </div>
 
             {/* Campos Obrigatórios */}
@@ -3091,6 +3252,28 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   className="w-full px-3.5 py-2.5 rounded-xl border placeholder-slate-400 dark:placeholder-slate-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-sm font-semibold uppercase transition"
                   style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
                 />
+              </div>
+
+              {/* Unidade de Medida (Tabela unidades_medida com padrão UN) */}
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider block mb-1.5" style={{ color: temaCores.textoSecundario }}>
+                  Unidade de Medida
+                </label>
+                <div
+                  onClick={() => setModalUnidadeMedidaAberto(true)}
+                  className="p-3.5 rounded-xl border flex items-center justify-between cursor-pointer transition shadow-2xs"
+                  style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-black text-xs uppercase font-mono">
+                      {(formData.unidadeMedida || formData.tipoUnidade || 'un').toUpperCase()}
+                    </span>
+                    <span className="text-xs sm:text-sm font-bold" style={{ color: temaCores.textoPrincipal }}>
+                      {unidadesLista.find(u => u.sigla.toLowerCase() === (formData.unidadeMedida || formData.tipoUnidade || 'un').toLowerCase())?.nome || 'Unidade'}
+                    </span>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-400" />
+                </div>
               </div>
 
               <div>
@@ -3480,21 +3663,6 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     </div>
                   )}
 
-                  {/* Vender por (TELA019) */}
-                  <div
-                    onClick={() => setModalVenderPorAberto(true)}
-                    className="p-3.5 rounded-xl border flex items-center justify-between cursor-pointer transition"
-                    style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
-                  >
-                    <div>
-                      <span className="text-xs font-semibold uppercase tracking-wider block" style={{ color: temaCores.textoSecundario }}>Vender por</span>
-                      <span className="text-xs sm:text-sm font-bold" style={{ color: temaCores.textoPrincipal }}>
-                        {formData.tipoUnidade === 'un' ? 'Unidade' : 'Fração (Kilo, Litro, Metro, etc.)'}
-                      </span>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-slate-400" />
-                  </div>
-
                   {/* Destacar este produto */}
                   <div className="flex items-center justify-between py-2 border-b border-slate-200 dark:border-[#1E293B]">
                     <div className="flex items-center gap-1.5">
@@ -3533,22 +3701,368 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               )}
             </div>
 
-            {/* Variantes (TELA020) */}
-            <div className="border-t border-slate-200 dark:border-[#1E293B] pt-3 pb-6 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="font-black text-xs sm:text-sm text-slate-800 dark:text-slate-100">Variantes</span>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-black uppercase">
-                  Novo
-                </span>
+            {/* SEÇÃO 5: VARIAÇÕES DO PRODUTO (MULTINÍVEL RELACIONAL SEM JSONB) */}
+            <div
+              className="p-4 border rounded-2xl space-y-4 shadow-sm"
+              style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5" style={{ color: temaCores.textoPrincipal }}>
+                    <Layers className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <span>5. Variações do Produto</span>
+                  </span>
+                  <p className="text-[11px] mt-0.5" style={{ color: temaCores.textoSecundario }}>
+                    Cor, tamanho, sabor, voltagem com estoque individual
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={formData.temVariacoes}
+                  onClick={() => {
+                    const novoVal = !formData.temVariacoes;
+                    setFormData(prev => {
+                      if (!novoVal) {
+                        return { ...prev, temVariacoes: false };
+                      }
+                      const vars = prev.variacoes.length > 0 ? prev.variacoes : [
+                        {
+                          id: Date.now().toString(),
+                          valor_variacao_1: 'Padrão',
+                          valor_variacao_2: '',
+                          combinacao_nome: 'Padrão',
+                          quantidade_estoque: prev.quantidadeEstoque || 0,
+                          preco_venda_varejo: parseFloat(prev.precoVenda.replace(',', '.')) || 0,
+                          codigo_barras: prev.codigoBarras || '',
+                          sku: ''
+                        }
+                      ];
+                      return { ...prev, temVariacoes: true, variacoes: vars };
+                    });
+                  }}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none cursor-pointer ${
+                    formData.temVariacoes ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      formData.temVariacoes ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setTelaAtiva('variacoes')}
-                className="text-xs sm:text-sm font-extrabold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 uppercase cursor-pointer"
-              >
-                Adicionar
-              </button>
+
+              {formData.temVariacoes && (
+                <div className="space-y-3.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  {/* Atributos / Rótulos das Variações */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: temaCores.textoSecundario }}>
+                        1º Atributo (ex: Cor)
+                      </label>
+                      <input
+                        type="text"
+                        value={rotuloVariacao1}
+                        onChange={(e) => setRotuloVariacao1(e.target.value)}
+                        placeholder="Ex: Cor ou Tamanho"
+                        className="w-full px-3 py-2 rounded-xl border text-xs font-bold"
+                        style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: temaCores.textoSecundario }}>
+                        2º Atributo (Opcional)
+                      </label>
+                      <input
+                        type="text"
+                        value={rotuloVariacao2}
+                        onChange={(e) => setRotuloVariacao2(e.target.value)}
+                        placeholder="Ex: Tamanho ou Voltagem"
+                        className="w-full px-3 py-2 rounded-xl border text-xs font-bold"
+                        style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Lista de Variações Cadastradas */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between text-[11px] font-semibold" style={{ color: temaCores.textoSecundario }}>
+                      <span>Opções ({formData.variacoes.length}):</span>
+                      <span>Estoque individual</span>
+                    </div>
+
+                    {formData.variacoes.map((v, idx) => (
+                      <div
+                        key={v.id || idx}
+                        className="p-3 rounded-xl border space-y-2.5 transition"
+                        style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex-1 grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              value={v.valor_variacao_1 || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setFormData(prev => {
+                                  const list = [...prev.variacoes];
+                                  list[idx] = { ...list[idx], valor_variacao_1: val };
+                                  return { ...prev, variacoes: list };
+                                });
+                              }}
+                              placeholder={`Valor ${rotuloVariacao1 || '1'}`}
+                              className="px-2.5 py-1.5 rounded-lg border text-xs font-bold"
+                              style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
+                            />
+                            {rotuloVariacao2.trim() ? (
+                              <input
+                                type="text"
+                                value={v.valor_variacao_2 || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setFormData(prev => {
+                                    const list = [...prev.variacoes];
+                                    list[idx] = { ...list[idx], valor_variacao_2: val };
+                                    return { ...prev, variacoes: list };
+                                  });
+                                }}
+                                placeholder={`Valor ${rotuloVariacao2}`}
+                                className="px-2.5 py-1.5 rounded-lg border text-xs font-bold"
+                                style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
+                              />
+                            ) : (
+                              <div className="flex items-center text-[10px] text-slate-400 italic px-1">
+                                Atributo único
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormData(prev => ({
+                                ...prev,
+                                variacoes: prev.variacoes.filter((_, i) => i !== idx)
+                              }));
+                            }}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition cursor-pointer"
+                            title="Remover variação"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <label className="text-[10px] font-semibold uppercase block mb-0.5" style={{ color: temaCores.textoSecundario }}>
+                              Estoque
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={v.quantidade_estoque ?? 0}
+                              onChange={(e) => {
+                                const q = parseFloat(e.target.value) || 0;
+                                setFormData(prev => {
+                                  const list = [...prev.variacoes];
+                                  list[idx] = { ...list[idx], quantidade_estoque: q };
+                                  const somaEstoque = list.reduce((acc, item) => acc + (Number(item.quantidade_estoque) || 0), 0);
+                                  return { ...prev, variacoes: list, quantidadeEstoque: somaEstoque };
+                                });
+                              }}
+                              className="w-full px-2.5 py-1.5 rounded-lg border text-xs font-bold text-center text-emerald-600 dark:text-emerald-400"
+                              style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput }}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-semibold uppercase block mb-0.5" style={{ color: temaCores.textoSecundario }}>
+                              Preço (R$)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={v.preco_venda_varejo ?? ''}
+                              onChange={(e) => {
+                                const p = parseFloat(e.target.value) || 0;
+                                setFormData(prev => {
+                                  const list = [...prev.variacoes];
+                                  list[idx] = { ...list[idx], preco_venda_varejo: p };
+                                  return { ...prev, variacoes: list };
+                                });
+                              }}
+                              placeholder={formData.precoVenda || '0,00'}
+                              className="w-full px-2.5 py-1.5 rounded-lg border text-xs font-bold text-right"
+                              style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Botão + Adicionar Variação */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nova: Partial<VariacaoProduto> = {
+                        id: Date.now().toString(),
+                        valor_variacao_1: '',
+                        valor_variacao_2: '',
+                        combinacao_nome: '',
+                        quantidade_estoque: 0,
+                        preco_venda_varejo: parseFloat(formData.precoVenda.replace(',', '.')) || 0,
+                        codigo_barras: '',
+                        sku: ''
+                      };
+                      setFormData(prev => ({
+                        ...prev,
+                        variacoes: [...prev.variacoes, nova]
+                      }));
+                    }}
+                    className="w-full py-2.5 px-3 rounded-xl border border-dashed border-emerald-500/60 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-emerald-500/10 transition cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Adicionar Variação</span>
+                  </button>
+
+                  {/* Resumo da soma de estoque das variações */}
+                  {formData.variacoes.length > 0 && (
+                    <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-500/30 text-[11px] text-emerald-700 dark:text-emerald-300 flex items-center justify-between">
+                      <span className="font-semibold">Estoque Total Sincronizado:</span>
+                      <span className="font-black text-xs">
+                        {formData.variacoes.reduce((acc, item) => acc + (Number(item.quantidade_estoque) || 0), 0)} {(formData.unidadeMedida || formData.tipoUnidade || 'un').toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
+
+            {/* SEÇÃO 6: DIMENSÕES E PESO PARA ENVIO (MELHOR ENVIO / CORREIOS / JADLOG) */}
+            {formData.tipoItem !== 'servico' && (
+              <div
+                className="p-4 border rounded-2xl space-y-3.5 shadow-sm"
+                style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5" style={{ color: temaCores.textoPrincipal }}>
+                      <Truck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      <span>6. Dimensões e Peso para Envio</span>
+                    </span>
+                    <p className="text-[11px] mt-0.5" style={{ color: temaCores.textoSecundario }}>
+                      Melhor Envio / Correios / Jadlog / Uber Direct
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={detectandoDimensoes}
+                    onClick={async () => {
+                      if (!formData.nome.trim() && !formData.descricao.trim()) {
+                        setMensagemFeedback({ texto: 'Informe o Nome ou Descrição do produto primeiro.', tipo: 'erro' });
+                        return;
+                      }
+
+                      setDetectandoDimensoes(true);
+                      try {
+                        const catNome = mapaCategorias.get(formData.categoriaId);
+                        const res = await estimarDimensoesEPesoProduto(formData.nome, formData.descricao, catNome, loja);
+
+                        setFormData(prev => ({
+                          ...prev,
+                          pesoKg: res.peso_kg != null ? String(res.peso_kg) : prev.pesoKg,
+                          alturaCm: res.altura_cm != null ? String(res.altura_cm) : prev.alturaCm,
+                          larguraCm: res.largura_cm != null ? String(res.largura_cm) : prev.larguraCm,
+                          comprimentoCm: res.comprimento_cm != null ? String(res.comprimento_cm) : prev.comprimentoCm
+                        }));
+                        setMensagemFeedback({ texto: '✨ Medidas e peso de envio preenchidos com IA!', tipo: 'sucesso' });
+                      } catch (err: any) {
+                        console.error('Erro ao estimar medidas com IA:', err);
+                        setFormData(prev => ({
+                          ...prev,
+                          pesoKg: prev.pesoKg || '0.35',
+                          alturaCm: prev.alturaCm || '4',
+                          larguraCm: prev.larguraCm || '12',
+                          comprimentoCm: prev.comprimentoCm || '17'
+                        }));
+                        setMensagemFeedback({ texto: 'Medidas padrão de envio aplicadas com sucesso!', tipo: 'sucesso' });
+                      } finally {
+                        setDetectandoDimensoes(false);
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-500/30 text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50 shrink-0"
+                    title="Detectar medidas e peso com inteligência artificial"
+                  >
+                    {detectandoDimensoes ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 animate-spin shrink-0" />
+                        <span>Estimando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <span>Auto-detectar IA</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <div>
+                    <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: temaCores.textoSecundario }}>
+                      Peso (kg)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: 0.350"
+                      value={formData.pesoKg || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, pesoKg: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl border text-xs font-bold"
+                      style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: temaCores.textoSecundario }}>
+                      Altura (cm)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: 4"
+                      value={formData.alturaCm || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, alturaCm: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl border text-xs font-bold"
+                      style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: temaCores.textoSecundario }}>
+                      Largura (cm)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: 12"
+                      value={formData.larguraCm || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, larguraCm: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl border text-xs font-bold"
+                      style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: temaCores.textoSecundario }}>
+                      Comprimento (cm)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: 17"
+                      value={formData.comprimentoCm || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, comprimentoCm: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl border text-xs font-bold"
+                      style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -3949,53 +4463,56 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           </div>
         )}
 
-        {/* Modal Vender por (TELA019) */}
-        {modalVenderPorAberto && (
-          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end justify-center">
-            <div className="bg-white dark:bg-[#000000] border-t border-slate-200 dark:border-[#1E293B] rounded-t-3xl w-full max-w-md p-6 shadow-2xl space-y-4 animate-in slide-in-from-bottom duration-200 text-slate-900 dark:text-slate-100">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#1E293B] pb-3">
-                <h3 className="font-black text-sm sm:text-base text-slate-800 dark:text-white">Vender por</h3>
+        {/* Modal Seletor de Unidade de Medida (Tabela unidades_medida + UNIDADES_PADRAO) */}
+        {modalUnidadeMedidaAberto && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div className="bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] rounded-t-3xl sm:rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4 max-h-[80vh] flex flex-col animate-in slide-in-from-bottom duration-200 text-slate-900 dark:text-slate-100">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#1E293B] pb-3 shrink-0">
+                <div>
+                  <h3 className="font-black text-sm sm:text-base text-slate-800 dark:text-white">Unidade de Medida</h3>
+                  <p className="text-[11px] text-slate-400 font-semibold">Selecione como este item é vendido</p>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setModalVenderPorAberto(false)}
+                  onClick={() => setModalUnidadeMedidaAberto(false)}
                   className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="space-y-2.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFormData(prev => ({ ...prev, tipoUnidade: 'un' }));
-                    setModalVenderPorAberto(false);
-                  }}
-                  className={`w-full p-4 rounded-2xl text-left text-xs sm:text-sm font-extrabold flex items-center justify-between transition border cursor-pointer ${
-                    formData.tipoUnidade === 'un'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-500'
-                      : 'bg-white dark:bg-[#000000] text-slate-700 dark:text-slate-200 border-slate-200 dark:border-[#1E293B] hover:bg-slate-50 dark:hover:bg-[#0D111A]'
-                  }`}
-                >
-                  <span>Unidade</span>
-                  {formData.tipoUnidade === 'un' && <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFormData(prev => ({ ...prev, tipoUnidade: 'kg' }));
-                    setModalVenderPorAberto(false);
-                  }}
-                  className={`w-full p-4 rounded-2xl text-left text-xs sm:text-sm font-extrabold flex items-center justify-between transition border cursor-pointer ${
-                    formData.tipoUnidade !== 'un'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-500'
-                      : 'bg-white dark:bg-[#000000] text-slate-700 dark:text-slate-200 border-slate-200 dark:border-[#1E293B] hover:bg-slate-50 dark:hover:bg-[#0D111A]'
-                  }`}
-                >
-                  <span>Fração (Kilo, Litro, Metro, etc.)</span>
-                  {formData.tipoUnidade !== 'un' && <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
-                </button>
+              <div className="space-y-2 overflow-y-auto flex-1 pr-1">
+                {unidadesLista.map((u) => {
+                  const selecionada = (formData.unidadeMedida || formData.tipoUnidade || 'un').toLowerCase() === u.sigla.toLowerCase();
+                  return (
+                    <button
+                      key={u.sigla}
+                      type="button"
+                      onClick={() => {
+                        const siglaNormalizada = u.sigla.toLowerCase() as TipoUnidade;
+                        setFormData(prev => ({
+                          ...prev,
+                          unidadeMedida: u.sigla.toLowerCase(),
+                          tipoUnidade: siglaNormalizada === 'kg' ? 'kg' : 'un'
+                        }));
+                        setModalUnidadeMedidaAberto(false);
+                      }}
+                      className={`w-full p-3.5 rounded-2xl text-left text-xs sm:text-sm font-extrabold flex items-center justify-between transition border cursor-pointer ${
+                        selecionada
+                          ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-500'
+                          : 'bg-white dark:bg-[#000000] text-slate-700 dark:text-slate-200 border-slate-200 dark:border-[#1E293B] hover:bg-slate-50 dark:hover:bg-[#0D111A]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="w-10 text-center font-mono font-black text-xs uppercase px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                          {u.sigla.toUpperCase()}
+                        </span>
+                        <span>{u.nome}</span>
+                      </div>
+                      {selecionada && <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -5038,15 +5555,13 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 >
                   <div className="flex items-center gap-3.5 min-w-0 flex-1">
                     {/* Thumbnail / Foto */}
-                    <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] overflow-hidden flex items-center justify-center shrink-0 shadow-sm">
+                    <div className="w-12 h-12 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex items-center justify-center shrink-0 shadow-sm bg-white dark:bg-slate-900">
                       {p.fotos_urls && p.fotos_urls[0] ? (
                         <img src={p.fotos_urls[0]} alt={p.nome} className="w-full h-full object-cover" />
                       ) : (
-                        <div
-                          className="w-full h-full flex items-center justify-center text-white font-black text-xs"
-                          style={{ backgroundColor: obterCorProduto(p) }}
-                        >
-                          {p.nome.slice(0, 2).toUpperCase()}
+                        <div className="w-full h-full flex flex-col items-center justify-center p-1 bg-slate-50 dark:bg-slate-900/80 text-slate-400 dark:text-slate-500 text-center select-none">
+                          <ImageOff className="w-4 h-4 opacity-50 mb-0.5" />
+                          <span className="text-[9px] font-medium leading-none tracking-tight">Sem foto</span>
                         </div>
                       )}
                     </div>
@@ -5101,15 +5616,13 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   }`} />
 
                   {/* Foto */}
-                  <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] overflow-hidden flex items-center justify-center shrink-0 shadow-sm">
+                  <div className="w-12 h-12 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex items-center justify-center shrink-0 shadow-sm bg-white dark:bg-slate-900">
                     {p.fotos_urls && p.fotos_urls[0] ? (
                       <img src={p.fotos_urls[0]} alt={p.nome} className="w-full h-full object-cover" />
                     ) : (
-                      <div
-                        className="w-full h-full flex items-center justify-center text-white font-black text-xs"
-                        style={{ backgroundColor: obterCorProduto(p) }}
-                      >
-                        {p.nome.slice(0, 2).toUpperCase()}
+                      <div className="w-full h-full flex flex-col items-center justify-center p-1 bg-slate-50 dark:bg-slate-900/80 text-slate-400 dark:text-slate-500 text-center select-none">
+                        <ImageOff className="w-4 h-4 opacity-50 mb-0.5" />
+                        <span className="text-[9px] font-medium leading-none tracking-tight">Sem foto</span>
                       </div>
                     )}
                   </div>
