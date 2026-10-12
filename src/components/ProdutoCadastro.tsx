@@ -1557,6 +1557,7 @@ export const ProdutoCadastro: React.FC = () => {
             ref={cameraInputRef}
             type="file"
             accept="image/*"
+            capture="environment"
             className="hidden"
             onChange={(e) => {
               if (e.target.files) handleProcessarArquivosImagens(e.target.files);
@@ -1649,7 +1650,12 @@ export const ProdutoCadastro: React.FC = () => {
               <button
                 type="button"
                 disabled={fotosUrls.length >= 7}
-                onClick={iniciarCameraAoVivo}
+                onClick={() => {
+                  if (cameraInputRef.current) {
+                    cameraInputRef.current.value = '';
+                    cameraInputRef.current.click();
+                  }
+                }}
                 className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex md:hidden items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-[#000000] dark:hover:bg-[#0D111A] border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 transition-all duration-150 disabled:opacity-40"
               >
                 <div className="flex items-center gap-2 truncate">

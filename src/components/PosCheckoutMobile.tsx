@@ -1758,7 +1758,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                         <span className="text-amber-500 text-[10px] shrink-0">★</span>
                       )}
                       <h3
-                        className="text-[11px] font-semibold text-slate-800 line-clamp-2 h-8 leading-tight uppercase overflow-hidden"
+                        className="text-[11px] font-semibold text-slate-800 line-clamp-2 h-[2.25rem] leading-[1.125rem] overflow-hidden select-none uppercase"
                         title={produto.nome}
                       >
                         {produto.nome}

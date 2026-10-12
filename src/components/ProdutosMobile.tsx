@@ -554,6 +554,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputCameraRef = useRef<HTMLInputElement | null>(null);
   const fileInputGaleriaRef = useRef<HTMLInputElement | null>(null);
+  const fileInputCameraIARef = useRef<HTMLInputElement | null>(null);
   const [streamCamera, setStreamCamera] = useState<MediaStream | null>(null);
   const [torchLigado, setTorchLigado] = useState<boolean>(false);
   const [somScannerMudo, setSomScannerMudo] = useState<boolean>(false);
@@ -2724,6 +2725,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           ref={fileInputCameraRef}
           type="file"
           accept="image/*"
+          capture="environment"
           onChange={(e) => {
             handleProcessarArquivoFoto(e.target.files?.[0]);
             e.target.value = '';
@@ -4229,12 +4231,37 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   </p>
 
                   <div className="grid grid-cols-2 gap-3">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      ref={fileInputCameraIARef}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setModalCriarComIAAberto(false);
+                          try {
+                            const { base64 } = await comprimirFotoProduto(file, { maxDimension: 1024, quality: 0.75 });
+                            if (base64) {
+                              processarPreenchimentoIA('foto', base64);
+                            }
+                          } catch (err: any) {
+                            console.error('Erro ao comprimir foto para IA:', err);
+                            setMensagemFeedback({ texto: err?.message || 'Não foi possível processar a foto para a IA.', tipo: 'erro' });
+                          }
+                        }
+                        e.target.value = '';
+                      }}
+                    />
+
                     <button
                       type="button"
                       onClick={() => {
-                        setModalCriarComIAAberto(false);
-                        setOrigemCameraParaIA(true);
-                        iniciarCameraFoto('environment');
+                        if (fileInputCameraIARef.current) {
+                          fileInputCameraIARef.current.value = '';
+                          fileInputCameraIARef.current.click();
+                        }
                       }}
                       className="p-4 rounded-2xl border-2 border-dashed border-emerald-500/80 dark:border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/20 flex flex-col items-center justify-center text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition cursor-pointer text-center active:scale-95"
                     >
