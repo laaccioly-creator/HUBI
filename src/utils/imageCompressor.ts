@@ -7,8 +7,8 @@
  */
 
 export interface CompressOptions {
-  maxDimension?: number; // Padrão: 1024 (ideal para visão computacional/OCR sem estourar RAM)
-  quality?: number;      // Padrão: 0.75
+  maxDimension?: number; // Padrão: 800 (ideal para visão computacional rápida e baixo consumo de RAM)
+  quality?: number;      // Padrão: 0.50 (~50KB a 80KB por foto)
   mimeType?: string;     // Padrão: 'image/jpeg'
 }
 
@@ -19,7 +19,7 @@ export interface CompressResult {
 
 /**
  * Comprime e redimensiona fotos capturadas pela câmera ou selecionadas da galeria.
- * Reduz arquivos pesados de câmeras móveis (12MP-48MP / 8MB-25MB) para ~150KB-250KB em resolução máxima de 1024px.
+ * Reduz arquivos pesados de câmeras móveis (12MP-48MP / 8MB-25MB) para ~50KB-80KB em resolução máxima de 800px.
  */
 export async function comprimirFotoProduto(
   file: File | Blob,
@@ -36,8 +36,8 @@ export async function comprimirFotoProduto(
       return;
     }
 
-    const maxDimension = options?.maxDimension ?? 1024;
-    const quality = options?.quality ?? 0.75;
+    const maxDimension = options?.maxDimension ?? 800;
+    const quality = options?.quality ?? 0.50;
     const mimeType = options?.mimeType ?? 'image/jpeg';
 
     let objectUrl: string | null = null;

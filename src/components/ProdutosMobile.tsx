@@ -102,7 +102,7 @@ const CORES_ETIQUETA = [
 ];
 
 // Utilitário de compressão segura via HTML5 Canvas (evita OOM no Android/iOS)
-const comprimirArquivoImagem = async (file: File | Blob, maxDim = 1024, quality = 0.75): Promise<string> => {
+const comprimirArquivoImagem = async (file: File | Blob, maxDim = 800, quality = 0.50): Promise<string> => {
   try {
     const res = await comprimirFotoProduto(file, { maxDimension: maxDim, quality });
     return res.base64;
@@ -1625,7 +1625,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     if (!video || video.readyState < 2) return;
 
     try {
-      const maxDim = 1024;
+      const maxDim = 800;
       let width = video.videoWidth || 800;
       let height = video.videoHeight || 800;
 
@@ -1646,7 +1646,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       if (!ctx) return;
 
       ctx.drawImage(video, 0, 0, width, height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.50);
 
       // Limpeza imediata do buffer gráfico do canvas
       ctx.clearRect(0, 0, width, height);
@@ -1685,7 +1685,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const handleProcessarArquivoFoto = async (file?: File) => {
     if (!file) return;
     try {
-      const { base64: dataUrl } = await comprimirFotoProduto(file, { maxDimension: 1024, quality: 0.75 });
+      const { base64: dataUrl } = await comprimirFotoProduto(file, { maxDimension: 800, quality: 0.50 });
       if (dataUrl) {
         setFormData(prev => ({
           ...prev,
@@ -4227,25 +4227,19 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               {abaModalIA === 'foto' && (
                 <div className="space-y-4">
                   {cameraFotoCarregando || streamCameraFoto ? (
-                    /* Visor de Câmera Inline com Resolução Controlada (WebRTC) */
-                    <div className="relative w-full aspect-square bg-black rounded-2xl overflow-hidden flex items-center justify-center shadow-lg">
-                      <video
-                        ref={videoFotoRef}
-                        autoPlay
-                        playsInline
-                        muted
-                        className="w-full h-full object-cover"
-                      />
-
-                      {cameraFotoCarregando && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 text-white gap-2">
-                          <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
-                          <span className="text-xs font-bold uppercase tracking-wider">Iniciando câmera...</span>
+                    /* Visor Ergonômico de Câmera em Tela Cheia no Mobile */
+                    <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col justify-between p-4 text-white">
+                      {/* Top Header com Título e Fechar */}
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                            <Camera className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <h3 className="font-extrabold text-sm text-white leading-tight">Fotografar Produto</h3>
+                            <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Enquadre o produto na guia</p>
+                          </div>
                         </div>
-                      )}
-
-                      {/* Botões de Ação sobre o Visor */}
-                      <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-3 px-3 z-10">
                         <button
                           type="button"
                           onClick={() => {
@@ -4257,7 +4251,51 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                             setStreamCameraFoto(null);
                             setCameraFotoCarregando(false);
                           }}
-                          className="px-4 py-2 bg-slate-900/90 hover:bg-slate-800 text-white rounded-xl text-xs font-bold backdrop-blur-sm transition cursor-pointer"
+                          className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+
+                      {/* Visor do Vídeo com Moldura Guia Translúcida */}
+                      <div className="w-full flex-1 max-h-[60vh] md:max-h-none bg-black rounded-2xl overflow-hidden relative border border-slate-800 flex items-center justify-center my-3 shadow-2xl">
+                        <video
+                          ref={videoFotoRef}
+                          autoPlay
+                          playsInline
+                          muted
+                          className="w-full h-full object-cover"
+                        />
+
+                        {/* Guia translúcida pontilhada de enquadramento */}
+                        <div className="absolute inset-6 sm:inset-10 border-2 border-dashed border-emerald-500/50 rounded-xl pointer-events-none flex items-center justify-center">
+                          <span className="text-[11px] font-bold text-emerald-400/80 bg-black/60 px-3 py-1 rounded-full uppercase tracking-wider backdrop-blur-sm shadow-sm">
+                            Posicione o produto aqui
+                          </span>
+                        </div>
+
+                        {cameraFotoCarregando && (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-white gap-2.5 z-20">
+                            <Loader2 className="w-9 h-9 animate-spin text-emerald-400" />
+                            <span className="text-xs font-bold uppercase tracking-wider">Iniciando câmera...</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Barra de Ações Inferior Ergonômica */}
+                      <div className="flex items-center gap-3 w-full pt-1 pb-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (videoFotoRef.current && videoFotoRef.current.srcObject) {
+                              const st = videoFotoRef.current.srcObject as MediaStream;
+                              st.getTracks().forEach((t: MediaStreamTrack) => t.stop());
+                              videoFotoRef.current.srcObject = null;
+                            }
+                            setStreamCameraFoto(null);
+                            setCameraFotoCarregando(false);
+                          }}
+                          className="flex-1 h-12 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm flex items-center justify-center transition cursor-pointer active:scale-98"
                         >
                           Cancelar
                         </button>
@@ -4267,24 +4305,42 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                             const video = videoFotoRef.current;
                             if (!video || video.readyState < 2) return;
                             try {
+                              const origW = video.videoWidth || 800;
+                              const origH = video.videoHeight || 600;
+                              const maxDim = 800;
+                              let targetW = origW;
+                              let targetH = origH;
+                              if (origW > maxDim || origH > maxDim) {
+                                if (origW > origH) {
+                                  targetH = Math.round((origH * maxDim) / origW);
+                                  targetW = maxDim;
+                                } else {
+                                  targetW = Math.round((origW * maxDim) / origH);
+                                  targetH = maxDim;
+                                }
+                              }
+
                               const canvas = document.createElement('canvas');
-                              canvas.width = video.videoWidth || 1024;
-                              canvas.height = video.videoHeight || 768;
-                              const ctx = canvas.getContext('2d');
+                              canvas.width = targetW;
+                              canvas.height = targetH;
+                              const ctx = canvas.getContext('2d', { alpha: false });
                               if (ctx) {
-                                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                                const base64 = canvas.toDataURL('image/jpeg', 0.75);
-                                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                                ctx.fillStyle = '#FFFFFF';
+                                ctx.fillRect(0, 0, targetW, targetH);
+                                ctx.drawImage(video, 0, 0, targetW, targetH);
+                                const base64 = canvas.toDataURL('image/jpeg', 0.50);
+                                ctx.clearRect(0, 0, targetW, targetH);
                                 canvas.width = 0;
                                 canvas.height = 0;
 
-                                // Finalizar stream para liberar memória
+                                // Limpeza imediata dos tracks da câmera
                                 if (video.srcObject) {
                                   const st = video.srcObject as MediaStream;
                                   st.getTracks().forEach((t: MediaStreamTrack) => t.stop());
                                   video.srcObject = null;
                                 }
                                 setStreamCameraFoto(null);
+                                setCameraFotoCarregando(false);
                                 setModalCriarComIAAberto(false);
                                 processarPreenchimentoIA('foto', base64);
                               }
@@ -4293,9 +4349,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                               setMensagemFeedback({ texto: 'Não foi possível capturar o frame da foto.', tipo: 'erro' });
                             }
                           }}
-                          className="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs shadow-lg flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+                          className="flex-[2] h-12 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition cursor-pointer"
                         >
-                          <Camera className="w-4 h-4" />
+                          <Camera className="w-5 h-5" />
                           <span>Capturar Foto</span>
                         </button>
                       </div>
@@ -4355,7 +4411,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                               if (file) {
                                 setModalCriarComIAAberto(false);
                                 try {
-                                  const { base64 } = await comprimirFotoProduto(file, { maxDimension: 1024, quality: 0.75 });
+                                  const { base64 } = await comprimirFotoProduto(file, { maxDimension: 800, quality: 0.50 });
                                   if (base64) {
                                     processarPreenchimentoIA('foto', base64);
                                   }

@@ -106,8 +106,8 @@ export interface ProdutoSugeridoIA {
 
 const comprimirArquivoImagem = async (file: File | Blob): Promise<{ blob: Blob; dataUrl: string }> => {
   const { file: blob, base64: dataUrl } = await comprimirFotoProduto(file, {
-    maxDimension: 1024,
-    quality: 0.75
+    maxDimension: 800,
+    quality: 0.50
   });
   return { blob, dataUrl };
 };
@@ -1068,7 +1068,7 @@ export const ProdutoCadastro: React.FC = () => {
     if (!video || video.readyState < 2) return;
 
     try {
-      const maxDim = 1024;
+      const maxDim = 800;
       let width = video.videoWidth || 800;
       let height = video.videoHeight || 800;
 
@@ -1089,7 +1089,7 @@ export const ProdutoCadastro: React.FC = () => {
       if (!ctx) return;
 
       ctx.drawImage(video, 0, 0, width, height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.50);
 
       // Limpeza imediata do canvas
       ctx.clearRect(0, 0, width, height);
@@ -3006,9 +3006,9 @@ export const ProdutoCadastro: React.FC = () => {
 
       {/* Modal Câmera Ao Vivo In-App (WebRTC Stream - Sem Crash OOM no Mobile) */}
       {modalCameraAoVivoAberto && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between select-none">
+        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between select-none p-4 text-white">
           {/* Header */}
-          <div className="p-4 flex items-center justify-between z-10 bg-gradient-to-b from-black/80 to-transparent">
+          <div className="flex items-center justify-between z-10 pb-3 border-b border-slate-800">
             <button
               type="button"
               onClick={encerrarCameraAoVivo}
@@ -3021,7 +3021,7 @@ export const ProdutoCadastro: React.FC = () => {
           </div>
 
           {/* Viewfinder da Câmera */}
-          <div className="relative flex-1 flex items-center justify-center overflow-hidden">
+          <div className="relative flex-1 max-h-[60vh] md:max-h-none bg-black rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center my-3 shadow-2xl">
             <video
               ref={videoAoVivoRef}
               autoPlay
@@ -3030,35 +3030,39 @@ export const ProdutoCadastro: React.FC = () => {
               className="w-full h-full object-cover"
             />
 
+            {/* Guia visual de enquadramento translúcida pontilhada */}
+            <div className="absolute inset-6 sm:inset-10 border-2 border-dashed border-emerald-500/50 rounded-xl pointer-events-none flex items-center justify-center">
+              <span className="text-[11px] font-bold text-emerald-400/80 bg-black/60 px-3 py-1 rounded-full uppercase tracking-wider backdrop-blur-sm shadow-sm">
+                Posicione o produto aqui
+              </span>
+            </div>
+
             {cameraAoVivoCarregando && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white gap-3">
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 text-white gap-3 z-20">
                 <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
                 <p className="text-xs font-bold uppercase tracking-wider">Iniciando câmera...</p>
               </div>
             )}
-
-            {/* Guia visual de enquadramento */}
-            <div className="absolute w-64 h-64 border-2 border-white/40 rounded-3xl pointer-events-none shadow-2xl flex items-center justify-center">
-              <div className="w-4 h-4 border-t-2 border-l-2 border-emerald-400 absolute top-2 left-2 rounded-tl" />
-              <div className="w-4 h-4 border-t-2 border-r-2 border-emerald-400 absolute top-2 right-2 rounded-tr" />
-              <div className="w-4 h-4 border-b-2 border-l-2 border-emerald-400 absolute bottom-2 left-2 rounded-bl" />
-              <div className="w-4 h-4 border-b-2 border-r-2 border-emerald-400 absolute bottom-2 right-2 rounded-br" />
-            </div>
           </div>
 
-          {/* Footer com Botão de Disparo / Shutter */}
-          <div className="p-6 pb-10 flex flex-col items-center justify-center z-10 bg-gradient-to-t from-black/90 to-transparent gap-2">
+          {/* Barra Ergonômica Inferior */}
+          <div className="flex items-center gap-3 w-full pt-1 pb-2">
+            <button
+              type="button"
+              onClick={encerrarCameraAoVivo}
+              className="flex-1 h-12 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm flex items-center justify-center transition cursor-pointer active:scale-98"
+            >
+              Cancelar
+            </button>
             <button
               type="button"
               onClick={capturarFotoAoVivo}
               disabled={cameraAoVivoCarregando}
-              className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center bg-white/20 active:scale-95 transition shadow-2xl disabled:opacity-50 cursor-pointer"
+              className="flex-[2] h-12 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50"
             >
-              <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center shadow-inner hover:bg-slate-100">
-                <Camera className="w-7 h-7 text-slate-800" />
-              </div>
+              <Camera className="w-5 h-5" />
+              <span>Tirar Foto</span>
             </button>
-            <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider">Toque para fotografar</span>
           </div>
         </div>
       )}

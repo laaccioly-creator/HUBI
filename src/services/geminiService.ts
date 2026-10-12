@@ -570,8 +570,8 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
     c.parts?.some((p: any) => p.inline_data || p.inlineData)
   );
 
-  // Timeouts otimizados: 8.5s para imagem comprimida (<30KB) e 6s para texto
-  const timeoutMs = temImagem ? 8500 : 6000;
+  // Timeouts resilientes para redes móveis: 15s para imagem multimodal e 10s para texto
+  const timeoutMs = temImagem ? 15000 : 10000;
 
   let tentativas = 0;
   for (const modelo of modelos) {
@@ -580,65 +580,80 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
       break;
     }
 
-    try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    let respostaOk = false;
+    for (let subTentativa = 1; subTentativa <= 2; subTentativa++) {
+      try {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payloadCompleto),
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payloadCompleto),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
 
-      if (response.ok) {
-        return await response.json();
-      } else {
-        const errJson = await response.json().catch(() => ({}));
-        const msg = errJson?.error?.message || response.statusText;
-        if (!primeiroErro) primeiroErro = msg;
+        if (response.ok) {
+          respostaOk = true;
+          return await response.json();
+        } else {
+          const errJson = await response.json().catch(() => ({}));
+          const msg = errJson?.error?.message || response.statusText;
+          if (!primeiroErro) primeiroErro = msg;
 
-        // Se for 400 (Bad Request - formato de imagem/payload inválido), não adianta tentar outro modelo
-        if (response.status === 400) {
-          console.warn(`[Gemini] Erro 400 no modelo ${modelo}:`, msg);
-          if (temImagem) {
-            throw new Error('A imagem selecionada não pôde ser interpretada pela IA. Por favor, tente com outra foto ou tire uma foto com a câmera.');
-          }
-          throw new Error('Parâmetros inválidos para a consulta de IA.');
-        }
-
-        if (response.status === 429) {
-          const isZeroQuotaModel = msg.includes('limit: 0') || msg.includes('limit:0');
-          if (!isZeroQuotaModel) {
-            contador429++;
-            if (contador429 >= 2) {
-              console.warn('[Gemini] Limite de taxa (429) atingido na chave. Interrompendo cascata.');
-              throw new Error('A cota de requisições da sua chave do Google Gemini atingiu o limite temporário. Por favor, aguarde cerca de 30 segundos antes de tentar novamente.');
+          // Se for 400 (Bad Request - formato de imagem/payload inválido), não adianta tentar outro modelo
+          if (response.status === 400) {
+            console.warn(`[Gemini] Erro 400 no modelo ${modelo}:`, msg);
+            if (temImagem) {
+              throw new Error('A imagem selecionada não pôde ser interpretada pela IA. Por favor, tente com outra foto ou tire uma foto com a câmera.');
             }
-          } else {
-            console.warn(`[Gemini] Modelo ${modelo} não possui cota gratuita ativa (limit: 0). Pulando para o próximo.`);
+            throw new Error('Parâmetros inválidos para a consulta de IA.');
           }
+
+          if (response.status === 429) {
+            const isZeroQuotaModel = msg.includes('limit: 0') || msg.includes('limit:0');
+            if (!isZeroQuotaModel) {
+              contador429++;
+              if (contador429 >= 2) {
+                console.warn('[Gemini] Limite de taxa (429) atingido na chave. Interrompendo cascata.');
+                throw new Error('A cota de requisições da sua chave do Google Gemini atingiu o limite temporário. Por favor, aguarde cerca de 30 segundos antes de tentar novamente.');
+              }
+            } else {
+              console.warn(`[Gemini] Modelo ${modelo} não possui cota gratuita ativa (limit: 0). Pulando para o próximo.`);
+            }
+          }
+
+          console.warn(`Tentativa com modelo ${modelo} retornou erro (${response.status}):`, msg);
+          break; // Pula para o próximo modelo se a resposta HTTP já foi recebida com erro
+        }
+      } catch (e: any) {
+        const isAbort = e?.name === 'AbortError' || e?.message?.includes('aborted');
+        if (isAbort) {
+          primeiroErro = temImagem
+            ? 'O processamento da imagem pela IA demorou mais que o esperado. Por favor, tente novamente com boa iluminação ou pelo nome/código de barras.'
+            : 'A consulta de texto pela IA demorou mais que o esperado.';
+          break; // Pula para próximo modelo
         }
 
-        console.warn(`Tentativa com modelo ${modelo} retornou erro (${response.status}):`, msg);
-      }
-    } catch (e: any) {
-      const isAbort = e?.name === 'AbortError' || e?.message?.includes('aborted');
-      if (isAbort) {
-        primeiroErro = temImagem
-          ? 'O processamento da imagem pela IA demorou mais que o esperado. Por favor, tente novamente ou cadastre pelo nome/código de barras.'
-          : 'A consulta de texto pela IA demorou mais que o esperado.';
-        break;
-      }
-      if (!primeiroErro) primeiroErro = e?.message || String(e);
-      if (e?.message?.includes('cota') || e?.message?.includes('limite temporário') || e?.message?.includes('não pôde ser interpretada')) {
-        throw e;
-      } else {
-        console.warn(`Exceção ao chamar modelo ${modelo}:`, e);
+        if (subTentativa < 2 && !e?.message?.includes('cota') && !e?.message?.includes('não pôde ser interpretada')) {
+          // Retry rápido em oscilação momentânea de conexão móvel
+          await new Promise((r) => setTimeout(r, 600));
+          continue;
+        }
+
+        if (!primeiroErro) primeiroErro = e?.message || String(e);
+        if (e?.message?.includes('cota') || e?.message?.includes('limite temporário') || e?.message?.includes('não pôde ser interpretada')) {
+          throw e;
+        } else {
+          console.warn(`Exceção ao chamar modelo ${modelo}:`, e);
+          break;
+        }
       }
     }
+
+    if (respostaOk) break;
   }
 
   throw new Error(primeiroErro || 'Não foi possível conectar com os modelos Gemini disponíveis.');
