@@ -28,26 +28,35 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
 import { useDataOperacao } from '../../contexts/DataOperacaoContext';
+import { useMenu } from '../../contexts/MenuContext';
+import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 import { supabase } from '../../lib/supabase';
 
 interface MobileMenuDrawerProps {
-  aberto: boolean;
-  onFechar: () => void;
+  aberto?: boolean;
+  onFechar?: () => void;
   pedidosConfirmadosCount?: number;
 }
 
 export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
-  aberto,
-  onFechar,
+  aberto: abertoProp,
+  onFechar: onFecharProp,
   pedidosConfirmadosCount: countProp
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { mobileMenuOpen, fecharMenuMobile } = useMenu();
+  const aberto = abertoProp !== undefined ? abertoProp : mobileMenuOpen;
+  const onFechar = onFecharProp || fecharMenuMobile;
+
   const { loja, usuario, desconectarPdv } = useAuth();
   const permissions = usePermissions();
   const { tema, setTema } = useTheme();
   const { dataOperacaoFormatada, modoSimulacaoAtivo, abrirModal } = useDataOperacao();
   const [internalCount, setInternalCount] = useState<number>(0);
+
+  // Registro automático no overlayStackService (garante ESC e Voltar unificados)
+  useRegisterOverlay(aberto, onFechar, 'mobile-menu-drawer', 'drawer');
 
   // Monitorar contagem de pedidos confirmados em tempo real se não foi passado via prop
   useEffect(() => {
@@ -214,22 +223,22 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
       />
 
       {/* Painel do Drawer */}
-      <div className="relative w-4/5 max-w-xs bg-white text-slate-900 h-full flex flex-col z-10 shadow-2xl animate-in slide-in-from-left duration-200 border-r border-slate-200">
+      <div className="relative w-4/5 max-w-xs bg-white dark:bg-slate-950 text-slate-900 dark:text-white h-full flex flex-col z-10 shadow-2xl animate-in slide-in-from-left duration-200 border-r border-slate-200 dark:border-slate-800">
         {/* Header do Drawer */}
-        <div className="p-4 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-black text-slate-950 text-base shadow-lg shadow-emerald-500/20 shrink-0">
               {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
             </div>
             <div className="min-w-0">
-              <h3 className="font-bold text-sm text-slate-800 truncate">{loja?.nome_fantasia || 'HUBI PDV'}</h3>
-              <p className="text-[10px] text-emerald-600 font-semibold truncate">{usuario?.nome_completo || 'Operador'}</p>
+              <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 truncate">{loja?.nome_fantasia || 'HUBI PDV'}</h3>
+              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold truncate">{usuario?.nome_completo || 'Operador'}</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onFechar}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
             title="Fechar menu"
           >
             <X className="w-5 h-5" />
@@ -237,7 +246,7 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
         </div>
 
         {/* Links de Módulos com Scroll */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-1 text-sm">
+        <div className="flex-1 overflow-y-auto p-3 space-y-1 text-sm bg-white dark:bg-slate-950">
           {modulos
             .filter((m) => m.visivel)
             .map((item) => {
@@ -262,12 +271,12 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
                   onClick={() => navegarPara(item.caminho)}
                   className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition ${
                     isAtivo
-                      ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 font-bold'
-                      : 'hover:bg-slate-100 text-slate-700 hover:text-emerald-600 font-medium'
+                      ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 font-bold'
+                      : 'hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 font-medium'
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <Icone className={`w-5 h-5 shrink-0 ${isAtivo ? 'text-emerald-600' : 'text-slate-400'}`} />
+                    <Icone className={`w-5 h-5 shrink-0 ${isAtivo ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`} />
                     <span className="truncate">{item.nome}</span>
                   </div>
                   {item.badge !== undefined && (
@@ -281,7 +290,7 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
         </div>
 
         {/* Rodapé do Drawer */}
-        <div className="p-3 border-t border-slate-200 space-y-2 bg-slate-50 shrink-0">
+        <div className="p-3 border-t border-slate-200 dark:border-slate-800 space-y-2 bg-slate-50 dark:bg-slate-900/50 shrink-0">
           {permissions.ehOwner && (
             <button
               type="button"
@@ -292,7 +301,7 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
               className={`flex items-center justify-between w-full p-2.5 rounded-xl text-xs font-bold border transition ${
                 modoSimulacaoAtivo
                   ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-sm'
-                  : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                  : 'bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700'
               }`}
             >
               <div className="flex items-center gap-2">
@@ -300,7 +309,7 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
                 <span>{modoSimulacaoAtivo ? 'Simulando:' : 'Data Operacional:'}</span>
               </div>
               <span className={`px-2 py-0.5 rounded-lg text-[11px] font-mono ${
-                modoSimulacaoAtivo ? 'bg-slate-950 text-amber-300 font-black' : 'bg-slate-100 text-slate-600'
+                modoSimulacaoAtivo ? 'bg-slate-950 text-amber-300 font-black' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
               }`}>
                 {dataOperacaoFormatada}
               </span>
@@ -312,7 +321,7 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
             target="_blank"
             rel="noopener noreferrer"
             onClick={onFechar}
-            className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold border border-emerald-200 transition"
+            className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold border border-emerald-200 dark:border-emerald-500/30 transition"
           >
             <div className="flex items-center gap-2">
               <Store className="w-4 h-4" />
@@ -322,8 +331,8 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
           </a>
 
           {/* Seletor de Tema do Sistema (Mobile) */}
-          <div className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-xs">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5 px-0.5">
+          <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5 px-0.5">
               Tema do Sistema
             </span>
             <div className="grid grid-cols-2 gap-1.5">
@@ -332,8 +341,8 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
                 onClick={() => setTema('dark')}
                 className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
                   tema === 'dark'
-                    ? 'bg-slate-900 text-amber-300 border border-slate-700 shadow-sm'
-                    : 'bg-slate-100 text-slate-600 hover:text-slate-900 border border-transparent'
+                    ? 'bg-slate-900 dark:bg-slate-800 text-amber-300 border border-slate-700 shadow-sm'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 border border-transparent'
                 }`}
               >
                 <Moon className="w-4 h-4 text-amber-400" />
@@ -344,8 +353,8 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
                 onClick={() => setTema('light')}
                 className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
                   tema === 'light'
-                    ? 'bg-amber-500/20 text-amber-700 border border-amber-300 shadow-sm'
-                    : 'bg-slate-100 text-slate-600 hover:text-slate-900 border border-transparent'
+                    ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-500/40 shadow-sm'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 border border-transparent'
                 }`}
               >
                 <Sun className="w-4 h-4 text-amber-500" />

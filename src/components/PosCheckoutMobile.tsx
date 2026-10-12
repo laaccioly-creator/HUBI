@@ -58,6 +58,7 @@ import { Produto, VariacaoProduto, Cliente, FormaPagamento, Categoria, TabelaPre
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
+import { MobileHeader } from './layout/MobileHeader';
 import { getCategoriaPeso } from './PosCheckout';
 import { audioService } from '../services/audioService';
 import { formatarMoeda } from '../utils/formatters';
@@ -1511,56 +1512,37 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   // =========================================================================
   return (
     <div className="flex flex-col h-full bg-white text-slate-900 overflow-hidden select-none">
-      {/* 1. Header Superior Mobile */}
-      <div className="h-14 border-b border-slate-200 px-4 flex items-center justify-between bg-white shrink-0">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              verificarSaidaComConfirmacao(() => {
-                if (pedidoEmEdicao) {
-                  cancelarEdicaoPedido();
-                }
-                navigate(-1);
-              });
-            }}
-            className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 transition cursor-pointer"
-            title="Voltar"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setMenuDrawerAberto(true)}
-            className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition cursor-pointer"
-            title="Menu Principal"
-          >
-            <div className="space-y-1">
-              <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-              <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-              <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-            </div>
-          </button>
-          <h1 className="font-black text-lg text-slate-800 tracking-tight">Vender</h1>
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          {/* Status Conexão / Fila Offline */}
+      {/* 1. Header Superior Mobile Unificado */}
+      <MobileHeader
+        titulo="Vender"
+        onVoltar={() => {
+          verificarSaidaComConfirmacao(() => {
+            if (pedidoEmEdicao) {
+              cancelarEdicaoPedido();
+            }
+            if (typeof window !== 'undefined' && window.history && window.history.length > 1) {
+              navigate(-1);
+            } else {
+              navigate('/dashboard');
+            }
+          });
+        }}
+        acoesDireita={
           <div
             className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold ${
-              isOnline ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700 animate-pulse'
+              isOnline ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 animate-pulse'
             }`}
             title={isOnline ? 'Online - Supabase conectado' : 'Modo Offline Ativo'}
           >
-            {isOnline ? <Wifi className="w-3 h-3 text-emerald-600" /> : <WifiOff className="w-3 h-3 text-amber-600" />}
+            {isOnline ? <Wifi className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> : <WifiOff className="w-3 h-3 text-amber-600 dark:text-amber-400" />}
             {pendentesCount > 0 ? (
               <span className="font-extrabold text-[9px] bg-amber-200 text-amber-900 px-1 rounded-full">
                 {pendentesCount}
               </span>
             ) : null}
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* 2. Barra de Ferramentas / Ações Rápidas (Ou Barra de Busca Tela 004) */}
       {buscaAberta ? (

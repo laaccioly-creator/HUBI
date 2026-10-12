@@ -18,6 +18,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
+import { MobileHeader } from './layout/MobileHeader';
 import { processarPerguntaRubiIA, DadosLojaRubi } from '../services/tutoriaisHubiService';
 import { rubiChatService, MensagemRubi } from '../services/rubiChatService';
 import { rubiRouterService } from '../services/rubiRouterService';
@@ -202,67 +203,49 @@ export const AssistenteRubi: React.FC = () => {
     <div className="h-full w-full overflow-hidden select-none">
       {/* 1. VISÃO MOBILE EXCLUSIVA (TEMA CLARO PADRÃO PEDIDOS/PRODUTOS) */}
       <div className="block md:hidden h-full flex flex-col overflow-hidden bg-slate-50 text-slate-900 font-sans">
-        {/* Header Superior Mobile */}
-        <div className="h-14 border-b border-slate-200 bg-white px-4 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleVoltarTelaReduzida}
-              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 transition cursor-pointer"
-              title="Voltar para tela reduzida"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setDrawerMenuAberto(true)}
-              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition cursor-pointer"
-              title="Menu Principal"
-            >
-              <div className="space-y-1">
-                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-              </div>
-            </button>
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-sm shrink-0">
+        {/* Header Superior Mobile Unificado */}
+        <MobileHeader
+          titulo={
+            <div className="flex items-center gap-1.5">
+              <span>Rubi IA</span>
+              <span className="bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 text-[10px] font-bold px-1.5 py-0.2 rounded border border-indigo-200 dark:border-indigo-500/30">
+                HUBI
+              </span>
+            </div>
+          }
+          iconeTitulo={
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-sm shrink-0 mr-1.5">
               <Sparkles className="w-4 h-4" />
             </div>
-            <div>
-              <h1 className="font-bold text-sm text-slate-800 flex items-center gap-1.5">
-                <span>Rubi IA</span>
-                <span className="bg-indigo-50 text-indigo-700 text-[10px] font-bold px-1.5 py-0.2 rounded border border-indigo-200">
-                  HUBI
-                </span>
-              </h1>
+          }
+          onVoltar={handleVoltarTelaReduzida}
+          acoesDireita={
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleVoltarTelaReduzida}
+                className="px-2.5 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30 text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                title="Voltar para a tela reduzida flutuante"
+              >
+                <Minimize2 className="w-3.5 h-3.5" />
+                <span>Reduzir</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('Deseja iniciar uma nova conversa com a Rubi?')) {
+                    const novo = rubiChatService.limparHistorico();
+                    setMensagens(novo);
+                  }
+                }}
+                className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition cursor-pointer"
+                title="Nova conversa"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
             </div>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={handleVoltarTelaReduzida}
-              className="px-2.5 py-1 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold transition flex items-center gap-1 cursor-pointer"
-              title="Voltar para a tela reduzida flutuante"
-            >
-              <Minimize2 className="w-3.5 h-3.5" />
-              <span>Reduzir</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm('Deseja iniciar uma nova conversa com a Rubi?')) {
-                  const novo = rubiChatService.limparHistorico();
-                  setMensagens(novo);
-                }
-              }}
-              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition cursor-pointer"
-              title="Nova conversa"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+          }
+        />
 
         {/* Área de Mensagens com Scroll */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">

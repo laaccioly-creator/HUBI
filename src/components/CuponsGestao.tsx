@@ -25,6 +25,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { Cupom, TipoCupom } from '../types';
 import { CupomService } from '../services/cupomService';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
+import { MobileHeader } from './layout/MobileHeader';
 import { ModalConfirmacaoExclusao } from './ModalConfirmacaoExclusao';
 import { formatarMoeda } from '../utils/formatters';
 
@@ -201,61 +202,42 @@ export const CuponsGestao: React.FC = () => {
     <div className="h-full w-full overflow-hidden select-none">
       {/* 1. VISÃO MOBILE EXCLUSIVA (TEMA CLARO PADRÃO PEDIDOS/PRODUTOS) */}
       <div className="block md:hidden h-full flex flex-col overflow-y-auto bg-slate-50 text-slate-900 font-sans">
-        {/* Header Superior Mobile */}
-        <div className="h-14 border-b border-slate-200 bg-white px-4 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            {visao === 'lista' ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => navigate(-1)}
-                  className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 transition cursor-pointer"
-                  title="Voltar"
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDrawerMenuAberto(true)}
-                  className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition cursor-pointer"
-                  title="Menu Principal"
-                >
-                  <div className="space-y-1">
-                    <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-                    <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-                    <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-                  </div>
-                </button>
-              </>
-            ) : (
+        {/* Header Superior Mobile Unificado */}
+        <MobileHeader
+          titulo={
+            visao === 'lista'
+              ? 'Cupons de desconto'
+              : visao === 'selecionar_tipo'
+              ? 'Tipo de cupom'
+              : visao === 'criar_frete_gratis'
+              ? 'Cupom Frete Grátis'
+              : 'Cupom com Desconto'
+          }
+          mostrarMenu={visao === 'lista'}
+          onVoltar={() => {
+            if (visao !== 'lista') {
+              setVisao('lista');
+            } else {
+              if (typeof window !== 'undefined' && window.history && window.history.length > 1) {
+                navigate(-1);
+              } else {
+                navigate('/pos');
+              }
+            }
+          }}
+          acoesDireita={
+            visao === 'lista' ? (
               <button
                 type="button"
-                onClick={() => setVisao('lista')}
-                className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition cursor-pointer"
-                title="Voltar à lista"
+                onClick={abrirCriarNovo}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition cursor-pointer"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <Plus className="w-4 h-4" />
+                <span>+ Novo</span>
               </button>
-            )}
-            <h1 className="font-bold text-base text-slate-800">
-              {visao === 'lista' && 'Cupons de desconto'}
-              {visao === 'selecionar_tipo' && 'Tipo de cupom'}
-              {visao === 'criar_frete_gratis' && 'Cupom Frete Grátis'}
-              {visao === 'criar_desconto' && 'Cupom com Desconto'}
-            </h1>
-          </div>
-
-          {visao === 'lista' && (
-            <button
-              type="button"
-              onClick={abrirCriarNovo}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>+ Novo</span>
-            </button>
-          )}
-        </div>
+            ) : null
+          }
+        />
 
         {/* Conteúdo da Tela Mobile */}
         <div className="p-4 space-y-4 flex-1">

@@ -61,6 +61,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { Produto, Categoria, VariacaoProduto, TipoUnidade } from '../types';
 import { audioService } from '../services/audioService';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
+import { MobileHeader } from './layout/MobileHeader';
 import { ModalEntradaEstoque } from './ModalEntradaEstoque';
 import { pesquisarPrecosMercadoIA, DadosMercadoIA } from './ProdutoCadastro';
 import { UNIDADES_PADRAO } from './CadastrosAuxiliares';
@@ -5247,34 +5248,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     <div className="flex flex-col h-full bg-slate-100 dark:bg-[#0B0F17] text-slate-900 dark:text-white overflow-hidden select-none relative">
       {renderToast()}
 
-      {/* Header Superior Mobile (TELA001 / TELA002) */}
-      <div className="h-16 border-b border-slate-200 dark:border-[#1E293B] px-4 flex items-center justify-between bg-white dark:bg-[#0B0F17] shrink-0">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={voltarMobile}
-            className="p-2 rounded-2xl hover:bg-slate-100 dark:hover:bg-[#0D111A] text-slate-600 dark:text-slate-300 transition cursor-pointer"
-            title="Voltar"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setDrawerMenuAberto(true)}
-            className="p-2 rounded-2xl hover:bg-slate-100 dark:hover:bg-[#0D111A] text-slate-700 dark:text-slate-300 transition cursor-pointer"
-            title="Menu Principal"
-          >
-            <div className="space-y-1">
-              <span className="block w-6 h-0.5 bg-slate-800 dark:bg-slate-200 rounded-full" />
-              <span className="block w-6 h-0.5 bg-slate-800 dark:bg-slate-200 rounded-full" />
-              <span className="block w-6 h-0.5 bg-slate-800 dark:bg-slate-200 rounded-full" />
-            </div>
-          </button>
-          <h1 className="font-black text-base sm:text-lg text-slate-800 dark:text-slate-100 tracking-tight">
-            Produtos ({produtos.length})
-          </h1>
-        </div>
-      </div>
+      {/* Header Superior Mobile Unificado (TELA001 / TELA002) */}
+      <MobileHeader
+        titulo={`Produtos (${produtos.length})`}
+        onVoltar={voltarMobile}
+      />
 
       {/* Abas Superiores: ITENS (TELA001) | ESTOQUE (TELA002) */}
       <div className="flex bg-transparent border-b border-slate-200 dark:border-[#1E293B] shrink-0">

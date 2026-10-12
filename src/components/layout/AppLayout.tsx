@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme, ModoTema } from '../../contexts/ThemeContext';
+import { useMenu } from '../../contexts/MenuContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
 import { overlayStackService } from '../../services/overlayStackService';
@@ -53,9 +54,9 @@ export const AppLayout: React.FC = () => {
   const permissions = usePermissions();
   const { verificarSaidaComConfirmacao } = useFeedbackModal();
   const { tema, setTema } = useTheme();
+  const { mobileMenuOpen, setMobileMenuOpen } = useMenu();
   const { dataOperacaoFormatada, modoSimulacaoAtivo, abrirModal: abrirModalData } = useDataOperacao();
   const [pedidosConfirmadosCount, setPedidosConfirmadosCount] = useState<number>(0);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [maisMenuOpen, setMaisMenuOpen] = useState<boolean>(false);
   const [userMenuOpen, setUserMenuOpen] = useState<boolean>(false);
   const [listaUsuariosLoja, setListaUsuariosLoja] = useState<UsuarioLoja[]>([]);
@@ -103,7 +104,11 @@ export const AppLayout: React.FC = () => {
         if (location.pathname !== '/pos' && location.pathname !== '/dashboard' && location.pathname !== '/') {
           e.preventDefault();
           verificarSaidaComConfirmacao(() => {
-            navigate(-1);
+            if (typeof window !== 'undefined' && window.history && window.history.length > 1) {
+              navigate(-1);
+            } else {
+              navigate('/pos');
+            }
           });
         }
       }
@@ -405,14 +410,11 @@ export const AppLayout: React.FC = () => {
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
-              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition cursor-pointer"
+              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-900 dark:text-white transition cursor-pointer"
               title="Menu Principal"
+              aria-label="Menu Principal"
             >
-              <div className="space-y-1">
-                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-              </div>
+              <Menu className="w-5 h-5 text-slate-900 dark:text-white stroke-[2.25]" />
             </button>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-black text-slate-950 text-xs shadow-sm">

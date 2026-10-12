@@ -10,12 +10,14 @@ import {
   ChevronRight,
   ChevronDown,
   Check,
-  Zap
+  Zap,
+  Menu
 } from 'lucide-react';
 import { MobileMenuDrawer } from '../components/layout/MobileMenuDrawer';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useTheme } from '../contexts/ThemeContext';
+import { useMenu } from '../contexts/MenuContext';
 import {
   dashboardService,
   TipoPeriodoDashboard,
@@ -42,6 +44,7 @@ export const DashboardCockpit: React.FC = () => {
   const { loja, usuario } = useAuth();
   const permissions = usePermissions();
   const { tema } = useTheme();
+  const { abrirMenuMobile } = useMenu();
   const isDark = tema === 'dark';
 
   // Controle de permissão para gestores
@@ -187,15 +190,12 @@ export const DashboardCockpit: React.FC = () => {
             <div className="flex items-center gap-2 sm:gap-2.5">
               <button
                 type="button"
-                onClick={() => setMenuDrawerAberto(true)}
-                className="p-1.5 -ml-1 rounded-xl hover:bg-slate-100 text-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 transition md:hidden cursor-pointer shrink-0"
+                onClick={abrirMenuMobile}
+                className="p-1.5 -ml-1 rounded-xl hover:bg-slate-100 text-slate-900 dark:text-white dark:hover:bg-slate-800 transition md:hidden cursor-pointer shrink-0"
                 title="Menu Principal"
+                aria-label="Menu Principal"
               >
-                <div className="space-y-1">
-                  <span className="block w-5 h-0.5 bg-slate-700 dark:bg-slate-200 rounded-full" />
-                  <span className="block w-5 h-0.5 bg-slate-700 dark:bg-slate-200 rounded-full" />
-                  <span className="block w-5 h-0.5 bg-slate-700 dark:bg-slate-200 rounded-full" />
-                </div>
+                <Menu className="w-5 h-5 text-slate-900 dark:text-white stroke-[2.25]" />
               </button>
               <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 shadow-sm shadow-emerald-500/10 shrink-0">
                 <LayoutDashboard className="w-5 h-5" />

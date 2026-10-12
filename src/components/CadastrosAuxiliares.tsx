@@ -43,6 +43,7 @@ import { AppEntrega, Transportadora } from '../types/shipping';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import { SyncService } from '../services/syncService';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
+import { MobileHeader } from './layout/MobileHeader';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { ModalConfirmacaoExclusao } from './ModalConfirmacaoExclusao';
@@ -1571,33 +1572,12 @@ export const CadastrosAuxiliares: React.FC = () => {
     <div className="h-full w-full overflow-hidden select-none">
       {/* 1. VISÃO MOBILE EXCLUSIVA (TEMA CLARO PADRÃO PEDIDOS/PRODUTOS) */}
       <div className="block md:hidden h-full flex flex-col overflow-y-auto bg-slate-50 text-slate-900 font-sans">
-        {/* Header Superior Mobile */}
-        <div className="h-14 border-b border-slate-200 bg-white px-4 flex items-center justify-between shrink-0 sticky top-0 z-20">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleVoltar}
-              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 transition cursor-pointer flex items-center gap-1.5"
-              title={rotaOrigem ? "Voltar ao Produto" : "Voltar"}
-            >
-              <ArrowLeft className="w-5 h-5" />
-              {rotaOrigem && <span className="text-xs font-semibold text-emerald-600">Voltar ao Produto</span>}
-            </button>
-            <button
-              type="button"
-              onClick={() => setDrawerMenuAberto(true)}
-              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition cursor-pointer"
-              title="Menu Principal"
-            >
-              <div className="space-y-1">
-                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-              </div>
-            </button>
-            <h1 className="font-bold text-base text-slate-800">Cadastros & Tabelas</h1>
-          </div>
-        </div>
+        {/* Header Superior Mobile Unificado */}
+        <MobileHeader
+          titulo="Cadastros & Tabelas"
+          subtitulo={rotaOrigem ? "Voltar ao Produto" : undefined}
+          onVoltar={handleVoltar}
+        />
 
         {/* Grade de Botões Mobile */}
         <div className="p-4 space-y-4 flex-1">

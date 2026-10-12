@@ -27,6 +27,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { Pedido, ItemPedido, PagamentoPedido } from '../types';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
+import { MobileHeader } from './layout/MobileHeader';
 
 type TipoMetrica =
   | 'faturamento'
@@ -1001,51 +1002,34 @@ export const EstatisticasAnalytics: React.FC = () => {
       {/* 1. VISÃO MOBILE EXCLUSIVA (TEMA CLARO PADRÃO PEDIDOS/PRODUTOS) */}
       <div className="block md:hidden h-full flex flex-col overflow-hidden bg-slate-50 text-slate-900 font-sans">
         {/* Header Superior Mobile */}
-        <div className="h-14 border-b border-slate-200 bg-white px-4 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
+        {/* Header Superior Mobile Unificado */}
+        <MobileHeader
+          titulo={metricaAtivaMobile ? titulosMetricas[metricaAtivaMobile] : 'Estatísticas'}
+          mostrarMenu={!metricaAtivaMobile}
+          onVoltar={() => {
+            if (metricaAtivaMobile) {
+              setMetricaAtivaMobile(null);
+            } else {
+              if (typeof window !== 'undefined' && window.history && window.history.length > 1) {
+                navigate(-1);
+              } else {
+                navigate('/pos');
+              }
+            }
+          }}
+          acoesDireita={
             <button
               type="button"
-              onClick={() => {
-                if (metricaAtivaMobile) {
-                  setMetricaAtivaMobile(null);
-                } else {
-                  navigate(-1);
-                }
-              }}
-              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 transition cursor-pointer"
-              title="Voltar"
+              onClick={() => setModalPeriodoMobile(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold transition hover:bg-emerald-100 cursor-pointer shadow-xs max-w-[180px]"
+              title="Selecionar período"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <Calendar className="w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <span className="truncate">{labelExibicaoPeriodo}</span>
+              <ChevronDown className="w-3 h-3 shrink-0 opacity-70" />
             </button>
-            <button
-              type="button"
-              onClick={() => setDrawerMenuAberto(true)}
-              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition cursor-pointer"
-              title="Menu Principal"
-            >
-              <div className="space-y-1">
-                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-              </div>
-            </button>
-            <h1 className="font-bold text-base text-slate-800 truncate max-w-[150px]">
-              {metricaAtivaMobile ? titulosMetricas[metricaAtivaMobile] : 'Estatísticas'}
-            </h1>
-          </div>
-
-          {/* Filtro Temporal de Topo - Badge Interativo */}
-          <button
-            type="button"
-            onClick={() => setModalPeriodoMobile(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold transition hover:bg-emerald-100 cursor-pointer shadow-xs max-w-[180px]"
-            title="Selecionar período"
-          >
-            <Calendar className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
-            <span className="truncate">{labelExibicaoPeriodo}</span>
-            <ChevronDown className="w-3 h-3 shrink-0 opacity-70" />
-          </button>
-        </div>
+          }
+        />
 
         {/* Barra de Navegação Rápida de Período */}
         <div className="px-4 py-2 bg-white border-b border-slate-200 shrink-0 flex items-center justify-between">

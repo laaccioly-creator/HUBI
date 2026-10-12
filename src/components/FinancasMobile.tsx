@@ -39,6 +39,7 @@ import {
   ResumoSessaoCaixa
 } from '../types';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
+import { MobileHeader } from './layout/MobileHeader';
 import { obterDataOperacaoYMD } from '../utils/dataOperacao';
 
 export interface FinancasMobileProps {
@@ -238,68 +239,40 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-slate-50 text-slate-900 font-sans select-none">
-      {/* 1. CABEÇALHO SUPERIOR MOBILE */}
-      <div className="h-14 border-b border-slate-200 bg-white px-3 sm:px-4 flex items-center justify-between shrink-0 sticky top-0 z-20 shadow-2xs">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 transition cursor-pointer"
-            title="Voltar"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setMenuDrawerAberto(true)}
-            className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition cursor-pointer"
-            title="Menu Principal"
-          >
-            <div className="space-y-1">
-              <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-              <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-              <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-            </div>
-          </button>
-          <div className="min-w-0">
-            <h1 className="font-black text-sm sm:text-base text-slate-800 leading-tight truncate">
-              Finanças & Caixa
-            </h1>
-            <p className="text-[10px] text-slate-500 truncate">
-              {sessaoAtiva
-                ? `Turno ${sessaoAtiva.terminal_id} • ${sessaoAtiva.usuario_abertura?.nome_completo || 'Operador'}`
-                : 'Nenhum turno aberto'}
-            </p>
-          </div>
-        </div>
+      {/* 1. CABEÇALHO SUPERIOR MOBILE UNIFICADO */}
+      <MobileHeader
+        titulo="Finanças & Caixa"
+        subtitulo={
+          sessaoAtiva
+            ? `Turno ${sessaoAtiva.terminal_id} • ${sessaoAtiva.usuario_abertura?.nome_completo || 'Operador'}`
+            : 'Nenhum turno aberto'
+        }
+        acoesDireita={
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={onRecarregar}
+              disabled={carregando}
+              className="p-1.5 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition cursor-pointer"
+              title="Recarregar dados"
+            >
+              <RefreshCw className={`w-4 h-4 ${carregando ? 'animate-spin text-emerald-600' : ''}`} />
+            </button>
 
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={onRecarregar}
-            disabled={carregando}
-            className="p-1.5 rounded-xl text-slate-500 hover:bg-slate-100 active:scale-95 transition cursor-pointer"
-            title="Recarregar dados"
-          >
-            <RefreshCw className={`w-4 h-4 ${carregando ? 'animate-spin text-emerald-600' : ''}`} />
-          </button>
-
-          <span
-            className={`px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide border flex items-center gap-1.5 ${
-              sessaoAtiva
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                : 'bg-rose-50 text-rose-700 border-rose-200'
-            }`}
-          >
             <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                sessaoAtiva ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
+              className={`px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide border flex items-center gap-1.5 ${
+                sessaoAtiva
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30'
+                  : 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/30'
               }`}
-            />
-            {sessaoAtiva ? 'ABERTO' : 'FECHADO'}
-          </span>
-        </div>
-      </div>
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${sessaoAtiva ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+              {sessaoAtiva ? 'ABERTO' : 'FECHADO'}
+            </span>
+          </div>
+        }
+      />
+
 
       {/* 2. BARRA DE AÇÕES RÁPIDAS DE CAIXA */}
       <div className="p-2.5 sm:p-3 bg-white border-b border-slate-200 shrink-0 shadow-2xs">

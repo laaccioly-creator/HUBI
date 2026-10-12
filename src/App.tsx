@@ -271,6 +271,7 @@ const AppRotasInternas: React.FC = () => {
 };
 
 import { DataOperacaoProvider } from './contexts/DataOperacaoContext';
+import { MenuProvider } from './contexts/MenuContext';
 
 import { ReloadPrompt } from './components/pwa/ReloadPrompt';
 
@@ -282,8 +283,10 @@ export const App: React.FC = () => {
           <CartProvider>
             <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
               <FeedbackProvider>
-                <AppRotasInternas />
-                <ReloadPrompt />
+                <MenuProvider>
+                  <AppRotasInternas />
+                  <ReloadPrompt />
+                </MenuProvider>
               </FeedbackProvider>
             </Router>
           </CartProvider>

@@ -70,6 +70,7 @@ import { ImportarExportarProdutos } from './ImportarExportarProdutos';
 import { CentralImportarExportar } from './CentralImportarExportar';
 import { ConfiguracoesMetas } from './configuracoes/ConfiguracoesMetas';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
+import { MobileHeader } from './layout/MobileHeader';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { setGoogleSearchConfig } from '../services/geminiService';
@@ -1582,69 +1583,49 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
     <div className="h-full w-full overflow-hidden select-none">
       {/* 1. VISÃO MOBILE EXCLUSIVA (TEMA CLARO PADRÃO PEDIDOS/PRODUTOS) */}
       <div className="block md:hidden h-full flex flex-col overflow-y-auto bg-slate-50 text-slate-900 font-sans">
-        {/* Header Superior Mobile */}
-        <div className="h-14 border-b border-slate-200 bg-white px-4 flex items-center justify-between shrink-0 sticky top-0 z-20">
-          <div className="flex items-center gap-2">
-            {subTela === 'menu' ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => verificarSaidaComConfirmacao(() => navigate(-1))}
-                  className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 transition cursor-pointer"
-                  title="Voltar"
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => verificarSaidaComConfirmacao(() => setDrawerMenuAberto(true))}
-                  className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition cursor-pointer"
-                  title="Menu Principal"
-                >
-                  <div className="space-y-1">
-                    <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-                    <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-                    <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-                  </div>
-                </button>
-              </>
-            ) : (
+        {/* Header Superior Mobile Unificado */}
+        <MobileHeader
+          titulo={
+            subTela === 'menu' ? 'Configurações' :
+            subTela === 'geral' ? 'Geral' :
+            subTela === 'tipos-venda' ? 'Tipos de Venda' :
+            subTela === 'metas' ? 'Metas da Loja' :
+            subTela === 'pagamentos' ? 'Opções de Pagamento' :
+            subTela === 'dados-loja' ? 'Dados da Loja' :
+            subTela === 'recibo' ? 'Meu Recibo' :
+            subTela === 'pedidos-vendas' ? 'Pedidos e Vendas' :
+            subTela === 'entrega' ? 'Opções de Entrega' :
+            subTela === 'exportar' ? 'Exportar Relatórios' :
+            (subTela === 'importar-exportar' || subTela === 'importar-exportar-produtos') ? 'Importar / Exportar' :
+            subTela === 'parceiros' ? 'Integrações' : 'Configurações'
+          }
+          mostrarMenu={subTela === 'menu'}
+          onVoltar={() => {
+            verificarSaidaComConfirmacao(() => {
+              if (subTela !== 'menu') {
+                setSubTela('menu');
+              } else {
+                if (typeof window !== 'undefined' && window.history && window.history.length > 1) {
+                  navigate(-1);
+                } else {
+                  navigate('/pos');
+                }
+              }
+            });
+          }}
+          acoesDireita={
+            isDirty ? (
               <button
                 type="button"
-                onClick={() => verificarSaidaComConfirmacao(() => setSubTela('menu'))}
-                className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition cursor-pointer"
-                title="Voltar ao menu de configurações"
+                onClick={handleSalvarTodasConfiguracoes}
+                disabled={salvando}
+                className="px-3.5 py-1.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs shadow-sm transition cursor-pointer disabled:opacity-50"
               >
-                <ArrowLeft className="w-5 h-5" />
+                {salvando ? 'Salvando...' : 'Salvar'}
               </button>
-            )}
-            <h1 className="font-bold text-base text-slate-800">
-              {subTela === 'menu' && 'Configurações'}
-              {subTela === 'geral' && 'Geral'}
-              {subTela === 'tipos-venda' && 'Tipos de Venda'}
-              {subTela === 'metas' && 'Metas da Loja'}
-              {subTela === 'pagamentos' && 'Opções de Pagamento'}
-              {subTela === 'dados-loja' && 'Dados da Loja'}
-              {subTela === 'recibo' && 'Meu Recibo'}
-              {subTela === 'pedidos-vendas' && 'Pedidos e Vendas'}
-              {subTela === 'entrega' && 'Opções de Entrega'}
-              {subTela === 'exportar' && 'Exportar Relatórios'}
-              {(subTela === 'importar-exportar' || subTela === 'importar-exportar-produtos') && 'Importar / Exportar'}
-              {subTela === 'parceiros' && 'Integrações'}
-            </h1>
-          </div>
-
-          {isDirty && (
-            <button
-              type="button"
-              onClick={handleSalvarTodasConfiguracoes}
-              disabled={salvando}
-              className="px-3.5 py-1.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs shadow-sm transition cursor-pointer disabled:opacity-50"
-            >
-              {salvando ? 'Salvando...' : 'Salvar'}
-            </button>
-          )}
-        </div>
+            ) : null
+          }
+        />
 
         {/* Conteúdo Mobile */}
         <div className="p-4 space-y-4 flex-1">

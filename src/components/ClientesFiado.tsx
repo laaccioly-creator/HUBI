@@ -29,6 +29,7 @@ import { Cliente } from '../types';
 import { ModalNovoCliente } from './ModalNovoCliente';
 import { ClientePerfilMobile } from './ClientePerfilMobile';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
+import { MobileHeader } from './layout/MobileHeader';
 import { ModalHistoricoFiadoCliente } from './ModalHistoricoFiadoCliente';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
@@ -357,69 +358,52 @@ export const ClientesFiado: React.FC = () => {
     <div className="h-full w-full overflow-hidden select-none">
       {/* 1. VISÃO MOBILE EXCLUSIVA (TEMA CLARO PADRÃO PEDIDOS/PRODUTOS) */}
       <div className="block md:hidden h-full flex flex-col overflow-hidden bg-slate-50 text-slate-900">
-        {/* Header Superior Mobile */}
-        <div className="h-14 border-b border-slate-200 bg-white px-4 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-600 transition cursor-pointer"
-              title="Voltar"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setDrawerMenuAberto(true)}
-              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-700 transition cursor-pointer"
-              title="Menu Principal"
-            >
-              <div className="space-y-1">
-                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-                <span className="block w-5 h-0.5 bg-slate-700 rounded-full" />
-              </div>
-            </button>
-            <h1 className="font-bold text-base text-slate-800">Clientes ({clientes.length})</h1>
-          </div>
+        {/* Header Superior Mobile Unificado */}
+        <MobileHeader
+          titulo={`Clientes (${clientes.length})`}
+          acoesDireita={
+            <div className="flex items-center gap-1.5">
+              {/* Botão (FIADO) */}
+              <button
+                type="button"
+                onClick={() => {
+                  setFiltroStatus(prev => prev === 'fiado' ? 'todos' : 'fiado');
+                  setFiltroApenasFiado(false);
+                }}
+                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer border ${
+                  filtroStatus === 'fiado'
+                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
+                    : 'bg-white dark:bg-slate-800 border-amber-300 dark:border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-50'
+                }`}
+                title="Filtrar clientes com fiado em aberto"
+              >
+                <span>Fiado</span>
+                {totalClientesComFiado > 0 && (
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                    filtroStatus === 'fiado' ? 'bg-slate-950 text-amber-300 font-bold' : 'bg-amber-100 text-amber-800'
+                  }`}>
+                    {totalClientesComFiado}
+                  </span>
+                )}
+              </button>
 
-          <div className="flex items-center gap-1.5">
-            {/* Botão (FIADO) */}
-            <button
-              type="button"
-              onClick={() => {
-                setFiltroStatus(prev => prev === 'fiado' ? 'todos' : 'fiado');
-                setFiltroApenasFiado(false);
-              }}
-              className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer border ${
-                filtroStatus === 'fiado'
-                  ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
-                  : 'bg-white border-amber-300 text-amber-600 hover:bg-amber-50'
-              }`}
-              title="Filtrar clientes com fiado em aberto"
-            >
-              <Filter className="w-3.5 h-3.5" />
-              <span>(FIADO)</span>
-              {totalClientesComFiado > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-800">
-                  {totalClientesComFiado}
-                </span>
-              )}
-            </button>
+              {/* Botão + Novo */}
+              <button
+                type="button"
+                onClick={() => {
+                  setClienteEditar(null);
+                  setModalNovoCliente(true);
+                }}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-sm transition active:scale-95 cursor-pointer"
+                title="Cadastrar Novo Cliente"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>Novo</span>
+              </button>
+            </div>
+          }
+        />
 
-            <button
-              type="button"
-              onClick={() => {
-                setClienteEditar(null);
-                setModalNovoCliente(true);
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>+ Cliente</span>
-            </button>
-          </div>
-        </div>
 
         {/* Campo de Busca Integrado */}
         <div className="p-3 bg-white border-b border-slate-200 shrink-0">

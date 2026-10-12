@@ -42,6 +42,7 @@ import {
   FormaEntrega
 } from '../types';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
+import { MobileHeader } from './layout/MobileHeader';
 
 type SubTelaCatalogoMobile =
   | 'hub'                  // TELA001
@@ -543,28 +544,10 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
       {/* ===================================================================== */}
       {subTela === 'hub' && (
         <div className="flex flex-col h-full bg-white">
-          {/* Header Superior Mobile */}
-          <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => navigate(-1)}
-                className="p-1.5 rounded-xl text-slate-600 hover:bg-slate-100 active:scale-95 transition cursor-pointer"
-                title="Voltar"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setDrawerMenuAberto(true)}
-                className="p-1.5 rounded-xl text-slate-700 hover:bg-slate-100 active:scale-95 transition cursor-pointer"
-                title="Menu Principal"
-              >
-                <Menu className="w-6 h-6" />
-              </button>
-              <h1 className="text-base font-bold text-slate-800">Catálogo Online</h1>
-            </div>
-          </div>
+          {/* Header Superior Mobile Unificado */}
+          <MobileHeader
+            titulo="Catálogo Online"
+          />
 
           {/* Conteúdo com Scroll */}
           <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
