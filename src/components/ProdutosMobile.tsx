@@ -4226,75 +4226,152 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               {/* Conteúdo Aba Foto */}
               {abaModalIA === 'foto' && (
                 <div className="space-y-4">
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                    Envie ou tire uma foto do produto para preencher nome, categoria, preço sugerido e descrição comercial completa automaticamente.
-                  </p>
+                  {cameraFotoCarregando || streamCameraFoto ? (
+                    /* Visor de Câmera Inline com Resolução Controlada (WebRTC) */
+                    <div className="relative w-full aspect-square bg-black rounded-2xl overflow-hidden flex items-center justify-center shadow-lg">
+                      <video
+                        ref={videoFotoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="w-full h-full object-cover"
+                      />
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      className="hidden"
-                      ref={fileInputCameraIARef}
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setModalCriarComIAAberto(false);
-                          try {
-                            const { base64 } = await comprimirFotoProduto(file, { maxDimension: 1024, quality: 0.75 });
-                            if (base64) {
-                              processarPreenchimentoIA('foto', base64);
+                      {cameraFotoCarregando && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 text-white gap-2">
+                          <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+                          <span className="text-xs font-bold uppercase tracking-wider">Iniciando câmera...</span>
+                        </div>
+                      )}
+
+                      {/* Botões de Ação sobre o Visor */}
+                      <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-3 px-3 z-10">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (videoFotoRef.current && videoFotoRef.current.srcObject) {
+                              const st = videoFotoRef.current.srcObject as MediaStream;
+                              st.getTracks().forEach((t: MediaStreamTrack) => t.stop());
+                              videoFotoRef.current.srcObject = null;
                             }
-                          } catch (err: any) {
-                            console.error('Erro ao comprimir foto para IA:', err);
-                            setMensagemFeedback({ texto: err?.message || 'Não foi possível processar a foto para a IA.', tipo: 'erro' });
-                          }
-                        }
-                        e.target.value = '';
-                      }}
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (fileInputCameraIARef.current) {
-                          fileInputCameraIARef.current.value = '';
-                          fileInputCameraIARef.current.click();
-                        }
-                      }}
-                      className="p-4 rounded-2xl border-2 border-dashed border-emerald-500/80 dark:border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/20 flex flex-col items-center justify-center text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition cursor-pointer text-center active:scale-95"
-                    >
-                      <Camera className="w-8 h-8 mb-1.5" />
-                      <span className="text-xs font-extrabold">Tirar Foto</span>
-                    </button>
-
-                    <label className="p-4 rounded-2xl border-2 border-dashed border-slate-300 dark:border-[#1E293B] bg-slate-50 dark:bg-[#000000] flex flex-col items-center justify-center text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#0D111A] transition cursor-pointer text-center active:scale-95">
-                       <Upload className="w-8 h-8 mb-1.5 text-slate-500 dark:text-slate-400" />
-                       <span className="text-xs font-extrabold">Enviar Imagem</span>
-                       <input
-                        type="file"
-                        accept="image/*"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setModalCriarComIAAberto(false);
+                            setStreamCameraFoto(null);
+                            setCameraFotoCarregando(false);
+                          }}
+                          className="px-4 py-2 bg-slate-900/90 hover:bg-slate-800 text-white rounded-xl text-xs font-bold backdrop-blur-sm transition cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const video = videoFotoRef.current;
+                            if (!video || video.readyState < 2) return;
                             try {
-                              const { base64 } = await comprimirFotoProduto(file, { maxDimension: 1024, quality: 0.75 });
-                              if (base64) {
+                              const canvas = document.createElement('canvas');
+                              canvas.width = video.videoWidth || 1024;
+                              canvas.height = video.videoHeight || 768;
+                              const ctx = canvas.getContext('2d');
+                              if (ctx) {
+                                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                                const base64 = canvas.toDataURL('image/jpeg', 0.75);
+                                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                                canvas.width = 0;
+                                canvas.height = 0;
+
+                                // Finalizar stream para liberar memória
+                                if (video.srcObject) {
+                                  const st = video.srcObject as MediaStream;
+                                  st.getTracks().forEach((t: MediaStreamTrack) => t.stop());
+                                  video.srcObject = null;
+                                }
+                                setStreamCameraFoto(null);
+                                setModalCriarComIAAberto(false);
                                 processarPreenchimentoIA('foto', base64);
                               }
                             } catch (err: any) {
-                              console.error('Erro ao comprimir imagem para IA:', err);
-                              setMensagemFeedback({ texto: err?.message || 'Não foi possível processar a imagem selecionada.', tipo: 'erro' });
+                              console.error('Erro ao capturar frame:', err);
+                              setMensagemFeedback({ texto: 'Não foi possível capturar o frame da foto.', tipo: 'erro' });
                             }
-                          }
-                          e.target.value = '';
-                        }}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
+                          }}
+                          className="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs shadow-lg flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+                        >
+                          <Camera className="w-4 h-4" />
+                          <span>Capturar Foto</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                        Envie ou tire uma foto do produto para preencher nome, categoria, preço sugerido e descrição comercial completa automaticamente.
+                      </p>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              setCameraFotoCarregando(true);
+                              if (videoFotoRef.current && videoFotoRef.current.srcObject) {
+                                const st = videoFotoRef.current.srcObject as MediaStream;
+                                st.getTracks().forEach((t: MediaStreamTrack) => t.stop());
+                                videoFotoRef.current.srcObject = null;
+                              }
+                              setStreamCameraFoto(null);
+                              const mediaStream = await navigator.mediaDevices.getUserMedia({
+                                video: {
+                                  facingMode: { ideal: 'environment' },
+                                  width: { ideal: 1024, max: 1280 },
+                                  height: { ideal: 768, max: 720 }
+                                },
+                                audio: false
+                              });
+                              setStreamCameraFoto(mediaStream);
+                              if (videoFotoRef.current) {
+                                videoFotoRef.current.srcObject = mediaStream;
+                                await videoFotoRef.current.play();
+                              }
+                            } catch (err) {
+                              console.error('Erro ao acessar câmera:', err);
+                              setMensagemFeedback({ texto: 'Não foi possível abrir a câmera diretamente. Use o botão Carregar da Galeria.', tipo: 'erro' });
+                            } finally {
+                              setCameraFotoCarregando(false);
+                            }
+                          }}
+                          className="p-4 rounded-2xl border-2 border-dashed border-emerald-500/80 dark:border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/20 flex flex-col items-center justify-center text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition cursor-pointer text-center active:scale-95"
+                        >
+                          <Camera className="w-8 h-8 mb-1.5" />
+                          <span className="text-xs font-extrabold">Tirar Foto</span>
+                        </button>
+
+                        <label className="p-4 rounded-2xl border-2 border-dashed border-slate-300 dark:border-[#1E293B] bg-slate-50 dark:bg-[#000000] flex flex-col items-center justify-center text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#0D111A] transition cursor-pointer text-center active:scale-95">
+                          <Upload className="w-8 h-8 mb-1.5 text-slate-500 dark:text-slate-400" />
+                          <span className="text-xs font-extrabold">Carregar da Galeria</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setModalCriarComIAAberto(false);
+                                try {
+                                  const { base64 } = await comprimirFotoProduto(file, { maxDimension: 1024, quality: 0.75 });
+                                  if (base64) {
+                                    processarPreenchimentoIA('foto', base64);
+                                  }
+                                } catch (err: any) {
+                                  console.error('Erro ao comprimir imagem para IA:', err);
+                                  setMensagemFeedback({ texto: err?.message || 'Não foi possível processar a imagem selecionada.', tipo: 'erro' });
+                                }
+                              }
+                              e.target.value = '';
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
