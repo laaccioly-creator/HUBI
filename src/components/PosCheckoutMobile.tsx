@@ -1694,7 +1694,6 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           // MODO GRADE: 3 COLUNAS COMPACTAS (TELA 001)
           <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
             {produtosFiltrados.map((produto) => {
-              const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
               const qtdNoCarrinho = mapaQuantidadesCarrinho.get(produto.id) || 0;
               let precoFinal = produto.preco_venda_varejo;
               if (tabelaPrecoCalculada === 'atacado' && produto.preco_venda_atacado) {
@@ -1715,13 +1714,21 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                   onClick={() => handleClicarProduto(produto)}
                   className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:border-emerald-400 active:scale-95 transition-all duration-100 flex flex-col justify-between cursor-pointer group"
                 >
-                  <div className="relative aspect-square bg-slate-50 p-2 flex items-center justify-center">
-                    <img
-                      src={fotoUrl}
-                      alt={produto.nome}
-                      className="w-full h-full object-contain"
-                      loading="lazy"
-                    />
+                  {/* Contentor uniforme da foto com aspect ratio quadrado travado */}
+                  <div className="w-full aspect-square bg-white relative flex items-center justify-center p-2 overflow-hidden">
+                    {produto.fotos_urls?.[0] ? (
+                      <img
+                        src={produto.fotos_urls[0]}
+                        alt={produto.nome}
+                        className="w-full h-full object-contain transition-transform duration-200"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-300">
+                        <Package className="w-8 h-8 opacity-40" />
+                      </div>
+                    )}
 
                     {/* Indicador de Esgotado ou Estoque Baixo */}
                     {isEsgotado ? (
@@ -1774,7 +1781,6 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           // MODO LISTA: 1 LINHA POR PRODUTO (TELA 007)
           <div className="divide-y divide-slate-100 bg-white rounded-2xl border border-slate-200 overflow-hidden">
             {produtosFiltrados.map((produto) => {
-              const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
               const qtdNoCarrinho = mapaQuantidadesCarrinho.get(produto.id) || 0;
               let precoFinal = produto.preco_venda_varejo;
               if (tabelaPrecoCalculada === 'atacado' && produto.preco_venda_atacado) {
@@ -1796,8 +1802,18 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                   className="p-3 flex items-center justify-between hover:bg-slate-50 active:bg-slate-100 transition cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="relative w-12 h-12 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
-                      <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover" />
+                    <div className="relative w-12 h-12 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200 flex items-center justify-center">
+                      {produto.fotos_urls?.[0] ? (
+                        <img
+                          src={produto.fotos_urls[0]}
+                          alt={produto.nome}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      ) : (
+                        <Package className="w-5 h-5 text-slate-400 opacity-60" />
+                      )}
                       {isEsgotado ? (
                         <span className="absolute inset-0 bg-black/65 backdrop-blur-[1px] flex items-center justify-center text-[7px] font-black text-rose-300">
                           ESGOTADO
