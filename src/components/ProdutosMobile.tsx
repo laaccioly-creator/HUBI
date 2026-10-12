@@ -1288,8 +1288,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 1280, max: 1920 },
-          height: { ideal: 720, max: 1080 },
+          width: { ideal: 1280, max: 1280 },
+          height: { ideal: 720, max: 720 },
           facingMode: 'environment'
         },
         audio: false
@@ -1574,8 +1574,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       const targetFacing = facingModeParam || cameraFotoFacingMode;
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 1280, max: 1920 },
-          height: { ideal: 720, max: 1080 },
+          width: { ideal: 1280, max: 1280 },
+          height: { ideal: 720, max: 720 },
           facingMode: { ideal: targetFacing }
         },
         audio: false
@@ -2724,15 +2724,20 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           ref={fileInputCameraRef}
           type="file"
           accept="image/*"
-          capture="environment"
-          onChange={(e) => handleProcessarArquivoFoto(e.target.files?.[0])}
+          onChange={(e) => {
+            handleProcessarArquivoFoto(e.target.files?.[0]);
+            e.target.value = '';
+          }}
           className="hidden"
         />
         <input
           ref={fileInputGaleriaRef}
           type="file"
           accept="image/*"
-          onChange={(e) => handleProcessarArquivoFoto(e.target.files?.[0])}
+          onChange={(e) => {
+            handleProcessarArquivoFoto(e.target.files?.[0]);
+            e.target.value = '';
+          }}
           className="hidden"
         />
 
@@ -4224,32 +4229,18 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   </p>
 
                   <div className="grid grid-cols-2 gap-3">
-                    <label className="p-4 rounded-2xl border-2 border-dashed border-emerald-500/80 dark:border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/20 flex flex-col items-center justify-center text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition cursor-pointer text-center active:scale-95">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModalCriarComIAAberto(false);
+                        setOrigemCameraParaIA(true);
+                        iniciarCameraFoto('environment');
+                      }}
+                      className="p-4 rounded-2xl border-2 border-dashed border-emerald-500/80 dark:border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/20 flex flex-col items-center justify-center text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition cursor-pointer text-center active:scale-95"
+                    >
                       <Camera className="w-8 h-8 mb-1.5" />
                       <span className="text-xs font-extrabold">Tirar Foto</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setModalCriarComIAAberto(false);
-                            try {
-                              const { base64 } = await comprimirFotoProduto(file, { maxDimension: 1024, quality: 0.75 });
-                              if (base64) {
-                                processarPreenchimentoIA('foto', base64);
-                              }
-                            } catch (err: any) {
-                              console.error('Erro ao comprimir foto para IA:', err);
-                              setMensagemFeedback({ texto: err?.message || 'Não foi possível processar a foto para a IA.', tipo: 'erro' });
-                            }
-                          }
-                          e.target.value = '';
-                        }}
-                        className="hidden"
-                      />
-                    </label>
+                    </button>
 
                     <label className="p-4 rounded-2xl border-2 border-dashed border-slate-300 dark:border-[#1E293B] bg-slate-50 dark:bg-[#000000] flex flex-col items-center justify-center text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#0D111A] transition cursor-pointer text-center active:scale-95">
                        <Upload className="w-8 h-8 mb-1.5 text-slate-500 dark:text-slate-400" />

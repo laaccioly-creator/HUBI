@@ -67,8 +67,8 @@ export const ModalLeitorCodigoBarras: React.FC<ModalLeitorCodigoBarrasProps> = (
 
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 1280, max: 1920 },
-          height: { ideal: 720, max: 1080 },
+          width: { ideal: 1280, max: 1280 },
+          height: { ideal: 720, max: 720 },
           facingMode: 'environment'
         },
         audio: false

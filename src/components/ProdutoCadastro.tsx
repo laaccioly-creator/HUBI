@@ -341,6 +341,12 @@ export const ProdutoCadastro: React.FC = () => {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
+  // Câmera Ao Vivo In-App (WebRTC Stream) para evitar OOM no Android
+  const [modalCameraAoVivoAberto, setModalCameraAoVivoAberto] = useState<boolean>(false);
+  const [cameraAoVivoCarregando, setCameraAoVivoCarregando] = useState<boolean>(false);
+  const [streamCameraAoVivo, setStreamCameraAoVivo] = useState<MediaStream | null>(null);
+  const videoAoVivoRef = useRef<HTMLVideoElement | null>(null);
+
   const CHAVE_RASCUNHO = `hubi_rascunho_novo_produto_${loja?.id || 'padrao'}`;
 
   // Recupera rascunho salvo do formulário ao retornar para a página
@@ -1014,6 +1020,95 @@ export const ProdutoCadastro: React.FC = () => {
     }
   };
 
+  // Câmera Ao Vivo In-App (WebRTC Stream): 1280x720 ideal sem estourar memória do Android
+  const iniciarCameraAoVivo = async () => {
+    try {
+      setCameraAoVivoCarregando(true);
+      setModalCameraAoVivoAberto(true);
+
+      if (streamCameraAoVivo) {
+        streamCameraAoVivo.getTracks().forEach(t => t.stop());
+        setStreamCameraAoVivo(null);
+      }
+
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280, max: 1280 },
+          height: { ideal: 720, max: 720 }
+        },
+        audio: false
+      });
+
+      setStreamCameraAoVivo(mediaStream);
+      if (videoAoVivoRef.current) {
+        videoAoVivoRef.current.srcObject = mediaStream;
+        await videoAoVivoRef.current.play();
+      }
+    } catch (err) {
+      console.warn('Erro ao abrir câmera WebRTC:', err);
+      mostrarAviso('Não foi possível abrir a câmera diretamente. Selecione uma foto da galeria.');
+      setModalCameraAoVivoAberto(false);
+      cameraInputRef.current?.click();
+    } finally {
+      setCameraAoVivoCarregando(false);
+    }
+  };
+
+  const encerrarCameraAoVivo = () => {
+    if (streamCameraAoVivo) {
+      streamCameraAoVivo.getTracks().forEach(t => t.stop());
+      setStreamCameraAoVivo(null);
+    }
+    setModalCameraAoVivoAberto(false);
+  };
+
+  const capturarFotoAoVivo = async () => {
+    const video = videoAoVivoRef.current;
+    if (!video || video.readyState < 2) return;
+
+    try {
+      const maxDim = 1024;
+      let width = video.videoWidth || 800;
+      let height = video.videoHeight || 800;
+
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      ctx.drawImage(video, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+
+      // Limpeza imediata do canvas
+      ctx.clearRect(0, 0, width, height);
+      canvas.width = 0;
+      canvas.height = 0;
+
+      // Parar stream para liberar memória imediatamente
+      encerrarCameraAoVivo();
+
+      // Converter dataUrl em Blob para envio ao Supabase Storage / Fotos do Produto
+      const resBlob = await fetch(dataUrl).then(r => r.blob());
+      const fileFromBlob = new File([resBlob], `foto_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      await handleProcessarArquivosImagens([fileFromBlob]);
+    } catch (err: any) {
+      console.error('Erro ao capturar foto in-app:', err);
+      mostrarErro('Não foi possível capturar o frame da foto.');
+    }
+  };
+
   // Aplicar dados retornados pela IA nos estados do produto
   const aplicarDadosSugeridosIA = async (dadosSugeridos: ProdutoSugeridoIA) => {
     if (dadosSugeridos.nome) setNome(dadosSugeridos.nome);
@@ -1462,7 +1557,6 @@ export const ProdutoCadastro: React.FC = () => {
             ref={cameraInputRef}
             type="file"
             accept="image/*"
-            capture="environment"
             className="hidden"
             onChange={(e) => {
               if (e.target.files) handleProcessarArquivosImagens(e.target.files);
@@ -1555,7 +1649,7 @@ export const ProdutoCadastro: React.FC = () => {
               <button
                 type="button"
                 disabled={fotosUrls.length >= 7}
-                onClick={() => cameraInputRef.current?.click()}
+                onClick={iniciarCameraAoVivo}
                 className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex md:hidden items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-[#000000] dark:hover:bg-[#0D111A] border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 transition-all duration-150 disabled:opacity-40"
               >
                 <div className="flex items-center gap-2 truncate">
@@ -2909,6 +3003,65 @@ export const ProdutoCadastro: React.FC = () => {
           setSucessoIAMsg(`✨ Produto preenchido com base na opção selecionada: "${opcaoEscolhida.nome}"!`);
         }}
       />
+
+      {/* Modal Câmera Ao Vivo In-App (WebRTC Stream - Sem Crash OOM no Mobile) */}
+      {modalCameraAoVivoAberto && (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between select-none">
+          {/* Header */}
+          <div className="p-4 flex items-center justify-between z-10 bg-gradient-to-b from-black/80 to-transparent">
+            <button
+              type="button"
+              onClick={encerrarCameraAoVivo}
+              className="p-2.5 rounded-full bg-white/20 text-white backdrop-blur-md hover:bg-white/30 transition cursor-pointer"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <span className="text-white font-bold text-xs uppercase tracking-wider">Câmera do Produto</span>
+            <div className="w-10" />
+          </div>
+
+          {/* Viewfinder da Câmera */}
+          <div className="relative flex-1 flex items-center justify-center overflow-hidden">
+            <video
+              ref={videoAoVivoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover"
+            />
+
+            {cameraAoVivoCarregando && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white gap-3">
+                <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+                <p className="text-xs font-bold uppercase tracking-wider">Iniciando câmera...</p>
+              </div>
+            )}
+
+            {/* Guia visual de enquadramento */}
+            <div className="absolute w-64 h-64 border-2 border-white/40 rounded-3xl pointer-events-none shadow-2xl flex items-center justify-center">
+              <div className="w-4 h-4 border-t-2 border-l-2 border-emerald-400 absolute top-2 left-2 rounded-tl" />
+              <div className="w-4 h-4 border-t-2 border-r-2 border-emerald-400 absolute top-2 right-2 rounded-tr" />
+              <div className="w-4 h-4 border-b-2 border-l-2 border-emerald-400 absolute bottom-2 left-2 rounded-bl" />
+              <div className="w-4 h-4 border-b-2 border-r-2 border-emerald-400 absolute bottom-2 right-2 rounded-br" />
+            </div>
+          </div>
+
+          {/* Footer com Botão de Disparo / Shutter */}
+          <div className="p-6 pb-10 flex flex-col items-center justify-center z-10 bg-gradient-to-t from-black/90 to-transparent gap-2">
+            <button
+              type="button"
+              onClick={capturarFotoAoVivo}
+              disabled={cameraAoVivoCarregando}
+              className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center bg-white/20 active:scale-95 transition shadow-2xl disabled:opacity-50 cursor-pointer"
+            >
+              <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center shadow-inner hover:bg-slate-100">
+                <Camera className="w-7 h-7 text-slate-800" />
+              </div>
+            </button>
+            <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider">Toque para fotografar</span>
+          </div>
+        </div>
+      )}
 
       {/* Overlay com Spinner circular e "Pesquisando" centralizado durante operações de IA */}
       {analisandoIA && (

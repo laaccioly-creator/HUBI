@@ -348,8 +348,8 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 1280, max: 1920 },
-          height: { ideal: 720, max: 1080 },
+          width: { ideal: 1280, max: 1280 },
+          height: { ideal: 720, max: 720 },
           facingMode: 'environment'
         },
         audio: false
@@ -1712,15 +1712,15 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 <div
                   key={produto.id}
                   onClick={() => handleClicarProduto(produto)}
-                  className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:border-emerald-400 active:scale-95 transition-all duration-100 flex flex-col justify-between cursor-pointer group"
+                  className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs hover:border-emerald-400 active:scale-95 transition-all duration-100 flex flex-col h-full cursor-pointer group"
                 >
-                  {/* Contentor uniforme da foto com aspect ratio quadrado travado */}
-                  <div className="w-full aspect-square bg-white relative flex items-center justify-center p-2 overflow-hidden">
-                    {produto.fotos_urls?.[0] ? (
+                  {/* Wrapper com proporção 1:1 rigorosamente travada */}
+                  <div className="w-full aspect-square bg-white relative flex items-center justify-center overflow-hidden rounded-t-xl shrink-0">
+                    {produto.fotos_urls && produto.fotos_urls[0] ? (
                       <img
                         src={produto.fotos_urls[0]}
                         alt={produto.nome}
-                        className="w-full h-full object-contain transition-transform duration-200"
+                        className="w-full h-full object-cover pointer-events-none select-none"
                         loading="lazy"
                         decoding="async"
                       />
@@ -1751,18 +1751,21 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                     )}
                   </div>
 
-                  {/* Card Bottom Limpo */}
-                  <div className="bg-white p-2 space-y-0.5 border-t border-slate-100">
+                  {/* Informações do produto niveladas */}
+                  <div className="p-2 flex flex-col flex-1 justify-between border-t border-slate-100 bg-white">
                     <div className="flex items-start gap-1">
                       {produto.destaque && (
                         <span className="text-amber-500 text-[10px] shrink-0">★</span>
                       )}
-                      <h3 className="font-bold text-[11px] uppercase truncate leading-tight text-slate-800">
+                      <h3
+                        className="text-[11px] font-semibold text-slate-800 line-clamp-2 h-8 leading-tight uppercase overflow-hidden"
+                        title={produto.nome}
+                      >
                         {produto.nome}
                       </h3>
                     </div>
 
-                    <div className="flex items-baseline justify-between pt-0.5">
+                    <div className="flex items-baseline justify-between pt-1">
                       <span className="font-black text-xs text-emerald-600">
                         R$ {Number(precoFinal).toFixed(2)}
                       </span>
