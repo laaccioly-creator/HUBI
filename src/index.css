@@ -142,11 +142,16 @@ html.light header a.text-slate-300:hover {
 }
 
 /* ÁREA DE CONTEÚDO NO MODO CLARO (Branco Puro & Slate Suave de Alto Contraste) */
-html.light main,
+html.light main:not(.bg-slate-100),
 html.light .flex-1.bg-slate-950,
 html.light div.bg-slate-950 {
   background-color: #f8fafc !important;
   color: #0f172a !important;
+}
+
+html.light .bg-slate-100,
+html.light main.bg-slate-100 {
+  background-color: #f1f5f9 !important;
 }
 
 html.light .bg-slate-900,

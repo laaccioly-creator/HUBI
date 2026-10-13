@@ -399,7 +399,7 @@ export const AppLayout: React.FC = () => {
   const isDark = tema === 'dark';
 
   return (
-    <div className={`flex flex-col h-screen w-screen overflow-hidden ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-[#F8FAFC] text-[#0F172A]'}`}>
+    <div className={`flex flex-col h-screen w-screen overflow-hidden ${isDark ? 'bg-slate-950 text-slate-100' : isDashboardRoute ? 'bg-slate-100 text-[#0F172A]' : 'bg-[#F8FAFC] text-[#0F172A]'}`}>
       {/* BANNER / BOTÃO DE INSTALAÇÃO DO APP DESKTOP */}
       <DesktopAppPrompt />
 
@@ -693,7 +693,7 @@ export const AppLayout: React.FC = () => {
       />
 
       {/* ÁREA DE CONTEÚDO PRINCIPAL (BACKGROUND UNIFICADO #F8FAFC NO LIGHT / #020617 NO DARK) */}
-      <main className={`flex-1 overflow-y-auto ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} ${isDashboardRoute ? 'pb-16 md:pb-0' : 'pb-0'}`}>
+      <main className={`flex-1 overflow-y-auto ${isDark ? 'bg-slate-950 text-slate-100' : isDashboardRoute ? 'bg-slate-100 text-slate-900' : 'bg-slate-50 text-slate-900'} ${isDashboardRoute ? 'pb-16 md:pb-0' : 'pb-0'}`}>
         <Outlet />
       </main>
 

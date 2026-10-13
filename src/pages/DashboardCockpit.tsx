@@ -221,7 +221,7 @@ export const DashboardCockpit: React.FC = () => {
       {/* ========================================================================= */}
       {/* CABEÇALHO DESKTOP EXECUTIVO */}
       {/* ========================================================================= */}
-      <header className="hidden md:block sticky top-0 z-20 backdrop-blur-md border-b px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4 bg-white/95 dark:bg-[#0B0F17]/95 border-slate-200/80 dark:border-[#1E293B]/80 transition-colors">
+      <div className="hidden md:block sticky top-0 z-20 backdrop-blur-md border-b px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4 bg-slate-100/95 dark:bg-[#0B0F17]/95 border-slate-300 dark:border-[#1E293B]/80 transition-colors">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           
           {/* Título & Saudação */}
@@ -366,12 +366,12 @@ export const DashboardCockpit: React.FC = () => {
           </div>
 
         </div>
-      </header>
+      </div>
 
       {/* ========================================================================= */}
       {/* CONTEÚDO PRINCIPAL (GRID DOS 6 VELOCÍMETROS) */}
       {/* ========================================================================= */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      <div className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         
         {/* Banner de Erro com Retry */}
         {erroCarregamento && (
@@ -474,7 +474,7 @@ export const DashboardCockpit: React.FC = () => {
         </div>
 
         {/* Rodapé Informativo Executivo */}
-        <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between text-xs gap-3 text-slate-500 dark:text-slate-400 shadow-2xs transition-colors">
+        <div className={`bg-white dark:bg-[#000000] ${isDark ? 'border-2 border-slate-400' : 'border-2 border-slate-300'} rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between text-xs gap-3 text-slate-700 dark:text-slate-400 shadow-2xs transition-colors`}>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>
@@ -488,7 +488,7 @@ export const DashboardCockpit: React.FC = () => {
           </div>
         </div>
 
-      </main>
+      </div>
 
       {/* ========================================================================= */}
       {/* GAVETA LATERAL DE AUDITORIA E DECOMPOSIÇÃO DAS MÉTRICAS */}
