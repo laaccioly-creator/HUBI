@@ -1876,7 +1876,7 @@ export const PosCheckout: React.FC = () => {
               <select
                 value={categoriaSelecionada}
                 onChange={(e) => setCategoriaSelecionada(e.target.value)}
-                className={`w-full ${isDark ? 'bg-[#000000] border-2 border-slate-400 text-slate-100 hover:border-slate-300' : 'bg-white border-2 border-slate-300 text-slate-900 hover:border-slate-400'} focus:border-emerald-500 rounded-xl pl-9 pr-8 py-2 text-xs font-semibold focus:outline-none transition appearance-none cursor-pointer`}
+                className={`w-full ${isDark ? 'bg-[#000000] border border-slate-700 text-slate-100 hover:border-slate-600' : 'bg-white border-2 border-slate-300 text-slate-900 hover:border-slate-400'} focus:border-emerald-500 rounded-xl pl-9 pr-8 py-2 text-xs font-semibold focus:outline-none transition appearance-none cursor-pointer`}
                 title="Filtrar produtos por categoria"
               >
                 <option value="todas" className={isDark ? 'bg-[#000000] text-slate-200' : 'bg-white text-slate-900'}>
@@ -1902,7 +1902,7 @@ export const PosCheckout: React.FC = () => {
                 placeholder="Buscar produto por nome, cód..."
                 value={buscaProduto}
                 onChange={(e) => setBuscaProduto(e.target.value)}
-                className={`w-full ${isDark ? 'bg-[#000000] border-2 border-slate-400 text-slate-100 placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-slate-900 placeholder:text-slate-400'} focus:border-emerald-500 rounded-xl pl-10 pr-8 py-2 text-xs focus:outline-none transition`}
+                className={`w-full ${isDark ? 'bg-[#000000] border border-slate-700 text-slate-100 placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-slate-900 placeholder:text-slate-400'} focus:border-emerald-500 rounded-xl pl-10 pr-8 py-2 text-xs focus:outline-none transition`}
               />
               {buscaProduto && (
                 <button
@@ -1925,7 +1925,7 @@ export const PosCheckout: React.FC = () => {
                 placeholder="Cód. Barras (Enter)"
                 value={buscaCodigoBarras}
                 onChange={(e) => setBuscaCodigoBarras(e.target.value)}
-                className={`w-full ${isDark ? 'bg-[#000000] border-2 border-slate-400 text-slate-100 placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-slate-900 placeholder:text-slate-400'} focus:border-emerald-500 rounded-xl pl-9 pr-9 py-2 text-xs focus:outline-none transition`}
+                className={`w-full ${isDark ? 'bg-[#000000] border border-slate-700 text-slate-100 placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-slate-900 placeholder:text-slate-400'} focus:border-emerald-500 rounded-xl pl-9 pr-9 py-2 text-xs focus:outline-none transition`}
               />
               <button
                 type="button"
@@ -1973,7 +1973,7 @@ export const PosCheckout: React.FC = () => {
                     }}
                     className={`p-2 cursor-pointer transition-all duration-150 flex flex-col justify-between group shadow-sm active:scale-[0.98] rounded-xl ${
                       isDark
-                        ? 'bg-[#000000] hover:bg-slate-950 border-2 border-slate-400 hover:border-emerald-400'
+                        ? 'bg-[#000000] hover:bg-slate-950 border border-slate-700 hover:border-emerald-400'
                         : 'bg-white hover:bg-slate-50 border-2 border-slate-300 hover:border-slate-400'
                     }`}
                   >
@@ -2100,7 +2100,7 @@ export const PosCheckout: React.FC = () => {
                   onFocus={() => {
                     if (!isEdicaoTravada) setClienteDropdownAberto(true);
                   }}
-                  className={`w-full ${isDark ? 'bg-[#000000] border-2 border-slate-400 text-slate-100 placeholder:text-slate-400' : 'bg-white border-2 border-slate-300 text-slate-900 placeholder:text-slate-400'} rounded-xl pl-9 pr-14 py-2 text-xs focus:outline-none focus:border-emerald-500 transition font-medium ${isEdicaoTravada ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  className={`w-full ${isDark ? 'bg-[#000000] border border-slate-700 text-slate-100 placeholder:text-slate-400' : 'bg-white border-2 border-slate-300 text-slate-900 placeholder:text-slate-400'} rounded-xl pl-9 pr-14 py-2 text-xs focus:outline-none focus:border-emerald-500 transition font-medium ${isEdicaoTravada ? 'opacity-70 cursor-not-allowed' : ''}`}
                 />
 
                 <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
@@ -2143,7 +2143,7 @@ export const PosCheckout: React.FC = () => {
             {/* Dropdown de Clientes com busca e seleção */}
             {clienteDropdownAberto && (
               <div className={`absolute left-0 right-0 top-full mt-1.5 z-40 rounded-2xl shadow-2xl overflow-hidden max-h-56 overflow-y-auto animate-in fade-in border ${
-                isDark ? 'bg-[#000000] border-2 border-slate-400 text-white' : 'bg-white border-2 border-slate-300 text-slate-900'
+                isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-slate-900'
               }`}>
                 <button
                   type="button"
@@ -2239,7 +2239,7 @@ export const PosCheckout: React.FC = () => {
 
               return (
                 <div className={`p-2 rounded-xl flex items-center justify-between gap-2 border ${
-                  isDark ? 'bg-[#000000] border-2 border-slate-400' : 'bg-white border-2 border-slate-300'
+                  isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
                 }`}>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <Tag className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
@@ -2280,7 +2280,7 @@ export const PosCheckout: React.FC = () => {
 
             {/* Linha 2: Forma de Entrega */}
             <div className={`p-2 rounded-xl flex items-center justify-between gap-2 border ${
-              isDark ? 'bg-[#000000] border-2 border-slate-400' : 'bg-white border-2 border-slate-300'
+              isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
             }`}>
               <div className="flex items-center gap-1.5 min-w-0">
                 {pedidoEntrega?.tipo_atendimento === 'entrega' ? (
@@ -2414,7 +2414,7 @@ export const PosCheckout: React.FC = () => {
                 <div
                   key={item.id}
                   className={`rounded-2xl p-2.5 space-y-1.5 shadow-xs border ${
-                    isDark ? 'bg-[#000000] border-2 border-slate-400' : 'bg-white border-2 border-slate-300'
+                    isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -2432,7 +2432,7 @@ export const PosCheckout: React.FC = () => {
 
                     <div className="flex items-center gap-2">
                       <div className={`flex items-center border rounded-lg overflow-hidden ${
-                        isDark ? 'border-2 border-slate-400 bg-[#000000]' : 'border border-slate-300 bg-white'
+                        isDark ? 'border border-slate-700 bg-[#000000]' : 'border border-slate-300 bg-white'
                       }`}>
                         <button
                           onClick={() => !isEdicaoTravada && atualizarQuantidade(item.id, item.quantidade - 1)}
@@ -2658,7 +2658,7 @@ export const PosCheckout: React.FC = () => {
       {/* MODAL VARIAÇÕES */}
       {produtoModalVariacao && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className={`${isDark ? 'bg-[#08131A] border-2 border-slate-400' : 'bg-slate-100 border-2 border-slate-300'} rounded-3xl w-full max-w-md p-5 space-y-4 shadow-2xl`}>
+          <div className={`${isDark ? 'bg-[#08131A] border border-slate-700' : 'bg-slate-100 border-2 border-slate-300'} rounded-3xl w-full max-w-md p-5 space-y-4 shadow-2xl`}>
             <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-300'} pb-3`}>
               <div>
                 <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>{produtoModalVariacao.nome}</h3>
@@ -2668,7 +2668,7 @@ export const PosCheckout: React.FC = () => {
                 onClick={() => setProdutoModalVariacao(null)}
                 className={`p-1.5 rounded-xl transition cursor-pointer ${
                   isDark
-                    ? 'bg-[#000000] border-2 border-slate-400 text-slate-200 hover:bg-slate-900'
+                    ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900'
                     : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
                 }`}
               >
@@ -2684,10 +2684,10 @@ export const PosCheckout: React.FC = () => {
                     adicionarItem(produtoModalVariacao, variacao);
                     setProdutoModalVariacao(null);
                   }}
-                  className={`w-full p-3 rounded-xl border-2 flex items-center justify-between text-left transition cursor-pointer ${
+                  className={`w-full p-3 rounded-xl border flex items-center justify-between text-left transition cursor-pointer ${
                     isDark
-                      ? 'bg-[#000000] hover:bg-slate-900 border-slate-400 text-white'
-                      : 'bg-white hover:bg-slate-50 border-slate-300 text-black shadow-xs'
+                      ? 'bg-[#000000] hover:bg-slate-900 border-slate-700 text-white'
+                      : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black shadow-xs'
                   }`}
                 >
                   <div>
@@ -2710,7 +2710,7 @@ export const PosCheckout: React.FC = () => {
       {modalFechamento && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
           <div className={`${
-            isDark ? 'bg-[#08131A] border-2 border-slate-400 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
+            isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
           } rounded-3xl w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto`}>
             <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-300'} pb-3`}>
               <h3 className={`font-bold text-base flex items-center gap-2 ${isDark ? 'text-white' : 'text-black'}`}>
@@ -2721,7 +2721,7 @@ export const PosCheckout: React.FC = () => {
                 onClick={() => setModalFechamento(false)}
                 className={`p-1.5 rounded-xl transition cursor-pointer ${
                   isDark
-                    ? 'bg-[#000000] border-2 border-slate-400 text-slate-200 hover:bg-slate-900'
+                    ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900'
                     : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
                 }`}
               >
@@ -2730,7 +2730,7 @@ export const PosCheckout: React.FC = () => {
             </div>
 
             <div className={`${
-              isDark ? 'bg-[#000000] border-2 border-slate-400' : 'bg-white border-2 border-slate-300'
+              isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
             } p-3.5 rounded-2xl text-center space-y-0.5`}>
               <span className={`text-xs block font-bold ${isDark ? 'text-emerald-400' : 'text-black'}`}>Valor Total da Venda</span>
               <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400">{formatarMoeda(total)}</span>
@@ -3092,7 +3092,7 @@ export const PosCheckout: React.FC = () => {
                 onClick={() => setModalFechamento(false)}
                 className={`py-3 px-3 rounded-2xl font-bold text-xs transition cursor-pointer shadow-xs ${
                   isDark
-                    ? 'bg-[#000000] hover:bg-slate-900 border-2 border-slate-400 text-slate-200'
+                    ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200'
                     : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
                 }`}
               >

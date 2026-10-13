@@ -490,7 +490,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
     return createPortal(
       <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in">
         <div className={`${
-          isDark ? 'bg-[#08131A] border-2 border-slate-400 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
+          isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
         } rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl animate-in slide-in-from-bottom duration-150`}>
           <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-300'} pb-2`}>
             <div className="flex items-center gap-2">
@@ -502,7 +502,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               onClick={() => setModalTabelaPrecoAberto(false)}
               className={`p-1.5 rounded-xl transition cursor-pointer ${
                 isDark
-                  ? 'bg-[#000000] border-2 border-slate-400 text-slate-200 hover:bg-slate-900'
+                  ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900'
                   : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
               }`}
             >
@@ -578,7 +578,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               type="button"
               onClick={() => setSubTela(origemClientes)}
               className={`p-1.5 rounded-xl transition cursor-pointer ${
-                isDark ? 'bg-[#000000] border-2 border-slate-400 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+                isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
               }`}
             >
               <ChevronLeft className="w-5 h-5" />
@@ -712,7 +712,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               type="button"
               onClick={() => setSubTela('vender')}
               className={`p-1.5 rounded-xl transition cursor-pointer ${
-                isDark ? 'bg-[#000000] border-2 border-slate-400 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+                isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
               }`}
             >
               <ChevronLeft className="w-5 h-5" />
@@ -734,8 +734,8 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             <button
               type="button"
               onClick={() => setModalMultiplicador(true)}
-              className={`px-2.5 py-1 rounded-xl border-2 text-xs font-black transition cursor-pointer ${
-                isDark ? 'bg-[#000000] border-slate-400 text-white' : 'bg-white border-slate-300 text-black shadow-xs'
+              className={`px-2.5 py-1 rounded-xl text-xs font-black transition cursor-pointer ${
+                isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black shadow-xs'
               }`}
             >
               {multiplicadorQtd}X
@@ -862,7 +862,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             type="button"
             onClick={() => setSubTela('vender')}
             className={`p-1.5 rounded-xl transition cursor-pointer ${
-              isDark ? 'bg-[#000000] border-2 border-slate-400 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+              isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
             }`}
           >
             <ChevronLeft className="w-5 h-5" />
@@ -983,7 +983,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               type="button"
               onClick={() => setSubTela('vender')}
               className={`p-1.5 rounded-xl transition cursor-pointer ${
-                isDark ? 'bg-[#000000] border-2 border-slate-400 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+                isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
               }`}
             >
               <ChevronLeft className="w-5 h-5" />
@@ -1499,7 +1499,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
         {modalDescontoAberto && (
           <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
             <div className={`${
-              isDark ? 'bg-[#08131A] border-2 border-slate-400 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
+              isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
             } rounded-3xl p-5 w-full max-w-xs space-y-4 shadow-2xl animate-in zoom-in-95`}>
               <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
                 <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Aplicar Desconto</h3>
@@ -1507,7 +1507,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                   type="button"
                   onClick={() => setModalDescontoAberto(false)}
                   className={`p-1.5 rounded-xl transition cursor-pointer ${
-                    isDark ? 'bg-[#000000] border-2 border-slate-400 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+                    isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
                   }`}
                 >
                   <X className="w-4 h-4" />
@@ -1591,7 +1591,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
         {modalConfirmarLimparCarrinho && (
           <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
             <div className={`${
-              isDark ? 'bg-[#08131A] border-2 border-slate-400 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
+              isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
             } rounded-3xl p-5 w-full max-w-xs space-y-4 shadow-2xl animate-in zoom-in-95 text-center`}>
               <div className="w-12 h-12 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto border border-rose-500/30">
                 <Trash2 className="w-6 h-6" />
@@ -1608,7 +1608,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                   onClick={() => setModalConfirmarLimparCarrinho(false)}
                   className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
                     isDark
-                      ? 'bg-[#000000] hover:bg-slate-900 border-2 border-slate-400 text-slate-200'
+                      ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200'
                       : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
                   }`}
                 >
@@ -1711,7 +1711,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               setTermoBusca('');
             }}
             className={`p-1.5 rounded-xl transition cursor-pointer ${
-              isDark ? 'bg-[#000000] border-2 border-slate-400 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+              isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
             }`}
           >
             <X className="w-4 h-4" />
@@ -2040,7 +2040,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
       {modalMultiplicador && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
           <div className={`${
-            isDark ? 'bg-[#08131A] border-2 border-slate-400 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
+            isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
           } rounded-3xl p-5 w-full max-w-xs space-y-4 shadow-2xl animate-in zoom-in-95`}>
             <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
               <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Multiplicador de Quantidade</h3>
@@ -2048,7 +2048,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 type="button"
                 onClick={() => setModalMultiplicador(false)}
                 className={`p-1.5 rounded-xl transition cursor-pointer ${
-                  isDark ? 'bg-[#000000] border-2 border-slate-400 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+                  isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
                 }`}
               >
                 <X className="w-4 h-4" />

@@ -1272,8 +1272,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
           <div className={`p-3.5 rounded-2xl border space-y-2 relative overflow-hidden shadow-sm ${
             ehDark
-              ? 'bg-slate-900 border-slate-800 text-white'
-              : 'bg-slate-50 border-slate-200 text-slate-900'
+              ? 'bg-[#000000] border-slate-700 text-white'
+              : 'bg-white border-2 border-slate-300 text-slate-900'
           }`}>
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2.5">
@@ -1632,17 +1632,27 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
           {/* Validação de Endereço do Cliente */}
           {carregandoEnderecos && !enderecoSelecionado ? (
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center gap-2 text-slate-400 text-xs">
+            <div className={`p-4 rounded-2xl flex items-center justify-center gap-2 text-xs border ${
+              ehDark ? 'bg-[#000000] border-slate-700 text-slate-300' : 'bg-white border-2 border-slate-300 text-slate-700'
+            }`}>
               <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
               <span>Verificando endereço para entrega...</span>
             </div>
           ) : (!clienteId || !enderecoSelecionado || !(enderecoSelecionado.cep || '').replace(/\D/g, '') || !(enderecoSelecionado.logradouro || '').trim()) ? (
-            <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-slate-800 space-y-2">
-              <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
-                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+            <div className={`p-3.5 rounded-2xl space-y-2.5 border ${
+              ehDark
+                ? 'bg-[#000000] border-amber-500/40 text-white'
+                : 'bg-white border-2 border-amber-400 text-slate-900 shadow-xs'
+            }`}>
+              <div className={`flex items-center gap-2 font-bold text-xs ${
+                ehDark ? 'text-amber-400' : 'text-amber-900'
+              }`}>
+                <AlertCircle className={`w-4 h-4 shrink-0 ${ehDark ? 'text-amber-400' : 'text-amber-600'}`} />
                 <span>Endereço incompleto para entrega</span>
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
+              <p className={`text-xs leading-relaxed ${
+                ehDark ? 'text-slate-200' : 'text-black font-semibold'
+              }`}>
                 Para calcular e despachar entregas, atualize o endereço do cliente.
               </p>
               <button
@@ -1712,8 +1722,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                       {/* VERSÃO DESKTOP: Painel Completo Aberto */}
                       <div className={`hidden sm:block p-3.5 rounded-2xl border shadow-sm space-y-3 ${
                         ehDark
-                          ? 'bg-slate-900 border-slate-800 text-white'
-                          : 'bg-white border-slate-200 text-slate-900'
+                          ? 'bg-[#000000] border-slate-700 text-white'
+                          : 'bg-white border-2 border-slate-300 text-slate-900'
                       }`}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">

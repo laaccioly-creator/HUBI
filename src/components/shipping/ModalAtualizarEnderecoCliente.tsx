@@ -300,30 +300,32 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div className={`rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[92vh] border ${
-        isDark ? 'bg-slate-900 border-slate-700/80' : 'bg-white border-slate-200'
+        isDark ? 'bg-[#08131A] border-slate-700 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
       }`}>
         {/* Cabeçalho */}
         <div className={`p-4 sm:p-5 border-b flex items-center justify-between ${
-          isDark ? 'border-slate-700/80 bg-slate-900' : 'border-slate-200 bg-white'
+          isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-300 bg-slate-100'
         }`}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
               <MapPin className="w-5 h-5" />
             </div>
             <div>
-              <h3 className={`font-extrabold text-sm sm:text-base ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              <h3 className={`font-extrabold text-sm sm:text-base ${isDark ? 'text-white' : 'text-black'}`}>
                 Endereço Principal
               </h3>
-              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                Cliente: <strong className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{cliente.nome}</strong>
+              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-800 font-medium'}`}>
+                Cliente: <strong className={`font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>{cliente.nome}</strong>
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onFechar}
-            className={`w-8 h-8 rounded-full flex items-center justify-center transition cursor-pointer ${
-              isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800'
+            className={`w-8 h-8 rounded-xl flex items-center justify-center transition cursor-pointer ${
+              isDark
+                ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
             }`}
           >
             <X className="w-4 h-4" />
@@ -331,7 +333,7 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
         </div>
 
         {/* Formulário */}
-        <form onSubmit={handleSalvar} className={`p-4 sm:p-5 space-y-4 overflow-y-auto flex-1 ${isDark ? 'bg-slate-900' : 'bg-white'}`}>
+        <form onSubmit={handleSalvar} className={`p-4 sm:p-5 space-y-4 overflow-y-auto flex-1 ${isDark ? 'bg-[#08131A]' : 'bg-slate-100'}`}>
           {erroMsg && (
             <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -340,7 +342,7 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
           )}
 
           <div className="flex items-center justify-between">
-            <span className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Preencha o endereço completo</span>
+            <span className={`text-xs font-bold ${isDark ? 'text-white' : 'text-black font-extrabold'}`}>Preencha o endereço completo</span>
             {/* Botão de Localização Atual */}
             <button
               type="button"
@@ -348,8 +350,8 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
               onClick={usarLocalizacaoAtual}
               className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-bold transition disabled:opacity-50 cursor-pointer ${
                 isDark
-                  ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-emerald-400 hover:text-emerald-300'
-                  : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-emerald-600 hover:text-emerald-700'
+                  ? 'border-slate-700 bg-[#000000] hover:bg-slate-900 text-slate-200'
+                  : 'border-2 border-slate-300 bg-white hover:bg-slate-50 text-black shadow-xs'
               }`}
             >
               {carregandoGeoloc ? (
@@ -365,7 +367,7 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
             {/* CEP com Botão Não Sei o CEP */}
             <div className="sm:col-span-3 space-y-1">
               <div className="flex items-center justify-between">
-                <label className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>CEP *</label>
+                <label className={`text-xs font-bold ${isDark ? 'text-white' : 'text-black'}`}>CEP *</label>
                 <a
                   href="https://buscacepinter.correios.com.br/app/endereco/index.php"
                   target="_blank"
@@ -389,7 +391,7 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
                     }
                   }}
                   className={`w-full border rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition ${
-                    isDark ? 'bg-black border-slate-800 text-white placeholder:text-slate-600' : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 shadow-xs'
+                    isDark ? 'bg-black border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 shadow-xs'
                   }`}
                   required
                 />
@@ -401,18 +403,18 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
 
             {/* Estado (UF) */}
             <div className="sm:col-span-3 space-y-1">
-              <label className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-slate-800'}`}>Estado (UF) *</label>
+              <label className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Estado (UF) *</label>
               <select
                 value={estado}
                 onChange={(e) => setEstado(e.target.value)}
                 className={`w-full border rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition cursor-pointer ${
-                  isDark ? 'bg-black border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900 shadow-xs'
+                  isDark ? 'bg-black border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black shadow-xs'
                 }`}
                 required
               >
-                <option value="" className={isDark ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'}>Selecione</option>
+                <option value="" className={isDark ? 'bg-black text-white' : 'bg-white text-black'}>Selecione</option>
                 {ESTADOS_BRASIL.map((est) => (
-                  <option key={est.sigla} value={est.sigla} className={isDark ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'}>
+                  <option key={est.sigla} value={est.sigla} className={isDark ? 'bg-black text-white' : 'bg-white text-black'}>
                     {est.sigla} - {est.nome}
                   </option>
                 ))}
@@ -421,14 +423,14 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
 
             {/* Cidade */}
             <div className="sm:col-span-3 space-y-1">
-              <label className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-slate-800'}`}>Cidade *</label>
+              <label className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Cidade *</label>
               <input
                 type="text"
                 placeholder="Nome da cidade"
                 value={cidade}
                 onChange={(e) => setCidade(e.target.value)}
                 className={`w-full border rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition ${
-                  isDark ? 'bg-black border-slate-800 text-white placeholder:text-slate-600' : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 shadow-xs'
+                  isDark ? 'bg-black border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 shadow-xs'
                 }`}
                 required
               />
@@ -436,14 +438,14 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
 
             {/* Bairro */}
             <div className="sm:col-span-3 space-y-1">
-              <label className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-slate-800'}`}>Bairro *</label>
+              <label className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Bairro *</label>
               <input
                 type="text"
                 placeholder="Nome do bairro"
                 value={bairro}
                 onChange={(e) => setBairro(e.target.value)}
                 className={`w-full border rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition ${
-                  isDark ? 'bg-black border-slate-800 text-white placeholder:text-slate-600' : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 shadow-xs'
+                  isDark ? 'bg-black border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 shadow-xs'
                 }`}
                 required
               />
@@ -451,14 +453,14 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
 
             {/* Logradouro / Rua */}
             <div className="sm:col-span-4 space-y-1">
-              <label className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-slate-800'}`}>Rua / Logradouro *</label>
+              <label className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Rua / Logradouro *</label>
               <input
                 type="text"
                 placeholder="Av., Rua, Travessa..."
                 value={rua}
                 onChange={(e) => setRua(e.target.value)}
                 className={`w-full border rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition ${
-                  isDark ? 'bg-black border-slate-800 text-white placeholder:text-slate-600' : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 shadow-xs'
+                  isDark ? 'bg-black border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 shadow-xs'
                 }`}
                 required
               />
@@ -466,14 +468,14 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
 
             {/* Número */}
             <div className="sm:col-span-2 space-y-1">
-              <label className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-slate-800'}`}>Número *</label>
+              <label className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Número *</label>
               <input
                 type="text"
                 placeholder="Ex: 123 ou S/N"
                 value={numero}
                 onChange={(e) => setNumero(e.target.value)}
                 className={`w-full border rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition ${
-                  isDark ? 'bg-black border-slate-800 text-white placeholder:text-slate-600' : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 shadow-xs'
+                  isDark ? 'bg-black border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 shadow-xs'
                 }`}
                 required
               />
@@ -481,26 +483,28 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
 
             {/* Complemento */}
             <div className="sm:col-span-6 space-y-1">
-              <label className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-slate-800'}`}>Complemento / Ponto de Ref.</label>
+              <label className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Complemento / Ponto de Ref.</label>
               <input
                 type="text"
                 placeholder="Apto, Bloco, Casa dos fundos..."
                 value={complemento}
                 onChange={(e) => setComplemento(e.target.value)}
                 className={`w-full border rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition ${
-                  isDark ? 'bg-black border-slate-800 text-white placeholder:text-slate-600' : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 shadow-xs'
+                  isDark ? 'bg-black border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 shadow-xs'
                 }`}
               />
             </div>
           </div>
 
-          <div className={`pt-4 border-t flex items-center justify-end gap-2 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+          <div className={`pt-4 border-t flex items-center justify-end gap-2 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
             <button
               type="button"
               onClick={onFechar}
               disabled={salvando}
-              className={`px-4 py-2.5 rounded-xl font-semibold text-xs transition cursor-pointer ${
-                isDark ? 'border-2 border-emerald-600 text-emerald-400 hover:bg-emerald-950/40' : 'border border-slate-300 text-slate-700 hover:bg-slate-100 bg-white'
+              className={`px-4 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer shadow-xs ${
+                isDark
+                  ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
               }`}
             >
               Cancelar
@@ -508,7 +512,11 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
             <button
               type="submit"
               disabled={salvando}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition disabled:opacity-50 cursor-pointer"
+              className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50 ${
+                isDark
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+              }`}
             >
               {salvando ? (
                 <>

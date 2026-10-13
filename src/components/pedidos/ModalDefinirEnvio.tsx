@@ -7,6 +7,7 @@ import { ShippingFulfillmentSelector } from '../shipping/ShippingFulfillmentSele
 import { ModalAtualizarEnderecoCliente } from '../shipping/ModalAtualizarEnderecoCliente';
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
 import { supabase } from '../../lib/supabase';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export interface ModalDefinirEnvioProps {
   isOpen: boolean;
@@ -31,6 +32,8 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
   onFeedbackErro,
   onConfirmarEnvio
 }) => {
+  const { tema } = useTheme();
+  const isDark = tema === 'dark';
   const [selecaoPendente, setSelecaoPendente] = useState<ShippingSelectionResult | null>(null);
   const [salvando, setSalvando] = useState<boolean>(false);
   const [modalEnderecoAberto, setModalEnderecoAberto] = useState<boolean>(false);
@@ -140,18 +143,20 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
 
   return (
     <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[9999] animate-in fade-in">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-xl p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[92vh] flex flex-col text-slate-800 dark:text-slate-200">
+      <div className={`${
+        isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
+      } rounded-3xl w-full max-w-xl p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[92vh] flex flex-col`}>
         {/* Header do Modal */}
-        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3 shrink-0">
+        <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-300'} pb-3 shrink-0`}>
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center border border-amber-500/20 shrink-0">
               <Truck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-slate-900 dark:text-white">
+              <h3 className={`font-bold text-base ${isDark ? 'text-white' : 'text-black'}`}>
                 Definir Envio • Pedido #{pedido.numero_pedido}
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-800 font-medium'}`}>
                 Selecione o meio de entrega para expedição do pedido
               </p>
             </div>
@@ -163,7 +168,11 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
               setSelecaoPendente(null);
               onClose();
             }}
-            className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-800 dark:hover:text-white transition cursor-pointer"
+            className={`p-1.5 rounded-xl transition cursor-pointer ${
+              isDark
+                ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+            }`}
           >
             <X className="w-5 h-5" />
           </button>
@@ -175,6 +184,7 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
             key={`fulfillment-${pedido.id}-${versaoFulfillment}`}
             lojaId={loja.id}
             loja={loja}
+            temaDark={isDark}
             clienteId={pedido.cliente_id || pedido.cliente?.id || null}
             cliente={clienteAtivo || pedido.cliente || null}
             permiteRetirada={false}
@@ -209,8 +219,8 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
         </div>
 
         {/* Rodapé com Ação Explícita de Confirmação */}
-        <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
-          <div className="text-xs text-slate-600 dark:text-slate-300 w-full sm:w-auto">
+        <div className={`pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-300'} flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0`}>
+          <div className={`text-xs ${isDark ? 'text-slate-300' : 'text-black font-semibold'} w-full sm:w-auto`}>
             {selecaoPendente ? (
               <span>
                 Opção selecionada:{' '}
@@ -221,7 +231,7 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
                     'Frete Definido'}
                 </strong>
                 {selecaoPendente.valor_frete > 0 && (
-                  <span className="ml-1 text-slate-800 dark:text-slate-200 font-semibold">
+                  <span className={`ml-1 font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                     (R$ {selecaoPendente.valor_frete.toFixed(2)})
                   </span>
                 )}
@@ -237,7 +247,11 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
                 setSelecaoPendente(null);
                 onClose();
               }}
-              className="px-4 py-2.5 rounded-xl border transition text-xs font-bold cursor-pointer shadow-xs bg-emerald-200 hover:bg-emerald-300 border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white"
+              className={`px-4 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer shadow-xs ${
+                isDark
+                  ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+              }`}
             >
               Cancelar
             </button>
@@ -246,7 +260,11 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
               type="button"
               disabled={!selecaoPendente || salvando}
               onClick={handleConfirmar}
-              className="px-5 py-2.5 rounded-xl border font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed bg-emerald-200 hover:bg-emerald-300 border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white"
+              className={`px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${
+                isDark
+                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+              }`}
             >
               {salvando ? (
                 <>

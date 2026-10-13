@@ -291,21 +291,21 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div className={`rounded-2xl sm:rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh] border ${
-        isDark ? 'bg-slate-900 border-slate-700/80' : 'bg-white border-slate-200'
+        isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-100 border-2 border-slate-300'
       }`}>
         {/* Cabeçalho */}
         <div className={`p-4 sm:p-5 border-b flex items-center justify-between ${
-          isDark ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'
+          isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-300 bg-slate-100'
         }`}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 flex items-center justify-center shrink-0">
               <MapPin className="w-5 h-5" />
             </div>
             <div>
-              <h3 className={`font-extrabold text-sm sm:text-base ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              <h3 className={`font-extrabold text-sm sm:text-base ${isDark ? 'text-white' : 'text-black'}`}>
                 Escolher Endereço de Entrega
               </h3>
-              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-800 font-medium'}`}>
                 Selecione um endereço cadastrado, sua localização atual ou adicione outro
               </p>
             </div>
@@ -314,7 +314,9 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
             type="button"
             onClick={onFechar}
             className={`w-8 h-8 rounded-xl flex items-center justify-center transition cursor-pointer ${
-              isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900'
+              isDark
+                ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
             }`}
           >
             <X className="w-4 h-4" />
@@ -332,7 +334,7 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
 
           {/* Opção 1: Minha Localização Atual */}
           <div className="space-y-2">
-            <span className={`text-xs font-bold block ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>Usar Localização GPS</span>
+            <span className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-black font-extrabold'}`}>Usar Localização GPS</span>
             <div
               onClick={() => {
                 if (enderecoGps) {
@@ -343,10 +345,12 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
               }}
               className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                 enderecoEscolhido?.id === enderecoGps?.id && enderecoGps
-                  ? 'bg-emerald-950/30 border-2 border-emerald-500 text-white shadow-sm shadow-emerald-950/40'
+                  ? isDark
+                    ? 'bg-emerald-950/40 border-2 border-emerald-500 text-white shadow-sm'
+                    : 'bg-emerald-50 border-2 border-emerald-600 text-slate-900 shadow-sm'
                   : isDark
-                  ? 'bg-black hover:bg-slate-950 border border-slate-800 text-white font-bold'
-                  : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-900 shadow-xs'
+                  ? 'bg-[#000000] hover:bg-slate-950 border border-slate-700 text-white font-bold'
+                  : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-slate-900 shadow-xs'
               }`}
             >
               <div className="flex items-center gap-3 min-w-0">
@@ -358,11 +362,11 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
                   )}
                 </div>
                 <div className="min-w-0">
-                  <span className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  <span className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-black'}`}>
                     {enderecoGps ? 'Minha Localização Atual (Capturada)' : 'Minha Localização Atual'}
                   </span>
 
-                  <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                  <p className={`text-[11px] truncate mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-800 font-semibold'}`}>
                     {enderecoGps
                       ? `${enderecoGps.logradouro}, ${enderecoGps.numero} - ${enderecoGps.bairro}, ${enderecoGps.cidade}-${enderecoGps.uf}`
                       : 'Clique para obter as coordenadas via GPS do dispositivo'}
@@ -387,7 +391,7 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
                   <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
                     enderecoEscolhido?.id === enderecoGps.id
                       ? 'bg-emerald-500 text-slate-950 shadow-sm'
-                      : 'border-2 border-slate-500'
+                      : (isDark ? 'border-2 border-slate-500' : 'border-2 border-slate-400')
                   }`}>
                     {enderecoEscolhido?.id === enderecoGps.id && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                   </div>
@@ -398,7 +402,7 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
 
           {/* Opção 2: Endereços Cadastrados */}
           <div className="space-y-2">
-            <span className="text-xs font-bold text-slate-200 block">
+            <span className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-black font-extrabold'}`}>
               Endereços Cadastrados do Cliente ({enderecos.length})
             </span>
 
@@ -408,7 +412,9 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
                 <span>Carregando endereços...</span>
               </div>
             ) : enderecos.length === 0 ? (
-              <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/60 text-center text-xs text-slate-400">
+              <div className={`p-4 rounded-2xl border text-center text-xs ${
+                isDark ? 'bg-[#000000] border-slate-700 text-slate-400' : 'bg-white border-2 border-slate-300 text-slate-700'
+              }`}>
                 Nenhum endereço cadastrado para este cliente.
               </div>
             ) : (
@@ -421,15 +427,15 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
                       onClick={() => setEnderecoEscolhido(end)}
                       className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                         estaSelecionado
-                          ? (isDark ? 'bg-emerald-950/30 border-2 border-emerald-500 text-white shadow-sm shadow-emerald-950/40' : 'bg-emerald-50 border-2 border-emerald-500 text-slate-900 shadow-sm')
-                          : (isDark ? 'bg-black hover:bg-slate-950 border border-slate-800 text-white' : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-900 shadow-xs')
+                          ? (isDark ? 'bg-emerald-950/40 border-2 border-emerald-500 text-white shadow-sm' : 'bg-emerald-50 border-2 border-emerald-600 text-slate-900 shadow-sm')
+                          : (isDark ? 'bg-[#000000] hover:bg-slate-950 border border-slate-700 text-white' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-slate-900 shadow-xs')
                       }`}
                     >
                       <div className="flex items-start gap-2.5 min-w-0">
-                        <MapPin className={`w-4 h-4 shrink-0 mt-0.5 ${estaSelecionado ? 'text-emerald-500' : (isDark ? 'text-slate-400' : 'text-slate-500')}`} />
+                        <MapPin className={`w-4 h-4 shrink-0 mt-0.5 ${estaSelecionado ? 'text-emerald-500' : (isDark ? 'text-slate-400' : 'text-slate-600')}`} />
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                            <span className={`text-xs font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                               {end.is_principal ? 'Endereço Principal' : (end.identificador === 'Principal' ? 'Endereço Alternativo' : (end.identificador || 'Endereço'))}
                             </span>
                             {end.is_principal && (
@@ -438,10 +444,10 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
                               </span>
                             )}
                           </div>
-                          <p className={`text-xs mt-0.5 truncate ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                          <p className={`text-xs mt-0.5 truncate ${isDark ? 'text-slate-300' : 'text-black font-medium'}`}>
                             {end.logradouro}, {end.numero} {end.complemento ? `(${end.complemento})` : ''}
                           </p>
-                          <p className={`text-[11px] truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          <p className={`text-[11px] truncate ${isDark ? 'text-slate-400' : 'text-slate-800 font-semibold'}`}>
                             {end.bairro}, {end.cidade}-{end.uf} | CEP: {end.cep}
                           </p>
                         </div>
@@ -468,35 +474,35 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
               onClick={() => setExibirFormNovo(true)}
               className={`w-full py-3 rounded-2xl border border-dashed text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
                 isDark
-                  ? 'border-slate-700 hover:border-emerald-500/60 bg-slate-800/40 hover:bg-slate-800 text-slate-300 hover:text-emerald-400'
-                  : 'border-slate-300 hover:border-emerald-500 bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-emerald-600 shadow-xs'
+                  ? 'border-slate-700 hover:border-emerald-500/60 bg-[#000000] hover:bg-slate-900 text-slate-300 hover:text-emerald-400'
+                  : 'border-2 border-slate-300 hover:border-emerald-500 bg-white hover:bg-slate-50 text-black hover:text-emerald-700 shadow-xs'
               }`}
             >
               <Plus className="w-4 h-4 text-emerald-500" />
               <span>Adicionar Novo Endereço</span>
             </button>
           ) : (
-            <form id="form-novo-endereco-cliente" onSubmit={handleSalvarNovoEndereco} className={`p-4 rounded-2xl border space-y-3 ${isDark ? 'bg-black border-slate-800' : 'bg-slate-50/80 border-slate-200'}`}>
+            <form id="form-novo-endereco-cliente" onSubmit={handleSalvarNovoEndereco} className={`p-4 rounded-2xl border space-y-3 ${isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
               <div className="flex items-center justify-between">
-                <span className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Cadastrar Novo Endereço</span>
+                <span className={`text-xs font-bold ${isDark ? 'text-white' : 'text-black'}`}>Cadastrar Novo Endereço</span>
                 <button
                   type="button"
                   onClick={() => setExibirFormNovo(false)}
-                  className={`text-xs font-medium cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-800'}`}
+                  className={`text-xs font-medium cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-700 hover:text-black font-semibold'}`}
                 >
                   Cancelar
                 </button>
               </div>
 
               {/* Barra de Preenchimento Inteligente de Endereço (TypeSafe Jev) */}
-              <div className={`flex items-center gap-2 p-2 rounded-xl border ${isDark ? 'bg-black border-slate-800' : 'bg-white border-slate-200 shadow-xs'}`}>
+              <div className={`flex items-center gap-2 p-2 rounded-xl border ${isDark ? 'bg-[#000000] border-slate-700' : 'bg-slate-50 border-2 border-slate-300 shadow-xs'}`}>
                 <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                 <input
                   type="text"
                   placeholder="Cole um endereço completo (ex: Av. Santos Dumont 2828 apto 402 - Aldeota, Fortaleza - CE)..."
                   value={textoEnderecoColado}
                   onChange={(e) => setTextoEnderecoColado(e.target.value)}
-                  className={`flex-1 bg-transparent text-xs placeholder:text-slate-400 focus:outline-none ${isDark ? 'text-white' : 'text-slate-900'}`}
+                  className={`flex-1 bg-transparent text-xs placeholder:text-slate-400 focus:outline-none ${isDark ? 'text-white' : 'text-black'}`}
                 />
                 <button
                   type="button"
@@ -510,21 +516,21 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
 
               <div className="grid grid-cols-1 sm:grid-cols-6 gap-2.5">
                 <div className="sm:col-span-3 space-y-1">
-                  <label className={`text-[11px] font-bold block ${isDark ? 'text-white' : 'text-slate-800'}`}>Apelido (ex: Trabalho)</label>
+                  <label className={`text-[11px] font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Apelido (ex: Trabalho)</label>
                   <input
                     type="text"
                     value={novoIdentificador}
                     onChange={(e) => setNovoIdentificador(e.target.value)}
                     placeholder="Casa, Trabalho..."
                     className={`w-full border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 ${
-                      isDark ? 'bg-black border-slate-800 text-white placeholder:text-slate-600' : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 shadow-xs'
+                      isDark ? 'bg-black border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 shadow-xs'
                     }`}
                   />
                 </div>
 
                 <div className="sm:col-span-3 space-y-1">
                   <div className="flex items-center justify-between gap-2 flex-wrap mb-0.5">
-                    <label className={`text-[11px] font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>CEP *</label>
+                    <label className={`text-[11px] font-bold ${isDark ? 'text-white' : 'text-black'}`}>CEP *</label>
                     <a
                       href="https://buscacepinter.correios.com.br/app/endereco/index.php"
                       target="_blank"
@@ -546,7 +552,7 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
                       }}
                       placeholder="00000-000"
                       className={`w-full border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 ${
-                        isDark ? 'bg-black border-slate-800 text-white placeholder:text-slate-600' : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 shadow-xs'
+                        isDark ? 'bg-black border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 shadow-xs'
                       }`}
                       required
                     />
@@ -557,73 +563,73 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
                 </div>
 
                 <div className="sm:col-span-4 space-y-1">
-                  <label className={`text-[11px] font-bold block ${isDark ? 'text-white' : 'text-slate-800'}`}>Rua / Logradouro *</label>
+                  <label className={`text-[11px] font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Rua / Logradouro *</label>
                   <input
                     type="text"
                     value={novoLogradouro}
                     onChange={(e) => setNovoLogradouro(e.target.value)}
                     placeholder="Av., Rua..."
                     className={`w-full border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 ${
-                      isDark ? 'bg-black border-slate-800 text-white placeholder:text-slate-600' : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 shadow-xs'
+                      isDark ? 'bg-black border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 shadow-xs'
                     }`}
                     required
                   />
                 </div>
 
                 <div className="sm:col-span-2 space-y-1">
-                  <label className={`text-[11px] font-bold block ${isDark ? 'text-white' : 'text-slate-800'}`}>Número *</label>
+                  <label className={`text-[11px] font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Número *</label>
                   <input
                     type="text"
                     value={novoNumero}
                     onChange={(e) => setNovoNumero(e.target.value)}
                     placeholder="123"
                     className={`w-full border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 ${
-                      isDark ? 'bg-black border-slate-800 text-white placeholder:text-slate-600' : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 shadow-xs'
+                      isDark ? 'bg-black border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 shadow-xs'
                     }`}
                     required
                   />
                 </div>
 
                 <div className="sm:col-span-3 space-y-1">
-                  <label className={`text-[11px] font-bold block ${isDark ? 'text-white' : 'text-slate-800'}`}>Bairro *</label>
+                  <label className={`text-[11px] font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Bairro *</label>
                   <input
                     type="text"
                     value={novoBairro}
                     onChange={(e) => setNovoBairro(e.target.value)}
                     placeholder="Bairro"
                     className={`w-full border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 ${
-                      isDark ? 'bg-black border-slate-800 text-white placeholder:text-slate-600' : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 shadow-xs'
+                      isDark ? 'bg-black border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 shadow-xs'
                     }`}
                     required
                   />
                 </div>
 
                 <div className="sm:col-span-3 space-y-1">
-                  <label className={`text-[11px] font-bold block ${isDark ? 'text-white' : 'text-slate-800'}`}>Cidade *</label>
+                  <label className={`text-[11px] font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Cidade *</label>
                   <input
                     type="text"
                     value={novoCidade}
                     onChange={(e) => setNovoCidade(e.target.value)}
                     placeholder="Cidade"
                     className={`w-full border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 ${
-                      isDark ? 'bg-black border-slate-800 text-white placeholder:text-slate-600' : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 shadow-xs'
+                      isDark ? 'bg-black border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 shadow-xs'
                     }`}
                     required
                   />
                 </div>
 
                 <div className="sm:col-span-2 space-y-1">
-                  <label className={`text-[11px] font-bold block ${isDark ? 'text-white' : 'text-slate-800'}`}>UF *</label>
+                  <label className={`text-[11px] font-bold block ${isDark ? 'text-white' : 'text-black'}`}>UF *</label>
                   <select
                     value={novoUf}
                     onChange={(e) => setNovoUf(e.target.value)}
                     className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 cursor-pointer ${
-                      isDark ? 'bg-black border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900 shadow-xs'
+                      isDark ? 'bg-black border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black shadow-xs'
                     }`}
                     required
                   >
                     {ESTADOS_BRASIL.map((est) => (
-                      <option key={est.sigla} value={est.sigla} className={isDark ? 'bg-black text-white font-bold' : 'bg-white text-slate-900 font-bold'}>
+                      <option key={est.sigla} value={est.sigla} className={isDark ? 'bg-black text-white font-bold' : 'bg-white text-black font-bold'}>
                         {est.sigla}
                       </option>
                     ))}
@@ -631,14 +637,14 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
                 </div>
 
                 <div className="sm:col-span-4 space-y-1">
-                  <label className={`text-[11px] font-bold block ${isDark ? 'text-white' : 'text-slate-800'}`}>Complemento</label>
+                  <label className={`text-[11px] font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Complemento</label>
                   <input
                     type="text"
                     value={novoComplemento}
                     onChange={(e) => setNovoComplemento(e.target.value)}
                     placeholder="Apto, Sala..."
                     className={`w-full border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 ${
-                      isDark ? 'bg-black border-slate-800 text-white placeholder:text-slate-600' : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 shadow-xs'
+                      isDark ? 'bg-black border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 shadow-xs'
                     }`}
                   />
                 </div>
@@ -649,13 +655,15 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
         </div>
 
         {/* Rodapé com Botão de Confirmação Único */}
-        <div className={`p-4 border-t flex items-center justify-between gap-3 ${isDark ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-slate-50'}`}>
+        <div className={`p-4 border-t flex items-center justify-between gap-3 ${isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-300 bg-slate-100'}`}>
           <button
             type="button"
             onClick={onFechar}
             disabled={salvandoNovo}
-            className={`px-4 py-2.5 rounded-xl font-semibold text-xs transition cursor-pointer ${
-              isDark ? 'border-2 border-emerald-600 text-emerald-400 hover:bg-emerald-950/40' : 'border border-slate-300 text-slate-700 hover:bg-slate-200 bg-white'
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer shadow-xs ${
+              isDark
+                ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
             }`}
           >
             Cancelar
@@ -666,7 +674,11 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
               type="submit"
               form="form-novo-endereco-cliente"
               disabled={salvandoNovo}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition disabled:opacity-50 cursor-pointer"
+              className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50 ${
+                isDark
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+              }`}
             >
               {salvandoNovo ? (
                 <>
@@ -685,7 +697,11 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
               type="button"
               onClick={handleConfirmar}
               disabled={!enderecoEscolhido}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition disabled:opacity-50 cursor-pointer"
+              className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50 ${
+                isDark
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+              }`}
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>Confirmar</span>
