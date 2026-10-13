@@ -38,6 +38,7 @@ import { validarRastreioCorreios } from '../../utils/correiosValidator';
 import { ModalEscolherOutroEndereco } from './ModalEscolherOutroEndereco';
 import { ModalVerNoMapaLoja } from './ModalVerNoMapaLoja';
 import { useTheme } from '../../contexts/ThemeContext';
+import { formatarMoeda } from '../../utils/formatters';
 
 
 export interface ShippingFulfillmentSelectorProps {
@@ -2363,7 +2364,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                   <div className="flex flex-col items-end leading-tight">
                                     {opcao.valor_original != null && opcao.valor_original > 0 && (
                                       <span className="text-xs line-through text-slate-400 font-bold">
-                                        R$ {opcao.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        {formatarMoeda(opcao.valor_original)}
                                       </span>
                                     )}
                                     <span className={`font-extrabold text-sm ${ehDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
@@ -2374,7 +2375,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                   <span className={`font-extrabold text-sm ${
                                     ehDark ? 'text-white font-bold' : 'text-emerald-700 font-bold'
                                   }`}>
-                                    R$ {opcao.valor_frete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    {formatarMoeda(opcao.valor_frete)}
                                   </span>
                                 )}
                               </div>

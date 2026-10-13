@@ -9,6 +9,7 @@ import { ModalDefinirEnvio } from '../pedidos/ModalDefinirEnvio';
 import { ShippingSelectionResult } from '../../types/shipping';
 import { supabase } from '../../lib/supabase';
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
+import { formatarMoeda } from '../../utils/formatters';
 
 export interface DadosSalvarPedido {
   cliente_id: string | null;
@@ -284,7 +285,7 @@ export const CarrinhoVenda: React.FC<CarrinhoVendaProps> = ({
         <div className={`flex items-center justify-between text-xs ${isDark ? 'text-slate-400' : 'text-[#475569]'}`}>
           <span>Subtotal:</span>
           <span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-[#0F172A]'}`}>
-            R$ {subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatarMoeda(subtotal)}
           </span>
         </div>
 
@@ -292,9 +293,7 @@ export const CarrinhoVenda: React.FC<CarrinhoVendaProps> = ({
           <div className={`flex items-center justify-between text-xs ${isDark ? 'text-slate-400' : 'text-[#475569]'}`}>
             <span>Frete ({selecaoEnvio?.pedido_entrega?.transportadora_nome || selecaoEnvio?.opcao_frete?.transportadora_nome || 'Envio'}):</span>
             <span className="font-semibold text-emerald-600">
-              {valorFrete > 0
-                ? `R$ ${valorFrete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                : 'Grátis'}
+              {valorFrete > 0 ? formatarMoeda(valorFrete) : 'Grátis'}
             </span>
           </div>
         )}
@@ -304,7 +303,7 @@ export const CarrinhoVenda: React.FC<CarrinhoVendaProps> = ({
         }`}>
           <span>Total:</span>
           <span className="text-base font-black text-emerald-600">
-            R$ {valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatarMoeda(valorTotal)}
           </span>
         </div>
       </div>

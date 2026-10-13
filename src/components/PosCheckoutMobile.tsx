@@ -801,10 +801,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   // TELA 006: VENDER ITEM NÃO CADASTRADO (ITEM AVULSO)
   // =========================================================================
   if (subTela === 'avulso') {
-    const valorFormatado = (valorAvulsoCentavos / 100).toLocaleString('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    });
+    const valorFormatado = formatarMoeda(valorAvulsoCentavos / 100);
 
     return (
       <div className="fixed inset-0 z-50 bg-white text-slate-900 flex flex-col justify-between animate-in slide-in-from-right duration-150">
@@ -965,7 +962,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                       </span>
                     ) : (
                       <span className={isDark ? 'text-slate-200' : 'text-slate-800'}>
-                        Faltam <strong className={`font-black ${isDark ? 'text-white' : 'text-emerald-950'}`}>R$ {faltaFrete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> para você ganhar Frete Grátis
+                        Faltam <strong className={`font-black ${isDark ? 'text-white' : 'text-emerald-950'}`}>{formatarMoeda(faltaFrete)}</strong> para você ganhar Frete Grátis
                       </span>
                     )}
                   </span>
@@ -1021,7 +1018,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           } else {
             mensagemMeta = (
               <span>
-                Faltam <strong className="font-black text-slate-900">R$ {avaliacaoCarrinho.faltaValorParaProximo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> para tabela de {proximaTabelaNome}
+                Faltam <strong className="font-black text-slate-900">{formatarMoeda(avaliacaoCarrinho.faltaValorParaProximo)}</strong> para tabela de {proximaTabelaNome}
               </span>
             );
           }

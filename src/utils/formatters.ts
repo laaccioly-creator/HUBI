@@ -1,5 +1,20 @@
-export const formatarMoeda = (valor: number | string | null | undefined): string => {
-  if (valor === null || valor === undefined || valor === '') return 'R$ 0,00';
+export interface FormatarMoedaOpcoes {
+  semSimbolo?: boolean;
+}
+
+/**
+ * Formata qualquer valor numérico/string para moeda brasileira (pt-BR).
+ * Ex: 42 -> "R$ 42,00" ou "42,00" (se semSimbolo: true)
+ * Ex: 1250.5 -> "R$ 1.250,50" ou "1.250,50"
+ * Ponto (.) como separador de milhar e vírgula (,) como separador de centavos, 2 casas fixas.
+ */
+export const formatarMoeda = (
+  valor: number | string | null | undefined,
+  opcoes?: FormatarMoedaOpcoes
+): string => {
+  if (valor === null || valor === undefined || valor === '') {
+    return opcoes?.semSimbolo ? '0,00' : 'R$ 0,00';
+  }
   let num: number;
   if (typeof valor === 'number') {
     num = isNaN(valor) ? 0 : valor;
@@ -13,12 +28,35 @@ export const formatarMoeda = (valor: number | string | null | undefined): string
       num = parseFloat(limpo) || 0;
     }
   }
-  return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  if (isNaN(num)) {
+    return opcoes?.semSimbolo ? '0,00' : 'R$ 0,00';
+  }
+
+  const formatado = num.toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  return opcoes?.semSimbolo ? formatado : `R$ ${formatado}`;
+};
+
+/**
+ * Converte valor digitado com máscara ou vírgula de volta para float limpo do PostgreSQL.
+ * Ex: "1.250,50" -> 1250.50
+ * Ex: "42" -> 42.00
+ * Ex: "68,6" -> 68.60
+ */
+export const parseMoedaBanco = (valor: string | number | null | undefined): number => {
+  if (valor === null || valor === undefined || valor === '') return 0;
+  if (typeof valor === 'number') return isNaN(valor) ? 0 : valor;
+  const limpo = String(valor).trim().replace('R$', '').trim().replace(/\./g, '').replace(',', '.');
+  const numero = parseFloat(limpo);
+  return isNaN(numero) ? 0 : numero;
 };
 
 export const formatarValorBRL = (valor: number | string | null | undefined): string => {
-  const num = Number(valor || 0);
-  return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return formatarMoeda(valor, { semSimbolo: true });
 };
 
 export const formatarData = (dataIso?: string | null): string => {

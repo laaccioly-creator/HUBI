@@ -28,6 +28,7 @@ import {
   ItemInadimplente
 } from '../../services/dashboardJevService';
 import { useTheme } from '../../contexts/ThemeContext';
+import { formatarMoeda } from '../../utils/formatters';
 
 export type TipoMetricaCockpitDrawer =
   | 'faturamento'
@@ -91,8 +92,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
   const { decomposicoes, metricas, metasProporcionais, parecerJev, intervalo } = payload;
 
   // Formatação de Moeda
-  const formMoeda = (val: number) =>
-    `R$ ${Number(val || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const formMoeda = (val: number) => formatarMoeda(val);
 
   // Informações do Cabeçalho por Tipo de Métrica
   const configsCabecalho: Record<

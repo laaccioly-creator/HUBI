@@ -14,6 +14,7 @@ import {
   Menu
 } from 'lucide-react';
 import { MobileMenuDrawer } from '../components/layout/MobileMenuDrawer';
+import { MobileHeader } from '../components/layout/MobileHeader';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useTheme } from '../contexts/ThemeContext';
@@ -178,46 +179,75 @@ export const DashboardCockpit: React.FC = () => {
   const nomeUsuario = usuario?.nome_completo ? usuario.nome_completo.split(' ')[0] : 'Gestor';
 
   return (
-    <div className={`min-h-full w-full flex flex-col font-sans overflow-x-hidden ${isDark ? 'bg-slate-900 text-slate-100' : 'bg-[#F8FAFC] text-slate-900'}`}>
+    <div className="min-h-screen w-full flex flex-col font-sans overflow-x-hidden bg-slate-100 dark:bg-[#0B0F17] text-slate-900 dark:text-white transition-colors">
       {/* ========================================================================= */}
-      {/* CABEÇALHO EXECUTIVO */}
+      {/* CABEÇALHO MOBILE UNIFICADO */}
       {/* ========================================================================= */}
-      <header className={`sticky top-0 z-20 backdrop-blur-md border-b px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4 ${isDark ? 'bg-slate-900/80 border-slate-800/80' : 'bg-white/80 border-slate-200'}`}>
+      <div className="block md:hidden shrink-0">
+        <MobileHeader
+          titulo="Dashboard Executivo"
+          subtitulo={`Olá, ${nomeUsuario} • Desempenho em tempo real`}
+          iconeTitulo={
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 shrink-0">
+              <LayoutDashboard className="w-4 h-4" />
+            </div>
+          }
+          acoesDireita={
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => carregarMetricas(true)}
+                disabled={carregando}
+                title="Recarregar Indicadores"
+                className="p-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 dark:bg-[#000000] dark:hover:bg-[#0D111A] dark:border-[#1E293B] dark:text-slate-200 transition cursor-pointer disabled:opacity-50 shadow-2xs"
+              >
+                <RefreshCw className={`w-4 h-4 ${carregando ? 'animate-spin' : ''}`} />
+              </button>
+              {podeGerenciarMetas && (
+                <button
+                  type="button"
+                  onClick={() => setModalMetasAberto(true)}
+                  className="px-2.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 dark:bg-[#000000] dark:hover:bg-[#0D111A] dark:border-[#1E293B] dark:text-white font-bold text-xs transition cursor-pointer shadow-2xs"
+                  title="Configurar Metas"
+                >
+                  <Settings className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          }
+        />
+      </div>
+
+      {/* ========================================================================= */}
+      {/* CABEÇALHO DESKTOP EXECUTIVO */}
+      {/* ========================================================================= */}
+      <header className="hidden md:block sticky top-0 z-20 backdrop-blur-md border-b px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4 bg-white/95 dark:bg-[#0B0F17]/95 border-slate-200/80 dark:border-[#1E293B]/80 transition-colors">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           
           {/* Título & Saudação */}
           <div className="space-y-1">
             <div className="flex items-center gap-2 sm:gap-2.5">
-              <button
-                type="button"
-                onClick={abrirMenuMobile}
-                className="p-1.5 -ml-1 rounded-xl hover:bg-slate-100 text-slate-900 dark:text-white dark:hover:bg-slate-800 transition md:hidden cursor-pointer shrink-0"
-                title="Menu Principal"
-                aria-label="Menu Principal"
-              >
-                <Menu className="w-5 h-5 text-slate-900 dark:text-white stroke-[2.25]" />
-              </button>
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 shadow-sm shadow-emerald-500/10 shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 shadow-xs shrink-0">
                 <LayoutDashboard className="w-5 h-5" />
               </div>
-              <h1 className={`text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                <span>Dashboard Executivo</span>
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+                Dashboard Executivo
               </h1>
             </div>
-            <p className={`text-xs sm:text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-              Olá, <span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>{nomeUsuario}</span> • Acompanhe o desempenho e as metas da sua operação em tempo real.
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+              Olá, <span className="font-semibold text-slate-800 dark:text-slate-200">{nomeUsuario}</span> • Acompanhe o desempenho e as metas da sua operação em tempo real.
             </p>
           </div>
 
           {/* Seletor de Período Padronizado & Ações Rápidas */}
           <div className="flex flex-wrap items-center gap-2.5 sm:justify-end">
             
-            {/* Seletor Kyte Style de Períodos unificado com a base dos botões do menu */}
-            <div className="relative flex items-center bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 font-semibold rounded-xl p-0.5 shadow-xs transition dark:bg-black dark:hover:bg-slate-900 dark:border-white/15 dark:text-white">
+            {/* Seletor de Períodos com Design System Canônico */}
+            <div className="relative flex items-center bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 dark:bg-[#000000] dark:hover:bg-[#0D111A] dark:border-[#1E293B] dark:text-slate-200 font-semibold rounded-xl p-0.5 shadow-2xs transition">
               <button
                 type="button"
                 onClick={() => setPeriodoOffset(prev => prev - 1)}
-                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-800 transition cursor-pointer dark:hover:bg-white/10 dark:text-white"
+                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1E293B] text-slate-700 dark:text-slate-300 transition cursor-pointer"
                 title="Período Anterior"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -227,11 +257,11 @@ export const DashboardCockpit: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setDropdownPeriodoAberto(prev => !prev)}
-                  className="w-full px-2 py-1 text-xs font-bold text-slate-900 transition flex items-center justify-center gap-1.5 cursor-pointer dark:text-white"
+                  className="w-full px-2 py-1 text-xs font-bold text-slate-800 dark:text-slate-100 transition flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  <Calendar className="w-3.5 h-3.5 text-slate-700 opacity-90 dark:text-white" />
+                  <Calendar className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                   <span>{labelExibicaoPeriodo}</span>
-                  <ChevronDown className="w-3 h-3 text-slate-600 opacity-80 dark:text-white" />
+                  <ChevronDown className="w-3 h-3 text-slate-400 dark:text-slate-500" />
                 </button>
 
                 {/* Dropdown de 9 Opções de Período */}
@@ -241,7 +271,7 @@ export const DashboardCockpit: React.FC = () => {
                       className="fixed inset-0 z-40"
                       onClick={() => setDropdownPeriodoAberto(false)}
                     />
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl p-1.5 z-50 text-left space-y-0.5 animate-in fade-in zoom-in-95">
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-[#1E293B] rounded-xl shadow-2xl p-1.5 z-50 text-left space-y-0.5 animate-in fade-in zoom-in-95">
                       {PERIODOS_DASHBOARD_OPCOES.map((op) => (
                         <button
                           key={op.id}
@@ -253,12 +283,12 @@ export const DashboardCockpit: React.FC = () => {
                           }}
                           className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition cursor-pointer ${
                             tipoPeriodo === op.id
-                              ? 'bg-slate-200/80 border border-slate-300 text-slate-900 font-bold dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30'
-                              : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                              ? 'bg-emerald-50 border border-emerald-300 text-emerald-800 font-bold dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30'
+                              : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1E293B]'
                           }`}
                         >
                           <span>{op.label}</span>
-                          {tipoPeriodo === op.id && <Check className="w-3.5 h-3.5 text-slate-800 dark:text-emerald-400" />}
+                          {tipoPeriodo === op.id && <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />}
                         </button>
                       ))}
                     </div>
@@ -270,7 +300,7 @@ export const DashboardCockpit: React.FC = () => {
                 type="button"
                 onClick={() => setPeriodoOffset(prev => prev + 1)}
                 disabled={periodoOffset >= 0}
-                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-800 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed dark:hover:bg-white/10 dark:text-white"
+                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1E293B] text-slate-700 dark:text-slate-300 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                 title="Próximo Período"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -279,14 +309,14 @@ export const DashboardCockpit: React.FC = () => {
 
             {/* Inputs de Data Customizada quando 'personalizado' */}
             {tipoPeriodo === 'personalizado' && (
-              <div className="flex flex-wrap items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-2.5 py-1 text-xs w-full sm:w-auto">
+              <div className="flex flex-wrap items-center gap-2 bg-white dark:bg-[#000000] border border-slate-300 dark:border-[#1E293B] rounded-xl px-2.5 py-1 text-xs w-full sm:w-auto">
                 <div className="flex items-center gap-1">
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">De:</span>
                   <input
                     type="date"
                     value={dataInicioCustom}
                     onChange={(e) => setDataInicioCustom(e.target.value)}
-                    className="bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-2 py-0.5 text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:border-emerald-500"
+                    className="bg-slate-50 dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 rounded-lg px-2 py-0.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
                 <div className="flex items-center gap-1">
@@ -295,7 +325,7 @@ export const DashboardCockpit: React.FC = () => {
                     type="date"
                     value={dataFimCustom}
                     onChange={(e) => setDataFimCustom(e.target.value)}
-                    className="bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-2 py-0.5 text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:border-emerald-500"
+                    className="bg-slate-50 dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 rounded-lg px-2 py-0.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
               </div>
@@ -309,25 +339,25 @@ export const DashboardCockpit: React.FC = () => {
               </span>
             )}
 
-            {/* Botão de Atualização Rápida unificado com a base dos botões */}
+            {/* Botão de Atualização Rápida */}
             <button
               type="button"
               onClick={() => carregarMetricas(true)}
               disabled={carregando}
               title="Recarregar Indicadores"
-              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 font-semibold shadow-xs transition cursor-pointer disabled:opacity-50 dark:bg-black dark:hover:bg-slate-900 dark:border-white/15 dark:text-white"
+              className="p-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 dark:bg-[#000000] dark:hover:bg-[#0D111A] dark:border-[#1E293B] dark:text-slate-200 font-semibold shadow-2xs transition cursor-pointer disabled:opacity-50"
             >
-              <RefreshCw className={`w-4 h-4 ${carregando ? 'animate-spin' : ''} text-slate-800 dark:text-white`} />
+              <RefreshCw className={`w-4 h-4 ${carregando ? 'animate-spin' : ''}`} />
             </button>
 
-            {/* Atalho para Configurar Metas unificado com a base dos botões */}
+            {/* Atalho para Configurar Metas */}
             {podeGerenciarMetas && (
               <button
                 type="button"
                 onClick={() => setModalMetasAberto(true)}
-                className="px-3 sm:px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 font-semibold text-xs flex items-center gap-1.5 sm:gap-2 shadow-xs transition cursor-pointer group dark:bg-black dark:hover:bg-slate-900 dark:border-white/15 dark:text-white"
+                className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 dark:bg-[#000000] dark:hover:bg-[#0D111A] dark:border-[#1E293B] dark:text-white font-bold text-xs flex items-center gap-1.5 sm:gap-2 shadow-2xs transition cursor-pointer group"
               >
-                <Settings className="w-4 h-4 text-slate-800 group-hover:rotate-45 transition-transform duration-200 dark:text-white" />
+                <Settings className="w-4 h-4 text-slate-600 dark:text-slate-300 group-hover:rotate-45 transition-transform duration-200" />
                 <span className="hidden sm:inline">Configurar Metas</span>
                 <span className="sm:hidden">Metas</span>
               </button>
@@ -444,11 +474,7 @@ export const DashboardCockpit: React.FC = () => {
         </div>
 
         {/* Rodapé Informativo Executivo */}
-        <div className={`rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between text-xs gap-3 ${
-          isDark
-            ? 'bg-slate-900/60 border border-slate-800/80 text-slate-400'
-            : 'bg-slate-100 border border-slate-200 text-slate-600'
-        }`}>
+        <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between text-xs gap-3 text-slate-500 dark:text-slate-400 shadow-2xs transition-colors">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>
@@ -456,7 +482,9 @@ export const DashboardCockpit: React.FC = () => {
             </span>
           </div>
           <div className="flex items-center gap-4">
-            <span>Clique em qualquer velocímetro para auditar a decomposição analítica.</span>
+            <span className="font-medium text-slate-700 dark:text-slate-300">
+              Clique em qualquer velocímetro para auditar a decomposição analítica.
+            </span>
           </div>
         </div>
 

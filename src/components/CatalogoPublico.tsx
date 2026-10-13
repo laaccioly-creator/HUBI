@@ -47,6 +47,7 @@ import { ChatRubiCatalogo } from './ChatRubiCatalogo';
 import { getCategoriaPeso } from './PosCheckout';
 import { obterDataOperacaoISO, obterDataOperacaoISOParaLoja, definirDataOperacao } from '../utils/dataOperacao';
 import { isUuidValido } from '../services/syncService';
+import { formatarMoeda } from '../utils/formatters';
 
 interface ItemCarrinhoPublico {
   id: string;
@@ -2351,11 +2352,11 @@ Fico no aguardo da confirmação! ✨`;
                     <div>
                       {produto.promocao_ativa && produto.preco_promocional && (
                         <span className="text-[10px] text-slate-500 line-through block leading-none">
-                          R$ {Number(produto.preco_venda_varejo).toFixed(2)}
+                          {formatarMoeda(Number(produto.preco_venda_varejo))}
                         </span>
                       )}
                       <span className="font-black text-sm" style={{ color: corTema }}>
-                        R$ {Number(produto.promocao_ativa && produto.preco_promocional ? produto.preco_promocional : produto.preco_venda_varejo).toFixed(2)}
+                        {formatarMoeda(Number(produto.promocao_ativa && produto.preco_promocional ? produto.preco_promocional : produto.preco_venda_varejo))}
                       </span>
                     </div>
 
@@ -2767,7 +2768,7 @@ Fico no aguardo da confirmação! ✨`;
                     </span>
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-bold text-slate-100 tabular-nums w-28 text-right">
-                        R$ {subtotal.toFixed(2)}
+                        {formatarMoeda(subtotal)}
                       </span>
                       <div className="w-20 shrink-0" aria-hidden="true" />
                     </div>
@@ -2781,7 +2782,7 @@ Fico no aguardo da confirmação! ✨`;
                       </span>
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-emerald-400 tabular-nums w-28 text-right">
-                          - R$ {avaliacaoCarrinho.economiaTotal.toFixed(2)}
+                          - {formatarMoeda(avaliacaoCarrinho.economiaTotal)}
                         </span>
                         <div className="w-20 shrink-0" aria-hidden="true" />
                       </div>
@@ -2796,7 +2797,7 @@ Fico no aguardo da confirmação! ✨`;
                       </span>
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-emerald-400 tabular-nums w-28 text-right">
-                          - R$ {descontoCupom.toFixed(2)}
+                          - {formatarMoeda(descontoCupom)}
                         </span>
                         <div className="w-20 shrink-0" aria-hidden="true" />
                       </div>
@@ -2824,7 +2825,7 @@ Fico no aguardo da confirmação! ✨`;
                           <div className="flex flex-col items-end leading-tight">
                             {pedidoEntrega.valor_original != null && pedidoEntrega.valor_original > 0 && (
                               <span className="text-[10px] line-through text-slate-300 font-semibold">
-                                R$ {pedidoEntrega.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                {formatarMoeda(pedidoEntrega.valor_original)}
                               </span>
                             )}
                             <span className="text-emerald-400 font-bold text-xs">Frete Grátis</span>
@@ -2832,14 +2833,14 @@ Fico no aguardo da confirmação! ✨`;
                         ) : pedidoEntrega.valor_subsidio && pedidoEntrega.valor_subsidio > 0 && pedidoEntrega.valor_original ? (
                           <div className="flex flex-col items-end leading-tight">
                             <span className="text-[10px] line-through text-slate-300 font-semibold">
-                              R$ {pedidoEntrega.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {formatarMoeda(pedidoEntrega.valor_original)}
                             </span>
                             <span className="text-emerald-400 font-bold text-xs">
-                              R$ {valorFreteEfetivo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {formatarMoeda(valorFreteEfetivo)}
                             </span>
                           </div>
                         ) : (
-                          <span className="text-emerald-400">R$ {valorFreteEfetivo.toFixed(2)}</span>
+                          <span className="text-emerald-400">{formatarMoeda(valorFreteEfetivo)}</span>
                         )}
                       </div>
 
@@ -2866,7 +2867,7 @@ Fico no aguardo da confirmação! ✨`;
                     </span>
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-bold text-emerald-400 tabular-nums w-28 text-right">
-                        R$ {total.toFixed(2)}
+                        {formatarMoeda(total)}
                       </span>
                       <div className="w-20 shrink-0" aria-hidden="true" />
                     </div>

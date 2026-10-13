@@ -4,7 +4,7 @@ import { Pedido } from '../../types';
 import { obterDadosPagamentoRecibo, formatarDataRecibo, PrintService } from '../../services/printService';
 import { ReceiptPdfService } from '../../services/receiptPdfService';
 import { obterInfoVencimentoFiado } from '../../utils/statusPedidoUtils';
-import { extrairObservacaoLimpa } from '../../utils/formatters';
+import { extrairObservacaoLimpa, formatarMoeda } from '../../utils/formatters';
 import { detectarServicoPorCodigo } from '../../utils/correiosValidator';
 import { formatarNomeTransportadora } from '../../utils/shippingDisplay';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -309,14 +309,14 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
               <div className="flex justify-between">
                 <span>Subtotal dos Produtos:</span>
                 <span className="font-semibold text-slate-900">
-                  R$ {subtotalProdutos.toFixed(2)}
+                  {formatarMoeda(subtotalProdutos)}
                 </span>
               </div>
 
               {valorDesconto > 0 && (
                 <div className="flex justify-between text-rose-600 font-bold">
                   <span>Desconto Aplicado:</span>
-                  <span>- R$ {valorDesconto.toFixed(2)}</span>
+                  <span>- {formatarMoeda(valorDesconto)}</span>
                 </div>
               )}
 
@@ -325,7 +325,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                   <span>Frete{formaEntregaTexto ? ` (${formaEntregaTexto})` : ''}:</span>
                   <span className="font-semibold text-slate-900">
                     {valorFrete > 0 
-                      ? `+ R$ ${valorFrete.toFixed(2)}` 
+                      ? `+ ${formatarMoeda(valorFrete)}` 
                       : (formaEntregaTexto && !formaEntregaTexto.toLowerCase().includes('definir') && !formaEntregaTexto.toLowerCase().includes('combinar'))
                         ? 'Grátis (R$ 0,00)'
                         : 'A Definir'}
@@ -337,7 +337,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
 
               <div className="flex justify-between items-center text-sm font-bold text-slate-900 pt-0.5">
                 <span>VALOR TOTAL:</span>
-                <span className="text-lg font-black text-slate-900">R$ {valorTotal.toFixed(2)}</span>
+                <span className="text-lg font-black text-slate-900">{formatarMoeda(valorTotal)}</span>
               </div>
             </div>
 
@@ -345,7 +345,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
             {pagInfo.ehFiado && Number(pedido.saldo_devedor || 0) > 0 && (
               <div className="mt-2.5 p-3 bg-rose-50 border border-rose-200 rounded-xl text-center space-y-0.5">
                 <span className="text-[10px] font-bold text-rose-700 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
-                <span className="text-sm font-black text-rose-700 block">R$ {Number(pedido.saldo_devedor).toFixed(2)}</span>
+                <span className="text-sm font-black text-rose-700 block">{formatarMoeda(Number(pedido.saldo_devedor))}</span>
                 <span className="text-[11px] font-bold text-rose-800 block pt-0.5">
                   Data de Vencimento: {obterInfoVencimentoFiado(pedido).formatada}
                 </span>
@@ -369,12 +369,12 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                           <span className="text-[10px] text-slate-500 block font-medium">Origem: {pag.origemGateway}</span>
                         )}
                       </div>
-                      <span className="font-bold text-slate-900">R$ {pag.valor.toFixed(2)}</span>
+                      <span className="font-bold text-slate-900">{formatarMoeda(pag.valor)}</span>
                     </div>
                   ))}
                   <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-xs">
                     <span className="text-slate-700 font-medium">Valor Pago:</span>
-                    <span className="text-emerald-700 font-black text-sm">R$ {pagInfo.totalPago.toFixed(2)}</span>
+                    <span className="text-emerald-700 font-black text-sm">{formatarMoeda(pagInfo.totalPago)}</span>
                   </div>
                 </div>
               ) : null}

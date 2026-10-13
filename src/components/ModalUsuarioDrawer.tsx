@@ -25,6 +25,7 @@ import { UsuarioLoja, PerfilUsuario } from '../types';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { usuarioService } from '../services/usuarioService';
+import { formatarMoeda } from '../utils/formatters';
 
 interface ModalUsuarioDrawerProps {
   isOpen: boolean;
@@ -388,7 +389,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
               <span className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase tracking-wider block">Hoje</span>
               <span className="text-slate-900 dark:text-slate-200 font-bold block">{metricas.hoje_vendas} vendas</span>
               <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold block">
-                R$ {metricas.hoje_faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                {formatarMoeda(metricas.hoje_faturamento)}
               </span>
             </div>
 
@@ -396,7 +397,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
               <span className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase tracking-wider block">Ontem</span>
               <span className="text-slate-900 dark:text-slate-200 font-bold block">{metricas.ontem_vendas} vendas</span>
               <span className="text-[11px] text-slate-800 dark:text-slate-300 font-semibold block">
-                R$ {metricas.ontem_faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                {formatarMoeda(metricas.ontem_faturamento)}
               </span>
             </div>
 
@@ -404,7 +405,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
               <span className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase tracking-wider block">Esta Semana</span>
               <span className="text-slate-900 dark:text-slate-200 font-bold block">{metricas.semana_vendas} vendas</span>
               <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold block">
-                R$ {metricas.semana_faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                {formatarMoeda(metricas.semana_faturamento)}
               </span>
             </div>
 
@@ -412,7 +413,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
               <span className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase tracking-wider block">Este Mês</span>
               <span className="text-slate-900 dark:text-slate-200 font-bold block">{metricas.mes_vendas} vendas</span>
               <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold block">
-                R$ {metricas.mes_faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                {formatarMoeda(metricas.mes_faturamento)}
               </span>
             </div>
           </div>

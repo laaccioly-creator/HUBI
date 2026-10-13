@@ -1,6 +1,7 @@
-﻿import React from 'react';
+import React from 'react';
 import { Store, Truck, MapPin, Barcode } from 'lucide-react';
 import { PedidoEntrega } from '../../types/shipping';
+import { formatarMoeda } from '../../utils/formatters';
 
 interface OrderReceiptFinancialSummaryProps {
   subtotalProdutos: number;
@@ -87,7 +88,7 @@ export const OrderReceiptFinancialSummary: React.FC<OrderReceiptFinancialSummary
         <div className="flex justify-between">
           <span>Subtotal dos Produtos:</span>
           <span className="font-semibold text-slate-800 dark:text-slate-100">
-            R$ {subtotalProdutos.toFixed(2).replace('.', ',')}
+            {formatarMoeda(subtotalProdutos)}
           </span>
         </div>
 
@@ -95,7 +96,7 @@ export const OrderReceiptFinancialSummary: React.FC<OrderReceiptFinancialSummary
           <div className="flex justify-between text-rose-600 dark:text-rose-400">
             <span>Desconto Aplicado:</span>
             <span className="font-semibold">
-              - R$ {valorDesconto.toFixed(2).replace('.', ',')}
+              - {formatarMoeda(valorDesconto)}
             </span>
           </div>
         )}
@@ -104,7 +105,7 @@ export const OrderReceiptFinancialSummary: React.FC<OrderReceiptFinancialSummary
           <span>Frete / Envio:</span>
           <span className="font-semibold text-slate-800 dark:text-slate-100">
             {valorFrete > 0 
-              ? `+ R$ ${valorFrete.toFixed(2).replace('.', ',')}`
+              ? `+ ${formatarMoeda(valorFrete)}`
               : 'Grátis (Retirada)'}
           </span>
         </div>
@@ -112,7 +113,7 @@ export const OrderReceiptFinancialSummary: React.FC<OrderReceiptFinancialSummary
         <div className="flex justify-between pt-2 border-t border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-900 dark:text-white">
           <span>Total Geral:</span>
           <span className="text-emerald-600 dark:text-emerald-400 font-extrabold text-base">
-            R$ {valorTotal.toFixed(2).replace('.', ',')}
+            {formatarMoeda(valorTotal)}
           </span>
         </div>
       </div>

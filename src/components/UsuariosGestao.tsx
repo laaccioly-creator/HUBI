@@ -17,6 +17,7 @@ import { ModalUsuarioDrawer } from './ModalUsuarioDrawer';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { MobileHeader } from './layout/MobileHeader';
 import { useTheme } from '../contexts/ThemeContext';
+import { formatarMoeda } from '../utils/formatters';
 
 const CORES_PALETA = [
   '#10B981', // Emerald
@@ -316,7 +317,7 @@ export const UsuariosGestao: React.FC = () => {
                 <span className={`text-[11px] font-bold ${
                   tema === 'claro' ? 'text-emerald-700' : 'text-emerald-400'
                 }`}>
-                  R$ {hoveredItem.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {formatarMoeda(hoveredItem.valor)}
                 </span>
                 <span className={`text-[9px] font-semibold ${
                   tema === 'claro' ? 'text-slate-800' : 'text-slate-400'
@@ -523,7 +524,7 @@ export const UsuariosGestao: React.FC = () => {
                 {totalVendas30d} {totalVendas30d === 1 ? 'VENDA' : 'VENDAS'}
               </span>
               <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-100 block">
-                R$ {totalFaturamento30d.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatarMoeda(totalFaturamento30d)}
               </span>
             </div>
 
@@ -644,7 +645,7 @@ export const UsuariosGestao: React.FC = () => {
 
                       {/* Faturamento */}
                       <div className="w-28 text-right text-xs font-mono font-bold text-slate-900 dark:text-white">
-                        {fat > 0 ? `R$ ${fat.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                        {fat > 0 ? formatarMoeda(fat) : '-'}
                       </div>
 
                       {/* Vendas */}

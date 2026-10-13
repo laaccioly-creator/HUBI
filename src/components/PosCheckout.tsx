@@ -2810,9 +2810,8 @@ export const PosCheckout: React.FC = () => {
                           <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200 lg:dark:border-slate-800">
                             <span className="text-slate-800 lg:dark:text-slate-200 font-bold">Troco a devolver:</span>
                             <div className="flex items-center gap-1 bg-white lg:dark:bg-slate-900 border border-slate-300 lg:dark:border-slate-700 rounded-xl px-2.5 py-1.5">
-                              <span className="text-xs text-emerald-600 lg:dark:text-emerald-400 font-bold">R$</span>
-                              <span className="w-28 text-right text-xs font-semibold text-slate-900 lg:dark:text-white">
-                                {Number(linha.valor_entregue - linha.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              <span className="w-28 text-right text-xs font-semibold text-emerald-600 lg:dark:text-emerald-400">
+                                {formatarMoeda(Number(linha.valor_entregue - linha.valor))}
                               </span>
                             </div>
                           </div>

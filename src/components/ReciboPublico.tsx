@@ -15,6 +15,7 @@ import {
 } from '../services/printService';
 import { ReceiptPdfService } from '../services/receiptPdfService';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
+import { formatarMoeda } from '../utils/formatters';
 
 export const ReciboPublico: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -386,13 +387,13 @@ export const ReciboPublico: React.FC = () => {
           <div className="space-y-1.5 text-xs text-slate-700">
             <div className="flex justify-between text-slate-800">
               <span>Subtotal dos Produtos:</span>
-              <span className="font-semibold text-slate-900">R$ {valorSubtotal.toFixed(2)}</span>
+              <span className="font-semibold text-slate-900">{formatarMoeda(valorSubtotal)}</span>
             </div>
 
             {valorDesconto > 0 && (
               <div className="flex justify-between text-red-600 font-bold">
                 <span>Desconto Aplicado:</span>
-                <span>- R$ {valorDesconto.toFixed(2)}</span>
+                <span>- {formatarMoeda(valorDesconto)}</span>
               </div>
             )}
 
@@ -400,7 +401,7 @@ export const ReciboPublico: React.FC = () => {
               <div className="flex justify-between text-slate-800">
                 <span>Frete{formaEntregaTexto ? ` (${formaEntregaTexto})` : ''}:</span>
                 <span className="font-semibold text-slate-900">
-                  {valorFrete > 0 ? `+ R$ ${valorFrete.toFixed(2)}` : 'Grátis'}
+                  {valorFrete > 0 ? `+ ${formatarMoeda(valorFrete)}` : 'Grátis'}
                 </span>
               </div>
             )}
@@ -409,7 +410,7 @@ export const ReciboPublico: React.FC = () => {
 
             <div className="flex justify-between items-center text-sm font-black text-slate-950 pt-0.5">
               <span>VALOR TOTAL:</span>
-              <span className="text-base font-black">R$ {valorTotal.toFixed(2)}</span>
+              <span className="text-base font-black">{formatarMoeda(valorTotal)}</span>
             </div>
           </div>
 
@@ -417,7 +418,7 @@ export const ReciboPublico: React.FC = () => {
           {pagInfo.ehFiado && Number(pedido.saldo_devedor) > 0 && (
             <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-center space-y-0.5">
               <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
-              <span className="text-sm font-black text-red-600">R$ {Number(pedido.saldo_devedor).toFixed(2)}</span>
+              <span className="text-sm font-black text-red-600">{formatarMoeda(Number(pedido.saldo_devedor))}</span>
               {obterInfoVencimentoFiado(pedido).temVencimento && (
                 <span className="text-[11px] font-bold text-red-700 block pt-0.5">
                   Data de Vencimento: {obterInfoVencimentoFiado(pedido).formatada}
@@ -443,12 +444,12 @@ export const ReciboPublico: React.FC = () => {
                         <span className="text-[10px] text-slate-500 block font-medium">Origem: {pag.origemGateway}</span>
                       )}
                     </div>
-                    <span className="font-bold text-slate-900">R$ {pag.valor.toFixed(2)}</span>
+                    <span className="font-bold text-slate-900">{formatarMoeda(pag.valor)}</span>
                   </div>
                 ))}
                 <div className="flex justify-between font-extrabold text-emerald-900 pt-1.5 border-t border-emerald-200 text-xs">
                   <span>Valor Pago:</span>
-                  <span>R$ {pagInfo.totalPago.toFixed(2)}</span>
+                  <span>{formatarMoeda(pagInfo.totalPago)}</span>
                 </div>
               </div>
             )}
