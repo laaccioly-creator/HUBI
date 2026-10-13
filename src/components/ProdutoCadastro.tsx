@@ -44,6 +44,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { Categoria, Fornecedor, UnidadeMedida } from '../types';
 import { UNIDADES_PADRAO } from './CadastrosAuxiliares';
+import { MobileHeader } from './layout/MobileHeader';
 import { ModalGerenciarCategorias } from './ModalGerenciarCategorias';
 import { ModalPesquisaFotosInternet } from './ModalPesquisaFotosInternet';
 import { ModalOnboardingSerpApi } from './ModalOnboardingSerpApi';
@@ -1546,13 +1547,35 @@ export const ProdutoCadastro: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto bg-slate-100 dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 p-3 sm:p-6 lg:p-8 font-sans">
-      <div className="max-w-4xl mx-auto w-full space-y-6">
-        {/* Header Superior */}
-        <div className="flex items-center justify-between">
+    <div className="flex flex-col h-full overflow-y-auto bg-slate-100 dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 p-0 sm:p-6 lg:p-8 font-sans">
+      {/* Header Superior Mobile Unificado */}
+      <div className="block sm:hidden shrink-0">
+        <MobileHeader
+          titulo={ehEdicao ? 'Alterar Produto' : 'Novo Produto'}
+          subtitulo={ehEdicao ? 'Atualize as informações do item' : 'Cadastro de produto'}
+          fallbackVoltar="/products"
+          onVoltar={() => verificarSaidaComConfirmacao(() => {
+            if (typeof window !== 'undefined' && window.history && window.history.length > 1) {
+              navigate(-1);
+            } else {
+              navigate('/products');
+            }
+          })}
+        />
+      </div>
+
+      <div className="max-w-4xl mx-auto w-full space-y-6 p-3 sm:p-0">
+        {/* Header Superior Desktop */}
+        <div className="hidden sm:flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => verificarSaidaComConfirmacao(() => navigate('/products'))}
+              onClick={() => verificarSaidaComConfirmacao(() => {
+                if (typeof window !== 'undefined' && window.history && window.history.length > 1) {
+                  navigate(-1);
+                } else {
+                  navigate('/products');
+                }
+              })}
               className="p-2 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] text-slate-700 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white transition cursor-pointer"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -1566,7 +1589,6 @@ export const ProdutoCadastro: React.FC = () => {
               </p>
             </div>
           </div>
-
         </div>
 
         {/* ========================================================================= */}

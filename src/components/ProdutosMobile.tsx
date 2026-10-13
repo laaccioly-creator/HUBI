@@ -2941,88 +2941,67 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           className="hidden"
         />
 
-        {/* Header Superior (TELA004 / TELA007 / TELA008) */}
-        <div
-          className="h-16 border-b px-4 flex items-center justify-between shrink-0"
-          style={{ backgroundColor: temaCores.bgHeaderForm, borderColor: temaCores.bordaHeaderForm }}
-        >
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={fecharFormularioComConfirmacao}
-              className="p-1 cursor-pointer transition"
-              style={{ color: temaCores.textoSecundario }}
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-            <h1 className="font-extrabold text-sm sm:text-base truncate max-w-[170px]" style={{ color: temaCores.textoPrincipal }}>
-              {isNovo ? 'Novo produto' : formData.nome || 'Editar Produto'}
-            </h1>
-          </div>
+        {/* Header Superior Mobile Unificado (TELA004 / TELA007 / TELA008) */}
+        <MobileHeader
+          titulo={isNovo ? 'Novo produto' : formData.nome || 'Editar Produto'}
+          onVoltar={fecharFormularioComConfirmacao}
+          acoesDireita={
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              {/* Botão de Preenchimento Automático com IA */}
+              <button
+                type="button"
+                disabled={processandoIA}
+                onClick={() => {
+                  if (!isNovo) {
+                    handleAtualizarProdutoExistenteIA();
+                  } else {
+                    setModalCriarComIAAberto(true);
+                  }
+                }}
+                className="px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-extrabold flex items-center gap-1.5 shadow-xs cursor-pointer transition disabled:opacity-50 select-none bg-emerald-50 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
+                title={!isNovo ? 'Atualizar o Produto com nossa IA' : 'Preencher com nossa IA'}
+              >
+                {processandoIA ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+                ) : !isNovo ? (
+                  <RefreshCw className="w-4 h-4 text-emerald-500" />
+                ) : (
+                  <Sparkles className="w-4 h-4 text-emerald-500" />
+                )}
+                <span>IA</span>
+              </button>
 
-          <div className="flex items-center gap-2">
-            {/* Botão de Preenchimento Automático com IA */}
-            <button
-              type="button"
-              disabled={processandoIA}
-              onClick={() => {
-                if (!isNovo) {
-                  handleAtualizarProdutoExistenteIA();
-                } else {
-                  setModalCriarComIAAberto(true);
-                }
-              }}
-              className="px-3 py-1.5 rounded-xl border text-xs sm:text-sm font-extrabold flex items-center gap-1.5 shadow-sm cursor-pointer transition disabled:opacity-50 select-none"
-              style={{
-                backgroundColor: temaCores.bgCard,
-                borderColor: isDark ? '#1E293B' : '#A7F3D0',
-                color: isDark ? '#34D399' : '#059669'
-              }}
-              title={!isNovo ? 'Atualizar o Produto com nossa IA' : 'Preencher com nossa IA'}
-            >
-              {processandoIA ? (
-                <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
-              ) : !isNovo ? (
-                <RefreshCw className="w-4 h-4 text-emerald-500" />
-              ) : (
-                <Sparkles className="w-4 h-4 text-emerald-500" />
+              {!isNovo && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setModalPublicCardAberto(true)}
+                    className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition cursor-pointer"
+                    title="Compartilhar Card Público"
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalClonarAberto(true)}
+                    className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition cursor-pointer"
+                    title="Clonar Produto"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExcluirProduto}
+                    className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer"
+                    title="Excluir Produto"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </>
               )}
-              <span>IA</span>
-            </button>
-
-            {!isNovo && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setModalPublicCardAberto(true)}
-                  className="p-2 cursor-pointer transition"
-                  style={{ color: temaCores.textoSecundario }}
-                  title="Compartilhar Card Público"
-                >
-                  <Share2 className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setModalClonarAberto(true)}
-                  className="p-2 cursor-pointer transition"
-                  style={{ color: temaCores.textoSecundario }}
-                  title="Clonar Produto"
-                >
-                  <Copy className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleExcluirProduto}
-                  className="p-2 hover:text-rose-600 cursor-pointer transition"
-                  style={{ color: temaCores.textoSecundario }}
-                  title="Excluir Produto"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </>
-            )}
-          </div>
-        </div>
+            </div>
+          }
+        />
 
         {/* Abas: CADASTRO | ESTOQUE (TELA007 / TELA008) */}
         <div
