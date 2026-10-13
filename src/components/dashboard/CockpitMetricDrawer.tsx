@@ -55,23 +55,45 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
   onAbrirEntradaEstoque
 }) => {
   const { tema } = useTheme();
-  const isDark = tema === 'dark';
+  // Detecção resiliente: avalia tema do contexto OU a presença da classe 'dark' diretamente na tag <html>
+  const [isDarkAtivo, setIsDarkAtivo] = React.useState<boolean>(() => {
+    if (typeof document !== 'undefined') {
+      return tema === 'dark' || document.documentElement.classList.contains('dark');
+    }
+    return tema === 'dark';
+  });
+
+  React.useEffect(() => {
+    const atualizarDark = () => {
+      const temClasseDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+      setIsDarkAtivo(tema === 'dark' || temClasseDark);
+    };
+
+    atualizarDark();
+
+    if (typeof document !== 'undefined') {
+      const observer = new MutationObserver(atualizarDark);
+      observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+      return () => observer.disconnect();
+    }
+  }, [tema]);
+
   const [limiteVendasExibidas, setLimiteVendasExibidas] = React.useState<number>(50);
 
   // Estilos robustos em runtime para garantir fundo #000000 e borda #2B4C7E no Dark Mode sem depender do JIT
-  const estiloCard: React.CSSProperties | undefined = isDark
+  const estiloCard: React.CSSProperties | undefined = isDarkAtivo
     ? { backgroundColor: '#000000', border: '2px solid #2B4C7E' }
     : undefined;
 
-  const estiloContainerDrawer: React.CSSProperties | undefined = isDark
+  const estiloContainerDrawer: React.CSSProperties | undefined = isDarkAtivo
     ? { backgroundColor: '#0B0F17', borderLeft: '2px solid #2B4C7E' }
     : undefined;
 
-  const estiloHeader: React.CSSProperties | undefined = isDark
+  const estiloHeader: React.CSSProperties | undefined = isDarkAtivo
     ? { backgroundColor: '#0B0F17', borderBottom: '2px solid #2B4C7E' }
     : undefined;
 
-  const estiloFooter: React.CSSProperties | undefined = isDark
+  const estiloFooter: React.CSSProperties | undefined = isDarkAtivo
     ? { backgroundColor: '#0B0F17', borderTop: '2px solid #2B4C7E' }
     : undefined;
 
