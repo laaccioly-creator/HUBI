@@ -2018,8 +2018,8 @@ export const PosCheckout: React.FC = () => {
       </div>
 
       {/* PAINEL DIREITO: CARRINHO & TOTAL */}
-      <div className={`w-full lg:w-[440px] xl:w-[480px] flex flex-col h-full border-t lg:border-t-0 lg:border-l ${
-        isDark ? 'bg-[#08131A] border-slate-800' : 'bg-slate-100 border-slate-300'
+      <div className={`w-full lg:w-[440px] xl:w-[480px] flex flex-col h-full border-t-2 lg:border-t-0 lg:border-l-2 ${
+        isDark ? 'bg-[#08131A] border-slate-400' : 'bg-slate-100 border-slate-300'
       }`}>
         {/* Header do Carrinho & Seleção de Cliente */}
         <div className={`p-3.5 border-b space-y-2.5 ${isDark ? 'bg-[#08131A]/95 border-slate-800 text-white' : 'bg-slate-100/95 border-slate-300 text-slate-900'}`}>
@@ -2658,7 +2658,7 @@ export const PosCheckout: React.FC = () => {
       {/* MODAL VARIAÇÕES */}
       {produtoModalVariacao && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className={`${isDark ? 'bg-[#08131A] border border-slate-700' : 'bg-slate-100 border-2 border-slate-300'} rounded-3xl w-full max-w-md p-5 space-y-4 shadow-2xl`}>
+          <div className={`${isDark ? 'bg-[#08131A] border-2 border-slate-400' : 'bg-slate-100 border-2 border-slate-300'} rounded-3xl w-full max-w-md p-5 space-y-4 shadow-2xl`}>
             <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-300'} pb-3`}>
               <div>
                 <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>{produtoModalVariacao.nome}</h3>
@@ -2710,7 +2710,7 @@ export const PosCheckout: React.FC = () => {
       {modalFechamento && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
           <div className={`${
-            isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
+            isDark ? 'bg-[#08131A] border-2 border-slate-400 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
           } rounded-3xl w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto`}>
             <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-300'} pb-3`}>
               <h3 className={`font-bold text-base flex items-center gap-2 ${isDark ? 'text-white' : 'text-black'}`}>
@@ -2752,8 +2752,8 @@ export const PosCheckout: React.FC = () => {
                 const maxParcelas = formaSelecionada?.maximo_parcelas || 12;
 
                 return (
-                  <div key={linha.id} className={`p-3 rounded-2xl space-y-2.5 shadow-xs border-2 ${
-                    isDark ? 'bg-[#000000] border-slate-400' : 'bg-white border-slate-300'
+                  <div key={linha.id} className={`p-3 rounded-2xl space-y-2.5 shadow-xs ${
+                    isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
                   }`}>
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
@@ -2787,14 +2787,14 @@ export const PosCheckout: React.FC = () => {
                             key={fp.id}
                             type="button"
                             onClick={() => handleAlterarFormaLinha(linha.id, fp)}
-                            className={`p-2 rounded-xl border-2 text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer active:scale-95 ${
+                            className={`p-2 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer active:scale-95 ${
                               estaSelecionado
                                 ? isDark
-                                  ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40 shadow-xs'
-                                  : 'border-emerald-600 bg-emerald-50 text-emerald-800 ring-1 ring-emerald-600/40 shadow-xs'
+                                  ? 'border border-emerald-500 bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40 shadow-xs'
+                                  : 'border-2 border-emerald-600 bg-emerald-50 text-emerald-800 ring-1 ring-emerald-600/40 shadow-xs'
                                 : isDark
-                                ? 'border-slate-700 bg-[#08131A] text-slate-200 hover:bg-slate-900 hover:border-slate-500'
-                                : 'border-slate-300 bg-slate-50 text-black hover:bg-slate-100 hover:border-slate-400'
+                                ? 'border border-slate-700 bg-[#08131A] text-slate-200 hover:bg-slate-900 hover:border-slate-500'
+                                : 'border-2 border-slate-300 bg-slate-50 text-black hover:bg-slate-100 hover:border-slate-400'
                             }`}
                           >
                             {fp.tipo === 'dinheiro' && <Banknote className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}
@@ -2957,10 +2957,10 @@ export const PosCheckout: React.FC = () => {
               <button
                 type="button"
                 onClick={handleAdicionarLinhaPagamento}
-                className={`w-full py-2.5 px-3 rounded-2xl border-2 text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-98 ${
+                className={`w-full py-2.5 px-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-98 ${
                   isDark
-                    ? 'border-slate-400 bg-[#000000] hover:bg-slate-900 text-emerald-400'
-                    : 'border-slate-300 bg-white hover:bg-slate-50 text-black shadow-xs'
+                    ? 'border border-slate-700 bg-[#000000] hover:bg-slate-900 text-emerald-400'
+                    : 'border-2 border-slate-300 bg-white hover:bg-slate-50 text-black shadow-xs'
                 }`}
               >
                 <Plus className="w-4 h-4" />
@@ -2971,8 +2971,8 @@ export const PosCheckout: React.FC = () => {
             </div>
 
             {/* Resumo de Conferência dos Valores com Discriminação de Frete */}
-            <div className={`p-3.5 rounded-2xl border-2 space-y-2 text-xs ${
-              isDark ? 'bg-[#000000] border-slate-400 text-white' : 'bg-white border-slate-300 text-black'
+            <div className={`p-3.5 rounded-2xl space-y-2 text-xs ${
+              isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
             }`}>
               <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
                 <span className="font-semibold">Subtotal dos Produtos:</span>

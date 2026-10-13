@@ -145,7 +145,7 @@ export const ModalLeitorCodigoBarras: React.FC<ModalLeitorCodigoBarrasProps> = (
 
   return (
     <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
-      <div className="bg-white md:bg-slate-900 border border-slate-200 md:border-slate-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl space-y-4 text-slate-800 md:text-slate-100">
+      <div className="bg-white md:bg-[#08131A] border-2 border-slate-300 md:border-slate-400 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl space-y-4 text-slate-800 md:text-slate-100">
         {/* Header */}
         <div className="p-4 border-b border-slate-200 md:border-slate-800 flex items-center justify-between bg-white md:bg-slate-900">
           <div className="flex items-center gap-2">

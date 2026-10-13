@@ -144,7 +144,7 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
   return (
     <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[9999] animate-in fade-in">
       <div className={`${
-        isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
+        isDark ? 'bg-[#08131A] border-2 border-slate-400 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
       } rounded-3xl w-full max-w-xl p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[92vh] flex flex-col`}>
         {/* Header do Modal */}
         <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-300'} pb-3 shrink-0`}>

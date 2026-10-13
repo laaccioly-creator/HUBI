@@ -1499,7 +1499,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
         {modalDescontoAberto && (
           <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
             <div className={`${
-              isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
+              isDark ? 'bg-[#08131A] border-2 border-slate-400 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
             } rounded-3xl p-5 w-full max-w-xs space-y-4 shadow-2xl animate-in zoom-in-95`}>
               <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
                 <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Aplicar Desconto</h3>
@@ -1591,7 +1591,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
         {modalConfirmarLimparCarrinho && (
           <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
             <div className={`${
-              isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
+              isDark ? 'bg-[#08131A] border-2 border-slate-400 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
             } rounded-3xl p-5 w-full max-w-xs space-y-4 shadow-2xl animate-in zoom-in-95 text-center`}>
               <div className="w-12 h-12 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto border border-rose-500/30">
                 <Trash2 className="w-6 h-6" />
@@ -2040,7 +2040,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
       {modalMultiplicador && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
           <div className={`${
-            isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
+            isDark ? 'bg-[#08131A] border-2 border-slate-400 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
           } rounded-3xl p-5 w-full max-w-xs space-y-4 shadow-2xl animate-in zoom-in-95`}>
             <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
               <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Multiplicador de Quantidade</h3>

@@ -729,7 +729,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50 animate-in fade-in">
-      <div className="bg-white dark:bg-[#1E293B] border border-slate-200 dark:border-slate-700/80 rounded-3xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden text-slate-800 dark:text-slate-100">
+      <div className="bg-white dark:bg-[#08131A] border-2 border-slate-300 dark:border-slate-400 rounded-3xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden text-slate-800 dark:text-slate-100">
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-700/80 bg-white dark:bg-[#1E293B] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">

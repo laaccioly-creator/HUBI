@@ -290,8 +290,8 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className={`rounded-2xl sm:rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh] border ${
-        isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-100 border-2 border-slate-300'
+      <div className={`rounded-2xl sm:rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh] ${
+        isDark ? 'bg-[#08131A] border-2 border-slate-400' : 'bg-slate-100 border-2 border-slate-300'
       }`}>
         {/* Cabeçalho */}
         <div className={`p-4 sm:p-5 border-b flex items-center justify-between ${
