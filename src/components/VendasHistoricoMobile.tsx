@@ -32,6 +32,7 @@ import { Pedido, Cliente, UsuarioLoja } from '../types';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { extrairObservacaoLimpa } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { MelhorEnvioService } from '../services/melhorEnvioService';
@@ -67,6 +68,8 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
 }) => {
   const navigate = useNavigate();
   const { loja, usuario } = useAuth();
+  const { tema } = useTheme();
+  const isDark = tema === 'dark';
   const permissions = usePermissions();
 
   const { mostrarToast } = useFeedbackModal();
@@ -296,22 +299,26 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
     const itens = vendaDetalhes.itens || vendaDetalhes.itens_pedido || [];
 
     return (
-      <div className="fixed inset-0 z-50 bg-white text-slate-900 flex flex-col justify-between animate-in slide-in-from-right duration-150 select-none">
+      <div className={`fixed inset-0 z-50 flex flex-col justify-between animate-in slide-in-from-right duration-150 select-none ${
+        isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-black'
+      }`}>
         {/* Header */}
-        <div className="h-14 border-b border-slate-200 px-4 flex items-center justify-between bg-white shrink-0">
+        <div className={`h-14 border-b px-4 flex items-center justify-between shrink-0 ${
+          isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-300 bg-slate-100'
+        }`}>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setVendaDetalhes(null)}
-              className="p-1 rounded-full hover:bg-slate-100 text-slate-700 transition"
+              className={`p-1 rounded-full transition ${isDark ? 'hover:bg-[#000000] text-white' : 'hover:bg-white text-black'}`}
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
             <div>
-              <h2 className="font-bold text-sm text-slate-800">
+              <h2 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black font-black'}`}>
                 Venda #{vendaDetalhes.numero_pedido}
               </h2>
-              <span className="text-[10px] text-slate-400">
+              <span className={`text-[10px] ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
                 {new Date(vendaDetalhes.data_venda).toLocaleString('pt-BR')}
               </span>
             </div>
@@ -321,7 +328,7 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
             <button
               type="button"
               onClick={() => PrintService.printReceipt(vendaDetalhes, loja)}
-              className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition"
+              className={`p-2 rounded-xl transition ${isDark ? 'text-white hover:bg-[#000000]' : 'text-black hover:bg-white'}`}
               title="Imprimir Recibo"
             >
               <Printer className="w-5 h-5" />
@@ -331,24 +338,26 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
 
         {/* Conteúdo com Scroll */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {/* Card de Valor Total (Frame Preto Sólido de Alto Contraste) */}
-          <div className="p-4 bg-black border border-slate-800 rounded-2xl space-y-2.5 text-white shadow-xs">
+          {/* Card de Valor Total */}
+          <div className={`p-4 rounded-2xl space-y-2.5 shadow-xs ${
+            isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+          }`}>
             <div className="flex items-baseline justify-between">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Valor Total</span>
-              <span className={`text-2xl font-black ${cancelado ? 'line-through text-rose-500' : 'text-white'}`}>
+              <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-black font-extrabold'}`}>Valor Total</span>
+              <span className={`text-2xl font-black ${cancelado ? 'line-through text-rose-500' : (isDark ? 'text-white' : 'text-black')}`}>
                 R$ {Number(vendaDetalhes.valor_total).toFixed(2)}
               </span>
             </div>
 
-            <div className="flex items-center justify-between text-xs pt-2.5 border-t border-slate-800/80">
-              <span className="text-slate-400">Vendido por:</span>
-              <span className="font-bold text-slate-200">{nomeVendedor}</span>
+            <div className={`flex items-center justify-between text-xs pt-2.5 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+              <span className={isDark ? 'text-slate-300' : 'text-black font-semibold'}>Vendido por:</span>
+              <span className={`font-bold ${isDark ? 'text-white' : 'text-black font-extrabold'}`}>{nomeVendedor}</span>
             </div>
 
             {cli && (
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400">Cliente:</span>
-                <span className="font-bold text-slate-200">{cli.nome}</span>
+                <span className={isDark ? 'text-slate-300' : 'text-black font-semibold'}>Cliente:</span>
+                <span className={`font-bold ${isDark ? 'text-white' : 'text-black font-extrabold'}`}>{cli.nome}</span>
               </div>
             )}
 
@@ -360,25 +369,29 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
             )}
           </div>
 
-          {/* Dados do Pagamento (Frame Preto Sólido de Alto Contraste) */}
+          {/* Dados do Pagamento */}
           {(() => {
             const pagInfo = obterDadosPagamentoRecibo(vendaDetalhes);
             return (
               <>
                 {pagInfo.ehFiado && Number(vendaDetalhes.saldo_devedor) > 0 && (
-                  <div className="p-3 bg-black border border-amber-500/40 rounded-2xl text-center space-y-0.5 shadow-xs">
-                    <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">
+                  <div className={`p-3 rounded-2xl text-center space-y-0.5 shadow-xs ${
+                    isDark ? 'bg-[#000000] border border-amber-500/40' : 'bg-white border-2 border-amber-400'
+                  }`}>
+                    <span className="text-[10px] font-bold text-amber-500 uppercase tracking-wider block">
                       Saldo a Pagar (Fiado)
                     </span>
-                    <span className="text-base font-black text-amber-300">
+                    <span className="text-base font-black text-amber-500">
                       R$ {Number(vendaDetalhes.saldo_devedor).toFixed(2)}
                     </span>
                   </div>
                 )}
 
-                <div className="p-4 bg-black border border-slate-800 rounded-2xl text-xs space-y-2.5 text-white shadow-xs">
-                  <div className="flex justify-between items-center pb-2 border-b border-slate-800/80">
-                    <span className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Status Pagamento</span>
+                <div className={`p-4 rounded-2xl text-xs space-y-2.5 shadow-xs ${
+                  isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+                }`}>
+                  <div className={`flex justify-between items-center pb-2 border-b ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                    <span className={`font-bold text-[10px] uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-black font-extrabold'}`}>Status Pagamento</span>
                     <span className={`font-black text-[10px] px-2.5 py-0.5 rounded-full border ${
                       pagInfo.foiPago
                         ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
@@ -393,18 +406,18 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                       {pagInfo.pagamentosDetalhados.map((pag, idx) => (
                         <div key={idx} className="flex justify-between items-start text-xs">
                           <div>
-                            <span className="font-bold text-slate-200">{pag.forma}</span>
+                            <span className={`font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>{pag.forma}</span>
                             {pag.origemGateway && (
                               <span className="text-[10px] text-sky-400 block font-semibold">
                                 Origem: {pag.origemGateway}
                               </span>
                             )}
                           </div>
-                          <span className="font-black text-white">R$ {pag.valor.toFixed(2)}</span>
+                          <span className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>R$ {pag.valor.toFixed(2)}</span>
                         </div>
                       ))}
-                      <div className="flex justify-between font-extrabold text-emerald-400 pt-2 border-t border-slate-800 text-xs">
-                        <span className="text-slate-300">Valor Pago:</span>
+                      <div className={`flex justify-between font-extrabold pt-2 border-t text-xs ${isDark ? 'border-slate-800 text-emerald-400' : 'border-slate-200 text-emerald-700'}`}>
+                        <span className={isDark ? 'text-slate-300' : 'text-black font-bold'}>Valor Pago:</span>
                         <span>R$ {pagInfo.totalPago.toFixed(2)}</span>
                       </div>
                     </div>
@@ -419,8 +432,10 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
             const obsLimpa = extrairObservacaoLimpa(vendaDetalhes.observacoes);
             if (!obsLimpa) return null;
             return (
-              <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-xs text-amber-900 space-y-1">
-                <span className="font-bold uppercase tracking-wider text-[10px] text-amber-800 block">
+              <div className={`p-3.5 rounded-2xl text-xs space-y-1 border ${
+                isDark ? 'bg-[#000000] border-slate-700 text-slate-200' : 'bg-white border-2 border-amber-300 text-black'
+              }`}>
+                <span className={`font-bold uppercase tracking-wider text-[10px] block ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
                   Observação da Venda
                 </span>
                 <p className="whitespace-pre-wrap">{obsLimpa}</p>
@@ -430,19 +445,21 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
 
           {/* Lista de Produtos da Venda */}
           <div className="space-y-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            <h3 className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-white' : 'text-black font-black'}`}>
               Itens da Venda ({itens.length})
             </h3>
-            <div className="divide-y divide-slate-100 border border-slate-200 rounded-2xl bg-white overflow-hidden shadow-xs">
+            <div className={`divide-y rounded-2xl overflow-hidden shadow-xs ${
+              isDark ? 'bg-[#000000] border border-slate-700 divide-slate-800 text-white' : 'bg-white border-2 border-slate-300 divide-slate-200 text-black'
+            }`}>
               {itens.map((it: any, idx: number) => (
                 <div key={idx} className="p-3 flex items-center justify-between text-xs">
                   <div className="min-w-0 flex-1 pr-3">
-                    <p className="font-bold text-slate-800 truncate">{it.nome_produto}</p>
-                    <p className="text-[11px] text-slate-500">
+                    <p className={`font-bold truncate ${isDark ? 'text-white' : 'text-black'}`}>{it.nome_produto}</p>
+                    <p className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-black font-medium'}`}>
                       {it.quantidade}x R$ {Number(it.preco_venda_unitario).toFixed(2)}
                     </p>
                   </div>
-                  <span className="font-bold text-slate-900 shrink-0">
+                  <span className={`font-bold shrink-0 ${isDark ? 'text-white font-black' : 'text-black font-black'}`}>
                     R$ {(Number(it.quantidade) * Number(it.preco_venda_unitario)).toFixed(2)}
                   </span>
                 </div>
@@ -508,7 +525,9 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
               <button
                 type="button"
                 onClick={() => setModalConfirmarCancelamento(true)}
-                className="w-full mt-2 h-11 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/60 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-95"
+                className={`w-full mt-2 h-11 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-95 border ${
+                  isDark ? 'bg-[#000000] border-rose-900/50 text-rose-400 hover:bg-rose-950/20' : 'bg-white border-2 border-rose-300 text-rose-700 hover:bg-rose-50'
+                }`}
                 title="Cancelar venda com estorno de estoque"
               >
                 <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
@@ -553,18 +572,22 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
         {/* MODAL DE CONFIRMAÇÃO DEFENSIVO PARA CANCELAMENTO DA VENDA */}
         {modalConfirmarCancelamento && (
           <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
-            <div className="bg-white rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl animate-in zoom-in-95 text-slate-900 border border-slate-100">
+            <div className={`rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl animate-in zoom-in-95 border ${
+              isDark ? 'bg-[#08131A] border-2 border-slate-400 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
+            }`}>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0">
-                  <AlertTriangle className="w-5 h-5 text-rose-600" />
+                <div className="w-10 h-10 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-500 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-rose-500" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm text-slate-900">Cancelar Venda #{vendaDetalhes.numero_pedido}</h3>
-                  <span className="text-[11px] text-slate-400">Confirmação obrigatória</span>
+                  <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black font-black'}`}>Cancelar Venda #{vendaDetalhes.numero_pedido}</h3>
+                  <span className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>Confirmação obrigatória</span>
                 </div>
               </div>
 
-              <div className="p-3 rounded-2xl bg-rose-50/70 border border-rose-200/80 text-rose-800 text-xs leading-relaxed font-medium">
+              <div className={`p-3 rounded-2xl text-xs leading-relaxed font-medium border ${
+                isDark ? 'bg-[#000000] border-rose-900/50 text-rose-300' : 'bg-white border-2 border-rose-300 text-rose-800'
+              }`}>
                 Tem certeza de que deseja cancelar esta venda? Esta ação não pode ser desfeita e os itens retornarão ao estoque.
               </div>
 
@@ -572,7 +595,9 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setModalConfirmarCancelamento(false)}
-                  className="flex-1 h-11 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+                  className={`flex-1 h-11 rounded-xl font-bold text-xs transition cursor-pointer border ${
+                    isDark ? 'bg-[#000000] border-slate-700 text-white hover:bg-slate-900' : 'bg-white border-2 border-slate-300 text-black hover:bg-slate-50'
+                  }`}
                 >
                   Voltar
                 </button>
@@ -597,7 +622,9 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
   }
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-slate-50 text-slate-900 select-none">
+    <div className={`h-full flex flex-col overflow-hidden select-none ${
+      isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-black'
+    }`}>
       {/* 1. Header Superior Mobile Unificado */}
       <MobileHeader
         titulo="Vendas"
@@ -605,10 +632,12 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
           <button
             type="button"
             onClick={() => setDrawerFiltrosAberto(true)}
-            className={`p-2 rounded-xl border transition ${
+            className={`p-2 rounded-xl border transition cursor-pointer ${
               periodoFiltro !== 'todos' || vendedorFiltroId !== 'todos' || meiosPagamentoFiltro.length > 0
-                ? 'bg-emerald-50 text-emerald-600 border-emerald-300 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30 font-bold'
-                : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 hover:bg-slate-200'
+                ? 'bg-emerald-600 text-white border-emerald-500 font-bold'
+                : isDark
+                ? 'bg-[#000000] text-white border-slate-700 hover:bg-slate-900 font-bold'
+                : 'bg-white text-black border-2 border-slate-300 hover:bg-slate-50 font-bold'
             }`}
             title="Filtros"
           >
@@ -618,7 +647,7 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
       />
 
       {/* 2. Campo de Busca Integrado */}
-      <div className="p-3 bg-white border-b border-slate-200 shrink-0">
+      <div className={`p-3 shrink-0 border-b ${isDark ? 'bg-[#08131A] border-slate-800' : 'bg-slate-100 border-slate-300'}`}>
         <div className="relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
@@ -626,7 +655,11 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
             placeholder="Buscar por cliente ou produto..."
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-8 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
+            className={`w-full rounded-xl pl-9 pr-8 py-2 text-xs focus:outline-none focus:border-emerald-500 transition shadow-xs ${
+              isDark
+                ? 'bg-[#000000] border border-slate-700 text-white placeholder:text-slate-500'
+                : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-500'
+            }`}
           />
           {busca && (
             <button
@@ -641,7 +674,9 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
 
       {/* Indicador de Filtro: Turno Atual do Caixa */}
       {filtroTurnoAtivo && (
-        <div className="mx-3 mt-2 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center justify-between shadow-xs shrink-0">
+        <div className={`mx-3 mt-2 px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center justify-between shadow-xs shrink-0 ${
+          isDark ? 'bg-[#000000] border-emerald-500/40 text-emerald-400' : 'bg-white border-2 border-emerald-500 text-emerald-800'
+        }`}>
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             <span>Filtrando: Vendas do Turno Atual</span>
@@ -650,7 +685,9 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
             <button
               type="button"
               onClick={onLimparFiltroTurno}
-              className="px-2 py-0.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[11px] font-semibold transition cursor-pointer flex items-center gap-1"
+              className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold transition cursor-pointer flex items-center gap-1 ${
+                isDark ? 'bg-slate-900 hover:bg-slate-800 text-white border border-slate-700' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200'
+              }`}
               title="Exibir todas as vendas"
             >
               <span>Ver todas</span>
@@ -663,15 +700,15 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
       {/* 3. Lista Agrupada por Data */}
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
         {carregando ? (
-          <div className="text-center py-16 text-xs text-slate-400">Carregando histórico de vendas...</div>
+          <div className={`text-center py-16 text-xs ${isDark ? 'text-slate-400' : 'text-black font-semibold'}`}>Carregando histórico de vendas...</div>
         ) : gruposPorData.length === 0 ? (
-          <div className="text-center py-16 text-xs text-slate-400">Nenhuma venda encontrada.</div>
+          <div className={`text-center py-16 text-xs ${isDark ? 'text-slate-400' : 'text-black font-semibold'}`}>Nenhuma venda encontrada.</div>
         ) : (
           gruposPorData.map((grupo) => (
             <div key={grupo.label} className="space-y-2">
               <div className="px-1 flex items-baseline justify-between">
-                <h3 className="font-bold text-xs text-slate-800">{grupo.label}</h3>
-                <span className="text-[10px] text-slate-400 font-medium">
+                <h3 className={`font-bold text-xs ${isDark ? 'text-white' : 'text-black font-extrabold'}`}>{grupo.label}</h3>
+                <span className={`text-[10px] font-medium ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
                   {grupo.vendas.length} {grupo.vendas.length === 1 ? 'venda' : 'vendas'} • R$ {grupo.totalValor.toFixed(2)}
                 </span>
               </div>
@@ -692,7 +729,11 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                     <div
                       key={v.id}
                       onClick={() => setVendaDetalhes(v)}
-                      className="p-3 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 active:bg-slate-100 transition cursor-pointer space-y-1.5 shadow-xs"
+                      className={`p-3 rounded-2xl transition cursor-pointer space-y-1.5 shadow-xs ${
+                        isDark
+                          ? 'bg-[#000000] border border-slate-700 hover:bg-slate-900 active:bg-slate-800'
+                          : 'bg-white border-2 border-slate-300 hover:bg-slate-50 active:bg-slate-100'
+                      }`}
                     >
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -701,18 +742,22 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                           ) : (
                             obterIconePagamento(v)
                           )}
-                          <span className={`font-black ${cancelado ? 'line-through text-rose-500' : 'text-slate-900'}`}>
+                          <span className={`font-black ${cancelado ? 'line-through text-rose-500' : (isDark ? 'text-white' : 'text-black font-black')}`}>
                             R$ {Number(v.valor_total).toFixed(2)}
                           </span>
-                          <span className="text-[10px] text-slate-400 font-normal">por {vendedor}</span>
+                          <span className={`text-[10px] font-normal ${isDark ? 'text-slate-300' : 'text-black font-medium'}`}>por {vendedor}</span>
 
                           {!cancelado && (() => {
                             const pagInfo = obterDadosPagamentoRecibo(v);
                             return (
                               <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${
                                 pagInfo.foiPago
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                  : 'bg-amber-50 text-amber-700 border-amber-200'
+                                  ? isDark
+                                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                    : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                  : isDark
+                                  ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                                  : 'bg-amber-100 text-amber-800 border-amber-300'
                               }`}>
                                 {pagInfo.foiPago ? 'Pago' : 'Aguardando'}
                               </span>
@@ -720,12 +765,12 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                           })()}
                         </div>
 
-                        <span className="text-[10px] text-slate-400 font-medium shrink-0">
+                        <span className={`text-[10px] font-medium shrink-0 ${isDark ? 'text-slate-300' : 'text-black font-bold'}`}>
                           {new Date(v.data_venda).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between text-[10px] text-slate-500">
+                      <div className={`flex items-center justify-between text-[10px] ${isDark ? 'text-slate-300' : 'text-black'}`}>
                         <span className="truncate max-w-[220px]">
                           {itens.length} itens: {itens.map((i: any) => `${i.quantidade}x ${i.nome_produto}`).join(', ')}
                         </span>
@@ -735,7 +780,9 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                             e.stopPropagation();
                             navigate(`/orders?id=${v.id}&origem=sales`);
                           }}
-                          className="text-slate-400 hover:text-emerald-600 font-mono font-bold transition cursor-pointer"
+                          className={`font-mono font-bold transition cursor-pointer ${
+                            isDark ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-700 hover:text-emerald-800'
+                          }`}
                           title={`Abrir Pedido #${v.numero_pedido}`}
                         >
                           #{v.numero_pedido}
@@ -743,7 +790,7 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                       </div>
 
                       {cli && (
-                        <div className="flex items-center gap-1 pt-0.5 text-[10px] font-bold text-slate-600 uppercase">
+                        <div className={`flex items-center gap-1 pt-0.5 text-[10px] font-bold uppercase ${isDark ? 'text-white' : 'text-black'}`}>
                           <User className="w-3 h-3 text-slate-400" />
                           <span>{cli.nome}</span>
                         </div>
@@ -758,22 +805,28 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
       </div>
 
       {/* 4. Barra Flutuante Inferior de Totais */}
-      <div className="p-3 bg-slate-900 text-white flex items-center justify-between text-xs shrink-0 shadow-lg">
-        <span className="text-slate-400 font-medium">Total em vendas</span>
-        <span className="font-black text-emerald-400 text-sm">
+      <div className={`p-3 flex items-center justify-between text-xs shrink-0 shadow-lg ${
+        isDark ? 'bg-[#000000] border-t border-slate-800 text-white' : 'bg-white border-t-2 border-slate-300 text-black'
+      }`}>
+        <span className={`font-medium ${isDark ? 'text-slate-300' : 'text-black font-bold'}`}>Total em vendas</span>
+        <span className={`font-black text-sm ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
           R$ {totalGeral.toFixed(2)} em {vendasFiltradas.filter((v) => v.status !== 'cancelado').length} vendas
         </span>
       </div>
 
-      {/* 5. Modal / Gaveta de Filtros Avançados Mobile (Tema Claro) */}
+      {/* 5. Modal / Gaveta de Filtros Avançados Mobile */}
       {drawerFiltrosAberto && (
-        <div className="fixed inset-0 z-50 bg-white text-slate-900 flex flex-col justify-between animate-in slide-in-from-right duration-150">
-          <div className="h-14 border-b border-slate-200 px-4 flex items-center justify-between bg-white shrink-0">
-            <h2 className="font-bold text-base text-slate-800">Filtros de Vendas</h2>
+        <div className={`fixed inset-0 z-50 flex flex-col justify-between animate-in slide-in-from-right duration-150 ${
+          isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-black'
+        }`}>
+          <div className={`h-14 border-b px-4 flex items-center justify-between shrink-0 ${
+            isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-300 bg-slate-100'
+          }`}>
+            <h2 className={`font-bold text-base ${isDark ? 'text-white' : 'text-black font-black'}`}>Filtros de Vendas</h2>
             <button
               type="button"
               onClick={() => setDrawerFiltrosAberto(false)}
-              className="p-1 rounded-full text-slate-400 hover:text-slate-600"
+              className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -782,7 +835,7 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
           <div className="flex-1 overflow-y-auto p-4 space-y-5">
             {/* Período */}
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+              <div className={`flex items-center gap-2 text-xs font-bold ${isDark ? 'text-white' : 'text-black font-black'}`}>
                 <Calendar className="w-4 h-4 text-emerald-500" />
                 <span>Período</span>
               </div>
@@ -798,10 +851,12 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                     key={p.id}
                     type="button"
                     onClick={() => setPeriodoFiltro(p.id)}
-                    className={`py-2 px-3 rounded-xl text-xs font-bold transition border ${
+                    className={`py-2 px-3 rounded-xl text-xs font-bold transition border cursor-pointer ${
                       periodoFiltro === p.id
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-300 shadow-xs'
-                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                        ? 'bg-emerald-600 text-white border-emerald-500 shadow-xs'
+                        : isDark
+                        ? 'bg-[#000000] border-slate-700 text-white hover:bg-slate-900 font-semibold'
+                        : 'bg-white border-2 border-slate-300 text-black font-semibold hover:bg-slate-50'
                     }`}
                   >
                     {p.label}
@@ -812,7 +867,7 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
 
             {/* Vendedores */}
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+              <div className={`flex items-center gap-2 text-xs font-bold ${isDark ? 'text-white' : 'text-black font-black'}`}>
                 <User className="w-4 h-4 text-emerald-500" />
                 <span>Vendedor / Operador</span>
               </div>
@@ -820,7 +875,9 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
               <select
                 value={vendedorFiltroId}
                 onChange={(e) => setVendedorFiltroId(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
+                className={`w-full rounded-xl p-2.5 text-xs focus:outline-none focus:border-emerald-500 ${
+                  isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black font-semibold'
+                }`}
               >
                 <option value="todos">Todos os vendedores</option>
                 <option value="catalogo">Catálogo Online</option>
@@ -833,7 +890,7 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
             </div>
           </div>
 
-          <div className="p-4 border-t border-slate-200 bg-white flex gap-2">
+          <div className={`p-4 border-t flex gap-2 ${isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-300 bg-slate-100'}`}>
             <button
               type="button"
               onClick={() => {
@@ -842,14 +899,16 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                 setMeiosPagamentoFiltro([]);
                 setDrawerFiltrosAberto(false);
               }}
-              className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition"
+              className={`flex-1 py-3 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                isDark ? 'bg-[#000000] hover:bg-slate-900 border-slate-700 text-white' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black'
+              }`}
             >
               Limpar
             </button>
             <button
               type="button"
               onClick={() => setDrawerFiltrosAberto(false)}
-              className="flex-1 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md transition"
+              className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold border border-emerald-500 shadow-md transition cursor-pointer"
             >
               Aplicar Filtros
             </button>
