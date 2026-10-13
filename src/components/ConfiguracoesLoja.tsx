@@ -75,6 +75,7 @@ import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { setGoogleSearchConfig } from '../services/geminiService';
 import { testarConexaoSerpApi, salvarSerpApiKey, obterSerpApiKey } from '../services/serpApiService';
+import { useTheme } from '../contexts/ThemeContext';
 
 type SubTelaConfig =
   | 'menu'
@@ -303,6 +304,7 @@ interface ConfiguracoesLojaProps {
 }
 
 export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaInicial }) => {
+  const { isDark } = useTheme();
   const { loja, recarregarDadosLoja } = useAuth();
   const permissions = usePermissions();
   const navigate = useNavigate();
@@ -1581,8 +1583,10 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
 
   return (
     <div className="h-full w-full overflow-hidden select-none">
-      {/* 1. VISÃO MOBILE EXCLUSIVA (TEMA CLARO PADRÃO PEDIDOS/PRODUTOS) */}
-      <div className="block md:hidden h-full flex flex-col overflow-y-auto bg-slate-50 text-slate-900 font-sans">
+      {/* 1. VISÃO MOBILE EXCLUSIVA (TEMA CLARO & ESCURO VENDER PDV) */}
+      <div className={`block md:hidden h-full flex flex-col overflow-y-auto font-sans ${
+        isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-black'
+      }`}>
         {/* Header Superior Mobile Unificado */}
         <MobileHeader
           titulo={
@@ -1619,7 +1623,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 type="button"
                 onClick={handleSalvarTodasConfiguracoes}
                 disabled={salvando}
-                className="px-3.5 py-1.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs shadow-sm transition cursor-pointer disabled:opacity-50"
+                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50"
               >
                 {salvando ? 'Salvando...' : 'Salvar'}
               </button>
@@ -1645,12 +1649,22 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       setSubTela(item.id as SubTelaConfig);
                     }
                   }}
-                  className="p-4 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 active:bg-slate-100 flex flex-col items-center justify-center text-center gap-2.5 transition shadow-xs cursor-pointer"
+                  className={`p-4 rounded-2xl flex flex-col items-center justify-center text-center gap-2.5 transition shadow-sm cursor-pointer ${
+                    isDark
+                      ? 'bg-[#000000] border border-slate-700 hover:bg-slate-900 active:bg-slate-800'
+                      : 'bg-white border-2 border-slate-300 hover:bg-slate-50 active:bg-slate-100'
+                  }`}
                 >
-                  <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shadow-2xs">
+                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-xs ${
+                    isDark
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                      : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                  }`}>
                     <item.icon className="w-5 h-5" />
                   </div>
-                  <span className="font-bold text-xs text-slate-800 leading-tight">
+                  <span className={`font-black text-xs leading-tight ${
+                    isDark ? 'text-white' : 'text-black'
+                  }`}>
                     {item.label}
                   </span>
                 </button>
@@ -2301,10 +2315,14 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         />
       </div>
 
-      {/* 2. VISÃO DESKTOP (RESPONSIVA: MODO CLARO & ESCURO) */}
-      <div className="hidden md:flex flex-col flex-1 h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-y-auto">
+      {/* 2. VISÃO DESKTOP (RESPONSIVA: MODO CLARO & ESCURO VENDER PDV) */}
+      <div className={`hidden md:flex flex-col flex-1 h-full overflow-y-auto ${
+        isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-black'
+      }`}>
         {/* HEADER DA PÁGINA */}
-      <div className="sticky top-0 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 py-3.5 flex items-center justify-between">
+      <div className={`sticky top-0 z-20 backdrop-blur-md border-b px-4 sm:px-8 py-3.5 flex items-center justify-between ${
+        isDark ? 'bg-[#000000]/95 border-slate-800 text-white' : 'bg-white/95 border-slate-200 text-black'
+      }`}>
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -2317,13 +2335,19 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 }
               });
             }}
-            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition cursor-pointer"
+            className={`p-2 rounded-xl transition cursor-pointer ${
+              isDark
+                ? 'bg-[#000000] hover:bg-slate-800 text-white border border-slate-700'
+                : 'bg-white hover:bg-slate-100 text-black border-2 border-slate-300'
+            }`}
             title="Voltar"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
-            <h1 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <h1 className={`text-base sm:text-lg font-black flex items-center gap-2 ${
+              isDark ? 'text-white' : 'text-black'
+            }`}>
               <Settings className="w-5 h-5 text-emerald-500" />
               <span>Configurações</span>
             </h1>
@@ -2335,7 +2359,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
             type="button"
             onClick={handleSalvarTodasConfiguracoes}
             disabled={salvando}
-            className="px-4 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-2 shadow-sm transition cursor-pointer disabled:opacity-50 animate-in fade-in"
+            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50 animate-in fade-in"
           >
             <Save className="w-4 h-4" />
             <span>{salvando ? 'Salvando...' : 'Salvar'}</span>
@@ -2372,12 +2396,22 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     setSubTela(item.id as SubTelaConfig);
                   }
                 }}
-                className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 hover:bg-slate-50 dark:hover:bg-slate-850 hover:shadow-md hover:shadow-emerald-500/5 flex flex-col items-center justify-center text-center gap-3 transition-all duration-200 cursor-pointer group relative shadow-xs"
+                className={`p-4 sm:p-5 rounded-2xl flex flex-col items-center justify-center text-center gap-3 transition-all duration-200 cursor-pointer group relative shadow-sm ${
+                  isDark
+                    ? 'bg-[#000000] border border-slate-700 hover:border-emerald-500/50 hover:bg-slate-900 hover:shadow-md hover:shadow-emerald-500/10'
+                    : 'bg-white border-2 border-slate-300 hover:border-emerald-500/50 hover:bg-slate-50 hover:shadow-md'
+                }`}
               >
-                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-slate-950 border border-emerald-200 dark:border-slate-800 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-500/10 group-hover:border-emerald-300 dark:group-hover:border-emerald-500/30 text-emerald-800 dark:text-emerald-400 flex items-center justify-center transition-all group-hover:scale-110">
+                <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center transition-all group-hover:scale-110 ${
+                  isDark
+                    ? 'bg-[#08131A] border-slate-800 text-emerald-400 group-hover:bg-emerald-500/10 group-hover:border-emerald-500/30'
+                    : 'bg-emerald-50 border-emerald-200 text-emerald-700 group-hover:bg-emerald-100 group-hover:border-emerald-300'
+                }`}>
                   <item.icon className="w-6 h-6" />
                 </div>
-                <span className="font-semibold text-xs sm:text-sm text-slate-900 dark:text-white group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition leading-tight">
+                <span className={`font-black text-xs sm:text-sm transition leading-tight ${
+                  isDark ? 'text-white group-hover:text-emerald-400' : 'text-black group-hover:text-emerald-700'
+                }`}>
                   {item.label}
                 </span>
               </button>
@@ -2389,17 +2423,23 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* SUB-TELA: GERAL */}
         {/* ========================================================================= */}
         {subTela === 'geral' && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
+          <div className={`rounded-3xl p-6 shadow-sm space-y-6 animate-in fade-in ${
+            isDark
+              ? 'bg-[#000000] border border-slate-700 text-white'
+              : 'bg-white border-2 border-slate-300 text-black'
+          }`}>
             <div>
-              <h2 className="font-extrabold text-base text-slate-900 dark:text-slate-100">Geral</h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Preferências gerais de funcionamento da loja</p>
+              <h2 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Geral</h2>
+              <p className={`text-xs mt-0.5 font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Preferências gerais de funcionamento da loja</p>
             </div>
 
             {/* Controlar Estoque */}
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+            <div className={`flex items-center justify-between p-4 rounded-2xl ${
+              isDark ? 'bg-[#000000] border border-slate-800' : 'bg-slate-50 border border-slate-200'
+            }`}>
               <div className="space-y-0.5 max-w-[80%]">
-                <span className="font-bold text-xs text-slate-900 dark:text-slate-100 block">Controlar estoque</span>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400 block leading-tight">
+                <span className={`font-black text-xs block ${isDark ? 'text-white' : 'text-black'}`}>Controlar estoque</span>
+                <span className={`text-[11px] block leading-tight font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                   Quando ligado, bloqueia vendas que excedam o estoque disponível no PDV e Catálogo. Quando desligado, permite vendas livres.
                 </span>
               </div>
@@ -2416,7 +2456,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
 
             {/* Transações Canceladas */}
             <div className="space-y-2">
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-300 block">Transações canceladas</span>
+              <span className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Transações canceladas</span>
               <div className="space-y-2">
                 {[
                   { id: 'riscadas', label: 'Exibir riscada' },
@@ -2426,8 +2466,12 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     key={opt.id}
                     className={`flex items-center justify-between p-3.5 rounded-2xl border transition cursor-pointer ${
                       transacoesCanceladas === opt.id
-                        ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500 text-emerald-900 dark:text-slate-100 font-bold'
-                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900'
+                        ? isDark
+                          ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400 font-bold'
+                          : 'bg-emerald-50 border-emerald-500 text-emerald-900 font-bold'
+                        : isDark
+                          ? 'bg-[#000000] border-slate-800 text-slate-300 hover:bg-slate-900'
+                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
                     }`}
                   >
                     <span className="font-bold text-xs">{opt.label}</span>
@@ -2445,7 +2489,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
 
             {/* Ordenar produtos em Vender */}
             <div className="space-y-2">
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-300 block">Ordenar produtos em Vender por</span>
+              <span className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Ordenar produtos em Vender por</span>
               <div className="space-y-2">
                 {[
                   { id: 'cadastro', label: 'Data do cadastro' },
@@ -2455,8 +2499,12 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     key={opt.id}
                     className={`flex items-center justify-between p-3.5 rounded-2xl border transition cursor-pointer ${
                       ordenarProdutosPdv === opt.id
-                        ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500 text-emerald-900 dark:text-slate-100 font-bold'
-                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900'
+                        ? isDark
+                          ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400 font-bold'
+                          : 'bg-emerald-50 border-emerald-500 text-emerald-900 font-bold'
+                        : isDark
+                          ? 'bg-[#000000] border-slate-800 text-slate-300 hover:bg-slate-900'
+                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
                     }`}
                   >
                     <span className="font-bold text-xs">{opt.label}</span>
@@ -2478,14 +2526,22 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* SUB-TELA: TIPOS DE VENDA (PARAMETRIZAÇÃO FLEXÍVEL NO PDV) */}
         {/* ========================================================================= */}
         {subTela === 'tipos-venda' && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
+          <div className={`rounded-3xl p-6 shadow-sm space-y-6 animate-in fade-in ${
+            isDark
+              ? 'bg-[#000000] border border-slate-700 text-white'
+              : 'bg-white border-2 border-slate-300 text-black'
+          }`}>
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-extrabold text-base text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <h2 className={`font-black text-base flex items-center gap-2 ${
+                  isDark ? 'text-white' : 'text-black'
+                }`}>
                   <Tag className="w-5 h-5 text-emerald-500" />
-                  Tipos de Venda
+                  <span>Tipos de Venda</span>
                 </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                <p className={`text-xs mt-0.5 font-medium ${
+                  isDark ? 'text-slate-400' : 'text-slate-600'
+                }`}>
                   Configure quais modalidades comerciais e tabelas de preço estão ativas na loja e no PDV.
                 </p>
               </div>
@@ -2493,7 +2549,11 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 <button
                   type="button"
                   onClick={() => setSubTela('menu')}
-                  className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-semibold text-xs transition cursor-pointer flex items-center gap-1.5"
+                  className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 ${
+                    isDark
+                      ? 'bg-[#000000] hover:bg-slate-800 text-white border border-slate-700'
+                      : 'bg-white hover:bg-slate-100 text-black border-2 border-slate-300'
+                  }`}
                 >
                   <ArrowLeft className="w-4 h-4" />
                   Voltar
@@ -2502,7 +2562,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   type="button"
                   onClick={handleSalvarTiposVenda}
                   disabled={salvandoTiposVenda || (!tipoVendaVarejo && !tipoVendaAtacado && !tipoVendaDistribuidor)}
-                  className="px-4 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-2 shadow-sm transition cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50"
                 >
                   {salvandoTiposVenda ? (
                     <>
@@ -2537,17 +2597,21 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               {/* Card Varejo */}
               <div className={`p-5 rounded-2xl border transition-all ${
                 tipoVendaVarejo
-                  ? 'bg-white dark:bg-slate-950/80 border-emerald-300 dark:border-emerald-500/40 shadow-xs'
-                  : 'bg-slate-50 dark:bg-slate-950/30 border-slate-200 dark:border-slate-800 opacity-60'
+                  ? isDark
+                    ? 'bg-[#000000] border-emerald-500/50 shadow-sm'
+                    : 'bg-white border-2 border-emerald-500 shadow-sm'
+                  : isDark
+                    ? 'bg-[#000000] border-slate-800 opacity-60'
+                    : 'bg-slate-50 border-2 border-slate-200 opacity-60'
               }`}>
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <span className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 flex items-center justify-center font-black text-xs">
+                    <span className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-black text-xs">
                       1
                     </span>
                     <div>
-                      <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Varejo</h3>
-                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Venda padrão unitária</span>
+                      <h3 className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>Varejo</h3>
+                      <span className="text-[10px] text-emerald-500 font-bold">Venda padrão unitária</span>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -2560,7 +2624,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     <div className="w-11 h-6 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                   </label>
                 </div>
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                <p className={`text-xs leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                   Modalidade essencial para vendas unitárias no PDV e visualização de preços regulares no Catálogo Online.
                 </p>
               </div>
@@ -2568,17 +2632,21 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               {/* Card Atacado */}
               <div className={`p-5 rounded-2xl border transition-all ${
                 tipoVendaAtacado
-                  ? 'bg-white dark:bg-slate-950/80 border-emerald-300 dark:border-emerald-500/40 shadow-xs'
-                  : 'bg-slate-50 dark:bg-slate-950/30 border-slate-200 dark:border-slate-800 opacity-60'
+                  ? isDark
+                    ? 'bg-[#000000] border-emerald-500/50 shadow-sm'
+                    : 'bg-white border-2 border-emerald-500 shadow-sm'
+                  : isDark
+                    ? 'bg-[#000000] border-slate-800 opacity-60'
+                    : 'bg-slate-50 border-2 border-slate-200 opacity-60'
               }`}>
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <span className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 flex items-center justify-center font-black text-xs">
+                    <span className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-black text-xs">
                       2
                     </span>
                     <div>
-                      <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Atacado</h3>
-                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Desconto por volume</span>
+                      <h3 className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>Atacado</h3>
+                      <span className="text-[10px] text-emerald-500 font-bold">Desconto por volume</span>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -2591,7 +2659,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     <div className="w-11 h-6 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                   </label>
                 </div>
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                <p className={`text-xs leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                   Permite aplicar automaticamente o preço de atacado quando o carrinho atingir a quantidade mínima de itens ou valor configurado.
                 </p>
               </div>
@@ -2599,17 +2667,21 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               {/* Card Distribuidor */}
               <div className={`p-5 rounded-2xl border transition-all ${
                 tipoVendaDistribuidor
-                  ? 'bg-white dark:bg-slate-950/80 border-emerald-300 dark:border-emerald-500/40 shadow-xs'
-                  : 'bg-slate-50 dark:bg-slate-950/30 border-slate-200 dark:border-slate-800 opacity-60'
+                  ? isDark
+                    ? 'bg-[#000000] border-emerald-500/50 shadow-sm'
+                    : 'bg-white border-2 border-emerald-500 shadow-sm'
+                  : isDark
+                    ? 'bg-[#000000] border-slate-800 opacity-60'
+                    : 'bg-slate-50 border-2 border-slate-200 opacity-60'
               }`}>
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <span className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 flex items-center justify-center font-black text-xs">
+                    <span className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-black text-xs">
                       3
                     </span>
                     <div>
-                      <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Distribuidor</h3>
-                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Lotes / Fardos</span>
+                      <h3 className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>Distribuidor</h3>
+                      <span className="text-[10px] text-emerald-500 font-bold">Lotes / Fardos</span>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -2622,35 +2694,47 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     <div className="w-11 h-6 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                   </label>
                 </div>
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                <p className={`text-xs leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                   Modalidade voltada para caixas fechadas, revendedores e grandes fardos com preço diferenciado por lote.
                 </p>
               </div>
             </div>
 
             {/* Informações de Comportamento Dinâmico */}
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-300 block flex items-center gap-1.5">
+            <div className={`p-4 rounded-2xl space-y-2 ${
+              isDark ? 'bg-[#000000] border border-slate-800 text-slate-300' : 'bg-slate-50 border border-slate-200 text-slate-700'
+            }`}>
+              <span className={`text-xs font-bold block flex items-center gap-1.5 ${
+                isDark ? 'text-white' : 'text-black'
+              }`}>
                 <Info className="w-4 h-4 text-emerald-500" />
                 Comportamento Dinâmico no PDV e Precificação
               </span>
-              <ul className="text-xs text-slate-800 dark:text-slate-300 space-y-1 list-disc list-inside">
-                <li><strong className="text-slate-900 dark:text-white">Apenas 1 modalidade ativa:</strong> O seletor manual de tipo de venda no cabeçalho do carrinho e os termômetros de progressão de atacado/distribuidor são automaticamente ocultados.</li>
-                <li><strong className="text-slate-900 dark:text-white">2 ou mais modalidades ativas:</strong> O operador do PDV visualiza apenas os botões das modalidades habilitadas e os termômetros calculam o próximo nível aplicável.</li>
-                <li><strong className="text-slate-900 dark:text-white">Regras de Precificação:</strong> As regras de Atacado ou Distribuidor desativadas aqui são sinalizadas e protegidas em <em>Cadastros &amp; Tabelas &gt; Regras de Precificação</em>.</li>
+              <ul className="text-xs space-y-1 list-disc list-inside font-medium">
+                <li><strong className={isDark ? 'text-white' : 'text-black'}>Apenas 1 modalidade ativa:</strong> O seletor manual de tipo de venda no cabeçalho do carrinho e os termômetros de progressão de atacado/distribuidor são automaticamente ocultados.</li>
+                <li><strong className={isDark ? 'text-white' : 'text-black'}>2 ou mais modalidades ativas:</strong> O operador do PDV visualiza apenas os botões das modalidades habilitadas e os termômetros calculam o próximo nível aplicável.</li>
+                <li><strong className={isDark ? 'text-white' : 'text-black'}>Regras de Precificação:</strong> As regras de Atacado ou Distribuidor desativadas aqui são sinalizadas e protegidas em <em>Cadastros &amp; Tabelas &gt; Regras de Precificação</em>.</li>
               </ul>
             </div>
 
             {/* Rodapé com Ação de Salvar */}
-            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <span className="text-[11px] text-slate-700 dark:text-slate-400 font-medium">
+            <div className={`pt-4 border-t flex items-center justify-between ${
+              isDark ? 'border-slate-800' : 'border-slate-200'
+            }`}>
+              <span className={`text-[11px] font-medium ${
+                isDark ? 'text-slate-400' : 'text-slate-600'
+              }`}>
                 As alterações gravadas são refletidas imediatamente no PDV Desktop, PDV Mobile e no Catálogo.
               </span>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => setSubTela('menu')}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-900 dark:text-slate-300 hover:text-black dark:hover:text-white transition cursor-pointer"
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    isDark
+                      ? 'bg-[#000000] hover:bg-slate-800 text-white border border-slate-700'
+                      : 'bg-white hover:bg-slate-100 text-black border-2 border-slate-300'
+                  }`}
                 >
                   Voltar ao Menu
                 </button>
@@ -2658,7 +2742,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   type="button"
                   onClick={handleSalvarTiposVenda}
                   disabled={salvandoTiposVenda || (!tipoVendaVarejo && !tipoVendaAtacado && !tipoVendaDistribuidor)}
-                  className="px-6 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-2 shadow-sm transition cursor-pointer disabled:opacity-50"
+                  className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50"
                 >
                   {salvandoTiposVenda ? (
                     <>
@@ -2681,10 +2765,14 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* SUB-TELA: DADOS DA LOJA */}
         {/* ========================================================================= */}
         {subTela === 'dados-loja' && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-5 animate-in fade-in">
+          <div className={`rounded-3xl p-6 shadow-sm space-y-5 animate-in fade-in ${
+            isDark
+              ? 'bg-[#000000] border border-slate-700 text-white'
+              : 'bg-white border-2 border-slate-300 text-black'
+          }`}>
             <div>
-              <h2 className="font-extrabold text-base text-slate-900 dark:text-slate-100">Dados da Loja</h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Nome, logo, telefone, WhatsApp e endereço</p>
+              <h2 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Dados da Loja</h2>
+              <p className={`text-xs mt-0.5 font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Nome, logo, telefone, WhatsApp e endereço</p>
             </div>
 
             {/* Logo */}
@@ -2964,16 +3052,20 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* SUB-TELA: MEU RECIBO */}
         {/* ========================================================================= */}
         {subTela === 'recibo' && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-5 animate-in fade-in">
+          <div className={`rounded-3xl p-6 shadow-sm space-y-5 animate-in fade-in ${
+            isDark
+              ? 'bg-[#000000] border border-slate-700 text-white'
+              : 'bg-white border-2 border-slate-300 text-black'
+          }`}>
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-slate-100">Meu Recibo</h2>
-                <p className="text-sm font-medium text-slate-800 dark:text-slate-300 mt-0.5">Cabeçalho, rodapé e formato de impressão</p>
+                <h2 className={`font-black text-base sm:text-lg ${isDark ? 'text-white' : 'text-black'}`}>Meu Recibo</h2>
+                <p className={`text-sm font-medium mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Cabeçalho, rodapé e formato de impressão</p>
               </div>
               <button
                 type="button"
                 onClick={() => setModalPreviewRecibo(true)}
-                className="px-3.5 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 text-slate-900 dark:text-white font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95"
               >
                 <Receipt className="w-4 h-4" />
                 <span>Ver meu recibo</span>
@@ -3054,10 +3146,14 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* SUB-TELA: OPÇÕES DE PAGAMENTO & GATEWAYS */}
         {/* ========================================================================= */}
         {subTela === 'pagamentos' && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
+          <div className={`rounded-3xl p-6 shadow-sm space-y-6 animate-in fade-in ${
+            isDark
+              ? 'bg-[#000000] border border-slate-700 text-white'
+              : 'bg-white border-2 border-slate-300 text-black'
+          }`}>
             <div>
-              <h2 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-slate-100">Opções de Pagamento</h2>
-              <p className="text-sm font-medium text-slate-800 dark:text-slate-300 mt-0.5">Mercado Pago, PagBank, Asaas, Pix e Maquininhas</p>
+              <h2 className={`font-black text-base sm:text-lg ${isDark ? 'text-white' : 'text-black'}`}>Opções de Pagamento</h2>
+              <p className={`text-sm font-medium mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Mercado Pago, PagBank, Asaas, Pix e Maquininhas</p>
             </div>
 
             {/* INTEGRAÇÕES DIGITAIS (AUTOMÁTICAS) */}
@@ -3495,10 +3591,14 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* SUB-TELA: PRAZOS E TAXAS (MAQUININHAS) */}
         {/* ========================================================================= */}
         {subTela === 'prazos-taxas' && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
+          <div className={`rounded-3xl p-6 shadow-sm space-y-6 animate-in fade-in ${
+            isDark
+              ? 'bg-[#000000] border border-slate-700 text-white'
+              : 'bg-white border-2 border-slate-300 text-black'
+          }`}>
             <div>
-              <h2 className="font-extrabold text-base text-slate-900 dark:text-slate-100">Prazos e taxas das Maquininhas</h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Prazos de recebimento e taxas para previsão no financeiro</p>
+              <h2 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Prazos e taxas das Maquininhas</h2>
+              <p className={`text-xs mt-0.5 font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Prazos de recebimento e taxas para previsão no financeiro</p>
             </div>
 
             <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-slate-600 dark:text-slate-400 flex items-start gap-3">
@@ -3606,10 +3706,14 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* SUB-TELA: PEDIDOS E VENDAS (TAXAS & STATUS) */}
         {/* ========================================================================= */}
         {subTela === 'pedidos-vendas' && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
+          <div className={`rounded-3xl p-6 shadow-sm space-y-6 animate-in fade-in ${
+            isDark
+              ? 'bg-[#000000] border border-slate-700 text-white'
+              : 'bg-white border-2 border-slate-300 text-black'
+          }`}>
             <div>
-              <h2 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-slate-100">Pedidos e Vendas</h2>
-              <p className="text-sm font-medium text-slate-800 dark:text-slate-300 mt-0.5">Status de pedidos e taxas de venda adicionais</p>
+              <h2 className={`font-black text-base sm:text-lg ${isDark ? 'text-white' : 'text-black'}`}>Pedidos e Vendas</h2>
+              <p className={`text-sm font-medium mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Status de pedidos e taxas de venda adicionais</p>
             </div>
 
             {/* Atalho para Status de Pedidos */}
@@ -3685,10 +3789,14 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* SUB-TELA: STATUS DE PEDIDOS */}
         {/* ========================================================================= */}
         {subTela === 'status-pedidos' && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-5 animate-in fade-in">
+          <div className={`rounded-3xl p-6 shadow-sm space-y-5 animate-in fade-in ${
+            isDark
+              ? 'bg-[#000000] border border-slate-700 text-white'
+              : 'bg-white border-2 border-slate-300 text-black'
+          }`}>
             <div>
-              <h2 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-slate-100">Status de Pedidos</h2>
-              <p className="text-sm font-medium text-slate-800 dark:text-slate-300 mt-0.5">Ative ou crie novas etapas do fluxo operacional</p>
+              <h2 className={`font-black text-base sm:text-lg ${isDark ? 'text-white' : 'text-black'}`}>Status de Pedidos</h2>
+              <p className={`text-sm font-medium mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Ative ou crie novas etapas do fluxo operacional</p>
             </div>
 
             <div className="space-y-3">
@@ -3855,10 +3963,14 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* SUB-TELA: OPÇÕES DE ENTREGA & RETIRADA */}
         {/* ========================================================================= */}
         {subTela === 'entrega' && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
+          <div className={`rounded-3xl p-6 shadow-sm space-y-6 animate-in fade-in ${
+            isDark
+              ? 'bg-[#000000] border border-slate-700 text-white'
+              : 'bg-white border-2 border-slate-300 text-black'
+          }`}>
             <div>
-              <h2 className="font-extrabold text-base text-slate-900 dark:text-slate-100">Opções de Entrega & Retirada</h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Configure entregas via motoboy e retirada no balcão</p>
+              <h2 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Opções de Entrega & Retirada</h2>
+              <p className={`text-xs mt-0.5 font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Configure entregas via motoboy e retirada no balcão</p>
             </div>
 
             {/* Banner Módulo Avançado de Frete & Logística */}
@@ -3893,10 +4005,14 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* SUB-TELA: EXPORTAR RELATÓRIOS */}
         {/* ========================================================================= */}
         {subTela === 'exportar' && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
+          <div className={`rounded-3xl p-6 shadow-sm space-y-6 animate-in fade-in ${
+            isDark
+              ? 'bg-[#000000] border border-slate-700 text-white'
+              : 'bg-white border-2 border-slate-300 text-black'
+          }`}>
             <div>
-              <h2 className="font-extrabold text-base text-slate-900 dark:text-slate-100">Exportar Relatórios</h2>
-              <p className="text-sm font-medium text-slate-800 dark:text-slate-300 mt-0.5">Download CSV de vendas, produtos e clientes</p>
+              <h2 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Exportar Relatórios</h2>
+              <p className={`text-sm font-medium mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Download CSV de vendas, produtos e clientes</p>
             </div>
 
             {/* Período */}
@@ -3985,10 +4101,14 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* SUB-TELA: INTEGRAR COM PARCEIROS (INSTAGRAM, FACEBOOK, GOOGLE, TIKTOK) */}
         {/* ========================================================================= */}
         {subTela === 'parceiros' && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 animate-in fade-in">
+          <div className={`rounded-3xl p-6 shadow-sm space-y-6 animate-in fade-in ${
+            isDark
+              ? 'bg-[#000000] border border-slate-700 text-white'
+              : 'bg-white border-2 border-slate-300 text-black'
+          }`}>
             <div>
-              <h2 className="font-extrabold text-base text-slate-900 dark:text-slate-100">Integrar com Parceiros</h2>
-              <p className="text-sm font-medium text-slate-800 dark:text-slate-300 mt-0.5">Instagram Shopping, Facebook Pixel, Google Merchant e TikTok</p>
+              <h2 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Integrar com Parceiros</h2>
+              <p className={`text-sm font-medium mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Instagram Shopping, Facebook Pixel, Google Merchant e TikTok</p>
             </div>
 
             {/* FACEBOOK & INSTAGRAM */}
@@ -4266,10 +4386,16 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       {/* ========================================================================= */}
       {modalPreviewRecibo && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl text-slate-900 dark:text-slate-100">
+          <div className={`rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl ${
+            isDark
+              ? 'bg-[#000000] border border-slate-700 text-white'
+              : 'bg-white border-2 border-slate-300 text-black'
+          }`}>
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Recibo da Loja (Preview)</h3>
-              <button onClick={() => setModalPreviewRecibo(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white transition">
+              <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Recibo da Loja (Preview)</h3>
+              <button onClick={() => setModalPreviewRecibo(false)} className={`transition cursor-pointer ${
+                isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-black'
+              }`}>
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -4416,18 +4542,24 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       {/* ========================================================================= */}
       {modalExportConcluido && (
         <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-sm p-6 text-center space-y-4 shadow-2xl">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center">
+          <div className={`rounded-3xl w-full max-w-sm p-6 text-center space-y-4 shadow-2xl ${
+            isDark
+              ? 'bg-[#000000] border border-slate-700 text-white'
+              : 'bg-white border-2 border-slate-300 text-black'
+          }`}>
+            <div className={`w-14 h-14 rounded-2xl mx-auto flex items-center justify-center ${
+              isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-50 text-emerald-600'
+            }`}>
               <Download className="w-7 h-7" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Seus relatórios estão prontos! 🎉</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">O download do arquivo CSV/Excel foi iniciado no seu dispositivo.</p>
+              <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Seus relatórios estão prontos! 🎉</h3>
+              <p className={`text-xs mt-1 font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>O download do arquivo CSV/Excel foi iniciado no seu dispositivo.</p>
             </div>
             <button
               type="button"
               onClick={() => setModalExportConcluido(false)}
-              className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs cursor-pointer shadow-sm transition"
+              className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95 transition"
             >
               Voltar
             </button>
@@ -4440,16 +4572,22 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       {/* ========================================================================= */}
       {modalProvedor && (
         <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+          <div className={`rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl ${
+            isDark
+              ? 'bg-[#000000] border border-slate-700 text-white'
+              : 'bg-white border-2 border-slate-300 text-black'
+          }`}>
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Provedor de Pagamento Digital</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Selecione o provedor para integração automática</p>
+                <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Provedor de Pagamento Digital</h3>
+                <p className={`text-xs mt-0.5 font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Selecione o provedor para integração automática</p>
               </div>
               <button
                 type="button"
                 onClick={() => setModalProvedor(false)}
-                className="text-slate-400 hover:text-slate-700 dark:hover:text-white p-1 cursor-pointer transition"
+                className={`p-1 cursor-pointer transition ${
+                  isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-black'
+                }`}
               >
                 <X className="w-5 h-5" />
               </button>

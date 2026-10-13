@@ -239,13 +239,13 @@ export const UsuariosGestao: React.FC = () => {
       return (
         <div className="relative flex items-center justify-center my-2">
           <div className={`w-40 h-40 rounded-full flex items-center justify-center border-4 shadow-inner ${
-            tema === 'claro' ? 'bg-slate-100 border-slate-200' : 'bg-slate-800/40 border-slate-700/50'
+            isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-100 border-2 border-slate-300'
           }`}>
-            <div className={`w-24 h-24 rounded-full flex flex-col items-center justify-center text-center p-2 ${
-              tema === 'claro' ? 'bg-white shadow-xs' : 'bg-slate-900'
+            <div className={`w-24 h-24 rounded-full flex flex-col items-center justify-center text-center p-2 border ${
+              isDark ? 'bg-[#000000] border-slate-800' : 'bg-white border-slate-200 shadow-xs'
             }`}>
-              <Users className={`w-6 h-6 mb-1 ${tema === 'claro' ? 'text-slate-400' : 'text-slate-500'}`} />
-              <span className={`text-[10px] font-medium ${tema === 'claro' ? 'text-slate-500' : 'text-slate-500'}`}>Sem vendas</span>
+              <Users className={`w-6 h-6 mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
+              <span className={`text-[10px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Sem vendas</span>
             </div>
           </div>
         </div>
@@ -268,7 +268,7 @@ export const UsuariosGestao: React.FC = () => {
               cy="80"
               r={radius}
               fill="transparent"
-              stroke={tema === 'claro' ? '#F1F5F9' : '#1E293B'}
+              stroke={isDark ? '#1E293B' : '#E2E8F0'}
               strokeWidth={strokeWidth}
             />
             {dadosGraficoUsuarios.map((item) => {
@@ -304,23 +304,23 @@ export const UsuariosGestao: React.FC = () => {
           <div className="absolute inset-0 flex flex-col items-center justify-center p-3 text-center pointer-events-none transition-all duration-200">
             {hoveredItem ? (
               <div className="animate-in fade-in zoom-in-95 flex flex-col items-center justify-center">
-                <span className={`text-[11px] font-bold truncate max-w-[110px] ${
-                  tema === 'claro' ? 'text-slate-900' : 'text-slate-200'
+                <span className={`text-[11px] font-black truncate max-w-[110px] ${
+                  isDark ? 'text-white' : 'text-black'
                 }`} title={hoveredItem.nome}>
                   {hoveredItem.nome}
                 </span>
                 <span className={`text-base font-black mt-0.5 ${
-                  tema === 'claro' ? 'text-slate-900' : 'text-slate-100'
+                  isDark ? 'text-white' : 'text-black'
                 }`}>
                   {hoveredItem.percentual.toFixed(1)}%
                 </span>
-                <span className={`text-[11px] font-bold ${
-                  tema === 'claro' ? 'text-emerald-700' : 'text-emerald-400'
+                <span className={`text-[11px] font-black ${
+                  isDark ? 'text-emerald-400' : 'text-emerald-600'
                 }`}>
                   {formatarMoeda(hoveredItem.valor)}
                 </span>
-                <span className={`text-[9px] font-semibold ${
-                  tema === 'claro' ? 'text-slate-800' : 'text-slate-400'
+                <span className={`text-[9px] font-bold ${
+                  isDark ? 'text-slate-400' : 'text-slate-700'
                 }`}>
                   {hoveredItem.vendas} {hoveredItem.vendas === 1 ? 'venda' : 'vendas'}
                 </span>
@@ -328,15 +328,15 @@ export const UsuariosGestao: React.FC = () => {
             ) : (
               <div className="flex flex-col items-center justify-center">
                 <Users className={`w-5 h-5 mb-0.5 ${
-                  tema === 'claro' ? 'text-emerald-700' : 'text-emerald-400'
+                  isDark ? 'text-emerald-400' : 'text-emerald-600'
                 }`} />
                 <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                  tema === 'claro' ? 'text-slate-700' : 'text-slate-400'
+                  isDark ? 'text-slate-400' : 'text-slate-600'
                 }`}>
                   {totalVendas30d} {totalVendas30d === 1 ? 'VENDA' : 'VENDAS'}
                 </span>
                 <span className={`text-xs font-black ${
-                  tema === 'claro' ? 'text-slate-900' : 'text-slate-200'
+                  isDark ? 'text-white' : 'text-black'
                 }`}>100,0%</span>
               </div>
             )}
@@ -354,20 +354,20 @@ export const UsuariosGestao: React.FC = () => {
                 onMouseEnter={() => setHoveredUserId(item.id)}
                 onMouseLeave={() => setHoveredUserId(null)}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] transition-all cursor-pointer border ${
-                  tema === 'claro'
+                  isDark
                     ? isHovered
-                      ? 'bg-emerald-50 text-slate-900 border-emerald-400 shadow-xs font-black ring-1 ring-emerald-400/40 scale-105'
-                      : 'bg-white hover:bg-slate-50 text-slate-900 border-slate-300 hover:border-slate-400 shadow-2xs font-bold'
+                      ? 'bg-[#000000] text-white border-emerald-500 shadow-sm font-black ring-1 ring-emerald-500/40 scale-105'
+                      : 'bg-[#000000] text-white border-slate-700 hover:border-slate-600 font-bold'
                     : isHovered
-                      ? 'bg-slate-800 text-white border-emerald-400 shadow-sm font-black ring-1 ring-emerald-400/40 scale-105'
-                      : 'bg-slate-900 text-slate-100 hover:text-white border-slate-700 hover:border-slate-600 font-bold'
+                      ? 'bg-emerald-50 text-black border-2 border-emerald-500 shadow-xs font-black ring-1 ring-emerald-500/40 scale-105'
+                      : 'bg-white hover:bg-slate-50 text-black border-2 border-slate-300 hover:border-slate-400 font-bold'
                 }`}
               >
                 <span className="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs" style={{ backgroundColor: item.cor }} />
                 <span className="truncate max-w-[90px]">
                   {item.nome.split(' ')[0]}
                 </span>
-                <span className={tema === 'claro' ? 'text-slate-900 font-black' : 'text-white font-black'}>
+                <span className={isDark ? 'text-white font-black' : 'text-black font-black'}>
                   {item.percentual.toFixed(1)}%
                 </span>
               </button>
@@ -380,8 +380,8 @@ export const UsuariosGestao: React.FC = () => {
 
   return (
     <div className="h-full w-full overflow-hidden select-none">
-      {/* 1. VISÃO MOBILE EXCLUSIVA (TEMA CLARO PADRÃO PEDIDOS/PRODUTOS) */}
-      <div className="block md:hidden h-full flex flex-col overflow-y-auto bg-slate-50 text-slate-900 font-sans">
+      {/* 1. VISÃO MOBILE EXCLUSIVA (TEMA CLARO E ESCURO - PADRÃO VENDER PDV) */}
+      <div className={`block md:hidden h-full flex flex-col overflow-y-auto font-sans ${isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-black'}`}>
         {/* Header Superior Mobile Unificado */}
         <MobileHeader
           titulo={`Usuários (${usuarios.length})`}
@@ -389,9 +389,9 @@ export const UsuariosGestao: React.FC = () => {
             <button
               type="button"
               onClick={handleAbrirAdicionar}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs shadow-xs transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer active:scale-95"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4 h-4 stroke-[3]" />
               <span>+ Novo</span>
             </button>
           }
@@ -399,15 +399,15 @@ export const UsuariosGestao: React.FC = () => {
 
         {/* Conteúdo Mobile com Scroll */}
         <div className="p-4 space-y-4 flex-1">
-          {/* Gráfico Donut de Desempenho em Card Branco */}
-          <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-2">
-            <span className="text-xs font-bold text-slate-700 block">Vendas por Colaborador (30 dias)</span>
-            {renderGraficoPizza('claro')}
+          {/* Gráfico Donut de Desempenho em Card */}
+          <div className={`p-4 rounded-3xl shadow-sm space-y-2 border ${isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'}`}>
+            <span className={`text-xs font-black block ${isDark ? 'text-white' : 'text-black'}`}>Vendas por Colaborador (30 dias)</span>
+            {renderGraficoPizza(isDark ? 'escuro' : 'claro')}
           </div>
 
-          {/* Lista de Colaboradores em Cards Brancos */}
+          {/* Lista de Colaboradores em Cards */}
           <div className="space-y-2">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block px-1">
+            <span className={`text-xs font-black uppercase tracking-wider block px-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
               Colaboradores Cadastrados ({usuarios.length})
             </span>
 
@@ -423,18 +423,18 @@ export const UsuariosGestao: React.FC = () => {
                   <div
                     key={u.id}
                     onClick={() => handleAbrirEdicao(u)}
-                    className="p-3.5 bg-white border border-slate-200 rounded-2xl shadow-xs hover:bg-slate-50 active:bg-slate-100 transition cursor-pointer flex items-center justify-between"
+                    className={`p-3.5 rounded-2xl transition cursor-pointer flex items-center justify-between border ${isDark ? 'bg-[#000000] border-slate-700 hover:bg-slate-900 active:bg-slate-800' : 'bg-white border-2 border-slate-300 hover:bg-slate-50 active:bg-slate-100'}`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-xs"
+                        className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs text-white shrink-0 shadow-xs border border-white/10"
                         style={{ backgroundColor: cor }}
                       >
                         {formatarIniciais(u.nome_completo)}
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-slate-800 text-xs sm:text-sm truncate">
+                          <span className={`font-black text-xs sm:text-sm truncate ${isDark ? 'text-white' : 'text-black'}`}>
                             {u.nome_completo}
                           </span>
                           {isAdmin ? (
@@ -443,17 +443,17 @@ export const UsuariosGestao: React.FC = () => {
                             <Shield className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                           )}
                         </div>
-                        <span className="text-[11px] text-slate-500 block truncate">
+                        <span className={`text-[11px] block truncate ${isDark ? 'text-slate-400' : 'text-slate-600 font-semibold'}`}>
                           {u.email || (isAdmin ? 'Administrador' : 'Vendedor')}
                         </span>
                       </div>
                     </div>
 
                     <div className="text-right shrink-0">
-                      <span className="font-black text-slate-900 text-xs sm:text-sm block">
+                      <span className={`font-black text-xs sm:text-sm block ${isDark ? 'text-white' : 'text-black'}`}>
                         R$ {fat.toFixed(2)}
                       </span>
-                      <span className="text-[10px] text-slate-400">30 dias</span>
+                      <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600 font-bold'}`}>30 dias</span>
                     </div>
                   </div>
                 );
@@ -469,8 +469,8 @@ export const UsuariosGestao: React.FC = () => {
         />
       </div>
 
-      {/* 2. VISÃO DESKTOP (TEMA CLARO E ESCURO UNIFICADOS) */}
-      <div className="hidden md:flex flex-col h-full overflow-y-auto bg-slate-50 dark:bg-slate-950 p-4 sm:p-6 lg:p-8 space-y-6">
+      {/* 2. VISÃO DESKTOP (TEMA CLARO E ESCURO UNIFICADOS - PADRÃO VENDER PDV) */}
+      <div className={`hidden md:flex flex-col h-full overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 ${isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-black'}`}>
       
       {/* CABEÇALHO SUPERIOR */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 max-w-7xl mx-auto w-full">
@@ -478,16 +478,16 @@ export const UsuariosGestao: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="p-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 transition cursor-pointer shadow-xs"
+            className={`p-2.5 rounded-2xl border transition cursor-pointer shadow-xs ${isDark ? 'bg-[#000000] border-slate-700 hover:bg-slate-800 text-white' : 'bg-white border-2 border-slate-300 hover:bg-slate-100 text-black'}`}
             title="Voltar"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-3">
+            <h1 className={`text-2xl sm:text-3xl font-black flex items-center gap-3 ${isDark ? 'text-white' : 'text-black'}`}>
               <span>Usuários</span>
             </h1>
-            <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-400 mt-1">
+            <p className={`text-xs sm:text-sm mt-1 ${isDark ? 'text-slate-400' : 'text-slate-700 font-semibold'}`}>
               Gerencie sua equipe, permissões de acesso e acompanhe o faturamento por colaborador.
             </p>
           </div>
@@ -497,7 +497,7 @@ export const UsuariosGestao: React.FC = () => {
           <button
             type="button"
             onClick={handleAbrirAdicionar}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs sm:text-sm shadow-xs transition cursor-pointer active:scale-95"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer active:scale-95"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
             <span>+ Usuários</span>
@@ -510,20 +510,20 @@ export const UsuariosGestao: React.FC = () => {
         
         {/* CARD LATERAL ESQUERDO: FATURAMENTO POR USUÁRIO */}
         <div className="lg:col-span-4">
-          <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-xl flex flex-col items-center justify-between min-h-[380px] text-center space-y-4">
+          <div className={`border rounded-3xl p-6 shadow-sm flex flex-col items-center justify-between min-h-[380px] text-center space-y-4 ${isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'}`}>
             <div className="w-full text-left space-y-1">
-              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Faturamento por usuário</h2>
-              <span className="text-xs text-slate-700 dark:text-slate-400 font-medium">Últimos 30 dias</span>
+              <h2 className={`text-base font-black ${isDark ? 'text-white' : 'text-black'}`}>Faturamento por usuário</h2>
+              <span className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Últimos 30 dias</span>
             </div>
 
             {/* Gráfico de Pizza / Donut Interativo */}
             {renderGraficoPizza(isDark ? 'escuro' : 'claro')}
 
             <div className="space-y-1">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-400 block">
+              <span className={`text-xs font-black uppercase tracking-wider block ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
                 {totalVendas30d} {totalVendas30d === 1 ? 'VENDA' : 'VENDAS'}
               </span>
-              <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-100 block">
+              <span className={`text-2xl sm:text-3xl font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                 {formatarMoeda(totalFaturamento30d)}
               </span>
             </div>
@@ -531,7 +531,7 @@ export const UsuariosGestao: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate('/analytics')}
-              className="w-full py-2.5 text-xs text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 font-bold flex items-center justify-center gap-2 transition cursor-pointer hover:underline border-t border-slate-200 dark:border-slate-800/80 pt-4"
+              className={`w-full py-2.5 text-xs font-black flex items-center justify-center gap-2 transition cursor-pointer hover:underline border-t pt-4 ${isDark ? 'text-emerald-400 hover:text-emerald-300 border-slate-800' : 'text-emerald-600 hover:text-emerald-700 border-slate-200'}`}
             >
               <BarChart3 className="w-4 h-4" />
               <span>Ver mais estatísticas</span>
@@ -541,10 +541,10 @@ export const UsuariosGestao: React.FC = () => {
 
         {/* TABELA / LISTA DE COLABORADORES */}
         <div className="lg:col-span-8">
-          <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-sm dark:shadow-xl space-y-4">
+          <div className={`border rounded-3xl p-5 sm:p-6 shadow-sm space-y-4 ${isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'}`}>
             
             {/* Título da Tabela */}
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3.5 text-xs text-slate-700 dark:text-slate-400 font-bold uppercase tracking-wider px-3">
+            <div className={`flex items-center justify-between border-b pb-3.5 text-xs font-black uppercase tracking-wider px-3 ${isDark ? 'border-slate-800 text-slate-400' : 'border-slate-200 text-slate-700'}`}>
               <div className="flex-1">Nome</div>
               <div className="w-28 text-right">Faturamento</div>
               <div className="w-16 text-right">Vendas</div>
@@ -553,17 +553,17 @@ export const UsuariosGestao: React.FC = () => {
 
             {/* Linhas da Tabela */}
             {carregando ? (
-              <div className="py-16 flex flex-col items-center justify-center space-y-3 text-slate-500 dark:text-slate-400 text-xs">
+              <div className="py-16 flex flex-col items-center justify-center space-y-3 text-slate-400 text-xs">
                 <Loader2 className="w-7 h-7 animate-spin text-emerald-500" />
                 <span>Carregando equipe de usuários...</span>
               </div>
             ) : usuarios.length === 0 ? (
-              <div className="py-16 text-center text-slate-500 text-xs space-y-2">
+              <div className="py-16 text-center text-slate-400 text-xs space-y-2">
                 <Users className="w-8 h-8 text-slate-400 dark:text-slate-600 mx-auto" />
                 <p>Nenhum usuário cadastrado além do proprietário principal.</p>
               </div>
             ) : (
-              <div className="divide-y divide-slate-100 dark:divide-slate-800/70">
+              <div className={`divide-y ${isDark ? 'divide-slate-800/80' : 'divide-slate-200'}`}>
                 {usuarios.map((user) => {
                   const ehOwner = user.perfil === 'owner';
                   const ehAdmin = user.perfil === 'admin';
@@ -580,14 +580,16 @@ export const UsuariosGestao: React.FC = () => {
                       onMouseEnter={() => setHoveredUserId(user.id)}
                       onMouseLeave={() => setHoveredUserId(null)}
                       className={`py-4 px-3 flex items-center justify-between rounded-2xl transition cursor-pointer group ${
-                        isHovered ? 'bg-slate-100 dark:bg-slate-800/90 ring-1 ring-emerald-500/40 shadow-sm' : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                        isHovered 
+                          ? (isDark ? 'bg-slate-900 ring-1 ring-emerald-500/40 shadow-sm' : 'bg-slate-100 ring-2 ring-emerald-500/40 shadow-sm') 
+                          : (isDark ? 'hover:bg-slate-900/60' : 'hover:bg-slate-50')
                       }`}
                     >
                       {/* Nome e Badge de Perfil */}
                       <div className="flex items-center gap-3.5 flex-1 min-w-0 pr-3">
                         <div
-                          className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border text-slate-900 dark:text-slate-100 font-bold text-xs flex items-center justify-center shrink-0 transition"
-                          style={{ borderColor: isHovered ? corUser : '#94A3B8' }}
+                          className={`w-10 h-10 rounded-xl border font-black text-xs flex items-center justify-center shrink-0 transition ${isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-black'}`}
+                          style={{ borderColor: isHovered ? corUser : (isDark ? '#475569' : '#CBD5E1') }}
                         >
                           {formatarIniciais(user.nome_completo)}
                         </div>
@@ -595,7 +597,7 @@ export const UsuariosGestao: React.FC = () => {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: corUser }} />
-                            <span className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-emerald-600 transition">
+                            <span className={`font-black text-sm truncate transition ${isDark ? 'text-white group-hover:text-emerald-400' : 'text-black group-hover:text-emerald-600'}`}>
                               {user.nome_completo}
                             </span>
 
@@ -637,24 +639,24 @@ export const UsuariosGestao: React.FC = () => {
                               </span>
                             )}
                           </div>
-                          <span className="text-xs text-slate-600 dark:text-slate-400 truncate block mt-0.5 font-medium">
+                          <span className={`text-xs truncate block mt-0.5 font-semibold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                             {user.email}
                           </span>
                         </div>
                       </div>
 
                       {/* Faturamento */}
-                      <div className="w-28 text-right text-xs font-mono font-bold text-slate-900 dark:text-white">
+                      <div className={`w-28 text-right text-xs font-mono font-black ${isDark ? 'text-white' : 'text-black'}`}>
                         {fat > 0 ? formatarMoeda(fat) : '-'}
                       </div>
 
                       {/* Vendas */}
-                      <div className="w-16 text-right text-xs font-mono font-bold text-slate-900 dark:text-white">
+                      <div className={`w-16 text-right text-xs font-mono font-black ${isDark ? 'text-white' : 'text-black'}`}>
                         {count > 0 ? count : '-'}
                       </div>
 
                       {/* % Participação */}
-                      <div className="w-16 text-right text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                      <div className={`w-16 text-right text-xs font-mono font-black ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
                         {perc > 0 ? `${perc.toFixed(1)}%` : '-'}
                       </div>
                     </div>
