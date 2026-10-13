@@ -165,7 +165,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
       />
 
       <div className="fixed inset-y-0 right-0 w-full sm:w-auto max-w-full flex sm:pl-10">
-        <div className="w-full sm:w-[672px] sm:max-w-2xl border-l border-slate-300 dark:border-slate-800 flex flex-col shadow-2xl animate-in slide-in-from-right duration-300 bg-slate-100 dark:bg-[#111622] text-slate-900 dark:text-white">
+        <div className="w-full sm:w-[672px] sm:max-w-2xl border-l border-slate-300 dark:border-l-2 dark:border-slate-400 flex flex-col shadow-2xl animate-in slide-in-from-right duration-300 bg-slate-100 dark:bg-[#111622] text-slate-900 dark:text-white">
           
           {/* ================================================================= */}
           {/* TOPO DO DRAWER */}
@@ -197,7 +197,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
             </div>
 
             {/* Parecer do Jev System 1 (Diagnóstico Rápido) */}
-            <div className="mt-4 p-3.5 sm:p-4 rounded-2xl flex items-start gap-2.5 bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 shadow-xs">
+            <div className="mt-4 p-3.5 sm:p-4 rounded-2xl flex items-start gap-2.5 bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs">
               <div className="p-1.5 rounded-lg shrink-0 mt-0.5 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-500/30">
                 <Sparkles className="w-3.5 h-3.5" />
               </div>
@@ -227,7 +227,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
               <div className="space-y-6">
                 {/* Cards de Resumo */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 shadow-xs space-y-1">
+                  <div className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs space-y-1">
                     <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Faturado no Período</span>
                     <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">
                       {formMoeda(decomposicoes.faturamento.totalFaturamento)}
@@ -237,7 +237,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                     </span>
                   </div>
 
-                  <div className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 shadow-xs space-y-1">
+                  <div className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs space-y-1">
                     <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Total de Vendas</span>
                     <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">
                       {metricas.pedidos}
@@ -254,7 +254,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                     <TrendingUp className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                     <span>Faturamento por Canal de Venda</span>
                   </h3>
-                  <div className="space-y-2 bg-white dark:bg-[#000000] p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+                  <div className="space-y-2 bg-white dark:bg-[#000000] p-3.5 rounded-xl border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs">
                     {Object.keys(decomposicoes.faturamento.porCanal).length === 0 ? (
                       <p className="text-xs text-slate-500 py-2 text-center">Nenhuma venda faturada no período.</p>
                     ) : (
@@ -284,7 +284,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {Object.entries(decomposicoes.faturamento.porFormaPagamento).map(([forma, d]) => (
-                      <div key={forma} className="p-3 bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 rounded-xl space-y-1 shadow-xs">
+                      <div key={forma} className="p-3 bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 rounded-xl space-y-1 shadow-xs">
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-slate-700 dark:text-slate-300 font-bold">{forma}</span>
                           <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono font-bold">{d.percentual}%</span>
@@ -314,7 +314,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                     {decomposicoes.faturamento.vendasSumarizadas.slice(0, limiteVendasExibidas).map((v) => (
                       <div
                         key={v.id}
-                        className="p-3 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs hover:border-slate-400 dark:hover:border-slate-600 transition shadow-xs"
+                        className="p-3 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 flex items-center justify-between text-xs hover:border-slate-400 dark:hover:border-slate-300 transition shadow-xs"
                       >
                         <div className="space-y-0.5">
                           <div className="flex items-center gap-2">
@@ -357,26 +357,26 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
               <div className="space-y-6">
                 {/* 4 Cards de Breakdown de Status */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 shadow-xs">
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs">
                     <span className="text-[10px] text-slate-700 dark:text-slate-300 uppercase font-bold">Total Pedidos</span>
                     <div className="text-xl font-black text-slate-900 dark:text-white font-mono mt-1">{decomposicoes.pedidos.totalPedidos}</div>
                   </div>
-                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 shadow-xs">
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs">
                     <span className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase font-bold">Concluídos</span>
                     <div className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono mt-1">{decomposicoes.pedidos.concluidos}</div>
                   </div>
-                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 shadow-xs">
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs">
                     <span className="text-[10px] text-amber-600 dark:text-amber-400 uppercase font-bold">Pendentes</span>
                     <div className="text-xl font-black text-amber-600 dark:text-amber-400 font-mono mt-1">{decomposicoes.pedidos.pendentes}</div>
                   </div>
-                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 shadow-xs">
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs">
                     <span className="text-[10px] text-rose-600 dark:text-rose-400 uppercase font-bold">Cancelados</span>
                     <div className="text-xl font-black text-rose-600 dark:text-rose-400 font-mono mt-1">{decomposicoes.pedidos.cancelados}</div>
                   </div>
                 </div>
 
                 {/* Taxa de Conclusão */}
-                <div className="p-4 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
+                <div className="p-4 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs flex items-center justify-between">
                   <div className="space-y-0.5">
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Taxa de Conclusão Operacional</span>
                     <p className="text-[11px] text-slate-500">Pedidos concluídos sobre o volume total recebido</p>
@@ -404,7 +404,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                         ? Math.round((faixa.qtd / decomposicoes.pedidos.totalPedidos) * 100)
                         : 0;
                       return (
-                        <div key={faixa.label} className="p-3 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 space-y-2 shadow-xs">
+                        <div key={faixa.label} className="p-3 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 space-y-2 shadow-xs">
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-slate-800 dark:text-slate-200 font-bold">{faixa.label}</span>
                             <div className="flex items-center gap-3">
@@ -433,7 +433,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
               <div className="space-y-6">
                 {/* Destaque do Lucro Líquido Real */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 shadow-xs space-y-1">
+                  <div className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs space-y-1">
                     <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Lucro Líquido Real</span>
                     <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">
                       {formMoeda(decomposicoes.lucro.lucroLiquidoReal)}
@@ -443,7 +443,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                     </span>
                   </div>
 
-                  <div className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 shadow-xs space-y-1">
+                  <div className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs space-y-1">
                     <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Meta do Período</span>
                     <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">
                       {formMoeda(metasProporcionais.meta_lucro_liquido)}
@@ -461,7 +461,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                     <span>Demonstrativo de Resultado do Período (DRE)</span>
                   </h3>
 
-                  <div className="bg-white dark:bg-[#000000] rounded-2xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 text-xs font-mono shadow-xs">
+                  <div className="bg-white dark:bg-[#000000] rounded-2xl border border-slate-200 dark:border-2 dark:border-slate-400 divide-y divide-slate-100 dark:divide-slate-800 text-xs font-mono shadow-xs">
                     {/* Faturamento Bruto */}
                     <div className="p-3.5 flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -551,22 +551,22 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
               <div className="space-y-6">
                 {/* 3 Métricas Principais de Dispersão */}
                 <div className="grid grid-cols-3 gap-2.5">
-                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 shadow-xs">
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs">
                     <span className="text-[10px] text-slate-700 dark:text-slate-300 uppercase font-bold">Menor Venda</span>
                     <div className="text-base font-black text-slate-900 dark:text-white font-mono mt-1">{formMoeda(decomposicoes.ticket.menorVenda)}</div>
                   </div>
-                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 shadow-xs">
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs">
                     <span className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase font-bold">Ticket Médio</span>
                     <div className="text-base font-black text-emerald-600 dark:text-emerald-400 font-mono mt-1">{formMoeda(decomposicoes.ticket.ticketMedio)}</div>
                   </div>
-                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 shadow-xs">
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs">
                     <span className="text-[10px] text-slate-700 dark:text-slate-300 uppercase font-bold">Maior Venda</span>
                     <div className="text-base font-black text-slate-900 dark:text-white font-mono mt-1">{formMoeda(decomposicoes.ticket.maiorVenda)}</div>
                   </div>
                 </div>
 
                 {/* Correlação com Quantidade de Itens por Cesta */}
-                <div className="p-4 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
+                <div className="p-4 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs flex items-center justify-between">
                   <div className="space-y-0.5">
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Itens por Cesta de Compras</span>
                     <p className="text-[11px] text-slate-500">
@@ -585,7 +585,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                   </h3>
                   <div className="space-y-2.5">
                     {decomposicoes.ticket.dispersaoCompras.map((faixa) => (
-                      <div key={faixa.faixa} className="p-3 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 space-y-1.5 shadow-xs">
+                      <div key={faixa.faixa} className="p-3 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 space-y-1.5 shadow-xs">
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-slate-700 dark:text-slate-300 font-medium">{faixa.faixa}</span>
                           <span className="font-mono font-bold text-slate-900 dark:text-white">
@@ -612,7 +612,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
               <div className="space-y-6">
                 {/* Cards de Resumo Orçamentário */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 shadow-xs space-y-1">
+                  <div className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs space-y-1">
                     <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Despesas Realizadas</span>
                     <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">
                       {formMoeda(decomposicoes.despesas.totalDespesas)}
@@ -628,7 +628,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                     </span>
                   </div>
 
-                  <div className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 shadow-xs space-y-1">
+                  <div className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs space-y-1">
                     <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Teto Orçamentário</span>
                     <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">
                       {formMoeda(decomposicoes.despesas.tetoOrcamentario)}
@@ -645,7 +645,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                     <Layers className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                     <span>Centro de Custos por Categoria</span>
                   </h3>
-                  <div className="space-y-2.5 bg-white dark:bg-[#000000] p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+                  <div className="space-y-2.5 bg-white dark:bg-[#000000] p-3.5 rounded-xl border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs">
                     {Object.keys(decomposicoes.despesas.porCategoria).length === 0 ? (
                       <p className="text-xs text-slate-500 py-2 text-center">Nenhuma despesa ou saída registrada no período.</p>
                     ) : (
@@ -680,7 +680,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                       decomposicoes.despesas.itensRecentes.map((item) => (
                         <div
                           key={item.id}
-                          className="p-3 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs hover:border-slate-400 dark:hover:border-slate-600 transition shadow-xs"
+                          className="p-3 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 flex items-center justify-between text-xs hover:border-slate-400 dark:hover:border-slate-300 transition shadow-xs"
                         >
                           <div className="space-y-0.5 min-w-0 pr-2">
                             <div className="flex items-center gap-2">
@@ -714,19 +714,19 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
               <div className="space-y-6">
                 {/* Resumo de Inadimplência */}
                 <div className="grid grid-cols-3 gap-2.5">
-                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 shadow-xs">
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs">
                     <span className="text-[10px] text-rose-600 dark:text-rose-400 uppercase font-bold">Total em Atraso</span>
                     <div className="text-base font-black text-rose-600 dark:text-rose-400 font-mono mt-1">
                       {formMoeda(decomposicoes.inadimplencia.totalInadimplente)}
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 shadow-xs">
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs">
                     <span className="text-[10px] text-slate-700 dark:text-slate-300 uppercase font-bold">Total a Receber</span>
                     <div className="text-base font-black text-slate-900 dark:text-white font-mono mt-1">
                       {formMoeda(decomposicoes.inadimplencia.totalReceber)}
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 shadow-xs">
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs">
                     <span className="text-[10px] text-amber-600 dark:text-amber-400 uppercase font-bold">Taxa Inadimplência</span>
                     <div className="text-base font-black font-mono mt-1 text-amber-600 dark:text-amber-400">
                       {decomposicoes.inadimplencia.taxaInadimplencia}%
@@ -755,7 +755,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                       {decomposicoes.inadimplencia.itensAtrasados.map((it) => (
                         <div
                           key={it.pedidoId}
-                          className="p-3.5 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600 transition flex items-center justify-between gap-3 shadow-xs"
+                          className="p-3.5 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 hover:border-slate-400 dark:hover:border-slate-300 transition flex items-center justify-between gap-3 shadow-xs"
                         >
                           <div className="space-y-0.5 min-w-0">
                             <div className="flex items-center gap-2">
@@ -802,7 +802,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
             {tipoMetrica === 'saude_estoque' && (
               <div className="space-y-6">
                 {/* Banner Contextual da Fase (Cold Start vs Maturidade Curva ABC) */}
-                <div className="p-4 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 shadow-xs flex items-start gap-3">
+                <div className="p-4 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs flex items-start gap-3">
                   <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-500/20 shrink-0">
                     <Boxes className="w-5 h-5" />
                   </div>
@@ -827,19 +827,19 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
 
                 {/* Métricas do Estoque */}
                 <div className="grid grid-cols-3 gap-2.5">
-                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 shadow-xs">
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs">
                     <span className="text-[10px] text-rose-600 dark:text-rose-400 uppercase font-bold">Itens em Risco</span>
                     <div className="text-lg font-black text-rose-600 dark:text-rose-400 font-mono mt-1">
                       {decomposicoes.saudeEstoque.totalItensEmRisco}
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 shadow-xs">
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs">
                     <span className="text-[10px] text-slate-700 dark:text-slate-300 uppercase font-bold">Monitorados</span>
                     <div className="text-lg font-black text-slate-900 dark:text-white font-mono mt-1">
                       {decomposicoes.saudeEstoque.totalItensMonitorados}
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 shadow-xs">
+                  <div className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 shadow-xs">
                     <span className="text-[10px] text-amber-600 dark:text-amber-400 uppercase font-bold">Índice Ruptura</span>
                     <div className="text-lg font-black font-mono mt-1 text-amber-600 dark:text-amber-400">
                       {decomposicoes.saudeEstoque.indiceRuptura}%
@@ -883,7 +883,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                       </div>
 
                       {/* Classe C */}
-                      <div className="p-3 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 space-y-1 shadow-xs">
+                      <div className="p-3 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 space-y-1 shadow-xs">
                         <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400">
                           <span>Classe C</span>
                           <span>5% da receita</span>
@@ -935,7 +935,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                       {decomposicoes.saudeEstoque.produtosEmRisco.map((prod) => (
                         <div
                           key={prod.id}
-                          className="p-3.5 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600 transition flex items-center justify-between gap-3 shadow-xs"
+                          className="p-3.5 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-2 dark:border-slate-400 hover:border-slate-400 dark:hover:border-slate-300 transition flex items-center justify-between gap-3 shadow-xs"
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             {prod.fotoUrl ? (

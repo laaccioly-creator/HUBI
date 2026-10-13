@@ -37,7 +37,7 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
   // Skeleton de carregamento
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl p-5 flex flex-col justify-between h-full animate-pulse min-h-[260px] shadow-sm">
+      <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-2 dark:border-slate-400 rounded-2xl p-5 flex flex-col justify-between h-full animate-pulse min-h-[260px] shadow-sm">
         <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-[#1E293B]">
           <div className="h-4 rounded-lg w-28 bg-slate-100 dark:bg-[#1E293B]" />
           <div className="h-4 rounded-full w-12 bg-slate-100 dark:bg-[#1E293B]" />
@@ -183,7 +183,7 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
   return (
     <div
       onClick={onClickDrillDown}
-      className={`rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-colors duration-200 select-none bg-white border border-slate-200/80 shadow-sm hover:bg-slate-50 dark:bg-[#000000] dark:border-[#1E293B] dark:hover:bg-[#0D111A] ${
+      className={`rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-colors duration-200 select-none bg-white border border-slate-200/80 shadow-sm hover:bg-slate-50 dark:bg-[#000000] dark:border-2 dark:border-slate-400 dark:hover:bg-[#0D111A] ${
         onClickDrillDown
           ? 'cursor-pointer hover:shadow-lg dark:hover:shadow-emerald-500/5 group active:scale-[0.99]'
           : ''
