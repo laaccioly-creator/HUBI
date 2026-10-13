@@ -338,128 +338,150 @@ export const ConfiguracaoCatalogo: React.FC = () => {
         <ConfiguracaoCatalogoMobile />
       </div>
 
-      {/* 2. VISUALIZAÇÃO DESKTOP */}
-      <div className="hidden md:flex flex-1 flex-col h-full bg-slate-50 dark:bg-slate-950 overflow-y-auto">
+      {/* 2. VISUALIZAÇÃO DESKTOP COM SUPORTE DUAL-TEMA */}
+      <div className={`hidden md:flex flex-1 flex-col h-full overflow-y-auto font-sans ${isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-black'}`}>
         {/* HEADER DA PÁGINA */}
-      <div className="sticky top-0 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition cursor-pointer"
-            title="Voltar"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-          <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-inner">
-            <Globe className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              Catálogo Online
-            </h1>
-            <p className="text-sm font-medium text-slate-800 dark:text-slate-300">Configure sua vitrine online, identidade visual e regras de pedidos</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {isDirty && (
+        <div className={`sticky top-0 z-20 backdrop-blur-md border-b px-4 sm:px-8 py-4 flex items-center justify-between ${
+          isDark ? 'bg-[#08131A]/95 border-slate-800 text-white' : 'bg-slate-100/95 border-slate-300 text-black'
+        }`}>
+          <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={handleSalvarConfiguracoes}
-              disabled={salvando}
-              className="px-4 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-2 transition cursor-pointer disabled:opacity-50 animate-in fade-in shadow-xs"
+              onClick={() => navigate(-1)}
+              className={`p-2 rounded-xl border transition cursor-pointer ${
+                isDark ? 'bg-[#000000] border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800' : 'bg-white border-2 border-slate-300 text-slate-700 hover:text-black hover:bg-slate-100'
+              }`}
+              title="Voltar"
             >
-              <Save className="w-4 h-4" />
-              <span>{salvando ? 'Salvando...' : 'Salvar Alterações'}</span>
+              <ArrowLeft className="w-4 h-4" />
             </button>
-          )}
-        </div>
-      </div>
-
-      {/* FEEDBACK TOAST */}
-      {mensagemSucesso && (
-        <div className="fixed bottom-6 right-6 z-50 bg-emerald-600 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2 text-xs font-bold animate-in slide-in-from-bottom-4">
-          <CheckCircle2 className="w-4 h-4" />
-          <span>{mensagemSucesso}</span>
-        </div>
-      )}
-
-      {/* CONTEÚDO PRINCIPAL (LAYOUT EM DUAS COLUNAS CONFORME TELAS KYTE) */}
-      <div className="max-w-7xl w-full mx-auto p-4 sm:p-8 space-y-6">
-        
-        {/* CARD DO LINK DO CATÁLOGO (TOPO) */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xs dark:shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <span className="text-xs font-bold text-slate-700 dark:text-slate-400 flex items-center gap-1.5 uppercase tracking-wider">
-              <Globe className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Link do catálogo
-            </span>
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-sm sm:text-base font-semibold text-slate-900 dark:text-slate-200 break-all select-all font-mono">
-                {catalogoUrl}
-              </span>
-              <button
-                type="button"
-                onClick={handleCopiarLink}
-                className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
-              >
-                {copiado ? <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />}
-                <span>{copiado ? 'Link Copiado!' : 'Copiar link'}</span>
-              </button>
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border ${
+              isDark ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+            }`}>
+              <Globe className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className={`text-lg sm:text-xl font-black flex items-center gap-2 ${isDark ? 'text-white' : 'text-black'}`}>
+                Catálogo Online
+              </h1>
+              <p className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                Configure sua vitrine online, identidade visual e regras de pedidos
+              </p>
             </div>
           </div>
 
-          <a
-            href={catalogoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-5 py-3 rounded-2xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer shrink-0 shadow-xs"
-          >
-            <span>Ver em outra aba</span>
-            <ExternalLink className="w-4 h-4" />
-          </a>
+          <div className="flex items-center gap-3">
+            {isDirty && (
+              <button
+                type="button"
+                onClick={handleSalvarConfiguracoes}
+                disabled={salvando}
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black flex items-center gap-2 transition cursor-pointer disabled:opacity-50 animate-in fade-in shadow-md shadow-emerald-500/20 border border-emerald-500"
+              >
+                <Save className="w-4 h-4" />
+                <span>{salvando ? 'Salvando...' : 'Salvar Alterações'}</span>
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* GRID DE DUAS COLUNAS PRINCIPAIS */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* FEEDBACK TOAST */}
+        {mensagemSucesso && (
+          <div className="fixed bottom-6 right-6 z-50 bg-emerald-600 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2 text-xs font-bold animate-in slide-in-from-bottom-4">
+            <CheckCircle2 className="w-4 h-4" />
+            <span>{mensagemSucesso}</span>
+          </div>
+        )}
 
-          {/* COLUNA ESQUERDA (7 colunas) */}
-          <div className="lg:col-span-7 space-y-6">
-
-            {/* 1. PUBLICAR CATÁLOGO ONLINE */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs dark:shadow-xl space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Publicar Catálogo Online</h3>
-                  <p className="text-xs text-slate-700 dark:text-slate-400 flex items-center gap-2 mt-0.5">
-                    <span className="font-mono text-slate-800 dark:text-slate-300">/catalog/{slugCatalogo}</span>
-                    <button
-                      type="button"
-                      onClick={() => setModalEditarSlug(true)}
-                      className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-bold hover:underline cursor-pointer text-xs"
-                    >
-                      Editar link
-                    </button>
-                  </p>
-                </div>
-
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={publicarCatalogo}
-                    onChange={(e) => setPublicarCatalogo(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-                </label>
+        {/* CONTEÚDO PRINCIPAL (LAYOUT EM DUAS COLUNAS CONFORME TELAS KYTE) */}
+        <div className="max-w-7xl w-full mx-auto p-4 sm:p-8 space-y-6">
+          
+          {/* CARD DO LINK DO CATÁLOGO (TOPO) */}
+          <div className={`rounded-3xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 border ${
+            isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+          }`}>
+            <div className="space-y-1">
+              <span className={`text-xs font-black flex items-center gap-1.5 uppercase tracking-wider ${
+                isDark ? 'text-slate-300' : 'text-slate-700'
+              }`}>
+                <Globe className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" /> Link do catálogo
+              </span>
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className={`text-sm sm:text-base font-bold break-all select-all font-mono ${
+                  isDark ? 'text-white' : 'text-black'
+                }`}>
+                  {catalogoUrl}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopiarLink}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 border transition cursor-pointer ${
+                    isDark ? 'bg-[#08131A] border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800' : 'bg-slate-100 border-2 border-slate-300 text-slate-700 hover:text-black hover:bg-slate-200'
+                  }`}
+                >
+                  {copiado ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
+                  <span>{copiado ? 'Link Copiado!' : 'Copiar link'}</span>
+                </button>
               </div>
             </div>
 
+            <a
+              href={catalogoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer shrink-0 shadow-md shadow-emerald-500/20 border border-emerald-500"
+            >
+              <span>Ver em outra aba</span>
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          </div>
+
+          {/* GRID DE DUAS COLUNAS PRINCIPAIS */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            {/* COLUNA ESQUERDA (7 colunas) */}
+            <div className="lg:col-span-7 space-y-6">
+
+              {/* 1. PUBLICAR CATÁLOGO ONLINE */}
+              <div className={`rounded-3xl p-6 shadow-xs space-y-3 border ${
+                isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Publicar Catálogo Online</h3>
+                    <p className={`text-xs flex items-center gap-2 mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                      <span className="font-mono font-bold">/catalog/{slugCatalogo}</span>
+                      <button
+                        type="button"
+                        onClick={() => setModalEditarSlug(true)}
+                        className="text-emerald-500 hover:text-emerald-400 font-bold hover:underline cursor-pointer text-xs"
+                      >
+                        Editar link
+                      </button>
+                    </p>
+                  </div>
+
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={publicarCatalogo}
+                      onChange={(e) => setPublicarCatalogo(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className={`w-11 h-6 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 ${
+                      isDark ? 'bg-slate-800 after:border-slate-700' : 'bg-slate-300 after:border-slate-400'
+                    }`}></div>
+                  </label>
+                </div>
+              </div>
+
             {/* 2. COR PRINCIPAL / TEMA DE CORES */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs dark:shadow-xl space-y-5">
+            <div className={`rounded-3xl p-6 shadow-xs space-y-5 border ${
+              isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+            }`}>
               <div>
-                <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Cor principal</h3>
-                <p className="text-xs text-slate-700 dark:text-slate-400 mt-0.5">
+                <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Cor principal</h3>
+                <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                   Escolha o tema de cores que mais combina com a sua marca!
                 </p>
               </div>
@@ -477,7 +499,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                         setCorPersonalizada(c.hex);
                       }}
                       className={`w-9 h-9 rounded-xl transition cursor-pointer flex items-center justify-center shadow-md relative ${
-                        isSelected ? 'ring-3 ring-white scale-110' : 'hover:scale-105 opacity-90 hover:opacity-100'
+                        isSelected ? 'ring-3 ring-emerald-500 scale-110' : 'hover:scale-105 opacity-90 hover:opacity-100'
                       }`}
                       style={{ backgroundColor: c.hex }}
                       title={c.nome}
@@ -489,8 +511,12 @@ export const ConfiguracaoCatalogo: React.FC = () => {
 
                 {/* Seletor de Cor Customizada (+) */}
                 <label
-                  className={`w-9 h-9 rounded-xl border border-slate-700 bg-slate-800 transition cursor-pointer flex items-center justify-center relative hover:bg-slate-700 ${
-                    !CORES_PALETA.some(c => c.hex.toUpperCase() === corPrimaria.toUpperCase()) ? 'ring-3 ring-emerald-400' : ''
+                  className={`w-9 h-9 rounded-xl border transition cursor-pointer flex items-center justify-center relative ${
+                    isDark
+                      ? 'border-slate-700 bg-[#08131A] hover:bg-slate-800'
+                      : 'border-slate-300 bg-slate-100 hover:bg-slate-200'
+                  } ${
+                    !CORES_PALETA.some(c => c.hex.toUpperCase() === corPrimaria.toUpperCase()) ? 'ring-3 ring-emerald-500' : ''
                   }`}
                   title="Cor personalizada (Hexadecimal)"
                 >
@@ -503,35 +529,41 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                     }}
                     className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
                   />
-                  <Palette className="w-4 h-4 text-slate-300" />
+                  <Palette className={`w-4 h-4 ${isDark ? 'text-slate-300' : 'text-slate-600'}`} />
                 </label>
               </div>
 
               {/* CARD DE PREVIEW INTERATIVO DA COR */}
-              <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 flex flex-col items-center max-w-sm mx-auto shadow-inner space-y-3">
-                <div className="w-full flex items-center justify-between px-2 text-slate-500">
-                  <div className="w-4 h-4 rounded-full bg-slate-800"></div>
-                  <div className="w-16 h-2 rounded-full bg-slate-800"></div>
-                  <div className="w-4 h-4 rounded-full bg-slate-800"></div>
+              <div className={`p-5 rounded-2xl border flex flex-col items-center max-w-sm mx-auto shadow-inner space-y-3 ${
+                isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-50 border-2 border-slate-300'
+              }`}>
+                <div className={`w-full flex items-center justify-between px-2 ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>
+                  <div className={`w-4 h-4 rounded-full ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}></div>
+                  <div className={`w-16 h-2 rounded-full ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}></div>
+                  <div className={`w-4 h-4 rounded-full ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}></div>
                 </div>
 
                 {/* Mockup do Produto */}
-                <div className="w-full bg-slate-900 rounded-2xl p-3 border border-slate-800 space-y-3">
-                  <div className="relative aspect-video w-full bg-slate-800 rounded-xl flex items-center justify-center overflow-hidden">
-                    <span className="absolute top-2 left-2 bg-slate-950 text-white font-bold text-[10px] px-2 py-0.5 rounded-md">
+                <div className={`w-full rounded-2xl p-3 border space-y-3 ${
+                  isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+                }`}>
+                  <div className={`relative aspect-video w-full rounded-xl flex items-center justify-center overflow-hidden ${
+                    isDark ? 'bg-[#08131A]' : 'bg-slate-100'
+                  }`}>
+                    <span className="absolute top-2 left-2 bg-emerald-600 text-white font-black text-[10px] px-2 py-0.5 rounded-md">
                       -10%
                     </span>
-                    <ImageIcon className="w-8 h-8 text-slate-600" />
+                    <ImageIcon className={`w-8 h-8 ${isDark ? 'text-slate-600' : 'text-slate-400'}`} />
                   </div>
 
-                  <div className="w-3/4 h-3 bg-slate-800 rounded-full"></div>
-                  <div className="w-1/2 h-2 bg-slate-800/60 rounded-full"></div>
+                  <div className={`w-3/4 h-3 rounded-full ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}></div>
+                  <div className={`w-1/2 h-2 rounded-full ${isDark ? 'bg-slate-800/60' : 'bg-slate-200/60'}`}></div>
 
                   <div className="flex items-center justify-between pt-1">
-                    <span className="text-sm font-black text-slate-100">R$ 89,90</span>
+                    <span className={`text-sm font-black ${isDark ? 'text-white' : 'text-black'}`}>R$ 89,90</span>
                     <button
                       type="button"
-                      className="px-3.5 py-1.5 rounded-xl text-white text-xs font-bold shadow-md transition flex items-center gap-1"
+                      className="px-3.5 py-1.5 rounded-xl text-white text-xs font-black shadow-md transition flex items-center gap-1 cursor-pointer"
                       style={{ backgroundColor: corPrimaria }}
                     >
                       <ShoppingBag className="w-3.5 h-3.5" />
@@ -543,10 +575,12 @@ export const ConfiguracaoCatalogo: React.FC = () => {
             </div>
 
             {/* 3. MODO DE EXIBIÇÃO PRINCIPAL */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs dark:shadow-xl space-y-4">
+            <div className={`rounded-3xl p-6 shadow-xs space-y-4 border ${
+              isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+            }`}>
               <div>
-                <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Modo de exibição principal</h3>
-                <p className="text-sm font-medium text-slate-800 dark:text-slate-300 mt-0.5">
+                <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Modo de exibição principal</h3>
+                <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                   Como seus clientes visualizarão a listagem de produtos no catálogo online.
                 </p>
               </div>
@@ -557,21 +591,25 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                   onClick={() => setModoExibicao('lista')}
                   className={`p-4 rounded-2xl border transition cursor-pointer space-y-2.5 flex flex-col justify-between ${
                     modoExibicao === 'lista'
-                      ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500 ring-2 ring-emerald-500/20'
-                      : 'bg-white dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-xs'
+                      ? isDark
+                        ? 'bg-emerald-500/10 border-emerald-500 ring-2 ring-emerald-500/20 text-white'
+                        : 'bg-emerald-50 border-2 border-emerald-500 ring-2 ring-emerald-500/20 text-black'
+                      : isDark
+                      ? 'bg-[#08131A] border-slate-700 hover:border-slate-600 text-slate-300'
+                      : 'bg-white border-2 border-slate-300 hover:border-slate-400 text-slate-700'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <List className={`w-5 h-5 ${modoExibicao === 'lista' ? 'text-emerald-500' : 'text-slate-400'}`} />
                     <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                      modoExibicao === 'lista' ? 'border-emerald-500 bg-emerald-500' : 'border-slate-400 dark:border-slate-600'
+                      modoExibicao === 'lista' ? 'border-emerald-500 bg-emerald-500' : isDark ? 'border-slate-600' : 'border-slate-400'
                     }`}>
                       {modoExibicao === 'lista' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                     </div>
                   </div>
                   <div>
-                    <h4 className={`font-bold text-sm ${modoExibicao === 'lista' ? 'text-emerald-950 dark:text-emerald-300' : 'text-slate-900 dark:text-slate-200'}`}>Modo Lista</h4>
-                    <p className="text-sm text-slate-700 dark:text-slate-300 font-medium leading-normal mt-1">
+                    <h4 className={`font-black text-sm ${modoExibicao === 'lista' ? (isDark ? 'text-emerald-400' : 'text-emerald-700') : (isDark ? 'text-white' : 'text-black')}`}>Modo Lista</h4>
+                    <p className={`text-xs leading-normal mt-1 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                       Navegação mais rápida, ideal para grandes quantidades de produtos.
                     </p>
                   </div>
@@ -582,21 +620,25 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                   onClick={() => setModoExibicao('grade')}
                   className={`p-4 rounded-2xl border transition cursor-pointer space-y-2.5 flex flex-col justify-between ${
                     modoExibicao === 'grade'
-                      ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500 ring-2 ring-emerald-500/20'
-                      : 'bg-white dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-xs'
+                      ? isDark
+                        ? 'bg-emerald-500/10 border-emerald-500 ring-2 ring-emerald-500/20 text-white'
+                        : 'bg-emerald-50 border-2 border-emerald-500 ring-2 ring-emerald-500/20 text-black'
+                      : isDark
+                      ? 'bg-[#08131A] border-slate-700 hover:border-slate-600 text-slate-300'
+                      : 'bg-white border-2 border-slate-300 hover:border-slate-400 text-slate-700'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <LayoutGrid className={`w-5 h-5 ${modoExibicao === 'grade' ? 'text-emerald-500' : 'text-slate-400'}`} />
                     <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                      modoExibicao === 'grade' ? 'border-emerald-500 bg-emerald-500' : 'border-slate-400 dark:border-slate-600'
+                      modoExibicao === 'grade' ? 'border-emerald-500 bg-emerald-500' : isDark ? 'border-slate-600' : 'border-slate-400'
                     }`}>
                       {modoExibicao === 'grade' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                     </div>
                   </div>
                   <div>
-                    <h4 className={`font-bold text-sm ${modoExibicao === 'grade' ? 'text-emerald-950 dark:text-emerald-300' : 'text-slate-900 dark:text-slate-200'}`}>Modo Grade</h4>
-                    <p className="text-sm text-slate-700 dark:text-slate-300 font-medium leading-normal mt-1">
+                    <h4 className={`font-black text-sm ${modoExibicao === 'grade' ? (isDark ? 'text-emerald-400' : 'text-emerald-700') : (isDark ? 'text-white' : 'text-black')}`}>Modo Grade</h4>
+                    <p className={`text-xs leading-normal mt-1 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                       Ideal para ver vários produtos com fotos e destaques visuais ao mesmo tempo.
                     </p>
                   </div>
@@ -607,21 +649,25 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                   onClick={() => setModoExibicao('instaview')}
                   className={`p-4 rounded-2xl border transition cursor-pointer space-y-2.5 flex flex-col justify-between ${
                     modoExibicao === 'instaview'
-                      ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500 ring-2 ring-emerald-500/20'
-                      : 'bg-white dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-xs'
+                      ? isDark
+                        ? 'bg-emerald-500/10 border-emerald-500 ring-2 ring-emerald-500/20 text-white'
+                        : 'bg-emerald-50 border-2 border-emerald-500 ring-2 ring-emerald-500/20 text-black'
+                      : isDark
+                      ? 'bg-[#08131A] border-slate-700 hover:border-slate-600 text-slate-300'
+                      : 'bg-white border-2 border-slate-300 hover:border-slate-400 text-slate-700'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <Smartphone className={`w-5 h-5 ${modoExibicao === 'instaview' ? 'text-emerald-500' : 'text-slate-400'}`} />
                     <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                      modoExibicao === 'instaview' ? 'border-emerald-500 bg-emerald-500' : 'border-slate-400 dark:border-slate-600'
+                      modoExibicao === 'instaview' ? 'border-emerald-500 bg-emerald-500' : isDark ? 'border-slate-600' : 'border-slate-400'
                     }`}>
                       {modoExibicao === 'instaview' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                     </div>
                   </div>
                   <div>
-                    <h4 className={`font-bold text-sm ${modoExibicao === 'instaview' ? 'text-emerald-950 dark:text-emerald-300' : 'text-slate-900 dark:text-slate-200'}`}>Modo Instaview</h4>
-                    <p className="text-sm text-slate-700 dark:text-slate-300 font-medium leading-normal mt-1">
+                    <h4 className={`font-black text-sm ${modoExibicao === 'instaview' ? (isDark ? 'text-emerald-400' : 'text-emerald-700') : (isDark ? 'text-white' : 'text-black')}`}>Modo Instaview</h4>
+                    <p className={`text-xs leading-normal mt-1 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                       Estilo feed de fotos com imagens grandes e imersão total para moda e lifestyle.
                     </p>
                   </div>
@@ -630,11 +676,13 @@ export const ConfiguracaoCatalogo: React.FC = () => {
             </div>
 
             {/* 4. BANNER DA LOJA */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs dark:shadow-xl space-y-4">
+            <div className={`rounded-3xl p-6 shadow-xs space-y-4 border ${
+              isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+            }`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Banner da loja</h3>
-                  <p className="text-sm text-slate-800 dark:text-slate-400 mt-0.5">
+                  <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Banner da loja</h3>
+                  <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                     Ocultar ou exibir o banner da loja no topo do catálogo online.
                   </p>
                 </div>
@@ -646,37 +694,43 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                     onChange={(e) => setExibirBanner(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  <div className={`w-11 h-6 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 ${
+                    isDark ? 'bg-slate-800 after:border-slate-700' : 'bg-slate-300 after:border-slate-400'
+                  }`}></div>
                 </label>
               </div>
 
               {exibirBanner && (
                 <div className="space-y-3 pt-2">
                   {bannerUrl ? (
-                    <div className="relative aspect-[21/9] sm:aspect-[4/1] w-full rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 group">
+                    <div className={`relative aspect-[21/9] sm:aspect-[4/1] w-full rounded-2xl overflow-hidden border group ${
+                      isDark ? 'border-slate-700 bg-[#08131A]' : 'border-slate-300 bg-slate-100'
+                    }`}>
                       <img src={bannerUrl} alt="Banner da loja" className="w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
-                        <label className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer transition">
+                        <label className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black cursor-pointer transition border border-emerald-500 shadow-sm">
                           <input type="file" accept="image/*" onChange={handleUploadBanner} className="hidden" />
                           Trocar Imagem
                         </label>
                         <button
                           type="button"
                           onClick={() => setBannerUrl('')}
-                          className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition cursor-pointer"
+                          className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-black transition cursor-pointer"
                         >
                           Remover
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <label className="border-2 border-dashed border-slate-800 hover:border-emerald-500/50 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition bg-slate-950/50 space-y-2">
+                    <label className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition space-y-2 ${
+                      isDark ? 'border-slate-700 hover:border-emerald-500 bg-[#08131A]' : 'border-slate-300 hover:border-emerald-500 bg-slate-50'
+                    }`}>
                       <input type="file" accept="image/*" onChange={handleUploadBanner} className="hidden" />
-                      <ImageIcon className="w-8 h-8 text-slate-600" />
+                      <ImageIcon className={`w-8 h-8 ${isDark ? 'text-slate-600' : 'text-slate-400'}`} />
                       <div className="text-xs">
-                        <span className="font-bold text-emerald-400">Clique para enviar imagem</span> ou arraste até aqui
+                        <span className="font-bold text-emerald-500">Clique para enviar imagem</span> ou arraste até aqui
                       </div>
-                      <span className="text-[10px] text-slate-500">Recomendado: 1200x300px (JPG ou PNG)</span>
+                      <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Recomendado: 1200x300px (JPG ou PNG)</span>
                     </label>
                   )}
                 </div>
@@ -684,10 +738,12 @@ export const ConfiguracaoCatalogo: React.FC = () => {
             </div>
 
             {/* 5. PRODUTOS SEM ESTOQUE */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs dark:shadow-xl space-y-4">
+            <div className={`rounded-3xl p-6 shadow-xs space-y-4 border ${
+              isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+            }`}>
               <div>
-                <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Produtos sem estoque</h3>
-                <p className="text-sm font-medium text-slate-800 dark:text-slate-300 mt-0.5">
+                <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Produtos sem estoque</h3>
+                <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                   Defina o comportamento do catálogo para produtos que zeraram no estoque físico.
                 </p>
               </div>
@@ -714,8 +770,12 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                     key={opt.id}
                     className={`flex items-start gap-3 p-3.5 rounded-2xl border transition cursor-pointer ${
                       comportamentoSemEstoque === opt.id
-                        ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500 text-slate-900 dark:text-slate-100 shadow-xs'
-                        : 'bg-white dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-950 shadow-xs'
+                        ? isDark
+                          ? 'bg-emerald-500/10 border-emerald-500 text-white shadow-xs'
+                          : 'bg-emerald-50 border-2 border-emerald-500 text-black shadow-xs'
+                        : isDark
+                        ? 'bg-[#08131A] border-slate-700 text-slate-300 hover:bg-slate-900 shadow-xs'
+                        : 'bg-white border-2 border-slate-300 text-slate-700 hover:bg-slate-50 shadow-xs'
                     }`}
                   >
                     <input
@@ -724,11 +784,11 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                       value={opt.id}
                       checked={comportamentoSemEstoque === opt.id}
                       onChange={() => setComportamentoSemEstoque(opt.id as ComportamentoSemEstoque)}
-                      className="mt-1 text-emerald-500 focus:ring-emerald-500 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                      className="mt-1 accent-emerald-600"
                     />
                     <div>
-                      <span className="font-bold text-sm text-slate-900 dark:text-slate-100 block">{opt.title}</span>
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300 block mt-0.5">{opt.desc}</span>
+                      <span className={`font-bold text-sm block ${comportamentoSemEstoque === opt.id ? (isDark ? 'text-emerald-400' : 'text-emerald-700') : (isDark ? 'text-white' : 'text-black')}`}>{opt.title}</span>
+                      <span className={`text-xs font-medium block mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{opt.desc}</span>
                     </div>
                   </label>
                 ))}
@@ -736,11 +796,13 @@ export const ConfiguracaoCatalogo: React.FC = () => {
             </div>
 
             {/* 6. PRODUTOS SEM FOTO */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs dark:shadow-xl space-y-4">
+            <div className={`rounded-3xl p-6 shadow-xs space-y-4 border ${
+              isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+            }`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Exibir produtos sem foto</h3>
-                  <p className="text-sm text-slate-800 dark:text-slate-400 mt-0.5">
+                  <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Exibir produtos sem foto</h3>
+                  <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                     Defina se produtos que ainda não possuem imagens cadastradas devem aparecer no catálogo online.
                   </p>
                 </div>
@@ -752,12 +814,16 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                     onChange={(e) => setExibirProdutosSemFoto(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  <div className={`w-11 h-6 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 ${
+                    isDark ? 'bg-slate-800 after:border-slate-700' : 'bg-slate-300 after:border-slate-400'
+                  }`}></div>
                 </label>
               </div>
 
-              <div className="p-3.5 bg-slate-100 dark:bg-slate-950/60 rounded-2xl border border-slate-200 dark:border-slate-800 text-sm text-slate-800 dark:text-slate-400 flex items-center gap-2.5">
-                <ImageIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <div className={`p-3.5 rounded-2xl border text-xs flex items-center gap-2.5 ${
+                isDark ? 'bg-[#08131A] border-slate-700 text-slate-300' : 'bg-slate-100 border-2 border-slate-300 text-slate-700'
+              }`}>
+                <ImageIcon className="w-4 h-4 text-emerald-500 shrink-0" />
                 <span>
                   {exibirProdutosSemFoto
                     ? 'Produtos sem foto estão VISÍVEIS no catálogo online com uma imagem padrão.'
@@ -772,10 +838,12 @@ export const ConfiguracaoCatalogo: React.FC = () => {
           <div className="lg:col-span-5 space-y-6">
 
             {/* 6. DADOS DA LOJA (CHECKLIST DE PERFIL) */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs dark:shadow-xl space-y-4">
+            <div className={`rounded-3xl p-6 shadow-xs space-y-4 border ${
+              isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+            }`}>
               <div>
-                <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Dados da Loja</h3>
-                <p className="text-xs text-slate-700 dark:text-slate-400 mt-0.5">
+                <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Dados da Loja</h3>
+                <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                   Complete as informações da sua loja e deixe seu catálogo profissional!
                 </p>
               </div>
@@ -784,11 +852,11 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                 {checklist.map((item, idx) => (
                   <div key={idx} className="flex items-center gap-2 text-xs">
                     <span className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${
-                      item.preenchido ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400' : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-600'
+                      item.preenchido ? 'bg-emerald-500/20 text-emerald-500 dark:text-emerald-400' : isDark ? 'bg-slate-800 text-slate-500' : 'bg-slate-200 text-slate-400'
                     }`}>
                       <Check className="w-2.5 h-2.5 stroke-[3]" />
                     </span>
-                    <span className={`font-semibold text-[11px] ${item.preenchido ? 'text-slate-900 dark:text-slate-300' : 'text-slate-500'}`}>
+                    <span className={`font-semibold text-[11px] ${item.preenchido ? (isDark ? 'text-white' : 'text-black') : (isDark ? 'text-slate-500' : 'text-slate-400')}`}>
                       {item.label}
                     </span>
                   </div>
@@ -797,7 +865,9 @@ export const ConfiguracaoCatalogo: React.FC = () => {
 
               <Link
                 to="/config?tab=dados-loja"
-                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer pt-2"
+                className={`w-full py-2.5 rounded-xl border font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer pt-2 ${
+                  isDark ? 'bg-[#08131A] border-slate-700 text-white hover:bg-slate-900' : 'bg-slate-100 border-2 border-slate-300 text-black hover:bg-slate-200'
+                }`}
               >
                 <span>Editar dados da loja</span>
                 <ChevronRight className="w-4 h-4" />
@@ -805,14 +875,16 @@ export const ConfiguracaoCatalogo: React.FC = () => {
             </div>
 
             {/* 7. PEDIDOS ONLINE & WHATSAPP */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs dark:shadow-xl space-y-5">
-              <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Pedidos</h3>
+            <div className={`rounded-3xl p-6 shadow-xs space-y-5 border ${
+              isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+            }`}>
+              <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Pedidos</h3>
 
               {/* Switch Aceitar Pedidos */}
-              <div className="flex items-start justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+              <div className={`flex items-start justify-between gap-4 pb-4 border-b ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                 <div className="space-y-0.5">
-                  <span className="font-bold text-xs text-slate-900 dark:text-slate-100 block">Aceitar pedidos online</span>
-                  <p className="text-[11px] text-slate-700 dark:text-slate-400 leading-tight">
+                  <span className={`font-bold text-xs block ${isDark ? 'text-white' : 'text-black'}`}>Aceitar pedidos online</span>
+                  <p className={`text-[11px] leading-tight ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                     Seus pedidos virão como <strong>Pendente</strong> até que você os aceite como Confirmado.
                   </p>
                 </div>
@@ -824,15 +896,17 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                     onChange={(e) => setAceitaPedidosOnline(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  <div className={`w-11 h-6 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 ${
+                    isDark ? 'bg-slate-800 after:border-slate-700' : 'bg-slate-300 after:border-slate-400'
+                  }`}></div>
                 </label>
               </div>
 
               {/* Switch Resumo WhatsApp */}
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-0.5">
-                  <span className="font-bold text-xs text-slate-900 dark:text-slate-100 block">Receber resumo do pedido pelo WhatsApp</span>
-                  <p className="text-[11px] text-slate-700 dark:text-slate-400 leading-tight">
+                  <span className={`font-bold text-xs block ${isDark ? 'text-white' : 'text-black'}`}>Receber resumo do pedido pelo WhatsApp</span>
+                  <p className={`text-[11px] leading-tight ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                     Além de ter seu pedido criado no HUBI, seus clientes serão direcionados para enviar o resumo do pedido para seu WhatsApp cadastrado.
                   </p>
                 </div>
@@ -844,28 +918,38 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                     onChange={(e) => setResumoWhatsapp(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  <div className={`w-11 h-6 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 ${
+                    isDark ? 'bg-slate-800 after:border-slate-700' : 'bg-slate-300 after:border-slate-400'
+                  }`}></div>
                 </label>
               </div>
             </div>
 
             {/* 8. ORIENTAÇÕES PÓS-PEDIDO */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+            <div className={`rounded-3xl p-6 shadow-xs space-y-4 border ${
+              isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+            }`}>
               <div>
-                <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Orientações pós-pedido</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Orientações pós-pedido</h3>
+                <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                   Personalize a mensagem que seus clientes verão após concluírem o pedido. Agradeça pela compra, informe sobre prazos de entrega e retirada ou formas de pagamento.
                 </p>
               </div>
 
               {/* Mockup do Celular com a Mensagem */}
-              <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col items-center shadow-inner space-y-3">
-                <div className="w-full max-w-[200px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 text-center space-y-2 shadow-lg">
-                  <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center">
+              <div className={`p-4 rounded-2xl border flex flex-col items-center shadow-inner space-y-3 ${
+                isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-50 border-2 border-slate-300'
+              }`}>
+                <div className={`w-full max-w-[200px] rounded-2xl p-4 text-center space-y-2 shadow-lg border ${
+                  isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+                }`}>
+                  <div className={`w-10 h-10 rounded-full mx-auto flex items-center justify-center ${
+                    isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-50 text-emerald-600'
+                  }`}>
                     <Check className="w-5 h-5 stroke-[3]" />
                   </div>
-                  <h5 className="font-bold text-xs text-slate-900 dark:text-slate-100">Pedido enviado!</h5>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-3 leading-tight">
+                  <h5 className={`font-bold text-xs ${isDark ? 'text-white' : 'text-black'}`}>Pedido enviado!</h5>
+                  <p className={`text-[10px] line-clamp-3 leading-tight ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                     {instrucoesPosPedido || 'Agradecemos pela preferência!'}
                   </p>
                 </div>
@@ -879,65 +963,83 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                   value={instrucoesPosPedido}
                   onChange={(e) => setInstrucoesPosPedido(e.target.value)}
                   placeholder="Ex: Em breve entraremos em contato para confirmar os detalhes da sua compra. Agradecemos pela preferência!"
-                  className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-xs focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
+                  className={`w-full p-3 rounded-2xl text-xs focus:border-emerald-500 outline-none resize-none transition ${
+                    isDark
+                      ? 'bg-[#08131A] border border-slate-700 text-white placeholder:text-slate-500'
+                      : 'bg-slate-50 border-2 border-slate-300 text-black placeholder:text-slate-400'
+                  }`}
                 />
-                <div className="text-right text-[10px] text-slate-400 dark:text-slate-500">
+                <div className={`text-right text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                   {instrucoesPosPedido.length}/200
                 </div>
               </div>
             </div>
 
             {/* 9. OUTRAS CONFIGURAÇÕES / ATALHOS */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xl space-y-3">
-              <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">Outras configurações</h3>
+            <div className={`rounded-3xl p-6 shadow-xs space-y-3 border ${
+              isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+            }`}>
+              <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Outras configurações</h3>
 
               <div className="space-y-2">
                 <Link
                   to="/config?tab=pagamentos"
-                  className="flex items-center justify-between p-3.5 rounded-2xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 transition shadow-xs"
+                  className={`flex items-center justify-between p-3.5 rounded-2xl border text-xs font-bold transition shadow-xs ${
+                    isDark ? 'bg-[#08131A] border-slate-700 text-white hover:bg-slate-900' : 'bg-slate-50 border-2 border-slate-300 text-black hover:bg-slate-100'
+                  }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 flex items-center justify-center">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                      isDark ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-100 text-emerald-800'
+                    }`}>
                       <CreditCard className="w-4 h-4" />
                     </div>
                     <div>
-                      <span className="block font-bold text-slate-900 dark:text-slate-100">Opções de pagamento</span>
-                      <span className="text-[11px] text-slate-600 dark:text-slate-400 font-normal">Personalize as formas de pagamento da sua loja</span>
+                      <span className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>Opções de pagamento</span>
+                      <span className={`text-[11px] font-normal ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Personalize as formas de pagamento da sua loja</span>
                     </div>
                   </div>
-                  <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                  <ExternalLink className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
                 </Link>
 
                 <Link
                   to="/config?tab=entrega"
-                  className="flex items-center justify-between p-3.5 rounded-2xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 transition shadow-xs"
+                  className={`flex items-center justify-between p-3.5 rounded-2xl border text-xs font-bold transition shadow-xs ${
+                    isDark ? 'bg-[#08131A] border-slate-700 text-white hover:bg-slate-900' : 'bg-slate-50 border-2 border-slate-300 text-black hover:bg-slate-100'
+                  }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 flex items-center justify-center">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                      isDark ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-100 text-emerald-800'
+                    }`}>
                       <Truck className="w-4 h-4" />
                     </div>
                     <div>
-                      <span className="block font-bold text-slate-900 dark:text-slate-100">Entrega e retirada</span>
-                      <span className="text-[11px] text-slate-600 dark:text-slate-400 font-normal">Configure as opções de delivery e retirada</span>
+                      <span className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>Entrega e retirada</span>
+                      <span className={`text-[11px] font-normal ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Configure as opções de delivery e retirada</span>
                     </div>
                   </div>
-                  <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                  <ExternalLink className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
                 </Link>
 
                 <Link
                   to="/config?tab=parceiros"
-                  className="flex items-center justify-between p-3.5 rounded-2xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 transition shadow-xs"
+                  className={`flex items-center justify-between p-3.5 rounded-2xl border text-xs font-bold transition shadow-xs ${
+                    isDark ? 'bg-[#08131A] border-slate-700 text-white hover:bg-slate-900' : 'bg-slate-50 border-2 border-slate-300 text-black hover:bg-slate-100'
+                  }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 flex items-center justify-center">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                      isDark ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-100 text-emerald-800'
+                    }`}>
                       <Share2 className="w-4 h-4" />
                     </div>
                     <div>
-                      <span className="block font-bold text-slate-900 dark:text-slate-100">Canais de Venda</span>
-                      <span className="text-[11px] text-slate-600 dark:text-slate-400 font-normal">Integre com Instagram, Facebook e WhatsApp</span>
+                      <span className={`block font-bold ${isDark ? 'text-white' : 'text-black'}`}>Canais de Venda</span>
+                      <span className={`text-[11px] font-normal ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Integre com Instagram, Facebook e WhatsApp</span>
                     </div>
                   </div>
-                  <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                  <ExternalLink className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
                 </Link>
               </div>
             </div>
@@ -951,34 +1053,38 @@ export const ConfiguracaoCatalogo: React.FC = () => {
       {/* MODAL DE EDIÇÃO DE SLUG / LINK DO CATÁLOGO */}
       {modalEditarSlug && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
+          <div className={`border rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 ${
+            isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+          }`}>
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Editar Link do Catálogo</h3>
+              <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Editar Link do Catálogo</h3>
               <button
                 type="button"
                 onClick={() => setModalEditarSlug(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white"
+                className={`p-1 rounded-lg transition ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'}`}
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <p className="text-xs text-slate-700 dark:text-slate-400">
+            <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
               Escolha um endereço fácil de lembrar para compartilhar com seus clientes nas redes sociais.
             </p>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider">
+              <label className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                 Endereço do Catálogo
               </label>
-              <div className="flex items-center bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 dark:text-slate-300">
-                <span className="text-slate-500">{window.location.origin}/catalog/</span>
+              <div className={`flex items-center border rounded-xl px-3 py-2 text-xs font-mono ${
+                isDark ? 'bg-[#08131A] border-slate-700 text-white' : 'bg-slate-50 border-2 border-slate-300 text-black'
+              }`}>
+                <span className={isDark ? 'text-slate-500' : 'text-slate-400'}>{window.location.origin}/catalog/</span>
                 <input
                   type="text"
                   value={novoSlug}
                   onChange={(e) => setNovoSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
                   placeholder="minha-loja"
-                  className="bg-transparent text-emerald-700 dark:text-emerald-400 font-bold outline-none flex-1 font-mono"
+                  className="bg-transparent text-emerald-500 font-bold outline-none flex-1 font-mono"
                 />
               </div>
               {erroSlug && (
@@ -990,7 +1096,9 @@ export const ConfiguracaoCatalogo: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalEditarSlug(false)}
-                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer"
+                className={`px-4 py-2 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                  isDark ? 'bg-[#08131A] border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800' : 'bg-slate-100 border-2 border-slate-300 text-slate-700 hover:text-black hover:bg-slate-200'
+                }`}
               >
                 Cancelar
               </button>
@@ -998,7 +1106,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                 type="button"
                 onClick={handleSalvarSlug}
                 disabled={salvando}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-sm shadow-emerald-600/20 text-xs font-bold cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-md shadow-emerald-500/20 text-xs font-black cursor-pointer disabled:opacity-50"
               >
                 {salvando ? 'Salvando...' : 'Salvar Novo Link'}
               </button>
