@@ -1,4 +1,4 @@
-﻿import React, { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import {
   X,
   Sparkles,
@@ -53,6 +53,27 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
   payload,
   onAbrirEntradaEstoque
 }) => {
+
+  // Estilos inline blindados para forçar preto petróleo e borda sem depender do seletor dark do Tailwind
+  const estiloDrawerContainer: React.CSSProperties = {
+    backgroundColor: '#0b0f17',
+    borderLeft: '1px solid rgba(51, 65, 85, 0.8)'
+  };
+
+  const estiloDrawerHeader: React.CSSProperties = {
+    backgroundColor: 'rgba(11, 15, 23, 0.95)',
+    borderBottom: '1px solid rgba(51, 65, 85, 0.8)'
+  };
+
+  const estiloDrawerFooter: React.CSSProperties = {
+    backgroundColor: 'rgba(11, 15, 23, 0.95)',
+    borderTop: '1px solid rgba(51, 65, 85, 0.8)'
+  };
+
+  const estiloCard: React.CSSProperties = {
+    backgroundColor: '#111622',
+    border: '1px solid rgba(51, 65, 85, 0.6)'
+  };
 
   const [limiteVendasExibidas, setLimiteVendasExibidas] = React.useState<number>(50);
 
@@ -164,14 +185,16 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
 
       <div className="fixed inset-y-0 right-0 w-full sm:w-auto max-w-full flex sm:pl-10">
         <div
-          className="w-full sm:w-[672px] sm:max-w-2xl border-l border-slate-300 dark:border-slate-800 flex flex-col shadow-2xl animate-in slide-in-from-right duration-300 bg-slate-100 dark:bg-[#0b0f17] text-slate-900 dark:text-white"
+          style={estiloDrawerContainer}
+          className="w-full sm:w-[672px] sm:max-w-2xl flex flex-col shadow-2xl animate-in slide-in-from-right duration-300 text-white"
         >
           
           {/* ================================================================= */}
           {/* TOPO DO DRAWER */}
           {/* ================================================================= */}
           <div
-            className="p-4 sm:p-5 border-b sticky top-0 z-10 border-slate-300 dark:border-slate-800 bg-slate-100/95 dark:bg-[#0b0f17]/95 backdrop-blur-md"
+            style={estiloDrawerHeader}
+            className="p-4 sm:p-5 sticky top-0 z-10 backdrop-blur-md"
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -191,8 +214,8 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                
-                className="p-2 rounded-xl bg-white dark:bg-[#111622] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#161D2E] transition cursor-pointer shadow-xs"
+                style={estiloCard}
+                className="p-2 rounded-xl text-slate-200 hover:bg-slate-800/80 transition cursor-pointer shadow-xs"
                 title="Fechar Gaveta (Esc)"
               >
                 <X className="w-5 h-5" />
@@ -201,8 +224,8 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
 
             {/* Parecer do Jev System 1 (Diagnóstico Rápido) */}
             <div
-              
-              className="mt-4 p-3.5 sm:p-4 rounded-2xl flex items-start gap-2.5 bg-white dark:bg-[#111622] border border-slate-200 dark:border-slate-800 shadow-xs"
+              style={estiloCard}
+              className="mt-4 p-3.5 sm:p-4 rounded-2xl flex items-start gap-2.5 shadow-xs"
             >
               <div className="p-1.5 rounded-lg shrink-0 mt-0.5 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-500/30">
                 <Sparkles className="w-3.5 h-3.5" />
@@ -214,8 +237,8 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                     System 1
                   </span>
                 </div>
-                <p className="leading-relaxed text-slate-600 dark:text-slate-400 mt-0.5">
-                  {parecerJev.diagnosticoRapido} <strong className="text-slate-900 dark:text-slate-200">{parecerJev.prioridadeImediata}</strong>
+                <p className="leading-relaxed text-slate-400 mt-0.5">
+                  {parecerJev.diagnosticoRapido} <strong className="text-slate-200">{parecerJev.prioridadeImediata}</strong>
                 </p>
               </div>
             </div>
@@ -233,22 +256,22 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
               <div className="space-y-6">
                 {/* Cards de Resumo */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="p-4 bg-white dark:bg-[#111622] border border-slate-200 dark:border-slate-800 rounded-xl text-center flex flex-col items-center justify-center shadow-xs space-y-1">
-                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Faturado no Período</span>
-                    <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">
+                  <div style={estiloCard} className="p-4 rounded-xl text-center flex flex-col items-center justify-center shadow-xs space-y-1">
+                    <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">Faturado no Período</span>
+                    <div className="text-xl sm:text-2xl font-black text-white font-mono">
                       {formMoeda(decomposicoes.faturamento.totalFaturamento)}
                     </div>
-                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-semibold">
+                    <span className="text-[11px] text-emerald-400 flex items-center gap-1 font-semibold">
                       Meta: {formMoeda(metasProporcionais.meta_faturamento)}
                     </span>
                   </div>
 
-                  <div className="p-4 bg-white dark:bg-[#111622] border border-slate-200 dark:border-slate-800 rounded-xl text-center flex flex-col items-center justify-center shadow-xs space-y-1">
-                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Total de Vendas</span>
-                    <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">
+                  <div style={estiloCard} className="p-4 rounded-xl text-center flex flex-col items-center justify-center shadow-xs space-y-1">
+                    <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">Total de Vendas</span>
+                    <div className="text-xl sm:text-2xl font-black text-white font-mono">
                       {metricas.pedidos}
                     </div>
-                    <span className="text-[11px] text-slate-600 dark:text-slate-400 font-semibold">
+                    <span className="text-[11px] text-slate-400 font-semibold">
                       Ticket: {formMoeda(metricas.ticket_medio)}
                     </span>
                   </div>
@@ -1110,14 +1133,15 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
           {/* RODAPÉ DO DRAWER */}
           {/* ================================================================= */}
           <div
-            className="hidden md:flex p-4 border-t border-slate-300 dark:border-slate-800 bg-slate-100/95 dark:bg-[#0b0f17]/95 backdrop-blur-md items-center justify-between text-xs text-slate-500 dark:text-slate-400"
+            style={estiloDrawerFooter}
+            className="hidden md:flex p-4 backdrop-blur-md items-center justify-between text-xs text-slate-400"
           >
-            <span>Pressione <kbd  className="px-1.5 py-0.5 rounded bg-white dark:bg-[#111622] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-mono text-[10px]">Esc</kbd> para fechar</span>
+            <span>Pressione <kbd style={estiloCard} className="px-1.5 py-0.5 rounded text-slate-300 font-mono text-[10px]">Esc</kbd> para fechar</span>
             <button
               type="button"
               onClick={onClose}
-              
-              className="px-4 py-2 rounded-xl bg-white dark:bg-[#111622] hover:bg-slate-50 dark:hover:bg-[#161D2E] border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 font-semibold transition cursor-pointer shadow-xs"
+              style={estiloCard}
+              className="px-4 py-2 rounded-xl text-slate-200 hover:bg-slate-800/80 font-semibold transition cursor-pointer shadow-xs"
             >
               Fechar
             </button>
