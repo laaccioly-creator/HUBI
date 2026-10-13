@@ -1721,7 +1721,7 @@ export const ProdutoCadastro: React.FC = () => {
                   setTempApiKey(k);
                   setModalKeyGemini(true);
                 }}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-[#000000] dark:hover:bg-[#0D111A] border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 transition-all duration-150 select-none group"
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-emerald-500/15 dark:bg-[#000000] dark:hover:bg-emerald-500/20 border border-slate-300 hover:border-emerald-500/70 dark:border-[#1E293B] dark:hover:border-emerald-500/70 text-slate-700 hover:text-emerald-950 dark:text-slate-200 dark:hover:text-white transition-all duration-150 select-none group"
                 title="Configurar Chave Google Gemini AI"
               >
                 <div className="flex items-center gap-2 truncate">
@@ -1739,7 +1739,7 @@ export const ProdutoCadastro: React.FC = () => {
                   type="button"
                   disabled={analisandoIA}
                   onClick={() => handleExecutarPreenchimentoIA('atualizar')}
-                  className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-[#000000] dark:hover:bg-[#0D111A] border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 transition-all duration-150 select-none disabled:opacity-50 disabled:cursor-not-allowed group"
+                  className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-emerald-500/15 dark:bg-[#000000] dark:hover:bg-emerald-500/20 border border-slate-300 hover:border-emerald-500/70 dark:border-[#1E293B] dark:hover:border-emerald-500/70 text-slate-700 hover:text-emerald-950 dark:text-slate-200 dark:hover:text-white transition-all duration-150 select-none disabled:opacity-50 disabled:cursor-not-allowed group"
                   title="Atualizar o produto com nossa inteligência artificial"
                 >
                   <div className="flex items-center gap-2 truncate">
@@ -1759,7 +1759,7 @@ export const ProdutoCadastro: React.FC = () => {
                   type="button"
                   disabled={analisandoIA}
                   onClick={() => handleExecutarPreenchimentoIA('preencher')}
-                  className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-[#000000] dark:hover:bg-[#0D111A] border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 transition-all duration-150 select-none disabled:opacity-50 disabled:cursor-not-allowed group"
+                  className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-emerald-500/15 dark:bg-[#000000] dark:hover:bg-emerald-500/20 border border-slate-300 hover:border-emerald-500/70 dark:border-[#1E293B] dark:hover:border-emerald-500/70 text-slate-700 hover:text-emerald-950 dark:text-slate-200 dark:hover:text-white transition-all duration-150 select-none disabled:opacity-50 disabled:cursor-not-allowed group"
                   title="Preencher com nossa IA (a partir da foto ou nome do produto)"
                 >
                   <div className="flex items-center gap-2 truncate">
@@ -1781,7 +1781,7 @@ export const ProdutoCadastro: React.FC = () => {
                 type="button"
                 disabled={fotosUrls.length >= 7}
                 onClick={() => galleryInputRef.current?.click()}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-[#000000] dark:hover:bg-[#0D111A] border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 transition-all duration-150 select-none disabled:opacity-40 disabled:cursor-not-allowed group"
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-emerald-500/15 dark:bg-[#000000] dark:hover:bg-emerald-500/20 border border-slate-300 hover:border-emerald-500/70 dark:border-[#1E293B] dark:hover:border-emerald-500/70 text-slate-700 hover:text-emerald-950 dark:text-slate-200 dark:hover:text-white transition-all duration-150 select-none disabled:opacity-40 disabled:cursor-not-allowed group"
                 title="Escolher fotos do dispositivo"
               >
                 <div className="flex items-center gap-2 truncate">
@@ -1798,7 +1798,7 @@ export const ProdutoCadastro: React.FC = () => {
                 type="button"
                 disabled={fotosUrls.length >= 7}
                 onClick={handleAbrirPesquisaFotos}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-[#000000] dark:hover:bg-[#0D111A] border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 transition-all duration-150 select-none disabled:opacity-40 disabled:cursor-not-allowed group"
+                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-emerald-500/15 dark:bg-[#000000] dark:hover:bg-emerald-500/20 border border-slate-300 hover:border-emerald-500/70 dark:border-[#1E293B] dark:hover:border-emerald-500/70 text-slate-700 hover:text-emerald-950 dark:text-slate-200 dark:hover:text-white transition-all duration-150 select-none disabled:opacity-40 disabled:cursor-not-allowed group"
                 title="Pesquisar fotos na internet com boa qualidade"
               >
                 <div className="flex items-center gap-2 truncate">
@@ -1859,7 +1859,7 @@ export const ProdutoCadastro: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => galleryInputRef.current?.click()}
-                        className="aspect-square rounded-xl border-2 border-dashed border-slate-300 hover:border-emerald-500 dark:border-[#1E293B] dark:hover:border-emerald-400 bg-white hover:bg-slate-50 dark:bg-[#000000] dark:hover:bg-[#0D111A] flex flex-col items-center justify-center text-slate-500 hover:text-emerald-600 dark:text-slate-300 dark:hover:text-emerald-300 font-medium transition cursor-pointer shadow-xs"
+                        className="aspect-square rounded-xl border-2 border-dashed border-slate-300 hover:border-emerald-500 dark:border-[#1E293B] dark:hover:border-emerald-400 bg-white hover:bg-emerald-500/15 dark:bg-[#000000] dark:hover:bg-emerald-500/20 flex flex-col items-center justify-center text-slate-500 hover:text-emerald-700 dark:text-slate-300 dark:hover:text-emerald-300 font-medium transition cursor-pointer shadow-xs"
                         title="Adicionar mais foto"
                       >
                         <Plus className="w-4 h-4" />

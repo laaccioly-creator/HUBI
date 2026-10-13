@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { Cliente, Pedido, MovimentacaoSaldoCliente } from '../types';
 import { extrairEnderecoEstruturado } from './ModalNovoCliente';
 import { caixaService } from '../services/caixaService';
@@ -50,6 +51,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
   onClienteExcluido
 }) => {
   const { loja, usuario } = useAuth();
+  const { isDark } = useTheme();
   const { confirmar } = useFeedbackModal();
 
   const [abaAtiva, setAbaAtiva] = useState<TabCliente>('dados');
@@ -478,18 +480,26 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
   }, [pedidosFiltrados]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-white text-slate-900 flex flex-col animate-in slide-in-from-right duration-150 select-none">
+    <div className={`fixed inset-0 z-50 flex flex-col animate-in slide-in-from-right duration-150 select-none ${
+      isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-black'
+    }`}>
       {/* 1. Header Superior (TELA10) */}
-      <div className="h-14 border-b border-slate-200 px-4 flex items-center justify-between bg-white shrink-0">
+      <div className={`h-14 border-b px-4 flex items-center justify-between shrink-0 ${
+        isDark ? 'border-slate-700 bg-[#08131A]' : 'border-slate-300 bg-slate-100'
+      }`}>
         <div className="flex items-center gap-2 max-w-[280px]">
           <button
             type="button"
             onClick={handleVoltar}
-            className="p-1 rounded-full hover:bg-slate-100 text-slate-700 transition cursor-pointer"
+            className={`p-1.5 rounded-xl border transition cursor-pointer ${
+              isDark
+                ? 'bg-[#000000] border-slate-700 hover:bg-slate-900 text-white'
+                : 'bg-white border-2 border-slate-300 hover:bg-slate-50 text-black'
+            }`}
           >
-            <ChevronLeft className="w-6 h-6" />
+            <ChevronLeft className="w-5 h-5" />
           </button>
-          <h2 className="font-bold text-sm uppercase text-slate-800 truncate">
+          <h2 className={`font-black text-sm uppercase truncate ${isDark ? 'text-white' : 'text-black'}`}>
             {cliente.nome}
           </h2>
         </div>
@@ -501,7 +511,9 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
               if (onClienteExcluido) onClienteExcluido(cliente.id);
             }
           }}
-          className="p-2 text-slate-400 hover:text-rose-500 transition cursor-pointer"
+          className={`p-2 transition cursor-pointer rounded-xl ${
+            isDark ? 'text-slate-400 hover:text-rose-400 hover:bg-slate-900' : 'text-slate-500 hover:text-rose-600 hover:bg-slate-200'
+          }`}
           title="Excluir Cliente"
         >
           <Trash2 className="w-5 h-5" />
@@ -509,12 +521,16 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
       </div>
 
       {/* 2. Barra de Abas (DADOS | VENDAS | PEDIDOS | CONTA) */}
-      <div className="px-4 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 text-xs font-bold uppercase tracking-wider text-slate-400">
+      <div className={`px-4 border-b flex items-center justify-between shrink-0 text-xs font-black uppercase tracking-wider ${
+        isDark ? 'border-slate-700 bg-[#08131A]' : 'border-slate-300 bg-slate-100'
+      }`}>
         <button
           type="button"
           onClick={() => setAbaAtiva('dados')}
           className={`py-3 border-b-2 transition flex-1 text-center cursor-pointer ${
-            abaAtiva === 'dados' ? 'border-emerald-500 text-emerald-600' : 'border-transparent hover:text-slate-700'
+            abaAtiva === 'dados'
+              ? 'border-emerald-500 text-emerald-500 font-black'
+              : `border-transparent ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-black'}`
           }`}
         >
           DADOS
@@ -524,7 +540,9 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
           type="button"
           onClick={() => setAbaAtiva('vendas')}
           className={`py-3 border-b-2 transition flex-1 text-center cursor-pointer ${
-            abaAtiva === 'vendas' ? 'border-emerald-500 text-emerald-600' : 'border-transparent hover:text-slate-700'
+            abaAtiva === 'vendas'
+              ? 'border-emerald-500 text-emerald-500 font-black'
+              : `border-transparent ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-black'}`
           }`}
         >
           VENDAS
@@ -534,7 +552,9 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
           type="button"
           onClick={() => setAbaAtiva('pedidos')}
           className={`py-3 border-b-2 transition flex-1 text-center cursor-pointer ${
-            abaAtiva === 'pedidos' ? 'border-emerald-500 text-emerald-600' : 'border-transparent hover:text-slate-700'
+            abaAtiva === 'pedidos'
+              ? 'border-emerald-500 text-emerald-500 font-black'
+              : `border-transparent ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-black'}`
           }`}
         >
           PEDIDOS
@@ -544,7 +564,9 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
           type="button"
           onClick={() => setAbaAtiva('conta')}
           className={`py-3 border-b-2 transition flex-1 text-center cursor-pointer ${
-            abaAtiva === 'conta' ? 'border-emerald-500 text-emerald-600' : 'border-transparent hover:text-slate-700'
+            abaAtiva === 'conta'
+              ? 'border-emerald-500 text-emerald-500 font-black'
+              : `border-transparent ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-black'}`
           }`}
         >
           CONTA
@@ -560,7 +582,9 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
           <div className="p-4 space-y-4 max-w-md mx-auto">
             {/* Avatar e WhatsApp Shortcut */}
             <div className="flex flex-col items-center justify-center py-2 space-y-2">
-              <div className="w-20 h-20 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400">
+              <div className={`w-20 h-20 rounded-full border flex items-center justify-center font-bold ${
+                isDark ? 'bg-[#000000] border-slate-700 text-slate-400' : 'bg-white border-2 border-slate-300 text-slate-600'
+              }`}>
                 <User className="w-10 h-10 stroke-1" />
               </div>
 
@@ -569,35 +593,39 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   href={`https://wa.me/55${whatsapp.replace(/\D/g, '')}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="p-2 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition shadow-xs flex items-center gap-1.5 text-xs font-bold"
+                  className="p-2 px-3 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition shadow-xs flex items-center gap-1.5 text-xs border border-emerald-500"
                 >
-                  <MessageCircle className="w-4 h-4 fill-emerald-600 text-emerald-600" />
+                  <MessageCircle className="w-4 h-4 fill-white text-emerald-600" />
                   <span>WhatsApp</span>
                 </a>
               )}
             </div>
 
             {/* Campos Principais */}
-            <div className="space-y-3">
+            <div className={`p-4 rounded-2xl border space-y-3 ${
+              isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+            }`}>
               <div>
-                <label className="text-[11px] font-bold text-slate-400 block mb-1">Nome</label>
+                <label className={`text-[11px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Nome</label>
                 <input
                   type="text"
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
-                  className="w-full bg-white border-b border-slate-300 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
+                  className={`w-full border-b py-1.5 text-xs font-bold focus:outline-none focus:border-emerald-500 transition ${
+                    isDark ? 'bg-transparent border-slate-700 text-white' : 'bg-transparent border-slate-300 text-black'
+                  }`}
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-400 block mb-1">Celular/WhatsApp</label>
-                <div className="flex items-center gap-2 border-b border-slate-300 py-1.5">
+                <label className={`text-[11px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Celular/WhatsApp</label>
+                <div className={`flex items-center gap-2 border-b py-1.5 ${isDark ? 'border-slate-700' : 'border-slate-300'}`}>
                   <span className="text-sm">🇧🇷</span>
                   <input
                     type="text"
                     value={whatsapp}
                     onChange={(e) => setWhatsapp(e.target.value)}
-                    className="w-full bg-white text-xs font-bold text-slate-800 focus:outline-none"
+                    className={`w-full bg-transparent text-xs font-bold focus:outline-none ${isDark ? 'text-white' : 'text-black'}`}
                     placeholder="5588988808161"
                   />
                 </div>
@@ -607,18 +635,22 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
               <button
                 type="button"
                 onClick={() => setMostrarModalEndereco(true)}
-                className="w-full py-2.5 flex items-center justify-between border-b border-slate-200 text-xs font-medium text-slate-500 hover:text-slate-800 text-left"
+                className={`w-full py-2.5 flex items-center justify-between border-b text-xs font-bold transition ${
+                  isDark ? 'border-slate-700 text-white hover:text-emerald-400' : 'border-slate-300 text-black hover:text-emerald-700'
+                }`}
               >
                 <span>{enderecoLogradouro ? `${enderecoLogradouro}, ${enderecoNumero}` : 'Endereço (opcional)'}</span>
-                <ChevronRight className="w-4 h-4 text-slate-400" />
+                <ChevronRight className={`w-4 h-4 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
               </button>
 
               {/* Acordeão de Opcionais (TELA14) */}
-              <div className="pt-2 border-t border-slate-100">
+              <div className={`pt-2 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                 <button
                   type="button"
                   onClick={() => setMostrarOpcionais(!mostrarOpcionais)}
-                  className="w-full py-2 flex items-center justify-between text-xs font-bold text-slate-700"
+                  className={`w-full py-2 flex items-center justify-between text-xs font-black transition ${
+                    isDark ? 'text-white' : 'text-black'
+                  }`}
                 >
                   <span>Opcionais</span>
                   {mostrarOpcionais ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -627,56 +659,68 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                 {mostrarOpcionais && (
                   <div className="space-y-3 pt-2 animate-in fade-in">
                     <div>
-                      <label className="text-[11px] font-bold text-slate-400 block mb-1">Data de aniversário</label>
+                      <label className={`text-[11px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Data de aniversário</label>
                       <input
                         type="date"
                         value={dataAniversario}
                         onChange={(e) => setDataAniversario(e.target.value)}
-                        className="w-full bg-white border-b border-slate-300 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
+                        className={`w-full border-b py-1.5 text-xs font-bold focus:outline-none focus:border-emerald-500 transition ${
+                          isDark ? 'bg-transparent border-slate-700 text-white' : 'bg-transparent border-slate-300 text-black'
+                        }`}
                       />
                     </div>
 
                     <div>
-                      <label className="text-[11px] font-bold text-slate-400 block mb-1">E-mail</label>
+                      <label className={`text-[11px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>E-mail</label>
                       <input
                         type="email"
                         placeholder="cliente@exemplo.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full bg-white border-b border-slate-300 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
+                        className={`w-full border-b py-1.5 text-xs font-bold focus:outline-none focus:border-emerald-500 transition ${
+                          isDark ? 'bg-transparent border-slate-700 text-white placeholder:text-slate-500' : 'bg-transparent border-slate-300 text-black placeholder:text-slate-400'
+                        }`}
                       />
                     </div>
 
                     <div>
-                      <label className="text-[11px] font-bold text-slate-400 block mb-1">Telefone Fixo</label>
+                      <label className={`text-[11px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Telefone Fixo</label>
                       <input
                         type="text"
                         placeholder="Telefone secundário"
                         value={telefone}
                         onChange={(e) => setTelefone(e.target.value)}
-                        className="w-full bg-white border-b border-slate-300 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
+                        className={`w-full border-b py-1.5 text-xs font-bold focus:outline-none focus:border-emerald-500 transition ${
+                          isDark ? 'bg-transparent border-slate-700 text-white placeholder:text-slate-500' : 'bg-transparent border-slate-300 text-black placeholder:text-slate-400'
+                        }`}
                       />
                     </div>
 
                     <div>
-                      <label className="text-[11px] font-bold text-slate-400 block mb-1">CPF/CNPJ</label>
+                      <label className={`text-[11px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>CPF/CNPJ</label>
                       <input
                         type="text"
                         placeholder="Documento"
                         value={numeroDocumento}
                         onChange={(e) => setNumeroDocumento(e.target.value)}
-                        className="w-full bg-white border-b border-slate-300 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
+                        className={`w-full border-b py-1.5 text-xs font-bold focus:outline-none focus:border-emerald-500 transition ${
+                          isDark ? 'bg-transparent border-slate-700 text-white placeholder:text-slate-500' : 'bg-transparent border-slate-300 text-black placeholder:text-slate-400'
+                        }`}
                       />
                     </div>
 
                     <div>
-                      <label className="text-[11px] font-bold text-slate-400 block mb-1">Observação</label>
+                      <label className={`text-[11px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Observação</label>
                       <textarea
                         rows={2}
                         placeholder="Observações internas..."
                         value={observacoes}
                         onChange={(e) => setObservacoes(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
+                        className={`w-full rounded-xl p-2 text-xs font-medium focus:outline-none focus:border-emerald-500 transition resize-none ${
+                          isDark
+                            ? 'bg-[#000000] border border-slate-700 text-white placeholder:text-slate-500'
+                            : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400'
+                        }`}
                       />
                     </div>
                   </div>
@@ -684,10 +728,10 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
               </div>
 
               {/* Permitir Fiado Switch */}
-              <div className="flex items-center justify-between py-3 border-t border-slate-100">
+              <div className={`flex items-center justify-between py-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                 <div>
-                  <span className="text-xs font-bold text-slate-700 block">Permitir fiado</span>
-                  <span className="text-[10px] text-slate-400">
+                  <span className={`text-xs font-black block ${isDark ? 'text-white' : 'text-black'}`}>Permitir fiado</span>
+                  <span className={`text-[10px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                     {permiteFiado ? 'Vendas a prazo liberadas' : 'Apenas pagamentos à vista'}
                   </span>
                 </div>
@@ -698,20 +742,26 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                     onChange={(e) => setPermiteFiado(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  <div className={`w-11 h-6 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 ${
+                    isDark ? 'bg-slate-800 after:border-slate-700' : 'bg-slate-300 after:border-slate-300'
+                  }`}></div>
                 </label>
               </div>
 
               {/* Limite de Crédito / Fiado: exibido quando permitir fiado estiver ativo */}
               {permiteFiado && (
-                <div className="pt-1 pb-3 border-t border-slate-100/80 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-2xl p-3 space-y-1.5">
-                    <label className="text-[11px] font-bold text-emerald-800 flex items-center justify-between">
+                <div className={`pt-1 pb-3 border-t animate-in fade-in slide-in-from-top-2 duration-200 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                  <div className={`border rounded-2xl p-3 space-y-1.5 ${
+                    isDark
+                      ? 'bg-[#000000] border-emerald-500/40 text-white'
+                      : 'bg-emerald-50/50 border-2 border-emerald-300 text-black'
+                  }`}>
+                    <label className={`text-[11px] font-black flex items-center justify-between ${isDark ? 'text-white' : 'text-black'}`}>
                       <span>Limite de Crédito / Fiado (R$) *</span>
-                      <span className="text-[10px] text-emerald-600 font-normal">Teto máximo de débito</span>
+                      <span className={`text-[10px] font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>Teto máximo de débito</span>
                     </label>
                     <div className="relative">
-                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-emerald-600">R$</span>
+                      <span className={`absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-black ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>R$</span>
                       <input
                         type="number"
                         step="0.01"
@@ -719,7 +769,11 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                         placeholder="500,00"
                         value={limiteCredito}
                         onChange={(e) => setLimiteCredito(e.target.value)}
-                        className="w-full bg-white border border-emerald-300 rounded-xl pl-10 pr-3 py-2 text-sm font-bold text-emerald-900 placeholder:text-emerald-300 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition"
+                        className={`w-full rounded-xl pl-10 pr-3 py-2 text-sm font-black focus:outline-none transition ${
+                          isDark
+                            ? 'bg-[#000000] border border-emerald-500 text-emerald-400 placeholder:text-slate-600'
+                            : 'bg-white border-2 border-emerald-600 text-emerald-800 placeholder:text-slate-400'
+                        }`}
                       />
                     </div>
                   </div>
@@ -742,26 +796,24 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   }}
                   className={`p-3 rounded-2xl border transition text-left shadow-xs ${
                     valorFiadoAVencer > 0
-                      ? 'bg-amber-50/80 border-amber-200/80 hover:bg-amber-100/60 active:scale-[0.98] cursor-pointer'
-                      : 'bg-slate-50 border-slate-200 opacity-70 cursor-default'
+                      ? isDark
+                        ? 'bg-[#000000] border-amber-500/40 hover:bg-slate-900 active:scale-[0.98] cursor-pointer'
+                        : 'bg-white border-2 border-amber-300 hover:bg-amber-50 active:scale-[0.98] cursor-pointer'
+                      : isDark
+                        ? 'bg-[#000000] border-slate-700 opacity-60 cursor-default'
+                        : 'bg-white border-2 border-slate-300 opacity-60 cursor-default'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                      valorFiadoAVencer > 0 ? 'text-amber-800' : 'text-slate-400'
-                    }`}>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-500">
                       Valor Fiado
                     </span>
-                    <Receipt className={`w-3.5 h-3.5 ${valorFiadoAVencer > 0 ? 'text-amber-600' : 'text-slate-400'}`} />
+                    <Receipt className="w-3.5 h-3.5 text-amber-500" />
                   </div>
-                  <div className={`text-base font-black truncate ${
-                    valorFiadoAVencer > 0 ? 'text-amber-700' : 'text-slate-500'
-                  }`}>
+                  <div className="text-base font-black truncate text-amber-500 font-mono">
                     R$ {valorFiadoAVencer.toFixed(2)}
                   </div>
-                  <span className={`text-[9px] font-bold block mt-0.5 ${
-                    valorFiadoAVencer > 0 ? 'text-amber-600/90' : 'text-slate-400'
-                  }`}>
+                  <span className="text-[9px] font-bold block mt-0.5 text-amber-500">
                     {valorFiadoAVencer > 0 ? 'A vencer →' : 'Em dia'}
                   </span>
                 </button>
@@ -778,26 +830,24 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   }}
                   className={`p-3 rounded-2xl border transition text-left shadow-xs ${
                     valorVencido > 0
-                      ? 'bg-rose-50 border-rose-200 hover:bg-rose-100/60 active:scale-[0.98] cursor-pointer'
-                      : 'bg-slate-50 border-slate-200 opacity-70 cursor-default'
+                      ? isDark
+                        ? 'bg-[#000000] border-rose-500/40 hover:bg-slate-900 active:scale-[0.98] cursor-pointer'
+                        : 'bg-white border-2 border-rose-300 hover:bg-rose-50 active:scale-[0.98] cursor-pointer'
+                      : isDark
+                        ? 'bg-[#000000] border-slate-700 opacity-60 cursor-default'
+                        : 'bg-white border-2 border-slate-300 opacity-60 cursor-default'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className={`text-[10px] font-bold uppercase tracking-wider truncate ${
-                      valorVencido > 0 ? 'text-rose-800' : 'text-slate-400'
-                    }`}>
+                    <span className="text-[10px] font-black uppercase tracking-wider truncate text-rose-500">
                       Valor Vencido
                     </span>
-                    <Clock className={`w-3.5 h-3.5 ${valorVencido > 0 ? 'text-rose-500' : 'text-slate-400'}`} />
+                    <Clock className="w-3.5 h-3.5 text-rose-500" />
                   </div>
-                  <div className={`text-base font-black truncate ${
-                    valorVencido > 0 ? 'text-rose-600' : 'text-slate-500'
-                  }`}>
+                  <div className="text-base font-black truncate text-rose-500 font-mono">
                     R$ {valorVencido.toFixed(2)}
                   </div>
-                  <span className={`text-[9px] font-bold block mt-0.5 ${
-                    valorVencido > 0 ? 'text-rose-600' : 'text-slate-400'
-                  }`}>
+                  <span className="text-[9px] font-bold block mt-0.5 text-rose-500">
                     {valorVencido > 0 ? 'Expirou vencimento →' : 'Tudo em dia'}
                   </span>
                 </button>
@@ -810,9 +860,9 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                 type="button"
                 onClick={handleSalvarDados}
                 disabled={salvando}
-                className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs uppercase tracking-wider shadow-md transition disabled:opacity-50 cursor-pointer"
+                className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider shadow-md border border-emerald-500 transition disabled:opacity-50 cursor-pointer"
               >
-                {salvando ? 'Salvando...' : 'Salvar'}
+                {salvando ? 'Salvando...' : 'Salvar Alterações'}
               </button>
             </div>
           </div>
@@ -823,15 +873,19 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
         {/* ================================================================= */}
         {abaAtiva === 'vendas' && (
           <div className="flex flex-col h-full">
-            <div className="p-3 border-b border-slate-100 bg-slate-50">
+            <div className={`p-3 border-b ${isDark ? 'border-slate-700 bg-[#08131A]' : 'border-slate-300 bg-slate-100'}`}>
               <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
                 <input
                   type="text"
                   placeholder="Item, cliente ou código"
                   value={buscaVendas}
                   onChange={(e) => setBuscaVendas(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none"
+                  className={`w-full rounded-xl pl-9 pr-3 py-2 text-xs font-medium focus:outline-none transition ${
+                    isDark
+                      ? 'bg-[#000000] border border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500'
+                      : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-600'
+                  }`}
                 />
               </div>
             </div>
@@ -839,21 +893,25 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
             <div className="flex-1 p-4 space-y-3">
               {vendasFiltradas.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
-                  <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+                  <div className={`w-16 h-16 rounded-2xl flex items-center justify-center font-bold ${
+                    isDark ? 'bg-[#000000] border border-slate-700 text-slate-500' : 'bg-slate-200 border-2 border-slate-300 text-slate-500'
+                  }`}>
                     <Receipt className="w-8 h-8 stroke-1" />
                   </div>
-                  <p className="text-xs text-slate-500 font-medium">Sem vendas concluídas para este cliente</p>
+                  <p className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Sem vendas concluídas para este cliente</p>
                 </div>
               ) : (
                 vendasFiltradas.map((pedido) => (
-                  <div key={pedido.id} className="p-3.5 rounded-2xl border border-slate-200 space-y-1">
-                    <div className="flex items-center justify-between text-xs font-black text-slate-900">
-                      <span>R$ {Number(pedido.valor_total).toFixed(2)}</span>
-                      <span className="text-[10px] text-slate-400 font-normal">
+                  <div key={pedido.id} className={`p-3.5 rounded-2xl border space-y-1 shadow-xs ${
+                    isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+                  }`}>
+                    <div className="flex items-center justify-between text-xs font-black">
+                      <span className="font-mono">R$ {Number(pedido.valor_total).toFixed(2)}</span>
+                      <span className={`text-[10px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                         {new Date(pedido.data_venda).toLocaleDateString('pt-BR')}
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-500 truncate">
+                    <p className={`text-[11px] font-medium truncate ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                       {(pedido.itens || pedido.itens_pedido)?.map((i: any) => `${i.quantidade}x ${i.nome_produto}`).join(', ')}
                     </p>
                   </div>
@@ -862,9 +920,11 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
             </div>
 
             {/* Rodapé da Aba Vendas */}
-            <div className="p-3 bg-slate-900 text-white flex items-center justify-between text-xs shrink-0">
-              <span className="text-slate-400">Total em vendas concluídas</span>
-              <span className="font-black text-emerald-400">
+            <div className={`p-3 border-t flex items-center justify-between text-xs shrink-0 ${
+              isDark ? 'bg-[#08131A] border-slate-700 text-white' : 'bg-slate-200 border-slate-300 text-black'
+            }`}>
+              <span className={`font-bold ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Total em vendas concluídas</span>
+              <span className="font-black text-emerald-500 font-mono">
                 R$ {totalVendasPeriodo.toFixed(2)} em {vendasFiltradas.length} venda(s)
               </span>
             </div>
@@ -876,45 +936,51 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
         {/* ================================================================= */}
         {abaAtiva === 'pedidos' && (
           <div className="flex flex-col h-full">
-            <div className="p-3 border-b border-slate-100 bg-slate-50">
+            <div className={`p-3 border-b ${isDark ? 'border-slate-700 bg-[#08131A]' : 'border-slate-300 bg-slate-100'}`}>
               <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
                 <input
                   type="text"
                   placeholder="Item, cliente ou código"
                   value={buscaPedidos}
                   onChange={(e) => setBuscaPedidos(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none"
+                  className={`w-full rounded-xl pl-9 pr-3 py-2 text-xs font-medium focus:outline-none transition ${
+                    isDark
+                      ? 'bg-[#000000] border border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500'
+                      : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-600'
+                  }`}
                 />
               </div>
             </div>
 
             <div className="flex-1 p-4 space-y-3">
               {pedidosFiltrados.length === 0 ? (
-                <div className="text-center py-20 text-xs text-slate-400">
+                <div className={`text-center py-20 text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                   Nenhum pedido em andamento para este cliente.
                 </div>
               ) : (
                 pedidosFiltrados.map((pedido) => {
                   const its = pedido.itens || pedido.itens_pedido || [];
                   return (
-                    <div key={pedido.id} className="p-3.5 rounded-2xl border border-slate-200 space-y-1 bg-white">
-                      <div className="flex items-center justify-between text-xs font-black text-slate-900">
-                        <div className="flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-slate-400" />
+                    <div key={pedido.id} className={`p-3.5 rounded-2xl border space-y-1 shadow-xs ${
+                      isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+                    }`}>
+                      <div className="flex items-center justify-between text-xs font-black">
+                        <div className="flex items-center gap-1.5 font-mono">
+                          <Clock className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
                           <span>R$ {Number(pedido.valor_total).toFixed(2)}</span>
                         </div>
-                        <span className="text-[10px] text-slate-400 font-normal">
+                        <span className={`text-[10px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                           {new Date(pedido.data_venda).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
 
-                      <p className="text-[10px] text-slate-500 truncate">
+                      <p className={`text-[10px] font-medium truncate ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                         {its.length} itens: {its.map((i: any) => `${i.quantidade}x ${i.nome_produto}`).join(', ')}
                       </p>
-                      <div className="flex items-center justify-between text-[9px] text-slate-400">
-                        <span>#{pedido.numero_pedido}</span>
-                        <span className="font-semibold text-emerald-600 uppercase">{pedido.status}</span>
+                      <div className="flex items-center justify-between text-[9px] font-black">
+                        <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>#{pedido.numero_pedido}</span>
+                        <span className="text-emerald-500 uppercase">{pedido.status}</span>
                       </div>
                     </div>
                   );
@@ -923,9 +989,11 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
             </div>
 
             {/* Rodapé da Aba Pedidos */}
-            <div className="p-3 bg-slate-900 text-white flex items-center justify-between text-xs shrink-0">
-              <span className="text-slate-400">Total em pedidos ativos</span>
-              <span className="font-black text-emerald-400">
+            <div className={`p-3 border-t flex items-center justify-between text-xs shrink-0 ${
+              isDark ? 'bg-[#08131A] border-slate-700 text-white' : 'bg-slate-200 border-slate-300 text-black'
+            }`}>
+              <span className={`font-bold ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Total em pedidos ativos</span>
+              <span className="font-black text-emerald-500 font-mono">
                 R$ {totalPedidosPeriodo.toFixed(2)} em {pedidosFiltrados.length} pedido(s)
               </span>
             </div>
@@ -940,28 +1008,32 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
           <div className="flex flex-col justify-between h-full p-4 overflow-y-auto space-y-4">
             <div className="space-y-4">
               {/* CARD 1: DÍVIDA A PRAZO (FIADO) */}
-              <div className={`p-4 rounded-3xl border text-center space-y-3 ${
-                saldoDevedorFiado > 0 ? 'bg-rose-50/70 border-rose-200' : 'bg-slate-50 border-slate-200'
+              <div className={`p-4 rounded-3xl border-2 text-center space-y-3 ${
+                isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-slate-300 text-black'
               }`}>
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                  <span className={`text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                     Conta a Prazo (Fiado)
                   </span>
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
                     saldoDevedorFiado > 0
-                      ? 'bg-rose-100 text-rose-700 border-rose-300'
-                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      ? isDark
+                        ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                        : 'bg-rose-100 text-rose-800 border-rose-300'
+                      : isDark
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                        : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                   }`}>
                     {saldoDevedorFiado > 0 ? '● Débito Pendente' : '● Em Dia'}
                   </span>
                 </div>
 
                 <div>
-                  <span className="text-xs uppercase tracking-wider font-bold text-slate-400 block">
+                  <span className={`text-xs uppercase tracking-wider font-bold block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                     Saldo Devedor
                   </span>
-                  <div className={`text-3xl sm:text-4xl font-black tracking-tight ${
-                    saldoDevedorFiado > 0 ? 'text-rose-600' : 'text-slate-700'
+                  <div className={`text-3xl sm:text-4xl font-black tracking-tight font-mono ${
+                    saldoDevedorFiado > 0 ? 'text-rose-500' : isDark ? 'text-white' : 'text-black'
                   }`}>
                     R$ {saldoDevedorFiado.toFixed(2)}
                   </div>
@@ -976,7 +1048,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                       setObsQuitar('');
                       setModalQuitarFiado(true);
                     }}
-                    className="w-full py-3 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs shadow-md shadow-rose-600/25 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+                    className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
                   >
                     <DollarSign className="w-4 h-4" />
                     <span>Quitar / Abater Fiado</span>
@@ -985,21 +1057,27 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
               </div>
 
               {/* CARD 2: SALDO DE CRÉDITOS (PRÉ-PAGO / ADIANTAMENTOS) */}
-              <div className="p-4 rounded-3xl border border-slate-200 bg-white text-center space-y-3">
+              <div className={`p-4 rounded-3xl border-2 text-center space-y-3 ${
+                isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-slate-300 text-black'
+              }`}>
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                  <span className={`text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                     Créditos na Loja
                   </span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
+                    isDark
+                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                      : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                  }`}>
                     Adiantamentos
                   </span>
                 </div>
 
                 <div>
-                  <span className="text-xs uppercase tracking-wider font-bold text-slate-400 block">
+                  <span className={`text-xs uppercase tracking-wider font-bold block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                     Saldo Disponível
                   </span>
-                  <div className="text-3xl sm:text-4xl font-black text-emerald-600 tracking-tight">
+                  <div className="text-3xl sm:text-4xl font-black text-emerald-500 tracking-tight font-mono">
                     R$ {saldoCredito.toFixed(2)}
                   </div>
                 </div>
@@ -1012,7 +1090,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                       setEtapaAjuste('valor');
                       setModalAjusteSaldo(true);
                     }}
-                    className="w-full py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs shadow-sm transition cursor-pointer active:scale-95"
+                    className="w-full py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 transition cursor-pointer active:scale-95"
                   >
                     Adicionar créditos
                   </button>
@@ -1023,7 +1101,9 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                       setEtapaAjuste('valor');
                       setModalAjusteSaldo(true);
                     }}
-                    className="text-[11px] font-bold text-slate-500 hover:text-slate-800 hover:underline block mx-auto pt-0.5 cursor-pointer"
+                    className={`text-[11px] font-black hover:underline block mx-auto pt-0.5 cursor-pointer ${
+                      isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-black'
+                    }`}
                   >
                     Ajuste de saldo
                   </button>
@@ -1039,7 +1119,11 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   carregarExtratoCreditos();
                   setModalExtrato(true);
                 }}
-                className="w-full py-3 rounded-2xl border-2 border-slate-200 hover:border-slate-300 text-slate-800 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+                className={`w-full py-3 rounded-2xl border-2 font-black text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
+                  isDark
+                    ? 'bg-[#000000] hover:bg-slate-900 border-slate-700 text-white'
+                    : 'bg-white hover:bg-slate-50 border-slate-300 text-black'
+                }`}
               >
                 <Receipt className="w-4 h-4" />
                 <span>Extrato da conta</span>
@@ -1053,14 +1137,17 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
       {/* MODAL AJUSTE DE SALDO (PASSO A PASSO TELA13) */}
       {/* ================================================================= */}
       {modalAjusteSaldo && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-5 w-full max-w-xs space-y-4 shadow-2xl animate-in zoom-in-95 text-slate-900">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <h3 className="font-bold text-sm text-slate-800">Ajuste de Saldo</h3>
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`border-2 rounded-3xl p-5 w-full max-w-xs space-y-4 shadow-2xl animate-in zoom-in-95 ${
+            isDark ? 'bg-[#08131A] border-slate-400 text-white' : 'bg-slate-100 border-slate-300 text-black'
+          }`}>
+            <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-700' : 'border-slate-300'}`}>
+              <h3 className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>Ajuste de Saldo</h3>
               <button
                 type="button"
                 onClick={() => setModalAjusteSaldo(false)}
-                className="p-1 rounded-full text-slate-400 hover:bg-slate-100"
+                className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
+                title="Fechar"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1072,31 +1159,43 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   <button
                     type="button"
                     onClick={() => setTipoAjuste('adicionar')}
-                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${
-                      tipoAjuste === 'adicionar' ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-600'
+                    className={`flex-1 py-2 rounded-xl text-xs font-black transition border cursor-pointer ${
+                      tipoAjuste === 'adicionar'
+                        ? 'bg-emerald-600 text-white border-emerald-500'
+                        : isDark
+                          ? 'bg-[#000000] border-slate-700 text-white'
+                          : 'bg-white border-2 border-slate-300 text-black'
                     }`}
                   >
-                    + Adicionar valor
+                    + Adicionar
                   </button>
                   <button
                     type="button"
                     onClick={() => setTipoAjuste('subtrair')}
-                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${
-                      tipoAjuste === 'subtrair' ? 'bg-rose-500 text-white' : 'bg-slate-100 text-slate-600'
+                    className={`flex-1 py-2 rounded-xl text-xs font-black transition border cursor-pointer ${
+                      tipoAjuste === 'subtrair'
+                        ? 'bg-rose-600 text-white border-rose-500'
+                        : isDark
+                          ? 'bg-[#000000] border-slate-700 text-white'
+                          : 'bg-white border-2 border-slate-300 text-black'
                     }`}
                   >
-                    - Subtrair valor
+                    - Subtrair
                   </button>
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 block mb-1">Valor (R$)</label>
+                  <label className={`text-[11px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Valor (R$)</label>
                   <input
                     type="text"
                     placeholder="0,00"
                     value={valorAjusteStr}
                     onChange={(e) => setValorAjusteStr(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-lg font-black text-slate-800 focus:outline-none focus:border-emerald-500"
+                    className={`w-full rounded-xl p-3 text-lg font-black text-center focus:outline-none transition ${
+                      isDark
+                        ? 'bg-[#000000] border border-slate-700 text-white placeholder:text-slate-600 focus:border-emerald-500'
+                        : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-600'
+                    }`}
                     autoFocus
                   />
                 </div>
@@ -1111,7 +1210,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                     }
                     setEtapaAjuste('observacao');
                   }}
-                  className="w-full py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs flex items-center justify-center gap-1 shadow-md transition cursor-pointer"
+                  className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center justify-center gap-1 shadow-md border border-emerald-500 transition cursor-pointer"
                 >
                   <span>Avançar</span>
                   <ArrowRight className="w-4 h-4" />
@@ -1119,27 +1218,33 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="p-3 bg-slate-50 rounded-2xl text-xs space-y-1">
-                  <div className="flex justify-between text-slate-500">
-                    <span>Operação:</span>
-                    <span className="font-bold uppercase text-slate-800">{tipoAjuste}</span>
+                <div className={`p-3 rounded-2xl text-xs space-y-1 border ${
+                  isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+                }`}>
+                  <div className="flex justify-between">
+                    <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Operação:</span>
+                    <span className="font-black uppercase">{tipoAjuste}</span>
                   </div>
-                  <div className="flex justify-between text-slate-500">
-                    <span>Valor:</span>
-                    <span className="font-black text-slate-800">R$ {parseFloat(valorAjusteStr.replace(',', '.')).toFixed(2)}</span>
+                  <div className="flex justify-between">
+                    <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Valor:</span>
+                    <span className="font-mono font-black text-emerald-500">R$ {parseFloat(valorAjusteStr.replace(',', '.')).toFixed(2)}</span>
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-slate-400 block mb-1">
+                  <label className={`text-[11px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>
                     Observação para sua equipe
                   </label>
                   <textarea
                     rows={3}
-                    placeholder="Ex: Cashback por promoção, bônus de aniversário..."
+                    placeholder="Ex: Cashback por promoção, bônus..."
                     value={observacaoAjuste}
                     onChange={(e) => setObservacaoAjuste(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
+                    className={`w-full rounded-xl p-2.5 text-xs font-medium focus:outline-none transition resize-none ${
+                      isDark
+                        ? 'bg-[#000000] border border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500'
+                        : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-600'
+                    }`}
                     autoFocus
                   />
                 </div>
@@ -1148,7 +1253,11 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   <button
                     type="button"
                     onClick={() => setEtapaAjuste('valor')}
-                    className="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-600 font-bold text-xs"
+                    className={`flex-1 py-3 rounded-2xl font-bold text-xs transition cursor-pointer ${
+                      isDark
+                        ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-white'
+                        : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black'
+                    }`}
                   >
                     Voltar
                   </button>
@@ -1156,9 +1265,9 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                     type="button"
                     onClick={handleConfirmarAjusteSaldo}
                     disabled={processandoAjuste}
-                    className="flex-1 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs shadow-md transition disabled:opacity-50 cursor-pointer"
+                    className="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 transition disabled:opacity-50 cursor-pointer"
                   >
-                    {processandoAjuste ? 'Ajustando...' : 'Ajuste de saldo'}
+                    {processandoAjuste ? 'Ajustando...' : 'Confirmar'}
                   </button>
                 </div>
               </div>
@@ -1171,41 +1280,44 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
       {/* MODAL EXTRATO DA CONTA */}
       {/* ================================================================= */}
       {modalExtrato && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-5 w-full max-w-sm space-y-3 shadow-2xl animate-in zoom-in-95 max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2 shrink-0">
-              <h3 className="font-bold text-sm text-slate-800">Extrato de Créditos</h3>
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`border-2 rounded-3xl p-5 w-full max-w-sm space-y-3 shadow-2xl animate-in zoom-in-95 max-h-[85vh] flex flex-col ${
+            isDark ? 'bg-[#08131A] border-slate-400 text-white' : 'bg-slate-100 border-slate-300 text-black'
+          }`}>
+            <div className={`flex items-center justify-between border-b pb-2 shrink-0 ${isDark ? 'border-slate-700' : 'border-slate-300'}`}>
+              <h3 className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>Extrato de Créditos</h3>
               <button
                 type="button"
                 onClick={() => setModalExtrato(false)}
-                className="p-1 rounded-full text-slate-400 hover:bg-slate-100"
+                className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
+                title="Fechar"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto divide-y divide-slate-100 space-y-2">
+            <div className={`flex-1 overflow-y-auto divide-y space-y-2 ${isDark ? 'divide-slate-800' : 'divide-slate-200'}`}>
               {carregandoExtrato ? (
-                <div className="text-center py-8 text-xs text-slate-400">Carregando histórico...</div>
+                <div className={`text-center py-8 text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Carregando histórico...</div>
               ) : movimentacoes.length === 0 ? (
-                <div className="text-center py-8 text-xs text-slate-400">
+                <div className={`text-center py-8 text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                   Nenhuma movimentação de crédito registrada.
                 </div>
               ) : (
                 movimentacoes.map((m) => (
                   <div key={m.id} className="pt-2 first:pt-0 space-y-0.5 text-xs">
                     <div className="flex items-center justify-between">
-                      <span className={`font-black ${m.tipo === 'adicionar' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      <span className={`font-black font-mono ${m.tipo === 'adicionar' ? 'text-emerald-500' : 'text-rose-500'}`}>
                         {m.tipo === 'adicionar' ? '+' : '-'} R$ {Number(m.valor).toFixed(2)}
                       </span>
-                      <span className="text-[10px] text-slate-400">
+                      <span className={`text-[10px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                         {new Date(m.criado_em || '').toLocaleDateString('pt-BR')}
                       </span>
                     </div>
                     {m.observacao && (
-                      <p className="text-[11px] text-slate-600">{m.observacao}</p>
+                      <p className={`text-[11px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{m.observacao}</p>
                     )}
-                    <span className="text-[9px] text-slate-400 block">
+                    <span className={`text-[9px] font-mono block ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                       Saldo após: R$ {Number(m.saldo_posterior || 0).toFixed(2)}
                     </span>
                   </div>
@@ -1220,35 +1332,40 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
       {/* MODAL QUITAR / ABATER FIADO MOBILE */}
       {/* ================================================================= */}
       {modalQuitarFiado && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl animate-in slide-in-from-bottom duration-150 text-slate-900">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in">
+          <div className={`border-2 rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl animate-in slide-in-from-bottom duration-150 ${
+            isDark ? 'bg-[#08131A] border-slate-400 text-white' : 'bg-slate-100 border-slate-300 text-black'
+          }`}>
+            <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-700' : 'border-slate-300'}`}>
               <div className="flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-rose-600" />
-                <h3 className="font-bold text-sm text-slate-800">Quitar / Abater Fiado</h3>
+                <DollarSign className="w-4 h-4 text-emerald-500" />
+                <h3 className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>Quitar / Abater Fiado</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setModalQuitarFiado(false)}
-                className="p-1 rounded-full text-slate-400 hover:bg-slate-100"
+                className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
+                title="Fechar"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl flex items-center justify-between text-xs">
-              <span className="font-bold text-rose-800">Dívida Total Pendente:</span>
-              <span className="font-black text-rose-700 text-base">R$ {saldoDevedorFiado.toFixed(2)}</span>
+            <div className={`p-3 rounded-2xl flex items-center justify-between text-xs border ${
+              isDark ? 'bg-[#000000] border-rose-500/40 text-white' : 'bg-white border-2 border-rose-300 text-black'
+            }`}>
+              <span className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>Dívida Total Pendente:</span>
+              <span className="font-mono font-black text-rose-500 text-base">R$ {saldoDevedorFiado.toFixed(2)}</span>
             </div>
 
             <div className="space-y-3">
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-[11px] font-bold text-slate-500 uppercase">Valor a Abater (R$)</label>
+                  <label className={`text-[11px] font-black uppercase ${isDark ? 'text-white' : 'text-black'}`}>Valor a Abater (R$)</label>
                   <button
                     type="button"
                     onClick={() => setValorQuitarStr(saldoDevedorFiado.toFixed(2))}
-                    className="text-[10px] text-emerald-600 font-extrabold hover:underline"
+                    className="text-[10px] text-emerald-500 font-black hover:underline cursor-pointer"
                   >
                     Quitar Tudo
                   </button>
@@ -1258,12 +1375,16 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   placeholder="0,00"
                   value={valorQuitarStr}
                   onChange={(e) => setValorQuitarStr(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-base font-black text-slate-900 focus:outline-none focus:border-rose-500 text-center"
+                  className={`w-full rounded-xl px-3 py-2.5 text-base font-black text-center focus:outline-none transition ${
+                    isDark
+                      ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
+                      : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
+                  }`}
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Forma de Pagamento</label>
+                <label className={`text-[11px] font-black uppercase block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Forma de Pagamento</label>
                 <div className="grid grid-cols-2 gap-1.5">
                   {[
                     { id: 'dinheiro', rotulo: 'Dinheiro', icone: Banknote },
@@ -1278,10 +1399,12 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                         key={f.id}
                         type="button"
                         onClick={() => setFormaQuitar(f.id)}
-                        className={`p-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition ${
+                        className={`p-2 rounded-xl border text-xs font-black flex items-center gap-1.5 transition cursor-pointer ${
                           sel
-                            ? 'bg-rose-50 border-rose-500 text-rose-700'
-                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                            ? 'bg-emerald-600 border-emerald-500 text-white shadow-xs'
+                            : isDark
+                              ? 'bg-[#000000] border-slate-700 text-white hover:bg-slate-900'
+                              : 'bg-white border-2 border-slate-300 text-black hover:bg-slate-50'
                         }`}
                       >
                         <Icon className="w-3.5 h-3.5" />
@@ -1293,13 +1416,17 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase block mb-1">Observações (Opcional)</label>
+                <label className={`text-[11px] font-black uppercase block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Observações (Opcional)</label>
                 <input
                   type="text"
-                  placeholder="Ex: Pago pelo WhatsApp, comprovante em anexo..."
+                  placeholder="Ex: Pago pelo WhatsApp..."
                   value={obsQuitar}
                   onChange={(e) => setObsQuitar(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-rose-500"
+                  className={`w-full rounded-xl px-3 py-2 text-xs font-medium focus:outline-none transition ${
+                    isDark
+                      ? 'bg-[#000000] border border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500'
+                      : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-600'
+                  }`}
                 />
               </div>
 
@@ -1307,7 +1434,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                 type="button"
                 disabled={processandoQuitar}
                 onClick={handleConfirmarQuitarFiado}
-                className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-600/25 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Check className="w-4 h-4 stroke-[3]" />
                 <span>{processandoQuitar ? 'Processando...' : 'Confirmar Abatimento'}</span>
@@ -1321,14 +1448,17 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
       {/* MODAL DE EDIÇÃO DE ENDEREÇO */}
       {/* ================================================================= */}
       {mostrarModalEndereco && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-5 w-full max-w-sm space-y-3 shadow-2xl animate-in zoom-in-95">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <h3 className="font-bold text-sm text-slate-800">Endereço de Entrega</h3>
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`border-2 rounded-3xl p-5 w-full max-w-sm space-y-3 shadow-2xl animate-in zoom-in-95 ${
+            isDark ? 'bg-[#08131A] border-slate-400 text-white' : 'bg-slate-100 border-slate-300 text-black'
+          }`}>
+            <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-700' : 'border-slate-300'}`}>
+              <h3 className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>Endereço de Entrega</h3>
               <button
                 type="button"
                 onClick={() => setMostrarModalEndereco(false)}
-                className="p-1 rounded-full text-slate-400 hover:bg-slate-100"
+                className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
+                title="Fechar"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1336,51 +1466,71 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
 
             <div className="space-y-2 text-xs">
               <div>
-                <label className="text-[10px] font-bold text-slate-400">Rua / Logradouro</label>
+                <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Rua / Logradouro</label>
                 <input
                   type="text"
                   value={enderecoLogradouro}
                   onChange={(e) => setEnderecoLogradouro(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5"
+                  className={`w-full rounded-xl p-2.5 text-xs font-medium focus:outline-none transition ${
+                    isDark
+                      ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
+                      : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
+                  }`}
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400">Número</label>
+                  <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Número</label>
                   <input
                     type="text"
                     value={enderecoNumero}
                     onChange={(e) => setEnderecoNumero(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5"
+                    className={`w-full rounded-xl p-2.5 text-xs font-medium focus:outline-none transition ${
+                      isDark
+                        ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
+                        : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
+                    }`}
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400">Bairro</label>
+                  <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Bairro</label>
                   <input
                     type="text"
                     value={enderecoBairro}
                     onChange={(e) => setEnderecoBairro(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5"
+                    className={`w-full rounded-xl p-2.5 text-xs font-medium focus:outline-none transition ${
+                      isDark
+                        ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
+                        : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
+                    }`}
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400">Cidade</label>
+                  <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Cidade</label>
                   <input
                     type="text"
                     value={enderecoCidade}
                     onChange={(e) => setEnderecoCidade(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5"
+                    className={`w-full rounded-xl p-2.5 text-xs font-medium focus:outline-none transition ${
+                      isDark
+                        ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
+                        : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
+                    }`}
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400">Estado (UF)</label>
+                  <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Estado (UF)</label>
                   <input
                     type="text"
                     value={enderecoEstado}
                     onChange={(e) => setEnderecoEstado(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5"
+                    className={`w-full rounded-xl p-2.5 text-xs font-medium focus:outline-none transition ${
+                      isDark
+                        ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
+                        : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
+                    }`}
                     maxLength={2}
                   />
                 </div>
@@ -1390,7 +1540,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
             <button
               type="button"
               onClick={() => setMostrarModalEndereco(false)}
-              className="w-full py-3 rounded-2xl bg-emerald-500 text-white font-bold text-xs"
+              className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 transition cursor-pointer"
             >
               Concluir
             </button>

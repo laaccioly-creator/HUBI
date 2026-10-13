@@ -3084,7 +3084,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     setTempApiKey(k);
                     setModalKeyGemini(true);
                   }}
-                  className="h-9 px-3 rounded-xl text-xs font-medium border flex items-center justify-between transition-all w-full shadow-sm bg-white hover:bg-slate-50 dark:bg-slate-900/90 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer"
+                  className="h-9 px-3 rounded-xl text-xs font-medium border flex items-center justify-between transition-all w-full shadow-sm bg-white hover:bg-emerald-500/15 dark:bg-slate-900/90 dark:hover:bg-emerald-500/20 border-slate-200 hover:border-emerald-500/70 dark:border-slate-800 dark:hover:border-emerald-500/70 text-slate-700 hover:text-emerald-950 dark:text-slate-200 dark:hover:text-white cursor-pointer"
                   title="Configurar Chave Google Gemini AI"
                 >
                   <div className="flex items-center gap-2 truncate">
@@ -3100,7 +3100,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     type="button"
                     disabled={processandoIA}
                     onClick={handleAtualizarProdutoExistenteIA}
-                    className="h-9 px-3 rounded-xl text-xs font-medium border flex items-center justify-between transition-all w-full shadow-sm bg-white hover:bg-slate-50 dark:bg-slate-900/90 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer disabled:opacity-50"
+                    className="h-9 px-3 rounded-xl text-xs font-medium border flex items-center justify-between transition-all w-full shadow-sm bg-white hover:bg-emerald-500/15 dark:bg-slate-900/90 dark:hover:bg-emerald-500/20 border-slate-200 hover:border-emerald-500/70 dark:border-slate-800 dark:hover:border-emerald-500/70 text-slate-700 hover:text-emerald-950 dark:text-slate-200 dark:hover:text-white cursor-pointer disabled:opacity-50"
                     title="Atualizar o produto com nossa Inteligência Artificial"
                   >
                     <div className="flex items-center gap-2 truncate">
@@ -3116,7 +3116,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   <button
                     type="button"
                     onClick={() => setModalCriarComIAAberto(true)}
-                    className="h-9 px-3 rounded-xl text-xs font-medium border flex items-center justify-between transition-all w-full shadow-sm bg-white hover:bg-slate-50 dark:bg-slate-900/90 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer"
+                    className="h-9 px-3 rounded-xl text-xs font-medium border flex items-center justify-between transition-all w-full shadow-sm bg-white hover:bg-emerald-500/15 dark:bg-slate-900/90 dark:hover:bg-emerald-500/20 border-slate-200 hover:border-emerald-500/70 dark:border-slate-800 dark:hover:border-emerald-500/70 text-slate-700 hover:text-emerald-950 dark:text-slate-200 dark:hover:text-white cursor-pointer"
                     title="Preencher com nossa Inteligência Artificial"
                   >
                     <div className="flex items-center gap-2 truncate">
@@ -3130,7 +3130,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setModalGaleriaFotosAberto(true)}
-                  className="h-9 px-3 rounded-xl text-xs font-medium border flex items-center justify-between transition-all w-full shadow-sm bg-white hover:bg-slate-50 dark:bg-slate-900/90 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer"
+                  className="h-9 px-3 rounded-xl text-xs font-medium border flex items-center justify-between transition-all w-full shadow-sm bg-white hover:bg-emerald-500/15 dark:bg-slate-900/90 dark:hover:bg-emerald-500/20 border-slate-200 hover:border-emerald-500/70 dark:border-slate-800 dark:hover:border-emerald-500/70 text-slate-700 hover:text-emerald-950 dark:text-slate-200 dark:hover:text-white cursor-pointer"
                   title="Gerenciar galeria de fotos (até 7 fotos)"
                 >
                   <div className="flex items-center gap-2 truncate">
@@ -3146,7 +3146,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 <button
                   type="button"
                   onClick={handleAbrirPesquisaFotos}
-                  className="h-9 px-3 rounded-xl text-xs font-medium border flex items-center justify-between transition-all w-full shadow-sm bg-white hover:bg-slate-50 dark:bg-slate-900/90 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer"
+                  className="h-9 px-3 rounded-xl text-xs font-medium border flex items-center justify-between transition-all w-full shadow-sm bg-white hover:bg-emerald-500/15 dark:bg-slate-900/90 dark:hover:bg-emerald-500/20 border-slate-200 hover:border-emerald-500/70 dark:border-slate-800 dark:hover:border-emerald-500/70 text-slate-700 hover:text-emerald-950 dark:text-slate-200 dark:hover:text-white cursor-pointer"
                   title="Pesquisar fotos na internet de boa qualidade"
                 >
                   <div className="flex items-center gap-2 truncate">

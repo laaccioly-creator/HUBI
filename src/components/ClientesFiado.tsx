@@ -356,8 +356,8 @@ export const ClientesFiado: React.FC = () => {
 
   return (
     <div className="h-full w-full overflow-hidden select-none">
-      {/* 1. VISÃO MOBILE EXCLUSIVA (TEMA CLARO PADRÃO PEDIDOS/PRODUTOS) */}
-      <div className="block md:hidden h-full flex flex-col overflow-hidden bg-slate-50 text-slate-900">
+      {/* 1. VISÃO MOBILE EXCLUSIVA (CANÔNICA TEMA CLARO E TEMA ESCURO) */}
+      <div className={`block md:hidden h-full flex flex-col overflow-hidden ${isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-black'}`}>
         {/* Header Superior Mobile Unificado */}
         <MobileHeader
           titulo={`Clientes (${clientes.length})`}
@@ -373,14 +373,16 @@ export const ClientesFiado: React.FC = () => {
                 className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer border ${
                   filtroStatus === 'fiado'
                     ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
-                    : 'bg-white dark:bg-slate-800 border-amber-300 dark:border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-50'
+                    : isDark
+                    ? 'bg-[#000000] border-amber-500/50 text-amber-400 hover:bg-slate-900'
+                    : 'bg-white border-2 border-amber-300 text-amber-800 hover:bg-amber-50'
                 }`}
                 title="Filtrar clientes com fiado em aberto"
               >
                 <span>Fiado</span>
                 {totalClientesComFiado > 0 && (
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                    filtroStatus === 'fiado' ? 'bg-slate-950 text-amber-300 font-bold' : 'bg-amber-100 text-amber-800'
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                    filtroStatus === 'fiado' ? 'bg-slate-950 text-amber-300' : 'bg-amber-100 text-amber-800'
                   }`}>
                     {totalClientesComFiado}
                   </span>
@@ -394,7 +396,7 @@ export const ClientesFiado: React.FC = () => {
                   setClienteEditar(null);
                   setModalNovoCliente(true);
                 }}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-sm transition active:scale-95 cursor-pointer"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition active:scale-95 cursor-pointer border border-emerald-500"
                 title="Cadastrar Novo Cliente"
               >
                 <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -404,22 +406,25 @@ export const ClientesFiado: React.FC = () => {
           }
         />
 
-
         {/* Campo de Busca Integrado */}
-        <div className="p-3 bg-white border-b border-slate-200 shrink-0">
+        <div className={`p-3 border-b shrink-0 ${isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-slate-300'}`}>
           <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
             <input
               type="text"
               placeholder="Buscar por nome, telefone, email..."
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-8 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
+              className={`w-full rounded-xl pl-9 pr-8 py-2 text-xs transition focus:outline-none focus:ring-1 focus:ring-emerald-500 font-semibold ${
+                isDark
+                  ? 'bg-[#000000] border border-slate-700 text-white placeholder:text-slate-400 focus:border-emerald-500'
+                  : 'bg-slate-100 border-2 border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-600'
+              }`}
             />
             {busca && (
               <button
                 onClick={() => setBusca('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className={`absolute right-2.5 top-1/2 -translate-y-1/2 cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'}`}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -428,7 +433,7 @@ export const ClientesFiado: React.FC = () => {
         </div>
 
         {/* Resumo de Débito / Fiado: 3 Indicadores de Topo */}
-        <div className="p-3 grid grid-cols-3 gap-2 bg-slate-50 shrink-0">
+        <div className={`p-3 grid grid-cols-3 gap-2 shrink-0 ${isDark ? 'bg-[#08131A]' : 'bg-slate-100'}`}>
           {/* Card 1: Clientes */}
           <div
             onClick={() => {
@@ -437,17 +442,21 @@ export const ClientesFiado: React.FC = () => {
             }}
             className={`p-2.5 rounded-2xl border transition cursor-pointer flex flex-col justify-between ${
               filtroStatus === 'todos'
-                ? 'bg-white border-slate-300 shadow-xs ring-1 ring-slate-200'
-                : 'bg-white/80 border-slate-200 hover:bg-white'
+                ? isDark
+                  ? 'bg-[#000000] border-2 border-slate-400 shadow-sm'
+                  : 'bg-white border-2 border-slate-400 shadow-sm'
+                : isDark
+                ? 'bg-[#000000] border border-slate-700 hover:border-slate-600'
+                : 'bg-white border-2 border-slate-300 hover:border-slate-400'
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[9px] font-bold text-slate-500 uppercase truncate">Clientes</span>
+              <span className={`text-[9px] font-bold uppercase truncate ${isDark ? 'text-slate-300' : 'text-black'}`}>Clientes</span>
               {filtroStatus === 'todos' && (
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+                <span className={`w-1.5 h-1.5 rounded-full ${isDark ? 'bg-white' : 'bg-black'}`}></span>
               )}
             </div>
-            <p className="text-xs sm:text-sm font-black text-slate-800">
+            <p className={`text-xs sm:text-sm font-black ${isDark ? 'text-white' : 'text-black'}`}>
               {clientes.length}
             </p>
           </div>
@@ -461,17 +470,21 @@ export const ClientesFiado: React.FC = () => {
             }}
             className={`p-2.5 rounded-2xl border transition cursor-pointer flex flex-col justify-between ${
               filtroStatus === 'fiado'
-                ? 'bg-amber-50 border-amber-400 shadow-sm ring-2 ring-amber-400/30'
-                : 'bg-white border-slate-200 hover:bg-amber-50/50'
+                ? isDark
+                  ? 'bg-[#000000] border-2 border-amber-400 text-amber-400 shadow-sm'
+                  : 'bg-amber-50 border-2 border-amber-500 text-amber-900 shadow-sm'
+                : isDark
+                ? 'bg-[#000000] border border-slate-700 hover:border-amber-500/50 text-amber-400'
+                : 'bg-white border-2 border-slate-300 hover:border-amber-400 text-amber-700'
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[9px] font-bold text-amber-700 uppercase">Fiado</span>
+              <span className="text-[9px] font-bold uppercase">Fiado</span>
               {filtroStatus === 'fiado' && (
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
               )}
             </div>
-            <p className="text-xs sm:text-sm font-black text-amber-600 truncate">
+            <p className="text-xs sm:text-sm font-black truncate">
               R$ {totalFiadoAVencer.toFixed(2)}
             </p>
           </div>
@@ -485,28 +498,32 @@ export const ClientesFiado: React.FC = () => {
             }}
             className={`p-2.5 rounded-2xl border transition cursor-pointer flex flex-col justify-between ${
               filtroStatus === 'vencido'
-                ? 'bg-rose-50 border-rose-400 shadow-sm ring-2 ring-rose-400/30'
-                : 'bg-white border-slate-200 hover:bg-rose-50/50'
+                ? isDark
+                  ? 'bg-[#000000] border-2 border-rose-400 text-rose-400 shadow-sm'
+                  : 'bg-rose-50 border-2 border-rose-500 text-rose-900 shadow-sm'
+                : isDark
+                ? 'bg-[#000000] border border-slate-700 hover:border-rose-500/50 text-rose-400'
+                : 'bg-white border-2 border-slate-300 hover:border-rose-400 text-rose-700'
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[9px] font-bold text-rose-600 uppercase">Vencido</span>
+              <span className="text-[9px] font-bold uppercase">Vencido</span>
               {filtroStatus === 'vencido' && (
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
               )}
             </div>
-            <p className="text-xs sm:text-sm font-black text-rose-600 truncate">
+            <p className="text-xs sm:text-sm font-black truncate">
               R$ {totalFiadoVencido.toFixed(2)}
             </p>
           </div>
         </div>
 
-        {/* Lista de Clientes em Cards Brancos */}
+        {/* Lista de Clientes em Cards */}
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {carregando ? (
-            <div className="text-center py-16 text-xs text-slate-400">Carregando clientes...</div>
+            <div className="text-center py-16 text-xs text-slate-500 font-bold">Carregando clientes...</div>
           ) : clientesFiltrados.length === 0 ? (
-            <div className="text-center py-16 text-xs text-slate-400">Nenhum cliente encontrado.</div>
+            <div className="text-center py-16 text-xs text-slate-500 font-bold">Nenhum cliente encontrado.</div>
           ) : (
             clientesFiltrados.map((cliente) => {
               const emDebito = Number(cliente.saldo_devedor_fiado || 0) > 0;
@@ -519,19 +536,27 @@ export const ClientesFiado: React.FC = () => {
                   onClick={() => {
                     setClientePerfilMobile(cliente);
                   }}
-                  className="p-3 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 active:bg-slate-100 transition cursor-pointer space-y-2 shadow-xs"
+                  className={`p-3 rounded-2xl transition cursor-pointer space-y-2 shadow-xs ${
+                    isDark
+                      ? 'bg-[#000000] border border-slate-700 hover:bg-slate-900/60 active:bg-slate-900'
+                      : 'bg-white border-2 border-slate-300 hover:bg-slate-50 active:bg-slate-100'
+                  }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-9 h-9 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-xs flex items-center justify-center shrink-0">
+                      <div className={`w-9 h-9 rounded-full font-bold text-xs flex items-center justify-center shrink-0 ${
+                        isDark
+                          ? 'bg-[#000000] text-emerald-400 border border-emerald-500/50'
+                          : 'bg-emerald-50 text-emerald-800 border-2 border-emerald-300'
+                      }`}>
                         {getIniciais(cliente.nome)}
                       </div>
                       <div className="min-w-0">
-                        <span className="font-bold text-slate-900 block truncate text-xs sm:text-sm">
+                        <span className={`font-bold block truncate text-xs sm:text-sm ${isDark ? 'text-white' : 'text-black'}`}>
                           {cliente.nome}
                         </span>
                         {phoneWhatsapp && (
-                          <span className="text-[11px] text-slate-500 block truncate">
+                          <span className={`text-[11px] block truncate font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                             {phoneWhatsapp}
                           </span>
                         )}
@@ -543,18 +568,22 @@ export const ClientesFiado: React.FC = () => {
                         <div>
                           <div className="flex items-center justify-end gap-1">
                             {estaVencido && (
-                              <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-rose-100 text-rose-700">
+                              <span className={`px-1.5 py-0.2 rounded text-[9px] font-black ${
+                                isDark
+                                  ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                                  : 'bg-rose-50 text-rose-800 border border-rose-300'
+                              }`}>
                                 Vencido
                               </span>
                             )}
-                            <span className="text-[10px] text-amber-600 font-bold block">Valor Fiado</span>
+                            <span className="text-[10px] text-amber-500 font-bold block">Valor Fiado</span>
                           </div>
-                          <span className={`font-black text-xs sm:text-sm ${estaVencido ? 'text-rose-600' : 'text-amber-600'}`}>
+                          <span className={`font-black text-xs sm:text-sm ${estaVencido ? 'text-rose-500' : 'text-amber-500'}`}>
                             R$ {Number(cliente.saldo_devedor_fiado).toFixed(2)}
                           </span>
                         </div>
                       ) : (
-                        <span className="text-[11px] text-slate-400 font-medium">Em dia</span>
+                        <span className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Em dia</span>
                       )}
                     </div>
                   </div>
@@ -572,26 +601,34 @@ export const ClientesFiado: React.FC = () => {
       </div>
 
       {/* 2. VISÃO DESKTOP (UNIFICADA COM DESIGN SYSTEM) */}
-      <div className={`hidden md:flex flex-col h-full overflow-hidden font-sans ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+      <div className={`hidden md:flex flex-col h-full overflow-hidden font-sans ${isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-black'}`}>
         {/* ========================================================================= */}
         {/* HEADER DA TELA (ESTILO EXATO DA IMAGEM DO KYTE)                           */}
         {/* ========================================================================= */}
-        <div className={`p-4 sm:p-6 lg:px-8 border-b space-y-4 backdrop-blur ${isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-200 bg-white/80'}`}>
+        <div className={`p-4 sm:p-6 lg:px-8 border-b space-y-4 ${isDark ? 'border-slate-700 bg-[#08131A]' : 'border-slate-300 bg-slate-100'}`}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* Título Principal */}
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className={`p-2.5 rounded-2xl border transition cursor-pointer ${isDark ? 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-slate-300' : 'bg-white border-slate-200 hover:bg-slate-100 text-slate-700'}`}
+              className={`p-2.5 rounded-2xl border transition cursor-pointer ${
+                isDark
+                  ? 'bg-[#000000] border-slate-700 hover:bg-slate-900 text-white'
+                  : 'bg-white border-2 border-slate-300 hover:bg-slate-50 text-black'
+              }`}
               title="Voltar"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <h1 className={`text-2xl sm:text-3xl font-black tracking-tight flex items-center gap-2.5 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+              <h1 className={`text-2xl sm:text-3xl font-black tracking-tight flex items-center gap-2.5 ${isDark ? 'text-white' : 'text-black'}`}>
                 <span>Clientes</span>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                  isDark
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                    : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                }`}>
                   {clientes.length}
                 </span>
               </h1>
@@ -607,9 +644,13 @@ export const ClientesFiado: React.FC = () => {
                 placeholder="Procure por nome"
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
-                className={`w-full border rounded-full pl-4 pr-9 py-2 text-xs transition shadow-inner focus:outline-none focus:border-emerald-500 ${isDark ? 'bg-slate-800/90 border-slate-700/80 text-slate-100 placeholder:text-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400'}`}
+                className={`w-full border rounded-full pl-4 pr-9 py-2 text-xs font-medium transition shadow-inner focus:outline-none focus:border-emerald-500 ${
+                  isDark
+                    ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500'
+                    : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400'
+                }`}
               />
-              <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
+              <Search className={`w-4 h-4 absolute right-3.5 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
             </div>
 
             {/* Botão Exportar (Apenas se autorizado) */}
@@ -617,10 +658,14 @@ export const ClientesFiado: React.FC = () => {
               <button
                 type="button"
                 onClick={handleExportarCsv}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-semibold transition cursor-pointer shadow-sm shrink-0 ${isDark ? 'bg-slate-800/80 hover:bg-slate-800 border-slate-700/80 text-slate-300 hover:text-white' : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900'}`}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-bold transition cursor-pointer shadow-sm shrink-0 ${
+                  isDark
+                    ? 'bg-[#000000] hover:bg-slate-900 border-slate-700 text-white'
+                    : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black'
+                }`}
                 title="Exportar Lista em CSV"
               >
-                <Download className="w-4 h-4 text-slate-400" />
+                <Download className={`w-4 h-4 ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
                 <span>Exportar</span>
               </button>
             )}
@@ -644,8 +689,10 @@ export const ClientesFiado: React.FC = () => {
               onClick={() => setFiltroApenasFiado(prev => !prev)}
               className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 border ${
                 filtroApenasFiado
-                  ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg shadow-amber-500/20'
-                  : 'bg-slate-800/80 hover:bg-slate-800 border-amber-500/40 text-amber-400 hover:text-amber-300'
+                  ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg shadow-amber-500/20 font-black'
+                  : isDark
+                    ? 'bg-[#000000] hover:bg-slate-900 border-amber-500/40 text-amber-400 hover:text-amber-300'
+                    : 'bg-white hover:bg-amber-50 border-2 border-amber-300 text-amber-800 hover:text-amber-900'
               }`}
               title="Listar apenas clientes que possuem fiado em aberto"
             >
@@ -667,19 +714,19 @@ export const ClientesFiado: React.FC = () => {
       {/* TABELA EM LISTA (ESTILO EXATO DO KYTE COM AVATAR, TELEFONE, SALDO, AÇÕES) */}
       {/* ========================================================================= */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:px-8">
-        <div className={`border rounded-2xl shadow-sm overflow-hidden ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'}`}>
+        <div className={`border-2 rounded-2xl shadow-sm overflow-hidden ${isDark ? 'bg-[#08131A] border-slate-400' : 'bg-slate-100 border-slate-300'}`}>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               {/* Cabeçalho da Tabela */}
               <thead>
-                <tr className={`border-b text-[11px] font-bold uppercase tracking-wider ${isDark ? 'border-slate-800 text-slate-400 bg-slate-950/40' : 'border-slate-200 text-slate-700 bg-slate-100'}`}>
+                <tr className={`border-b text-[11px] font-black uppercase tracking-wider ${isDark ? 'border-slate-700 text-white bg-[#000000]' : 'border-b-2 border-slate-300 text-black bg-slate-200/80'}`}>
                   <th
-                    className="py-3.5 px-4 sm:px-6 cursor-pointer hover:text-slate-200 transition select-none"
+                    className={`py-3.5 px-4 sm:px-6 cursor-pointer transition select-none ${isDark ? 'hover:text-emerald-400' : 'hover:text-emerald-700'}`}
                     onClick={() => setOrdemCrescente(!ordemCrescente)}
                   >
                     <div className="flex items-center gap-1.5">
                       <span>Nome</span>
-                      <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
+                      <ArrowUpDown className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
                     </div>
                   </th>
                   <th className="py-3.5 px-4">Celular/WhatsApp</th>
@@ -690,26 +737,26 @@ export const ClientesFiado: React.FC = () => {
               </thead>
 
               {/* Corpo da Tabela */}
-              <tbody className={`divide-y text-xs ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
+              <tbody className={`divide-y text-xs ${isDark ? 'divide-slate-800 bg-[#000000]' : 'divide-slate-200 bg-white'}`}>
                 {carregando ? (
                   <tr>
-                    <td colSpan={5} className="py-16 text-center text-slate-500">
+                    <td colSpan={5} className={`py-16 text-center font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                       Carregando clientes...
                     </td>
                   </tr>
                 ) : clientesFiltrados.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-16 text-center text-slate-500">
+                    <td colSpan={5} className="py-16 text-center">
                       <div className="flex flex-col items-center justify-center space-y-2">
-                        <Users className="w-8 h-8 opacity-30" />
-                        <p className="text-sm font-medium">Nenhum cliente cadastrado.</p>
+                        <Users className={`w-8 h-8 opacity-40 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
+                        <p className={`text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Nenhum cliente cadastrado.</p>
                         <button
                           type="button"
                           onClick={() => {
                             setClienteEditar(null);
                             setModalNovoCliente(true);
                           }}
-                          className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-bold cursor-pointer"
+                          className={`text-xs font-black underline cursor-pointer ${isDark ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-700 hover:text-emerald-800'}`}
                         >
                           Clique aqui para cadastrar seu primeiro cliente
                         </button>
@@ -726,13 +773,17 @@ export const ClientesFiado: React.FC = () => {
                     return (
                       <tr
                         key={cliente.id}
-                        className={`transition duration-150 group ${isDark ? 'hover:bg-slate-800/50' : 'hover:bg-slate-50'}`}
+                        className={`transition duration-150 group ${isDark ? 'hover:bg-slate-900/60' : 'hover:bg-slate-50'}`}
                       >
                         {/* Coluna 1: Avatar + Nome */}
                         <td className="py-3 px-4 sm:px-6">
                           <div className="flex items-center gap-3">
                             {/* Avatar com Iniciais */}
-                            <div className={`w-9 h-9 rounded-full border font-bold text-xs flex items-center justify-center shrink-0 shadow-sm transition ${isDark ? 'bg-slate-800 border-slate-700/80 text-slate-200 group-hover:border-emerald-500/40 group-hover:text-emerald-400' : 'bg-slate-100 border-slate-200 text-slate-700 group-hover:border-emerald-400 group-hover:text-emerald-600'}`}>
+                            <div className={`w-9 h-9 rounded-full font-bold text-xs flex items-center justify-center shrink-0 shadow-sm transition ${
+                              isDark
+                                ? 'bg-[#000000] border border-slate-700 text-white group-hover:border-emerald-500/40 group-hover:text-emerald-400'
+                                : 'bg-white border-2 border-slate-300 text-black group-hover:border-emerald-600 group-hover:text-emerald-700'
+                            }`}>
                               {getIniciais(cliente.nome)}
                             </div>
                             <div className="min-w-0">
@@ -747,7 +798,7 @@ export const ClientesFiado: React.FC = () => {
                                     setModalNovoCliente(true);
                                   }
                                 }}
-                                className={`font-bold block truncate text-xs sm:text-sm cursor-pointer ${isDark ? 'text-slate-100 group-hover:text-emerald-400' : 'text-slate-900 group-hover:text-emerald-600'}`}
+                                className={`font-black block truncate text-xs sm:text-sm cursor-pointer transition ${isDark ? 'text-white group-hover:text-emerald-400' : 'text-black group-hover:text-emerald-700'}`}
                                 title={emDebito ? "Clique para ver histórico de compras fiado e receber" : "Clique para ver perfil do cliente"}
                               >
                                 {cliente.nome}
@@ -763,18 +814,18 @@ export const ClientesFiado: React.FC = () => {
                               href={`https://api.whatsapp.com/send?phone=55${phoneWhatsapp.replace(/\D/g, '')}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className={`inline-flex items-center gap-1.5 font-medium hover:underline ${isDark ? 'text-slate-300 hover:text-emerald-400' : 'text-slate-700 hover:text-emerald-600'}`}
+                              className={`inline-flex items-center gap-1.5 font-bold hover:underline transition ${isDark ? 'text-slate-200 hover:text-emerald-400' : 'text-black hover:text-emerald-700'}`}
                             >
-                              <MessageCircle className="w-3.5 h-3.5 text-slate-400" />
+                              <MessageCircle className={`w-3.5 h-3.5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
                               <span>+55 {phoneWhatsapp}</span>
                             </a>
                           ) : (
-                            <span className="text-slate-400">-</span>
+                            <span className={isDark ? 'text-slate-500 font-bold' : 'text-slate-400 font-bold'}>-</span>
                           )}
                         </td>
 
                         {/* Coluna 3: E-mail */}
-                        <td className={`py-3 px-4 hidden md:table-cell truncate max-w-[200px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                        <td className={`py-3 px-4 hidden md:table-cell truncate max-w-[200px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
                           {cliente.email || '-'}
                         </td>
 
@@ -784,17 +835,17 @@ export const ClientesFiado: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setClienteHistoricoFiado(cliente)}
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl border transition cursor-pointer text-xs font-bold font-mono shadow-xs active:scale-95 ${
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl transition cursor-pointer text-xs font-black font-mono shadow-xs active:scale-95 ${
                                 isDark
-                                  ? 'bg-slate-800/80 hover:bg-slate-700 border-slate-700 text-white'
-                                  : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-900'
+                                  ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-amber-400'
+                                  : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-amber-700'
                               }`}
                               title="Clique para abrir histórico de fiado e receber"
                             >
                               <span>{formatarMoeda(cliente.saldo_devedor_fiado)}</span>
                             </button>
                           ) : (
-                            <span className="text-slate-400 font-mono">R$ 0,00</span>
+                            <span className={`font-mono font-bold ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>R$ 0,00</span>
                           )}
                         </td>
 
@@ -806,7 +857,7 @@ export const ClientesFiado: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => setClienteHistoricoFiado(cliente)}
-                                className="p-1.5 rounded-lg text-amber-400 hover:bg-amber-500/15 transition cursor-pointer"
+                                className="p-1.5 rounded-lg text-amber-400 hover:bg-amber-500/20 transition cursor-pointer"
                                 title="Ver Histórico de Fiado e Receber"
                               >
                                 <FileText className="w-4 h-4" />
@@ -818,7 +869,11 @@ export const ClientesFiado: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => setClienteDetalhes(cliente)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition cursor-pointer"
+                                className={`p-1.5 rounded-lg transition cursor-pointer ${
+                                  isDark
+                                    ? 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                    : 'text-slate-600 hover:text-black hover:bg-slate-200'
+                                }`}
                                 title="Ver Endereço e Detalhes"
                               >
                                 <MapPin className="w-4 h-4" />
@@ -832,7 +887,11 @@ export const ClientesFiado: React.FC = () => {
                                 setClienteEditar(cliente);
                                 setModalNovoCliente(true);
                               }}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition cursor-pointer"
+                              className={`p-1.5 rounded-lg transition cursor-pointer ${
+                                isDark
+                                  ? 'text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10'
+                                  : 'text-slate-600 hover:text-emerald-700 hover:bg-emerald-100'
+                              }`}
                               title="Alterar / Editar Dados do Cliente"
                             >
                               <Pencil className="w-4 h-4" />
@@ -855,59 +914,66 @@ export const ClientesFiado: React.FC = () => {
       {/* ========================================================================= */}
       {clienteDetalhes && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className={`border-2 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl ${
+            isDark ? 'bg-[#08131A] border-slate-400 text-white' : 'bg-slate-100 border-slate-300 text-black'
+          }`}>
+            <div className={`flex items-center justify-between border-b pb-3 ${isDark ? 'border-slate-700' : 'border-slate-300'}`}>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-emerald-500/15 text-emerald-400 font-bold flex items-center justify-center">
+                <div className={`w-10 h-10 rounded-full font-black flex items-center justify-center ${
+                  isDark ? 'bg-[#000000] border border-slate-700 text-emerald-400' : 'bg-white border-2 border-slate-300 text-emerald-700'
+                }`}>
                   {getIniciais(clienteDetalhes.nome)}
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-slate-100">{clienteDetalhes.nome}</h3>
-                  <span className="text-xs text-slate-400 capitalize">
+                  <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>{clienteDetalhes.nome}</h3>
+                  <span className={`text-xs capitalize font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                     Tabela: {clienteDetalhes.tabela_preco_padrao || 'Varejo'}
                   </span>
                 </div>
               </div>
               <button
                 onClick={() => setClienteDetalhes(null)}
-                className="text-slate-400 hover:text-white p-1"
+                className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
+                title="Fechar"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-2.5 text-xs text-slate-300">
+            <div className={`p-4 rounded-2xl border space-y-2.5 text-xs ${
+              isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+            }`}>
               {clienteDetalhes.numero_documento && (
-                <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-slate-500" />
+                <div className="flex items-center gap-2 font-medium">
+                  <FileText className={`w-4 h-4 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
                   <span>CPF/CNPJ: {clienteDetalhes.numero_documento}</span>
                 </div>
               )}
 
               {clienteDetalhes.email && (
-                <div className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-slate-500" />
+                <div className="flex items-center gap-2 font-medium">
+                  <Mail className={`w-4 h-4 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
                   <span>{clienteDetalhes.email}</span>
                 </div>
               )}
 
               {clienteDetalhes.telefone && (
-                <div className="flex items-center gap-2">
-                  <Phone className="w-4 h-4 text-emerald-400" />
+                <div className="flex items-center gap-2 font-bold">
+                  <Phone className={isDark ? 'text-emerald-400' : 'text-emerald-600'} />
                   <span>Telefone 1: {clienteDetalhes.telefone}</span>
                 </div>
               )}
 
               {clienteDetalhes.telefone2 && (
-                <div className="flex items-center gap-2">
-                  <Phone className="w-4 h-4 text-slate-500" />
+                <div className="flex items-center gap-2 font-medium">
+                  <Phone className={`w-4 h-4 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
                   <span>Telefone 2: {clienteDetalhes.telefone2}</span>
                 </div>
               )}
 
               {clienteDetalhes.data_aniversario && (
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-amber-400" />
+                <div className="flex items-center gap-2 font-bold">
+                  <Calendar className="w-4 h-4 text-amber-500" />
                   <span>
                     Aniversário:{' '}
                     {new Date(clienteDetalhes.data_aniversario).toLocaleDateString('pt-BR', {
@@ -917,10 +983,10 @@ export const ClientesFiado: React.FC = () => {
                 </div>
               )}
 
-              <div className="pt-2 border-t border-slate-800 space-y-1">
-                <span className="font-bold text-slate-200 block">Endereço Completo:</span>
-                <div className="flex items-start gap-2 text-slate-400">
-                  <MapPin className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+              <div className={`pt-2 border-t space-y-1 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                <span className={`font-black block ${isDark ? 'text-white' : 'text-black'}`}>Endereço Completo:</span>
+                <div className={`flex items-start gap-2 font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  <MapPin className={`w-4 h-4 shrink-0 mt-0.5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
                   <span>
                     {clienteDetalhes.endereco_principal ||
                       `${clienteDetalhes.endereco_logradouro || ''}, ${clienteDetalhes.endereco_numero || 'S/N'} - ${clienteDetalhes.endereco_bairro || ''}, ${clienteDetalhes.endereco_cidade || ''} - ${clienteDetalhes.endereco_estado || ''}`}
@@ -929,9 +995,9 @@ export const ClientesFiado: React.FC = () => {
               </div>
 
               {clienteDetalhes.observacoes && (
-                <div className="pt-2 border-t border-slate-800">
-                  <span className="font-bold text-slate-200 block mb-0.5">Observações:</span>
-                  <p className="text-slate-400 italic">"{clienteDetalhes.observacoes}"</p>
+                <div className={`pt-2 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                  <span className={`font-black block mb-0.5 ${isDark ? 'text-white' : 'text-black'}`}>Observações:</span>
+                  <p className={`italic ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>"{clienteDetalhes.observacoes}"</p>
                 </div>
               )}
             </div>
@@ -945,7 +1011,7 @@ export const ClientesFiado: React.FC = () => {
                   setClienteEditar(c);
                   setModalNovoCliente(true);
                 }}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs border border-emerald-500 shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Pencil className="w-3.5 h-3.5" />
                 <span>Editar Dados</span>
@@ -953,7 +1019,11 @@ export const ClientesFiado: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setClienteDetalhes(null)}
-                className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition cursor-pointer"
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  isDark
+                    ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-white'
+                    : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black'
+                }`}
               >
                 Fechar
               </button>
@@ -967,21 +1037,29 @@ export const ClientesFiado: React.FC = () => {
       {/* ========================================================================= */}
       {clienteExcluir && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl text-center">
-            <div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto">
+          <div className={`border-2 rounded-3xl w-full max-w-sm p-6 space-y-4 shadow-2xl text-center ${
+            isDark ? 'bg-[#08131A] border-slate-400 text-white' : 'bg-slate-100 border-slate-300 text-black'
+          }`}>
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
+              isDark ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-rose-100 text-rose-700 border-2 border-rose-300'
+            }`}>
               <Trash2 className="w-6 h-6" />
             </div>
             <div className="space-y-1">
-              <h3 className="font-bold text-base text-slate-100">Excluir Cliente</h3>
-              <p className="text-xs text-slate-400">
-                Tem certeza que deseja remover o cadastro de <strong>{clienteExcluir.nome}</strong>?
+              <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Excluir Cliente</h3>
+              <p className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                Tem certeza que deseja remover o cadastro de <strong className={isDark ? 'text-white' : 'text-black'}>{clienteExcluir.nome}</strong>?
               </p>
             </div>
             <div className="flex gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setClienteExcluir(null)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-bold transition cursor-pointer"
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  isDark
+                    ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-white'
+                    : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black'
+                }`}
               >
                 Cancelar
               </button>
@@ -989,7 +1067,7 @@ export const ClientesFiado: React.FC = () => {
                 type="button"
                 disabled={excluindo}
                 onClick={handleConfirmarExclusao}
-                className="flex-1 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-xs font-bold transition disabled:opacity-50 cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition disabled:opacity-50 cursor-pointer shadow-sm"
               >
                 {excluindo ? 'Removendo...' : 'Sim, Excluir'}
               </button>
@@ -1016,39 +1094,51 @@ export const ClientesFiado: React.FC = () => {
       {/* ========================================================================= */}
       {clienteQuitar && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className={`border-2 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl ${
+            isDark ? 'bg-[#08131A] border-slate-400 text-white' : 'bg-slate-100 border-slate-300 text-black'
+          }`}>
+            <div className={`flex items-center justify-between border-b pb-3 ${isDark ? 'border-slate-700' : 'border-slate-300'}`}>
               <div>
-                <h3 className="font-bold text-base text-slate-100">Quitar / Abater Fiado</h3>
-                <p className="text-xs text-slate-400">{clienteQuitar.nome}</p>
+                <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Quitar / Abater Fiado</h3>
+                <p className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{clienteQuitar.nome}</p>
               </div>
-              <button onClick={() => setClienteQuitar(null)} className="text-slate-400 hover:text-white">
+              <button
+                onClick={() => setClienteQuitar(null)}
+                className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
+                title="Fechar"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-center space-y-1">
-              <span className="text-xs text-slate-400 block">Saldo Devedor Atual</span>
-              <span className="text-2xl font-bold text-amber-400">
+            <div className={`p-4 rounded-2xl border text-center space-y-1 ${
+              isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
+            }`}>
+              <span className={`text-xs font-bold block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Saldo Devedor Atual</span>
+              <span className="text-2xl font-black text-amber-500 font-mono">
                 R$ {Number(clienteQuitar.saldo_devedor_fiado).toFixed(2)}
               </span>
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-300 block">Valor a Abater (R$):</label>
+              <label className={`text-xs font-black block ${isDark ? 'text-white' : 'text-black'}`}>Valor a Abater (R$):</label>
               <input
                 type="number"
                 step="0.01"
                 value={valorAbatimento}
                 onChange={(e) => setValorAbatimento(e.target.value)}
-                className="w-full bg-slate-800 border border-emerald-500 rounded-xl px-4 py-2.5 text-base font-bold text-emerald-400 text-center focus:outline-none"
+                className={`w-full rounded-xl px-4 py-2.5 text-base font-black text-center focus:outline-none ${
+                  isDark
+                    ? 'bg-[#000000] border border-emerald-500 text-emerald-400'
+                    : 'bg-white border-2 border-emerald-600 text-emerald-700'
+                }`}
               />
             </div>
 
             <button
               disabled={processandoQuitacao}
               onClick={handleQuitarFiado}
-              className="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer"
+              className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>{processandoQuitacao ? 'Gravando...' : 'Confirmar e Enviar Recibo WhatsApp'}</span>
