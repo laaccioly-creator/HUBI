@@ -164,16 +164,14 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
 
       <div className="fixed inset-y-0 right-0 w-full sm:w-auto max-w-full flex sm:pl-10">
         <div
-          
-          className="w-full sm:w-[672px] sm:max-w-2xl !border-l-2 border-slate-300 dark:!border-[#1E3A5F] flex flex-col shadow-2xl animate-in slide-in-from-right duration-300 bg-slate-100 dark:bg-[#0B0F17] text-slate-900 dark:text-white"
+          className="w-full sm:w-[672px] sm:max-w-2xl !border-l-2 border-slate-300 dark:!border-[#2E5688] flex flex-col shadow-2xl animate-in slide-in-from-right duration-300 bg-slate-100 dark:bg-[#05070B] text-slate-900 dark:text-white"
         >
           
           {/* ================================================================= */}
           {/* TOPO DO DRAWER */}
           {/* ================================================================= */}
           <div
-            
-            className="p-4 sm:p-5 !border-b-2 sticky top-0 z-10 border-slate-300 dark:!border-[#1E3A5F] bg-slate-100/95 dark:bg-[#0B0F17]/95 backdrop-blur-md"
+            className="p-4 sm:p-5 !border-t-2 !border-b-2 sticky top-0 z-10 border-slate-300 dark:!border-[#2E5688] bg-slate-100/95 dark:bg-[#05070B]/95 backdrop-blur-md"
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -1112,8 +1110,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
           {/* RODAPÉ DO DRAWER */}
           {/* ================================================================= */}
           <div
-            
-            className="hidden md:flex p-4 !border-t-2 border-slate-300 dark:!border-[#1E3A5F] bg-slate-100/95 dark:bg-[#0B0F17]/95 backdrop-blur-md items-center justify-between text-xs text-slate-500 dark:text-slate-400"
+            className="hidden md:flex p-4 !border-t-2 border-slate-300 dark:!border-[#2E5688] bg-slate-100/95 dark:bg-[#05070B]/95 backdrop-blur-md items-center justify-between text-xs text-slate-500 dark:text-slate-400"
           >
             <span>Pressione <kbd  className="px-1.5 py-0.5 rounded bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] text-slate-700 dark:text-slate-300 font-mono text-[10px]">Esc</kbd> para fechar</span>
             <button
