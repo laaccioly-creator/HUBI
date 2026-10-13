@@ -701,3 +701,32 @@ input[type="checkbox"]:not(.sr-only):not(.hidden):focus {
   }
 }
 
+/* ==========================================================================
+   COCKPIT METRIC DRAWER (AUDITORIA DO DASHBOARD)
+   Garante fundo #000000 e borda #2B4C7E evidente e robusta no Dark Mode
+   ========================================================================== */
+html.dark .cockpit-drawer-container,
+.dark .cockpit-drawer-container {
+  background-color: #0B0F17 !important;
+  border-left: 2px solid #2B4C7E !important;
+}
+
+html.dark .cockpit-drawer-header,
+.dark .cockpit-drawer-header {
+  background-color: #0B0F17 !important;
+  border-bottom: 2px solid #2B4C7E !important;
+}
+
+html.dark .cockpit-drawer-footer,
+.dark .cockpit-drawer-footer {
+  background-color: #0B0F17 !important;
+  border-top: 2px solid #2B4C7E !important;
+}
+
+html.dark .cockpit-drawer-card,
+.dark .cockpit-drawer-card {
+  background-color: #000000 !important;
+  border: 2px solid #2B4C7E !important;
+}
+
+
