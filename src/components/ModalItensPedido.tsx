@@ -74,7 +74,7 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
               <h3 className={`font-black text-sm sm:text-base ${isDark ? 'text-white' : 'text-black'}`}>
                 Itens do Pedido #{pedido.origem === 'catalogo_online' ? `c-${pedido.numero_pedido}` : pedido.numero_pedido}
               </h3>
-              <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              <span className={`text-[11px] font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                 {itens.length} produtos • {totalQuantidade} unidades no total
               </span>
             </div>
@@ -83,7 +83,7 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
             type="button"
             onClick={onClose}
             className={`p-1.5 rounded-xl border transition cursor-pointer ${
-              isDark ? 'bg-[#000000] border-slate-700 text-slate-400 hover:text-white hover:bg-slate-900' : 'bg-white border-slate-300 text-slate-500 hover:text-black hover:bg-slate-50'
+              isDark ? 'bg-[#000000] border-slate-700 text-white hover:bg-slate-900' : 'bg-white border-slate-300 text-black hover:bg-slate-50'
             }`}
           >
             <X className="w-5 h-5" />
@@ -95,7 +95,7 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
           isDark ? 'bg-[#08131A]' : 'bg-slate-100'
         }`}>
           {itens.length === 0 ? (
-            <div className={`text-center py-12 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            <div className={`text-center py-12 text-xs font-bold ${isDark ? 'text-white' : 'text-black'}`}>
               Nenhum item registrado neste pedido.
             </div>
           ) : (
@@ -114,7 +114,7 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
                 <div
                   key={item.id}
                   className={`p-3 sm:p-3.5 rounded-2xl flex items-center justify-between gap-3 shadow-xs transition ${
-                    isDark ? 'bg-[#000000] border border-slate-700 text-slate-200' : 'bg-white border-2 border-slate-300 text-black'
+                    isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -134,21 +134,21 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
                       </div>
                     )}
                   <div className="min-w-0">
-                    <span className={`font-bold text-xs sm:text-sm block truncate ${isDark ? 'text-slate-100' : 'text-black'}`}>
+                    <span className={`font-bold text-xs sm:text-sm block truncate ${isDark ? 'text-white' : 'text-black'}`}>
                       {item.nome_produto}
                     </span>
                     <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                      <span className={`text-[11px] font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                      <span className={`text-[11px] font-extrabold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
                         {Number(item.quantidade)}x
                       </span>
                       {item.rotulo_variacao && (
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded border ${
-                          isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-300 text-black'
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                          isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-slate-100 border-slate-300 text-black'
                         }`}>
                           {item.rotulo_variacao}
                         </span>
                       )}
-                      <span className={`text-[10px] font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      <span className={`text-[10px] font-mono font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                         {formatarMoeda(Number(item.preco_venda_unitario))} /un
                       </span>
                     </div>
@@ -157,7 +157,7 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
 
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="text-right">
-                    <span className={`text-xs block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Subtotal</span>
+                    <span className={`text-xs block font-bold ${isDark ? 'text-white' : 'text-black'}`}>Subtotal</span>
                     <span className={`font-black text-sm font-mono ${isDark ? 'text-white' : 'text-black'}`}>
                       {formatarMoeda(Number(item.subtotal))}
                     </span>
@@ -169,8 +169,8 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
                     onClick={() => onConsultarProduto(item)}
                     className={`p-2 rounded-xl border transition cursor-pointer ${
                       isDark
-                        ? 'bg-[#000000] border-slate-700 text-slate-300 hover:text-emerald-400 hover:bg-slate-900'
-                        : 'bg-white border-slate-300 text-slate-600 hover:text-emerald-700 hover:bg-slate-50'
+                        ? 'bg-[#000000] border-slate-700 text-white hover:text-emerald-400 hover:bg-slate-900'
+                        : 'bg-white border-slate-300 text-black hover:text-emerald-700 hover:bg-slate-50'
                     }`}
                     title="Ver Ficha e Detalhes do Produto"
                   >
@@ -186,7 +186,7 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
         <div className={`p-4 border-t flex items-center justify-between ${
           isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-300 bg-slate-100'
         }`}>
-          <div className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+          <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-black'}`}>
             <span>Total: </span>
             <span className={`font-black text-base font-mono ${isDark ? 'text-white' : 'text-black'}`}>
               {formatarMoeda(Number(pedido.valor_total))}
@@ -196,7 +196,7 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
             type="button"
             onClick={onClose}
             className={`px-5 py-2 rounded-xl text-xs font-bold shadow-xs transition cursor-pointer active:scale-95 ${
-              isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black'
+              isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
             }`}
           >
             Fechar

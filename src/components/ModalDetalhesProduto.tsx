@@ -14,6 +14,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { Produto } from '../types';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface ModalDetalhesProdutoProps {
   isOpen: boolean;
@@ -28,6 +29,8 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
   produto,
   apenasGrade = false
 }) => {
+  const { tema } = useTheme();
+  const isDark = tema === 'dark';
   const [fotoSelecionadaIdx, setFotoSelecionadaIdx] = useState<number>(0);
 
   if (!isOpen || !produto) return null;
@@ -48,29 +51,37 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
   if (apenasGrade) {
     return (
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-        <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl w-full max-w-lg overflow-hidden shadow-sm flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150 text-slate-900 dark:text-slate-100">
+        <div className={`rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150 ${
+          isDark ? 'bg-[#08131A] border-2 border-slate-400 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
+        }`}>
           {/* Header */}
-          <div className="p-4 sm:px-6 border-b border-slate-200 dark:border-[#1E293B] flex items-center justify-between bg-white dark:bg-[#000000]">
+          <div className={`p-4 sm:px-6 border-b flex items-center justify-between ${
+            isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-300 bg-slate-100'
+          }`}>
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-800/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
+              <div className={`w-9 h-9 rounded-xl border flex items-center justify-center font-bold ${
+                isDark ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+              }`}>
                 <Layers className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold dark:font-semibold text-sm sm:text-base text-slate-900 dark:text-slate-100 line-clamp-1">{produto.nome}</h3>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">Estoque por Variação / Grade</span>
+                <h3 className={`font-black text-sm sm:text-base line-clamp-1 ${isDark ? 'text-white' : 'text-black'}`}>{produto.nome}</h3>
+                <span className={`text-[11px] font-bold ${isDark ? 'text-white' : 'text-black'}`}>Estoque por Variação / Grade</span>
               </div>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+              className={`p-1.5 rounded-xl border transition cursor-pointer ${
+                isDark ? 'bg-[#000000] border-slate-700 text-white hover:bg-slate-900' : 'bg-white border-slate-300 text-black hover:bg-slate-50'
+              }`}
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Conteúdo com Tabela de Variações */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3">
+          <div className={`flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 ${isDark ? 'bg-[#08131A]' : 'bg-slate-100'}`}>
             {temVariacoes && produto.variacoes && produto.variacoes.length > 0 ? (
               <div className="space-y-2">
                 {produto.variacoes.map((v) => {
@@ -82,34 +93,36 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
                   return (
                     <div
                       key={v.id}
-                      className="p-3 rounded-xl bg-slate-50 dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] hover:border-slate-300 dark:hover:border-slate-700 transition flex items-center justify-between gap-3 shadow-xs"
+                      className={`p-3 rounded-xl border transition flex items-center justify-between gap-3 shadow-xs ${
+                        isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+                      }`}
                     >
                       <div className="min-w-0 flex-1">
-                        <span className="text-slate-900 dark:text-slate-100 font-bold text-xs block truncate">
-                          {rotulo1 ? <span className="text-slate-500 dark:text-slate-400 font-normal text-[11px]">{rotulo1}: </span> : null}
+                        <span className={`font-bold text-xs block truncate ${isDark ? 'text-white' : 'text-black'}`}>
+                          {rotulo1 ? <span className={`font-medium text-[11px] ${isDark ? 'text-white' : 'text-black'}`}>{rotulo1}: </span> : null}
                           {v.valor_variacao_1}
                           {v.valor_variacao_2 && (
-                            <span className="text-slate-700 dark:text-slate-300">
-                              {' '}• {rotulo2 ? <span className="text-slate-500 dark:text-slate-400 font-normal text-[11px]">{rotulo2}: </span> : null}{v.valor_variacao_2}
+                            <span>
+                              {' '}• {rotulo2 ? <span className={`font-medium text-[11px] ${isDark ? 'text-white' : 'text-black'}`}>{rotulo2}: </span> : null}{v.valor_variacao_2}
                             </span>
                           )}
                         </span>
-                        <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                        <div className={`flex items-center gap-2 mt-0.5 text-[11px] font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                           {v.sku && <span className="font-mono">SKU: {v.sku}</span>}
                           {v.codigo_barras && <span>• Cód: {v.codigo_barras}</span>}
                         </div>
                       </div>
 
                       <div className="flex items-center gap-3 shrink-0">
-                        <span className="text-xs font-mono font-bold text-slate-900 dark:text-slate-300">
+                        <span className={`text-xs font-mono font-black ${isDark ? 'text-white' : 'text-black'}`}>
                           R$ {Number(v.preco_venda_varejo || produto.preco_venda_varejo).toFixed(2)}
                         </span>
-                        <span className={`px-2.5 py-1 rounded-xl font-mono font-bold text-xs ${
+                        <span className={`px-2.5 py-1 rounded-xl font-mono font-bold text-xs border ${
                           vEstoque <= 0
-                            ? 'bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-800/60'
+                            ? isDark ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : 'bg-rose-100 text-rose-900 border-rose-300'
                             : isBaixo
-                            ? 'bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800/60'
-                            : 'bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-800/60'
+                            ? isDark ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-amber-100 text-amber-900 border-amber-300'
+                            : isDark ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-emerald-100 text-emerald-900 border-emerald-300'
                         }`}>
                           {vEstoque} {produto.tipo_unidade || 'un'}
                         </span>
@@ -119,22 +132,26 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
                 })}
               </div>
             ) : (
-              <div className="text-center py-8 text-xs text-slate-500 dark:text-slate-400">
+              <div className={`text-center py-8 text-xs font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                 Este produto não possui variações/grade cadastradas.
               </div>
             )}
           </div>
 
           {/* Rodapé com Resumo Total */}
-          <div className="p-4 border-t border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#000000] flex items-center justify-between">
-            <div className="text-xs text-slate-600 dark:text-slate-400">
+          <div className={`p-4 border-t flex items-center justify-between ${
+            isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-300 bg-slate-100'
+          }`}>
+            <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-black'}`}>
               Total em Grade:{' '}
-              <strong className="text-emerald-700 dark:text-emerald-400 font-bold text-sm">{estoqueReal} {produto.tipo_unidade || 'un'}</strong>
+              <strong className={`font-black text-sm ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>{estoqueReal} {produto.tipo_unidade || 'un'}</strong>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#0B0F17] dark:hover:bg-[#0D111A] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-[#1E293B] text-xs font-semibold transition cursor-pointer"
+              className={`px-5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer active:scale-95 ${
+                isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+              }`}
             >
               Fechar
             </button>
@@ -147,33 +164,43 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
   // MODO COMPLETO (FICHA TÉCNICA E DETALHES GERAIS)
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-      <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl w-full max-w-2xl overflow-hidden shadow-sm flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150 text-slate-900 dark:text-slate-100">
+      <div className={`rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150 ${
+        isDark ? 'bg-[#08131A] border-2 border-slate-400 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
+      }`}>
         {/* Header do Modal */}
-        <div className="p-4 sm:px-6 border-b border-slate-200 dark:border-[#1E293B] flex items-center justify-between bg-white dark:bg-[#000000]">
+        <div className={`p-4 sm:px-6 border-b flex items-center justify-between ${
+          isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-300 bg-slate-100'
+        }`}>
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-500/30 dark:text-emerald-300 flex items-center justify-center">
+            <div className={`w-8 h-8 rounded-xl border flex items-center justify-center ${
+              isDark ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-emerald-50 border-emerald-200 text-emerald-600'
+            }`}>
               <Package className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold dark:font-semibold text-sm sm:text-base text-slate-900 dark:text-slate-100 line-clamp-1">{produto.nome}</h3>
-              <span className="text-[11px] text-slate-500 dark:text-slate-400">Consulta e Ficha Técnica do Produto</span>
+              <h3 className={`font-black text-sm sm:text-base line-clamp-1 ${isDark ? 'text-white' : 'text-black'}`}>{produto.nome}</h3>
+              <span className={`text-[11px] font-bold ${isDark ? 'text-white' : 'text-black'}`}>Consulta e Ficha Técnica do Produto</span>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+            className={`p-1.5 rounded-xl border transition cursor-pointer ${
+              isDark ? 'bg-[#000000] border-slate-700 text-white hover:bg-slate-900' : 'bg-white border-slate-300 text-black hover:bg-slate-50'
+            }`}
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Conteúdo com Rolagem */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+        <div className={`flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 ${isDark ? 'bg-[#08131A]' : 'bg-slate-100'}`}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {/* Galeria de Fotos */}
             <div className="space-y-2.5 flex flex-col items-center">
-              <div className="relative w-full max-w-[220px] sm:max-w-[240px] aspect-square bg-slate-100 dark:bg-[#000000] rounded-2xl overflow-hidden border border-slate-200 dark:border-[#1E293B] flex items-center justify-center shadow-xs">
+              <div className={`relative w-full max-w-[220px] sm:max-w-[240px] aspect-square rounded-2xl overflow-hidden border flex items-center justify-center shadow-xs ${
+                isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
+              }`}>
                 <img
                   src={fotoPrincipal}
                   alt={produto.nome}
@@ -202,7 +229,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
                       className={`relative w-11 h-11 rounded-lg overflow-hidden border shrink-0 transition ${
                         fotoSelecionadaIdx === idx
                           ? 'border-emerald-500 ring-2 ring-emerald-500/30'
-                          : 'border-slate-200 dark:border-[#1E293B] opacity-60 hover:opacity-100'
+                          : isDark ? 'border-slate-700 opacity-60 hover:opacity-100' : 'border-slate-300 opacity-60 hover:opacity-100'
                       }`}
                     >
                       <img src={f} alt="" className="w-full h-full object-cover" />
@@ -215,47 +242,53 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
             {/* Informações Comerciais e Preços */}
             <div className="space-y-3.5">
               {/* Categoria, Status Ativo e Código */}
-              <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 pb-2 border-b border-slate-200 dark:border-[#1E293B]">
+              <div className={`flex items-center justify-between text-xs pb-2 border-b ${
+                isDark ? 'border-slate-800 text-white' : 'border-slate-300 text-black'
+              }`}>
                 <div className="flex items-center gap-2">
-                  <span className="flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
-                    <Folder className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                  <span className={`flex items-center gap-1.5 font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+                    <Folder className="w-3.5 h-3.5 text-indigo-500" />
                     {produto.categoria?.nome || 'Geral'}
                   </span>
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black border ${
                     produto.ativo !== false
-                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
-                      : 'bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/30'
+                      ? isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' : 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                      : isDark ? 'bg-rose-500/20 text-rose-400 border-rose-500/40' : 'bg-rose-50 text-rose-700 border-rose-300'
                   }`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${produto.ativo !== false ? 'bg-emerald-500' : 'bg-rose-500'}`} />
                     {produto.ativo !== false ? 'Ativo' : 'Inativo'}
                   </span>
                 </div>
                 {produto.codigo_interno && (
-                  <span className="font-mono text-[11px] bg-slate-100 border border-slate-200 dark:border-[#1E293B] dark:bg-[#0B0F17] px-2 py-0.5 rounded text-slate-700 dark:text-slate-300">
+                  <span className={`font-mono text-[11px] font-bold px-2 py-0.5 rounded border ${
+                    isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+                  }`}>
                     SKU #{produto.codigo_interno}
                   </span>
                 )}
               </div>
 
               {/* Bloco de Preços */}
-              <div className="bg-slate-50 dark:bg-[#000000] p-3.5 rounded-xl border border-slate-200 dark:border-[#1E293B] space-y-2">
-                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider block">
+              <div className={`p-3.5 rounded-xl border space-y-2 ${
+                isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+              }`}>
+                <span className={`text-[11px] font-black uppercase tracking-wider block ${isDark ? 'text-white' : 'text-black'}`}>
                   Tabelas de Preço
                 </span>
 
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-700 dark:text-slate-300 font-medium">Preço Varejo:</span>
-                  <span className="font-semibold text-emerald-700 dark:text-emerald-400 text-sm">
+                  <span className={`font-bold ${isDark ? 'text-white' : 'text-black'}`}>Preço Varejo:</span>
+                  <span className={`font-black text-sm ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
                     R$ {Number(produto.preco_venda_varejo).toFixed(2)}
                   </span>
                 </div>
 
                 {Number(produto.preco_venda_atacado) > 0 && (
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-700 dark:text-slate-300 font-medium">
+                    <span className={`font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                       Preço Atacado ({produto.qtd_minima_atacado || 1}+ un):
                     </span>
-                    <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                    <span className={`font-black ${isDark ? 'text-indigo-400' : 'text-indigo-700'}`}>
                       R$ {Number(produto.preco_venda_atacado).toFixed(2)}
                     </span>
                   </div>
@@ -263,10 +296,10 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
 
                 {Number(produto.preco_venda_autoatacado) > 0 && (
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-700 dark:text-slate-300 font-medium">
+                    <span className={`font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                       Preço Distribuidor ({produto.qtd_minima_autoatacado || 1}+ un):
                     </span>
-                    <span className="font-bold text-purple-600 dark:text-purple-400">
+                    <span className={`font-black ${isDark ? 'text-purple-400' : 'text-purple-700'}`}>
                       R$ {Number(produto.preco_venda_autoatacado).toFixed(2)}
                     </span>
                   </div>
@@ -275,13 +308,15 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
 
               {/* Estoque e Unidade */}
               <div className="grid grid-cols-2 gap-2.5">
-                <div className="p-3 bg-slate-50 dark:bg-[#000000] rounded-xl border border-slate-200 dark:border-[#1E293B] space-y-1">
-                  <span className="text-[10px] text-slate-600 dark:text-slate-400 font-medium block">
+                <div className={`p-3 rounded-xl border space-y-1 ${
+                  isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+                }`}>
+                  <span className={`text-[10px] font-bold block ${isDark ? 'text-white' : 'text-black'}`}>
                     {temVariacoes ? 'Estoque Total (Grade)' : 'Estoque Atual'}
                   </span>
                   <div className="flex items-center gap-1.5">
                     <span className={`text-sm font-black ${
-                      estoqueReal <= 0 ? 'text-rose-600 dark:text-rose-400' : temEstoqueBaixo ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'
+                      estoqueReal <= 0 ? 'text-rose-500' : temEstoqueBaixo ? 'text-amber-500' : isDark ? 'text-emerald-400' : 'text-emerald-700'
                     }`}>
                       {estoqueReal} {produto.tipo_unidade || 'un'}
                     </span>
@@ -289,9 +324,11 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
                   </div>
                 </div>
 
-                <div className="p-3 bg-slate-50 dark:bg-[#000000] rounded-xl border border-slate-200 dark:border-[#1E293B] space-y-1">
-                  <span className="text-[10px] text-slate-600 dark:text-slate-400 font-medium block">Código de Barras</span>
-                  <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-300 truncate block">
+                <div className={`p-3 rounded-xl border space-y-1 ${
+                  isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+                }`}>
+                  <span className={`text-[10px] font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Código de Barras</span>
+                  <span className={`text-xs font-mono font-bold truncate block ${isDark ? 'text-white' : 'text-black'}`}>
                     {produto.codigo_barras || (produto.codigo_interno ? `Cód: ${produto.codigo_interno}` : 'Não cadastrado')}
                   </span>
                 </div>
@@ -299,12 +336,14 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
 
               {/* Variações do Produto se houver */}
               {temVariacoes && produto.variacoes && produto.variacoes.length > 0 && (
-                <div className="p-3.5 bg-slate-50 dark:bg-[#000000] rounded-xl border border-slate-200 dark:border-[#1E293B] space-y-2">
+                <div className={`p-3.5 rounded-xl border space-y-2 ${
+                  isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+                }`}>
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider block">
+                    <span className={`text-[11px] font-black uppercase tracking-wider block ${isDark ? 'text-white' : 'text-black'}`}>
                       Estoque por Variação / Grade ({produto.variacoes.length})
                     </span>
-                    <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold">
+                    <span className={`text-[10px] font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
                       Total: {estoqueReal} {produto.tipo_unidade || 'un'}
                     </span>
                   </div>
@@ -314,31 +353,33 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
                       const rotulo1 = produto.rotulo_variacao_1 || 'Variação';
                       const rotulo2 = produto.rotulo_variacao_2;
                       return (
-                        <div key={v.id} className="flex justify-between items-center text-xs p-2 rounded-xl bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-[#1E293B] hover:border-slate-300 dark:hover:border-slate-700 transition">
+                        <div key={v.id} className={`flex justify-between items-center text-xs p-2 rounded-xl border transition ${
+                          isDark ? 'bg-[#08131A] border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-black'
+                        }`}>
                           <div className="min-w-0 pr-2">
-                            <span className="text-slate-900 dark:text-slate-200 font-bold block truncate">
-                              {rotulo1 ? <span className="text-slate-500 dark:text-slate-400 font-normal text-[11px]">{rotulo1}: </span> : null}
+                            <span className={`font-bold block truncate ${isDark ? 'text-white' : 'text-black'}`}>
+                              {rotulo1 ? <span className={`font-medium text-[11px] ${isDark ? 'text-white' : 'text-black'}`}>{rotulo1}: </span> : null}
                               {v.valor_variacao_1}
                               {v.valor_variacao_2 && (
-                                <span className="text-slate-700 dark:text-slate-300">
-                                  {' '}/ {rotulo2 ? <span className="text-slate-500 dark:text-slate-400 font-normal text-[11px]">{rotulo2}: </span> : null}{v.valor_variacao_2}
+                                <span>
+                                  {' '}• {rotulo2 ? <span className={`font-medium text-[11px] ${isDark ? 'text-white' : 'text-black'}`}>{rotulo2}: </span> : null}{v.valor_variacao_2}
                                 </span>
                               )}
                             </span>
                             {v.sku && (
-                              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">SKU: {v.sku}</span>
+                              <span className={`text-[10px] font-mono font-bold ${isDark ? 'text-white' : 'text-black'}`}>SKU: {v.sku}</span>
                             )}
                           </div>
                           <div className="flex items-center gap-2.5 shrink-0">
-                            <span className="text-slate-700 dark:text-slate-400 font-mono text-[11px]">
+                            <span className={`font-mono font-bold text-[11px] ${isDark ? 'text-white' : 'text-black'}`}>
                               R$ {Number(v.preco_venda_varejo || produto.preco_venda_varejo).toFixed(2)}
                             </span>
-                            <span className={`text-[11px] px-2 py-0.5 rounded-lg font-mono font-bold ${
+                            <span className={`text-[11px] px-2 py-0.5 rounded-lg font-mono font-bold border ${
                               vEstoque <= 0
-                                ? 'bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800/50'
+                                ? isDark ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : 'bg-rose-100 text-rose-900 border-rose-300'
                                 : vEstoque <= Number(v.estoque_minimo_alerta || produto.estoque_minimo_alerta || 0)
-                                ? 'bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800/50'
-                                : 'bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/50'
+                                ? isDark ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-amber-100 text-amber-900 border-amber-300'
+                                : isDark ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-emerald-100 text-emerald-900 border-emerald-300'
                             }`}>
                               {vEstoque} {produto.tipo_unidade || 'un'}
                             </span>
@@ -354,11 +395,13 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
 
           {/* Descrição do Produto */}
           {produto.descricao && (
-            <div className="p-3.5 bg-slate-50 dark:bg-[#000000] rounded-xl border border-slate-200 dark:border-[#1E293B] space-y-1.5">
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-300 flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Descrição do Produto
+            <div className={`p-3.5 rounded-xl border space-y-1.5 ${
+              isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+            }`}>
+              <span className={`text-xs font-black flex items-center gap-1.5 ${isDark ? 'text-white' : 'text-black'}`}>
+                <FileText className={`w-3.5 h-3.5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} /> Descrição do Produto
               </span>
-              <p className="text-xs text-slate-600 dark:text-slate-400 whitespace-pre-wrap leading-relaxed">
+              <p className={`text-xs font-medium whitespace-pre-wrap leading-relaxed ${isDark ? 'text-white' : 'text-black'}`}>
                 {produto.descricao}
               </p>
             </div>
@@ -366,11 +409,15 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
         </div>
 
         {/* Rodapé */}
-        <div className="p-4 border-t border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#000000] flex justify-end">
+        <div className={`p-4 border-t flex justify-end ${
+          isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-300 bg-slate-100'
+        }`}>
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#0B0F17] dark:hover:bg-[#0D111A] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-[#1E293B] text-xs font-semibold transition cursor-pointer"
+            className={`px-5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer active:scale-95 ${
+              isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+            }`}
           >
             Fechar
           </button>
