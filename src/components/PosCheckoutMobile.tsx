@@ -489,22 +489,28 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
     if (!modalTabelaPrecoAberto) return null;
     return createPortal(
       <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in">
-        <div className="bg-white rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl animate-in slide-in-from-bottom duration-150 text-slate-900">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+        <div className={`${
+          isDark ? 'bg-[#08131A] border-2 border-slate-400 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
+        } rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl animate-in slide-in-from-bottom duration-150`}>
+          <div className={`flex items-center justify-between border-b ${isDark ? 'border-slate-800' : 'border-slate-300'} pb-2`}>
             <div className="flex items-center gap-2">
-              <Tag className="w-4 h-4 text-emerald-600" />
-              <h3 className="font-bold text-sm text-slate-800">Tabela de Preço</h3>
+              <Tag className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Tabela de Preço</h3>
             </div>
             <button
               type="button"
               onClick={() => setModalTabelaPrecoAberto(false)}
-              className="p-1 rounded-full text-slate-400 hover:bg-slate-100 cursor-pointer"
+              className={`p-1.5 rounded-xl transition cursor-pointer ${
+                isDark
+                  ? 'bg-[#000000] border-2 border-slate-400 text-slate-200 hover:bg-slate-900'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+              }`}
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
-          <p className="text-xs text-slate-500">
+          <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
             Selecione a tabela de preços a ser aplicada aos produtos desta venda:
           </p>
 
@@ -517,29 +523,36 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 { id: 'autoatacado', rotulo: '⚡ Distribuidor', desc: 'Preço especial para grandes quantidades', ativo: tiposAtivos.distribuidor !== false }
               ].filter(t => t.ativo);
 
-              return opcoes.map(tab => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => {
-                    setTabelaPrecoGlobal?.(tab.id as TabelaPreco);
-                    setModalTabelaPrecoAberto(false);
-                  }}
-                  className={`w-full p-3 rounded-2xl border text-left transition flex items-center justify-between cursor-pointer ${
-                    (tabelaPrecoGlobal || 'varejo') === tab.id
-                      ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-xs'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <div>
-                    <span className="font-bold text-xs block">{tab.rotulo}</span>
-                    <span className="text-[10px] text-slate-500">{tab.desc}</span>
-                  </div>
-                  {(tabelaPrecoGlobal || 'varejo') === tab.id && (
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                  )}
-                </button>
-              ));
+              return opcoes.map(tab => {
+                const isSelected = (tabelaPrecoGlobal || 'varejo') === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => {
+                      setTabelaPrecoGlobal?.(tab.id as TabelaPreco);
+                      setModalTabelaPrecoAberto(false);
+                    }}
+                    className={`w-full p-3 rounded-2xl border-2 text-left transition flex items-center justify-between cursor-pointer ${
+                      isSelected
+                        ? isDark
+                          ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 shadow-xs'
+                          : 'bg-emerald-50 border-emerald-600 text-emerald-950 shadow-xs'
+                        : isDark
+                        ? 'bg-[#000000] border-slate-700 text-white hover:bg-slate-900'
+                        : 'bg-white border-slate-300 text-black hover:bg-slate-50'
+                    }`}
+                  >
+                    <div>
+                      <span className={`font-bold text-xs block ${isSelected ? (isDark ? 'text-emerald-300' : 'text-emerald-950') : (isDark ? 'text-white' : 'text-black')}`}>{tab.rotulo}</span>
+                      <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-700 font-medium'}`}>{tab.desc}</span>
+                    </div>
+                    {isSelected && (
+                      <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    )}
+                  </button>
+                );
+              });
             })()}
           </div>
         </div>
@@ -553,24 +566,32 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   // =========================================================================
   if (subTela === 'clientes') {
     return (
-      <div className="fixed inset-0 z-50 bg-white text-slate-900 flex flex-col animate-in slide-in-from-right duration-150">
-        {/* Header Branco Limpo */}
-        <div className="h-14 border-b border-slate-200 px-4 flex items-center justify-between bg-white sticky top-0 z-10">
+      <div className={`fixed inset-0 z-50 flex flex-col animate-in slide-in-from-right duration-150 ${
+        isDark ? 'bg-[#0B0F17] text-white' : 'bg-slate-100 text-slate-900'
+      }`}>
+        {/* Header Superior */}
+        <div className={`h-14 border-b px-4 flex items-center justify-between sticky top-0 z-10 ${
+          isDark ? 'bg-[#08131A] border-slate-800 text-white' : 'bg-slate-100 border-slate-300 text-black'
+        }`}>
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setSubTela(origemClientes)}
-              className="p-1 rounded-full hover:bg-slate-100 text-slate-700 transition cursor-pointer"
+              className={`p-1.5 rounded-xl transition cursor-pointer ${
+                isDark ? 'bg-[#000000] border-2 border-slate-400 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+              }`}
             >
-              <ChevronLeft className="w-6 h-6" />
+              <ChevronLeft className="w-5 h-5" />
             </button>
-            <h2 className="font-bold text-base text-slate-800">Adicionar cliente</h2>
+            <h2 className={`font-bold text-base ${isDark ? 'text-white' : 'text-black'}`}>Adicionar cliente</h2>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 transition"
+              className={`p-2 rounded-xl transition cursor-pointer ${
+                isDark ? 'text-slate-400 hover:bg-slate-800 hover:text-white' : 'text-slate-700 hover:bg-slate-200'
+              }`}
               title="Sincronizar"
             >
               <Download className="w-5 h-5" />
@@ -578,7 +599,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             <button
               type="button"
               onClick={() => onAbrirNovoCliente()}
-              className="w-9 h-9 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center shadow-md transition cursor-pointer"
+              className="w-9 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center shadow-md transition cursor-pointer"
               title="Cadastrar Novo Cliente"
             >
               <Plus className="w-5 h-5 stroke-[2.5]" />
@@ -587,7 +608,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
         </div>
 
         {/* Barra de Busca */}
-        <div className="p-3 border-b border-slate-100 bg-slate-50">
+        <div className={`p-3 border-b ${isDark ? 'bg-[#08131A] border-slate-800' : 'bg-slate-100 border-slate-300'}`}>
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
@@ -595,25 +616,31 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               placeholder="Procure por nome, email ou telefone"
               value={buscaCliente}
               onChange={(e) => setBuscaCliente(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 shadow-sm"
+              className={`w-full border-2 rounded-xl pl-10 pr-4 py-2.5 text-xs focus:outline-none focus:border-emerald-500 shadow-sm ${
+                isDark
+                  ? 'bg-[#000000] border-slate-400 text-white placeholder:text-slate-500'
+                  : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
+              }`}
             />
           </div>
         </div>
 
         {/* Cliente Atual Vinculado (Se houver) */}
         {clienteSelecionado && (
-          <div className="p-3 bg-emerald-50 border-b border-emerald-100 flex items-center justify-between">
+          <div className={`p-3 border-b flex items-center justify-between ${
+            isDark ? 'bg-[#000000] border-slate-800' : 'bg-white border-slate-200'
+          }`}>
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
               <div>
-                <span className="text-xs font-bold text-emerald-900 block">{clienteSelecionado.nome}</span>
-                <span className="text-[10px] text-emerald-700">Cliente selecionado para esta venda</span>
+                <span className={`text-xs font-bold block ${isDark ? 'text-emerald-400' : 'text-black'}`}>{clienteSelecionado.nome}</span>
+                <span className={`text-[10px] ${isDark ? 'text-slate-300' : 'text-slate-700 font-medium'}`}>Cliente selecionado para esta venda</span>
               </div>
             </div>
             <button
               type="button"
               onClick={() => setClienteSelecionado(null)}
-              className="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer"
+              className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
             >
               Remover
             </button>
@@ -621,7 +648,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
         )}
 
         {/* Lista de Clientes */}
-        <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
+        <div className={`flex-1 overflow-y-auto divide-y ${isDark ? 'divide-slate-800 bg-[#0B0F17]' : 'divide-slate-200 bg-slate-100'}`}>
           {clientesFiltrados.length === 0 ? (
             <div className="p-8 text-center text-slate-400 text-xs">
               Nenhum cliente encontrado.
@@ -634,11 +661,13 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                   setClienteSelecionado(cliente);
                   setSubTela(origemClientes);
                 }}
-                className="p-3.5 hover:bg-slate-50 transition flex items-center justify-between cursor-pointer"
+                className={`p-3.5 transition flex items-center justify-between cursor-pointer ${
+                  isDark ? 'bg-[#000000] hover:bg-slate-900 border-b border-slate-800' : 'bg-white hover:bg-slate-50 border-b border-slate-200'
+                }`}
               >
                 <div className="space-y-0.5">
-                  <h4 className="font-bold text-xs uppercase text-slate-800">{cliente.nome}</h4>
-                  <p className="text-[10px] text-slate-400">
+                  <h4 className={`font-bold text-xs uppercase ${isDark ? 'text-white' : 'text-black'}`}>{cliente.nome}</h4>
+                  <p className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                     {cliente.telefone ? `Tel: ${cliente.telefone}` : 'Sem telefone cadastrado'}
                   </p>
                 </div>
@@ -650,13 +679,13 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                       target="_blank"
                       rel="noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="p-1.5 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition"
+                      className="p-1.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition"
                       title="Enviar WhatsApp"
                     >
                       <MessageCircle className="w-4 h-4" />
                     </a>
                   )}
-                  <ChevronRight className="w-4 h-4 text-slate-300" />
+                  <ChevronRight className="w-4 h-4 text-slate-400" />
                 </div>
               </div>
             ))
@@ -671,25 +700,33 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   // =========================================================================
   if (subTela === 'camera') {
     return (
-      <div className="fixed inset-0 z-50 bg-white text-slate-900 flex flex-col animate-in fade-in">
+      <div className={`fixed inset-0 z-50 flex flex-col animate-in fade-in ${
+        isDark ? 'bg-[#0B0F17] text-white' : 'bg-slate-100 text-slate-900'
+      }`}>
         {/* Header Superior da Câmera */}
-        <div className="h-14 border-b border-slate-200 px-4 flex items-center justify-between bg-white">
+        <div className={`h-14 border-b px-4 flex items-center justify-between ${
+          isDark ? 'bg-[#08131A] border-slate-800 text-white' : 'bg-slate-100 border-slate-300 text-black'
+        }`}>
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setSubTela('vender')}
-              className="p-1 rounded-full hover:bg-slate-100 text-slate-700 transition"
+              className={`p-1.5 rounded-xl transition cursor-pointer ${
+                isDark ? 'bg-[#000000] border-2 border-slate-400 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+              }`}
             >
-              <ChevronLeft className="w-6 h-6" />
+              <ChevronLeft className="w-5 h-5" />
             </button>
-            <h2 className="font-bold text-base text-slate-800">Vender</h2>
+            <h2 className={`font-bold text-base ${isDark ? 'text-white' : 'text-black'}`}>Vender</h2>
           </div>
 
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setCameraSomAtivo(!cameraSomAtivo)}
-              className="text-slate-600 hover:text-slate-900 transition"
+              className={`p-1.5 rounded-xl transition ${
+                isDark ? 'text-slate-400 hover:text-white' : 'text-slate-700 hover:text-black'
+              }`}
             >
               {cameraSomAtivo ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5 text-slate-400" />}
             </button>
@@ -697,7 +734,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             <button
               type="button"
               onClick={() => setModalMultiplicador(true)}
-              className="px-2 py-0.5 rounded border border-slate-300 text-xs font-black text-slate-700"
+              className={`px-2.5 py-1 rounded-xl border-2 text-xs font-black transition cursor-pointer ${
+                isDark ? 'bg-[#000000] border-slate-400 text-white' : 'bg-white border-slate-300 text-black shadow-xs'
+              }`}
             >
               {multiplicadorQtd}X
             </button>
@@ -705,9 +744,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             <button
               type="button"
               onClick={() => abrirSelecaoCliente('vender')}
-              className="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center font-bold text-xs"
+              className="w-8 h-8 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shadow-md transition cursor-pointer"
             >
-              +8
+              <User className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -741,19 +780,23 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
         </div>
 
         {/* Lista de Itens Bipados no Rodapé do Leitor */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-white">
+        <div className={`flex-1 overflow-y-auto p-4 space-y-2.5 ${
+          isDark ? 'bg-[#0B0F17]' : 'bg-slate-100'
+        }`}>
           {itens.length === 0 ? (
             <div className="text-center py-8 text-slate-400 text-xs">
               Aponte a câmera para o código de barras do produto.
             </div>
           ) : (
             itens.map((it) => (
-              <div key={it.id} className="flex items-center justify-between text-xs border-b border-slate-100 pb-2">
+              <div key={it.id} className={`flex items-center justify-between text-xs p-2.5 rounded-xl border-2 shadow-xs ${
+                isDark ? 'bg-[#000000] border-slate-400 text-white' : 'bg-white border-slate-300 text-black'
+              }`}>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-slate-700">{it.quantidade} x</span>
-                  <span className="font-bold text-slate-900 uppercase truncate max-w-[200px]">{it.produto.nome}</span>
+                  <span className={`font-bold ${isDark ? 'text-slate-300' : 'text-black font-extrabold'}`}>{it.quantidade} x</span>
+                  <span className={`font-bold uppercase truncate max-w-[200px] ${isDark ? 'text-white' : 'text-black'}`}>{it.produto.nome}</span>
                 </div>
-                <span className="font-black text-slate-900">R$ {Number(it.subtotal || 0).toFixed(2)}</span>
+                <span className="font-black text-emerald-600 dark:text-emerald-400">R$ {Number(it.subtotal || 0).toFixed(2)}</span>
               </div>
             ))
           )}
@@ -763,23 +806,27 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               <button
                 type="button"
                 onClick={() => setModalDescontoAberto(true)}
-                className="text-xs font-bold text-emerald-600 block w-full text-right"
+                className="text-xs font-bold text-emerald-600 dark:text-emerald-400 block w-full text-right"
               >
                 Dar desconto
               </button>
-              <div className="text-sm font-black text-slate-900">
-                TOTAL: R$ {Number(total || 0).toFixed(2)}
+              <div className={`text-sm font-black ${isDark ? 'text-white' : 'text-black'}`}>
+                TOTAL: <span className="text-emerald-600 dark:text-emerald-400 font-black">{formatarMoeda(total)}</span>
               </div>
             </div>
           )}
         </div>
 
         {/* Rodapé Flutuante do Leitor */}
-        <div className="p-3 border-t border-slate-200 bg-white flex items-center gap-2">
+        <div className={`p-3 border-t flex items-center gap-2 ${
+          isDark ? 'bg-[#08131A] border-slate-800' : 'bg-slate-100 border-slate-300'
+        }`}>
           <button
             type="button"
             onClick={() => setSubTela('carrinho')}
-            className="w-12 h-12 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-lg"
+            className={`w-12 h-12 rounded-xl border-2 flex items-center justify-center font-bold text-lg transition cursor-pointer ${
+              isDark ? 'bg-[#000000] border-slate-400 text-white' : 'bg-white border-slate-300 text-black'
+            }`}
           >
             ...
           </button>
@@ -787,7 +834,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             type="button"
             onClick={() => setSubTela('carrinho')}
             disabled={itens.length === 0}
-            className="flex-1 h-12 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-sm flex items-center justify-between px-4 shadow-md transition disabled:opacity-50"
+            className="flex-1 h-12 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm flex items-center justify-between px-4 shadow-md transition disabled:opacity-50 cursor-pointer"
           >
             <span>{totalItens} {totalItens === 1 ? 'item' : 'itens'} = R$ {total.toFixed(2)}</span>
             <ChevronRight className="w-5 h-5" />
@@ -804,24 +851,30 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
     const valorFormatado = formatarMoeda(valorAvulsoCentavos / 100);
 
     return (
-      <div className="fixed inset-0 z-50 bg-white text-slate-900 flex flex-col justify-between animate-in slide-in-from-right duration-150">
+      <div className={`fixed inset-0 z-50 flex flex-col justify-between animate-in slide-in-from-right duration-150 ${
+        isDark ? 'bg-[#0B0F17] text-white' : 'bg-slate-100 text-slate-900'
+      }`}>
         {/* Header */}
-        <div className="h-14 border-b border-slate-100 px-4 flex items-center gap-3 bg-white">
+        <div className={`h-14 border-b px-4 flex items-center gap-3 ${
+          isDark ? 'bg-[#08131A] border-slate-800 text-white' : 'bg-slate-100 border-slate-300 text-black'
+        }`}>
           <button
             type="button"
             onClick={() => setSubTela('vender')}
-            className="p-1 rounded-full hover:bg-slate-100 text-slate-700 transition"
+            className={`p-1.5 rounded-xl transition cursor-pointer ${
+              isDark ? 'bg-[#000000] border-2 border-slate-400 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+            }`}
           >
-            <ChevronLeft className="w-6 h-6" />
+            <ChevronLeft className="w-5 h-5" />
           </button>
-          <h2 className="font-bold text-base text-slate-800">Vender item não cadastrado</h2>
+          <h2 className={`font-bold text-base ${isDark ? 'text-white' : 'text-black'}`}>Vender item não cadastrado</h2>
         </div>
 
         {/* Display de Valor & Descrição */}
         <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-3">
-          <div className="text-4xl sm:text-5xl font-black text-emerald-500 tracking-tight flex items-center">
+          <div className="text-4xl sm:text-5xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight flex items-center">
             {valorFormatado}
-            <span className="w-0.5 h-10 bg-emerald-400 animate-pulse ml-1" />
+            <span className="w-0.5 h-10 bg-emerald-500 animate-pulse ml-1" />
           </div>
 
           {editandoDescricaoAvulso ? (
@@ -831,13 +884,15 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 placeholder="Ex: Serviço de entrega, Produto avulso..."
                 value={descricaoAvulso}
                 onChange={(e) => setDescricaoAvulso(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
+                className={`w-full border-2 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-emerald-500 ${
+                  isDark ? 'bg-[#000000] border-slate-400 text-white' : 'bg-white border-slate-300 text-black'
+                }`}
                 autoFocus
               />
               <button
                 type="button"
                 onClick={() => setEditandoDescricaoAvulso(false)}
-                className="p-2 rounded-xl bg-emerald-500 text-white text-xs font-bold"
+                className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold"
               >
                 <Check className="w-4 h-4" />
               </button>
@@ -846,7 +901,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             <button
               type="button"
               onClick={() => setEditandoDescricaoAvulso(true)}
-              className="text-xs font-bold text-emerald-600 hover:underline"
+              className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
             >
               {descricaoAvulso ? `Descrição: ${descricaoAvulso}` : 'Adicionar descrição'}
             </button>
@@ -854,14 +909,20 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
         </div>
 
         {/* Teclado Numérico Virtual */}
-        <div className="p-4 bg-white border-t border-slate-100 space-y-3">
-          <div className="grid grid-cols-3 gap-2 max-w-sm mx-auto text-center font-bold text-2xl text-slate-800">
+        <div className={`p-4 border-t space-y-3 ${
+          isDark ? 'bg-[#08131A] border-slate-800' : 'bg-slate-100 border-slate-300'
+        }`}>
+          <div className="grid grid-cols-3 gap-2 max-w-sm mx-auto text-center font-bold text-2xl">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
               <button
                 key={n}
                 type="button"
                 onClick={() => handleDigitarNumeroAvulso(n)}
-                className="h-14 rounded-2xl bg-slate-50 hover:bg-slate-100 active:bg-slate-200 transition flex items-center justify-center cursor-pointer shadow-sm"
+                className={`h-14 rounded-2xl border-2 transition flex items-center justify-center cursor-pointer shadow-sm ${
+                  isDark
+                    ? 'bg-[#000000] hover:bg-slate-900 border-slate-400 text-white'
+                    : 'bg-white hover:bg-slate-50 border-slate-300 text-black'
+                }`}
               >
                 {n}
               </button>
@@ -871,14 +932,22 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             <button
               type="button"
               onClick={() => handleDigitarNumeroAvulso(0)}
-              className="h-14 rounded-2xl bg-slate-50 hover:bg-slate-100 active:bg-slate-200 transition flex items-center justify-center cursor-pointer shadow-sm"
+              className={`h-14 rounded-2xl border-2 transition flex items-center justify-center cursor-pointer shadow-sm ${
+                isDark
+                  ? 'bg-[#000000] hover:bg-slate-900 border-slate-400 text-white'
+                  : 'bg-white hover:bg-slate-50 border-slate-300 text-black'
+              }`}
             >
               0
             </button>
             <button
               type="button"
               onClick={handleBackspaceAvulso}
-              className="h-14 rounded-2xl bg-slate-50 hover:bg-slate-100 active:bg-slate-200 transition flex items-center justify-center text-slate-500 cursor-pointer shadow-sm"
+              className={`h-14 rounded-2xl border-2 transition flex items-center justify-center cursor-pointer shadow-sm ${
+                isDark
+                  ? 'bg-[#000000] hover:bg-slate-900 border-slate-400 text-slate-300'
+                  : 'bg-white hover:bg-slate-50 border-slate-300 text-slate-700'
+              }`}
             >
               ⌫
             </button>
@@ -888,7 +957,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             type="button"
             onClick={handleAdicionarItemAvulso}
             disabled={valorAvulsoCentavos === 0}
-            className="w-full py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-sm transition shadow-md cursor-pointer disabled:opacity-40"
+            className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm transition shadow-md cursor-pointer disabled:opacity-40"
           >
             Adicionar ao carrinho
           </button>
@@ -902,24 +971,30 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   // =========================================================================
   if (subTela === 'carrinho') {
     return (
-      <div className="fixed inset-0 z-50 bg-white text-slate-900 flex flex-col justify-between animate-in slide-in-from-bottom duration-150">
+      <div className={`fixed inset-0 z-50 flex flex-col justify-between animate-in slide-in-from-bottom duration-150 ${
+        isDark ? 'bg-[#0B0F17] text-white' : 'bg-slate-100 text-slate-900'
+      }`}>
         {/* Header do Carrinho */}
-        <div className="h-14 border-b border-slate-100 px-4 flex items-center justify-between bg-white shrink-0">
+        <div className={`h-14 border-b px-4 flex items-center justify-between shrink-0 ${
+          isDark ? 'bg-[#08131A] border-slate-800 text-white' : 'bg-slate-100 border-slate-300 text-black'
+        }`}>
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setSubTela('vender')}
-              className="p-1 rounded-full hover:bg-slate-100 text-slate-700 transition cursor-pointer"
+              className={`p-1.5 rounded-xl transition cursor-pointer ${
+                isDark ? 'bg-[#000000] border-2 border-slate-400 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+              }`}
             >
-              <ChevronLeft className="w-6 h-6" />
+              <ChevronLeft className="w-5 h-5" />
             </button>
-            <h2 className="font-bold text-base text-slate-800">Carrinho</h2>
+            <h2 className={`font-bold text-base ${isDark ? 'text-white' : 'text-black'}`}>Carrinho</h2>
 
             {!isEdicaoTravada && itens.length > 0 && (
               <button
                 type="button"
                 onClick={() => setModalConfirmarLimparCarrinho(true)}
-                className="px-2.5 py-1 rounded-lg text-rose-600 hover:bg-rose-50 text-xs font-bold transition cursor-pointer"
+                className="px-2.5 py-1 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 text-xs font-bold transition cursor-pointer"
                 title="Limpar todos os produtos do carrinho"
               >
                 Limpar
@@ -931,7 +1006,11 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             <button
               type="button"
               onClick={() => setSubTela('vender')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs transition cursor-pointer active:scale-95 border border-emerald-200"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer active:scale-95 border-2 shadow-xs ${
+                isDark
+                  ? 'bg-[#000000] border-slate-400 text-emerald-400 hover:bg-slate-900'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 shadow-sm'
+              }`}
               title="Continuar adicionando produtos ao carrinho"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -949,29 +1028,29 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           return (
             <div className={`px-4 py-2.5 border-b space-y-1.5 shrink-0 ${
               isDark
-                ? 'bg-slate-800/90 border-slate-700/80 text-slate-100'
-                : 'bg-emerald-50/70 border-emerald-100 text-emerald-900'
+                ? 'bg-[#000000] border-slate-800 text-slate-100'
+                : 'bg-white border-slate-200 text-black'
             }`}>
               <div className="flex items-center justify-between text-xs">
-                <div className={`flex items-center gap-1.5 font-bold min-w-0 pr-2 ${isDark ? 'text-slate-100' : 'text-emerald-900'}`}>
-                  <Truck className={`w-4 h-4 shrink-0 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                <div className={`flex items-center gap-1.5 font-bold min-w-0 pr-2 ${isDark ? 'text-slate-100' : 'text-black'}`}>
+                  <Truck className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                   <span className="truncate">
                     {ganhouFrete ? (
-                      <span className={`font-black ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                      <span className="font-black text-emerald-600 dark:text-emerald-400">
                         🎉 Parabéns! Você ganhou Frete Grátis!
                       </span>
                     ) : (
-                      <span className={isDark ? 'text-slate-200' : 'text-slate-800'}>
-                        Faltam <strong className={`font-black ${isDark ? 'text-white' : 'text-emerald-950'}`}>{formatarMoeda(faltaFrete)}</strong> para você ganhar Frete Grátis
+                      <span className={isDark ? 'text-slate-200' : 'text-black'}>
+                        Faltam <strong className={`font-black ${isDark ? 'text-white' : 'text-emerald-700'}`}>{formatarMoeda(faltaFrete)}</strong> para Frete Grátis
                       </span>
                     )}
                   </span>
                 </div>
-                <span className={`font-black text-[11px] shrink-0 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                <span className="font-black text-[11px] shrink-0 text-emerald-600 dark:text-emerald-400">
                   {percentualFrete}%
                 </span>
               </div>
-              <div className={`w-full rounded-full h-2 overflow-hidden ${isDark ? 'bg-slate-700/60' : 'bg-emerald-200/60'}`}>
+              <div className={`w-full rounded-full h-2 overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
                 <div
                   className="bg-emerald-500 h-2 rounded-full transition-all duration-300 ease-out"
                   style={{ width: `${percentualFrete}%` }}
@@ -988,7 +1067,6 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           if (qtdAtivos <= 1) return null;
           if (!avaliacaoCarrinho.proximoNivel && avaliacaoCarrinho.tabelaAtiva === 'varejo') return null;
 
-          // Desacoplamento estrito: o termômetro reflete apenas o progresso orgânico acumulado em produtos
           const tabelaOrganica = avaliacaoCarrinho.tabelaAtiva;
           const atingiuDistribuidor = tabelaOrganica === 'autoatacado';
           const proximaTabelaNome = avaliacaoCarrinho.proximoNivel === 'autoatacado' ? 'Distribuidor' : 'Atacado';
@@ -1004,7 +1082,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           let mensagemMeta: React.ReactNode;
           if (atingiuDistribuidor) {
             mensagemMeta = (
-              <span className="text-purple-700 font-black">
+              <span className="text-purple-600 dark:text-purple-400 font-black">
                 🎉 Parabéns! Você atingiu a tabela de Distribuidor!
               </span>
             );
@@ -1012,47 +1090,43 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             const faltamPecas = avaliacaoCarrinho.faltaPecasParaProximo;
             mensagemMeta = (
               <span>
-                Faltam <strong className="font-black text-slate-900">{faltamPecas} {faltamPecas === 1 ? 'peça' : 'peças'}</strong> para tabela de {proximaTabelaNome}
+                Faltam <strong className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>{faltamPecas} {faltamPecas === 1 ? 'peça' : 'peças'}</strong> para tabela de {proximaTabelaNome}
               </span>
             );
           } else {
             mensagemMeta = (
               <span>
-                Faltam <strong className="font-black text-slate-900">{formatarMoeda(avaliacaoCarrinho.faltaValorParaProximo)}</strong> para tabela de {proximaTabelaNome}
+                Faltam <strong className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>{formatarMoeda(avaliacaoCarrinho.faltaValorParaProximo)}</strong> para tabela de {proximaTabelaNome}
               </span>
             );
           }
 
           return (
             <div className={`px-4 py-2.5 border-b space-y-1.5 shrink-0 ${
-              atingiuDistribuidor
-                ? 'bg-purple-50/70 border-purple-100 text-purple-900'
-                : tabelaOrganica === 'atacado'
-                ? 'bg-blue-50/70 border-blue-100 text-blue-900'
-                : 'bg-slate-50 border-slate-200 text-slate-800'
+              isDark ? 'bg-[#000000] border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-black'
             }`}>
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-1.5 font-bold min-w-0 pr-2">
                   <Tag className={`w-4 h-4 shrink-0 ${
-                    atingiuDistribuidor ? 'text-purple-600' : tabelaOrganica === 'atacado' ? 'text-blue-600' : 'text-slate-600'
+                    atingiuDistribuidor ? 'text-purple-500' : tabelaOrganica === 'atacado' ? 'text-blue-500' : 'text-slate-500'
                   }`} />
                   <span className="truncate">{mensagemMeta}</span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   {Number(avaliacaoCarrinho.economiaTotal || 0) > 0 && (
-                    <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded-full font-black">
+                    <span className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded-full font-black">
                       - R$ {Number(avaliacaoCarrinho.economiaTotal || 0).toFixed(2)}
                     </span>
                   )}
                   <span className={`font-black text-[11px] shrink-0 ${
-                    atingiuDistribuidor ? 'text-purple-700' : tabelaOrganica === 'atacado' ? 'text-blue-700' : 'text-slate-700'
+                    atingiuDistribuidor ? 'text-purple-600 dark:text-purple-400' : tabelaOrganica === 'atacado' ? 'text-blue-600 dark:text-blue-400' : (isDark ? 'text-slate-300' : 'text-black')
                   }`}>
                     {progressoPercent}%
                   </span>
                 </div>
               </div>
               <div className={`w-full rounded-full h-2 overflow-hidden ${
-                atingiuDistribuidor ? 'bg-purple-200/60' : tabelaOrganica === 'atacado' ? 'bg-blue-200/60' : 'bg-slate-200'
+                isDark ? 'bg-slate-800' : 'bg-slate-200'
               }`}>
                 <div
                   className={`h-2 rounded-full transition-all duration-300 ease-out ${
@@ -1066,53 +1140,55 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
         })()}
 
         {/* Lista de Itens do Carrinho */}
-        <div className={`flex-1 overflow-y-auto p-4 space-y-3 divide-y ${
-          isDark ? 'bg-slate-900 divide-slate-800' : 'bg-white divide-slate-100'
+        <div className={`flex-1 overflow-y-auto p-3 sm:p-4 space-y-2.5 ${
+          isDark ? 'bg-[#0B0F17]' : 'bg-slate-100'
         }`}>
           {itens.length === 0 ? (
-            <div className={`text-center py-16 text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+            <div className={`text-center py-16 text-xs ${isDark ? 'text-slate-400' : 'text-slate-600 font-semibold'}`}>
               Seu carrinho está vazio.
             </div>
           ) : (
             itens.map((it) => (
-              <div key={it.id} className="pt-3 first:pt-0 flex items-center justify-between gap-2.5">
+              <div key={it.id} className={`p-3 rounded-2xl border-2 flex items-center justify-between gap-2.5 shadow-xs ${
+                isDark ? 'bg-[#000000] border-slate-400 text-white' : 'bg-white border-slate-300 text-black'
+              }`}>
                 <div className="min-w-0 flex-1 space-y-0.5">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <span className={`font-black text-xs whitespace-nowrap shrink-0 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    <span className={`font-black text-xs whitespace-nowrap shrink-0 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                       {it.quantidade} x
                     </span>
                     <span
-                      className={`font-bold text-xs uppercase truncate min-w-0 ${isDark ? 'text-slate-100' : 'text-slate-800'}`}
+                      className={`font-bold text-xs uppercase truncate min-w-0 ${isDark ? 'text-white' : 'text-black'}`}
                       title={it.produto.nome}
                     >
                       {it.produto.nome}
                     </span>
                   </div>
                   {it.variacao && (
-                    <span className={`text-[10px] block truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <span className={`text-[10px] block truncate ${isDark ? 'text-slate-400' : 'text-slate-600 font-medium'}`}>
                       Var: {it.variacao.valor_variacao_1}
                     </span>
                   )}
                 </div>
 
                 <div className="flex items-center gap-2.5 shrink-0">
-                  <span className={`font-black text-xs sm:text-sm whitespace-nowrap ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  <span className="font-black text-xs sm:text-sm whitespace-nowrap text-emerald-600 dark:text-emerald-400">
                     R$ {Number(it.subtotal || 0).toFixed(2)}
                   </span>
 
                   {/* Controles de Quantidade */}
                   {isEdicaoTravada ? (
                     <div
-                      className={`px-2 py-1 rounded-xl text-xs font-bold border shrink-0 ${
-                        isDark ? 'bg-slate-800 text-slate-400 border-slate-700' : 'bg-slate-100 text-slate-500 border-slate-200'
+                      className={`px-2 py-1 rounded-xl text-xs font-bold border-2 shrink-0 ${
+                        isDark ? 'bg-[#08131A] text-slate-400 border-slate-700' : 'bg-slate-100 text-slate-600 border-slate-300'
                       }`}
                       title="Quantidade bloqueada para pedidos já confirmados"
                     >
                       {it.quantidade} un
                     </div>
                   ) : (
-                    <div className={`flex items-center gap-1 p-1 rounded-xl shrink-0 ${
-                      isDark ? 'bg-slate-800' : 'bg-slate-100'
+                    <div className={`flex items-center gap-1 p-1 rounded-xl shrink-0 border-2 ${
+                      isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-50 border-slate-300'
                     }`}>
                       <button
                         type="button"
@@ -1123,20 +1199,20 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                             removerItem(it.id);
                           }
                         }}
-                        className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold transition cursor-pointer active:scale-95 ${
-                          isDark ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-white text-slate-700 hover:bg-slate-200'
+                        className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold transition cursor-pointer active:scale-95 border ${
+                          isDark ? 'bg-[#000000] border-slate-600 text-white hover:bg-slate-800' : 'bg-white border-slate-300 text-black hover:bg-slate-100'
                         }`}
                       >
                         <Minus className="w-3 h-3" />
                       </button>
-                      <span className={`w-5 text-center text-xs font-black ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                      <span className={`w-5 text-center text-xs font-black ${isDark ? 'text-white' : 'text-black'}`}>
                         {it.quantidade}
                       </span>
                       <button
                         type="button"
                         onClick={() => atualizarQuantidade(it.id, it.quantidade + 1)}
-                        className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold transition cursor-pointer active:scale-95 ${
-                          isDark ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-white text-slate-700 hover:bg-slate-200'
+                        className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold transition cursor-pointer active:scale-95 border ${
+                          isDark ? 'bg-[#000000] border-slate-600 text-white hover:bg-slate-800' : 'bg-white border-slate-300 text-black hover:bg-slate-100'
                         }`}
                       >
                         <Plus className="w-3 h-3" />
@@ -1151,13 +1227,19 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
         {/* Resumo de Valores e Desconto */}
         {itens.length > 0 && (
-          <div className="p-4 bg-slate-50 border-t border-slate-200 space-y-2.5">
+          <div className={`p-4 border-2 rounded-2xl m-3 space-y-2.5 shadow-xs ${
+            isDark ? 'bg-[#000000] border-slate-400 text-white' : 'bg-white border-slate-300 text-black'
+          }`}>
             {/* Identificação de Cliente e Tabela de Preço Ativa */}
-            <div className="pb-2.5 border-b border-slate-200 flex items-center justify-between gap-2">
+            <div className={`pb-2.5 border-b flex items-center justify-between gap-2 ${
+              isDark ? 'border-slate-800' : 'border-slate-200'
+            }`}>
               {/* Cliente Vinculado ou Cliente Balcão */}
               {isEdicaoTravada ? (
                 <div
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 font-bold text-xs min-w-0 flex-1 truncate cursor-not-allowed opacity-85"
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border-2 text-xs font-bold min-w-0 flex-1 truncate cursor-not-allowed opacity-85 ${
+                    isDark ? 'bg-[#08131A] border-slate-700 text-slate-400' : 'bg-slate-50 border-slate-300 text-slate-600'
+                  }`}
                   title="Cliente fixo para pedidos já confirmados"
                 >
                   <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -1169,10 +1251,14 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => abrirSelecaoCliente('carrinho')}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 text-slate-700 hover:text-emerald-700 font-bold text-xs transition shadow-2xs cursor-pointer min-w-0 flex-1 truncate"
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border-2 font-bold text-xs transition shadow-2xs cursor-pointer min-w-0 flex-1 truncate ${
+                    isDark
+                      ? 'bg-[#08131A] border-slate-700 hover:border-slate-500 text-white'
+                      : 'bg-slate-50 border-slate-300 hover:border-slate-400 text-black'
+                  }`}
                   title="Toque para alterar ou vincular cliente"
                 >
-                  <User className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <User className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <span className="truncate">
                     {clienteSelecionado ? clienteSelecionado.nome : 'Cliente Balcão'}
                   </span>
@@ -1189,7 +1275,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 if (isEdicaoTravada) {
                   return (
                     <div
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200 shrink-0 cursor-not-allowed opacity-85"
+                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold border-2 shrink-0 cursor-not-allowed opacity-85 ${
+                        isDark ? 'bg-[#08131A] text-slate-400 border-slate-700' : 'bg-slate-50 text-slate-600 border-slate-300'
+                      }`}
                       title="Tabela de preços bloqueada para este status"
                     >
                       <Tag className="w-3 h-3 text-slate-400" />
@@ -1208,12 +1296,14 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                   <button
                     type="button"
                     onClick={() => setModalTabelaPrecoAberto(true)}
-                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-black border transition shadow-2xs cursor-pointer active:scale-95 shrink-0 ${
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-black border-2 transition shadow-2xs cursor-pointer active:scale-95 shrink-0 ${
                       tabelaPrecoCalculada === 'autoatacado'
-                        ? 'bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100'
+                        ? 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/40 hover:bg-purple-500/25'
                         : tabelaPrecoCalculada === 'atacado'
-                        ? 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100'
-                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                        ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/40 hover:bg-blue-500/25'
+                        : isDark
+                        ? 'bg-[#08131A] text-white border-slate-700 hover:border-slate-500'
+                        : 'bg-slate-50 text-black border-slate-300 hover:border-slate-400'
                     }`}
                     title="Toque para alterar tabela de preços"
                   >
@@ -1230,13 +1320,13 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               })()}
             </div>
 
-            <div className="flex justify-between text-xs text-slate-500">
-              <span>Subtotal:</span>
-              <span>R$ {Number(subtotal || 0).toFixed(2)}</span>
+            <div className={`flex justify-between text-xs ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
+              <span className="font-semibold">Subtotal:</span>
+              <span className={`font-bold ${isDark ? 'text-white' : 'text-black'}`}>R$ {Number(subtotal || 0).toFixed(2)}</span>
             </div>
 
             {Number(desconto || 0) > 0 && (
-              <div className="flex justify-between text-xs text-rose-500 font-bold">
+              <div className="flex justify-between text-xs text-rose-600 dark:text-rose-400 font-bold">
                 <span>Desconto aplicado:</span>
                 <span>- R$ {Number(desconto || 0).toFixed(2)}</span>
               </div>
@@ -1249,21 +1339,23 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 setDescontoTempTipo(tipoDesconto);
                 setModalDescontoAberto(true);
               }}
-              className="text-xs font-bold text-emerald-600 hover:underline block text-right w-full cursor-pointer"
+              className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline block text-right w-full cursor-pointer"
             >
               {desconto > 0 ? 'Alterar desconto' : 'Dar desconto'}
             </button>
 
             {/* Componente de Forma de Entrega no Mobile (Segmentado Retirada / Envio padrão Desktop) */}
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 text-xs shadow-2xs">
+              <div className={`flex items-center justify-between p-2 rounded-xl border-2 text-xs shadow-2xs ${
+                isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-50 border-slate-300'
+              }`}>
                 <div className="flex items-center gap-1.5 min-w-0">
                   {pedidoEntrega?.tipo_atendimento === 'entrega' ? (
-                    <Truck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <Truck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   ) : (
-                    <Store className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <Store className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   )}
-                  <span className="text-slate-700 font-semibold truncate">
+                  <span className={`font-bold truncate ${isDark ? 'text-white' : 'text-black'}`}>
                     Forma de Entrega:
                   </span>
                 </div>
@@ -1278,7 +1370,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                     className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer active:scale-95 ${
                       pedidoEntrega?.tipo_atendimento !== 'entrega'
                         ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                        : isDark
+                        ? 'bg-[#000000] text-slate-300 hover:bg-slate-900 border border-slate-700'
+                        : 'bg-white text-black hover:bg-slate-100 border border-slate-300'
                     }`}
                   >
                     <Store className="w-3 h-3" />
@@ -1301,7 +1395,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                     className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer active:scale-95 ${
                       pedidoEntrega?.tipo_atendimento === 'entrega'
                         ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                        : isDark
+                        ? 'bg-[#000000] text-slate-300 hover:bg-slate-900 border border-slate-700'
+                        : 'bg-white text-black hover:bg-slate-100 border border-slate-300'
                     }`}
                   >
                     <Truck className="w-3 h-3" />
@@ -1312,24 +1408,26 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
               {/* Informação e status do frete quando Envio estiver selecionado */}
               {pedidoEntrega?.tipo_atendimento === 'entrega' && (
-                <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-                  <span className="text-slate-600 font-medium truncate">
+                <div className={`flex items-center justify-between px-2.5 py-1.5 rounded-xl border-2 text-xs ${
+                  isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-50 border-slate-300'
+                }`}>
+                  <span className={`font-semibold truncate ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     {pedidoEntrega.transportadora_nome && pedidoEntrega.transportadora_nome !== 'Envio a Definir' && pedidoEntrega.servico_codigo !== 'pendente' ? (
                       <span>{pedidoEntrega.transportadora_nome}</span>
                     ) : (
-                      <span className="text-amber-700 font-semibold">Opção de frete:</span>
+                      <span className="text-amber-700 dark:text-amber-400 font-bold">Opção de frete:</span>
                     )}
                   </span>
                   <div className="flex items-center gap-1.5 shrink-0">
                     {pedidoEntrega.transportadora_nome && pedidoEntrega.transportadora_nome !== 'Envio a Definir' && pedidoEntrega.servico_codigo !== 'pendente' ? (
-                      <span className="font-bold text-emerald-700">
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
                         {taxaEntrega > 0 ? `+ ${formatarMoeda(taxaEntrega)}` : (pedidoEntrega.is_frete_gratis ? 'Grátis' : formatarMoeda(0))}
                       </span>
                     ) : (
                       <button
                         type="button"
                         onClick={() => onAbrirFormaEntrega?.()}
-                        className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 font-bold text-[11px] border border-amber-500/30 cursor-pointer flex items-center gap-1"
+                        className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-400 hover:bg-amber-500/25 font-bold text-[11px] border border-amber-500/30 cursor-pointer flex items-center gap-1"
                       >
                         <span>A definir</span>
                         <span className="text-[10px]">✏️</span>
@@ -1338,7 +1436,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                     <button
                       type="button"
                       onClick={() => onAbrirFormaEntrega?.()}
-                      className="text-xs font-bold text-emerald-600 hover:text-emerald-700 underline cursor-pointer ml-1"
+                      className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer ml-1"
                     >
                       Alterar
                     </button>
@@ -1347,27 +1445,35 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               )}
             </div>
 
-            <div className="flex justify-between text-base font-black text-slate-900 pt-1 border-t border-slate-200">
+            <div className={`flex justify-between text-base font-black pt-1 border-t ${
+              isDark ? 'border-slate-800 text-white' : 'border-slate-200 text-black'
+            }`}>
               <span>TOTAL:</span>
-              <span className="text-emerald-600">{formatarMoeda(total)}</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-black">{formatarMoeda(total)}</span>
             </div>
           </div>
         )}
 
         {/* Barra Inferior com Botões de Salvar Pedido (Pendente) & Cobrança */}
-        <div className="p-3 border-t border-slate-200 bg-white flex items-center gap-2">
+        <div className={`p-3 border-t flex items-center gap-2 ${
+          isDark ? 'bg-[#08131A] border-slate-800' : 'bg-slate-100 border-slate-300'
+        }`}>
           {onSalvarPedidoPendente && (
             <button
               type="button"
               disabled={itens.length === 0 || salvandoPendente}
               onClick={onSalvarPedidoPendente}
-              className="flex-1 h-12 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50 active:scale-95"
+              className={`flex-1 h-12 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50 active:scale-95 shadow-xs ${
+                isDark
+                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
+                  : 'bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white shadow-sm'
+              }`}
               title="Salva o pedido como Pendente sem concluir pagamento"
             >
               {salvandoPendente ? (
-                <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
               ) : (
-                <FileText className="w-4 h-4 text-emerald-600" />
+                <FileText className="w-4 h-4 text-white" />
               )}
               <span className="truncate">{pedidoEmEdicao ? 'Atualizar' : 'Salvar Pedido'}</span>
             </button>
@@ -1377,24 +1483,32 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             type="button"
             onClick={() => onAbrirFechamento()}
             disabled={itens.length === 0 || salvandoPendente}
-            className="flex-[1.2] h-12 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs flex items-center justify-between px-3 shadow-md transition cursor-pointer disabled:opacity-50 active:scale-95"
+            className={`flex-[1.2] h-12 rounded-xl font-black text-xs flex items-center justify-between px-3 shadow-md transition cursor-pointer disabled:opacity-50 active:scale-95 ${
+              isDark
+                ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
+                : 'bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white'
+            }`}
             title="Avançar para pagamento e concluir venda"
           >
             <span className="truncate">{totalItens} {totalItens === 1 ? 'item' : 'itens'} • R$ {Number(total || 0).toFixed(2)}</span>
-            <ChevronRight className="w-4 h-4 shrink-0" />
+            <ChevronRight className="w-4 h-4 shrink-0 text-white" />
           </button>
         </div>
 
         {/* Modal de Desconto */}
         {modalDescontoAberto && (
           <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl p-5 w-full max-w-xs space-y-4 shadow-2xl animate-in zoom-in-95">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                <h3 className="font-bold text-sm text-slate-800">Aplicar Desconto</h3>
+            <div className={`${
+              isDark ? 'bg-[#08131A] border-2 border-slate-400 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
+            } rounded-3xl p-5 w-full max-w-xs space-y-4 shadow-2xl animate-in zoom-in-95`}>
+              <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
+                <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Aplicar Desconto</h3>
                 <button
                   type="button"
                   onClick={() => setModalDescontoAberto(false)}
-                  className="p-1 rounded-full text-slate-400 hover:bg-slate-100"
+                  className={`p-1.5 rounded-xl transition cursor-pointer ${
+                    isDark ? 'bg-[#000000] border-2 border-slate-400 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+                  }`}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -1404,8 +1518,12 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setDescontoTempTipo('valor')}
-                  className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition ${
-                    descontoTempTipo === 'valor' ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-600'
+                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition border-2 ${
+                    descontoTempTipo === 'valor'
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                      : isDark
+                      ? 'bg-[#000000] border-slate-700 text-slate-300'
+                      : 'bg-white border-slate-300 text-black'
                   }`}
                 >
                   R$ Valor
@@ -1413,8 +1531,12 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setDescontoTempTipo('percentual')}
-                  className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition ${
-                    descontoTempTipo === 'percentual' ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-600'
+                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition border-2 ${
+                    descontoTempTipo === 'percentual'
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                      : isDark
+                      ? 'bg-[#000000] border-slate-700 text-slate-300'
+                      : 'bg-white border-slate-300 text-black'
                   }`}
                 >
                   % Porcentagem
@@ -1426,7 +1548,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 placeholder={descontoTempTipo === 'valor' ? 'Ex: 5.00' : 'Ex: 10%'}
                 value={descontoTempValor}
                 onChange={(e) => setDescontoTempValor(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-800 focus:outline-none focus:border-emerald-500"
+                className={`w-full border-2 rounded-xl p-3 text-sm focus:outline-none focus:border-emerald-500 ${
+                  isDark ? 'bg-[#000000] border-slate-400 text-white placeholder:text-slate-500' : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
+                }`}
                 autoFocus
               />
 
@@ -1437,7 +1561,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                     setDescontoValor(0);
                     setModalDescontoAberto(false);
                   }}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold"
+                  className={`flex-1 py-2.5 rounded-xl border-2 text-xs font-bold transition cursor-pointer ${
+                    isDark ? 'bg-[#000000] border-slate-400 text-slate-200 hover:bg-slate-900' : 'bg-white border-slate-300 text-black hover:bg-slate-50'
+                  }`}
                 >
                   Zerar
                 </button>
@@ -1452,7 +1578,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                     }
                     setModalDescontoAberto(false);
                   }}
-                  className="flex-1 py-2.5 rounded-xl bg-emerald-500 text-white text-xs font-bold"
+                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md cursor-pointer"
                 >
                   Aplicar
                 </button>
@@ -1464,13 +1590,15 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
         {/* Modal Contextual de Confirmação: Limpar Carrinho */}
         {modalConfirmarLimparCarrinho && (
           <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl p-5 w-full max-w-xs space-y-4 shadow-2xl animate-in zoom-in-95 text-center">
-              <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+            <div className={`${
+              isDark ? 'bg-[#08131A] border-2 border-slate-400 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
+            } rounded-3xl p-5 w-full max-w-xs space-y-4 shadow-2xl animate-in zoom-in-95 text-center`}>
+              <div className="w-12 h-12 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto border border-rose-500/30">
                 <Trash2 className="w-6 h-6" />
               </div>
               <div className="space-y-1">
-                <h3 className="font-bold text-sm text-slate-800">Limpar Carrinho</h3>
-                <p className="text-xs text-slate-500">
+                <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Limpar Carrinho</h3>
+                <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-700 font-medium'}`}>
                   Deseja realmente limpar todos os itens do carrinho?
                 </p>
               </div>
@@ -1478,7 +1606,11 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setModalConfirmarLimparCarrinho(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
+                  className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
+                    isDark
+                      ? 'bg-[#000000] hover:bg-slate-900 border-2 border-slate-400 text-slate-200'
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+                  }`}
                 >
                   Cancelar
                 </button>
@@ -1508,7 +1640,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   // TELA 001 & TELA 007: TELA PRINCIPAL DE VENDER (MOBILE)
   // =========================================================================
   return (
-    <div className="flex flex-col h-full bg-white text-slate-900 overflow-hidden select-none">
+    <div className={`flex flex-col h-full overflow-hidden select-none ${
+      isDark ? 'bg-[#0B0F17] text-white' : 'bg-slate-100 text-slate-900'
+    }`}>
       {/* 1. Header Superior Mobile Unificado */}
       <MobileHeader
         titulo="Vender"
@@ -1544,7 +1678,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
       {/* 2. Barra de Ferramentas / Ações Rápidas (Ou Barra de Busca Tela 004) */}
       {buscaAberta ? (
         // TELA 004: Busca Aberta
-        <div className="px-4 py-2 border-b border-slate-200 bg-white flex items-center gap-2 shrink-0 animate-in fade-in">
+        <div className={`px-4 py-2 border-b-2 flex items-center gap-2 shrink-0 animate-in fade-in ${
+          isDark ? 'bg-[#08131A] border-slate-800' : 'bg-slate-100 border-slate-300'
+        }`}>
           <div className="relative flex-1">
             <input
               ref={inputBuscaRef}
@@ -1552,7 +1688,11 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               placeholder="Item ou código"
               value={termoBusca}
               onChange={(e) => setTermoBusca(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3 pr-8 py-2 text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
+              className={`w-full border-2 rounded-xl pl-3 pr-8 py-2 text-xs focus:outline-none focus:border-emerald-500 ${
+                isDark
+                  ? 'bg-[#000000] border-slate-400 text-white placeholder:text-slate-500'
+                  : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
+              }`}
             />
             {termoBusca && (
               <button
@@ -1570,20 +1710,24 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               setBuscaAberta(false);
               setTermoBusca('');
             }}
-            className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 transition"
+            className={`p-1.5 rounded-xl transition cursor-pointer ${
+              isDark ? 'bg-[#000000] border-2 border-slate-400 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+            }`}
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
       ) : (
         // Barra de Ícones Padrão (Tela 001)
-        <div className="px-4 py-2 border-b border-slate-200 bg-white flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-4 text-slate-600">
+        <div className={`px-4 py-2 border-b-2 flex items-center justify-between shrink-0 ${
+          isDark ? 'bg-[#08131A] border-slate-800' : 'bg-slate-100 border-slate-300'
+        }`}>
+          <div className={`flex items-center gap-4 ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
             {/* Busca 🔍 */}
             <button
               type="button"
               onClick={() => setBuscaAberta(true)}
-              className="p-1 text-slate-600 hover:text-slate-900 transition"
+              className={`p-1 transition cursor-pointer ${isDark ? 'hover:text-white' : 'hover:text-black'}`}
               title="Buscar Produto"
             >
               <Search className="w-5 h-5" />
@@ -1593,11 +1737,11 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             <button
               type="button"
               onClick={() => setSubTela('camera')}
-              className="p-1 text-slate-600 hover:text-slate-900 transition"
+              className={`p-1 transition cursor-pointer ${isDark ? 'hover:text-white' : 'hover:text-black'}`}
               title="Leitor de Código de Barras"
             >
-              <div className="w-5 h-5 border-2 border-dashed border-slate-600 rounded flex items-center justify-center">
-                <span className="w-2.5 h-0.5 bg-slate-600" />
+              <div className={`w-5 h-5 border-2 border-dashed rounded flex items-center justify-center ${isDark ? 'border-slate-300' : 'border-slate-800'}`}>
+                <span className={`w-2.5 h-0.5 ${isDark ? 'bg-slate-300' : 'bg-slate-800'}`} />
               </div>
             </button>
 
@@ -1605,7 +1749,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             <button
               type="button"
               onClick={() => setSubTela('avulso')}
-              className="p-1 text-slate-600 hover:text-slate-900 transition"
+              className={`p-1 transition cursor-pointer ${isDark ? 'hover:text-white' : 'hover:text-black'}`}
               title="Vender item não cadastrado"
             >
               <Zap className="w-5 h-5" />
@@ -1615,7 +1759,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             <button
               type="button"
               onClick={() => setModoVisualizacao(modoVisualizacao === 'grade' ? 'lista' : 'grade')}
-              className="p-1 text-slate-600 hover:text-slate-900 transition"
+              className={`p-1 transition cursor-pointer ${isDark ? 'hover:text-white' : 'hover:text-black'}`}
               title="Alternar Visualização Grade/Lista"
             >
               {modoVisualizacao === 'grade' ? (
@@ -1630,7 +1774,11 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           <button
             type="button"
             onClick={() => setModalMultiplicador(true)}
-            className="px-2.5 py-1 rounded-md border border-slate-300 text-xs font-black text-slate-700 bg-white hover:bg-slate-50 shadow-xs transition"
+            className={`px-2.5 py-1 rounded-xl border-2 text-xs font-black shadow-xs transition cursor-pointer ${
+              isDark
+                ? 'border-slate-400 text-white bg-[#000000] hover:bg-slate-900'
+                : 'border-slate-300 text-black bg-white hover:bg-slate-50'
+            }`}
           >
             {multiplicadorQtd}X
           </button>
@@ -1638,20 +1786,26 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
       )}
 
       {/* 3. Menu Dropdown Seletor de Categorias */}
-      <div className="px-3 py-2 border-b border-slate-200 bg-white flex items-center gap-2 shrink-0">
+      <div className={`px-3 py-2 border-b-2 flex items-center gap-2 shrink-0 ${
+        isDark ? 'bg-[#08131A] border-slate-800' : 'bg-slate-100 border-slate-300'
+      }`}>
         <div className="relative flex-1">
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 flex items-center">
-            <Tag className="w-3.5 h-3.5 text-emerald-500" />
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center">
+            <Tag className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
           </div>
           <select
             value={categoriaAtiva}
             onChange={(e) => setCategoriaAtiva(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl pl-9 pr-9 py-2 text-xs font-bold text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer shadow-xs transition"
+            className={`w-full border-2 rounded-xl pl-9 pr-9 py-2 text-xs font-bold appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer shadow-xs transition ${
+              isDark
+                ? 'bg-[#000000] border-slate-400 text-white'
+                : 'bg-white border-slate-300 text-black'
+            }`}
           >
-            <option value="tudo">Todas as Categorias</option>
-            <option value="destaques">⭐ Destaques</option>
+            <option value="tudo" className={isDark ? 'bg-[#000000] text-white' : 'bg-white text-black'}>Todas as Categorias</option>
+            <option value="destaques" className={isDark ? 'bg-[#000000] text-white' : 'bg-white text-black'}>⭐ Destaques</option>
             {categoriasOrdenadas.map(cat => (
-              <option key={cat.id} value={cat.id}>
+              <option key={cat.id} value={cat.id} className={isDark ? 'bg-[#000000] text-white' : 'bg-white text-black'}>
                 {cat.nome}
               </option>
             ))}
@@ -1665,7 +1819,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
       {/* 4. Catálogo de Produtos */}
       <div className="flex-1 overflow-y-auto p-2 sm:p-3">
         {produtosFiltrados.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-slate-400 space-y-2 text-xs">
+          <div className={`flex flex-col items-center justify-center h-64 space-y-2 text-xs ${
+            isDark ? 'text-slate-400' : 'text-slate-600 font-semibold'
+          }`}>
             <Package className="w-8 h-8 stroke-1" />
             <p>Nenhum produto encontrado.</p>
           </div>
@@ -1691,10 +1847,16 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 <div
                   key={produto.id}
                   onClick={() => handleClicarProduto(produto)}
-                  className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs hover:border-emerald-400 active:scale-95 transition-all duration-100 flex flex-col h-full cursor-pointer group"
+                  className={`border-2 rounded-xl overflow-hidden shadow-xs active:scale-95 transition-all duration-100 flex flex-col h-full cursor-pointer group ${
+                    isDark
+                      ? 'bg-[#000000] border-slate-400 hover:border-slate-300'
+                      : 'bg-white border-slate-300 hover:border-slate-400'
+                  }`}
                 >
                   {/* Wrapper com proporção 1:1 rigorosamente travada */}
-                  <div className="w-full aspect-square bg-white relative flex items-center justify-center overflow-hidden rounded-t-xl shrink-0">
+                  <div className={`w-full aspect-square relative flex items-center justify-center overflow-hidden rounded-t-xl shrink-0 ${
+                    isDark ? 'bg-[#08131A]' : 'bg-white'
+                  }`}>
                     {produto.fotos_urls && produto.fotos_urls[0] ? (
                       <img
                         src={produto.fotos_urls[0]}
@@ -1704,7 +1866,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                         decoding="async"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-slate-300">
+                      <div className="w-full h-full flex items-center justify-center text-slate-400">
                         <Package className="w-8 h-8 opacity-40" />
                       </div>
                     )}
@@ -1724,20 +1886,24 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
                     {/* Badge Verde de Quantidade Acumulada */}
                     {qtdNoCarrinho > 0 && (
-                      <span className="absolute top-1 right-1 bg-emerald-500 text-white font-black text-[10px] w-5 h-5 rounded-md flex items-center justify-center shadow-md animate-in zoom-in-75">
+                      <span className="absolute top-1 right-1 bg-emerald-600 text-white font-black text-[10px] w-5 h-5 rounded-md flex items-center justify-center shadow-md animate-in zoom-in-75">
                         {qtdNoCarrinho}
                       </span>
                     )}
                   </div>
 
                   {/* Informações do produto niveladas */}
-                  <div className="p-2 flex flex-col flex-1 justify-between border-t border-slate-100 bg-white">
+                  <div className={`p-2 flex flex-col flex-1 justify-between border-t-2 ${
+                    isDark ? 'border-slate-800 bg-[#000000]' : 'border-slate-200 bg-white'
+                  }`}>
                     <div className="flex items-start gap-1">
                       {produto.destaque && (
                         <span className="text-amber-500 text-[10px] shrink-0">★</span>
                       )}
                       <h3
-                        className="text-[11px] font-semibold text-slate-800 line-clamp-2 h-[2.25rem] leading-[1.125rem] overflow-hidden select-none uppercase"
+                        className={`text-[11px] font-bold line-clamp-2 h-[2.25rem] leading-[1.125rem] overflow-hidden select-none uppercase ${
+                          isDark ? 'text-white' : 'text-black'
+                        }`}
                         title={produto.nome}
                       >
                         {produto.nome}
@@ -1745,7 +1911,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                     </div>
 
                     <div className="flex items-baseline justify-between pt-1">
-                      <span className="font-black text-xs text-emerald-600">
+                      <span className="font-black text-xs text-emerald-600 dark:text-emerald-400">
                         R$ {Number(precoFinal).toFixed(2)}
                       </span>
                       {precoOriginal && (
@@ -1761,7 +1927,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           </div>
         ) : (
           // MODO LISTA: 1 LINHA POR PRODUTO (TELA 007)
-          <div className="divide-y divide-slate-100 bg-white rounded-2xl border border-slate-200 overflow-hidden">
+          <div className={`divide-y-2 rounded-2xl border-2 overflow-hidden ${
+            isDark ? 'divide-slate-800 bg-[#000000] border-slate-400' : 'divide-slate-200 bg-white border-slate-300'
+          }`}>
             {produtosFiltrados.map((produto) => {
               const qtdNoCarrinho = mapaQuantidadesCarrinho.get(produto.id) || 0;
               let precoFinal = produto.preco_venda_varejo;
@@ -1781,10 +1949,14 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 <div
                   key={produto.id}
                   onClick={() => handleClicarProduto(produto)}
-                  className="p-3 flex items-center justify-between hover:bg-slate-50 active:bg-slate-100 transition cursor-pointer"
+                  className={`p-3 flex items-center justify-between transition cursor-pointer ${
+                    isDark ? 'hover:bg-slate-900 active:bg-slate-800' : 'hover:bg-slate-50 active:bg-slate-100'
+                  }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="relative w-12 h-12 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200 flex items-center justify-center">
+                    <div className={`relative w-12 h-12 rounded-xl overflow-hidden shrink-0 border-2 flex items-center justify-center ${
+                      isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-100 border-slate-300'
+                    }`}>
                       {produto.fotos_urls?.[0] ? (
                         <img
                           src={produto.fotos_urls[0]}
@@ -1806,7 +1978,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                         </span>
                       ) : null}
                       {qtdNoCarrinho > 0 && (
-                        <span className="absolute top-0.5 right-0.5 bg-emerald-500 text-white font-black text-[9px] w-4 h-4 rounded flex items-center justify-center">
+                        <span className="absolute top-0.5 right-0.5 bg-emerald-600 text-white font-black text-[9px] w-4 h-4 rounded flex items-center justify-center">
                           {qtdNoCarrinho}
                         </span>
                       )}
@@ -1815,9 +1987,9 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                     <div className="space-y-0.5 max-w-[190px]">
                       <div className="flex items-center gap-1">
                         {produto.destaque && <span className="text-amber-500 text-xs">★</span>}
-                        <h3 className="font-bold text-xs uppercase text-slate-800 truncate">{produto.nome}</h3>
+                        <h3 className={`font-bold text-xs uppercase truncate ${isDark ? 'text-white' : 'text-black'}`}>{produto.nome}</h3>
                       </div>
-                      <span className="text-[10px] text-slate-400 block font-mono">
+                      <span className={`text-[10px] block font-mono ${isDark ? 'text-slate-400' : 'text-slate-600 font-semibold'}`}>
                         Cód. {produto.codigo_interno || produto.codigo_barras?.slice(-4) || '1000'}
                       </span>
                     </div>
@@ -1829,7 +2001,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                         R$ {Number(precoOriginal).toFixed(2)}
                       </span>
                     )}
-                    <span className="font-black text-xs text-emerald-600">
+                    <span className="font-black text-xs text-emerald-600 dark:text-emerald-400">
                       R$ {Number(precoFinal).toFixed(2)}
                     </span>
                   </div>
@@ -1841,21 +2013,25 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
       </div>
 
       {/* 5. Barra Flutuante Inferior (Acumulador de Itens) */}
-      <div className="p-3 border-t border-slate-200 bg-white shadow-lg shrink-0">
+      <div className={`p-3 border-t-2 shadow-lg shrink-0 ${
+        isDark ? 'bg-[#08131A] border-slate-800' : 'bg-slate-100 border-slate-300'
+      }`}>
         {itens.length === 0 ? (
-          <div className="w-full py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-center text-slate-400 font-bold text-xs">
+          <div className={`w-full py-3.5 rounded-2xl border-2 text-center font-bold text-xs ${
+            isDark ? 'bg-[#000000] border-slate-700 text-slate-400' : 'bg-white border-slate-300 text-slate-600'
+          }`}>
             Nenhum item
           </div>
         ) : (
           <button
             type="button"
             onClick={() => setSubTela('carrinho')}
-            className="w-full py-3.5 px-5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-white font-black text-sm flex items-center justify-between shadow-md shadow-emerald-500/20 transition cursor-pointer"
+            className="w-full py-3.5 px-5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white font-black text-sm flex items-center justify-between shadow-md transition cursor-pointer"
           >
             <span>
               {totalItens} {totalItens === 1 ? 'item' : 'itens'} = R$ {total.toFixed(2)}
             </span>
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-5 h-5 text-white" />
           </button>
         )}
       </div>
@@ -1863,19 +2039,23 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
       {/* Modal de Escolha do Multiplicador (1x, 2x, 3x, 5x, 10x) */}
       {modalMultiplicador && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-5 w-full max-w-xs space-y-4 shadow-2xl animate-in zoom-in-95 text-slate-900">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <h3 className="font-bold text-sm text-slate-800">Multiplicador de Quantidade</h3>
+          <div className={`${
+            isDark ? 'bg-[#08131A] border-2 border-slate-400 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
+          } rounded-3xl p-5 w-full max-w-xs space-y-4 shadow-2xl animate-in zoom-in-95`}>
+            <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
+              <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Multiplicador de Quantidade</h3>
               <button
                 type="button"
                 onClick={() => setModalMultiplicador(false)}
-                className="p-1 rounded-full text-slate-400 hover:bg-slate-100"
+                className={`p-1.5 rounded-xl transition cursor-pointer ${
+                  isDark ? 'bg-[#000000] border-2 border-slate-400 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+                }`}
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-xs text-slate-500">
+            <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
               Escolha a quantidade a ser adicionada a cada toque no produto:
             </p>
 
@@ -1888,10 +2068,12 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                     setMultiplicadorQtd(fator);
                     setModalMultiplicador(false);
                   }}
-                  className={`py-3 rounded-2xl border transition ${
+                  className={`py-3 rounded-2xl border-2 transition cursor-pointer ${
                     multiplicadorQtd === fator
-                      ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                      : isDark
+                      ? 'bg-[#000000] text-white border-slate-400 hover:bg-slate-900'
+                      : 'bg-white text-black border-slate-300 hover:bg-slate-50'
                   }`}
                 >
                   {fator}X
