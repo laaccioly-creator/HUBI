@@ -567,7 +567,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   if (subTela === 'clientes') {
     return (
       <div className={`fixed inset-0 z-50 flex flex-col animate-in slide-in-from-right duration-150 ${
-        isDark ? 'bg-[#0B0F17] text-white' : 'bg-slate-100 text-slate-900'
+        isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-slate-900'
       }`}>
         {/* Header Superior */}
         <div className={`h-14 border-b px-4 flex items-center justify-between sticky top-0 z-10 ${
@@ -616,10 +616,10 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               placeholder="Procure por nome, email ou telefone"
               value={buscaCliente}
               onChange={(e) => setBuscaCliente(e.target.value)}
-              className={`w-full border-2 rounded-xl pl-10 pr-4 py-2.5 text-xs focus:outline-none focus:border-emerald-500 shadow-sm ${
+              className={`w-full rounded-xl pl-10 pr-4 py-2.5 text-xs focus:outline-none focus:border-emerald-500 shadow-sm ${
                 isDark
-                  ? 'bg-[#000000] border-slate-400 text-white placeholder:text-slate-500'
-                  : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
+                  ? 'bg-[#000000] border border-slate-700 text-white placeholder:text-slate-500'
+                  : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400'
               }`}
             />
           </div>
@@ -628,7 +628,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
         {/* Cliente Atual Vinculado (Se houver) */}
         {clienteSelecionado && (
           <div className={`p-3 border-b flex items-center justify-between ${
-            isDark ? 'bg-[#000000] border-slate-800' : 'bg-white border-slate-200'
+            isDark ? 'bg-[#000000] border-slate-800' : 'bg-white border-slate-300'
           }`}>
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
@@ -648,7 +648,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
         )}
 
         {/* Lista de Clientes */}
-        <div className={`flex-1 overflow-y-auto divide-y ${isDark ? 'divide-slate-800 bg-[#0B0F17]' : 'divide-slate-200 bg-slate-100'}`}>
+        <div className={`flex-1 overflow-y-auto divide-y ${isDark ? 'divide-slate-800 bg-[#08131A]' : 'divide-slate-200 bg-slate-100'}`}>
           {clientesFiltrados.length === 0 ? (
             <div className="p-8 text-center text-slate-400 text-xs">
               Nenhum cliente encontrado.
@@ -701,7 +701,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   if (subTela === 'camera') {
     return (
       <div className={`fixed inset-0 z-50 flex flex-col animate-in fade-in ${
-        isDark ? 'bg-[#0B0F17] text-white' : 'bg-slate-100 text-slate-900'
+        isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-slate-900'
       }`}>
         {/* Header Superior da Câmera */}
         <div className={`h-14 border-b px-4 flex items-center justify-between ${
@@ -781,7 +781,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
         {/* Lista de Itens Bipados no Rodapé do Leitor */}
         <div className={`flex-1 overflow-y-auto p-4 space-y-2.5 ${
-          isDark ? 'bg-[#0B0F17]' : 'bg-slate-100'
+          isDark ? 'bg-[#08131A]' : 'bg-slate-100'
         }`}>
           {itens.length === 0 ? (
             <div className="text-center py-8 text-slate-400 text-xs">
@@ -789,8 +789,8 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             </div>
           ) : (
             itens.map((it) => (
-              <div key={it.id} className={`flex items-center justify-between text-xs p-2.5 rounded-xl border-2 shadow-xs ${
-                isDark ? 'bg-[#000000] border-slate-400 text-white' : 'bg-white border-slate-300 text-black'
+              <div key={it.id} className={`flex items-center justify-between text-xs p-2.5 rounded-xl shadow-xs ${
+                isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
               }`}>
                 <div className="flex items-center gap-2">
                   <span className={`font-bold ${isDark ? 'text-slate-300' : 'text-black font-extrabold'}`}>{it.quantidade} x</span>
@@ -824,8 +824,8 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           <button
             type="button"
             onClick={() => setSubTela('carrinho')}
-            className={`w-12 h-12 rounded-xl border-2 flex items-center justify-center font-bold text-lg transition cursor-pointer ${
-              isDark ? 'bg-[#000000] border-slate-400 text-white' : 'bg-white border-slate-300 text-black'
+            className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg transition cursor-pointer ${
+              isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
             }`}
           >
             ...
@@ -852,7 +852,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
     return (
       <div className={`fixed inset-0 z-50 flex flex-col justify-between animate-in slide-in-from-right duration-150 ${
-        isDark ? 'bg-[#0B0F17] text-white' : 'bg-slate-100 text-slate-900'
+        isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-slate-900'
       }`}>
         {/* Header */}
         <div className={`h-14 border-b px-4 flex items-center gap-3 ${
@@ -884,8 +884,8 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 placeholder="Ex: Serviço de entrega, Produto avulso..."
                 value={descricaoAvulso}
                 onChange={(e) => setDescricaoAvulso(e.target.value)}
-                className={`w-full border-2 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-emerald-500 ${
-                  isDark ? 'bg-[#000000] border-slate-400 text-white' : 'bg-white border-slate-300 text-black'
+                className={`w-full rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-emerald-500 ${
+                  isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
                 }`}
                 autoFocus
               />
@@ -918,10 +918,10 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 key={n}
                 type="button"
                 onClick={() => handleDigitarNumeroAvulso(n)}
-                className={`h-14 rounded-2xl border-2 transition flex items-center justify-center cursor-pointer shadow-sm ${
+                className={`h-14 rounded-2xl transition flex items-center justify-center cursor-pointer shadow-sm ${
                   isDark
-                    ? 'bg-[#000000] hover:bg-slate-900 border-slate-400 text-white'
-                    : 'bg-white hover:bg-slate-50 border-slate-300 text-black'
+                    ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-white'
+                    : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black'
                 }`}
               >
                 {n}
@@ -932,10 +932,10 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             <button
               type="button"
               onClick={() => handleDigitarNumeroAvulso(0)}
-              className={`h-14 rounded-2xl border-2 transition flex items-center justify-center cursor-pointer shadow-sm ${
+              className={`h-14 rounded-2xl transition flex items-center justify-center cursor-pointer shadow-sm ${
                 isDark
-                  ? 'bg-[#000000] hover:bg-slate-900 border-slate-400 text-white'
-                  : 'bg-white hover:bg-slate-50 border-slate-300 text-black'
+                  ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-white'
+                  : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black'
               }`}
             >
               0
@@ -943,10 +943,10 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             <button
               type="button"
               onClick={handleBackspaceAvulso}
-              className={`h-14 rounded-2xl border-2 transition flex items-center justify-center cursor-pointer shadow-sm ${
+              className={`h-14 rounded-2xl transition flex items-center justify-center cursor-pointer shadow-sm ${
                 isDark
-                  ? 'bg-[#000000] hover:bg-slate-900 border-slate-400 text-slate-300'
-                  : 'bg-white hover:bg-slate-50 border-slate-300 text-slate-700'
+                  ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-300'
+                  : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-slate-700'
               }`}
             >
               ⌫
@@ -972,7 +972,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   if (subTela === 'carrinho') {
     return (
       <div className={`fixed inset-0 z-50 flex flex-col justify-between animate-in slide-in-from-bottom duration-150 ${
-        isDark ? 'bg-[#0B0F17] text-white' : 'bg-slate-100 text-slate-900'
+        isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-slate-900'
       }`}>
         {/* Header do Carrinho */}
         <div className={`h-14 border-b px-4 flex items-center justify-between shrink-0 ${
@@ -1006,10 +1006,10 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             <button
               type="button"
               onClick={() => setSubTela('vender')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer active:scale-95 border-2 shadow-xs ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer active:scale-95 shadow-xs ${
                 isDark
-                  ? 'bg-[#000000] border-slate-400 text-emerald-400 hover:bg-slate-900'
-                  : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 shadow-sm'
+                  ? 'bg-[#000000] border border-slate-700 text-emerald-400 hover:bg-slate-900'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white border-2 border-emerald-700 shadow-sm'
               }`}
               title="Continuar adicionando produtos ao carrinho"
             >
@@ -1141,7 +1141,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
         {/* Lista de Itens do Carrinho */}
         <div className={`flex-1 overflow-y-auto p-3 sm:p-4 space-y-2.5 ${
-          isDark ? 'bg-[#0B0F17]' : 'bg-slate-100'
+          isDark ? 'bg-[#08131A]' : 'bg-slate-100'
         }`}>
           {itens.length === 0 ? (
             <div className={`text-center py-16 text-xs ${isDark ? 'text-slate-400' : 'text-slate-600 font-semibold'}`}>
@@ -1149,8 +1149,8 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             </div>
           ) : (
             itens.map((it) => (
-              <div key={it.id} className={`p-3 rounded-2xl border-2 flex items-center justify-between gap-2.5 shadow-xs ${
-                isDark ? 'bg-[#000000] border-slate-400 text-white' : 'bg-white border-slate-300 text-black'
+              <div key={it.id} className={`p-3 rounded-2xl flex items-center justify-between gap-2.5 shadow-xs ${
+                isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
               }`}>
                 <div className="min-w-0 flex-1 space-y-0.5">
                   <div className="flex items-center gap-1.5 min-w-0">
@@ -1179,16 +1179,16 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                   {/* Controles de Quantidade */}
                   {isEdicaoTravada ? (
                     <div
-                      className={`px-2 py-1 rounded-xl text-xs font-bold border-2 shrink-0 ${
-                        isDark ? 'bg-[#08131A] text-slate-400 border-slate-700' : 'bg-slate-100 text-slate-600 border-slate-300'
+                      className={`px-2 py-1 rounded-xl text-xs font-bold shrink-0 ${
+                        isDark ? 'bg-[#08131A] text-slate-400 border border-slate-700' : 'bg-slate-100 text-slate-600 border-2 border-slate-300'
                       }`}
                       title="Quantidade bloqueada para pedidos já confirmados"
                     >
                       {it.quantidade} un
                     </div>
                   ) : (
-                    <div className={`flex items-center gap-1 p-1 rounded-xl shrink-0 border-2 ${
-                      isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-50 border-slate-300'
+                    <div className={`flex items-center gap-1 p-1 rounded-xl shrink-0 ${
+                      isDark ? 'bg-[#08131A] border border-slate-700' : 'bg-slate-50 border-2 border-slate-300'
                     }`}>
                       <button
                         type="button"
@@ -1227,8 +1227,8 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
         {/* Resumo de Valores e Desconto */}
         {itens.length > 0 && (
-          <div className={`p-4 border-2 rounded-2xl m-3 space-y-2.5 shadow-xs ${
-            isDark ? 'bg-[#000000] border-slate-400 text-white' : 'bg-white border-slate-300 text-black'
+          <div className={`p-4 rounded-2xl m-3 space-y-2.5 shadow-xs ${
+            isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
           }`}>
             {/* Identificação de Cliente e Tabela de Preço Ativa */}
             <div className={`pb-2.5 border-b flex items-center justify-between gap-2 ${
@@ -1548,8 +1548,8 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 placeholder={descontoTempTipo === 'valor' ? 'Ex: 5.00' : 'Ex: 10%'}
                 value={descontoTempValor}
                 onChange={(e) => setDescontoTempValor(e.target.value)}
-                className={`w-full border-2 rounded-xl p-3 text-sm focus:outline-none focus:border-emerald-500 ${
-                  isDark ? 'bg-[#000000] border-slate-400 text-white placeholder:text-slate-500' : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
+                className={`w-full rounded-xl p-3 text-sm focus:outline-none focus:border-emerald-500 ${
+                  isDark ? 'bg-[#000000] border border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400'
                 }`}
                 autoFocus
               />
@@ -1561,8 +1561,8 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                     setDescontoValor(0);
                     setModalDescontoAberto(false);
                   }}
-                  className={`flex-1 py-2.5 rounded-xl border-2 text-xs font-bold transition cursor-pointer ${
-                    isDark ? 'bg-[#000000] border-slate-400 text-slate-200 hover:bg-slate-900' : 'bg-white border-slate-300 text-black hover:bg-slate-50'
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-white border-2 border-slate-300 text-black hover:bg-slate-50'
                   }`}
                 >
                   Zerar
@@ -1641,7 +1641,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   // =========================================================================
   return (
     <div className={`flex flex-col h-full overflow-hidden select-none ${
-      isDark ? 'bg-[#0B0F17] text-white' : 'bg-slate-100 text-slate-900'
+      isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-slate-900'
     }`}>
       {/* 1. Header Superior Mobile Unificado */}
       <MobileHeader
@@ -1688,10 +1688,10 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               placeholder="Item ou código"
               value={termoBusca}
               onChange={(e) => setTermoBusca(e.target.value)}
-              className={`w-full border-2 rounded-xl pl-3 pr-8 py-2 text-xs focus:outline-none focus:border-emerald-500 ${
+              className={`w-full rounded-xl pl-3 pr-8 py-2 text-xs focus:outline-none focus:border-emerald-500 ${
                 isDark
-                  ? 'bg-[#000000] border-slate-400 text-white placeholder:text-slate-500'
-                  : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
+                  ? 'bg-[#000000] border border-slate-700 text-white placeholder:text-slate-500'
+                  : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400'
               }`}
             />
             {termoBusca && (
@@ -1774,10 +1774,10 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           <button
             type="button"
             onClick={() => setModalMultiplicador(true)}
-            className={`px-2.5 py-1 rounded-xl border-2 text-xs font-black shadow-xs transition cursor-pointer ${
+            className={`px-2.5 py-1 rounded-xl text-xs font-black shadow-xs transition cursor-pointer ${
               isDark
-                ? 'border-slate-400 text-white bg-[#000000] hover:bg-slate-900'
-                : 'border-slate-300 text-black bg-white hover:bg-slate-50'
+                ? 'border border-slate-700 text-white bg-[#000000] hover:bg-slate-900'
+                : 'border-2 border-slate-300 text-black bg-white hover:bg-slate-50'
             }`}
           >
             {multiplicadorQtd}X
@@ -1796,10 +1796,10 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           <select
             value={categoriaAtiva}
             onChange={(e) => setCategoriaAtiva(e.target.value)}
-            className={`w-full border-2 rounded-xl pl-9 pr-9 py-2 text-xs font-bold appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer shadow-xs transition ${
+            className={`w-full rounded-xl pl-9 pr-9 py-2 text-xs font-bold appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer shadow-xs transition ${
               isDark
-                ? 'bg-[#000000] border-slate-400 text-white'
-                : 'bg-white border-slate-300 text-black'
+                ? 'bg-[#000000] border border-slate-700 text-white'
+                : 'bg-white border-2 border-slate-300 text-black'
             }`}
           >
             <option value="tudo" className={isDark ? 'bg-[#000000] text-white' : 'bg-white text-black'}>Todas as Categorias</option>
@@ -1847,10 +1847,10 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 <div
                   key={produto.id}
                   onClick={() => handleClicarProduto(produto)}
-                  className={`border-2 rounded-xl overflow-hidden shadow-xs active:scale-95 transition-all duration-100 flex flex-col h-full cursor-pointer group ${
+                  className={`rounded-xl overflow-hidden shadow-xs active:scale-95 transition-all duration-100 flex flex-col h-full cursor-pointer group ${
                     isDark
-                      ? 'bg-[#000000] border-slate-400 hover:border-slate-300'
-                      : 'bg-white border-slate-300 hover:border-slate-400'
+                      ? 'bg-[#000000] border border-slate-700 hover:border-slate-600'
+                      : 'bg-white border-2 border-slate-300 hover:border-slate-400'
                   }`}
                 >
                   {/* Wrapper com proporção 1:1 rigorosamente travada */}
@@ -1927,8 +1927,8 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           </div>
         ) : (
           // MODO LISTA: 1 LINHA POR PRODUTO (TELA 007)
-          <div className={`divide-y-2 rounded-2xl border-2 overflow-hidden ${
-            isDark ? 'divide-slate-800 bg-[#000000] border-slate-400' : 'divide-slate-200 bg-white border-slate-300'
+          <div className={`rounded-2xl overflow-hidden ${
+            isDark ? 'divide-y divide-slate-800 bg-[#000000] border border-slate-700' : 'divide-y-2 divide-slate-200 bg-white border-2 border-slate-300'
           }`}>
             {produtosFiltrados.map((produto) => {
               const qtdNoCarrinho = mapaQuantidadesCarrinho.get(produto.id) || 0;
@@ -2068,12 +2068,12 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                     setMultiplicadorQtd(fator);
                     setModalMultiplicador(false);
                   }}
-                  className={`py-3 rounded-2xl border-2 transition cursor-pointer ${
+                  className={`py-3 rounded-2xl transition cursor-pointer ${
                     multiplicadorQtd === fator
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                      ? 'bg-emerald-600 text-white border-2 border-emerald-600 shadow-sm'
                       : isDark
-                      ? 'bg-[#000000] text-white border-slate-400 hover:bg-slate-900'
-                      : 'bg-white text-black border-slate-300 hover:bg-slate-50'
+                      ? 'bg-[#000000] text-white border border-slate-700 hover:bg-slate-900'
+                      : 'bg-white text-black border-2 border-slate-300 hover:bg-slate-50'
                   }`}
                 >
                   {fator}X
