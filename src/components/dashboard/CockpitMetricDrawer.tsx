@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+﻿import React, { useEffect } from 'react';
 import {
   X,
   Sparkles,
@@ -194,7 +194,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                 type="button"
                 onClick={onClose}
                 
-                className="p-2 rounded-xl bg-white dark:bg-[#000000] !border-2 border-slate-300 dark:!border-slate-400 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#0D111A] transition cursor-pointer shadow-xs"
+                className="p-2 rounded-xl !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#0D111A] transition cursor-pointer shadow-xs"
                 title="Fechar Gaveta (Esc)"
               >
                 <X className="w-5 h-5" />
@@ -204,7 +204,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
             {/* Parecer do Jev System 1 (Diagnóstico Rápido) */}
             <div
               
-              className="mt-4 p-3.5 sm:p-4 rounded-2xl flex items-start gap-2.5 bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 shadow-xs"
+              className="mt-4 p-3.5 sm:p-4 rounded-2xl flex items-start gap-2.5 !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 shadow-xs"
             >
               <div className="p-1.5 rounded-lg shrink-0 mt-0.5 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-500/30">
                 <Sparkles className="w-3.5 h-3.5" />
@@ -235,10 +235,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
               <div className="space-y-6">
                 {/* Cards de Resumo */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div
-                    
-                    className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 shadow-xs space-y-1"
-                  >
+                  <div className="p-4 !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 rounded-xl text-center flex flex-col items-center justify-center shadow-xs space-y-1">
                     <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Faturado no Período</span>
                     <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">
                       {formMoeda(decomposicoes.faturamento.totalFaturamento)}
@@ -248,10 +245,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                     </span>
                   </div>
 
-                  <div
-                    
-                    className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 shadow-xs space-y-1"
-                  >
+                  <div className="p-4 !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 rounded-xl text-center flex flex-col items-center justify-center shadow-xs space-y-1">
                     <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Total de Vendas</span>
                     <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">
                       {metricas.pedidos}
@@ -304,7 +298,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                       <div
                         key={forma}
                         
-                        className="p-3 bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 rounded-xl space-y-1 shadow-xs"
+                        className="p-3 !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 rounded-xl space-y-1 shadow-xs"
                       >
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-slate-700 dark:text-slate-300 font-bold">{forma}</span>
@@ -336,7 +330,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                       <div
                         key={v.id}
                         
-                        className="p-3 rounded-xl bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 flex items-center justify-between text-xs hover:border-slate-400 dark:hover:border-slate-500 transition shadow-xs"
+                        className="p-3 rounded-xl !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 flex items-center justify-between text-xs hover:border-slate-400 dark:hover:border-slate-500 transition shadow-xs"
                       >
                         <div className="space-y-0.5">
                           <div className="flex items-center gap-2">
@@ -382,28 +376,28 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                   <div
                     
-                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 shadow-xs"
+                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 shadow-xs"
                   >
                     <span className="text-[10px] text-slate-700 dark:text-slate-300 uppercase font-bold">Total Pedidos</span>
                     <div className="text-xl font-black text-slate-900 dark:text-white font-mono mt-1">{decomposicoes.pedidos.totalPedidos}</div>
                   </div>
                   <div
                     
-                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 shadow-xs"
+                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 shadow-xs"
                   >
                     <span className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase font-bold">Concluídos</span>
                     <div className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono mt-1">{decomposicoes.pedidos.concluidos}</div>
                   </div>
                   <div
                     
-                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 shadow-xs"
+                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 shadow-xs"
                   >
                     <span className="text-[10px] text-amber-600 dark:text-amber-400 uppercase font-bold">Pendentes</span>
                     <div className="text-xl font-black text-amber-600 dark:text-amber-400 font-mono mt-1">{decomposicoes.pedidos.pendentes}</div>
                   </div>
                   <div
                     
-                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 shadow-xs"
+                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 shadow-xs"
                   >
                     <span className="text-[10px] text-rose-600 dark:text-rose-400 uppercase font-bold">Cancelados</span>
                     <div className="text-xl font-black text-rose-600 dark:text-rose-400 font-mono mt-1">{decomposicoes.pedidos.cancelados}</div>
@@ -413,7 +407,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                 {/* Taxa de Conclusão */}
                 <div
                   
-                  className="p-4 rounded-xl bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 shadow-xs flex items-center justify-between"
+                  className="p-4 rounded-xl !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 shadow-xs flex items-center justify-between"
                 >
                   <div className="space-y-0.5">
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Taxa de Conclusão Operacional</span>
@@ -445,7 +439,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                         <div
                           key={faixa.label}
                           
-                          className="p-3 rounded-xl bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 space-y-2 shadow-xs"
+                          className="p-3 rounded-xl !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 space-y-2 shadow-xs"
                         >
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-slate-800 dark:text-slate-200 font-bold">{faixa.label}</span>
@@ -477,7 +471,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                 <div className="grid grid-cols-2 gap-3">
                   <div
                     
-                    className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 shadow-xs space-y-1"
+                    className="p-4 rounded-xl text-center flex flex-col items-center justify-center !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 shadow-xs space-y-1"
                   >
                     <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Lucro Líquido Real</span>
                     <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">
@@ -490,7 +484,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
 
                   <div
                     
-                    className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 shadow-xs space-y-1"
+                    className="p-4 rounded-xl text-center flex flex-col items-center justify-center !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 shadow-xs space-y-1"
                   >
                     <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Meta do Período</span>
                     <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">
@@ -604,21 +598,21 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                 <div className="grid grid-cols-3 gap-2.5">
                   <div
                     
-                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 shadow-xs"
+                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 shadow-xs"
                   >
                     <span className="text-[10px] text-slate-700 dark:text-slate-300 uppercase font-bold">Menor Venda</span>
                     <div className="text-base font-black text-slate-900 dark:text-white font-mono mt-1">{formMoeda(decomposicoes.ticket.menorVenda)}</div>
                   </div>
                   <div
                     
-                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 shadow-xs"
+                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 shadow-xs"
                   >
                     <span className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase font-bold">Ticket Médio</span>
                     <div className="text-base font-black text-emerald-600 dark:text-emerald-400 font-mono mt-1">{formMoeda(decomposicoes.ticket.ticketMedio)}</div>
                   </div>
                   <div
                     
-                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 shadow-xs"
+                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 shadow-xs"
                   >
                     <span className="text-[10px] text-slate-700 dark:text-slate-300 uppercase font-bold">Maior Venda</span>
                     <div className="text-base font-black text-slate-900 dark:text-white font-mono mt-1">{formMoeda(decomposicoes.ticket.maiorVenda)}</div>
@@ -628,7 +622,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                 {/* Correlação com Quantidade de Itens por Cesta */}
                 <div
                   
-                  className="p-4 rounded-xl bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 shadow-xs flex items-center justify-between"
+                  className="p-4 rounded-xl !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 shadow-xs flex items-center justify-between"
                 >
                   <div className="space-y-0.5">
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Itens por Cesta de Compras</span>
@@ -651,7 +645,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                       <div
                         key={faixa.faixa}
                         
-                        className="p-3 rounded-xl bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 space-y-1.5 shadow-xs"
+                        className="p-3 rounded-xl !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 space-y-1.5 shadow-xs"
                       >
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-slate-700 dark:text-slate-300 font-medium">{faixa.faixa}</span>
@@ -681,7 +675,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                 <div className="grid grid-cols-2 gap-3">
                   <div
                     
-                    className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 shadow-xs space-y-1"
+                    className="p-4 rounded-xl text-center flex flex-col items-center justify-center !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 shadow-xs space-y-1"
                   >
                     <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Despesas Realizadas</span>
                     <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">
@@ -700,7 +694,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
 
                   <div
                     
-                    className="p-4 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 shadow-xs space-y-1"
+                    className="p-4 rounded-xl text-center flex flex-col items-center justify-center !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 shadow-xs space-y-1"
                   >
                     <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Teto Orçamentário</span>
                     <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">
@@ -757,7 +751,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                         <div
                           key={item.id}
                           
-                          className="p-3 rounded-xl bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 flex items-center justify-between text-xs hover:border-slate-400 dark:hover:border-slate-300 transition shadow-xs"
+                          className="p-3 rounded-xl !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 flex items-center justify-between text-xs hover:border-slate-400 dark:hover:border-slate-300 transition shadow-xs"
                         >
                           <div className="space-y-0.5 min-w-0 pr-2">
                             <div className="flex items-center gap-2">
@@ -793,7 +787,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                 <div className="grid grid-cols-3 gap-2.5">
                   <div
                     
-                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 shadow-xs"
+                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 shadow-xs"
                   >
                     <span className="text-[10px] text-rose-600 dark:text-rose-400 uppercase font-bold">Total em Atraso</span>
                     <div className="text-base font-black text-rose-600 dark:text-rose-400 font-mono mt-1">
@@ -802,7 +796,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                   </div>
                   <div
                     
-                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 shadow-xs"
+                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 shadow-xs"
                   >
                     <span className="text-[10px] text-slate-700 dark:text-slate-300 uppercase font-bold">Total a Receber</span>
                     <div className="text-base font-black text-slate-900 dark:text-white font-mono mt-1">
@@ -811,7 +805,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                   </div>
                   <div
                     
-                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 shadow-xs"
+                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 shadow-xs"
                   >
                     <span className="text-[10px] text-amber-600 dark:text-amber-400 uppercase font-bold">Taxa Inadimplência</span>
                     <div className="text-base font-black font-mono mt-1 text-amber-600 dark:text-amber-400">
@@ -845,7 +839,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                         <div
                           key={it.pedidoId}
                           
-                          className="p-3.5 rounded-xl bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 hover:border-slate-400 dark:hover:border-slate-300 transition flex items-center justify-between gap-3 shadow-xs"
+                          className="p-3.5 rounded-xl !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 hover:border-slate-400 dark:hover:border-slate-300 transition flex items-center justify-between gap-3 shadow-xs"
                         >
                           <div className="space-y-0.5 min-w-0">
                             <div className="flex items-center gap-2">
@@ -894,7 +888,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                 {/* Banner Contextual da Fase (Cold Start vs Maturidade Curva ABC) */}
                 <div
                   
-                  className="p-4 rounded-xl bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 shadow-xs flex items-start gap-3"
+                  className="p-4 rounded-xl !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 shadow-xs flex items-start gap-3"
                 >
                   <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-500/20 shrink-0">
                     <Boxes className="w-5 h-5" />
@@ -922,7 +916,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                 <div className="grid grid-cols-3 gap-2.5">
                   <div
                     
-                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 shadow-xs"
+                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 shadow-xs"
                   >
                     <span className="text-[10px] text-rose-600 dark:text-rose-400 uppercase font-bold">Itens em Risco</span>
                     <div className="text-lg font-black text-rose-600 dark:text-rose-400 font-mono mt-1">
@@ -931,7 +925,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                   </div>
                   <div
                     
-                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 shadow-xs"
+                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 shadow-xs"
                   >
                     <span className="text-[10px] text-slate-700 dark:text-slate-300 uppercase font-bold">Monitorados</span>
                     <div className="text-lg font-black text-slate-900 dark:text-white font-mono mt-1">
@@ -940,7 +934,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                   </div>
                   <div
                     
-                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 shadow-xs"
+                    className="p-3 rounded-xl text-center flex flex-col items-center justify-center !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 shadow-xs"
                   >
                     <span className="text-[10px] text-amber-600 dark:text-amber-400 uppercase font-bold">Índice Ruptura</span>
                     <div className="text-lg font-black font-mono mt-1 text-amber-600 dark:text-amber-400">
@@ -993,7 +987,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                       {/* Classe C */}
                       <div
                         
-                        className="p-3 rounded-xl bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 space-y-1 shadow-xs"
+                        className="p-3 rounded-xl !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 space-y-1 shadow-xs"
                       >
                         <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400">
                           <span>Classe C</span>
@@ -1050,7 +1044,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                         <div
                           key={prod.id}
                           
-                          className="p-3.5 rounded-xl bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 hover:border-slate-400 dark:hover:border-slate-300 transition flex items-center justify-between gap-3 shadow-xs"
+                          className="p-3.5 rounded-xl !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 hover:border-slate-400 dark:hover:border-slate-300 transition flex items-center justify-between gap-3 shadow-xs"
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             {prod.fotoUrl ? (
@@ -1121,7 +1115,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
             
             className="hidden md:flex p-4 !border-t-2 border-slate-300 dark:!border-slate-400 bg-slate-100/95 dark:bg-[#0B0F17]/95 backdrop-blur-md items-center justify-between text-xs text-slate-500 dark:text-slate-400"
           >
-            <span>Pressione <kbd  className="px-1.5 py-0.5 rounded bg-white dark:bg-[#000000] !border-2 border-slate-200 dark:!border-slate-400 text-slate-700 dark:text-slate-300 font-mono text-[10px]">Esc</kbd> para fechar</span>
+            <span>Pressione <kbd  className="px-1.5 py-0.5 rounded !bg-white dark:!bg-[#000000] !border-2 !border-slate-300 dark:!border-slate-400 text-slate-700 dark:text-slate-300 font-mono text-[10px]">Esc</kbd> para fechar</span>
             <button
               type="button"
               onClick={onClose}
