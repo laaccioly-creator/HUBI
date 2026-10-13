@@ -234,19 +234,19 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
     if (isOpen) {
       let snapObj: any;
       if (clienteEditar) {
-        setAtivo((clienteEditar as any).ativo !== false);
-        setNome(clienteEditar.nome || '');
-        setCpfCnpj(clienteEditar.numero_documento || '');
-        setDataAniversario(clienteEditar.data_aniversario || '');
-        setEmail(clienteEditar.email || '');
-        setObservacoes(clienteEditar.observacoes || '');
-        setTelefone1(clienteEditar.telefone || clienteEditar.whatsapp || '');
-        setTelefone1IsWhatsapp(clienteEditar.telefone_is_whatsapp ?? true);
-        setTelefone2(clienteEditar.telefone2 || '');
-        setTelefone2IsWhatsapp(clienteEditar.telefone2_is_whatsapp ?? false);
-        setPermiteFiado(clienteEditar.permite_fiado ?? permissions.podeAtivarFiado);
-        setLimiteCredito(formatarValorBRL(clienteEditar.limite_credito ?? 500));
-        setTabelaPreco(clienteEditar.tabela_preco_padrao || 'varejo');
+        const ativ = (clienteEditar as any).ativo !== false;
+        const nom = clienteEditar.nome || '';
+        const doc = clienteEditar.numero_documento || '';
+        const niver = clienteEditar.data_aniversario || '';
+        const em = clienteEditar.email || '';
+        const obs = clienteEditar.observacoes || '';
+        const tel1 = clienteEditar.telefone || clienteEditar.whatsapp || '';
+        const tel1Whats = clienteEditar.telefone_is_whatsapp ?? true;
+        const tel2 = clienteEditar.telefone2 || '';
+        const tel2Whats = clienteEditar.telefone2_is_whatsapp ?? false;
+        const fiado = clienteEditar.permite_fiado ?? permissions.podeAtivarFiado;
+        const lim = formatarValorBRL(clienteEditar.limite_credito ?? 500);
+        const tab = clienteEditar.tabela_preco_padrao || 'varejo';
 
         // Endereço: se já tiver campos estruturados, usa-os
         const temEstruturado = Boolean(
@@ -283,6 +283,20 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
           finalEstado = extraido.estado || clienteEditar.endereco_estado || '';
         }
 
+        setAtivo(ativ);
+        setNome(nom);
+        setCpfCnpj(doc);
+        setDataAniversario(niver);
+        setEmail(em);
+        setObservacoes(obs);
+        setTelefone1(tel1);
+        setTelefone1IsWhatsapp(tel1Whats);
+        setTelefone2(tel2);
+        setTelefone2IsWhatsapp(tel2Whats);
+        setPermiteFiado(fiado);
+        setLimiteCredito(lim);
+        setTabelaPreco(tab);
+
         setCep(finalCep);
         setRua(finalRua);
         setNumero(finalNumero);
@@ -292,19 +306,19 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
         setEstado(finalEstado);
 
         snapObj = {
-          ativo: (clienteEditar as any).ativo !== false,
-          nome: clienteEditar.nome || '',
-          cpfCnpj: clienteEditar.numero_documento || '',
-          dataAniversario: clienteEditar.data_aniversario || '',
-          email: clienteEditar.email || '',
-          observacoes: clienteEditar.observacoes || '',
-          telefone1: clienteEditar.telefone || clienteEditar.whatsapp || '',
-          telefone1IsWhatsapp: clienteEditar.telefone_is_whatsapp ?? true,
-          telefone2: clienteEditar.telefone2 || '',
-          telefone2IsWhatsapp: clienteEditar.telefone2_is_whatsapp ?? false,
-          permiteFiado: clienteEditar.permite_fiado ?? permissions.podeAtivarFiado,
-          limiteCredito: String(clienteEditar.limite_credito ?? '500.00'),
-          tabelaPreco: clienteEditar.tabela_preco_padrao || 'varejo',
+          ativo: ativ,
+          nome: nom,
+          cpfCnpj: doc,
+          dataAniversario: niver,
+          email: em,
+          observacoes: obs,
+          telefone1: tel1,
+          telefone1IsWhatsapp: tel1Whats,
+          telefone2: tel2,
+          telefone2IsWhatsapp: tel2Whats,
+          permiteFiado: fiado,
+          limiteCredito: lim,
+          tabelaPreco: tab,
           cep: finalCep,
           rua: finalRua,
           numero: finalNumero,
