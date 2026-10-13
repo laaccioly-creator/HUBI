@@ -59,6 +59,8 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
   const cardBorderClass = isDark ? 'border-2 border-slate-400' : 'border border-slate-200';
   const drawerBorderClass = isDark ? 'border-l-2 border-slate-400' : 'border-l border-slate-300';
   const buttonBorderClass = isDark ? 'border-2 border-slate-400' : 'border border-slate-300';
+  const drawerBgClass = isDark ? 'bg-[#08131A]' : 'bg-slate-100';
+  const drawerHeaderFooterBgClass = isDark ? 'bg-[#08131A]/95' : 'bg-slate-100/95';
   const [limiteVendasExibidas, setLimiteVendasExibidas] = React.useState<number>(50);
 
   // Reseta limite de vendas ao trocar métrica ou reabrir
@@ -168,12 +170,12 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
       />
 
       <div className="fixed inset-y-0 right-0 w-full sm:w-auto max-w-full flex sm:pl-10">
-        <div className={`w-full sm:w-[672px] sm:max-w-2xl ${drawerBorderClass} flex flex-col shadow-2xl animate-in slide-in-from-right duration-300 bg-slate-100 dark:bg-[#111622] text-slate-900 dark:text-white`}>
+        <div className={`w-full sm:w-[672px] sm:max-w-2xl ${drawerBorderClass} flex flex-col shadow-2xl animate-in slide-in-from-right duration-300 ${drawerBgClass} text-slate-900 dark:text-white`}>
           
           {/* ================================================================= */}
           {/* TOPO DO DRAWER */}
           {/* ================================================================= */}
-          <div className="p-4 sm:p-5 border-b sticky top-0 z-10 border-slate-300 dark:border-slate-800 bg-slate-100/95 dark:bg-[#111622]/95 backdrop-blur-md">
+          <div className={`p-4 sm:p-5 border-b sticky top-0 z-10 border-slate-300 dark:border-slate-800 ${drawerHeaderFooterBgClass} backdrop-blur-md`}>
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border border-emerald-300 dark:border-emerald-500/40 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
@@ -1004,7 +1006,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
           {/* ================================================================= */}
           {/* RODAPÉ DO DRAWER */}
           {/* ================================================================= */}
-          <div className="hidden md:flex p-4 border-t border-slate-300 dark:border-slate-800 bg-slate-100/95 dark:bg-[#111622]/95 backdrop-blur-md items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+          <div className={`hidden md:flex p-4 border-t border-slate-300 dark:border-slate-800 ${drawerHeaderFooterBgClass} backdrop-blur-md items-center justify-between text-xs text-slate-500 dark:text-slate-400`}>
             <span>Pressione <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-[#000000] border border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-mono text-[10px]">Esc</kbd> para fechar</span>
             <button
               type="button"
