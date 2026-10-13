@@ -141,23 +141,24 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-      <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl w-full max-w-md p-6 space-y-5 shadow-sm text-slate-900 dark:text-slate-100">
+      <div className="bg-slate-100 dark:bg-[#08131A] border-2 border-slate-300 dark:border-slate-400 rounded-2xl w-full max-w-md p-6 space-y-5 shadow-2xl text-black dark:text-white">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#1E293B] pb-3">
+        <div className="flex items-center justify-between border-b border-slate-300 dark:border-slate-700 pb-3">
           <div className="flex items-center gap-2.5 text-emerald-600 dark:text-emerald-400">
             <FolderPlus className="w-5 h-5" />
-            <h3 className="font-bold dark:font-semibold text-base text-slate-900 dark:text-slate-100">Gerenciar Categorias</h3>
+            <h3 className="font-extrabold text-base text-black dark:text-white">Gerenciar Categorias</h3>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+            className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer"
+            title="Fechar"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {erroMsg && (
-          <div className="p-3 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-xl flex items-center gap-2 text-xs text-rose-700 dark:text-rose-300">
+          <div className="p-3 bg-rose-50 dark:bg-rose-500/10 border-2 border-rose-300 dark:border-rose-500/30 rounded-xl flex items-center gap-2 text-xs font-semibold text-rose-800 dark:text-rose-300">
             <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
             <span>{erroMsg}</span>
           </div>
@@ -165,7 +166,7 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
 
         {/* Formulário Nova Categoria */}
         <form onSubmit={handleCriarCategoria} className="space-y-2">
-          <label className="text-xs font-medium text-slate-700 dark:text-slate-300 block">Criar Nova Categoria:</label>
+          <label className="text-xs font-bold text-black dark:text-white block">Criar Nova Categoria:</label>
           <div className="flex gap-2">
             <input
               type="text"
@@ -173,12 +174,12 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
               placeholder="Ex: Bebidas, Roupas, Alimentos..."
               value={novoNome}
               onChange={(e) => setNovoNome(e.target.value)}
-              className="flex-1 bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              className="flex-1 bg-white dark:bg-[#000000] border-2 border-slate-300 dark:border-slate-700 text-black dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs font-semibold focus:border-emerald-600 dark:focus:border-emerald-500 focus:outline-none"
             />
             <button
               type="submit"
               disabled={salvando}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold text-xs shadow-md flex items-center gap-1.5 transition disabled:opacity-50 cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs shadow-md flex items-center gap-1.5 transition disabled:opacity-50 cursor-pointer border border-emerald-500"
             >
               {salvando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
               <span>Adicionar</span>
@@ -187,22 +188,22 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
         </form>
 
         {/* Lista de Categorias */}
-        <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-[#1E293B]">
-          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-            <span className="font-semibold">Categorias Cadastradas:</span>
+        <div className="space-y-2 pt-2 border-t border-slate-300 dark:border-slate-700">
+          <div className="flex items-center justify-between text-xs text-black dark:text-slate-300 font-bold">
+            <span>Categorias Cadastradas:</span>
             <span>{categorias.length} categorias</span>
           </div>
 
           <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
             {categorias.length === 0 ? (
-              <div className="text-center py-6 text-xs text-slate-500">
+              <div className="text-center py-6 text-xs text-slate-500 font-medium">
                 Nenhuma categoria criada ainda.
               </div>
             ) : (
               categorias.map((cat) => (
                 <div
                   key={cat.id}
-                  className="flex items-center justify-between bg-slate-50 dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] rounded-xl px-3.5 py-2 text-xs group hover:border-slate-300 dark:hover:border-slate-700 transition"
+                  className="flex items-center justify-between bg-white dark:bg-[#000000] border-2 border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs group hover:border-slate-400 dark:hover:border-slate-600 transition"
                 >
                   {categoriaEditando?.id === cat.id ? (
                     <div className="flex items-center gap-2 flex-1 mr-2">
@@ -210,7 +211,7 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
                         type="text"
                         value={nomeEdicao}
                         onChange={(e) => setNomeEdicao(e.target.value)}
-                        className="flex-1 bg-white dark:bg-[#000000] border border-emerald-500 text-slate-900 dark:text-white rounded-lg px-2.5 py-1 text-xs focus:outline-none"
+                        className="flex-1 bg-white dark:bg-[#000000] border-2 border-emerald-500 text-black dark:text-white rounded-lg px-2.5 py-1 text-xs font-bold focus:outline-none"
                         autoFocus
                       />
                       <button
@@ -225,7 +226,7 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
                       <button
                         type="button"
                         onClick={() => setCategoriaEditando(null)}
-                        className="p-1 rounded bg-slate-200 dark:bg-[#0B0F17] text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+                        className="p-1 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-black dark:hover:text-white cursor-pointer"
                         title="Cancelar"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -233,7 +234,7 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
                     </div>
                   ) : (
                     <>
-                      <span className="font-medium text-slate-800 dark:text-slate-200">{cat.nome}</span>
+                      <span className="font-bold text-black dark:text-white">{cat.nome}</span>
                       <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100">
                         <button
                           type="button"
@@ -241,7 +242,7 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
                             setCategoriaEditando(cat);
                             setNomeEdicao(cat.nome);
                           }}
-                          className="p-1 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 rounded transition cursor-pointer"
+                          className="p-1 text-slate-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 rounded transition cursor-pointer"
                           title="Editar Nome"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
@@ -250,7 +251,7 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
                           type="button"
                           disabled={excluindoId === cat.id}
                           onClick={() => abrirModalExclusao(cat)}
-                          className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded transition disabled:opacity-50 cursor-pointer"
+                          className="p-1 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 rounded transition disabled:opacity-50 cursor-pointer"
                           title="Excluir Categoria"
                         >
                           {excluindoId === cat.id ? (
@@ -272,7 +273,7 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
         <button
           type="button"
           onClick={onClose}
-          className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#000000] dark:hover:bg-[#0D111A] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-[#1E293B] text-xs font-semibold transition cursor-pointer"
+          className="w-full py-2.5 rounded-xl bg-white hover:bg-slate-50 dark:bg-[#000000] dark:hover:bg-slate-900 text-black dark:text-white border-2 border-slate-300 dark:border-slate-700 text-xs font-bold transition cursor-pointer"
         >
           Concluir
         </button>

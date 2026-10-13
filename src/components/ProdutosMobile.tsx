@@ -132,22 +132,22 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
   // Cores dinâmicas com suporte estrito a Tema Claro e Tema Escuro
   const temaCores = {
-    bgExterno: isDark ? '#0B0F17' : '#F1F5F9',
+    bgExterno: isDark ? '#08131A' : '#F1F5F9',
     bgCard: isDark ? '#000000' : '#FFFFFF',
-    bordaCard: isDark ? '#1E293B' : '#E2E8F0',
+    bordaCard: isDark ? '#334155' : '#CBD5E1',
     bgInput: isDark ? '#000000' : '#FFFFFF',
-    bordaInput: isDark ? '#1E293B' : '#CBD5E1',
-    textoInput: isDark ? '#FFFFFF' : '#0F172A',
-    textoPrincipal: isDark ? '#FFFFFF' : '#0F172A',
-    textoSecundario: isDark ? '#94A3B8' : '#64748B',
+    bordaInput: isDark ? '#334155' : '#CBD5E1',
+    textoInput: isDark ? '#FFFFFF' : '#000000',
+    textoPrincipal: isDark ? '#FFFFFF' : '#000000',
+    textoSecundario: isDark ? '#94A3B8' : '#000000',
     bgPilulaDesmarcada: isDark ? '#000000' : '#FFFFFF',
-    bordaPilulaDesmarcada: isDark ? '#1E293B' : '#E2E8F0',
-    textoPilulaDesmarcada: isDark ? '#E2E8F0' : '#334155',
-    bgRodape: isDark ? '#000000' : 'rgba(255, 255, 255, 0.95)',
-    bordaRodape: isDark ? '#1E293B' : '#E2E8F0',
-    textoRodape: isDark ? '#FFFFFF' : '#0F172A',
-    bgHeaderForm: isDark ? '#0B0F17' : '#FFFFFF',
-    bordaHeaderForm: isDark ? '#1E293B' : '#E2E8F0',
+    bordaPilulaDesmarcada: isDark ? '#334155' : '#CBD5E1',
+    textoPilulaDesmarcada: isDark ? '#FFFFFF' : '#000000',
+    bgRodape: isDark ? '#08131A' : '#F1F5F9',
+    bordaRodape: isDark ? '#64748B' : '#CBD5E1',
+    textoRodape: isDark ? '#FFFFFF' : '#000000',
+    bgHeaderForm: isDark ? '#08131A' : '#F1F5F9',
+    bordaHeaderForm: isDark ? '#64748B' : '#CBD5E1',
   };
 
   const permissions = usePermissions();
@@ -5224,7 +5224,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   // TELA 001 & TELA 002: LISTA PRINCIPAL DE PRODUTOS E ESTOQUE MOBILE
   // =========================================================================
   return (
-    <div className="flex flex-col h-full bg-slate-100 dark:bg-[#0B0F17] text-slate-900 dark:text-white overflow-hidden select-none relative">
+    <div className="flex flex-col h-full bg-slate-100 dark:bg-[#08131A] text-black dark:text-white overflow-hidden select-none relative">
       {renderToast()}
 
       {/* Header Superior Mobile Unificado (TELA001 / TELA002) */}
@@ -5234,7 +5234,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       />
 
       {/* Abas Superiores: ITENS (TELA001) | ESTOQUE (TELA002) */}
-      <div className="flex bg-transparent border-b border-slate-200 dark:border-[#1E293B] shrink-0">
+      <div className="flex bg-transparent border-b border-slate-300 dark:border-slate-700 shrink-0">
         <button
           type="button"
           onClick={() => {
@@ -5243,8 +5243,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           }}
           className={`flex-1 py-3.5 text-xs sm:text-sm uppercase tracking-wider transition relative cursor-pointer ${
             abaLista === 'itens'
-              ? 'text-emerald-600 dark:text-emerald-400 font-bold border-b-2 border-emerald-500'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-medium'
+              ? 'text-emerald-700 dark:text-emerald-400 font-extrabold border-b-2 border-emerald-500'
+              : 'text-black dark:text-slate-300 hover:text-black dark:hover:text-white font-bold'
           }`}
         >
           Itens
@@ -5257,8 +5257,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           }}
           className={`flex-1 py-3.5 text-xs sm:text-sm uppercase tracking-wider transition relative cursor-pointer ${
             abaLista === 'estoque'
-              ? 'text-emerald-600 dark:text-emerald-400 font-bold border-b-2 border-emerald-500'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-medium'
+              ? 'text-emerald-700 dark:text-emerald-400 font-extrabold border-b-2 border-emerald-500'
+              : 'text-black dark:text-slate-300 hover:text-black dark:hover:text-white font-bold'
           }`}
         >
           Estoque
@@ -5266,7 +5266,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       </div>
 
       {/* Barra de Busca com Pesquisa por Voz (TELA001 / TELA002 / TELA003) */}
-      <div className="px-4 py-3 border-b border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#0B0F17] flex items-center gap-3 shrink-0">
+      <div className="px-4 py-3 border-b border-slate-300 dark:border-slate-700 bg-white dark:bg-[#000000] flex items-center gap-3 shrink-0">
         {buscaAtiva ? (
           // Busca Ativa (TELA003)
           <div className="flex-1 flex items-center gap-2">
@@ -5276,7 +5276,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 setBusca('');
                 setBuscaAtiva(false);
               }}
-              className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+              className="p-1 text-slate-500 hover:text-black dark:text-slate-400 dark:hover:text-white cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -5287,14 +5287,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               placeholder="Digite o nome ou código..."
-              className="flex-1 py-1.5 text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-100 placeholder-slate-400 border-none bg-transparent focus:outline-none"
+              className="flex-1 py-1.5 text-xs sm:text-sm font-bold text-black dark:text-white placeholder-slate-400 border-none bg-transparent focus:outline-none"
             />
             {/* Ícone de Microfone / Pesquisa por Voz */}
             <button
               type="button"
               onClick={() => alternarPesquisaPorVoz(setBusca)}
-              className={`p-2 rounded-xl transition ${
-                ouvindoVoz ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+              className={`p-2 rounded-xl transition cursor-pointer ${
+                ouvindoVoz ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white'
               }`}
               title="Pesquisar por voz"
             >
@@ -5308,11 +5308,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               setBuscaAtiva(true);
               setTimeout(() => inputBuscaRef.current?.focus(), 100);
             }}
-            className="flex-1 flex items-center justify-between text-slate-400 py-1.5 px-3 bg-slate-50 dark:bg-[#000000] rounded-xl border border-slate-200 dark:border-[#1E293B] cursor-pointer"
+            className="flex-1 flex items-center justify-between text-slate-500 dark:text-slate-400 py-1.5 px-3 bg-slate-100 dark:bg-[#000000] rounded-xl border-2 border-slate-300 dark:border-slate-700 cursor-pointer"
           >
             <div className="flex items-center gap-2">
-              <Search className="w-4 h-4 text-slate-400" />
-              <span className="text-xs sm:text-sm font-medium text-slate-400">Item ou código</span>
+              <Search className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+              <span className="text-xs sm:text-sm font-bold text-black dark:text-white">Item ou código</span>
             </div>
             <button
               type="button"
@@ -5321,7 +5321,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 setBuscaAtiva(true);
                 alternarPesquisaPorVoz(setBusca);
               }}
-              className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+              className="p-1 text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white cursor-pointer"
               title="Pesquisar por voz"
             >
               <Mic className="w-4 h-4" />
@@ -5336,14 +5336,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             onClick={() => setTelaAtiva('filtros')}
             className={`p-2 rounded-xl transition relative cursor-pointer ${
               qtdFiltrosAtivos > 0
-                ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-500 dark:border-emerald-500'
-                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#0D111A]'
+                ? 'text-white bg-emerald-600 border border-emerald-500 shadow-md font-bold'
+                : 'text-black dark:text-white hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent'
             }`}
             title="Filtros"
           >
             <Filter className="w-5 h-5" />
             {qtdFiltrosAtivos > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-slate-950 font-bold text-[9px] flex items-center justify-center shadow-xs">
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white text-emerald-800 font-black text-[9px] flex items-center justify-center shadow-xs">
                 {qtdFiltrosAtivos}
               </span>
             )}
@@ -5353,7 +5353,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             <button
               type="button"
               onClick={abrirNovoProduto}
-              className="p-2 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-extrabold transition cursor-pointer"
+              className="p-2 text-emerald-700 dark:text-emerald-400 hover:opacity-80 font-black transition cursor-pointer"
               title="Novo Produto"
             >
               <Plus className="w-6 h-6" />
@@ -5367,7 +5367,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 setProdutoEntradaAlvo(null);
                 setModalEntradaAberto(true);
               }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-[#000000] hover:bg-emerald-100 dark:hover:bg-[#0D111A] text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-[#10B981] font-bold text-xs transition cursor-pointer shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-[#000000] hover:bg-slate-50 dark:hover:bg-slate-900 text-emerald-700 dark:text-emerald-400 border-2 border-emerald-400 dark:border-emerald-500 font-bold text-xs transition cursor-pointer shadow-xs"
               title="Entrada / Ajuste de Estoque"
             >
               <PackagePlus className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
@@ -5379,8 +5379,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
       {/* Chips dos Filtros Ativos com 'X' para Desmarcar Imediatamente */}
       {qtdFiltrosAtivos > 0 && (
-        <div className="bg-slate-50 dark:bg-[#0B0F17] border-b border-slate-200 dark:border-[#1E293B] px-3 py-2 flex items-center gap-1.5 overflow-x-auto shrink-0 no-scrollbar">
-          <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider shrink-0 mr-0.5">
+        <div className="bg-slate-100 dark:bg-[#08131A] border-b border-slate-300 dark:border-slate-700 px-3 py-2 flex items-center gap-1.5 overflow-x-auto shrink-0 no-scrollbar">
+          <span className="text-[10px] font-black text-black dark:text-slate-300 uppercase tracking-wider shrink-0 mr-0.5">
             Filtros:
           </span>
 
@@ -5389,13 +5389,17 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             return (
               <div
                 key={catId}
-                className="border border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 shrink-0 font-medium"
+                className={`text-xs px-2.5 py-1 rounded-xl flex items-center gap-1.5 shrink-0 font-bold ${
+                  isDark
+                    ? 'bg-[#000000] text-emerald-400 border border-emerald-500/50'
+                    : 'bg-white text-emerald-800 border-2 border-emerald-300'
+                }`}
               >
                 <span className="truncate max-w-[120px]">{catNome}</span>
                 <button
                   type="button"
                   onClick={() => setCategoriasFiltro(prev => prev.filter(id => id !== catId))}
-                  className="p-0.5 rounded-full hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 transition cursor-pointer"
+                  className="p-0.5 rounded-full hover:opacity-80 transition cursor-pointer"
                   title={`Remover filtro ${catNome}`}
                 >
                   <X className="w-3 h-3" />
@@ -5405,12 +5409,16 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           })}
 
           {filtroSemEstoque && (
-            <div className="border border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-400 text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 shrink-0 font-medium">
+            <div className={`text-xs px-2.5 py-1 rounded-xl flex items-center gap-1.5 shrink-0 font-bold ${
+              isDark
+                ? 'bg-[#000000] text-rose-400 border border-rose-500/50'
+                : 'bg-white text-rose-800 border-2 border-rose-300'
+            }`}>
               <span>Sem estoque 🔴</span>
               <button
                 type="button"
                 onClick={() => setFiltroSemEstoque(false)}
-                className="p-0.5 rounded-full hover:bg-rose-500/20 text-rose-700 dark:text-rose-400 transition cursor-pointer"
+                className="p-0.5 rounded-full hover:opacity-80 transition cursor-pointer"
                 title="Remover filtro sem estoque"
               >
                 <X className="w-3 h-3" />
@@ -5419,12 +5427,16 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           )}
 
           {filtroMinimo && (
-            <div className="border border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 shrink-0 font-medium">
+            <div className={`text-xs px-2.5 py-1 rounded-xl flex items-center gap-1.5 shrink-0 font-bold ${
+              isDark
+                ? 'bg-[#000000] text-amber-400 border border-amber-500/50'
+                : 'bg-white text-amber-800 border-2 border-amber-300'
+            }`}>
               <span>Mínimo 🟡</span>
               <button
                 type="button"
                 onClick={() => setFiltroMinimo(false)}
-                className="p-0.5 rounded-full hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 transition cursor-pointer"
+                className="p-0.5 rounded-full hover:opacity-80 transition cursor-pointer"
                 title="Remover filtro estoque mínimo"
               >
                 <X className="w-3 h-3" />
@@ -5433,12 +5445,16 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           )}
 
           {filtroAcimaMinimo && (
-            <div className="border border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 shrink-0 font-medium">
+            <div className={`text-xs px-2.5 py-1 rounded-xl flex items-center gap-1.5 shrink-0 font-bold ${
+              isDark
+                ? 'bg-[#000000] text-emerald-400 border border-emerald-500/50'
+                : 'bg-white text-emerald-800 border-2 border-emerald-300'
+            }`}>
               <span>Acima do mínimo</span>
               <button
                 type="button"
                 onClick={() => setFiltroAcimaMinimo(false)}
-                className="p-0.5 rounded-full hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 transition cursor-pointer"
+                className="p-0.5 rounded-full hover:opacity-80 transition cursor-pointer"
                 title="Remover filtro acima do mínimo"
               >
                 <X className="w-3 h-3" />
@@ -5447,12 +5463,16 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           )}
 
           {filtroSemControle && (
-            <div className="border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 shrink-0 font-medium">
+            <div className={`text-xs px-2.5 py-1 rounded-xl flex items-center gap-1.5 shrink-0 font-bold ${
+              isDark
+                ? 'bg-[#000000] text-white border border-slate-700'
+                : 'bg-white text-black border-2 border-slate-300'
+            }`}>
               <span>Sem controle</span>
               <button
                 type="button"
                 onClick={() => setFiltroSemControle(false)}
-                className="p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 transition cursor-pointer"
+                className="p-0.5 rounded-full hover:opacity-80 transition cursor-pointer"
                 title="Remover filtro sem controle"
               >
                 <X className="w-3 h-3" />
@@ -5461,12 +5481,16 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           )}
 
           {filtroAtivo !== 'todos' && (
-            <div className="border border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs px-2.5 py-1 rounded-lg flex items-center gap-1.5 shrink-0 font-medium">
+            <div className={`text-xs px-2.5 py-1 rounded-xl flex items-center gap-1.5 shrink-0 font-bold ${
+              isDark
+                ? 'bg-[#000000] text-teal-400 border border-teal-500/50'
+                : 'bg-white text-teal-900 border-2 border-teal-300'
+            }`}>
               <span>{filtroAtivo === 'ativos' ? 'Ativos' : 'Inativos'}</span>
               <button
                 type="button"
                 onClick={() => setFiltroAtivo('todos')}
-                className="p-0.5 rounded-full hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 transition cursor-pointer"
+                className="p-0.5 rounded-full hover:opacity-80 transition cursor-pointer"
                 title="Remover filtro status"
               >
                 <X className="w-3 h-3" />
@@ -5484,7 +5508,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               setFiltroSemControle(false);
               setFiltroAtivo('todos');
             }}
-            className="text-[11px] font-bold text-slate-500 hover:text-rose-600 underline ml-1 shrink-0 cursor-pointer transition"
+            className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline ml-1 shrink-0 cursor-pointer transition"
             title="Limpar todos os filtros"
           >
             Limpar
@@ -5493,16 +5517,16 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       )}
 
       {/* Lista de Produtos (TELA001 ou TELA002) */}
-      <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-[#1E293B] pb-40">
+      <div className="flex-1 overflow-y-auto divide-y divide-slate-200 dark:divide-slate-800 pb-40">
         {carregando ? (
-          <div className="p-8 text-center text-slate-400 dark:text-slate-500 text-xs flex flex-col items-center justify-center space-y-2">
+          <div className="p-8 text-center text-slate-500 text-xs flex flex-col items-center justify-center space-y-2">
             <Loader2 className="w-6 h-6 animate-spin text-emerald-600 dark:text-emerald-400" />
             <span className="font-bold">Carregando produtos...</span>
           </div>
         ) : produtosFiltrados.length === 0 ? (
-          <div className="p-10 text-center text-slate-400 dark:text-slate-500 text-xs space-y-3">
-            <Tag className="w-10 h-10 mx-auto text-slate-300 dark:text-slate-600" />
-            <p className="font-bold text-sm text-slate-500 dark:text-slate-400">Nenhum produto encontrado.</p>
+          <div className="p-10 text-center text-slate-500 text-xs space-y-3">
+            <Tag className="w-10 h-10 mx-auto text-slate-400 dark:text-slate-600" />
+            <p className="font-bold text-sm text-black dark:text-white">Nenhum produto encontrado.</p>
           </div>
         ) : (
           produtosFiltrados.map((p) => {
@@ -5517,16 +5541,16 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 <div
                   key={p.id}
                   onClick={() => abrirEditarProduto(p, 'cadastro')}
-                  className="p-4 flex items-center justify-between bg-white dark:bg-[#000000] hover:bg-slate-50 dark:hover:bg-[#0D111A] transition cursor-pointer"
+                  className="p-4 flex items-center justify-between bg-white dark:bg-[#000000] hover:bg-slate-50 dark:hover:bg-slate-900/60 transition cursor-pointer"
                 >
                   {/* Container Esquerda: Informações com flex-1 min-w-0 pr-2 */}
                   <div className="flex items-center gap-3.5 flex-1 min-w-0 pr-2">
                     {/* Thumbnail / Foto */}
-                    <div className="w-12 h-12 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex items-center justify-center shrink-0 shadow-sm bg-white dark:bg-slate-900">
+                    <div className="w-12 h-12 rounded-xl border-2 border-slate-300 dark:border-slate-700 overflow-hidden flex items-center justify-center shrink-0 shadow-xs bg-slate-100 dark:bg-[#000000]">
                       {p.fotos_urls && p.fotos_urls[0] ? (
                         <img src={p.fotos_urls[0]} alt={p.nome} className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center p-1 bg-slate-50 dark:bg-slate-900/80 text-slate-400 dark:text-slate-500 text-center select-none">
+                        <div className="w-full h-full flex flex-col items-center justify-center p-1 bg-slate-100 dark:bg-[#000000] text-slate-400 dark:text-slate-500 text-center select-none">
                           <ImageOff className="w-4 h-4 opacity-50 mb-0.5" />
                           <span className="text-[9px] font-medium leading-none tracking-tight">Sem foto</span>
                         </div>
@@ -5536,12 +5560,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     {/* Nome e Descrição com até 2 linhas */}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1">
-                        {p.destaque && <span className="text-amber-500 font-bold text-xs">⭐</span>}
-                        <h2 className="text-sm font-semibold text-slate-900 dark:text-white uppercase line-clamp-2 leading-snug">
+                        {p.destaque && <span className="text-amber-400 font-bold text-xs">⭐</span>}
+                        <h2 className="text-sm font-bold text-black dark:text-white uppercase line-clamp-2 leading-snug">
                           {p.nome}
                         </h2>
                       </div>
-                      <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mt-0.5 truncate">
+                      <p className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mt-0.5 truncate">
                         {catNome}
                       </p>
                     </div>
@@ -5551,15 +5575,15 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   <div className="flex-shrink-0 ml-3 text-right">
                     {temPromocao ? (
                       <div className="flex flex-col items-end">
-                        <span className="text-[10px] text-slate-400 line-through font-semibold mb-0.5">
+                        <span className="text-[10px] text-slate-500 line-through font-semibold mb-0.5">
                           {formatarMoeda(Number(p.preco_venda_varejo || 0))}
                         </span>
-                        <span className="inline-block px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500 text-emerald-700 dark:text-emerald-400 font-semibold text-xs tracking-tight shadow-sm">
+                        <span className="inline-block px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-800 border-2 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40 font-bold text-xs tracking-tight shadow-xs">
                           {formatarMoeda(precoExibicao)}
                         </span>
                       </div>
                     ) : (
-                      <span className="inline-block px-2.5 py-1 rounded-lg bg-slate-800/80 border border-slate-700/60 text-white font-semibold text-xs tracking-tight shadow-sm">
+                      <span className="inline-block px-2.5 py-1 rounded-xl bg-white dark:bg-[#000000] border-2 border-slate-300 dark:border-slate-700 text-black dark:text-white font-bold text-xs tracking-tight shadow-xs">
                         {formatarMoeda(precoExibicao)}
                       </span>
                     )}
@@ -5576,7 +5600,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               <div
                 key={p.id}
                 onClick={() => abrirEditarProduto(p, 'estoque')}
-                className="p-4 flex items-center justify-between bg-white dark:bg-[#000000] hover:bg-slate-50 dark:hover:bg-[#0D111A] transition cursor-pointer gap-3"
+                className="p-4 flex items-center justify-between bg-white dark:bg-[#000000] hover:bg-slate-50 dark:hover:bg-slate-900/60 transition cursor-pointer gap-3"
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   {/* Ponto Indicador de Status */}
@@ -5585,11 +5609,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   }`} />
 
                   {/* Foto */}
-                  <div className="w-12 h-12 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex items-center justify-center shrink-0 shadow-sm bg-white dark:bg-slate-900">
+                  <div className="w-12 h-12 rounded-xl border-2 border-slate-300 dark:border-slate-700 overflow-hidden flex items-center justify-center shrink-0 shadow-xs bg-slate-100 dark:bg-[#000000]">
                     {p.fotos_urls && p.fotos_urls[0] ? (
                       <img src={p.fotos_urls[0]} alt={p.nome} className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center p-1 bg-slate-50 dark:bg-slate-900/80 text-slate-400 dark:text-slate-500 text-center select-none">
+                      <div className="w-full h-full flex flex-col items-center justify-center p-1 bg-slate-100 dark:bg-[#000000] text-slate-400 dark:text-slate-500 text-center select-none">
                         <ImageOff className="w-4 h-4 opacity-50 mb-0.5" />
                         <span className="text-[9px] font-medium leading-none tracking-tight">Sem foto</span>
                       </div>
@@ -5597,19 +5621,19 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   </div>
 
                   {/* Nome com até 2 linhas */}
-                  <h2 className="text-sm font-semibold text-slate-900 dark:text-white uppercase line-clamp-2 leading-snug">
+                  <h2 className="text-sm font-bold text-black dark:text-white uppercase line-clamp-2 leading-snug">
                     {p.nome}
                   </h2>
                 </div>
 
                 {/* Quantidade em Estoque e Botão Entrada */}
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className={`font-black text-sm sm:text-base px-3 py-1.5 rounded-xl shadow-sm inline-block min-w-[3.2rem] text-center ${
+                  <span className={`font-black text-sm sm:text-base px-3 py-1.5 rounded-xl shadow-xs inline-block min-w-[3.2rem] text-center ${
                     isSemEstoque
-                      ? 'bg-rose-50 dark:bg-[#000000] text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60'
+                      ? 'bg-rose-50 dark:bg-[#000000] text-rose-800 dark:text-rose-400 border-2 border-rose-300 dark:border-rose-500/40'
                       : isMinimo
-                      ? 'bg-amber-50 dark:bg-[#000000] text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/60'
-                      : 'bg-slate-100 dark:bg-[#000000] text-slate-800 dark:text-white border border-slate-200 dark:border-[#1E293B]'
+                      ? 'bg-amber-50 dark:bg-[#000000] text-amber-800 dark:text-amber-400 border-2 border-amber-300 dark:border-amber-500/40'
+                      : 'bg-white dark:bg-[#000000] text-black dark:text-white border-2 border-slate-300 dark:border-slate-700'
                   }`}>
                     {estoque}
                   </span>
@@ -5621,7 +5645,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                         setProdutoEntradaAlvo(p);
                         setModalEntradaAberto(true);
                       }}
-                      className="border border-emerald-300 dark:border-[#10B981] text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-[#000000] hover:bg-emerald-100 dark:hover:bg-[#0D111A] rounded-lg text-xs font-medium px-3 py-1.5 transition flex items-center gap-1 cursor-pointer shadow-xs"
+                      className="border-2 border-emerald-400 dark:border-emerald-500/50 text-emerald-800 dark:text-emerald-400 bg-white dark:bg-[#000000] hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl text-xs font-bold px-3 py-1.5 transition flex items-center gap-1 cursor-pointer shadow-xs"
                       title="Dar entrada / ajustar estoque"
                     >
                       <PackagePlus className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -5686,13 +5710,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       {/* MODAL / BOTTOM SHEET: PEDIDOS E CATÁLOGO ONLINE (TELA005) */}
       {modalCatalogoAberto && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end justify-center">
-          <div className="bg-white dark:bg-[#000000] border-t border-slate-200 dark:border-[#1E293B] rounded-t-3xl w-full max-w-md p-6 shadow-2xl space-y-4 animate-in slide-in-from-bottom duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#1E293B] pb-3">
-              <h3 className="font-black text-sm sm:text-base text-slate-800 dark:text-slate-100">Pedidos e Catálogo Online</h3>
+          <div className="bg-slate-100 dark:bg-[#08131A] border-t-2 border-x-2 border-slate-300 dark:border-slate-400 rounded-t-3xl w-full max-w-md p-6 shadow-2xl space-y-4 animate-in slide-in-from-bottom duration-200 text-black dark:text-white">
+            <div className="flex items-center justify-between border-b border-slate-300 dark:border-slate-700 pb-3">
+              <h3 className="font-extrabold text-sm sm:text-base text-black dark:text-white">Pedidos e Catálogo Online</h3>
               <button
                 type="button"
                 onClick={() => setModalCatalogoAberto(false)}
-                className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+                className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer"
+                title="Fechar"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -5701,7 +5726,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             <div className="space-y-3">
               {/* Publicado para todos verem */}
               <div className="flex items-center justify-between py-1">
-                <span className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300">Publicado para todos verem</span>
+                <span className="text-xs sm:text-sm font-bold text-black dark:text-white">Publicado para todos verem</span>
                 <button
                   type="button"
                   onClick={async () => {
@@ -5730,14 +5755,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               </div>
 
               {/* Ações TELA005 */}
-              <div className="pt-2 border-t border-slate-100 dark:border-[#1E293B] space-y-1.5">
+              <div className="pt-2 border-t border-slate-300 dark:border-slate-700 space-y-1.5">
                 <a
                   href={catalogUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-[#0D111A] flex items-center gap-3 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 transition"
+                  className="w-full p-3 rounded-2xl bg-white dark:bg-[#000000] border-2 border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900 flex items-center gap-3 text-xs sm:text-sm font-bold text-black dark:text-white transition"
                 >
-                  <Store className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+                  <Store className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                   <span>Abrir catálogo</span>
                 </a>
 
@@ -5747,9 +5772,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     compartilharLink(catalogUrl, loja?.nome_fantasia || 'Catálogo Online', 'Confira nosso catálogo online e faça seu pedido direto pelo WhatsApp!');
                     setModalCatalogoAberto(false);
                   }}
-                  className="w-full p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-[#0D111A] flex items-center gap-3 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 text-left transition cursor-pointer"
+                  className="w-full p-3 rounded-2xl bg-white dark:bg-[#000000] border-2 border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900 flex items-center gap-3 text-xs sm:text-sm font-bold text-black dark:text-white text-left transition cursor-pointer"
                 >
-                  <Share2 className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+                  <Share2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                   <span>Compartilhar</span>
                 </button>
 
@@ -5759,9 +5784,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     setModalCatalogoAberto(false);
                     navigate('/catalog-config');
                   }}
-                  className="w-full p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-[#0D111A] flex items-center gap-3 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 text-left transition cursor-pointer"
+                  className="w-full p-3 rounded-2xl bg-white dark:bg-[#000000] border-2 border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900 flex items-center gap-3 text-xs sm:text-sm font-bold text-black dark:text-white text-left transition cursor-pointer"
                 >
-                  <Settings className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+                  <Settings className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                   <span>Configurações</span>
                 </button>
               </div>
