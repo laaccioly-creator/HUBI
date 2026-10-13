@@ -441,18 +441,24 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-      <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+      <div className={`w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] ${
+        isDark ? 'bg-[#08131A] border-2 border-slate-400 text-slate-100' : 'bg-slate-100 border-2 border-slate-300 text-black'
+      }`}>
         {/* Header do Modal */}
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700/80 flex items-center justify-between bg-slate-50/80 dark:bg-slate-900 shrink-0">
+        <div className={`p-4 border-b flex items-center justify-between shrink-0 ${
+          isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-300 bg-slate-100'
+        }`}>
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center border ${
+              isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-emerald-50 text-emerald-600 border-emerald-200'
+            }`}>
               <Truck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+              <h3 className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>
                 Etiqueta de Envio • Pedido #{pedido.numero_pedido}
               </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                 Formato padrão para despacho e logística
               </p>
             </div>
@@ -460,18 +466,21 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+            className={`p-1.5 rounded-lg border transition cursor-pointer ${
+              isDark ? 'bg-[#000000] border-slate-700 text-slate-400 hover:text-white hover:bg-slate-900' : 'bg-white border-slate-300 text-slate-500 hover:text-black hover:bg-slate-50'
+            }`}
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-
         {/* Área Interna da Etiqueta Harmonizada */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 bg-slate-100 dark:bg-slate-900/60 flex justify-center items-start custom-scrollbar">
+        <div className={`flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 flex justify-center items-start custom-scrollbar ${
+          isDark ? 'bg-[#000000]' : 'bg-slate-100'
+        }`}>
           <div
             ref={etiquetaRef}
-            className="w-full max-w-sm bg-white text-slate-900 rounded-xl p-5 shadow-xl border border-slate-200 font-mono text-xs space-y-3.5 min-h-fit mb-4"
+            className="w-full max-w-sm bg-white text-slate-900 rounded-xl p-5 shadow-xl border border-slate-300 font-mono text-xs space-y-3.5 min-h-fit mb-4"
           >
             {/* Topo da Etiqueta */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 border-dashed">
@@ -551,11 +560,15 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
         </div>
 
         {/* Footer do Modal Harmonizado com Botões Centralizados */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-900 flex flex-wrap items-center justify-center gap-2.5 shrink-0">
+        <div className={`p-4 border-t flex flex-wrap items-center justify-center gap-2.5 shrink-0 ${
+          isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-300 bg-slate-100'
+        }`}>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 rounded-xl bg-slate-200 hover:bg-slate-300 border border-slate-300 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-300 font-bold text-xs shadow-xs transition cursor-pointer active:scale-95"
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer active:scale-95 ${
+              isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black'
+            }`}
           >
             Fechar
           </button>
@@ -566,7 +579,9 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
                 type="button"
                 disabled={obtendoEtiquetaOficial || obtendoDace}
                 onClick={handleAbrirEtiquetaMelhorEnvio}
-                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50"
+                className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50 ${
+                  isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+                }`}
                 title="Abrir e imprimir Etiqueta Oficial do Melhor Envio"
               >
                 {obtendoEtiquetaOficial ? (
@@ -581,7 +596,9 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
                 type="button"
                 disabled={obtendoDace || obtendoEtiquetaOficial}
                 onClick={handleAbrirDace}
-                className="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50"
+                className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50 ${
+                  isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+                }`}
                 title="Abrir e imprimir Declaração de Conteúdo (DACE)"
               >
                 {obtendoDace ? (
@@ -596,7 +613,9 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
                 type="button"
                 disabled={baixandoPdf || obtendoEtiquetaOficial}
                 onClick={handleBaixarPdf}
-                className="px-4 py-2.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 border border-emerald-300/60 text-emerald-950 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-100 font-bold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50"
+                className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50 ${
+                  isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black'
+                }`}
                 title="Baixar arquivo PDF da Etiqueta no dispositivo"
               >
                 {baixandoPdf ? (
@@ -612,10 +631,12 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
           <button
             type="button"
             onClick={handleImprimir}
-            className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-300 font-bold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer active:scale-95"
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer active:scale-95 ${
+              isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+            }`}
             title="Imprimir formato simplificado HUBI (térmica/A4)"
           >
-            <Printer className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
+            <Printer className="w-3.5 h-3.5" />
             <span>Etiqueta HUBI</span>
           </button>
         </div>

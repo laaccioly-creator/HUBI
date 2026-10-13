@@ -611,11 +611,11 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className={`w-full max-w-xl rounded-3xl p-6 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto border ${
-        isDark ? 'bg-slate-900 border-slate-700/80 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+      <div className={`w-full max-w-xl rounded-3xl p-6 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto ${
+        isDark ? 'bg-[#08131A] border-2 border-slate-400 text-slate-100' : 'bg-slate-100 border-2 border-slate-300 text-black'
       }`}>
         {/* Cabeçalho */}
-        <div className={`flex items-center justify-between border-b pb-4 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+        <div className={`flex items-center justify-between border-b pb-4 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border ${
               isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-emerald-50 text-emerald-600 border-emerald-200'
@@ -624,16 +624,16 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>
                   Rastreamento do Pedido #{pedido.numero_pedido || pedido.id.slice(0, 5)}
                 </h3>
                 <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border uppercase ${
-                  isDark ? 'bg-black border-slate-800 text-emerald-400' : 'bg-slate-100 border-slate-200 text-emerald-700'
+                  isDark ? 'bg-[#000000] border-slate-700 text-emerald-400' : 'bg-white border-slate-300 text-emerald-700'
                 }`}>
                   {transportadora}
                 </span>
               </div>
-              <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-500'}`}>
+              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                 Acompanhe as etapas de envio e movimentação da carga
               </p>
             </div>
@@ -642,8 +642,8 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className={`p-1.5 rounded-xl transition cursor-pointer ${
-              isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-800 hover:bg-slate-100'
+            className={`p-1.5 rounded-xl border transition cursor-pointer ${
+              isDark ? 'bg-[#000000] border-slate-700 text-slate-400 hover:text-white hover:bg-slate-900' : 'bg-white border-slate-300 text-slate-500 hover:text-black hover:bg-slate-50'
             }`}
           >
             <X className="w-5 h-5" />
@@ -651,11 +651,11 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
         </div>
 
         {/* Card do Código de Rastreio */}
-        <div className={`border rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-          isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+        <div className={`rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+          isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
         }`}>
           <div className="space-y-1">
-            <span className={`text-[11px] font-bold uppercase tracking-wider block ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+            <span className={`text-[11px] font-bold uppercase tracking-wider block ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
               Código de Rastreamento:
             </span>
             <div className="flex items-center gap-2">
@@ -669,7 +669,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
                   type="button"
                   onClick={handleCopiarCodigo}
                   className={`p-1.5 rounded-lg border transition cursor-pointer ${
-                    isDark ? 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-800' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                    isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border-slate-700' : 'bg-white hover:bg-slate-100 text-black border-slate-300'
                   }`}
                   title="Copiar código de rastreio"
                 >
@@ -684,20 +684,28 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
               type="button"
               onClick={() => handleSincronizarRastreio(false)}
               disabled={atualizando}
-              className="py-2 px-3 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95 disabled:opacity-50"
+              className={`py-2 px-3 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95 disabled:opacity-50 ${
+                isDark
+                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
+                  : 'bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white shadow-sm'
+              }`}
               title="Consultar atualizações na transportadora"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${atualizando ? 'animate-spin' : ''} text-slate-900 dark:text-white`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${atualizando ? 'animate-spin' : ''} text-white`} />
               <span>{atualizando ? 'Atualizando...' : 'Atualizar'}</span>
             </button>
 
             <button
               type="button"
               onClick={handleCompartilharWhatsApp}
-              className="py-2 px-3 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
+              className={`py-2 px-3 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95 ${
+                isDark
+                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
+                  : 'bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white shadow-sm'
+              }`}
               title="Enviar rastreio no WhatsApp do cliente"
             >
-              <MessageCircle className="w-3.5 h-3.5 text-slate-900 dark:text-white" />
+              <MessageCircle className="w-3.5 h-3.5 text-white" />
               <span>WhatsApp</span>
             </button>
           </div>
@@ -710,16 +718,15 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
           </div>
         )}
 
-
         {/* Linha do Tempo (Stepper) */}
         <div className="space-y-4 pt-1">
-          <h4 className={`text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+          <h4 className={`text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
             <Clock className={`w-4 h-4 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
             <span>Linha do Tempo da Entrega</span>
           </h4>
 
           <div className={`relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 ${
-            isDark ? 'before:bg-slate-800' : 'before:bg-slate-200'
+            isDark ? 'before:bg-slate-800' : 'before:bg-slate-300'
           }`}>
             {etapas.map((etapa) => {
               const concluido = etapa.concluido;
@@ -752,10 +759,10 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
                       <span
                         className={`text-xs font-bold ${
                           concluido
-                            ? (isDark ? 'text-slate-100' : 'text-slate-900')
+                            ? (isDark ? 'text-slate-100' : 'text-black')
                             : ativo
                             ? (isDark ? 'text-amber-300' : 'text-amber-600')
-                            : (isDark ? 'text-slate-500' : 'text-slate-400')
+                            : (isDark ? 'text-slate-500' : 'text-slate-500')
                         }`}
                       >
                         {etapa.titulo}
@@ -771,7 +778,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
                         </span>
                       )}
                     </div>
-                    <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
                       {etapa.descricao}
                     </p>
                   </div>
@@ -783,16 +790,16 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
 
         {/* Histórico Detalhado de Movimentações */}
         {eventosRastreioLocal.length > 0 && (
-          <div className={`border rounded-2xl p-4 space-y-3 ${
-            isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+          <div className={`rounded-2xl p-4 space-y-3 ${
+            isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
           }`}>
-            <div className={`flex items-center justify-between border-b pb-2.5 ${isDark ? 'border-slate-800/80' : 'border-slate-200'}`}>
-              <span className={`text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            <div className={`flex items-center justify-between border-b pb-2.5 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
+              <span className={`text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${isDark ? 'text-white' : 'text-black'}`}>
                 <Package className={`w-4 h-4 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
                 <span>Histórico de Movimentações ({eventosRastreioLocal.length})</span>
               </span>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                isDark ? 'text-slate-300 bg-slate-900 border-slate-800' : 'text-slate-600 bg-white border-slate-200'
+                isDark ? 'text-slate-300 bg-slate-900 border-slate-800' : 'text-black bg-slate-100 border-slate-300'
               }`}>
                 {ehCorreios ? 'Correios Oficial' : 'Transportadora'}
               </span>
@@ -815,8 +822,8 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
                           ? 'bg-sky-500/10 border-sky-500/30 text-sky-200'
                           : 'bg-sky-50 border-sky-200 text-sky-900'
                         : isDark
-                        ? 'bg-slate-900 border-slate-800 text-slate-200'
-                        : 'bg-white border-slate-200 text-slate-700'
+                        ? 'bg-[#000000] border-slate-800 text-slate-200'
+                        : 'bg-slate-50 border-slate-200 text-black'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -826,22 +833,22 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
                         ) : ehSaiu ? (
                           <Truck className="w-3.5 h-3.5 text-sky-500 shrink-0" />
                         ) : (
-                          <Package className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
+                          <Package className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
                         )}
-                        <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{ev.titulo || ev.tipo}</span>
+                        <span className={`font-bold ${isDark ? 'text-white' : 'text-black'}`}>{ev.titulo || ev.tipo}</span>
                       </span>
-                      <span className={`text-[11px] shrink-0 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      <span className={`text-[11px] shrink-0 font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                         {ev.data_formatada || (ev.data ? new Date(ev.data).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '')}
                       </span>
                     </div>
                     {ev.local && (
-                      <p className={`text-[11px] flex items-center gap-1 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                      <p className={`text-[11px] flex items-center gap-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                         <MapPin className="w-3 h-3 text-emerald-500 shrink-0" />
                         <span>{ev.local}</span>
                       </p>
                     )}
                     {ev.descricao && ev.descricao !== ev.titulo && (
-                      <p className={`text-[11px] leading-relaxed pl-4 ${isDark ? 'text-slate-300/90' : 'text-slate-600'}`}>
+                      <p className={`text-[11px] leading-relaxed pl-4 ${isDark ? 'text-slate-300/90' : 'text-slate-700'}`}>
                         {ev.descricao}
                       </p>
                     )}
@@ -854,14 +861,16 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
 
         {/* Endereço de Destino */}
         {pedido.endereco_entrega && (
-          <div className="border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-2xl p-3.5 space-y-1 text-slate-800 dark:text-slate-200">
+          <div className={`rounded-2xl p-3.5 space-y-1 ${
+            isDark ? 'bg-[#000000] border border-slate-700 text-slate-200' : 'bg-white border-2 border-slate-300 text-black'
+          }`}>
             <span className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${
-              isDark ? 'text-emerald-400' : 'text-emerald-700'
+              isDark ? 'text-emerald-400' : 'text-emerald-700 font-extrabold'
             }`}>
               <MapPin className={`w-3 h-3 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
               Endereço de Entrega do Destinatário
             </span>
-            <p className={`text-xs font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+            <p className={`text-xs font-bold ${isDark ? 'text-slate-100' : 'text-black'}`}>
               {pedido.endereco_entrega}
             </p>
           </div>
@@ -869,7 +878,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
 
         {/* Barra de Ações do Rodapé Unificada */}
         <div className={`pt-4 flex flex-wrap items-center justify-end gap-3 border-t ${
-          isDark ? 'border-slate-800' : 'border-slate-200'
+          isDark ? 'border-slate-800' : 'border-slate-300'
         }`}>
           {/* Botão Primário: Imprimir Etiqueta */}
           <button
@@ -881,10 +890,14 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
                 window.open(linkEtiqueta, '_blank', 'noopener,noreferrer');
               }
             }}
-            className="py-2.5 px-4 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+            className={`py-2.5 px-4 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
+              isDark
+                ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
+                : 'bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white shadow-sm'
+            }`}
             title="Imprimir Etiqueta de Envio"
           >
-            <Tag className="w-3.5 h-3.5 text-slate-900 dark:text-white" />
+            <Tag className="w-3.5 h-3.5 text-white" />
             <span>Imprimir Etiqueta</span>
           </button>
 
@@ -894,9 +907,13 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
               href={urlRastreioTransportadora}
               target="_blank"
               rel="noopener noreferrer"
-              className="py-2.5 px-4 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs uppercase tracking-wider shadow-xs transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+              className={`py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
+                isDark
+                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
+                  : 'bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white shadow-sm'
+              }`}
             >
-              <ExternalLink className="w-3.5 h-3.5" />
+              <ExternalLink className="w-3.5 h-3.5 text-white" />
               <span>
                 {transportadoraObj?.url_rastreio && codigoRastreio
                   ? `Rastrear na ${nomeTransportadoraExibicao}`
@@ -911,9 +928,13 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
               href={linkRastreio}
               target="_blank"
               rel="noopener noreferrer"
-              className="py-2.5 px-4 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs uppercase tracking-wider shadow-xs transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+              className={`py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
+                isDark
+                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
+                  : 'bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white shadow-sm'
+              }`}
             >
-              <ExternalLink className="w-3.5 h-3.5" />
+              <ExternalLink className="w-3.5 h-3.5 text-white" />
               <span>Acompanhar Uber</span>
             </a>
           )}
@@ -924,9 +945,13 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
               href={linkRastreio}
               target="_blank"
               rel="noopener noreferrer"
-              className="py-2.5 px-4 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs uppercase tracking-wider shadow-xs transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+              className={`py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
+                isDark
+                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
+                  : 'bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white shadow-sm'
+              }`}
             >
-              <ExternalLink className="w-3.5 h-3.5" />
+              <ExternalLink className="w-3.5 h-3.5 text-white" />
               <span>Acompanhar Corrida</span>
             </a>
           )}
@@ -935,7 +960,11 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="py-2.5 px-5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs shadow-xs transition cursor-pointer active:scale-95"
+            className={`py-2.5 px-5 rounded-xl font-bold text-xs transition cursor-pointer active:scale-95 ${
+              isDark
+                ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200'
+                : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black'
+            }`}
           >
             Fechar
           </button>

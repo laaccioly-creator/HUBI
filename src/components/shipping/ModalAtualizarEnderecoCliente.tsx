@@ -299,12 +299,12 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className={`rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[92vh] ${
+      <div className={`${
         isDark ? 'bg-[#08131A] border-2 border-slate-400 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
-      }`}>
+      } rounded-3xl w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[92vh] flex flex-col`}>
         {/* Cabeçalho */}
-        <div className={`p-4 sm:p-5 border-b flex items-center justify-between ${
-          isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-300 bg-slate-100'
+        <div className={`flex items-center justify-between border-b pb-3 shrink-0 ${
+          isDark ? 'border-slate-800' : 'border-slate-300'
         }`}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
@@ -333,7 +333,7 @@ export const ModalAtualizarEnderecoCliente: React.FC<ModalAtualizarEnderecoClien
         </div>
 
         {/* Formulário */}
-        <form onSubmit={handleSalvar} className={`p-4 sm:p-5 space-y-4 overflow-y-auto flex-1 ${isDark ? 'bg-[#08131A]' : 'bg-slate-100'}`}>
+        <form onSubmit={handleSalvar} className="space-y-4 overflow-y-auto flex-1 pr-1">
           {erroMsg && (
             <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />

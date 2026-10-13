@@ -290,12 +290,12 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className={`rounded-2xl sm:rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh] ${
-        isDark ? 'bg-[#08131A] border-2 border-slate-400' : 'bg-slate-100 border-2 border-slate-300'
-      }`}>
+      <div className={`${
+        isDark ? 'bg-[#08131A] border-2 border-slate-400 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
+      } rounded-3xl w-full max-w-xl p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[92vh] flex flex-col`}>
         {/* Cabeçalho */}
-        <div className={`p-4 sm:p-5 border-b flex items-center justify-between ${
-          isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-300 bg-slate-100'
+        <div className={`flex items-center justify-between border-b pb-3 shrink-0 ${
+          isDark ? 'border-slate-800' : 'border-slate-300'
         }`}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 flex items-center justify-center shrink-0">
@@ -324,7 +324,7 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
         </div>
 
         {/* Corpo */}
-        <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
+        <div className="space-y-4 overflow-y-auto flex-1 pr-1">
           {erroMsg && (
             <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -343,10 +343,10 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
                   capturarLocalizacaoAtual();
                 }
               }}
-              className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+              className={`p-3.5 rounded-2xl transition-all cursor-pointer flex items-center justify-between gap-3 ${
                 enderecoEscolhido?.id === enderecoGps?.id && enderecoGps
                   ? isDark
-                    ? 'bg-emerald-950/40 border-2 border-emerald-500 text-white shadow-sm'
+                    ? 'bg-[#000000] border border-emerald-500 text-white shadow-sm ring-1 ring-emerald-500/30'
                     : 'bg-emerald-50 border-2 border-emerald-600 text-slate-900 shadow-sm'
                   : isDark
                   ? 'bg-[#000000] hover:bg-slate-950 border border-slate-700 text-white font-bold'
@@ -427,7 +427,7 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
                       onClick={() => setEnderecoEscolhido(end)}
                       className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                         estaSelecionado
-                          ? (isDark ? 'bg-emerald-950/40 border-2 border-emerald-500 text-white shadow-sm' : 'bg-emerald-50 border-2 border-emerald-600 text-slate-900 shadow-sm')
+                          ? (isDark ? 'bg-[#000000] border border-emerald-500 text-white shadow-sm ring-1 ring-emerald-500/30' : 'bg-emerald-50 border-2 border-emerald-600 text-slate-900 shadow-sm')
                           : (isDark ? 'bg-[#000000] hover:bg-slate-950 border border-slate-700 text-white' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-slate-900 shadow-xs')
                       }`}
                     >
@@ -655,7 +655,7 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
         </div>
 
         {/* Rodapé com Botão de Confirmação Único */}
-        <div className={`p-4 border-t flex items-center justify-between gap-3 ${isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-300 bg-slate-100'}`}>
+        <div className={`pt-3 border-t flex items-center justify-between gap-3 shrink-0 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
           <button
             type="button"
             onClick={onFechar}

@@ -2291,7 +2291,7 @@ export const PedidosLista: React.FC = () => {
   return (
     <>
       {/* VISÃO MOBILE DE PEDIDOS (CONFORME TELA001 A TELA010 DISPONIBILIZADAS) */}
-      <div className="md:hidden h-full flex flex-col overflow-hidden bg-slate-900 text-slate-100">
+      <div className={`md:hidden h-full flex flex-col overflow-hidden ${isDark ? 'bg-[#08131A] text-slate-100' : 'bg-slate-100 text-black'}`}>
         <PedidosListaMobile
           pedidos={pedidos}
           clientes={clientes}
@@ -2318,24 +2318,24 @@ export const PedidosLista: React.FC = () => {
       </div>
 
       {/* VISÃO DESKTOP DE PEDIDOS */}
-      <div className={`hidden md:flex flex-col h-full overflow-hidden font-sans ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+      <div className={`hidden md:flex flex-col h-full overflow-hidden font-sans ${isDark ? 'bg-[#08131A] text-slate-100' : 'bg-slate-100 text-black'}`}>
         {/* SE UM PEDIDO ESTIVER SELECIONADO: EXIBIR A VISÃO DETALHADA DO PEDIDO (TELA002, TELA002A, TELA002B) */}
         {pedidoSelecionado ? (
-        <div className={`flex-1 overflow-y-auto w-full relative ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}>
+        <div className={`flex-1 overflow-y-auto w-full relative ${isDark ? 'bg-[#08131A]' : 'bg-slate-100'}`}>
           {/* HEADER DA VISÃO DETALHADA DO PEDIDO (TELA002) */}
-          <div className="sticky top-0 z-30 w-full bg-slate-950 border-b border-slate-800 shadow-xl">
+          <div className={`sticky top-0 z-30 w-full border-b shadow-xl ${isDark ? 'bg-[#08131A] border-slate-800' : 'bg-slate-100 border-slate-300'}`}>
             <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={handleVoltarListaPedidos}
-                className="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 hover:text-white transition cursor-pointer"
+                className={`p-2 rounded-xl transition cursor-pointer ${isDark ? 'bg-[#000000] border border-slate-700 hover:bg-slate-900 text-slate-300 hover:text-white' : 'bg-white border-2 border-slate-300 hover:bg-slate-50 text-black font-bold'}`}
                 title={origemParam === 'sales' ? 'Voltar para Vendas' : 'Voltar para a lista de pedidos'}
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div>
-                <h1 className="text-xl md:text-2xl font-black text-slate-100 whitespace-nowrap">
+                <h1 className={`text-xl md:text-2xl font-black whitespace-nowrap ${isDark ? 'text-slate-100' : 'text-black'}`}>
                   Pedido #{pedidoSelecionado.origem === 'catalogo_online' ? `c-${pedidoSelecionado.numero_pedido}` : pedidoSelecionado.numero_pedido} ({ROTULOS_STATUS_PEDIDO[pedidoSelecionado.status] || pedidoSelecionado.status})
                 </h1>
               </div>
@@ -2347,10 +2347,10 @@ export const PedidosLista: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleCopiarLinkAndamento(pedidoSelecionado)}
-                className="px-3 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-xs active:scale-95"
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-xs active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
                 title="Copiar link da página de andamento do pedido"
               >
-                <Copy className="w-3.5 h-3.5 text-slate-900 dark:text-white" />
+                <Copy className="w-3.5 h-3.5 text-white" />
                 <span>{copiado ? 'Copiado!' : 'Copiar link'}</span>
               </button>
 
@@ -2358,7 +2358,7 @@ export const PedidosLista: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleCompartilharWhatsApp(pedidoSelecionado)}
-                className="px-3 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-xs active:scale-95"
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-xs active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
                 title="Compartilhar link de andamento no WhatsApp"
               >
                 <MessageCircle className="w-3.5 h-3.5" />
@@ -2373,7 +2373,7 @@ export const PedidosLista: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setPedidoEtiquetaModal(pedidoSelecionado)}
-                      className="px-3 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-xs active:scale-95"
+                      className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-xs active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
                       title="Imprimir Etiqueta de Envio"
                     >
                       <Tag className="w-3.5 h-3.5" />
@@ -2389,7 +2389,7 @@ export const PedidosLista: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalCancelarPedidoAberto(true)}
-                  className="px-3 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-xs active:scale-95"
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-xs active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
                   title="Cancelar pedido"
                 >
                   <Ban className="w-3.5 h-3.5" />
@@ -2424,16 +2424,16 @@ export const PedidosLista: React.FC = () => {
             {/* COLUNA ESQUERDA (7 colunas) */}
             <div className="lg:col-span-7 space-y-6">
               {/* Card Cliente (TELA002) */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-3 shadow-xs">
+              <div className={`rounded-3xl p-5 space-y-3 shadow-xs ${isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Cliente</span>
+                  <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-black'}`}>Cliente</span>
                   {pedidoSelecionado.status !== 'cancelado' && (
                     <div className="flex items-center gap-2">
                       <div className="relative">
                         <select
                           value={pedidoSelecionado.cliente_id || 'avulso'}
                           onChange={(e) => handleAlterarClientePedido(e.target.value)}
-                          className="bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 hover:border-emerald-500 rounded-xl pl-2.5 pr-7 py-1 text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500 cursor-pointer appearance-none max-w-[170px] truncate"
+                          className={`rounded-xl pl-2.5 pr-7 py-1 text-xs font-bold focus:outline-none focus:border-emerald-500 cursor-pointer appearance-none max-w-[170px] truncate ${isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:border-emerald-500' : 'bg-white border-2 border-slate-300 text-black hover:border-slate-400'}`}
                           title="Alterar cliente do pedido"
                         >
                           <option value="avulso">Cliente Avulso (Balcão)</option>
@@ -2505,9 +2505,9 @@ export const PedidosLista: React.FC = () => {
               </div>
 
               {/* Card Observação (TELA002) */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-3 shadow-xs">
+              <div className={`rounded-3xl p-5 space-y-3 shadow-xs ${isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Observação</span>
+                  <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-black'}`}>Observação</span>
                 </div>
 
                 <div className="space-y-2">
@@ -2519,7 +2519,7 @@ export const PedidosLista: React.FC = () => {
                     readOnly={pedidoSelecionado.status === 'cancelado'}
                     onChange={(e) => setObservacaoTexto(e.target.value)}
                     onBlur={handleSalvarObservacao}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className={`w-full rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed ${isDark ? 'bg-[#000000] border border-slate-700 text-slate-100 placeholder:text-slate-600' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 font-medium'}`}
                   />
                   <label className={`flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 ${pedidoSelecionado.status === 'cancelado' ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}>
                     <input
@@ -2553,9 +2553,9 @@ export const PedidosLista: React.FC = () => {
                 const despachadoEm = pe?.despachado_em || pedidoSelecionado.despachado_em;
 
                 return (
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-3 shadow-xs">
-                    <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5">
-                      <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200 text-xs uppercase tracking-wider">
+                  <div className={`rounded-3xl p-5 space-y-3 shadow-xs ${isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
+                    <div className={`flex items-center justify-between border-b pb-2.5 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                      <div className={`flex items-center gap-2 font-bold text-xs uppercase tracking-wider ${isDark ? 'text-slate-200' : 'text-black'}`}>
                         <Truck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                         <span>Logística & Despacho</span>
                       </div>
@@ -2568,10 +2568,10 @@ export const PedidosLista: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setPedidoEscolherEnvio(pedidoSelecionado)}
-                              className="px-2.5 py-1 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-[11px] font-bold flex items-center gap-1 transition cursor-pointer shadow-xs active:scale-95"
+                              className={`px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1 transition cursor-pointer shadow-xs active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
                               title="Alterar ou redefinir a modalidade de envio deste pedido"
                             >
-                              <Edit className="w-3 h-3 text-slate-900 dark:text-white" />
+                              <Edit className="w-3 h-3 text-white" />
                               <span>Alterar Frete</span>
                             </button>
                           )}
@@ -3077,9 +3077,9 @@ export const PedidosLista: React.FC = () => {
               })()}
 
               {/* Card Itens do Pedido (TELA002 / TELA002A) */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-4 shadow-xs">
-                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
-                  <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+              <div className={`rounded-3xl p-5 space-y-4 shadow-xs ${isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
+                <div className={`flex items-center justify-between border-b pb-3 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                  <span className={`text-sm font-bold ${isDark ? 'text-slate-100' : 'text-black'}`}>
                     {pedidoSelecionado.itens?.length || 0} itens no pedido
                   </span>
                   {podeEditarPedido(pedidoSelecionado) && (
@@ -3098,14 +3098,14 @@ export const PedidosLista: React.FC = () => {
                   {pedidoSelecionado.itens?.map((item) => (
                     <div
                       key={item.id}
-                      className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80 flex items-center justify-between gap-3 hover:border-slate-300 dark:hover:border-slate-700 transition"
+                      className={`p-2.5 rounded-2xl flex items-center justify-between gap-3 transition ${isDark ? 'bg-[#000000] border border-slate-700 hover:border-slate-600' : 'bg-white border-2 border-slate-200 text-black hover:border-slate-300'}`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-xl bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 font-bold text-xs shrink-0">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${isDark ? 'bg-slate-900 border border-slate-700 text-slate-300' : 'bg-slate-100 border-2 border-slate-300 text-black'}`}>
                           {item.quantidade}x
                         </div>
                         <div className="min-w-0">
-                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block truncate">
+                          <span className={`text-xs font-bold block truncate ${isDark ? 'text-slate-200' : 'text-black'}`}>
                             {item.nome_produto || item.produto?.nome || 'Produto'}
                           </span>
                           {item.codigo_barras && (
@@ -3117,7 +3117,7 @@ export const PedidosLista: React.FC = () => {
                       </div>
 
                       <div className="text-right shrink-0">
-                        <span className="text-xs font-bold text-slate-900 dark:text-slate-100 block">
+                        <span className={`text-xs font-bold block ${isDark ? 'text-slate-100' : 'text-black'}`}>
                           {formatarMoeda(item.subtotal || item.preco_venda_unitario * item.quantidade || 0)}
                         </span>
                         <span className="text-[10px] text-slate-500">
@@ -3133,9 +3133,9 @@ export const PedidosLista: React.FC = () => {
             {/* COLUNA DIREITA (5 colunas): RESUMO, PAGAMENTO, RECIBO PREVIEW, HISTÓRICO */}
             <div className="lg:col-span-5 space-y-6">
               {/* Card Resumo do Pedido (TELA002) */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-3 shadow-xs">
-                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
-                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Resumo do pedido</span>
+              <div className={`rounded-3xl p-5 space-y-3 shadow-xs ${isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
+                <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                  <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-black'}`}>Resumo do pedido</span>
                   {podeEditarPedido(pedidoSelecionado) && (
                     <button
                       type="button"
@@ -3148,7 +3148,7 @@ export const PedidosLista: React.FC = () => {
                 </div>
 
                 <div className="space-y-2 text-xs">
-                  <div className="flex justify-between text-slate-700 dark:text-slate-300">
+                  <div className={`flex justify-between ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
                     <span>Subtotal de produtos</span>
                     <span className="font-bold">
                       R$ {Number(pedidoSelecionado.subtotal || pedidoSelecionado.valor_total || 0).toFixed(2)}
@@ -3162,7 +3162,7 @@ export const PedidosLista: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="flex justify-between text-slate-700 dark:text-slate-300">
+                  <div className={`flex justify-between ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
                     <span>Valor do frete</span>
                     <span className={Number(pedidoSelecionado.valor_frete || 0) === 0 ? "text-emerald-600 dark:text-emerald-400 font-bold" : "font-bold"}>
                       {Number(pedidoSelecionado.valor_frete || 0) > 0
@@ -3171,7 +3171,7 @@ export const PedidosLista: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className="flex justify-between text-base font-black text-slate-900 dark:text-slate-100 pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <div className={`flex justify-between text-base font-black pt-2 border-t ${isDark ? 'border-slate-800 text-slate-100' : 'border-slate-200 text-black'}`}>
                     <span>Total</span>
                     <span className="text-emerald-600 dark:text-emerald-400">
                       R$ {Number(pedidoSelecionado.valor_total || 0).toFixed(2)}
@@ -3188,13 +3188,13 @@ export const PedidosLista: React.FC = () => {
               </div>
 
               {/* Card Meios de Pagamento (TELA002) */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-3 shadow-xs">
-                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
-                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Meios de pagamento</span>
+              <div className={`rounded-3xl p-5 space-y-3 shadow-xs ${isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
+                <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                  <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-black'}`}>Meios de pagamento</span>
                 </div>
 
-                <div className="flex items-center justify-between text-xs p-2.5 bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-slate-800">
-                  <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold">
+                <div className={`flex items-center justify-between text-xs p-2.5 rounded-xl ${isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
+                  <div className={`flex items-center gap-2 font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>
                     <Coins className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     <span className="capitalize">
                       {pedidoSelecionado.pagamentos && pedidoSelecionado.pagamentos.length > 0
@@ -3202,7 +3202,7 @@ export const PedidosLista: React.FC = () => {
                         : 'Dinheiro / Pix'}
                     </span>
                   </div>
-                  <span className="font-black text-slate-900 dark:text-slate-100">
+                  <span className={`font-black ${isDark ? 'text-slate-100' : 'text-black'}`}>
                     R$ {Number(pedidoSelecionado.valor_total || 0).toFixed(2)}
                   </span>
                 </div>
@@ -3210,10 +3210,10 @@ export const PedidosLista: React.FC = () => {
                 {resolverStatusPagamento(pedidoSelecionado) === 'fiado' && (() => {
                   const infoVenc = obterInfoVencimentoFiado(pedidoSelecionado);
                   return (
-                    <div className="flex items-center justify-between text-xs p-2.5 bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-slate-800">
-                      <span className="text-slate-600 dark:text-slate-400 font-semibold">Data de Vencimento:</span>
+                    <div className={`flex items-center justify-between text-xs p-2.5 rounded-xl mt-2 ${isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
+                      <span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-black'}`}>Data de Vencimento:</span>
                       <div className="text-right">
-                        <span className={`font-bold ${infoVenc.estaVencido ? 'text-rose-600 dark:text-rose-400' : 'text-slate-800 dark:text-slate-200'}`}>
+                        <span className={`font-bold ${infoVenc.estaVencido ? 'text-rose-600 dark:text-rose-400' : isDark ? 'text-slate-200' : 'text-black'}`}>
                           {infoVenc.formatada}
                         </span>
                         {infoVenc.estaVencido && (
@@ -3236,7 +3236,7 @@ export const PedidosLista: React.FC = () => {
                         setPedidoReceberModal(pedidoSelecionado);
                       }
                     }}
-                    className="w-full mt-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 cursor-pointer active:scale-95"
+                    className={`w-full mt-2 px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
                   >
                     <DollarSign className="w-4 h-4" />
                     <span>{resolverStatusPagamento(pedidoSelecionado) === 'fiado' ? 'Receber Fiado' : 'Receber Pagamento'}</span>
@@ -3245,9 +3245,9 @@ export const PedidosLista: React.FC = () => {
               </div>
 
               {/* Card Recibo Preview (TELA002A) */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-4 shadow-xs">
-                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
-                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Recibo</span>
+              <div className={`rounded-3xl p-5 space-y-4 shadow-xs ${isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
+                <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                  <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-black'}`}>Recibo</span>
                   <button
                     type="button"
                     onClick={() => setPedidoReciboModal(pedidoSelecionado)}
@@ -3258,13 +3258,13 @@ export const PedidosLista: React.FC = () => {
                 </div>
 
                 {/* Mini Preview do Recibo */}
-                <div className="p-4 bg-slate-50 dark:bg-slate-950/80 rounded-2xl border border-slate-200 dark:border-slate-800 text-center space-y-2">
+                <div className={`p-4 rounded-2xl text-center space-y-2 ${isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
                   {logoLojaUrl ? (
                     <img src={logoLojaUrl} alt="Logo" className="h-8 max-w-[120px] object-contain mx-auto" />
                   ) : (
                     <Store className="w-6 h-6 text-emerald-600 dark:text-emerald-400 mx-auto" />
                   )}
-                  <p className="text-xs font-black text-slate-900 dark:text-slate-200">
+                  <p className={`text-xs font-black ${isDark ? 'text-slate-200' : 'text-black'}`}>
                     RECIBO #{pedidoSelecionado.numero_pedido}
                   </p>
                   {pedidoSelecionado.status === 'cancelado' && (
@@ -3282,48 +3282,48 @@ export const PedidosLista: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleCopiarReciboTexto(pedidoSelecionado)}
-                    className="p-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex flex-col items-center justify-center transition cursor-pointer shadow-xs font-bold active:scale-95"
+                    className={`p-2 rounded-xl text-xs flex flex-col items-center justify-center transition cursor-pointer shadow-xs font-bold active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
                     title="Copiar texto do recibo"
                   >
-                    <Copy className="w-4 h-4 mb-0.5 text-slate-900 dark:text-white" />
+                    <Copy className="w-4 h-4 mb-0.5 text-white" />
                     <span className="text-[10px]">{copiado ? 'Copiado' : 'Copiar'}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => PrintService.printReceipt(pedidoSelecionado, loja, 'a4')}
-                    className="p-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex flex-col items-center justify-center transition cursor-pointer shadow-xs font-bold active:scale-95"
+                    className={`p-2 rounded-xl text-xs flex flex-col items-center justify-center transition cursor-pointer shadow-xs font-bold active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
                     title="Baixar PDF / A4"
                   >
-                    <Download className="w-4 h-4 mb-0.5 text-slate-900 dark:text-white" />
+                    <Download className="w-4 h-4 mb-0.5 text-white" />
                     <span className="text-[10px]">PDF</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => handleCompartilharReciboWhatsApp(pedidoSelecionado)}
-                    className="p-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex flex-col items-center justify-center transition cursor-pointer shadow-xs font-bold active:scale-95"
+                    className={`p-2 rounded-xl text-xs flex flex-col items-center justify-center transition cursor-pointer shadow-xs font-bold active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
                     title="Enviar recibo pelo WhatsApp"
                   >
-                    <MessageCircle className="w-4 h-4 mb-0.5 text-slate-900 dark:text-white" />
+                    <MessageCircle className="w-4 h-4 mb-0.5 text-white" />
                     <span className="text-[10px]">WhatsApp</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => PrintService.printReceipt(pedidoSelecionado, loja, '80mm')}
-                    className="p-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex flex-col items-center justify-center transition cursor-pointer shadow-xs font-bold active:scale-95"
+                    className={`p-2 rounded-xl text-xs flex flex-col items-center justify-center transition cursor-pointer shadow-xs font-bold active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
                     title="Imprimir recibo térmico"
                   >
-                    <Printer className="w-4 h-4 mb-0.5 text-slate-900 dark:text-white" />
+                    <Printer className="w-4 h-4 mb-0.5 text-white" />
                     <span className="text-[10px]">Imprimir</span>
                   </button>
                 </div>
               </div>
 
               {/* Card Histórico do Pedido (TELA002B) */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-3 shadow-xs">
-                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block border-b border-slate-200 dark:border-slate-800 pb-2">
+              <div className={`rounded-3xl p-5 space-y-3 shadow-xs ${isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
+                <span className={`text-xs font-bold uppercase tracking-wider block border-b pb-2 ${isDark ? 'border-slate-800 text-slate-400' : 'border-slate-200 text-black'}`}>
                   Histórico do Pedido
                 </span>
 
@@ -3368,17 +3368,17 @@ export const PedidosLista: React.FC = () => {
         /* SE NENHUM PEDIDO ESTIVER SELECIONADO: EXIBIR A TABELA PRINCIPAL DE PEDIDOS (TELA001) */
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {/* HEADER DA LISTAGEM DE PEDIDOS (TELA001) */}
-          <div className={`p-4 md:p-6 pb-3 space-y-4 border-b ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'}`}>
+          <div className={`p-4 md:p-6 pb-3 space-y-4 border-b ${isDark ? 'bg-[#08131A] border-slate-800' : 'bg-slate-100 border-slate-300'}`}>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-2xl">
                   <Package className="w-6 h-6" />
                 </div>
                 <div>
-                  <h1 className={`text-xl md:text-2xl font-black flex items-center gap-2 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                  <h1 className={`text-xl md:text-2xl font-black flex items-center gap-2 ${isDark ? 'text-slate-100' : 'text-black'}`}>
                     <span>{pedidosAbertosCount} pedidos abertos</span>
                   </h1>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600 font-medium'}`}>
                     {pedidosFiltrados.length} pedidos listados • Tempo real
                   </p>
                 </div>
@@ -3391,7 +3391,7 @@ export const PedidosLista: React.FC = () => {
                   className={`p-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
                     somAtivo
                       ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
-                      : isDark ? 'bg-slate-900 border-slate-800 text-slate-500' : 'bg-slate-100 border-slate-300 text-slate-600'
+                      : isDark ? 'bg-[#000000] border-slate-700 text-slate-300 hover:bg-slate-900' : 'bg-white border-2 border-slate-300 text-black hover:bg-slate-50'
                   }`}
                   title={somAtivo ? 'Som de novos pedidos ativado' : 'Som desativado'}
                 >
@@ -3410,7 +3410,7 @@ export const PedidosLista: React.FC = () => {
                   placeholder="Item ou cliente..."
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-900/90 border border-slate-300 dark:border-slate-800 rounded-xl pl-9 pr-8 py-1.5 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+                  className={`w-full rounded-xl pl-9 pr-8 py-1.5 text-xs focus:outline-none focus:border-emerald-500 ${isDark ? 'bg-[#000000] border border-slate-700 text-slate-100 placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 font-medium'}`}
                 />
                 {busca && (
                   <button
@@ -3434,10 +3434,14 @@ export const PedidosLista: React.FC = () => {
                     <button
                       key={f.id}
                       onClick={() => setStatusFiltro(f.id)}
-                      className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer shrink-0 flex items-center justify-center gap-1.5 ${
+                      className={`px-3.5 py-1.5 rounded-xl text-xs whitespace-nowrap transition cursor-pointer shrink-0 flex items-center justify-center gap-1.5 ${
                         isActive
-                          ? 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-bold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white shadow-xs'
-                          : 'bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 font-medium shadow-xs dark:bg-slate-900/80 dark:hover:bg-slate-800 dark:border-slate-800 dark:text-slate-300 dark:hover:text-white'
+                          ? isDark
+                            ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold shadow-xs'
+                            : 'bg-emerald-600 hover:bg-emerald-700 text-white font-bold border border-emerald-700 shadow-sm'
+                          : isDark
+                            ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-300 hover:text-white font-medium'
+                            : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold shadow-xs'
                       }`}
                     >
                       <span>{f.label} {count}</span>
@@ -3462,7 +3466,7 @@ export const PedidosLista: React.FC = () => {
           </div>
 
           {/* TABELA DE PEDIDOS (TELA001) */}
-          <div className={`flex-1 overflow-auto px-4 md:px-6 pb-4 md:pb-6 ${isDark ? 'bg-slate-950' : 'bg-slate-50/50'}`}>
+          <div className={`flex-1 overflow-auto px-4 md:px-6 pb-4 md:pb-6 ${isDark ? 'bg-[#08131A]' : 'bg-slate-100'}`}>
             {carregando ? (
               <div className="flex flex-col items-center justify-center h-64 text-slate-400 space-y-3">
                 <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
@@ -3476,7 +3480,7 @@ export const PedidosLista: React.FC = () => {
             ) : (
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className={`border-b uppercase font-bold text-[11px] tracking-wider sticky top-0 z-20 shadow-xs ${isDark ? 'border-slate-800 text-slate-100 bg-slate-900' : 'border-slate-200 text-slate-900 bg-slate-100'}`}>
+                  <tr className={`border-b uppercase font-bold text-[11px] tracking-wider sticky top-0 z-20 shadow-xs ${isDark ? 'border-slate-800 text-slate-100 bg-[#000000]' : 'border-slate-300 text-black bg-white'}`}>
                     <th
                       className="py-2.5 px-2 font-bold cursor-pointer hover:text-emerald-600 dark:hover:text-emerald-400 transition min-w-[85px]"
                       onClick={() => toggleOrdenacao('codigo')}
@@ -3534,7 +3538,7 @@ export const PedidosLista: React.FC = () => {
                                 e.stopPropagation();
                                 setPedidoReciboModal(pedido);
                               }}
-                              className={`p-1 rounded-lg transition cursor-pointer ${isDark ? 'hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400' : 'hover:bg-slate-200 text-slate-500 hover:text-emerald-600'}`}
+                              className={`p-1 rounded-lg transition cursor-pointer ${isDark ? 'hover:bg-emerald-500/20 text-slate-400 hover:text-emerald-400' : 'hover:bg-slate-200 text-black hover:text-emerald-600'}`}
                             >
                               <Receipt className="w-3.5 h-3.5" />
                             </button>
@@ -3546,7 +3550,7 @@ export const PedidosLista: React.FC = () => {
                                 setPedidoSelecionado(pedido);
                               }}
                               className={`font-bold hover:underline cursor-pointer ${
-                                isCancelado ? 'line-through text-slate-400' : (isDark ? 'text-slate-200 group-hover:text-emerald-400' : 'text-slate-700 group-hover:text-emerald-600')
+                                isCancelado ? 'line-through text-slate-400' : (isDark ? 'text-slate-200 group-hover:text-emerald-400' : 'text-black group-hover:text-emerald-600')
                               }`}
                             >
                               #{isCatalogo ? `c-${pedido.numero_pedido}` : pedido.numero_pedido}
@@ -3554,7 +3558,7 @@ export const PedidosLista: React.FC = () => {
                           </div>
                         </td>
 
-                        <td className={`py-2.5 px-2 whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                        <td className={`py-2.5 px-2 whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-black font-medium'}`}>
                           <span className={isCancelado ? 'line-through' : ''}>
                             {formatarData(pedido.data_venda || pedido.criado_em || '')}
                           </span>
@@ -3562,7 +3566,7 @@ export const PedidosLista: React.FC = () => {
 
                         <td className="py-2.5 px-2.5 whitespace-nowrap">
                           <div className="flex flex-col gap-0.5">
-                            <span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>
+                            <span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-black'}`}>
                               {pedido.cliente?.nome || 'Cliente Avulso (Balcão)'}
                             </span>
                             {pedido.observacoes && (
@@ -3571,11 +3575,11 @@ export const PedidosLista: React.FC = () => {
                           </div>
                         </td>
 
-                        <td className={`py-2.5 px-2 whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                        <td className={`py-2.5 px-2 whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-black font-medium'}`}>
                           <div className="flex flex-col">
                             <div className="flex items-center gap-1.5">
-                              <User className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-slate-900'}`} />
-                              <span className={`font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                              <User className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-black'}`} />
+                              <span className={`font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                 {pedido.origem === 'catalogo_online' ? 'Catálogo Online' : (pedido.vendedor?.nome_completo || 'Vendedor')}
                               </span>
                             </div>
@@ -3588,17 +3592,17 @@ export const PedidosLista: React.FC = () => {
                             onClick={() => setPedidoItensModal(pedido)}
                             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold border transition cursor-pointer shadow-xs ${
                               isDark
-                                ? 'bg-slate-900 border-slate-700 text-slate-200 hover:bg-slate-800'
-                                : 'bg-slate-50 border-slate-300 text-slate-900 hover:bg-slate-100'
+                                ? 'bg-[#000000] border-slate-700 text-slate-200 hover:bg-slate-900'
+                                : 'bg-white border-2 border-slate-300 text-black hover:bg-slate-50 font-bold'
                             }`}
                           >
-                            <Package className={`w-3 h-3 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
+                            <Package className={`w-3 h-3 ${isDark ? 'text-slate-400' : 'text-black'}`} />
                             <span>{totalItens} {totalItens === 1 ? 'item' : 'itens'}</span>
                           </button>
                         </td>
 
                         <td className="py-2.5 px-2 whitespace-nowrap">
-                          <span className={`font-bold font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          <span className={`font-bold font-mono ${isDark ? 'text-white' : 'text-black'}`}>
                             {formatarMoeda(pedido.valor_total || 0)}
                           </span>
                         </td>
@@ -3679,7 +3683,7 @@ export const PedidosLista: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={() => handleEditarPedido(pedido)}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 shadow-xs transition cursor-pointer active:scale-95"
+                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold'}`}
                                     title="Editar itens e informações do pedido no PDV"
                                   >
                                     <Edit className="w-3.5 h-3.5" />
@@ -3692,7 +3696,7 @@ export const PedidosLista: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={() => setPedidoEscolherEnvio(pedido)}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 shadow-xs transition cursor-pointer active:scale-95"
+                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold'}`}
                                     title="Definir modalidade de envio do pedido"
                                   >
                                     <Truck className="w-3.5 h-3.5" />
@@ -3704,7 +3708,7 @@ export const PedidosLista: React.FC = () => {
                                     onClick={() => {
                                       setPedidoReceberFiadoModal(pedido);
                                     }}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 shadow-xs transition cursor-pointer active:scale-95"
+                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold'}`}
                                     title="Receber pagamento do fiado"
                                   >
                                     <DollarSign className="w-3.5 h-3.5" />
@@ -3727,7 +3731,7 @@ export const PedidosLista: React.FC = () => {
                                             onClick={() => {
                                               setPedidoReceberModal(pedido);
                                             }}
-                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 shadow-xs transition cursor-pointer active:scale-95"
+                                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold'}`}
                                             title="Receber pagamento"
                                           >
                                             <DollarSign className="w-3.5 h-3.5" />
@@ -3743,7 +3747,7 @@ export const PedidosLista: React.FC = () => {
                                               e.stopPropagation();
                                               handleDespacharPedido(pedido);
                                             }}
-                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-60"
+                                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-60 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
                                             title={isUber ? 'Chamar Uber Flash / Direct' : isMelhorEnvio ? 'Gerar Envio no Melhor Envio' : 'Confirmar Envio'}
                                           >
                                             {isGerando ? (
@@ -3770,7 +3774,7 @@ export const PedidosLista: React.FC = () => {
                                     onClick={() => {
                                       setPedidoReceberModal(pedido);
                                     }}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 shadow-xs transition cursor-pointer active:scale-95"
+                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold'}`}
                                   >
                                     <DollarSign className="w-3.5 h-3.5" />
                                     <span>Receber</span>
@@ -3834,7 +3838,7 @@ export const PedidosLista: React.FC = () => {
                                               <button
                                                 type="button"
                                                 onClick={() => setPedidoEtiquetaModal(pedido)}
-                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 shadow-xs transition cursor-pointer active:scale-95"
+                                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold'}`}
                                                 title="Imprimir Etiqueta de Envio"
                                               >
                                                 <Tag className="w-3.5 h-3.5" />
@@ -3844,7 +3848,7 @@ export const PedidosLista: React.FC = () => {
                                               <button
                                                 type="button"
                                                 onClick={() => setPedidoRastreioModal(pedido)}
-                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 shadow-xs transition cursor-pointer active:scale-95"
+                                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold'}`}
                                                 title="Acompanhar Rastreamento em Tempo Real"
                                               >
                                                 <Package className="w-3.5 h-3.5" />
@@ -3924,7 +3928,7 @@ export const PedidosLista: React.FC = () => {
                                     <button
                                       type="button"
                                       onClick={() => atualizarStatus(pedido.id, 'concluido')}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 shadow-xs transition cursor-pointer active:scale-95"
+                                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
                                       title="Concluir Pedido Entregue"
                                     >
                                       <Check className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -3935,7 +3939,7 @@ export const PedidosLista: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={() => atualizarStatus(pedido.id, 'concluido')}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 shadow-xs transition cursor-pointer active:scale-95"
+                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
                                     title="Concluir Pedido"
                                   >
                                     <Check className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -3966,9 +3970,9 @@ export const PedidosLista: React.FC = () => {
       {/* ========================================================================= */}
       {modalCancelarPedidoAberto && pedidoSelecionado && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-4 shadow-2xl animate-in zoom-in-95 text-slate-900 dark:text-slate-100">
-            <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-              <span className="font-bold text-slate-800 dark:text-slate-200">
+          <div className={`w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl animate-in zoom-in-95 ${isDark ? 'bg-[#08131A] border-2 border-slate-400 text-slate-100' : 'bg-slate-100 border-2 border-slate-300 text-black'}`}>
+            <div className="flex items-center justify-between text-xs">
+              <span className={`font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>
                 Pedido #{pedidoSelecionado.numero_pedido} • R$ {Number(pedidoSelecionado.valor_total || 0).toFixed(2)}
               </span>
               <button
@@ -3977,7 +3981,7 @@ export const PedidosLista: React.FC = () => {
                   setModalCancelarPedidoAberto(false);
                   setMotivoCancelamentoPedido('');
                 }}
-                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white transition cursor-pointer"
+                className={`p-1 rounded-lg transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-500 hover:text-black hover:bg-slate-200'}`}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -3988,19 +3992,19 @@ export const PedidosLista: React.FC = () => {
             </div>
 
             <div className="text-center space-y-1">
-              <h3 className="text-lg font-black text-slate-900 dark:text-slate-100">Cancelar pedido?</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Esta ação cancelará o pedido de <strong className="text-slate-800 dark:text-slate-200">{pedidoSelecionado.cliente?.nome || 'Cliente Balcão'}</strong>.
+              <h3 className={`text-lg font-black ${isDark ? 'text-slate-100' : 'text-black'}`}>Cancelar pedido?</h3>
+              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600 font-medium'}`}>
+                Esta ação cancelará o pedido de <strong className={isDark ? 'text-slate-200' : 'text-black font-bold'}>{pedidoSelecionado.cliente?.nome || 'Cliente Balcão'}</strong>.
               </p>
             </div>
 
             {/* Aviso de impacto operacional */}
-            <div className="p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-2xl space-y-1.5 text-xs text-amber-800 dark:text-amber-300 text-left">
-              <div className="flex items-center gap-1.5 font-bold text-amber-900 dark:text-amber-200">
+            <div className={`p-3 rounded-2xl space-y-1.5 text-xs text-left ${isDark ? 'bg-[#000000] border border-slate-700 text-amber-300' : 'bg-white border-2 border-slate-300 text-black'}`}>
+              <div className="flex items-center gap-1.5 font-bold text-amber-500 dark:text-amber-200">
                 <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                 <span>Impacto Operacional Automático:</span>
               </div>
-              <ul className="text-[11px] space-y-1 list-disc list-inside text-amber-800 dark:text-amber-300/90 leading-tight">
+              <ul className={`text-[11px] space-y-1 list-disc list-inside leading-tight ${isDark ? 'text-amber-300/90' : 'text-black font-medium'}`}>
                 <li><strong className="font-semibold">Estorno de estoque:</strong> As unidades dos itens retornarão automaticamente ao inventário.</li>
                 <li><strong className="font-semibold">Cancelamento financeiro:</strong> Lançamentos de fiado e saldo devedor vinculados serão estornados.</li>
               </ul>
@@ -4008,7 +4012,7 @@ export const PedidosLista: React.FC = () => {
 
             {/* Motivo do Cancelamento Obrigatório */}
             <div className="text-left space-y-1">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+              <label className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 Motivo do Cancelamento <span className="text-rose-500">*</span>:
               </label>
               <textarea
@@ -4016,7 +4020,7 @@ export const PedidosLista: React.FC = () => {
                 onChange={(e) => setMotivoCancelamentoPedido(e.target.value)}
                 placeholder="Informe detalhadamente a razão do cancelamento (ex: Desistência do cliente, erro no pedido)..."
                 rows={2}
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-rose-500 dark:focus:border-rose-500 resize-none"
+                className={`w-full rounded-xl p-2.5 text-xs resize-none focus:outline-none ${isDark ? 'bg-[#000000] border border-slate-700 text-slate-100 placeholder:text-slate-500 focus:border-rose-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 font-medium focus:border-rose-500'}`}
               />
             </div>
 
@@ -4028,7 +4032,7 @@ export const PedidosLista: React.FC = () => {
                   setMotivoCancelamentoPedido('');
                 }}
                 disabled={cancelandoPedido}
-                className="px-5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold text-xs transition cursor-pointer"
+                className={`px-5 py-2.5 rounded-xl font-semibold text-xs transition cursor-pointer ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-300' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold'}`}
               >
                 Voltar
               </button>
@@ -4052,13 +4056,13 @@ export const PedidosLista: React.FC = () => {
       {/* ========================================================================= */}
       {gavetaConcluirVendaAberta && pedidoSelecionado && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex justify-end animate-in fade-in">
-          <div className="w-full max-w-md bg-slate-900 border-l border-slate-800 h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-200">
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
-              <h3 className="text-base font-bold text-slate-100">Concluir venda</h3>
+          <div className={`w-full max-w-md h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-200 ${isDark ? 'bg-[#08131A] border-l-2 border-slate-400 text-slate-100' : 'bg-slate-100 border-l-2 border-slate-300 text-black'}`}>
+            <div className={`p-4 border-b flex items-center justify-between ${isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-300 bg-slate-100'}`}>
+              <h3 className={`text-base font-bold ${isDark ? 'text-slate-100' : 'text-black'}`}>Concluir venda</h3>
               <button
                 type="button"
                 onClick={() => setGavetaConcluirVendaAberta(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                className={`p-1.5 rounded-lg transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-500 hover:text-black hover:bg-slate-200'}`}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -4066,10 +4070,10 @@ export const PedidosLista: React.FC = () => {
 
             <div className="flex-1 overflow-y-auto p-5 space-y-5">
               <div>
-                <h4 className="text-2xl font-black text-slate-100">
+                <h4 className={`text-2xl font-black ${isDark ? 'text-slate-100' : 'text-black'}`}>
                   R$ {Number(pedidoSelecionado.valor_total || 0).toFixed(2)}
                 </h4>
-                <p className="text-xs text-slate-400">
+                <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600 font-medium'}`}>
                   de {pedidoSelecionado.cliente?.nome || 'Cliente Avulso (Balcão)'}
                 </p>
               </div>
@@ -4096,29 +4100,29 @@ export const PedidosLista: React.FC = () => {
                         onClick={() => setMeioPagamentoConclusao(m.id)}
                         className={`p-3 rounded-2xl border transition cursor-pointer flex flex-col gap-2 ${
                           isSel
-                            ? 'bg-emerald-950/40 border-emerald-500/50'
-                            : 'bg-slate-950/60 hover:bg-slate-800/60 border-slate-800'
+                            ? isDark ? 'bg-[#000000] border-2 border-emerald-500' : 'bg-white border-2 border-emerald-600 shadow-sm'
+                            : isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700' : 'bg-white hover:bg-slate-50 border-2 border-slate-300'
                         }`}
                       >
                         <div className="flex items-center gap-3">
                           <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${isSel ? 'border-emerald-400 bg-emerald-500' : 'border-slate-600'}`}>
                             {isSel && <div className="w-1.5 h-1.5 rounded-full bg-slate-950"></div>}
                           </div>
-                          <IconComp className={`w-4 h-4 ${isSel ? 'text-emerald-400' : 'text-slate-400'}`} />
-                          <span className={`text-xs font-bold ${isSel ? 'text-slate-100' : 'text-slate-300'}`}>
+                          <IconComp className={`w-4 h-4 ${isSel ? 'text-emerald-400' : isDark ? 'text-slate-400' : 'text-black'}`} />
+                          <span className={`text-xs font-bold ${isSel ? 'text-slate-100' : isDark ? 'text-slate-300' : 'text-black'}`}>
                             {m.label}
                           </span>
                         </div>
 
                         {/* Se Dinheiro selecionado: input do valor recebido */}
                         {isSel && m.id === 'dinheiro' && (
-                          <div className="pt-2 border-t border-slate-800/80">
-                            <label className="text-[10px] text-slate-400 block mb-1">Valor recebido</label>
+                          <div className={`pt-2 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                            <label className={`text-[10px] block mb-1 ${isDark ? 'text-slate-400' : 'text-black font-semibold'}`}>Valor recebido</label>
                             <input
                               type="text"
                               value={valorRecebidoConclusao}
                               onChange={(e) => setValorRecebidoConclusao(e.target.value)}
-                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 font-bold focus:outline-none focus:border-emerald-500"
+                              className={`w-full rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:border-emerald-500 ${isDark ? 'bg-[#000000] border border-slate-700 text-slate-100' : 'bg-white border-2 border-slate-300 text-black'}`}
                             />
                           </div>
                         )}
@@ -4129,11 +4133,11 @@ export const PedidosLista: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-4 border-t border-slate-800 bg-slate-950/90 flex items-center justify-end gap-2.5">
+            <div className={`p-4 border-t flex items-center justify-end gap-2.5 ${isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-300 bg-slate-100'}`}>
               <button
                 type="button"
                 onClick={() => setGavetaConcluirVendaAberta(false)}
-                className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 transition cursor-pointer"
+                className={`px-3.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-300' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black'}`}
               >
                 Cancelar
               </button>
@@ -4142,7 +4146,7 @@ export const PedidosLista: React.FC = () => {
                 type="button"
                 onClick={handleSalvarMeioPagamento}
                 disabled={salvandoConclusao}
-                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 border border-emerald-500/40 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-emerald-400' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-emerald-700'}`}
               >
                 {salvandoConclusao ? (
                   <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
@@ -4156,7 +4160,7 @@ export const PedidosLista: React.FC = () => {
                 type="button"
                 onClick={handleConfirmarConcluirVenda}
                 disabled={salvandoConclusao}
-                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-black text-white transition flex items-center gap-2 shadow-lg shadow-emerald-600/20 cursor-pointer disabled:opacity-50"
+                className={`px-5 py-2.5 rounded-xl text-xs font-black transition flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700'}`}
               >
                 {salvandoConclusao ? (
                   <>
@@ -4190,26 +4194,26 @@ export const PedidosLista: React.FC = () => {
       {/* ========================================================================= */}
       {modalDescontoAberto && pedidoSelecionado && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <h3 className="text-sm font-bold text-slate-100">Editar Desconto</h3>
+          <div className={`w-full max-w-sm rounded-3xl p-5 space-y-4 shadow-2xl ${isDark ? 'bg-[#08131A] border-2 border-slate-400' : 'bg-slate-100 border-2 border-slate-300'}`}>
+            <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+              <h3 className={`text-sm font-bold ${isDark ? 'text-slate-100' : 'text-black'}`}>Editar Desconto</h3>
               <button
                 type="button"
                 onClick={() => setModalDescontoAberto(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white"
+                className={`p-1 rounded-lg transition ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'}`}
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs text-slate-400">Valor do desconto (R$)</label>
+              <label className={`text-xs ${isDark ? 'text-slate-400' : 'text-black font-semibold'}`}>Valor do desconto (R$)</label>
               <input
                 type="text"
                 value={novoDescontoValor}
                 onChange={(e) => setNovoDescontoValor(e.target.value)}
                 placeholder="0.00"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-100 font-bold focus:outline-none focus:border-emerald-500"
+                className={`w-full rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none focus:border-emerald-500 ${isDark ? 'bg-[#000000] border border-slate-700 text-slate-100' : 'bg-white border-2 border-slate-300 text-black'}`}
               />
             </div>
 
@@ -4217,14 +4221,14 @@ export const PedidosLista: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalDescontoAberto(false)}
-                className="px-4 py-2 rounded-xl bg-slate-800 text-xs font-bold text-slate-300"
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition ${isDark ? 'bg-[#000000] border border-slate-700 text-slate-300 hover:bg-slate-900' : 'bg-white border-2 border-slate-300 text-black hover:bg-slate-50'}`}
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={handleSalvarDesconto}
-                className="px-4 py-2 rounded-xl bg-emerald-600 text-xs font-bold text-white"
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
               >
                 Aplicar
               </button>
@@ -4415,17 +4419,17 @@ export const PedidosLista: React.FC = () => {
       {/* MODAL PARA PREENCHER CPF/CNPJ DO CLIENTE (MELHOR ENVIO) */}
       {modalCpfClienteAberto && pedidoPendenteDespacho && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-5 shadow-2xl animate-in zoom-in-95">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className={`w-full max-w-md rounded-3xl p-6 space-y-5 shadow-2xl animate-in zoom-in-95 ${isDark ? 'bg-[#08131A] border-2 border-slate-400' : 'bg-slate-100 border-2 border-slate-300'}`}>
+            <div className={`flex items-center justify-between border-b pb-3 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
                   <Package className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-black text-sm text-slate-100">
+                  <h3 className={`font-black text-sm ${isDark ? 'text-slate-100' : 'text-black'}`}>
                     CPF/CNPJ do Destinatário
                   </h3>
-                  <p className="text-[11px] text-teal-400 font-semibold uppercase tracking-wider">
+                  <p className="text-[11px] text-emerald-500 font-semibold uppercase tracking-wider">
                     Melhor Envio (Correios / Jadlog)
                   </p>
                 </div>
@@ -4436,23 +4440,23 @@ export const PedidosLista: React.FC = () => {
                   setModalCpfClienteAberto(false);
                   setPedidoPendenteDespacho(null);
                 }}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                className={`p-1 rounded-lg transition ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-500 hover:text-black hover:bg-slate-200'}`}
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-3.5 bg-slate-800/60 border border-slate-700/60 rounded-2xl space-y-1.5 text-xs text-slate-300">
-              <p className="font-bold text-slate-200">
+            <div className={`p-3.5 rounded-2xl space-y-1.5 text-xs ${isDark ? 'bg-[#000000] border border-slate-700 text-slate-300' : 'bg-white border-2 border-slate-300 text-black'}`}>
+              <p className={`font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>
                 Cliente: {pedidoPendenteDespacho.ped.cliente?.nome || pedidoPendenteDespacho.ped.cliente_nome_avulso || 'Destinatário'}
               </p>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
+              <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
                 As transportadoras parceiras (Correios e Jadlog) exigem obrigatoriamente o CPF ou CNPJ do destinatário para emissão e rastreamento da etiqueta fiscal.
               </p>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-300">
+              <label className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 CPF ou CNPJ do Cliente:
               </label>
               <input
@@ -4461,7 +4465,7 @@ export const PedidosLista: React.FC = () => {
                 placeholder="000.000.000-00 ou 00.000.000/0000-00"
                 value={cpfClienteInput}
                 onChange={(e) => setCpfClienteInput(formatarMascaraDocumento(e.target.value))}
-                className="w-full bg-slate-950 border border-slate-700 focus:border-teal-500 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 font-mono focus:outline-none transition"
+                className={`w-full rounded-xl px-3.5 py-2.5 text-sm font-mono focus:outline-none transition ${isDark ? 'bg-[#000000] border border-slate-700 text-slate-100 focus:border-emerald-500' : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-500'}`}
               />
             </div>
 
@@ -4469,7 +4473,7 @@ export const PedidosLista: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCpfClienteInput('012.345.678-90')}
-                className="text-[11px] text-teal-400 hover:text-teal-300 underline font-semibold transition cursor-pointer"
+                className="text-[11px] text-emerald-500 hover:text-emerald-400 underline font-semibold transition cursor-pointer"
                 title="Preencher documento fictício para testes no Sandbox"
               >
                 Preencher CPF Teste
@@ -4483,7 +4487,7 @@ export const PedidosLista: React.FC = () => {
                     setPedidoPendenteDespacho(null);
                   }}
                   disabled={salvandoCpfEDespachando}
-                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
+                  className={`px-4 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-300' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black'}`}
                 >
                   Cancelar
                 </button>
@@ -4491,7 +4495,7 @@ export const PedidosLista: React.FC = () => {
                   type="button"
                   onClick={handleSalvarCpfEContinuarDespacho}
                   disabled={salvandoCpfEDespachando || !cpfClienteInput.trim()}
-                  className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-teal-500/20 transition cursor-pointer active:scale-95 disabled:opacity-50"
+                  className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-sm transition cursor-pointer active:scale-95 disabled:opacity-50 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700'}`}
                 >
                   {salvandoCpfEDespachando ? (
                     <>

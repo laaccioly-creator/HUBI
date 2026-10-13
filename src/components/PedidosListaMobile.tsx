@@ -48,6 +48,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import { Pedido, StatusPedido, StatusPagamento, Cliente, UsuarioLoja } from '../types';
@@ -129,6 +130,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   const navigate = useNavigate();
   const { loja, usuario } = useAuth();
   const { carregarPedidoParaEdicao } = useCart();
+  const { isDark } = useTheme();
   const { ehAdmin, ehGerente } = usePermissions();
   const { mostrarToast } = useFeedbackModal();
   const podeConcluirManual = ehAdmin || ehGerente;
@@ -906,9 +908,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
     const lucroEstimado = Math.max(0, Number(pedidoSelecionado.valor_total || 0) - totalCustoEstimado);
 
     return (
-      <div className="fixed inset-0 z-50 bg-white text-slate-900 flex flex-col justify-between animate-in slide-in-from-right duration-150 select-none">
+      <div className={`fixed inset-0 z-50 flex flex-col justify-between animate-in slide-in-from-right duration-150 select-none ${isDark ? 'bg-[#08131A] text-slate-100' : 'bg-slate-100 text-black'}`}>
         {/* Top Header */}
-        <div className="h-14 border-b border-slate-200 px-4 flex items-center justify-between bg-white shrink-0">
+        <div className={`h-14 px-4 flex items-center justify-between shrink-0 ${isDark ? 'bg-[#08131A] border-b border-slate-800' : 'bg-slate-100 border-b border-slate-300'}`}>
           <div className="flex items-center gap-2 min-w-0">
             <button
               type="button"
@@ -918,11 +920,11 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   onVoltarOrigem();
                 }
               }}
-              className="p-1 rounded-full hover:bg-slate-100 text-slate-700 transition cursor-pointer"
+              className={`p-1 rounded-full transition cursor-pointer ${isDark ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-200 text-slate-700'}`}
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
-            <div className="text-xs font-bold text-slate-800 truncate">
+            <div className={`text-xs font-bold truncate ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
               {new Date(pedidoSelecionado.data_venda).toLocaleDateString('pt-BR')}
             </div>
           </div>
@@ -947,7 +949,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               <button
                 type="button"
                 onClick={() => setClientePerfilSelecionado(cli)}
-                className="px-2 py-1 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-bold uppercase truncate max-w-[90px] flex items-center gap-1"
+                className={`px-2 py-1 rounded-lg text-[11px] font-bold uppercase truncate max-w-[90px] flex items-center gap-1 ${
+                  isDark ? 'bg-[#000000] border border-slate-700 text-slate-200' : 'bg-white border-2 border-slate-300 text-black'
+                }`}
               >
                 <span className="truncate">{cli.nome}</span>
                 <User className="w-3 h-3 text-slate-400 shrink-0" />
@@ -957,7 +961,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             <button
               type="button"
               onClick={() => setPedidoReciboModal(pedidoSelecionado)}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 cursor-pointer"
+              className={`p-1.5 rounded-lg cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-black'}`}
               title="Ver Recibo"
             >
               <FileText className="w-5 h-5" />
@@ -966,14 +970,16 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         </div>
 
         {/* Resumo Superior do Pedido */}
-        <div className="p-4 border-b border-slate-100 space-y-2.5 bg-white shrink-0">
+        <div className={`mx-3 mt-3 p-4 rounded-2xl space-y-2.5 shrink-0 shadow-xs ${
+          isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
+        }`}>
           <div className="flex items-baseline justify-between">
-            <div className="text-2xl font-black text-slate-900 tracking-tight">
+            <div className={`text-2xl font-black tracking-tight ${isDark ? 'text-white' : 'text-black'}`}>
               R$ {Number(pedidoSelecionado.valor_total).toFixed(2)}
             </div>
             <div className="text-right">
-              <span className="text-[11px] font-bold text-slate-400 block">#{pedidoSelecionado.numero_pedido}</span>
-              <span className="text-[10px] text-slate-500 block">{nomeVendedor}</span>
+              <span className={`text-[11px] font-bold block ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>#{pedidoSelecionado.numero_pedido}</span>
+              <span className={`text-[10px] block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{nomeVendedor}</span>
             </div>
           </div>
 
@@ -988,7 +994,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               <button
                 type="button"
                 onClick={() => setModalAlterarStatus(true)}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center gap-1.5 text-xs font-bold capitalize text-slate-700 cursor-pointer"
+                className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 text-xs font-bold capitalize cursor-pointer ${
+                  isDark ? 'border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200' : 'border-slate-300 bg-slate-50 hover:bg-slate-100 text-black'
+                }`}
               >
                 <Clock className="w-3.5 h-3.5 text-emerald-500" />
                 <span>{pedidoSelecionado.status.replace(/_/g, ' ')}</span>
@@ -1038,8 +1046,10 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             return (
               <div className="pt-1 space-y-1.5">
                 {obsAtualLimpa && (
-                  <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
-                    <span className="font-bold block text-[10px] text-amber-700 uppercase tracking-wide">Observação:</span>
+                  <div className={`p-2.5 rounded-xl text-xs ${
+                    isDark ? 'bg-[#08131A] border border-amber-500/40 text-amber-300' : 'bg-amber-50 border border-amber-200 text-amber-900'
+                  }`}>
+                    <span className="font-bold block text-[10px] text-amber-500 uppercase tracking-wide">Observação:</span>
                     <p className="whitespace-pre-wrap break-words">{obsAtualLimpa}</p>
                   </div>
                 )}
@@ -1055,7 +1065,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         if (onRecarregar) onRecarregar();
                       }
                     }}
-                    className="text-xs font-bold text-emerald-600 hover:underline flex items-center gap-1 cursor-pointer"
+                    className="text-xs font-bold text-emerald-500 hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     <span>+ {obsAtualLimpa ? 'Editar observação' : 'Adicionar observação'}</span>
                   </button>
@@ -1066,12 +1076,14 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         </div>
 
         {/* Abas: ITENS | DETALHES (TELA007) | CLIENTE (TELA008) */}
-        <div className="px-4 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 text-xs font-bold uppercase tracking-wider text-slate-400">
+        <div className={`px-4 mt-3 flex items-center justify-between shrink-0 text-xs font-bold uppercase tracking-wider ${
+          isDark ? 'bg-[#08131A] border-b border-slate-800 text-slate-400' : 'bg-slate-100 border-b border-slate-300 text-slate-600'
+        }`}>
           <button
             type="button"
             onClick={() => setAbaDetalhe('itens')}
             className={`py-3 border-b-2 transition flex-1 text-center cursor-pointer ${
-              abaDetalhe === 'itens' ? 'border-emerald-500 text-emerald-600' : 'border-transparent hover:text-slate-700'
+              abaDetalhe === 'itens' ? 'border-emerald-500 text-emerald-500' : (isDark ? 'border-transparent hover:text-slate-200' : 'border-transparent hover:text-black')
             }`}
           >
             ITENS
@@ -1080,7 +1092,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             type="button"
             onClick={() => setAbaDetalhe('detalhes')}
             className={`py-3 border-b-2 transition flex-1 text-center cursor-pointer ${
-              abaDetalhe === 'detalhes' ? 'border-emerald-500 text-emerald-600' : 'border-transparent hover:text-slate-700'
+              abaDetalhe === 'detalhes' ? 'border-emerald-500 text-emerald-500' : (isDark ? 'border-transparent hover:text-slate-200' : 'border-transparent hover:text-black')
             }`}
           >
             DETALHES
@@ -1089,7 +1101,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             type="button"
             onClick={() => setAbaDetalhe('cliente')}
             className={`py-3 border-b-2 transition flex-1 text-center cursor-pointer ${
-              abaDetalhe === 'cliente' ? 'border-emerald-500 text-emerald-600' : 'border-transparent hover:text-slate-700'
+              abaDetalhe === 'cliente' ? 'border-emerald-500 text-emerald-500' : (isDark ? 'border-transparent hover:text-slate-200' : 'border-transparent hover:text-black')
             }`}
           >
             CLIENTE
@@ -1099,51 +1111,57 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         {/* Conteúdo da Aba */}
         <div className="flex-1 overflow-y-auto p-4">
           {abaDetalhe === 'itens' && (
-            <div className="space-y-3 divide-y divide-slate-100">
-              {itensPedido.length === 0 ? (
-                <div className="text-center py-12 text-slate-400 text-xs font-medium">
-                  Nenhum item encontrado neste pedido.
-                </div>
-              ) : (
-                itensPedido.map((item: any, idx: number) => (
-                  <div key={item.id || idx} className="pt-2 first:pt-0 flex items-center justify-between gap-2.5">
-                    <div className="space-y-0.5 flex-1 min-w-0">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-black text-slate-700 text-xs shrink-0 whitespace-nowrap bg-slate-100 px-1.5 py-0.5 rounded-md">
-                          {item.quantidade}x
-                        </span>
-                        <span className="font-bold text-xs uppercase text-slate-800 truncate block flex-1 min-w-0" title={item.nome_produto}>
-                          {item.nome_produto}
-                        </span>
-                      </div>
-                      {item.rotulo_variacao && (
-                        <span className="text-[10px] text-slate-400 block truncate">Var: {item.rotulo_variacao}</span>
-                      )}
-                    </div>
-                    <span className="font-black text-xs text-slate-900 shrink-0 whitespace-nowrap">
-                      R$ {Number(item.subtotal || (Number(item.preco_venda_unitario || 0) * Number(item.quantidade || 1))).toFixed(2)}
-                    </span>
+            <div className={`p-4 rounded-2xl ${isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
+              <div className={`space-y-3 divide-y ${isDark ? 'divide-slate-800' : 'divide-slate-200'}`}>
+                {itensPedido.length === 0 ? (
+                  <div className={`text-center py-12 text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    Nenhum item encontrado neste pedido.
                   </div>
-                ))
-              )}
+                ) : (
+                  itensPedido.map((item: any, idx: number) => (
+                    <div key={item.id || idx} className="pt-2.5 first:pt-0 flex items-center justify-between gap-2.5">
+                      <div className="space-y-0.5 flex-1 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`font-black text-xs shrink-0 whitespace-nowrap px-1.5 py-0.5 rounded-md ${
+                            isDark ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-black font-bold'
+                          }`}>
+                            {item.quantidade}x
+                          </span>
+                          <span className={`font-bold text-xs uppercase truncate block flex-1 min-w-0 ${isDark ? 'text-slate-100' : 'text-black'}`} title={item.nome_produto}>
+                            {item.nome_produto}
+                          </span>
+                        </div>
+                        {item.rotulo_variacao && (
+                          <span className={`text-[10px] block truncate ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Var: {item.rotulo_variacao}</span>
+                        )}
+                      </div>
+                      <span className={`font-black text-xs shrink-0 whitespace-nowrap ${isDark ? 'text-white' : 'text-black'}`}>
+                        R$ {Number(item.subtotal || (Number(item.preco_venda_unitario || 0) * Number(item.quantidade || 1))).toFixed(2)}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           )}
 
           {/* TELA007: DETALHES */}
           {abaDetalhe === 'detalhes' && (
             <div className="space-y-4">
-              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
+              <div className={`p-3.5 rounded-2xl space-y-2 ${
+                isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
+              }`}>
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs text-slate-700 capitalize">{pedidoSelecionado.status.replace(/_/g, ' ')}</span>
+                  <span className={`font-bold text-xs capitalize ${isDark ? 'text-slate-200' : 'text-black'}`}>{pedidoSelecionado.status.replace(/_/g, ' ')}</span>
                   <Clock className="w-4 h-4 text-emerald-500" />
                 </div>
-                <span className="text-[11px] text-slate-400 block">
+                <span className={`text-[11px] block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                   {new Date(pedidoSelecionado.data_venda).toLocaleDateString('pt-BR')}
                 </span>
-                <div className="pt-2 border-t border-slate-200/60 flex flex-col gap-1.5 text-xs">
-                  <div className="flex items-center justify-between text-slate-600">
-                    <span className="text-slate-400">Origem / Vendedor:</span>
-                    <span className="font-bold text-slate-800">
+                <div className={`pt-2 border-t flex flex-col gap-1.5 text-xs ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                  <div className="flex items-center justify-between">
+                    <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Origem / Vendedor:</span>
+                    <span className={`font-bold ${isDark ? 'text-slate-100' : 'text-black'}`}>
                       {pedidoSelecionado.origem === 'catalogo_online' ? 'Catálogo Online' : (mapaUsuarios.get(pedidoSelecionado.vendedor_id || '') || pedidoSelecionado.vendedor?.nome_completo || 'Vendedor')}
                     </span>
                   </div>
@@ -1153,14 +1171,14 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     if (!ehFiado) return null;
                     const infoVenc = obterInfoVencimentoFiado(pedidoSelecionado);
                     return (
-                      <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200/40">
-                        <span className="text-slate-400">Data Vencimento:</span>
+                      <div className={`flex items-center justify-between text-xs pt-1 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                        <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Data Vencimento:</span>
                         <div className="text-right">
-                          <span className={`font-bold ${infoVenc.estaVencido ? 'text-rose-600' : 'text-slate-800'}`}>
+                          <span className={`font-bold ${infoVenc.estaVencido ? 'text-rose-500' : (isDark ? 'text-slate-200' : 'text-black')}`}>
                             {infoVenc.formatada}
                           </span>
                           {infoVenc.estaVencido && (
-                            <span className="text-[10px] font-bold text-rose-600 block">Vencido</span>
+                            <span className="text-[10px] font-bold text-rose-500 block">Vencido</span>
                           )}
                         </div>
                       </div>
@@ -1173,7 +1191,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       (pedidoSelecionado.metadados as any)?.ultimo_editor?.nome;
                     if (!editorNome) return null;
                     return (
-                      <div className="flex items-center justify-between text-[11px] text-amber-700 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200">
+                      <div className={`flex items-center justify-between text-[11px] px-2 py-1 rounded-lg border ${
+                        isDark ? 'text-amber-300 bg-[#08131A] border-amber-500/40' : 'text-amber-800 bg-amber-50 border-amber-200'
+                      }`}>
                         <span>Última edição:</span>
                         <span className="font-bold">{editorNome}</span>
                       </div>
@@ -1187,8 +1207,10 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 const obsLimpa = extrairObservacaoLimpa(pedidoSelecionado.observacoes);
                 if (!obsLimpa) return null;
                 return (
-                  <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1">
-                    <div className="flex items-center gap-1.5 font-bold text-amber-700 text-[10px] uppercase">
+                  <div className={`p-3.5 rounded-2xl text-xs space-y-1 ${
+                    isDark ? 'bg-[#000000] border border-slate-700 text-slate-100' : 'bg-white border-2 border-slate-300 text-black'
+                  }`}>
+                    <div className="flex items-center gap-1.5 font-bold text-amber-500 text-[10px] uppercase">
                       <FileText className="w-3.5 h-3.5" />
                       <span>Observação do Pedido</span>
                     </div>
@@ -1202,8 +1224,10 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 const historico = extrairHistoricoPedidoMobile(pedidoSelecionado);
                 if (historico.length === 0) return null;
                 return (
-                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
-                    <span className="font-bold text-[11px] text-slate-500 uppercase tracking-wide block">Histórico do Pedido</span>
+                  <div className={`p-3.5 rounded-2xl space-y-3 ${
+                    isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
+                  }`}>
+                    <span className={`font-bold text-[11px] uppercase tracking-wide block ${isDark ? 'text-slate-300' : 'text-black'}`}>Histórico do Pedido</span>
                     <div className="space-y-2.5">
                       {historico.map((item, idx, arr) => {
                         const isLast = idx === arr.length - 1;
@@ -1213,22 +1237,28 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                             <div
                               className={`w-2.5 h-2.5 rounded-full mt-1 shrink-0 ${
                                 isEdicao
-                                  ? 'bg-amber-500 ring-4 ring-amber-100'
+                                  ? 'bg-amber-500 ring-4 ring-amber-500/20'
                                   : isLast
-                                  ? 'bg-emerald-500 ring-4 ring-emerald-100'
-                                  : 'bg-slate-400'
+                                  ? 'bg-emerald-500 ring-4 ring-emerald-500/20'
+                                  : 'bg-slate-500'
                               }`}
                             />
                             <div>
-                              <p className={`font-bold capitalize ${isEdicao ? 'text-amber-700' : isLast ? 'text-emerald-700' : 'text-slate-700'}`}>
+                              <p className={`font-bold capitalize ${
+                                isEdicao
+                                  ? 'text-amber-500'
+                                  : isLast
+                                  ? 'text-emerald-500'
+                                  : (isDark ? 'text-slate-300' : 'text-black')
+                              }`}>
                                 {item.status.replace(/_/g, ' ')}
                               </p>
-                              <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-normal">
+                              <div className={`flex items-center gap-1.5 text-[10px] font-normal ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                                 <span>{formatarDataHoraHistorico(item.data)}</span>
                                 {item.usuario && <span>• {item.usuario}</span>}
                               </div>
                               {item.detalhes && (
-                                <p className="text-[10px] text-slate-500 mt-0.5">{item.detalhes}</p>
+                                <p className={`text-[10px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{item.detalhes}</p>
                               )}
                             </div>
                           </div>
@@ -1239,10 +1269,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 );
               })()}
 
-              <div className="space-y-2 pt-2 text-xs">
-                <div className="flex justify-between text-slate-500">
+              <div className={`p-3.5 rounded-2xl space-y-2 text-xs ${
+                isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
+              }`}>
+                <div className={`flex justify-between ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                   <span>Subtotal:</span>
-                  <span>R$ {Number(pedidoSelecionado.subtotal || pedidoSelecionado.valor_total).toFixed(2)}</span>
+                  <span className={`font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>R$ {Number(pedidoSelecionado.subtotal || pedidoSelecionado.valor_total).toFixed(2)}</span>
                 </div>
 
                 {Number(pedidoSelecionado.valor_desconto || 0) > 0 && (
@@ -1252,21 +1284,23 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   </div>
                 )}
 
-                <div className="flex justify-between text-slate-500">
+                <div className={`flex justify-between ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                   <span>Valor do Frete:</span>
-                  <span className={Number(pedidoSelecionado.valor_frete || 0) === 0 ? "text-emerald-600 font-medium" : ""}>
+                  <span className={`font-bold ${Number(pedidoSelecionado.valor_frete || 0) === 0 ? "text-emerald-500" : (isDark ? "text-slate-200" : "text-black")}`}>
                     {Number(pedidoSelecionado.valor_frete || 0) > 0 
                       ? `R$ ${Number(pedidoSelecionado.valor_frete).toFixed(2)}` 
                       : 'Grátis'}
                   </span>
                 </div>
 
-                <div className="flex justify-between text-base font-black text-slate-900 pt-2 border-t border-slate-200">
+                <div className={`flex justify-between text-base font-black pt-2 border-t ${
+                  isDark ? 'border-slate-800 text-white' : 'border-slate-300 text-black'
+                }`}>
                   <span>Total:</span>
                   <span>R$ {Number(pedidoSelecionado.valor_total).toFixed(2)}</span>
                 </div>
 
-                <div className="flex justify-between text-xs font-bold text-emerald-600 pt-1">
+                <div className="flex justify-between text-xs font-bold text-emerald-500 pt-1">
                   <span>Lucro estimado:</span>
                   <span>R$ {lucroEstimado.toFixed(2)}</span>
                 </div>
@@ -1276,12 +1310,14 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
           {/* TELA008: CLIENTE */}
           {abaDetalhe === 'cliente' && (
-            <div className="space-y-4 text-center py-6">
+            <div className={`p-4 rounded-2xl space-y-4 text-center py-6 ${
+              isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
+            }`}>
               {cli ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-center gap-2">
                     <User className="w-5 h-5 text-slate-400" />
-                    <h3 className="font-black text-sm uppercase text-slate-800">{cli.nome}</h3>
+                    <h3 className={`font-black text-sm uppercase ${isDark ? 'text-white' : 'text-black'}`}>{cli.nome}</h3>
                   </div>
 
                   {cli.whatsapp && (
@@ -1289,18 +1325,18 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       href={`https://wa.me/55${cli.whatsapp.replace(/\D/g, '')}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold text-xs shadow-xs transition"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition"
                     >
-                      <MessageCircle className="w-4 h-4 fill-emerald-600 text-emerald-600" />
+                      <MessageCircle className="w-4 h-4 fill-white text-emerald-600" />
                       <span>Chamar no WhatsApp</span>
                     </a>
                   )}
 
-                  <div className="pt-6">
+                  <div className="pt-4">
                     <button
                       type="button"
                       onClick={() => setClientePerfilSelecionado(cli)}
-                      className="text-xs font-bold text-emerald-600 hover:underline"
+                      className="text-xs font-bold text-emerald-500 hover:underline"
                     >
                       Ir ao perfil cliente
                     </button>
@@ -1308,17 +1344,19 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 </div>
               ) : (
                 <div className="space-y-4 py-4 px-4">
-                  <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
+                    isDark ? 'bg-slate-900 text-slate-400' : 'bg-slate-100 text-slate-600'
+                  }`}>
                     <User className="w-6 h-6" />
                   </div>
                   <div className="space-y-1">
-                    <h4 className="font-bold text-sm text-slate-700">Venda Avulsa</h4>
-                    <p className="text-xs text-slate-400">Nenhum cliente está vinculado a este pedido.</p>
+                    <h4 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Venda Avulsa</h4>
+                    <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Nenhum cliente está vinculado a este pedido.</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setModalVincularCliente(true)}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-sm transition active:scale-95 cursor-pointer"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition active:scale-95 cursor-pointer"
                   >
                     <UserPlus className="w-4 h-4" />
                     <span>Vincular Cliente</span>
@@ -1330,15 +1368,17 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         </div>
 
         {/* Rodapé e Ações Inferiores (TELA005) */}
-        <div className="p-3 border-t border-slate-200 bg-white shrink-0">
+        <div className={`p-3 shrink-0 ${isDark ? 'bg-[#08131A] border-t border-slate-800' : 'bg-slate-100 border-t border-slate-300'}`}>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setModalOpcoesPedido(true)}
-              className="h-12 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shrink-0"
+              className={`h-12 px-4 rounded-2xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shrink-0 ${
+                isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border border-slate-700' : 'bg-white hover:bg-slate-50 text-black border-2 border-slate-300'
+              }`}
               title="Opções do Pedido"
             >
-              <MoreVertical className="w-4 h-4 text-slate-500" />
+              <MoreVertical className="w-4 h-4 text-slate-400" />
               <span>Opções</span>
             </button>
 
@@ -1520,15 +1560,17 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         {/* TELA006: MODAL ALTERAR STATUS (BOTTOM SHEET) */}
         {modalAlterarStatus && (
           <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center">
-            <div className="bg-white rounded-t-3xl p-5 w-full max-w-md space-y-3 shadow-2xl animate-in slide-in-from-bottom">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                <h3 className="font-bold text-sm text-slate-800">Selecione um status</h3>
-                <button onClick={() => setModalAlterarStatus(false)} className="p-1 text-slate-400 hover:text-slate-600">
+            <div className={`rounded-t-3xl p-5 w-full max-w-md space-y-3 shadow-2xl animate-in slide-in-from-bottom ${
+              isDark ? 'bg-[#08131A] border-2 border-slate-400 text-slate-100' : 'bg-slate-100 border-2 border-slate-300 text-black'
+            }`}>
+              <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
+                <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Selecione um status</h3>
+                <button onClick={() => setModalAlterarStatus(false)} className={`p-1 ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'}`}>
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <p className="text-[11px] text-slate-400">
+              <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                 Seus clientes serão notificados sempre que o status de um pedido for alterado.
               </p>
 
@@ -1552,12 +1594,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     }}
                     className={`w-full p-3 rounded-2xl flex items-center justify-between text-xs font-bold transition cursor-pointer ${
                       pedidoSelecionado.status === st.id
-                        ? 'border-2 border-emerald-500 bg-emerald-50 text-emerald-900'
-                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700'
+                        ? (isDark ? 'border-2 border-emerald-500 bg-[#000000] text-emerald-400' : 'border-2 border-emerald-600 bg-emerald-50 text-emerald-900')
+                        : (isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black')
                     }`}
                   >
                     <span>{st.label}</span>
-                    {pedidoSelecionado.status === st.id && <Check className="w-4 h-4 text-emerald-600" />}
+                    {pedidoSelecionado.status === st.id && <Check className="w-4 h-4 text-emerald-500" />}
                   </button>
                 ))}
               </div>
@@ -1569,7 +1611,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     setModalAlterarStatus(false);
                     navigate('/config');
                   }}
-                  className="text-xs font-bold text-emerald-600 hover:underline"
+                  className="text-xs font-bold text-emerald-500 hover:underline"
                 >
                   Gerenciar meus status
                 </button>
@@ -1581,13 +1623,15 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         {/* TELA009: MODAL OPÇÕES DO PEDIDO (COMPACTO, LIMPO & LINHA ÚNICA) */}
         {modalOpcoesPedido && (
           <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center">
-            <div className="bg-white rounded-t-3xl p-5 w-full max-w-md max-h-[85vh] overflow-y-auto space-y-2 shadow-2xl animate-in slide-in-from-bottom">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 mb-1">
-                <h3 className="font-bold text-sm text-slate-800">Opções do Pedido #{pedidoSelecionado.numero_pedido}</h3>
+            <div className={`rounded-t-3xl p-5 w-full max-w-md max-h-[85vh] overflow-y-auto space-y-2 shadow-2xl animate-in slide-in-from-bottom ${
+              isDark ? 'bg-[#08131A] border-2 border-slate-400 text-slate-100' : 'bg-slate-100 border-2 border-slate-300 text-black'
+            }`}>
+              <div className={`flex items-center justify-between border-b pb-2.5 mb-1 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
+                <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Opções do Pedido #{pedidoSelecionado.numero_pedido}</h3>
                 <button
                   type="button"
                   onClick={() => setModalOpcoesPedido(false)}
-                  className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition cursor-pointer"
+                  className={`p-1 rounded-lg transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-500 hover:text-black hover:bg-slate-200'}`}
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1721,9 +1765,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                           setPedidoSelecionado({ ...pedidoSelecionado, status: 'concluido' });
                           mostrarToast('Pedido concluído com sucesso!', 'sucesso');
                         }}
-                        className="w-full h-11 px-3.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98"
+                        className="w-full h-11 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 shadow-sm"
                       >
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <CheckCircle2 className="w-4 h-4 text-white shrink-0" />
                         <span>Concluir Pedido</span>
                       </button>
                     )}
@@ -1748,9 +1792,11 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                             window.open(linkRastreio, '_blank', 'noopener,noreferrer');
                           }
                         }}
-                        className="w-full h-11 px-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center gap-2.5 border border-slate-100 transition text-left cursor-pointer active:scale-98"
+                        className={`w-full h-11 px-3.5 rounded-xl font-semibold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 ${
+                          isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border border-slate-700' : 'bg-white hover:bg-slate-50 text-black border-2 border-slate-300'
+                        }`}
                       >
-                        <Package className="w-4 h-4 text-sky-600 shrink-0" />
+                        <Package className="w-4 h-4 text-sky-500 shrink-0" />
                         <span>Rastrear Envio</span>
                       </button>
                     )}
@@ -1763,9 +1809,11 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                           setModalOpcoesPedido(false);
                           setPedidoEtiquetaModal(pedidoSelecionado);
                         }}
-                        className="w-full h-11 px-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center gap-2.5 border border-slate-100 transition text-left cursor-pointer active:scale-98"
+                        className={`w-full h-11 px-3.5 rounded-xl font-semibold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 ${
+                          isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border border-slate-700' : 'bg-white hover:bg-slate-50 text-black border-2 border-slate-300'
+                        }`}
                       >
-                        <Tag className="w-4 h-4 text-slate-500 shrink-0" />
+                        <Tag className="w-4 h-4 text-slate-400 shrink-0" />
                         <span>Etiqueta</span>
                       </button>
                     )}
@@ -1777,9 +1825,11 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         setModalOpcoesPedido(false);
                         setPedidoReciboModal(pedidoSelecionado);
                       }}
-                      className="w-full h-11 px-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center gap-2.5 border border-slate-100 transition text-left cursor-pointer active:scale-98"
+                      className={`w-full h-11 px-3.5 rounded-xl font-semibold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 ${
+                        isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border border-slate-700' : 'bg-white hover:bg-slate-50 text-black border-2 border-slate-300'
+                      }`}
                     >
-                      <Receipt className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <Receipt className="w-4 h-4 text-emerald-500 shrink-0" />
                       <span>Recibo</span>
                     </button>
 
@@ -1791,9 +1841,11 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                           setModalOpcoesPedido(false);
                           setModalDefinirEnvioAberto(true);
                         }}
-                        className="w-full h-11 px-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center gap-2.5 border border-slate-100 transition text-left cursor-pointer active:scale-98"
+                        className={`w-full h-11 px-3.5 rounded-xl font-semibold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 ${
+                          isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border border-slate-700' : 'bg-white hover:bg-slate-50 text-black border-2 border-slate-300'
+                        }`}
                       >
-                        <Truck className="w-4 h-4 text-blue-600 shrink-0" />
+                        <Truck className="w-4 h-4 text-blue-500 shrink-0" />
                         <span>Alterar Frete</span>
                       </button>
                     )}
@@ -1806,9 +1858,11 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                           setModalOpcoesPedido(false);
                           setModalAlterarVendedor(true);
                         }}
-                        className="w-full h-11 px-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center gap-2.5 border border-slate-100 transition text-left cursor-pointer active:scale-98"
+                        className={`w-full h-11 px-3.5 rounded-xl font-semibold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 ${
+                          isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border border-slate-700' : 'bg-white hover:bg-slate-50 text-black border-2 border-slate-300'
+                        }`}
                       >
-                        <UserCheck2 className="w-4 h-4 text-slate-500 shrink-0" />
+                        <UserCheck2 className="w-4 h-4 text-slate-400 shrink-0" />
                         <span>Alterar Vendedor</span>
                       </button>
                     )}
@@ -1822,9 +1876,11 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                           await carregarPedidoParaEdicao(pedidoSelecionado);
                           navigate('/pos', { state: { subTela: 'carrinho' } });
                         }}
-                        className="w-full h-11 px-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center gap-2.5 border border-slate-100 transition text-left cursor-pointer active:scale-98"
+                        className={`w-full h-11 px-3.5 rounded-xl font-semibold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 ${
+                          isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border border-slate-700' : 'bg-white hover:bg-slate-50 text-black border-2 border-slate-300'
+                        }`}
                       >
-                        <Edit2 className="w-4 h-4 text-slate-500 shrink-0" />
+                        <Edit2 className="w-4 h-4 text-slate-400 shrink-0" />
                         <span>Editar Pedido</span>
                       </button>
                     )}
@@ -1837,7 +1893,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                           setModalOpcoesPedido(false);
                           setModalConfirmarCancelamentoAberto(true);
                         }}
-                        className="w-full h-11 px-3.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs flex items-center gap-2.5 border border-rose-200/50 transition text-left cursor-pointer active:scale-98"
+                        className={`w-full h-11 px-3.5 rounded-xl font-bold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 ${
+                          isDark ? 'bg-[#000000] hover:bg-rose-950/40 text-rose-400 border border-rose-500/40' : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-2 border-rose-300'
+                        }`}
                       >
                         <Trash2 className="w-4 h-4 text-rose-600 shrink-0" />
                         <span>Cancelar Pedido</span>
@@ -1853,18 +1911,22 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         {/* MODAL DE CONFIRMAÇÃO DEFENSIVO PARA CANCELAMENTO DE PEDIDO */}
         {modalConfirmarCancelamentoAberto && pedidoSelecionado && (
           <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
-            <div className="bg-white rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl animate-in zoom-in-95 text-slate-900 border border-slate-100">
+            <div className={`rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl animate-in zoom-in-95 ${
+              isDark ? 'bg-[#08131A] border-2 border-slate-400 text-slate-100' : 'bg-white border-2 border-slate-300 text-black'
+            }`}>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0">
-                  <AlertTriangle className="w-5 h-5 text-rose-600" />
+                <div className="w-10 h-10 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-500 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-rose-500" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm text-slate-900">Cancelar Pedido #{pedidoSelecionado.numero_pedido}</h3>
-                  <span className="text-[11px] text-slate-400">Confirmação obrigatória</span>
+                  <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Cancelar Pedido #{pedidoSelecionado.numero_pedido}</h3>
+                  <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Confirmação obrigatória</span>
                 </div>
               </div>
 
-              <div className="p-3 rounded-2xl bg-rose-50/70 border border-rose-200/80 text-rose-800 text-xs leading-relaxed font-medium">
+              <div className={`p-3 rounded-2xl text-xs leading-relaxed font-medium ${
+                isDark ? 'bg-rose-950/40 border border-rose-500/40 text-rose-300' : 'bg-rose-50/70 border border-rose-200/80 text-rose-800'
+              }`}>
                 Tem certeza de que deseja cancelar este pedido? Esta ação não pode ser desfeita e os itens retornarão ao estoque.
               </div>
 
@@ -1872,7 +1934,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setModalConfirmarCancelamentoAberto(false)}
-                  className="flex-1 h-11 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer"
+                  className={`flex-1 h-11 rounded-xl font-bold text-xs transition cursor-pointer ${
+                    isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  }`}
                 >
                   Voltar
                 </button>
@@ -1896,22 +1960,24 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         {/* MODAL ALTERAR VENDEDOR DO PEDIDO */}
         {modalAlterarVendedor && (
           <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center animate-in fade-in">
-            <div className="bg-white rounded-t-3xl p-5 w-full max-w-md space-y-3 shadow-2xl animate-in slide-in-from-bottom text-slate-900">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <div className={`rounded-t-3xl p-5 w-full max-w-md space-y-3 shadow-2xl animate-in slide-in-from-bottom ${
+              isDark ? 'bg-[#08131A] border-2 border-slate-400 text-slate-100' : 'bg-slate-100 border-2 border-slate-300 text-black'
+            }`}>
+              <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
                 <div className="flex items-center gap-2">
-                  <UserCheck2 className="w-4 h-4 text-emerald-600" />
-                  <h3 className="font-bold text-sm text-slate-800">Alterar Vendedor do Pedido</h3>
+                  <UserCheck2 className="w-4 h-4 text-emerald-500" />
+                  <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Alterar Vendedor do Pedido</h3>
                 </div>
                 <button
                   type="button"
                   onClick={() => setModalAlterarVendedor(false)}
-                  className="p-1 text-slate-400 hover:text-slate-600"
+                  className={`p-1 ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'}`}
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <p className="text-xs text-slate-500">
+              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                 Selecione o vendedor responsável por este pedido #{pedidoSelecionado?.numero_pedido}:
               </p>
 
@@ -1921,21 +1987,21 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   type="button"
                   disabled={salvandoVendedor}
                   onClick={() => handleTrocarVendedorPedido(null)}
-                  className={`w-full p-3 rounded-2xl border text-left transition flex items-center justify-between ${
+                  className={`w-full p-3 rounded-2xl text-left transition flex items-center justify-between cursor-pointer ${
                     pedidoSelecionado?.origem === 'catalogo_online' || !pedidoSelecionado?.vendedor_id
-                      ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-xs'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                      ? (isDark ? 'bg-[#000000] border-2 border-emerald-500 text-emerald-400 shadow-xs' : 'bg-emerald-50 border-2 border-emerald-600 text-emerald-950 font-bold shadow-xs')
+                      : (isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-white border-2 border-slate-300 text-black hover:bg-slate-50')
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Globe className="w-4 h-4 text-slate-500" />
+                    <Globe className="w-4 h-4 text-slate-400" />
                     <div>
                       <span className="font-bold text-xs block">Catálogo Online</span>
-                      <span className="text-[10px] text-slate-400">Venda originada do catálogo web</span>
+                      <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Venda originada do catálogo web</span>
                     </div>
                   </div>
                   {(pedidoSelecionado?.origem === 'catalogo_online' || !pedidoSelecionado?.vendedor_id) && (
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <Check className="w-4 h-4 text-emerald-500 shrink-0" />
                   )}
                 </button>
 
@@ -1948,20 +2014,20 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       type="button"
                       disabled={salvandoVendedor}
                       onClick={() => handleTrocarVendedorPedido(usr.id)}
-                      className={`w-full p-3 rounded-2xl border text-left transition flex items-center justify-between ${
+                      className={`w-full p-3 rounded-2xl text-left transition flex items-center justify-between cursor-pointer ${
                         ehAtual
-                          ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-xs'
-                          : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                          ? (isDark ? 'bg-[#000000] border-2 border-emerald-500 text-emerald-400 shadow-xs' : 'bg-emerald-50 border-2 border-emerald-600 text-emerald-950 font-bold shadow-xs')
+                          : (isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-white border-2 border-slate-300 text-black hover:bg-slate-50')
                       }`}
                     >
                       <div className="flex items-center gap-2.5">
-                        <User className="w-4 h-4 text-slate-500" />
+                        <User className="w-4 h-4 text-slate-400" />
                         <div>
                           <span className="font-bold text-xs block">{usr.nome_completo}</span>
-                          <span className="text-[10px] text-slate-400 capitalize">{usr.perfil || 'Vendedor'}</span>
+                          <span className={`text-[10px] capitalize ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{usr.perfil || 'Vendedor'}</span>
                         </div>
                       </div>
-                      {ehAtual && <Check className="w-4 h-4 text-emerald-600 shrink-0" />}
+                      {ehAtual && <Check className="w-4 h-4 text-emerald-500 shrink-0" />}
                     </button>
                   );
                 })}
@@ -1973,11 +2039,13 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         {/* MODAL VINCULAR CLIENTE AO PEDIDO AVULSO */}
         {modalVincularCliente && (
           <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center animate-in fade-in">
-            <div className="bg-white rounded-t-3xl p-5 w-full max-w-md space-y-3 shadow-2xl animate-in slide-in-from-bottom text-slate-900">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <div className={`rounded-t-3xl p-5 w-full max-w-md space-y-3 shadow-2xl animate-in slide-in-from-bottom ${
+              isDark ? 'bg-[#08131A] border-2 border-slate-400 text-slate-100' : 'bg-slate-100 border-2 border-slate-300 text-black'
+            }`}>
+              <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
                 <div className="flex items-center gap-2">
-                  <UserPlus className="w-4 h-4 text-emerald-600" />
-                  <h3 className="font-bold text-sm text-slate-800">Vincular Cliente ao Pedido</h3>
+                  <UserPlus className="w-4 h-4 text-emerald-500" />
+                  <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Vincular Cliente ao Pedido</h3>
                 </div>
                 <button
                   type="button"
@@ -1985,7 +2053,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     setModalVincularCliente(false);
                     setBuscaVincularCliente('');
                   }}
-                  className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  className={`p-1 cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'}`}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -1999,7 +2067,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   placeholder="Buscar por nome ou telefone..."
                   value={buscaVincularCliente}
                   onChange={(e) => setBuscaVincularCliente(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-emerald-500 font-medium"
+                  className={`w-full rounded-xl pl-9 pr-3 py-2 text-xs font-medium focus:outline-none focus:border-emerald-500 ${
+                    isDark ? 'bg-[#000000] border border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400'
+                  }`}
                   autoFocus
                 />
               </div>
@@ -2022,11 +2092,13 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       key={cliItem.id}
                       type="button"
                       onClick={() => handleVincularClienteAoPedido(cliItem.id)}
-                      className="w-full p-2.5 rounded-xl border border-slate-100 hover:border-emerald-500 hover:bg-emerald-50/40 text-left transition flex items-center justify-between cursor-pointer"
+                      className={`w-full p-2.5 rounded-xl text-left transition flex items-center justify-between cursor-pointer ${
+                        isDark ? 'bg-[#000000] border border-slate-700 hover:border-emerald-500 hover:bg-slate-900 text-slate-200' : 'bg-white border-2 border-slate-300 hover:border-emerald-600 hover:bg-emerald-50/40 text-black'
+                      }`}
                     >
                       <div>
-                        <span className="font-bold text-xs text-slate-800 block">{cliItem.nome}</span>
-                        <span className="text-[10px] text-slate-400">
+                        <span className={`font-bold text-xs block ${isDark ? 'text-slate-100' : 'text-black'}`}>{cliItem.nome}</span>
+                        <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                           {cliItem.whatsapp || cliItem.telefone || 'Sem telefone'}
                         </span>
                       </div>
@@ -2034,7 +2106,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     </button>
                   ))}
                 {clientes.length === 0 && (
-                  <div className="text-center py-6 text-xs text-slate-400">
+                  <div className={`text-center py-6 text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                     Nenhum cliente cadastrado.
                   </div>
                 )}
@@ -2110,7 +2182,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   // TELA 001: LISTA PRINCIPAL DE PEDIDOS MOBILE
   // =========================================================================
   return (
-    <div className="flex flex-col h-full bg-white text-slate-900 overflow-hidden select-none">
+    <div className={`flex flex-col h-full overflow-hidden select-none ${isDark ? 'bg-[#08131A] text-slate-100' : 'bg-slate-100 text-black'}`}>
       {/* 1. Header Superior Mobile Unificado (TELA001) */}
       <MobileHeader
         titulo="Pedidos"
@@ -2120,7 +2192,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             <button
               type="button"
               onClick={() => setModalFiltrosAvancados(true)}
-              className="p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition"
+              className={`p-2 transition rounded-xl ${isDark ? 'text-slate-300 hover:text-white hover:bg-slate-800' : 'text-slate-700 hover:text-black hover:bg-slate-200'}`}
               title="Filtros"
             >
               <Filter className="w-5 h-5" />
@@ -2130,7 +2202,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             <button
               type="button"
               onClick={() => navigate('/pos')}
-              className="w-9 h-9 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center font-bold shadow-sm transition active:scale-95 cursor-pointer"
+              className="w-9 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center font-bold shadow-sm transition active:scale-95 cursor-pointer"
               title="Nova Venda"
             >
               <Plus className="w-5 h-5 stroke-[2.5]" />
@@ -2140,7 +2212,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       />
 
       {/* 2. Barra de Busca */}
-      <div className="px-4 py-2 border-b border-slate-100 bg-white shrink-0">
+      <div className={`px-4 py-2 shrink-0 ${isDark ? 'bg-[#08131A] border-b border-slate-800' : 'bg-slate-100 border-b border-slate-300'}`}>
         <div className="relative flex items-center">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
@@ -2148,13 +2220,15 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             placeholder="Item, cliente ou código"
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 font-medium"
+            className={`w-full rounded-xl pl-10 pr-10 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-emerald-500 ${
+              isDark ? 'bg-[#000000] border border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400'
+            }`}
           />
           <button
             type="button"
             onClick={alternarVoz}
             className={`absolute right-2.5 p-1.5 rounded-lg transition ${
-              ouvindoVoz ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-400 hover:text-slate-700'
+              ouvindoVoz ? 'bg-rose-500 text-white animate-pulse' : (isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black')
             }`}
             title="Pesquisar por voz"
           >
@@ -2164,7 +2238,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       </div>
 
       {/* 3. Menus Dropdown: Status e Vendedores */}
-      <div className="px-3 py-2 border-b border-slate-200 bg-white flex items-center gap-2 shrink-0">
+      <div className={`px-3 py-2 flex items-center gap-2 shrink-0 ${isDark ? 'bg-[#08131A] border-b border-slate-800' : 'bg-slate-100 border-b border-slate-300'}`}>
         {/* Dropdown 1: Status */}
         <div className="relative flex-1 min-w-0">
           <Clock className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -2172,7 +2246,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             value={statusSelecionados[0] || 'todos'}
             onChange={(e) => setStatusSelecionados([e.target.value])}
             aria-label="Filtrar por status"
-            className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-7 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-emerald-500 cursor-pointer truncate"
+            className={`w-full appearance-none rounded-xl pl-8 pr-7 py-2 text-xs font-semibold cursor-pointer truncate focus:outline-none focus:border-emerald-500 ${
+              isDark ? 'bg-[#000000] border border-slate-700 text-slate-200' : 'bg-white border-2 border-slate-300 text-black'
+            }`}
           >
             {abasStatus.map((st) => {
               const count = contagensPorStatus[st.id];
@@ -2192,7 +2268,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
           <select
             value={vendedoresSelecionados[0] || 'todos'}
             onChange={(e) => setVendedoresSelecionados([e.target.value])}
-            className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-7 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-emerald-500 cursor-pointer truncate"
+            className={`w-full appearance-none rounded-xl pl-8 pr-7 py-2 text-xs font-semibold cursor-pointer truncate focus:outline-none focus:border-emerald-500 ${
+              isDark ? 'bg-[#000000] border border-slate-700 text-slate-200' : 'bg-white border-2 border-slate-300 text-black'
+            }`}
           >
             <option value="todos">Todos os Vendedores</option>
             <option value="catalogo_online">Catálogo Online</option>
@@ -2209,16 +2287,16 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       {/* 4. Lista Agrupada de Pedidos por Data */}
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
         {carregando ? (
-          <div className="text-center py-16 text-xs text-slate-400">Carregando pedidos...</div>
+          <div className={`text-center py-16 text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Carregando pedidos...</div>
         ) : gruposPorData.length === 0 ? (
-          <div className="text-center py-16 text-xs text-slate-400">Nenhum pedido encontrado.</div>
+          <div className={`text-center py-16 text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Nenhum pedido encontrado.</div>
         ) : (
           gruposPorData.map((grupo) => (
             <div key={grupo.label} className="space-y-2">
               {/* Header do Grupo de Data */}
               <div className="px-1">
-                <h3 className="font-bold text-xs text-slate-800">{grupo.label}</h3>
-                <span className="text-[10px] text-slate-400">
+                <h3 className={`font-bold text-xs ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>{grupo.label}</h3>
+                <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                   {grupo.pedidos.length} {grupo.pedidos.length === 1 ? 'pedido' : 'pedidos'}, R$ {grupo.totalValor.toFixed(2)}
                 </span>
               </div>
@@ -2234,7 +2312,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     <div
                       key={ped.id}
                       onClick={() => setPedidoSelecionado(ped)}
-                      className="p-3 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 active:bg-slate-100 transition cursor-pointer space-y-1 shadow-xs"
+                      className={`p-3 rounded-2xl transition cursor-pointer space-y-1 shadow-xs ${
+                        isDark ? 'bg-[#000000] border border-slate-700 text-slate-100 hover:bg-slate-900' : 'bg-white border-2 border-slate-300 text-black hover:bg-slate-50'
+                      }`}
                     >
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-1.5">
@@ -2243,10 +2323,10 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                           ) : (
                             <Clock className="w-3.5 h-3.5 text-slate-400" />
                           )}
-                          <span className={`font-black ${cancelado ? 'line-through text-rose-500' : 'text-slate-900'}`}>
+                          <span className={`font-black ${cancelado ? 'line-through text-rose-500' : (isDark ? 'text-white' : 'text-black')}`}>
                             R$ {Number(ped.valor_total).toFixed(2)}
                           </span>
-                          <span className="text-[10px] text-slate-400 font-normal">por {vendedor}</span>
+                          <span className={`text-[10px] font-normal ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>por {vendedor}</span>
                         </div>
 
                         <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wide border shrink-0 ${
@@ -2264,7 +2344,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between text-[10px] text-slate-500">
+                      <div className={`flex items-center justify-between text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                         <span className="truncate max-w-[200px]">
                           {(() => {
                             const its = ped.itens || ped.itens_pedido || [];
@@ -2276,17 +2356,19 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                             const pin = ped.pin_entrega || ped.pedido_entrega?.pin_entrega;
                             if (!pin) return null;
                             return (
-                              <span className="inline-flex items-center px-1.5 py-0.2 rounded font-black text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300 font-mono tracking-wider">
+                              <span className={`inline-flex items-center px-1.5 py-0.2 rounded font-black text-[9px] font-mono tracking-wider ${
+                                isDark ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                              }`}>
                                 PIN: {pin}
                               </span>
                             );
                           })()}
-                          <span className="text-slate-400 font-mono">#{ped.numero_pedido}</span>
+                          <span className={`font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>#{ped.numero_pedido}</span>
                         </div>
                       </div>
 
                       {cli && (
-                        <div className="flex items-center gap-1 pt-0.5 text-[10px] font-bold text-slate-600 uppercase">
+                        <div className={`flex items-center gap-1 pt-0.5 text-[10px] font-bold uppercase ${isDark ? 'text-slate-300' : 'text-black'}`}>
                           <User className="w-3 h-3 text-slate-400" />
                           <span>{cli.nome}</span>
                         </div>
@@ -2298,8 +2380,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         const estaVencido = ped.status === 'vencido' || (temFiadoEmAberto && ped.status !== 'concluido' && ped.status !== 'cancelado' && infoVenc.estaVencido);
                         if (!estaVencido) return null;
                         return (
-                          <div className="flex items-center justify-between pt-1 border-t border-rose-100 text-[10px]">
-                            <span className="inline-flex items-center gap-1 font-bold text-rose-600">
+                          <div className={`flex items-center justify-between pt-1 border-t text-[10px] ${isDark ? 'border-rose-900/50' : 'border-rose-100'}`}>
+                            <span className="inline-flex items-center gap-1 font-bold text-rose-500">
                               <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
                               Vencido
                             </span>
@@ -2319,9 +2401,11 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       </div>
 
       {/* 5. Barra Flutuante Inferior de Totais */}
-      <div className="p-3 bg-slate-900 text-white flex items-center justify-between text-xs shrink-0 shadow-lg">
-        <span className="text-slate-400 font-medium">Total em pedidos</span>
-        <span className="font-black text-emerald-400 text-sm">
+      <div className={`p-3 flex items-center justify-between text-xs shrink-0 shadow-lg ${
+        isDark ? 'bg-[#000000] border-t border-slate-800 text-slate-200' : 'bg-white border-t-2 border-slate-300 text-black'
+      }`}>
+        <span className={`font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Total em pedidos</span>
+        <span className="font-black text-emerald-500 text-sm">
           R$ {totalGeralPedidos.toFixed(2)} em {pedidosFiltrados.length} pedidos
         </span>
       </div>
@@ -2330,13 +2414,15 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       {/* TELA 002: MODAL FILTROS AVANÇADOS */}
       {/* ================================================================= */}
       {modalFiltrosAvancados && (
-        <div className="fixed inset-0 z-50 bg-white text-slate-900 flex flex-col justify-between animate-in slide-in-from-right duration-150">
-          <div className="h-14 border-b border-slate-200 px-4 flex items-center justify-between bg-white shrink-0">
-            <h2 className="font-bold text-base text-slate-800">Filtros</h2>
+        <div className={`fixed inset-0 z-50 flex flex-col justify-between animate-in slide-in-from-right duration-150 ${
+          isDark ? 'bg-[#08131A] text-slate-100' : 'bg-slate-100 text-black'
+        }`}>
+          <div className={`h-14 px-4 flex items-center justify-between shrink-0 ${isDark ? 'bg-[#08131A] border-b border-slate-800' : 'bg-slate-100 border-b border-slate-300'}`}>
+            <h2 className={`font-bold text-base ${isDark ? 'text-white' : 'text-black'}`}>Filtros</h2>
             <button
               type="button"
               onClick={() => setModalFiltrosAvancados(false)}
-              className="p-1 rounded-full text-slate-400 hover:text-slate-600"
+              className={`p-1 rounded-full cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'}`}
             >
               <X className="w-5 h-5" />
             </button>
@@ -2344,30 +2430,30 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
           <div className="flex-1 overflow-y-auto p-4 space-y-5">
             {/* Informe o período */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
-                <Calendar className="w-4 h-4 text-emerald-500" />
-                <span>Informe o período</span>
+            <div className={`p-4 rounded-2xl space-y-3 ${isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
+              <div className="flex items-center gap-2 text-xs font-bold text-emerald-500">
+                <Calendar className="w-4 h-4" />
+                <span className={isDark ? 'text-slate-200' : 'text-black'}>Informe o período</span>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 block mb-1">Data inicial</label>
+                  <label className={`text-[10px] font-bold block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Data inicial</label>
                   <input
                     type="date"
                     value={dataInicio}
                     onChange={(e) => setDataInicio(e.target.value)}
-                    className="w-full bg-slate-50 border-b border-slate-300 py-1.5 text-xs text-slate-800 focus:outline-none"
+                    className={`w-full py-1.5 px-2 rounded-lg text-xs focus:outline-none ${isDark ? 'bg-slate-900 border border-slate-700 text-white' : 'bg-slate-50 border border-slate-300 text-black'}`}
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 block mb-1">Data final</label>
+                  <label className={`text-[10px] font-bold block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Data final</label>
                   <input
                     type="date"
                     value={dataFim}
                     onChange={(e) => setDataFim(e.target.value)}
-                    className="w-full bg-slate-50 border-b border-slate-300 py-1.5 text-xs text-slate-800 focus:outline-none"
+                    className={`w-full py-1.5 px-2 rounded-lg text-xs focus:outline-none ${isDark ? 'bg-slate-900 border border-slate-700 text-white' : 'bg-slate-50 border border-slate-300 text-black'}`}
                   />
                 </div>
               </div>
@@ -2377,7 +2463,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => aplicarPresetPeriodo('ultimos_30_dias')}
-                  className="col-span-2 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 font-bold"
+                  className={`col-span-2 py-2 rounded-xl font-bold transition cursor-pointer ${
+                    isDark ? 'bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200' : 'bg-slate-50 hover:bg-slate-100 border border-slate-300 text-black'
+                  }`}
                 >
                   Últimos 30 dias
                 </button>
@@ -2387,7 +2475,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     key={p}
                     type="button"
                     onClick={() => aplicarPresetPeriodo(p)}
-                    className="py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 capitalize font-medium text-slate-700"
+                    className={`py-2 rounded-xl capitalize font-medium transition cursor-pointer ${
+                      isDark ? 'bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200' : 'bg-slate-50 hover:bg-slate-100 border border-slate-300 text-black'
+                    }`}
                   >
                     {p.replace(/_/g, ' ')}
                   </button>
@@ -2396,9 +2486,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             </div>
 
             {/* Meios de Pagamento */}
-            <div className="space-y-2 pt-3 border-t border-slate-100">
-              <h4 className="text-xs font-bold text-slate-700">Meio de Pagamento</h4>
-              <div className="grid grid-cols-2 gap-2 text-xs text-slate-700">
+            <div className={`p-4 rounded-2xl space-y-2.5 ${isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
+              <h4 className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>Meio de Pagamento</h4>
+              <div className="grid grid-cols-2 gap-2 text-xs">
                 {['Dinheiro', 'Cartão de Débito', 'Cartão de Crédito', 'Cheque', 'Voucher', 'Outros', 'Saldo Cliente', 'Venda Fiado', 'Pix'].map((mp) => {
                   const marcado = meiosPagamentoFiltro.includes(mp);
                   return (
@@ -2406,8 +2496,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       key={mp}
                       className={`flex items-center gap-2.5 p-2 rounded-xl border transition cursor-pointer select-none ${
                         marcado
-                          ? 'bg-emerald-50/80 border-emerald-400 text-emerald-950 font-bold'
-                          : 'border-slate-200 bg-slate-50/50 text-slate-700 hover:bg-slate-100/60'
+                          ? (isDark ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 font-bold' : 'bg-emerald-50 border-2 border-emerald-600 text-emerald-950 font-bold')
+                          : (isDark ? 'border border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800' : 'border border-slate-300 bg-slate-50 text-black hover:bg-slate-100')
                       }`}
                     >
                       <input
@@ -2423,7 +2513,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
                           marcado
                             ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
-                            : 'border-slate-300 bg-white'
+                            : (isDark ? 'border-slate-600 bg-black' : 'border-slate-300 bg-white')
                         }`}
                       >
                         {marcado && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
@@ -2436,11 +2526,11 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             </div>
           </div>
 
-          <div className="p-4 border-t border-slate-100 bg-white">
+          <div className={`p-4 shrink-0 ${isDark ? 'bg-[#08131A] border-t border-slate-800' : 'bg-slate-100 border-t border-slate-300'}`}>
             <button
               type="button"
               onClick={() => setModalFiltrosAvancados(false)}
-              className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs uppercase tracking-wider shadow-md transition"
+              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider shadow-md transition cursor-pointer"
             >
               Aplicar filtro
             </button>
@@ -2453,15 +2543,17 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       {/* ================================================================= */}
       {modalStatusAberto && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center">
-          <div className="bg-white rounded-t-3xl p-5 w-full max-w-md space-y-3 shadow-2xl animate-in slide-in-from-bottom">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <h3 className="font-bold text-sm text-slate-800">Selecione um ou mais...</h3>
-              <button onClick={() => setModalStatusAberto(false)} className="p-1 text-slate-400">
+          <div className={`rounded-t-3xl p-5 w-full max-w-md space-y-3 shadow-2xl animate-in slide-in-from-bottom ${
+            isDark ? 'bg-[#08131A] border-2 border-slate-400 text-slate-100' : 'bg-slate-100 border-2 border-slate-300 text-black'
+          }`}>
+            <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
+              <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Selecione um ou mais...</h3>
+              <button onClick={() => setModalStatusAberto(false)} className={`p-1 cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'}`}>
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-2 max-h-64 overflow-y-auto text-xs text-slate-700">
+            <div className="space-y-2 max-h-64 overflow-y-auto text-xs">
               {abasStatus.map((st) => {
                 const count = contagensPorStatus[st.id] || 0;
                 const selecionado = statusSelecionados.includes(st.id);
@@ -2482,8 +2574,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     }}
                     className={`flex items-center justify-between p-2.5 rounded-xl border transition cursor-pointer select-none ${
                       selecionado
-                        ? 'bg-emerald-50/80 border-emerald-400 text-emerald-950 font-bold'
-                        : 'border-slate-200 bg-slate-50/50 text-slate-700 hover:bg-slate-100/60'
+                        ? (isDark ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 font-bold' : 'bg-emerald-50 border-2 border-emerald-600 text-emerald-950 font-bold')
+                        : (isDark ? 'border border-slate-700 bg-[#000000] text-slate-300 hover:bg-slate-900' : 'border-2 border-slate-300 bg-white text-black hover:bg-slate-50')
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
@@ -2491,7 +2583,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
                           selecionado
                             ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
-                            : 'border-slate-300 bg-white'
+                            : (isDark ? 'border-slate-600 bg-black' : 'border-slate-300 bg-white')
                         }`}
                       >
                         {selecionado && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
@@ -2509,7 +2601,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             <button
               type="button"
               onClick={() => setModalStatusAberto(false)}
-              className="w-full py-3.5 rounded-2xl bg-emerald-500 text-white font-black text-xs uppercase shadow-md"
+              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase shadow-md transition cursor-pointer"
             >
               Filtrar
             </button>
@@ -2522,15 +2614,17 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       {/* ================================================================= */}
       {modalVendedoresAberto && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center">
-          <div className="bg-white rounded-t-3xl p-5 w-full max-w-md space-y-3 shadow-2xl animate-in slide-in-from-bottom">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <h3 className="font-bold text-sm text-slate-800">Selecione um ou mais...</h3>
-              <button onClick={() => setModalVendedoresAberto(false)} className="p-1 text-slate-400">
+          <div className={`rounded-t-3xl p-5 w-full max-w-md space-y-3 shadow-2xl animate-in slide-in-from-bottom ${
+            isDark ? 'bg-[#08131A] border-2 border-slate-400 text-slate-100' : 'bg-slate-100 border-2 border-slate-300 text-black'
+          }`}>
+            <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
+              <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Selecione um ou mais...</h3>
+              <button onClick={() => setModalVendedoresAberto(false)} className={`p-1 cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'}`}>
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-2 max-h-64 overflow-y-auto text-xs text-slate-700">
+            <div className="space-y-2 max-h-64 overflow-y-auto text-xs">
               {(() => {
                 const todosMarcado = vendedoresSelecionados.includes('todos');
                 return (
@@ -2538,8 +2632,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     onClick={() => setVendedoresSelecionados(['todos'])}
                     className={`flex items-center justify-between p-2.5 rounded-xl border transition cursor-pointer select-none ${
                       todosMarcado
-                        ? 'bg-emerald-50/80 border-emerald-400 text-emerald-950 font-bold'
-                        : 'border-slate-200 bg-slate-50/50 text-slate-700 hover:bg-slate-100/60'
+                        ? (isDark ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 font-bold' : 'bg-emerald-50 border-2 border-emerald-600 text-emerald-950 font-bold')
+                        : (isDark ? 'border border-slate-700 bg-[#000000] text-slate-300 hover:bg-slate-900' : 'border-2 border-slate-300 bg-white text-black hover:bg-slate-50')
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
@@ -2547,7 +2641,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
                           todosMarcado
                             ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
-                            : 'border-slate-300 bg-white'
+                            : (isDark ? 'border-slate-600 bg-black' : 'border-slate-300 bg-white')
                         }`}
                       >
                         {todosMarcado && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
@@ -2573,8 +2667,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     }}
                     className={`flex items-center justify-between p-2.5 rounded-xl border transition cursor-pointer select-none ${
                       onlineMarcado
-                        ? 'bg-emerald-50/80 border-emerald-400 text-emerald-950 font-bold'
-                        : 'border-slate-200 bg-slate-50/50 text-slate-700 hover:bg-slate-100/60'
+                        ? (isDark ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 font-bold' : 'bg-emerald-50 border-2 border-emerald-600 text-emerald-950 font-bold')
+                        : (isDark ? 'border border-slate-700 bg-[#000000] text-slate-300 hover:bg-slate-900' : 'border-2 border-slate-300 bg-white text-black hover:bg-slate-50')
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
@@ -2582,7 +2676,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
                           onlineMarcado
                             ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
-                            : 'border-slate-300 bg-white'
+                            : (isDark ? 'border-slate-600 bg-black' : 'border-slate-300 bg-white')
                         }`}
                       >
                         {onlineMarcado && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
@@ -2609,8 +2703,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     }}
                     className={`flex items-center justify-between p-2.5 rounded-xl border transition cursor-pointer select-none ${
                       usrMarcado
-                        ? 'bg-emerald-50/80 border-emerald-400 text-emerald-950 font-bold'
-                        : 'border-slate-200 bg-slate-50/50 text-slate-700 hover:bg-slate-100/60'
+                        ? (isDark ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 font-bold' : 'bg-emerald-50 border-2 border-emerald-600 text-emerald-950 font-bold')
+                        : (isDark ? 'border border-slate-700 bg-[#000000] text-slate-300 hover:bg-slate-900' : 'border-2 border-slate-300 bg-white text-black hover:bg-slate-50')
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
@@ -2618,7 +2712,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
                           usrMarcado
                             ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
-                            : 'border-slate-300 bg-white'
+                            : (isDark ? 'border-slate-600 bg-black' : 'border-slate-300 bg-white')
                         }`}
                       >
                         {usrMarcado && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
@@ -2634,7 +2728,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             <button
               type="button"
               onClick={() => setModalVendedoresAberto(false)}
-              className="w-full py-3.5 rounded-2xl bg-emerald-500 text-white font-black text-xs uppercase shadow-md"
+              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase shadow-md transition cursor-pointer"
             >
               Filtrar
             </button>

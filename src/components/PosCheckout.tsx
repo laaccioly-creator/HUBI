@@ -2343,7 +2343,9 @@ export const PosCheckout: React.FC = () => {
               <div className="space-y-1.5 pt-0.5">
                 {/* Termômetro Atacado / Volume */}
                 {avaliacaoCarrinho.proximoNivel && (
-                  <div className="p-2 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1.5 shadow-2xs">
+                  <div className={`p-2 rounded-xl space-y-1.5 shadow-2xs ${
+                    isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
+                  }`}>
                     <div className="flex items-center justify-between text-[11px] text-slate-700 dark:text-slate-300">
                       <span className="flex items-center gap-1 font-medium truncate">
                         ⚡ {(() => {
@@ -2362,7 +2364,9 @@ export const PosCheckout: React.FC = () => {
                       </span>
                       <span className="font-bold text-emerald-700 dark:text-emerald-400 shrink-0 ml-1.5">{avaliacaoCarrinho.progressoGeralPercent}%</span>
                     </div>
-                    <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 h-2 rounded-full overflow-hidden p-0.5">
+                    <div className={`w-full h-2 rounded-full overflow-hidden p-0.5 ${
+                      isDark ? 'bg-[#08131A] border border-slate-800' : 'bg-slate-100 border border-slate-200'
+                    }`}>
                       <div
                         className="bg-emerald-500 h-full rounded-full transition-all duration-300"
                         style={{ width: `${Math.min(100, avaliacaoCarrinho.progressoGeralPercent)}%` }}
@@ -2373,7 +2377,9 @@ export const PosCheckout: React.FC = () => {
 
                 {/* Termômetro Frete Grátis */}
                 {freteGratisAtivoLoja && freteGratisMinimoLoja > 0 && (
-                  <div className="p-2 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1.5 shadow-2xs">
+                  <div className={`p-2 rounded-xl space-y-1.5 shadow-2xs ${
+                    isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
+                  }`}>
                     <div className="flex items-center justify-between text-[11px]">
                       <span className="flex items-center gap-1 font-medium text-slate-700 dark:text-slate-300 truncate">
                         {subtotal >= freteGratisMinimoLoja ? (
@@ -2386,7 +2392,9 @@ export const PosCheckout: React.FC = () => {
                         {progressoFreteGratis}%
                       </span>
                     </div>
-                    <div className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 h-2 rounded-full overflow-hidden p-0.5">
+                    <div className={`w-full h-2 rounded-full overflow-hidden p-0.5 ${
+                      isDark ? 'bg-[#08131A] border border-slate-800' : 'bg-slate-100 border border-slate-200'
+                    }`}>
                       <div
                         className="h-full rounded-full transition-all duration-300 bg-emerald-500"
                         style={{ width: `${progressoFreteGratis}%` }}

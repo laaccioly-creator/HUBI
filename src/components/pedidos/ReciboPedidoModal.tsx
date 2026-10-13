@@ -183,11 +183,11 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
-      <div className={`w-full max-w-md border rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh] ${
-        isDark ? 'bg-slate-900 border-slate-700/80' : 'bg-white border-slate-200'
+      <div className={`w-full max-w-md rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh] ${
+        isDark ? 'bg-[#08131A] border-2 border-slate-400 text-slate-100' : 'bg-slate-100 border-2 border-slate-300 text-black'
       }`}>
         <div className={`p-4 border-b flex items-center justify-between shrink-0 ${
-          isDark ? 'border-slate-700/80 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-900'
+          isDark ? 'border-slate-800 bg-[#08131A] text-white' : 'border-slate-300 bg-slate-100 text-black'
         }`}>
           <h3 className="text-sm font-bold">
             Recibo #{pedido.numero_pedido}
@@ -196,7 +196,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
             type="button"
             onClick={onClose}
             className={`p-1.5 rounded-lg transition cursor-pointer ${
-              isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+              isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-500 hover:text-black hover:bg-slate-200'
             }`}
           >
             <X className="w-4 h-4" />
@@ -204,7 +204,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
         </div>
 
         <div className={`flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 flex justify-center items-start custom-scrollbar ${
-          isDark ? 'bg-slate-950' : 'bg-slate-100'
+          isDark ? 'bg-[#000000]' : 'bg-slate-100'
         }`}>
           {/* Bobina de Papel Autêntica (Branca com Tipografia Nítida em Preto/Slate) */}
           <div
@@ -390,33 +390,25 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
 
         {/* BOTÕES DE AÇÃO NO RODAPÉ DO MODAL (EXATAMENTE 4 BOTÕES HORIZONTAIS COMPACTOS ALINHADOS) */}
         <div className={`p-2.5 sm:p-3 border-t flex flex-row items-center justify-between gap-1.5 sm:gap-2 shrink-0 ${
-          isDark ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'
+          isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-300 bg-slate-100'
         }`}>
           <button
             type="button"
             onClick={() => onImprimir ? onImprimir(pedido) : PrintService.printReceipt(pedido, loja, '80mm')}
-            className={`flex-1 font-semibold px-2 py-2.5 rounded-xl border transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs ${
-              isDark
-                ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500'
-                : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900'
-            }`}
+            className="flex-1 font-bold px-2 py-2.5 rounded-xl border border-emerald-600 bg-emerald-600 hover:bg-emerald-500 text-white transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs"
             title="Imprimir Cupom Térmico 58mm/80mm"
           >
-            <Printer className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-white' : 'text-slate-900'}`} />
+            <Printer className="w-3.5 h-3.5 shrink-0 text-white" />
             <span>Térmica</span>
           </button>
 
           <button
             type="button"
             onClick={() => PrintService.printReceipt(pedido, loja, 'a4')}
-            className={`flex-1 font-semibold px-2 py-2.5 rounded-xl border transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs ${
-              isDark
-                ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500'
-                : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900'
-            }`}
+            className="flex-1 font-bold px-2 py-2.5 rounded-xl border border-emerald-600 bg-emerald-600 hover:bg-emerald-500 text-white transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs"
             title="Imprimir Folha A4"
           >
-            <Printer className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-white' : 'text-slate-900'}`} />
+            <Printer className="w-3.5 h-3.5 shrink-0 text-white" />
             <span>Imprimir A4</span>
           </button>
 
@@ -429,14 +421,10 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 PrintService.printReceipt(pedido, loja, 'a4');
               }
             }}
-            className={`flex-1 font-semibold px-2 py-2.5 rounded-xl border transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs ${
-              isDark
-                ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500'
-                : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900'
-            }`}
+            className="flex-1 font-bold px-2 py-2.5 rounded-xl border border-emerald-600 bg-emerald-600 hover:bg-emerald-500 text-white transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs"
             title="Baixar Recibo em PDF"
           >
-            <Download className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-white' : 'text-slate-900'}`} />
+            <Download className="w-3.5 h-3.5 shrink-0 text-white" />
             <span>PDF</span>
           </button>
 
@@ -453,14 +441,10 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 PrintService.openWhatsApp(tel, msg);
               }
             }}
-            className={`flex-1 font-semibold px-2 py-2.5 rounded-xl border transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs ${
-              isDark
-                ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500'
-                : 'bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900'
-            }`}
+            className="flex-1 font-bold px-2 py-2.5 rounded-xl border border-emerald-600 bg-emerald-600 hover:bg-emerald-500 text-white transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs"
             title="Compartilhar no WhatsApp"
           >
-            <Share2 className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-white' : 'text-slate-900'}`} />
+            <Share2 className="w-3.5 h-3.5 shrink-0 text-white" />
             <span>WhatsApp</span>
           </button>
         </div>

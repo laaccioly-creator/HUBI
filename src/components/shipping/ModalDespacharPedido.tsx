@@ -15,6 +15,7 @@ import { PedidoEntrega, AppEntrega, Transportadora } from '../../types/shipping'
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
 import { validarRastreioCorreios } from '../../utils/correiosValidator';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export type ModalidadeDespachoManual = 'correios' | 'app_entrega' | 'transportadora' | 'frota_propria';
 
@@ -115,6 +116,7 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
   onDespachado
 }) => {
   const { usuario } = useAuth();
+  const { isDark } = useTheme();
 
   // Modalidade selecionada
   const [modalidade, setModalidade] = useState<ModalidadeDespachoManual>('correios');
@@ -423,18 +425,20 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-      <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-5 shadow-2xl animate-in zoom-in-95 max-h-[92vh] overflow-y-auto">
+      <div className={`w-full max-w-lg rounded-3xl p-6 space-y-5 shadow-2xl animate-in zoom-in-95 max-h-[92vh] overflow-y-auto ${
+        isDark ? 'bg-[#08131A] border-2 border-slate-400 text-slate-100' : 'bg-slate-100 border-2 border-slate-300 text-black'
+      }`}>
         {/* Cabeçalho */}
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+        <div className={`flex items-center justify-between border-b pb-3 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
               <Truck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-black text-sm text-slate-900 dark:text-slate-100">
+              <h3 className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>
                 Despachar Pedido #{pedido.numero_pedido || pedido.id.slice(0, 5)}
               </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                 Selecione o meio de envio e preencha os dados de despacho
               </p>
             </div>
@@ -442,7 +446,7 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition"
+            className={`p-1 rounded-lg transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-500 hover:text-black hover:bg-slate-200'}`}
           >
             <X className="w-5 h-5" />
           </button>
@@ -450,11 +454,13 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
 
         {/* Endereço de destino (se houver) */}
         {pedido.endereco_entrega && (
-          <div className="p-3 bg-slate-50 dark:bg-slate-950/70 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-0.5">
-            <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">
+          <div className={`p-3 rounded-2xl space-y-0.5 ${
+            isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
+          }`}>
+            <span className={`text-[10px] font-semibold uppercase tracking-wider block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
               Destino da Entrega:
             </span>
-            <p className="text-slate-800 dark:text-slate-200 font-medium text-xs leading-relaxed">
+            <p className={`font-medium text-xs leading-relaxed ${isDark ? 'text-slate-200' : 'text-black'}`}>
               {pedido.endereco_entrega}
             </p>
           </div>
@@ -462,7 +468,7 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
 
         {/* SELEÇÃO ESTRITA DAS 4 MODALIDADES PERMITIDAS */}
         <div className="space-y-1.5">
-          <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+          <label className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-black'}`}>
             Meio de Envio:
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -472,8 +478,8 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
               onClick={() => setModalidade('correios')}
               className={`p-3 rounded-2xl border text-center transition flex flex-col items-center gap-1.5 cursor-pointer ${
                 modalidade === 'correios'
-                  ? 'bg-emerald-500/10 border-2 border-emerald-500 text-emerald-700 dark:text-emerald-400 shadow-xs'
-                  : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/60 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  ? (isDark ? 'bg-[#000000] border-2 border-emerald-500 text-emerald-400 shadow-xs' : 'bg-white border-2 border-emerald-600 text-emerald-800 font-bold shadow-xs')
+                  : (isDark ? 'bg-[#000000] border border-slate-700 text-slate-300 hover:bg-slate-900' : 'bg-white border-2 border-slate-300 text-black hover:bg-slate-50')
               }`}
             >
               <Package className="w-5 h-5" />
@@ -486,8 +492,8 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
               onClick={() => setModalidade('app_entrega')}
               className={`p-3 rounded-2xl border text-center transition flex flex-col items-center gap-1.5 cursor-pointer ${
                 modalidade === 'app_entrega'
-                  ? 'bg-emerald-500/10 border-2 border-emerald-500 text-emerald-700 dark:text-emerald-400 shadow-xs'
-                  : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/60 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  ? (isDark ? 'bg-[#000000] border-2 border-emerald-500 text-emerald-400 shadow-xs' : 'bg-white border-2 border-emerald-600 text-emerald-800 font-bold shadow-xs')
+                  : (isDark ? 'bg-[#000000] border border-slate-700 text-slate-300 hover:bg-slate-900' : 'bg-white border-2 border-slate-300 text-black hover:bg-slate-50')
               }`}
             >
               <Navigation className="w-5 h-5" />
@@ -500,8 +506,8 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
               onClick={() => setModalidade('transportadora')}
               className={`p-3 rounded-2xl border text-center transition flex flex-col items-center gap-1.5 cursor-pointer ${
                 modalidade === 'transportadora'
-                  ? 'bg-emerald-500/10 border-2 border-emerald-500 text-emerald-700 dark:text-emerald-400 shadow-xs'
-                  : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/60 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  ? (isDark ? 'bg-[#000000] border-2 border-emerald-500 text-emerald-400 shadow-xs' : 'bg-white border-2 border-emerald-600 text-emerald-800 font-bold shadow-xs')
+                  : (isDark ? 'bg-[#000000] border border-slate-700 text-slate-300 hover:bg-slate-900' : 'bg-white border-2 border-slate-300 text-black hover:bg-slate-50')
               }`}
             >
               <Truck className="w-5 h-5" />
@@ -514,8 +520,8 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
               onClick={() => setModalidade('frota_propria')}
               className={`p-3 rounded-2xl border text-center transition flex flex-col items-center gap-1.5 cursor-pointer ${
                 modalidade === 'frota_propria'
-                  ? 'bg-emerald-500/10 border-2 border-emerald-500 text-emerald-700 dark:text-emerald-400 shadow-xs'
-                  : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/60 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  ? (isDark ? 'bg-[#000000] border-2 border-emerald-500 text-emerald-400 shadow-xs' : 'bg-white border-2 border-emerald-600 text-emerald-800 font-bold shadow-xs')
+                  : (isDark ? 'bg-[#000000] border border-slate-700 text-slate-300 hover:bg-slate-900' : 'bg-white border-2 border-slate-300 text-black hover:bg-slate-50')
               }`}
             >
               <Bike className="w-5 h-5" />
@@ -817,12 +823,14 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
         )}
 
         {/* Rodapé com Ações */}
-        <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-slate-100 dark:border-slate-800">
+        <div className={`pt-2 flex items-center justify-end gap-2.5 border-t ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
           <button
             type="button"
             onClick={onClose}
             disabled={despachando}
-            className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition cursor-pointer"
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
+              isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border border-slate-700' : 'bg-white hover:bg-slate-50 text-black border-2 border-slate-300'
+            }`}
           >
             Cancelar
           </button>
@@ -834,7 +842,7 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
             className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg transition ${
               podeConfirmar
                 ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/20 cursor-pointer active:scale-95'
-                : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 cursor-not-allowed opacity-60'
+                : (isDark ? 'bg-slate-900 text-slate-500 border border-slate-800 cursor-not-allowed opacity-60' : 'bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed opacity-60')
             }`}
           >
             {despachando ? (

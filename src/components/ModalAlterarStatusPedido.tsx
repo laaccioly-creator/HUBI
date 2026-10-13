@@ -14,6 +14,7 @@ import {
 import { Pedido, StatusPedido, Loja } from '../types';
 import { obterOpcoesStatusAlteracao, ROTULOS_STATUS_PEDIDO, obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 import { formatarMoeda } from '../utils/formatters';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface ModalAlterarStatusPedidoProps {
   isOpen: boolean;
@@ -138,6 +139,9 @@ export const ModalAlterarStatusPedido: React.FC<ModalAlterarStatusPedidoProps> =
   onCancelarPedido,
   onReceberPagamento
 }) => {
+  const { tema } = useTheme();
+  const isDark = tema === 'dark';
+
   if (!isOpen || !pedido) return null;
 
   const saldoDev = Number(
@@ -162,27 +166,33 @@ export const ModalAlterarStatusPedido: React.FC<ModalAlterarStatusPedidoProps> =
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
       onClick={() => {
         if (!atualizandoStatusRapido) onClose();
       }}
     >
       <div
-        className="w-full max-w-lg overflow-hidden rounded-2xl bg-white border border-slate-200 shadow-2xl dark:bg-[#1E293B] dark:border-slate-700/60"
+        className={`w-full max-w-lg overflow-hidden rounded-2xl shadow-2xl ${
+          isDark ? 'bg-[#08131A] border-2 border-slate-400 text-slate-100' : 'bg-slate-100 border-2 border-slate-300 text-black'
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabeçalho */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-700/50">
+        <div className={`flex items-center justify-between p-6 border-b ${
+          isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-300 bg-slate-100'
+        }`}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${
+              isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-emerald-50 text-emerald-600 border-emerald-200'
+            }`}>
               <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+              <h3 className={`text-base font-black ${isDark ? 'text-white' : 'text-black'}`}>
                 Alterar Status do Pedido #{pedido.origem === 'catalogo_online' ? `c-${pedido.numero_pedido}` : pedido.numero_pedido}
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Cliente: <strong className="font-semibold text-slate-800 dark:text-slate-200">{pedido.cliente?.nome || pedido.cliente_nome_avulso || 'Cliente Balcão'}</strong>
+              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                Cliente: <strong className={`font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>{pedido.cliente?.nome || pedido.cliente_nome_avulso || 'Cliente Balcão'}</strong>
               </p>
             </div>
           </div>
@@ -191,17 +201,23 @@ export const ModalAlterarStatusPedido: React.FC<ModalAlterarStatusPedidoProps> =
             type="button"
             disabled={atualizandoStatusRapido}
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg p-1.5 transition cursor-pointer"
+            className={`rounded-xl p-1.5 border transition cursor-pointer ${
+              isDark ? 'bg-[#000000] border-slate-700 text-slate-400 hover:text-white hover:bg-slate-900' : 'bg-white border-slate-300 text-slate-500 hover:text-black hover:bg-slate-50'
+            }`}
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Corpo */}
-        <div className="p-6 space-y-5 max-h-[calc(85vh-160px)] overflow-y-auto">
+        <div className={`p-6 space-y-5 max-h-[calc(85vh-160px)] overflow-y-auto ${
+          isDark ? 'bg-[#08131A]' : 'bg-slate-100'
+        }`}>
           {/* Bloco "Status Atual" */}
-          <div className="bg-slate-50 border border-slate-100 dark:bg-slate-800/50 dark:border-slate-700/50 rounded-xl p-3.5 flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Status Atual:</span>
+          <div className={`rounded-xl p-3.5 flex items-center justify-between ${
+            isDark ? 'bg-[#000000] border border-slate-700 text-slate-200' : 'bg-white border-2 border-slate-300 text-black'
+          }`}>
+            <span className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Status Atual:</span>
             <div className="flex items-center gap-2">
               {getStatusBadgeElement(pedido.status, pedido)}
             </div>
@@ -209,12 +225,12 @@ export const ModalAlterarStatusPedido: React.FC<ModalAlterarStatusPedidoProps> =
 
           {/* Verificação da Trava Financeira */}
           {!quitado && (
-            <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 text-amber-800 dark:text-amber-300 space-y-2.5">
+            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 space-y-2.5">
               <div className="flex items-start gap-2.5">
-                <AlertCircle className="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                <AlertCircle className="w-5 h-5 shrink-0 text-amber-500 mt-0.5" />
                 <div className="text-xs space-y-1">
-                  <p className="font-bold text-amber-900 dark:text-amber-200">Pagamento Pendente</p>
-                  <p className="text-amber-700 dark:text-amber-300/90 leading-relaxed">
+                  <p className="font-bold text-amber-400">Pagamento Pendente</p>
+                  <p className="text-amber-300/90 leading-relaxed">
                     Este pedido ainda não foi pago. Efetue o recebimento antes de avançar para separação ou envio.
                   </p>
                 </div>
@@ -236,7 +252,7 @@ export const ModalAlterarStatusPedido: React.FC<ModalAlterarStatusPedidoProps> =
 
           {/* Lista de Próximos Status */}
           <div>
-            <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-2.5">
+            <h4 className={`text-[11px] font-black uppercase tracking-wider mb-2.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
               Selecione o Próximo Status:
             </h4>
 
@@ -260,9 +276,13 @@ export const ModalAlterarStatusPedido: React.FC<ModalAlterarStatusPedidoProps> =
                         onClose();
                       }
                     }}
-                    className={`w-full flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-slate-50/80 transition-all dark:border-slate-700 dark:bg-slate-800/40 dark:hover:border-emerald-500/60 dark:hover:bg-slate-800 group cursor-pointer ${
+                    className={`w-full flex items-center justify-between p-3.5 rounded-xl border transition-all group cursor-pointer ${
+                      isDark
+                        ? 'bg-[#000000] border-slate-700 hover:border-emerald-500 hover:bg-slate-900 text-slate-100'
+                        : 'bg-white border-2 border-slate-300 hover:border-emerald-600 hover:bg-slate-50 text-black'
+                    } ${
                       estaDesabilitado
-                        ? 'opacity-50 cursor-not-allowed hover:border-slate-200 dark:hover:border-slate-700 hover:bg-transparent dark:hover:bg-slate-800/40'
+                        ? 'opacity-50 cursor-not-allowed'
                         : 'active:scale-98'
                     }`}
                   >
@@ -271,11 +291,13 @@ export const ModalAlterarStatusPedido: React.FC<ModalAlterarStatusPedidoProps> =
                     </div>
 
                     {requerQuitacao ? (
-                      <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 px-2.5 py-1 rounded-lg">
+                      <span className="text-[11px] font-bold text-amber-500 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-lg">
                         Requer Pagamento
                       </span>
                     ) : (
-                      <span className="text-xs font-semibold text-slate-400 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors">
+                      <span className={`text-xs font-bold transition-colors ${
+                        isDark ? 'text-slate-400 group-hover:text-emerald-400' : 'text-slate-600 group-hover:text-emerald-700'
+                      }`}>
                         Avançar &rarr;
                       </span>
                     )}
@@ -287,11 +309,15 @@ export const ModalAlterarStatusPedido: React.FC<ModalAlterarStatusPedidoProps> =
         </div>
 
         {/* Rodapé */}
-        <div className="bg-slate-50/60 dark:bg-slate-900/40 border-t border-slate-100 dark:border-slate-700/50 px-6 py-4 flex justify-end">
+        <div className={`border-t px-6 py-4 flex justify-end ${
+          isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-300 bg-slate-100'
+        }`}>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white transition-colors cursor-pointer"
+            className={`px-4 py-2 text-xs font-bold rounded-xl transition cursor-pointer active:scale-95 ${
+              isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black'
+            }`}
           >
             Fechar
           </button>
