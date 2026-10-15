@@ -350,6 +350,93 @@ async function processarEventoWhatsApp(payload: any) {
     return;
   }
 
+  // 3.1. Gestão de Sessões Contextuais (whatsapp_sessoes) com Timeout de Inatividade (40 minutos)
+  const TIMEOUT_SESSAO_MS = 40 * 60 * 1000;
+  const dataAtualIso = new Date().toISOString();
+  const timestampAtual = Date.now();
+  let sessaoId: string | null = null;
+
+  try {
+    const { data: sessaoAtiva } = await supabaseAdmin
+      .from("whatsapp_sessoes")
+      .select("id, status, atualizado_em, criado_em")
+      .eq("loja_id", loja.id)
+      .eq("numero_cliente", fromCliente)
+      .eq("status", "ativo")
+      .order("atualizado_em", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (sessaoAtiva) {
+      const dataUltimaInteracao = new Date(sessaoAtiva.atualizado_em || sessaoAtiva.criado_em).getTime();
+      const sessaoExpirada = timestampAtual - dataUltimaInteracao > TIMEOUT_SESSAO_MS;
+
+      if (sessaoExpirada) {
+        // Encerra a sessão anterior por timeout
+        await supabaseAdmin
+          .from("whatsapp_sessoes")
+          .update({ status: "encerrado", atualizado_em: dataAtualIso })
+          .eq("id", sessaoAtiva.id);
+
+        // Abre uma nova sessão limpa
+        const { data: novaSessao } = await supabaseAdmin
+          .from("whatsapp_sessoes")
+          .insert({
+            loja_id: loja.id,
+            numero_cliente: fromCliente,
+            status: "ativo",
+            criado_em: dataAtualIso,
+            atualizado_em: dataAtualIso
+          })
+          .select("id")
+          .single();
+
+        sessaoId = novaSessao?.id || null;
+      } else {
+        // Sessão ativa e dentro da janela: revalida e atualiza timestamp
+        sessaoId = sessaoAtiva.id;
+        await supabaseAdmin
+          .from("whatsapp_sessoes")
+          .update({ atualizado_em: dataAtualIso })
+          .eq("id", sessaoId);
+      }
+    } else {
+      // Primeira interação ou sem sessão ativa: cria nova sessão
+      const { data: novaSessao } = await supabaseAdmin
+        .from("whatsapp_sessoes")
+        .insert({
+          loja_id: loja.id,
+          numero_cliente: fromCliente,
+          status: "ativo",
+          criado_em: dataAtualIso,
+          atualizado_em: dataAtualIso
+        })
+        .select("id")
+        .single();
+
+      sessaoId = novaSessao?.id || null;
+    }
+
+    // Gravar mensagem do cliente no histórico contextual da sessão
+    if (sessaoId) {
+      await supabaseAdmin
+        .from("whatsapp_mensagens")
+        .insert({
+          sessao_id: sessaoId,
+          loja_id: loja.id,
+          origem: "user",
+          conteudo: conteudoEntrada,
+          metadata: {
+            wamid,
+            is_audio: Boolean(isAudio),
+            audio_id: audioId || null
+          }
+        });
+    }
+  } catch (errSessao: any) {
+    console.error("[WhatsAppWebhook] Aviso ao processar whatsapp_sessoes:", errSessao?.message);
+  }
+
   // 4. Checar se a IA está ativa na loja
   if (loja.ia_whatsapp_ativa === false) {
     return;
@@ -374,12 +461,30 @@ async function processarEventoWhatsApp(payload: any) {
       .update({ status: "humano" })
       .eq("id", conversa.id);
 
-    // Opcionalmente enviar mensagem amigável de auto-pausa
+    if (sessaoId) {
+      await supabaseAdmin
+        .from("whatsapp_sessoes")
+        .update({ status: "pausado_humano", atualizado_em: dataAtualIso })
+        .eq("id", sessaoId);
+    }
+
+    // Enviar mensagem amigável de auto-pausa
     const msgPausa = loja.mensagem_pausa_humano ||
       "Nosso atendimento por IA atingiu a capacidade do período. Em breve um atendente da nossa equipe continuará o seu atendimento por aqui!";
 
     await enviarMensagemMeta(loja.meta_phone_number_id, loja.meta_access_token, fromCliente, msgPausa);
     await salvarMensagemIa(supabaseAdmin, conversa.id, loja.id, msgPausa);
+    if (sessaoId) {
+      await supabaseAdmin
+        .from("whatsapp_mensagens")
+        .insert({
+          sessao_id: sessaoId,
+          loja_id: loja.id,
+          origem: "model",
+          conteudo: msgPausa,
+          metadata: { tipo: "auto_pausa_limite" }
+        });
+    }
     return;
   }
 
@@ -407,9 +512,27 @@ async function processarEventoWhatsApp(payload: any) {
       .update({ status: "humano" })
       .eq("id", conversa.id);
 
+    if (sessaoId) {
+      await supabaseAdmin
+        .from("whatsapp_sessoes")
+        .update({ status: "pausado_humano", atualizado_em: dataAtualIso })
+        .eq("id", sessaoId);
+    }
+
     const msgHandoff = "Entendido! Estou transferindo você para nossa equipe de atendimento. Um de nossos colaboradores responderá em breve por aqui.";
     await enviarMensagemMeta(loja.meta_phone_number_id, loja.meta_access_token, fromCliente, msgHandoff);
     await salvarMensagemIa(supabaseAdmin, conversa.id, loja.id, msgHandoff);
+    if (sessaoId) {
+      await supabaseAdmin
+        .from("whatsapp_mensagens")
+        .insert({
+          sessao_id: sessaoId,
+          loja_id: loja.id,
+          origem: "model",
+          conteudo: msgHandoff,
+          metadata: { tipo: "handoff_humano" }
+        });
+    }
     return;
   }
 
@@ -424,7 +547,7 @@ async function processarEventoWhatsApp(payload: any) {
     audioBase64 = await baixarAudioMeta(audioId, loja.meta_access_token, audioMimeTypeRaw);
   }
 
-  // 10. Buscar Contexto de Produtos, Categorias e Histórico Recente
+  // 10. Buscar Contexto de Produtos, Categorias e Histórico Recente da Sessão
   const [produtosRes, categoriasRes, historicoRes] = await Promise.all([
     supabaseAdmin
       .from("produtos")
@@ -438,12 +561,19 @@ async function processarEventoWhatsApp(payload: any) {
       .select("id, nome")
       .eq("loja_id", loja.id)
       .eq("ativo", true),
-    supabaseAdmin
-      .from("mensagens_whatsapp")
-      .select("remetente, conteudo, created_at")
-      .eq("conversa_id", conversa.id)
-      .order("created_at", { ascending: false })
-      .limit(8)
+    sessaoId
+      ? supabaseAdmin
+          .from("whatsapp_mensagens")
+          .select("origem, conteudo, criado_em")
+          .eq("sessao_id", sessaoId)
+          .order("criado_em", { ascending: true })
+          .limit(15)
+      : supabaseAdmin
+          .from("mensagens_whatsapp")
+          .select("remetente, conteudo, created_at")
+          .eq("conversa_id", conversa.id)
+          .order("created_at", { ascending: true })
+          .limit(8)
   ]);
 
   let produtosRaw = produtosRes.data || [];
@@ -465,26 +595,90 @@ async function processarEventoWhatsApp(payload: any) {
     categoria: mapaCategorias.get(p.categoria_id) || "Geral"
   }));
 
-  const historico = (historicoRes.data || []).reverse();
+  // 11. Montagem do Histórico Multi-turn para Gemini (`contents`)
+  const msgsHistorico = (historicoRes.data || []) as any[];
+  const contents: Array<{ role: "user" | "model"; parts: any[] }> = [];
 
-  // 11. Construir Prompt Especializado Alinhado ao Catálogo Online
-  const promptSistema = montarPromptAtendimento(
+  for (let i = 0; i < msgsHistorico.length; i++) {
+    const m = msgsHistorico[i];
+    // Normaliza origem: 'user'/'cliente' -> 'user', 'model'/'ia' -> 'model'
+    const role: "user" | "model" =
+      (m.origem === "model" || m.remetente === "ia") ? "model" : "user";
+    const isUltimaMsg = (i === msgsHistorico.length - 1);
+
+    const parts: any[] = [];
+    if (isUltimaMsg && audioBase64) {
+      parts.push({
+        inlineData: {
+          mimeType: audioBase64.mimeType,
+          data: audioBase64.data
+        }
+      });
+      if (textoMensagem && textoMensagem.trim()) {
+        parts.push({ text: textoMensagem.trim() });
+      } else {
+        parts.push({ text: "O cliente enviou o áudio acima. Por favor, ouça com atenção e responda ao que foi solicitado com base nos produtos da loja." });
+      }
+    } else {
+      parts.push({ text: m.conteudo });
+    }
+
+    // Regra da API Gemini: Mesclar mensagens consecutivas com o mesmo role
+    if (contents.length > 0 && contents[contents.length - 1].role === role) {
+      contents[contents.length - 1].parts.push(...parts);
+    } else {
+      contents.push({ role, parts });
+    }
+  }
+
+  // Garantir que a primeira mensagem do histórico seja 'user'
+  while (contents.length > 0 && contents[0].role !== "user") {
+    contents.shift();
+  }
+
+  // Fallback caso contents esteja vazio
+  if (contents.length === 0) {
+    const fallbackParts: any[] = [];
+    if (audioBase64) {
+      fallbackParts.push({
+        inlineData: {
+          mimeType: audioBase64.mimeType,
+          data: audioBase64.data
+        }
+      });
+    }
+    fallbackParts.push({ text: textoMensagem || "Olá!" });
+    contents.push({ role: "user", parts: fallbackParts });
+  }
+
+  // Garantir que a última mensagem seja 'user' para o modelo gerar a resposta
+  if (contents[contents.length - 1].role !== "user") {
+    contents.push({
+      role: "user",
+      parts: [{ text: textoMensagem || "Continuando atendimento..." }]
+    });
+  }
+
+  // 12. Construir Prompt Especializado (System Instruction) Alinhado ao Catálogo Online
+  const systemInstructionText = montarPromptAtendimento(
     loja,
     nomeCliente,
     produtosFormatados,
-    historico,
-    textoMensagem,
     Boolean(audioBase64)
   );
 
-  // 12. Invocar a Google Gemini API com suporte a Áudio e Texto (BYOK do Lojista)
-  const respostaGemini = await gerarRespostaGemini(loja.gemini_api_key, promptSistema, audioBase64);
+  // 13. Invocar a Google Gemini API com suporte a Áudio, Histórico e BYOK do Lojista
+  const respostaGemini = await gerarRespostaGemini(
+    loja.gemini_api_key,
+    systemInstructionText,
+    contents
+  );
 
   if (!respostaGemini) {
     return;
   }
 
-  // 13. Enviar Resposta via Meta Cloud API
+  // 14. Enviar Resposta via Meta Cloud API
   const envioSucesso = await enviarMensagemMeta(
     loja.meta_phone_number_id,
     loja.meta_access_token,
@@ -493,7 +687,24 @@ async function processarEventoWhatsApp(payload: any) {
   );
 
   if (envioSucesso) {
-    // 14. Gravar mensagem enviada e incrementar contador de consumo atomicamente
+    // 15. Gravar resposta da IA no histórico da sessão (whatsapp_mensagens) e na conversa do painel
+    if (sessaoId) {
+      await supabaseAdmin
+        .from("whatsapp_mensagens")
+        .insert({
+          sessao_id: sessaoId,
+          loja_id: loja.id,
+          origem: "model",
+          conteudo: respostaGemini,
+          metadata: { status_entrega: "enviada" }
+        });
+
+      await supabaseAdmin
+        .from("whatsapp_sessoes")
+        .update({ atualizado_em: new Date().toISOString() })
+        .eq("id", sessaoId);
+    }
+
     await salvarMensagemIa(supabaseAdmin, conversa.id, loja.id, respostaGemini);
 
     await supabaseAdmin.rpc("incrementar_consumo_whatsapp", {
@@ -660,12 +871,12 @@ async function getAvailableGeminiModelsEdge(
 
 /**
  * Gera a resposta através da Google Gemini API usando a chave BYOK do lojista,
- * com suporte multimodal a áudio e texto, descoberta dinâmica de modelos e auto-recuperação (Self-Healing).
+ * com suporte a systemInstruction, histórico contextual em contents e auto-recuperação (Self-Healing).
  */
 async function gerarRespostaGemini(
   apiKey: string,
-  prompt: string,
-  audioData?: { data: string; mimeType: string } | null
+  systemInstructionText: string,
+  contents: any[]
 ): Promise<string | null> {
   const chaveLimpa = (apiKey || "").trim();
   if (!chaveLimpa) {
@@ -675,24 +886,11 @@ async function gerarRespostaGemini(
 
   const modelos = await getAvailableGeminiModelsEdge(chaveLimpa);
 
-  const parts: any[] = [];
-  if (audioData?.data) {
-    parts.push({
-      inlineData: {
-        mimeType: audioData.mimeType,
-        data: audioData.data
-      }
-    });
-  }
-  parts.push({ text: prompt });
-
   const payload = {
-    contents: [
-      {
-        role: "user",
-        parts
-      }
-    ],
+    systemInstruction: {
+      parts: [{ text: systemInstructionText }]
+    },
+    contents,
     generationConfig: {
       temperature: 0.3,
       maxOutputTokens: 1200
@@ -723,6 +921,41 @@ async function gerarRespostaGemini(
           cacheModelosValidosEdge.delete(chaveLimpa);
           continue;
         }
+
+        // Se o modelo rejeitar o campo systemInstruction (caso legado), fallback embutindo na primeira mensagem
+        if (response.status === 400 && errorText.includes("systemInstruction")) {
+          console.warn(`[WhatsAppWebhook] Modelo ${modelo} não aceitou systemInstruction. Tentando incorporar no primeiro turno...`);
+          const primeiroTurno = contents[0] || { role: "user", parts: [] };
+          const payloadFallback = {
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  { text: `[INSTRUÇÕES DO SISTEMA]:\n${systemInstructionText}\n` },
+                  ...(primeiroTurno.parts || [])
+                ]
+              },
+              ...contents.slice(1)
+            ],
+            generationConfig: {
+              temperature: 0.3,
+              maxOutputTokens: 1200
+            }
+          };
+
+          const respFallback = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payloadFallback)
+          });
+
+          if (respFallback.ok) {
+            const dataFb = await respFallback.json();
+            const textoFb = dataFb?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (textoFb) return textoFb.trim();
+          }
+        }
+
         return null;
       }
 
@@ -740,14 +973,12 @@ async function gerarRespostaGemini(
 }
 
 /**
- * Constrói o contexto dinâmico do agente de IA alinhado à Rubi do Catálogo Online
+ * Constrói o contexto dinâmico do agente de IA alinhado à Rubi do Catálogo Online (System Instruction)
  */
 function montarPromptAtendimento(
   loja: any,
   nomeCliente: string,
   produtos: any[],
-  historico: any[],
-  mensagemAtual: string,
   temAudio: boolean
 ): string {
   // 1. Identificar Persona do Nicho
@@ -790,12 +1021,7 @@ function montarPromptAtendimento(
     };
   });
 
-  // 3. Histórico Recente de Mensagens
-  const historicoTexto = historico.length > 0
-    ? historico.map((h: any) => `${h.remetente === "cliente" ? "Cliente" : "Rubi (Você)"}: ${h.conteudo}`).join("\n")
-    : "(Início da conversa)";
-
-  // 4. Instrução Específica para Áudio
+  // 3. Instrução Específica para Áudio
   const instrucaoAudio = temAudio
     ? `
 🎧 O CLIENTE ENVIOU UM ÁUDIO DE VOZ NO WHATSAPP (ANEXO ACIMA):
@@ -814,9 +1040,6 @@ ${catalogoLink ? `- Link Oficial do Catálogo Online: ${catalogoLink}` : ""}
 ${loja.prompt_personalizado ? `- Diretrizes Específicas do Lojista: "${loja.prompt_personalizado}"` : ""}
 
 CLIENTE ATUAL: ${nomeCliente ? `"${nomeCliente}"` : "Nome não informado"}
-
-HISTÓRICO RECENTE DA CONVERSA:
-${historicoTexto}
 
 CATÁLOGO REAL DA LOJA (Produtos efetivamente disponíveis no estoque):
 ${JSON.stringify(catalogoResumo, null, 2)}
@@ -838,8 +1061,6 @@ ${JSON.stringify(catalogoResumo, null, 2)}
    - Se o cliente quiser fechar o pedido diretamente por aqui pelo WhatsApp, acolha com alegria e solicite os dados com carinho: itens/quantidades desejadas, endereço completo para entrega e forma de pagamento (Pix, Cartão ou Dinheiro).
 9. MANTENHA A CONVERSA CONCISA E FLUIDA: Responda em 2 a 3 parágrafos curtos, bem pontuados e agradáveis de ler no celular. Escreva sempre frases completas com pontuação final. NUNCA corte uma frase no meio.
 ${instrucaoAudio}
-${!temAudio ? `MENSAGEM ATUAL DO CLIENTE:\n"${mensagemAtual}"` : ""}
-
-Responda diretamente ao cliente agora com o tom e carinho da Rubi:
+Responda diretamente ao cliente agora mantendo coerência com o histórico da conversa:
 `.trim();
 }
