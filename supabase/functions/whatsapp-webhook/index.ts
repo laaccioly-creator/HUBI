@@ -100,6 +100,14 @@ const PERSONAS_SEGMENTO: Record<string, { papel: string; diretriz: string }> = {
     papel: "Maître & Consultora Gastronômica",
     diretriz: "Atue como atendente de alta gastronomia e delivery. Apresente os pratos destacando o sabor, ingredientes frescos, porções e acompanhamentos. Sempre pergunte se o cliente deseja uma bebida ou sobremesa para acompanhar."
   },
+  acaiteria: {
+    papel: "Especialista em Açaí, Sobremesas & Delícias Geladas",
+    diretriz: "Atue com muito dinamismo e simpatia. Apresente os tamanhos dos copos/tigelas (300ml, 500ml, 700ml), tipos de açaí (tradicional, trufado, zero) e pergunte quais adicionais ou coberturas o cliente deseja montar no copo!"
+  },
+  lanchonete: {
+    papel: "Atendente de Lanches, Combos & Bebidas",
+    diretriz: "Atue com agilidade e energia. Sugira os combos da casa, pergunte o ponto do hambúrguer/lanche, se deseja batata frita e qual bebida prefere para acompanhar."
+  },
   moda: {
     papel: "Consultora de Estilo & Personal Stylist",
     diretriz: "Atue como consultora de moda acolhedora e antenada. Sugira combinações de looks, ocasiões de uso, tecidos e caimento, valorizando o bom gosto do cliente. Se houver tamanhos ou cores, pergunte a preferência."
@@ -547,20 +555,9 @@ async function processarEventoWhatsApp(payload: any) {
     audioBase64 = await baixarAudioMeta(audioId, loja.meta_access_token, audioMimeTypeRaw);
   }
 
-  // 10. Buscar Contexto de Produtos, Categorias e Histórico Recente da Sessão
-  const [produtosRes, categoriasRes, historicoRes] = await Promise.all([
-    supabaseAdmin
-      .from("produtos")
-      .select("id, nome, preco_venda_varejo, preco_promocional, promocao_ativa, descricao, categoria_id, variacoes:variacoes_produto(valor_variacao_1, valor_variacao_2)")
-      .eq("loja_id", loja.id)
-      .eq("ativo", true)
-      .eq("exibir_catalogo", true)
-      .limit(30),
-    supabaseAdmin
-      .from("categorias")
-      .select("id, nome")
-      .eq("loja_id", loja.id)
-      .eq("ativo", true),
+  // 10. RAG Dinâmico: Consultar Catálogo Ativo (com cache em memória TTL 5m) e Histórico da Sessão
+  const [catalogoInfo, historicoRes] = await Promise.all([
+    getCatalogoLoja(supabaseAdmin, loja),
     sessaoId
       ? supabaseAdmin
           .from("whatsapp_mensagens")
@@ -576,24 +573,7 @@ async function processarEventoWhatsApp(payload: any) {
           .limit(8)
   ]);
 
-  let produtosRaw = produtosRes.data || [];
-  if (produtosRes.error || produtosRaw.length === 0) {
-    const fallbackProds = await supabaseAdmin
-      .from("produtos")
-      .select("id, nome, preco_venda_varejo, preco_promocional, promocao_ativa, descricao, categoria_id")
-      .eq("loja_id", loja.id)
-      .eq("ativo", true)
-      .limit(30);
-    if (fallbackProds.data && fallbackProds.data.length > 0) {
-      produtosRaw = fallbackProds.data;
-    }
-  }
-
-  const mapaCategorias = new Map((categoriasRes.data || []).map((c: any) => [c.id, c.nome]));
-  const produtosFormatados = produtosRaw.map((p: any) => ({
-    ...p,
-    categoria: mapaCategorias.get(p.categoria_id) || "Geral"
-  }));
+  const dadosExpediente = obterStatusExpediente(loja);
 
   // 11. Montagem do Histórico Multi-turn para Gemini (`contents`)
   const msgsHistorico = (historicoRes.data || []) as any[];
@@ -659,11 +639,13 @@ async function processarEventoWhatsApp(payload: any) {
     });
   }
 
-  // 12. Construir Prompt Especializado (System Instruction) Alinhado ao Catálogo Online
+  // 12. Construir Prompt Especializado (System Instruction com RAG Dinâmico)
   const systemInstructionText = montarPromptAtendimento(
     loja,
     nomeCliente,
-    produtosFormatados,
+    catalogoInfo.catalogoFormatado,
+    catalogoInfo.dadosOperacionais,
+    dadosExpediente,
     Boolean(audioBase64)
   );
 
@@ -973,55 +955,305 @@ async function gerarRespostaGemini(
 }
 
 /**
- * Constrói o contexto dinâmico do agente de IA alinhado à Rubi do Catálogo Online (System Instruction)
+ * Interface do item em cache do catálogo dinâmico
+ */
+interface CatalogoCacheItem {
+  timestamp: number;
+  catalogoFormatado: string;
+  totalProdutos: number;
+  dadosOperacionais: {
+    origemEndereco: string;
+    retiradaTexto: string;
+    deliveryTexto: string;
+    freteGratisTexto: string;
+    pixTexto: string;
+    cartaoTexto: string;
+    dinheiroTexto: string;
+    tempoEstimadoEntrega: string;
+  };
+}
+
+// Cache em memória do catálogo formatado por loja (TTL de 5 minutos)
+const cacheCatalogoLojas = new Map<string, CatalogoCacheItem>();
+const TTL_CATALOGO_MS = 5 * 60 * 1000;
+
+/**
+ * Consulta e formata dinamicamente o catálogo ativo da loja via Supabase (RAG estruturado),
+ * com cache em memória com TTL de 5 minutos para alta performance.
+ */
+async function getCatalogoLoja(
+  supabaseAdmin: any,
+  loja: any
+): Promise<CatalogoCacheItem> {
+  const agora = Date.now();
+  const emCache = cacheCatalogoLojas.get(loja.id);
+  if (emCache && agora - emCache.timestamp < TTL_CATALOGO_MS) {
+    return emCache;
+  }
+
+  try {
+    // Consultar Produtos, Categorias, Configurações de Frete e Formas de Entrega em paralelo
+    const [prodsRes, catsRes, shippingRes] = await Promise.all([
+      supabaseAdmin
+        .from("produtos")
+        .select(`
+          id,
+          nome,
+          descricao,
+          preco_venda_varejo,
+          preco_promocional,
+          promocao_ativa,
+          quantidade_estoque,
+          exibir_catalogo,
+          ativo,
+          destaque,
+          categoria_id,
+          variacoes:variacoes_produto(id, valor_variacao_1, valor_variacao_2, preco_venda_varejo, preco_promocional, quantidade_estoque, ativo)
+        `)
+        .eq("loja_id", loja.id)
+        .eq("ativo", true)
+        .order("nome", { ascending: true })
+        .limit(100),
+      supabaseAdmin
+        .from("categorias")
+        .select("id, nome, ordem_exibicao")
+        .eq("loja_id", loja.id)
+        .eq("ativo", true)
+        .order("ordem_exibicao", { ascending: true }),
+      supabaseAdmin
+        .from("loja_shipping_configs")
+        .select("*")
+        .eq("loja_id", loja.id)
+        .maybeSingle()
+    ]);
+
+    let produtosRaw = prodsRes.data || [];
+    if (prodsRes.error || produtosRaw.length === 0) {
+      const fallbackProds = await supabaseAdmin
+        .from("produtos")
+        .select("id, nome, preco_venda_varejo, preco_promocional, promocao_ativa, descricao, categoria_id, quantidade_estoque")
+        .eq("loja_id", loja.id)
+        .eq("ativo", true)
+        .limit(60);
+      if (fallbackProds.data && fallbackProds.data.length > 0) {
+        produtosRaw = fallbackProds.data;
+      }
+    }
+
+    const categoriasRaw = catsRes.data || [];
+    const mapaCategorias = new Map<string, string>();
+    categoriasRaw.forEach((c: any) => {
+      mapaCategorias.set(c.id, c.nome);
+    });
+
+    // Agrupar produtos por Categoria para formatação compacta em Markdown
+    const produtosPorCategoria = new Map<string, any[]>();
+    for (const prod of produtosRaw) {
+      const catNome = (prod.categoria_id && mapaCategorias.get(prod.categoria_id)) || "Geral";
+      if (!produtosPorCategoria.has(catNome)) {
+        produtosPorCategoria.set(catNome, []);
+      }
+      produtosPorCategoria.get(catNome)!.push(prod);
+    }
+
+    // Montar texto enxuto do Cardápio / Catálogo (RAG Dinâmico)
+    const linhasCatalogo: string[] = [];
+    for (const [categoriaNome, listaProds] of produtosPorCategoria.entries()) {
+      linhasCatalogo.push(`\n[Categoria: ${categoriaNome}]`);
+      for (const p of listaProds) {
+        const precoVenda = Number(p.preco_venda_varejo || 0);
+        const precoPromo = Number(p.preco_promocional || 0);
+        const emPromocao = Boolean(p.promocao_ativa && precoPromo > 0);
+        const precoEfetivo = emPromocao ? precoPromo : precoVenda;
+
+        // Disponibilidade / Estoque
+        const esgotado = (p.quantidade_estoque !== null && p.quantidade_estoque !== undefined && Number(p.quantidade_estoque) <= 0);
+        const statusDisp = esgotado ? " [ESGOTADO NO MOMENTO]" : " (Disponível)";
+
+        const precoFormatado = emPromocao
+          ? `R$ ${precoEfetivo.toFixed(2)} (PROMOÇÃO, era R$ ${precoVenda.toFixed(2)})`
+          : `R$ ${precoEfetivo.toFixed(2)}`;
+
+        const descCurta = p.descricao
+          ? ` - ${p.descricao.replace(/\r?\n/g, " ").slice(0, 95)}`
+          : "";
+
+        let variacoesTxt = "";
+        if (Array.isArray(p.variacoes) && p.variacoes.length > 0) {
+          const varAtivas = p.variacoes.filter((v: any) => v.ativo !== false);
+          if (varAtivas.length > 0) {
+            const opcoes = varAtivas.map((v: any) => {
+              const label = [v.valor_variacao_1, v.valor_variacao_2].filter(Boolean).join(" / ");
+              const varPreco = v.preco_promocional && Number(v.preco_promocional) > 0
+                ? Number(v.preco_promocional)
+                : Number(v.preco_venda_varejo || precoEfetivo);
+              return `${label} (R$ ${varPreco.toFixed(2)})`;
+            }).join(" | ");
+            variacoesTxt = ` | Opções: ${opcoes}`;
+          }
+        }
+
+        linhasCatalogo.push(`• ${p.nome} — ${precoFormatado}${statusDisp}${descCurta}${variacoesTxt}`);
+      }
+    }
+
+    const catalogoFormatado = linhasCatalogo.join("\n").trim() || "Nenhum produto ativo cadastrado no momento.";
+
+    // Parâmetros Comerciais e Operacionais da Loja
+    const shipping = shippingRes.data || {};
+    const configExtras = loja.configuracoes_extras || {};
+    const pagamentos = configExtras.pagamentos || {};
+    const entregaRetirada = configExtras.entrega_retirada || {};
+
+    const enderecoArray = [
+      shipping.origem_logradouro || loja.endereco_logradouro,
+      shipping.origem_numero || loja.endereco_numero,
+      shipping.origem_bairro || loja.endereco_bairro,
+      shipping.origem_cidade || loja.endereco_cidade || "Fortaleza",
+      shipping.origem_uf || loja.endereco_uf || "CE"
+    ].filter(Boolean);
+
+    const origemEndereco = enderecoArray.length > 0
+      ? enderecoArray.join(", ")
+      : "Consulte nosso balcão de atendimento";
+
+    const permiteRetirada = Boolean(
+      shipping.permite_retirada_loja ||
+      shipping.retirada_balcao_ativa ||
+      shipping.retirada_loja_ativa ||
+      entregaRetirada.trabalho_com_retirada
+    );
+    const retiradaTexto = permiteRetirada
+      ? `Retirada disponível no balcão da loja (${origemEndereco}) - Grátis`
+      : "Retirada presencial não disponível no momento";
+
+    const freteFixo = Number(shipping.frete_proprio_valor_padrao || 0);
+    const taxaEntregaDesc = freteFixo > 0 ? `Taxa padrão de R$ ${freteFixo.toFixed(2)}` : "Consulte taxa conforme o bairro";
+    const deliveryTexto = entregaRetirada.descricao_entregas ||
+      `Entregas para Fortaleza e região metropolitana via UBER envios / Motoboy (${taxaEntregaDesc})`;
+
+    const freteGratisAtivo = Boolean(shipping.frete_gratis_ativo || loja.frete_gratis_ativo);
+    const freteGratisMin = Number(shipping.frete_gratis_valor_minimo || loja.frete_gratis_valor_minimo || 0);
+    const freteGratisTexto = freteGratisAtivo && freteGratisMin > 0
+      ? `Frete Grátis disponível para compras a partir de R$ ${freteGratisMin.toFixed(2)}`
+      : "Consulte condições de entrega";
+
+    const chavePix = pagamentos.pix_chave ? `Chave: ${pagamentos.pix_chave}` : "Chave Pix informada ao fechar o pedido";
+    const pixTexto = pagamentos.pix_ativo !== false ? `Pix (${chavePix})` : "Não aceito";
+    const cartaoTexto = (pagamentos.credito_ativo !== false || pagamentos.debito_ativo !== false)
+      ? "Cartões de Crédito e Débito (maquininha na entrega ou link digital seguro)"
+      : "Consulte condições";
+    const dinheiroTexto = pagamentos.dinheiro_ativo !== false
+      ? "Dinheiro em espécie (favor informar se necessita de troco)"
+      : "Não aceito";
+
+    const tempoEstimadoEntrega = configExtras.horarios_funcionamento?.tempoEntrega || "30 a 50 minutos";
+
+    const itemCache: CatalogoCacheItem = {
+      timestamp: agora,
+      catalogoFormatado,
+      totalProdutos: produtosRaw.length,
+      dadosOperacionais: {
+        origemEndereco,
+        retiradaTexto,
+        deliveryTexto,
+        freteGratisTexto,
+        pixTexto,
+        cartaoTexto,
+        dinheiroTexto,
+        tempoEstimadoEntrega
+      }
+    };
+
+    cacheCatalogoLojas.set(loja.id, itemCache);
+    return itemCache;
+  } catch (err: any) {
+    console.error("[WhatsAppWebhook] Erro em getCatalogoLoja:", err?.message || err);
+    return {
+      timestamp: agora,
+      catalogoFormatado: "Catálogo temporariamente indisponível para consulta.",
+      totalProdutos: 0,
+      dadosOperacionais: {
+        origemEndereco: "Consulte nosso balcão",
+        retiradaTexto: "Consulte balcão",
+        deliveryTexto: "Entregas para Fortaleza e região metropolitana",
+        freteGratisTexto: "",
+        pixTexto: "Pix",
+        cartaoTexto: "Cartões",
+        dinheiroTexto: "Dinheiro",
+        tempoEstimadoEntrega: "40 minutos"
+      }
+    };
+  }
+}
+
+/**
+ * Calcula o status de expediente da loja no fuso horário oficial de Fortaleza (America/Fortaleza = UTC-3)
+ */
+function obterStatusExpediente(loja: any) {
+  const agora = new Date();
+
+  // Fuso horário oficial do Ceará / Fortaleza
+  const horaMinutoStr = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Fortaleza",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).format(agora);
+
+  const diaSemanaStr = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Fortaleza",
+    weekday: "long"
+  }).format(agora);
+
+  const [horas, minutos] = horaMinutoStr.split(":").map(Number);
+  const minutosAtuais = horas * 60 + minutos;
+
+  // Horários configurados na loja ou padrão comercial de Fortaleza (08:00 às 22:00)
+  const configHorarios = loja.configuracoes_extras?.horarios_funcionamento || {};
+  const aberturaMin = typeof configHorarios.aberturaMin === "number" ? configHorarios.aberturaMin : (8 * 60);
+  const fechamentoMin = typeof configHorarios.fechamentoMin === "number" ? configHorarios.fechamentoMin : (22 * 60);
+  const diasFechados: string[] = Array.isArray(configHorarios.diasFechados) ? configHorarios.diasFechados : [];
+
+  const diaMinusculo = diaSemanaStr.toLowerCase();
+  const diaFechado = diasFechados.some((d) => diaMinusculo.includes(d.toLowerCase()));
+  const dentroDoHorario = minutosAtuais >= aberturaMin && minutosAtuais < fechamentoMin;
+
+  const estaAberto = !diaFechado && dentroDoHorario;
+  const horarioExibicao = configHorarios.descricao ||
+    "Segunda a Sábado das 08:00 às 22:00 (Domingos e Feriados das 14:00 às 21:00)";
+
+  return {
+    estaAberto,
+    horaAtualFortaleza: horaMinutoStr,
+    diaSemanaFortaleza: diaSemanaStr,
+    horarioExibicao
+  };
+}
+
+/**
+ * Constrói o contexto dinâmico do agente de IA alinhado à Rubi (System Instruction com RAG estruturado)
  */
 function montarPromptAtendimento(
   loja: any,
   nomeCliente: string,
-  produtos: any[],
+  catalogoFormatado: string,
+  dadosOperacionais: any,
+  dadosExpediente: any,
   temAudio: boolean
 ): string {
-  // 1. Identificar Persona do Nicho
+  // Identificar Persona do Nicho
   const configExtras = loja.configuracoes_extras || {};
+  const perfilNegocio = configExtras.perfil_negocio || {};
   const iaConfig = configExtras.ia || {};
-  const segmento = (loja.segmento || iaConfig.segmento || "geral").toLowerCase();
+  const segmento = (loja.segmento || perfilNegocio.segmento || iaConfig.segmento || "geral").toLowerCase();
   const personaInfo = PERSONAS_SEGMENTO[segmento] || PERSONAS_SEGMENTO.geral;
 
-  const nomeLoja = loja.nome_fantasia || "Nossa Loja";
+  const nomeLoja = loja.nome_fantasia || "HOTAMAZON";
   const catalogoLink = loja.slug_catalogo
     ? `https://hubi.com.br/catalogo/${loja.slug_catalogo}`
     : "";
 
-  const enderecoTexto = [
-    loja.endereco_logradouro,
-    loja.endereco_numero,
-    loja.endereco_bairro,
-    loja.endereco_cidade
-  ].filter(Boolean).join(", ");
-
-  // 2. Resumo Estruturado do Catálogo Real
-  const catalogoResumo = produtos.map((p: any) => {
-    const precoFinal = p.promocao_ativa && p.preco_promocional && Number(p.preco_promocional) > 0
-      ? Number(p.preco_promocional)
-      : Number(p.preco_venda_varejo || 0);
-
-    const variacoesTxt = Array.isArray(p.variacoes) && p.variacoes.length > 0
-      ? p.variacoes.map((v: any) => `${v.valor_variacao_1 || ''}${v.valor_variacao_2 ? ` / ${v.valor_variacao_2}` : ''}`).filter(Boolean).join(', ')
-      : undefined;
-
-    return {
-      id: p.id,
-      nome: p.nome,
-      categoria: p.categoria || "Geral",
-      preco: precoFinal.toFixed(2),
-      em_promocao: Boolean(p.promocao_ativa && p.preco_promocional),
-      descricao: p.descricao ? p.descricao.slice(0, 140) : "",
-      opcoes_variacoes: variacoesTxt || undefined,
-      link_direto: catalogoLink ? `${catalogoLink}?p=${p.id}` : undefined
-    };
-  });
-
-  // 3. Instrução Específica para Áudio
   const instrucaoAudio = temAudio
     ? `
 🎧 O CLIENTE ENVIOU UM ÁUDIO DE VOZ NO WHATSAPP (ANEXO ACIMA):
@@ -1029,38 +1261,66 @@ Ouça o áudio com atenção aos detalhes, compreenda cada dúvida, tom e inten�
 `
     : "";
 
+  const avisoExpediente = !dadosExpediente.estaAberto
+    ? `
+⚠️ STATUS DE EXPEDIENTE DA LOJA: FORA DO HORÁRIO DE EXPEDIÇÃO IMEDIATA
+• Horário atual em Fortaleza: ${dadosExpediente.horaAtualFortaleza} (${dadosExpediente.diaSemanaFortaleza}).
+• Nosso horário regular de entregas: ${dadosExpediente.horarioExibicao}.
+• REGRA FORA DE HORÁRIO: Avise com gentileza que no momento nossa equipe de entregas imediatas está fora do expediente presencial, mas continue o atendimento normalmente com atenção, tirando dúvidas de produtos e montando o pedido do cliente para ser preparado e despachado com prioridade total na abertura do próximo turno!`
+    : `
+✅ STATUS DE EXPEDIENTE DA LOJA: ABERTO E OPERANDO
+• Horário atual em Fortaleza: ${dadosExpediente.horaAtualFortaleza} (${dadosExpediente.diaSemanaFortaleza}). Entregas e atendimento a todo vapor!`;
+
   return `
 Você é a **Rubi**, a ${personaInfo.papel} da loja **${nomeLoja}** no atendimento ao cliente pelo WhatsApp.
 SEGMENTO DA LOJA: ${segmento} - ${personaInfo.diretriz}
 
-DADOS DA LOJA:
-- Nome: ${nomeLoja}
-- Endereço / Retirada: ${enderecoTexto || "Consulte nosso balcão"}
+DADOS DA LOJA & PARÂMETROS OPERACIONAIS:
+- Nome da Loja: ${nomeLoja}
+- Endereço / Localização: ${dadosOperacionais.origemEndereco}
+- Retirada no Balcão: ${dadosOperacionais.retiradaTexto}
+- Entregas para Fortaleza e Região: ${dadosOperacionais.deliveryTexto}
+- Política de Frete Grátis: ${dadosOperacionais.freteGratisTexto}
+- Formas de Pagamento Aceitas:
+  • Pix: ${dadosOperacionais.pixTexto}
+  • Cartões: ${dadosOperacionais.cartaoTexto}
+  • Dinheiro: ${dadosOperacionais.dinheiroTexto}
+- Tempo Estimado de Preparo/Entrega: ${dadosOperacionais.tempoEstimadoEntrega}
 ${catalogoLink ? `- Link Oficial do Catálogo Online: ${catalogoLink}` : ""}
 ${loja.prompt_personalizado ? `- Diretrizes Específicas do Lojista: "${loja.prompt_personalizado}"` : ""}
 
+${avisoExpediente}
+
 CLIENTE ATUAL: ${nomeCliente ? `"${nomeCliente}"` : "Nome não informado"}
 
-CATÁLOGO REAL DA LOJA (Produtos efetivamente disponíveis no estoque):
-${JSON.stringify(catalogoResumo, null, 2)}
+CARDÁPIO / CATÁLOGO DINÂMICO DA LOJA (Produtos reais cadastrados no estoque):
+${catalogoFormatado}
 
-🚨 DIRETRIZES INVIOLÁVEIS DE ATENDIMENTO E ZERO ALUCINAÇÃO:
-1. PROIBIDO INVENTAR PRODUTOS OU PREÇOS: Você SÓ PODE recomendar, descrever ou citar produtos que constam LITERALMENTE na lista "CATÁLOGO REAL DA LOJA" acima! NUNCA invente nomes de produtos, modelos fictícios ou marcas que a loja não vende. Use rigorosamente o valor que está no campo "preco" de cada produto listado. Se custa 6.50, diga "R$ 6,50". Jamais invente preços inexistentes!
-2. PREÇOS PROMOCIONAIS: Se o produto tiver "em_promocao: true", valorize com entusiasmo a oferta especial para o cliente!
-3. VARIAÇÕES E OPÇÕES: Se o produto tiver "opcoes_variacoes", informe as opções disponíveis (tamanhos, cores ou sabores) de forma natural.
-4. HUMANIZAÇÃO TOTAL (CONVERSA NATURAL ENTRE DOIS HUMANOS NO WHATSAPP):
-   - Converse com entusiasmo acolhedor, empatia e espontaneidade — como uma excelente consultora ou vendedora atenciosa conversando cara a cara no balcão da loja física ou em um áudio descontraído de WhatsApp.
-   - Fale em parágrafos contínuos, calorosos e vivos. Evite listas frias ou mecânicas de bullets.
-   - Use expressões naturais e afetuosas do dia a dia brasileiro: "Olha só", "Com certeza!", "Ah, excelente escolha!", "Pode deixar comigo", "Temos sim!", "Fica super à vontade", "Você vai adorar!".
-5. DÚVIDAS SOBRE PRODUTOS TÊM PRIORIDADE TOTAL: Se o cliente perguntar sobre um produto, responda imediatamente explicando para que serve, benefícios, modo de uso ou diferenciais, informando o valor. Jamais bloqueie o atendimento exigindo o nome do cliente.
-6. IDENTIFICAÇÃO DO CLIENTE: Somente quando o cliente fizer uma saudação simples e isolada (sem perguntas nem produtos), dê as boas-vindas e pergunte de forma leve e simpática: "Antes de começarmos, como posso te chamar? Me conta seu nome!"
-7. PRODUTOS INDISPONÍVEIS: Se o cliente perguntar por algo que não temos no catálogo, seja transparente e gentil: informe que no momento não temos esse item específico e ofereça com simpatia as melhores opções similares que realmente constam no catálogo.
-8. FECHAMENTO DE PEDIDOS E LINKS:
-   - Se o cliente quiser conferir fotos e detalhes, envie o link do catálogo: ${catalogoLink}.
-   - Se o cliente perguntar de um produto específico, pode fornecer o link direto do item no catálogo: ${catalogoLink}?p=ID_DO_PRODUTO.
-   - Se o cliente quiser fechar o pedido diretamente por aqui pelo WhatsApp, acolha com alegria e solicite os dados com carinho: itens/quantidades desejadas, endereço completo para entrega e forma de pagamento (Pix, Cartão ou Dinheiro).
-9. MANTENHA A CONVERSA CONCISA E FLUIDA: Responda em 2 a 3 parágrafos curtos, bem pontuados e agradáveis de ler no celular. Escreva sempre frases completas com pontuação final. NUNCA corte uma frase no meio.
+🚨 DIRETRIZES INVIOLÁVEIS DE ATENDIMENTO E ENGENHARIA DE PROMPT:
+1. REGRAS COMERCIAIS RÍGIDAS & ZERO ALUCINAÇÃO:
+   - Você SÓ PODE oferecer, detalhar ou confirmar produtos, sabores, opções e preços que constam LITERALMENTE no "CARDÁPIO / CATÁLOGO DINÂMICO DA LOJA" acima!
+   - NUNCA invente itens inexistentes, marcas fictícias ou complementos ausentes.
+   - Use rigorosamente os valores numéricos informados (se custa 16.00, informe exatamente R$ 16,00).
+   - ITENS ESGOTADOS: Se o cliente solicitar um item marcado com [ESGOTADO NO MOMENTO], informe educadamente a indisponibilidade e sugira as melhores alternativas similares ativas no cardápio.
+
+2. COMUNICAÇÃO NATURAL PARA WHATSAPP:
+   - Mensagens curtas, agradáveis e fáceis de ler no celular.
+   - Use negrito com moderação para destacar nomes de produtos e valores (ex: *Copo 300ml*, *R$ 16,00*).
+   - Use listas com bullets simples quando listar opções.
+   - Evite blocos cansativos de texto. Mantenha parágrafos objetivos (2 a 3 parágrafos curtos no máximo).
+   - Fale sempre com cordialidade, entusiasmo acolhedor, respeito e empatia.
+
+3. CONDUÇÃO DO FUNIL DE VENDAS E FECHAMENTO DE PEDIDO:
+   - PASSO 1 (Acolhimento): Identifique se o cliente quer tirar dúvidas de produtos, fazer um pedido ou suporte.
+   - PASSO 2 (Escolha dos Itens): Ao receber o interesse, confirme o item, tamanho, sabor/variação e quantidade desejada.
+   - PASSO 3 (Entrega ou Retirada): Pergunte se deseja receber por Delivery ou Retirar no balcão da loja. Se for entrega, solicite o endereço completo com bairro e ponto de referência para conferência da rota em Fortaleza/Região.
+   - PASSO 4 (Forma de Pagamento): Confirme como prefere pagar (Pix, Cartão de Crédito/Débito, ou Dinheiro informando se necessita de troco).
+   - PASSO 5 (Resumo e Finalização): Apresente o resumo prévio com os itens escolhidos, subtotal e previsão para confirmação final do cliente.
+
+4. TRANSBORDO / ATENDIMENTO HUMANO:
+   - Caso o cliente solicite explicitamente falar com um atendente humano ou demonstre insatisfação recorrente, informe com cordialidade que a equipe humana foi notificada e que em instantes um colaborador continuará o atendimento por aqui.
+
 ${instrucaoAudio}
-Responda diretamente ao cliente agora mantendo coerência com o histórico da conversa:
+Responda diretamente ao cliente agora com base no histórico da conversa e no catálogo ativo:
 `.trim();
 }
