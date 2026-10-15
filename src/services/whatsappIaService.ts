@@ -2,6 +2,9 @@
 import { supabase } from '../lib/supabase';
 import { ConsumoWhatsApp, WhatsAppConfigForm } from '../types/whatsapp';
 
+// Modelos oficiais suportados pela Google REST API para o WhatsApp IA
+export const MODELOS_WHATSAPP_GEMINI = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-1.5-flash-8b'];
+
 /**
  * Testa a chave de API do Google Gemini informada pelo lojista (BYOK).
  * Realiza uma requisição leve com token reduzido para checar autenticidade e cota.

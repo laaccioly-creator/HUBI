@@ -416,7 +416,7 @@ async function gerarRespostaGemini(apiKey: string, prompt: string): Promise<stri
     return null;
   }
 
-  const modelos = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-2.0-flash"];
+  const modelos = ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-1.5-flash-8b"];
 
   const payload = {
     contents: [
