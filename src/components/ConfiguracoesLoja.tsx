@@ -328,6 +328,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const [copiadoTexto, setCopiadoTexto] = useState<string>('');
   const [snapshotInicial, setSnapshotInicial] = useState<string>('');
   const salvouRecenteRef = useRef<boolean>(false);
+  const whatsappIaRef = useRef<{ salvar: () => Promise<void> } | null>(null);
+  const [salvandoWhatsAppIA, setSalvandoWhatsAppIA] = useState<boolean>(false);
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
@@ -1623,7 +1625,16 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
             });
           }}
           acoesDireita={
-            isDirty ? (
+            subTela === 'whatsapp-ia' ? (
+              <button
+                type="button"
+                onClick={() => whatsappIaRef.current?.salvar()}
+                disabled={salvandoWhatsAppIA}
+                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50"
+              >
+                {salvandoWhatsAppIA ? 'Salvando...' : 'Salvar'}
+              </button>
+            ) : isDirty ? (
               <button
                 type="button"
                 onClick={handleSalvarTodasConfiguracoes}
@@ -2178,6 +2189,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
             <ConfiguracoesWhatsAppIA
               lojaId={loja?.id}
               onVoltar={() => setSubTela('menu')}
+              saveRef={whatsappIaRef}
+              onSalvandoChange={setSalvandoWhatsAppIA}
             />
           )}
 
@@ -2367,7 +2380,26 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           </div>
         </div>
 
-        {isDirty && (
+        {subTela === 'whatsapp-ia' ? (
+          <button
+            type="button"
+            onClick={() => whatsappIaRef.current?.salvar()}
+            disabled={salvandoWhatsAppIA}
+            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50 animate-in fade-in"
+          >
+            {salvandoWhatsAppIA ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Salvando...</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                <span>Salvar</span>
+              </>
+            )}
+          </button>
+        ) : isDirty ? (
           <button
             type="button"
             onClick={handleSalvarTodasConfiguracoes}
@@ -2377,7 +2409,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
             <Save className="w-4 h-4" />
             <span>{salvando ? 'Salvando...' : 'Salvar'}</span>
           </button>
-        )}
+        ) : null}
       </div>
 
       {/* TOAST FEEDBACK */}
@@ -4397,6 +4429,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           <ConfiguracoesWhatsAppIA
             lojaId={loja?.id}
             onVoltar={() => setSubTela('menu')}
+            saveRef={whatsappIaRef}
+            onSalvandoChange={setSalvandoWhatsAppIA}
           />
         )}
 

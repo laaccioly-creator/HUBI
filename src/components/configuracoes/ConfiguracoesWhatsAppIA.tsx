@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Bot,
   Key,
@@ -37,14 +37,18 @@ import { ConsumoWhatsApp, WhatsAppConfigForm } from '../../types/whatsapp';
 export interface ConfiguracoesWhatsAppIAProps {
   lojaId?: string;
   onVoltar?: () => void;
+  saveRef?: React.MutableRefObject<{ salvar: () => Promise<void> } | null>;
+  onSalvandoChange?: (salvando: boolean) => void;
 }
 
 export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = ({
   lojaId: propLojaId,
-  onVoltar
+  onVoltar,
+  saveRef,
+  onSalvandoChange
 }) => {
   const { isDark } = useTheme();
-  const { loja } = useAuth();
+  const { loja, recarregarDadosLoja } = useAuth();
   const permissions = usePermissions();
   const { mostrarSucesso, mostrarErro } = useFeedbackModal();
 
@@ -60,6 +64,7 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
   // Estados principais
   const [carregando, setCarregando] = useState<boolean>(true);
   const [salvando, setSalvando] = useState<boolean>(false);
+  const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
   const [mostrarGeminiKey, setMostrarGeminiKey] = useState<boolean>(false);
   const [mostrarMetaToken, setMostrarMetaToken] = useState<boolean>(false);
   const [copiadoUrl, setCopiadoUrl] = useState<boolean>(false);
@@ -84,14 +89,15 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
     meta_waba_id: '',
     meta_phone_number_id: '',
     meta_access_token: '',
-    meta_verify_token: 'hubi_' + Math.random().toString(36).substring(2, 10),
+    meta_verify_token: 'hubi_whatsapp_webhook_token',
     prompt_personalizado: '',
     mensagem_pausa_humano: 'Nosso atendimento por inteligência artificial está temporariamente pausado. Um atendente da nossa equipe continuará seu atendimento por aqui em breve!'
   });
 
-  // URL do Webhook dinamicamente montada
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://seu-projeto.supabase.co';
-  const webhookCallbackUrl = `${supabaseUrl}/functions/v1/whatsapp-webhook`;
+  // URL do Webhook dinamicamente montada com o host do Supabase em execução
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://eylpiwynsbnmcacmwiqg.supabase.co';
+  const webhookCallbackUrl = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/whatsapp-webhook`;
+  const tokenVerifyExibicao = form.meta_verify_token || 'hubi_whatsapp_webhook_token';
 
   // Carregar dados da loja e consumo
   const carregarDados = async () => {
@@ -104,11 +110,18 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
       ]);
 
       if (configData) {
-        setForm(prev => ({
-          ...prev,
-          ...configData,
-          meta_verify_token: configData.meta_verify_token || prev.meta_verify_token
-        }));
+        setForm({
+          ia_whatsapp_ativa: configData.ia_whatsapp_ativa !== false,
+          pausar_ao_atingir_limite: configData.pausar_ao_atingir_limite === true,
+          limite_mensal_alerta: configData.limite_mensal_alerta || 1000,
+          gemini_api_key: configData.gemini_api_key || '',
+          meta_waba_id: configData.meta_waba_id || '',
+          meta_phone_number_id: configData.meta_phone_number_id || '',
+          meta_access_token: configData.meta_access_token || '',
+          meta_verify_token: configData.meta_verify_token || 'hubi_whatsapp_webhook_token',
+          prompt_personalizado: configData.prompt_personalizado || '',
+          mensagem_pausa_humano: configData.mensagem_pausa_humano || 'Nosso atendimento por inteligência artificial está temporariamente pausado. Um atendente da nossa equipe continuará seu atendimento por aqui em breve!'
+        });
       }
 
       setConsumo(consumoData);
@@ -123,28 +136,45 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
     carregarDados();
   }, [idLojaAlvo]);
 
-  // Handler para salvar alterações
-  const handleSalvar = async () => {
-    if (!idLojaAlvo) return;
-    if (!podeEditar) {
-      mostrarErro('Acesso restrito', 'Você não tem permissão para alterar as configurações desta loja.');
+  // Handler oficial para salvar alterações
+  const handleSalvar = useCallback(async () => {
+    if (!idLojaAlvo) {
+      mostrarErro('Erro ao salvar', 'Identificador da loja ausente.');
       return;
     }
 
     try {
       setSalvando(true);
+      if (onSalvandoChange) onSalvandoChange(true);
+
       const res = await salvarConfiguracoesWhatsApp(idLojaAlvo, form);
       if (res.sucesso) {
-        mostrarSucesso('Configurações Salvas', 'As preferências do WhatsApp com IA foram atualizadas com sucesso.');
+        mostrarSucesso('Configurações Salvas', 'As preferências do WhatsApp com IA foram atualizadas no banco com sucesso!');
+        setMensagemSucesso('Configurações salvas no banco com sucesso!');
+        setTimeout(() => setMensagemSucesso(null), 4000);
+        if (recarregarDadosLoja) {
+          await recarregarDadosLoja();
+        }
       } else {
-        mostrarErro('Erro ao salvar', res.erro || 'Não foi possível salvar as configurações.');
+        mostrarErro('Erro ao salvar no banco', res.erro || 'Não foi possível salvar as configurações no Supabase.');
       }
     } catch (err: any) {
-      mostrarErro('Falha na operação', 'Ocorreu um erro ao gravar no banco de dados.');
+      mostrarErro('Falha na operação', err?.message || 'Ocorreu um erro ao gravar no banco de dados.');
     } finally {
       setSalvando(false);
+      if (onSalvandoChange) onSalvandoChange(false);
     }
-  };
+  }, [idLojaAlvo, form, onSalvandoChange, mostrarSucesso, mostrarErro, recarregarDadosLoja]);
+
+  // Conectar saveRef para o botão único do header da página
+  useEffect(() => {
+    if (saveRef) {
+      saveRef.current = { salvar: handleSalvar };
+    }
+    return () => {
+      if (saveRef) saveRef.current = null;
+    };
+  }, [saveRef, handleSalvar]);
 
   // Testar conexão Gemini
   const handleTestarGemini = async () => {
@@ -190,8 +220,8 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
 
   return (
     <div className={`p-4 md:p-6 space-y-6 max-w-5xl mx-auto ${isDark ? 'text-white' : 'text-slate-900'}`}>
-      {/* Barra Superior de Navegação e Ação */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-700/40">
+      {/* Barra Superior de Navegação */}
+      <div className="flex items-center justify-between gap-4 pb-4 border-b border-slate-700/40">
         <div className="flex items-center gap-3">
           {onVoltar && (
             <button
@@ -214,25 +244,19 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
             </p>
           </div>
         </div>
-
-        <button
-          onClick={handleSalvar}
-          disabled={salvando || !podeEditar}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-semibold shadow-lg shadow-emerald-900/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {salvando ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Salvando...</span>
-            </>
-          ) : (
-            <>
-              <Save className="w-4 h-4" />
-              <span>Salvar Alterações</span>
-            </>
-          )}
-        </button>
       </div>
+
+      {/* Feedback Visual Verde de Sucesso */}
+      {mensagemSucesso && (
+        <div className={`p-4 rounded-2xl flex items-center gap-3 text-xs md:text-sm font-bold shadow-sm animate-in fade-in ${
+          isDark
+            ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-300'
+            : 'bg-emerald-50 border-2 border-emerald-400 text-emerald-900'
+        }`}>
+          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+          <span>{mensagemSucesso}</span>
+        </div>
+      )}
 
       {/* 1. CARD: STATUS GERAL & CONTROLE DE CONSUMO */}
       <div className={`p-5 rounded-2xl border transition-all ${
@@ -536,57 +560,108 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
         </div>
 
         {/* Informações do Webhook da Meta para Copiar */}
-        <div className="mt-5 p-4 rounded-xl bg-slate-900/40 border border-slate-700/50 space-y-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-            <Sliders className="w-4 h-4" />
-            Configuração de Webhook no Painel da Meta
-          </h3>
-          <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-            Copie os dados abaixo e cole na seção <strong>WhatsApp {'>'} Configuração {'>'} Webhook</strong> no painel de desenvolvedores da Meta.
-          </p>
-
-          <div className="space-y-2">
+        <div className={`mt-5 p-5 rounded-2xl border transition-all ${
+          isDark
+            ? 'bg-[#0a1820] border-emerald-500/30 shadow-lg shadow-black/40'
+            : 'bg-emerald-50/70 border-emerald-300 shadow-xs'
+        } space-y-4`}>
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              <Sliders className="w-5 h-5 text-emerald-400" />
+            </div>
             <div>
-              <span className="text-[11px] text-slate-400 uppercase font-semibold">Callback URL</span>
-              <div className="flex items-center gap-2 mt-0.5">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-emerald-400">
+                Configuração de Webhook no Painel da Meta
+              </h3>
+              <p className={`text-xs mt-1 leading-relaxed ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                Copie a <strong>Callback URL</strong> e o <strong>Verify Token</strong> abaixo e cole no portal <strong>Meta for Developers &gt; WhatsApp &gt; Configuração &gt; Webhook</strong>.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-3 pt-1">
+            <div>
+              <label className={`block text-xs uppercase font-bold tracking-wider mb-1.5 ${
+                isDark ? 'text-slate-200' : 'text-slate-800'
+              }`}>
+                Callback URL
+              </label>
+              <div className="flex items-center gap-2">
                 <input
                   type="text"
                   readOnly
                   value={webhookCallbackUrl}
-                  className={`w-full px-3 py-1.5 text-xs rounded-lg border font-mono select-all ${
-                    isDark ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-300'
+                  className={`w-full px-3.5 py-2.5 text-xs md:text-sm rounded-xl border font-mono select-all font-semibold outline-none transition-all ${
+                    isDark
+                      ? 'bg-[#060e13] border-slate-700 text-emerald-300 focus:border-emerald-500'
+                      : 'bg-white border-slate-300 text-emerald-900 focus:border-emerald-600'
                   }`}
                 />
                 <button
                   type="button"
                   onClick={() => copiarParaClipboard(webhookCallbackUrl, setCopiadoUrl)}
-                  className="p-2 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 transition-all flex items-center gap-1 text-xs font-medium"
+                  className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-all flex items-center gap-1.5 text-xs font-semibold shadow-md shadow-emerald-950/20 active:scale-95 flex-shrink-0"
+                  title="Copiar Callback URL"
                 >
-                  {copiadoUrl ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {copiadoUrl ? (
+                    <>
+                      <Check className="w-4 h-4 text-white" />
+                      <span className="hidden sm:inline">Copiado</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 text-white" />
+                      <span className="hidden sm:inline">Copiar</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
 
             <div>
-              <span className="text-[11px] text-slate-400 uppercase font-semibold">Verify Token</span>
-              <div className="flex items-center gap-2 mt-0.5">
+              <label className={`block text-xs uppercase font-bold tracking-wider mb-1.5 ${
+                isDark ? 'text-slate-200' : 'text-slate-800'
+              }`}>
+                Verify Token
+              </label>
+              <div className="flex items-center gap-2">
                 <input
                   type="text"
                   readOnly
-                  value={form.meta_verify_token}
-                  className={`w-full px-3 py-1.5 text-xs rounded-lg border font-mono select-all ${
-                    isDark ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-300'
+                  value={tokenVerifyExibicao}
+                  className={`w-full px-3.5 py-2.5 text-xs md:text-sm rounded-xl border font-mono select-all font-semibold outline-none transition-all ${
+                    isDark
+                      ? 'bg-[#060e13] border-slate-700 text-emerald-300 focus:border-emerald-500'
+                      : 'bg-white border-slate-300 text-emerald-900 focus:border-emerald-600'
                   }`}
                 />
                 <button
                   type="button"
-                  onClick={() => copiarParaClipboard(form.meta_verify_token, setCopiadoToken)}
-                  className="p-2 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 transition-all flex items-center gap-1 text-xs font-medium"
+                  onClick={() => copiarParaClipboard(tokenVerifyExibicao, setCopiadoToken)}
+                  className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-all flex items-center gap-1.5 text-xs font-semibold shadow-md shadow-emerald-950/20 active:scale-95 flex-shrink-0"
+                  title="Copiar Verify Token"
                 >
-                  {copiadoToken ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {copiadoToken ? (
+                    <>
+                      <Check className="w-4 h-4 text-white" />
+                      <span className="hidden sm:inline">Copiado</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 text-white" />
+                      <span className="hidden sm:inline">Copiar</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
+          </div>
+
+          <div className={`p-3 rounded-xl flex items-center gap-2 text-xs font-medium border ${
+            isDark ? 'bg-slate-900/80 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-700'
+          }`}>
+            <span className="text-emerald-400 font-bold">💡 Dica:</span>
+            <span>Após salvar a URL e Token na Meta, vá na aba <strong>Campos do Webhook</strong> e clique em <strong>Assinar</strong> no campo <strong>messages</strong>.</span>
           </div>
         </div>
       </div>
