@@ -23,6 +23,125 @@ function normalizarTelefone(numero: string): string {
   return (numero || '').replace(/\D/g, '');
 }
 
+/**
+ * Converte Uint8Array para Base64 em chunks para evitar estouro de call stack
+ */
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
+  }
+  return btoa(binary);
+}
+
+/**
+ * Baixa arquivo de áudio recebido via Meta Graph API v21.0
+ */
+async function baixarAudioMeta(
+  audioId: string,
+  accessToken: string,
+  mimeRaw: string
+): Promise<{ data: string; mimeType: string } | null> {
+  try {
+    const metaMediaUrl = `https://graph.facebook.com/v21.0/${audioId}`;
+    const metaRes = await fetch(metaMediaUrl, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    if (!metaRes.ok) {
+      console.error(`[WhatsAppWebhook] Erro ao obter URL do áudio Meta: ${metaRes.status}`);
+      return null;
+    }
+
+    const metaData = await metaRes.json();
+    const directDownloadUrl = metaData?.url;
+    if (!directDownloadUrl) {
+      console.error("[WhatsAppWebhook] URL de download do áudio não retornada pela Meta");
+      return null;
+    }
+
+    const audioRes = await fetch(directDownloadUrl, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "User-Agent": "HUBI-Audio-Worker/1.0"
+      }
+    });
+
+    if (!audioRes.ok) {
+      console.error(`[WhatsAppWebhook] Erro ao baixar binário do áudio: ${audioRes.status}`);
+      return null;
+    }
+
+    const arrayBuffer = await audioRes.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    const mimeLimpo = (mimeRaw || metaData.mime_type || "audio/ogg").split(";")[0].trim();
+
+    return {
+      data: uint8ArrayToBase64(bytes),
+      mimeType: mimeLimpo
+    };
+  } catch (err: any) {
+    console.error("[WhatsAppWebhook] Exceção ao baixar áudio da Meta:", err?.message || err);
+    return null;
+  }
+}
+
+/**
+ * Mapeamento de Personas e Diretrizes por Segmento de Negócio (Alinhado ao Catálogo Online)
+ */
+const PERSONAS_SEGMENTO: Record<string, { papel: string; diretriz: string }> = {
+  restaurante: {
+    papel: "Maître & Consultora Gastronômica",
+    diretriz: "Atue como atendente de alta gastronomia e delivery. Apresente os pratos destacando o sabor, ingredientes frescos, porções e acompanhamentos. Sempre pergunte se o cliente deseja uma bebida ou sobremesa para acompanhar."
+  },
+  moda: {
+    papel: "Consultora de Estilo & Personal Stylist",
+    diretriz: "Atue como consultora de moda acolhedora e antenada. Sugira combinações de looks, ocasiões de uso, tecidos e caimento, valorizando o bom gosto do cliente. Se houver tamanhos ou cores, pergunte a preferência."
+  },
+  lingerie: {
+    papel: "Consultora Especialista em Lingerie & Moda Íntima",
+    diretriz: "Atue com delicadeza, conforto, sofisticação, extremo cuidado e acolhimento. Destaque conforto, qualidade dos tecidos, caimento perfeito e ocasiões especiais com discrição e empatia."
+  },
+  sexshop: {
+    papel: "Consultora Especialista em Produtos Eróticos & Bem-Estar Íntimo",
+    diretriz: "Atue com naturalidade, sofisticação, respeito, mente aberta e absoluta discrição. Aborde dúvidas sem tabus nem preconceitos, com linguagem acolhedora, respeitosa e esclarecedora (explicando tipos de estimulação, materiais como silicone cirúrgico, modos de vibração, cosméticos eróticos e garantia total de embalagem 100% discreta)."
+  },
+  cosmeticos: {
+    papel: "Especialista em Beleza, Skincare & Cuidados",
+    diretriz: "Atue como especialista em cosméticos e maquiagem. Pergunte sobre tipos de pele e cabelo, destacando benefícios de hidratação, fixação e fragrâncias."
+  },
+  mercado: {
+    papel: "Atendente Prático de Compras & Despensa",
+    diretriz: "Atue com agilidade, presteza e foco em economia. Ajude a encontrar produtos da cesta básica, bebidas e itens da despensa, ressaltando ofertas e compras práticas."
+  },
+  petshop: {
+    papel: "Consultora Apaixonada por Pets",
+    diretriz: "Atue com carinho genuíno por animais. Pergunte o porte, idade e raça do pet para sugerir a melhor ração, petisco, brinquedo ou acessório com muito afeto."
+  },
+  eletronicos: {
+    papel: "Consultora Especialista em Tecnologia",
+    diretriz: "Atue com foco técnico, compatibilidade e inovação. Destaque potência, conectividade, cabos corretos, garantia e performance dos aparelhos e acessórios."
+  },
+  farmacia: {
+    papel: "Consultora de Saúde & Bem-Estar",
+    diretriz: "Atue com responsabilidade, foco em nutrição, suplementos, vitaminas e cuidados preventivos de saúde. Mantenha tom calmo, empático e acolhedor."
+  },
+  construcao: {
+    papel: "Consultor Prático de Reformas & Obras",
+    diretriz: "Atue com objetividade e conhecimento de obras. Oriente as ferramentas e materiais certos para cada etapa de conserto, hidráulica, elétrica ou acabamento."
+  },
+  geral: {
+    papel: "Consultora de Vendas & Atendimento Especial",
+    diretriz: "Atue como uma vendedora completa, gentil, entusiasta e atenciosa. Ajude o cliente a encontrar os produtos que mais combinam com o que ele procura, apresentando vantagens e valores."
+  }
+};
+
 serve(async (req: Request) => {
   // Tratar pre-flight CORS
   if (req.method === "OPTIONS") {
@@ -129,6 +248,11 @@ async function processarEventoWhatsApp(payload: any) {
   const fromCliente = normalizarTelefone(message.from);
   const nomeCliente = changes?.contacts?.[0]?.profile?.name || "";
 
+  const messageType = message.type || "text";
+  const isAudio = messageType === "audio" || Boolean(message.audio);
+  const audioId = message.audio?.id;
+  const audioMimeTypeRaw = message.audio?.mime_type || "audio/ogg";
+
   // Extrair texto da mensagem (suporte a texto simples, botões ou cliques interativos)
   const textoMensagem = (
     message.text?.body ||
@@ -153,6 +277,8 @@ async function processarEventoWhatsApp(payload: any) {
       id,
       nome_fantasia,
       slug_catalogo,
+      segmento,
+      configuracoes_extras,
       ia_whatsapp_ativa,
       pausar_ao_atingir_limite,
       limite_mensal_alerta,
@@ -215,13 +341,17 @@ async function processarEventoWhatsApp(payload: any) {
 
   // 3. Trava de Idempotência: Inserir a mensagem recebida com o `message_id_meta` (wamid)
   // Se já existir no banco (UNIQUE constraint), a inserção falhará e abortaremos o processamento
+  const conteudoEntrada = isAudio
+    ? "🎤 [Mensagem de Áudio]"
+    : (textoMensagem || "[Mídia / Anexo sem legenda]");
+
   const { error: insertMsgError } = await supabaseAdmin
     .from("mensagens_whatsapp")
     .insert({
       conversa_id: conversa.id,
       loja_id: loja.id,
       remetente: "cliente",
-      conteudo: textoMensagem || "[Mídia / Anexo sem legenda]",
+      conteudo: conteudoEntrada,
       message_id_meta: wamid,
       status_entrega: "recebida"
     });
@@ -300,14 +430,25 @@ async function processarEventoWhatsApp(payload: any) {
     return;
   }
 
-  // 9. Buscar Contexto de Produtos e Histórico Recente
-  const [produtosRes, historicoRes] = await Promise.all([
+  // 9. Download do Áudio Meta (se mensagem for de voz/áudio)
+  let audioBase64: { data: string; mimeType: string } | null = null;
+  if (isAudio && audioId) {
+    audioBase64 = await baixarAudioMeta(audioId, loja.meta_access_token, audioMimeTypeRaw);
+  }
+
+  // 10. Buscar Contexto de Produtos, Categorias e Histórico Recente
+  const [produtosRes, categoriasRes, historicoRes] = await Promise.all([
     supabaseAdmin
       .from("produtos")
-      .select("nome, preco_venda, categoria, codigo_barras, estoque_atual")
+      .select("id, nome, preco_venda_varejo, preco_promocional, promocao_ativa, descricao, categoria_id, variacoes:variacoes_produto(valor_variacao_1, valor_variacao_2)")
       .eq("loja_id", loja.id)
       .eq("ativo", true)
-      .limit(35),
+      .limit(45),
+    supabaseAdmin
+      .from("categorias")
+      .select("id, nome")
+      .eq("loja_id", loja.id)
+      .eq("ativo", true),
     supabaseAdmin
       .from("mensagens_whatsapp")
       .select("remetente, conteudo, created_at")
@@ -316,20 +457,44 @@ async function processarEventoWhatsApp(payload: any) {
       .limit(8)
   ]);
 
-  const produtos = produtosRes.data || [];
+  let produtosRaw = produtosRes.data || [];
+  if (produtosRes.error) {
+    console.warn("[WhatsAppWebhook] Aviso ao buscar produtos com variacoes:", produtosRes.error.message);
+    const fallbackProds = await supabaseAdmin
+      .from("produtos")
+      .select("id, nome, preco_venda_varejo, preco_promocional, promocao_ativa, descricao, categoria_id")
+      .eq("loja_id", loja.id)
+      .eq("ativo", true)
+      .limit(45);
+    produtosRaw = fallbackProds.data || [];
+  }
+
+  const mapaCategorias = new Map((categoriasRes.data || []).map((c: any) => [c.id, c.nome]));
+  const produtosFormatados = produtosRaw.map((p: any) => ({
+    ...p,
+    categoria: mapaCategorias.get(p.categoria_id) || "Geral"
+  }));
+
   const historico = (historicoRes.data || []).reverse();
 
-  // 10. Construir Prompt Especializado para o Google Gemini
-  const promptSistema = montarPromptAtendimento(loja, nomeCliente, produtos, historico, textoMensagem);
+  // 11. Construir Prompt Especializado Alinhado ao Catálogo Online
+  const promptSistema = montarPromptAtendimento(
+    loja,
+    nomeCliente,
+    produtosFormatados,
+    historico,
+    textoMensagem,
+    Boolean(audioBase64)
+  );
 
-  // 11. Invocar a Google Gemini API (BYOK do Lojista)
-  const respostaGemini = await gerarRespostaGemini(loja.gemini_api_key, promptSistema);
+  // 12. Invocar a Google Gemini API com suporte a Áudio e Texto (BYOK do Lojista)
+  const respostaGemini = await gerarRespostaGemini(loja.gemini_api_key, promptSistema, audioBase64);
 
   if (!respostaGemini) {
     return;
   }
 
-  // 12. Enviar Resposta via Meta Cloud API
+  // 13. Enviar Resposta via Meta Cloud API
   const envioSucesso = await enviarMensagemMeta(
     loja.meta_phone_number_id,
     loja.meta_access_token,
@@ -338,7 +503,7 @@ async function processarEventoWhatsApp(payload: any) {
   );
 
   if (envioSucesso) {
-    // 13. Gravar mensagem enviada e incrementar contador de consumo atomicamente
+    // 14. Gravar mensagem enviada e incrementar contador de consumo atomicamente
     await salvarMensagemIa(supabaseAdmin, conversa.id, loja.id, respostaGemini);
 
     await supabaseAdmin.rpc("incrementar_consumo_whatsapp", {
@@ -376,6 +541,13 @@ async function enviarMensagemMeta(
   texto: string
 ): Promise<boolean> {
   try {
+    const textoLimpo = (texto || "").trim();
+    if (!textoLimpo) return false;
+
+    const textoAjustado = textoLimpo.length > 4000
+      ? textoLimpo.slice(0, 3995) + "..."
+      : textoLimpo;
+
     const url = `https://graph.facebook.com/v21.0/${metaPhoneNumberId}/messages`;
     const response = await fetch(url, {
       method: "POST",
@@ -388,7 +560,7 @@ async function enviarMensagemMeta(
         recipient_type: "individual",
         to: destinatario,
         type: "text",
-        text: { body: texto }
+        text: { body: textoAjustado }
       })
     });
 
@@ -498,27 +670,42 @@ async function getAvailableGeminiModelsEdge(
 
 /**
  * Gera a resposta através da Google Gemini API usando a chave BYOK do lojista,
- * com descoberta dinâmica de modelos e auto-recuperação (Self-Healing) caso ocorra 404.
+ * com suporte multimodal a áudio e texto, descoberta dinâmica de modelos e auto-recuperação (Self-Healing).
  */
-async function gerarRespostaGemini(apiKey: string, prompt: string): Promise<string | null> {
+async function gerarRespostaGemini(
+  apiKey: string,
+  prompt: string,
+  audioData?: { data: string; mimeType: string } | null
+): Promise<string | null> {
   const chaveLimpa = (apiKey || "").trim();
   if (!chaveLimpa) {
     console.error("[WhatsAppWebhook] Chave de API do Gemini ausente ou vazia.");
     return null;
   }
 
-  let modelos = await getAvailableGeminiModelsEdge(chaveLimpa);
+  const modelos = await getAvailableGeminiModelsEdge(chaveLimpa);
+
+  const parts: any[] = [];
+  if (audioData?.data) {
+    parts.push({
+      inlineData: {
+        mimeType: audioData.mimeType,
+        data: audioData.data
+      }
+    });
+  }
+  parts.push({ text: prompt });
 
   const payload = {
     contents: [
       {
         role: "user",
-        parts: [{ text: prompt }]
+        parts
       }
     ],
     generationConfig: {
-      temperature: 0.4,
-      maxOutputTokens: 600
+      temperature: 0.3,
+      maxOutputTokens: 1200
     }
   };
 
@@ -563,62 +750,106 @@ async function gerarRespostaGemini(apiKey: string, prompt: string): Promise<stri
 }
 
 /**
- * Constrói o contexto dinâmico do agente de IA
+ * Constrói o contexto dinâmico do agente de IA alinhado à Rubi do Catálogo Online
  */
 function montarPromptAtendimento(
   loja: any,
   nomeCliente: string,
   produtos: any[],
   historico: any[],
-  mensagemAtual: string
+  mensagemAtual: string,
+  temAudio: boolean
 ): string {
-  const listaProdutosTexto = produtos.length > 0
-    ? produtos.map(p => `- ${p.nome}: R$ ${Number(p.preco_venda || 0).toFixed(2)}${p.categoria ? ` (${p.categoria})` : ''}`).join('\n')
-    : 'Nenhum produto cadastrado no momento.';
+  // 1. Identificar Persona do Nicho
+  const configExtras = loja.configuracoes_extras || {};
+  const iaConfig = configExtras.ia || {};
+  const segmento = (loja.segmento || iaConfig.segmento || "geral").toLowerCase();
+  const personaInfo = PERSONAS_SEGMENTO[segmento] || PERSONAS_SEGMENTO.geral;
 
-  const historicoTexto = historico.length > 0
-    ? historico.map(h => `${h.remetente === 'cliente' ? 'Cliente' : 'Você (IA)'}: ${h.conteudo}`).join('\n')
-    : 'Início da conversa.';
+  const nomeLoja = loja.nome_fantasia || "Nossa Loja";
+  const catalogoLink = loja.slug_catalogo
+    ? `https://hubi.com.br/catalogo/${loja.slug_catalogo}`
+    : "";
 
   const enderecoTexto = [
     loja.endereco_logradouro,
     loja.endereco_numero,
     loja.endereco_bairro,
     loja.endereco_cidade
-  ].filter(Boolean).join(', ');
+  ].filter(Boolean).join(", ");
 
-  const catalogoLink = loja.slug_catalogo
-    ? `https://hubi.com.br/catalogo/${loja.slug_catalogo}`
-    : '';
+  // 2. Resumo Estruturado do Catálogo Real
+  const catalogoResumo = produtos.map((p: any) => {
+    const precoFinal = p.promocao_ativa && p.preco_promocional && Number(p.preco_promocional) > 0
+      ? Number(p.preco_promocional)
+      : Number(p.preco_venda_varejo || 0);
+
+    const variacoesTxt = Array.isArray(p.variacoes) && p.variacoes.length > 0
+      ? p.variacoes.map((v: any) => `${v.valor_variacao_1 || ''}${v.valor_variacao_2 ? ` / ${v.valor_variacao_2}` : ''}`).filter(Boolean).join(', ')
+      : undefined;
+
+    return {
+      id: p.id,
+      nome: p.nome,
+      categoria: p.categoria || "Geral",
+      preco: precoFinal.toFixed(2),
+      em_promocao: Boolean(p.promocao_ativa && p.preco_promocional),
+      descricao: p.descricao ? p.descricao.slice(0, 140) : "",
+      opcoes_variacoes: variacoesTxt || undefined,
+      link_direto: catalogoLink ? `${catalogoLink}?p=${p.id}` : undefined
+    };
+  });
+
+  // 3. Histórico Recente de Mensagens
+  const historicoTexto = historico.length > 0
+    ? historico.map((h: any) => `${h.remetente === "cliente" ? "Cliente" : "Rubi (Você)"}: ${h.conteudo}`).join("\n")
+    : "(Início da conversa)";
+
+  // 4. Instrução Específica para Áudio
+  const instrucaoAudio = temAudio
+    ? `
+🎧 O CLIENTE ENVIOU UM ÁUDIO DE VOZ NO WHATSAPP (ANEXO ACIMA):
+Ouça o áudio com atenção aos detalhes, compreenda cada dúvida, tom e intenção expressa na fala do cliente. Responda diretamente ao que ele disse no áudio com assertividade, simpatia e conhecimento pleno dos produtos da loja!
+`
+    : "";
 
   return `
-Você é a atendente virtual e consultora de vendas da loja "${loja.nome_fantasia || 'Nossa Loja'}".
-Seu objetivo é prestar um atendimento ágil, gentil, acolhedor e focado em converter vendas ou tirar dúvidas dos clientes.
+Você é a **Rubi**, a ${personaInfo.papel} da loja **${nomeLoja}** no atendimento ao cliente pelo WhatsApp.
+SEGMENTO DA LOJA: ${segmento} - ${personaInfo.diretriz}
 
-### DADOS DA LOJA:
-- Nome: ${loja.nome_fantasia || 'Nossa Loja'}
-- Endereço: ${enderecoTexto || 'Consulte nosso balcão'}
-${catalogoLink ? `- Catálogo Online: ${catalogoLink}` : ''}
+DADOS DA LOJA:
+- Nome: ${nomeLoja}
+- Endereço / Retirada: ${enderecoTexto || "Consulte nosso balcão"}
+${catalogoLink ? `- Link Oficial do Catálogo Online: ${catalogoLink}` : ""}
+${loja.prompt_personalizado ? `- Diretrizes Específicas do Lojista: "${loja.prompt_personalizado}"` : ""}
 
-### ORIENTAÇÕES ESPECÍFICAS DA LOJA:
-${loja.prompt_personalizado ? loja.prompt_personalizado : 'Atenda com presteza e ofereça opções do catálogo.'}
+CLIENTE ATUAL: ${nomeCliente ? `"${nomeCliente}"` : "Nome não informado"}
 
-### PRODUTOS DISPONÍVEIS:
-${listaProdutosTexto}
-
-### REGRAS OBRIGATÓRIAS DE COMPORTAMENTO:
-1. Responda sempre em Português do Brasil (pt-BR) de forma amigável e concisa (máximo 2 a 3 parágrafos curtos).
-2. Se o cliente perguntar sobre produtos ou preços, use as informações de produtos acima. Se não souber ou não tiver o item, seja sincera e sugira conferir o catálogo online ou aguardar um atendente.
-3. Se o cliente desejar falar com um humano, informe que está transferindo para nossa equipe.
-4. Jamais invente promoções ou condições que não foram especificadas.
-5. Quando oportuno, convide o cliente a ver mais itens no catálogo online: ${catalogoLink}.
-
-### HISTÓRICO RECENTE DA CONVERSA:
+HISTÓRICO RECENTE DA CONVERSA:
 ${historicoTexto}
 
-### MENSAGEM DO CLIENTE AGORA (${nomeCliente ? `Nome: ${nomeCliente}` : 'Cliente'}):
-"${mensagemAtual}"
+CATÁLOGO REAL DA LOJA (Produtos efetivamente disponíveis no estoque):
+${JSON.stringify(catalogoResumo, null, 2)}
 
-Responda diretamente ao cliente:
+🚨 DIRETRIZES INVIOLÁVEIS DE ATENDIMENTO E ZERO ALUCINAÇÃO:
+1. PROIBIDO INVENTAR PRODUTOS OU PREÇOS: Você SÓ PODE recomendar, descrever ou citar produtos que constam LITERALMENTE na lista "CATÁLOGO REAL DA LOJA" acima! NUNCA invente nomes de produtos, modelos fictícios ou marcas que a loja não vende. Use rigorosamente o valor que está no campo "preco" de cada produto listado. Se custa 6.50, diga "R$ 6,50". Jamais invente preços inexistentes!
+2. PREÇOS PROMOCIONAIS: Se o produto tiver "em_promocao: true", valorize com entusiasmo a oferta especial para o cliente!
+3. VARIAÇÕES E OPÇÕES: Se o produto tiver "opcoes_variacoes", informe as opções disponíveis (tamanhos, cores ou sabores) de forma natural.
+4. HUMANIZAÇÃO TOTAL (CONVERSA NATURAL ENTRE DOIS HUMANOS NO WHATSAPP):
+   - Converse com entusiasmo acolhedor, empatia e espontaneidade — como uma excelente consultora ou vendedora atenciosa conversando cara a cara no balcão da loja física ou em um áudio descontraído de WhatsApp.
+   - Fale em parágrafos contínuos, calorosos e vivos. Evite listas frias ou mecânicas de bullets.
+   - Use expressões naturais e afetuosas do dia a dia brasileiro: "Olha só", "Com certeza!", "Ah, excelente escolha!", "Pode deixar comigo", "Temos sim!", "Fica super à vontade", "Você vai adorar!".
+5. DÚVIDAS SOBRE PRODUTOS TÊM PRIORIDADE TOTAL: Se o cliente perguntar sobre um produto, responda imediatamente explicando para que serve, benefícios, modo de uso ou diferenciais, informando o valor. Jamais bloqueie o atendimento exigindo o nome do cliente.
+6. IDENTIFICAÇÃO DO CLIENTE: Somente quando o cliente fizer uma saudação simples e isolada (sem perguntas nem produtos), dê as boas-vindas e pergunte de forma leve e simpática: "Antes de começarmos, como posso te chamar? Me conta seu nome!"
+7. PRODUTOS INDISPONÍVEIS: Se o cliente perguntar por algo que não temos no catálogo, seja transparente e gentil: informe que no momento não temos esse item específico e ofereça com simpatia as melhores opções similares que realmente constam no catálogo.
+8. FECHAMENTO DE PEDIDOS E LINKS:
+   - Se o cliente quiser conferir fotos e detalhes, envie o link do catálogo: ${catalogoLink}.
+   - Se o cliente perguntar de um produto específico, pode fornecer o link direto do item no catálogo: ${catalogoLink}?p=ID_DO_PRODUTO.
+   - Se o cliente quiser fechar o pedido diretamente por aqui pelo WhatsApp, acolha com alegria e solicite os dados com carinho: itens/quantidades desejadas, endereço completo para entrega e forma de pagamento (Pix, Cartão ou Dinheiro).
+9. MANTENHA A CONVERSA CONCISA E FLUIDA: Responda em 2 a 3 parágrafos curtos, bem pontuados e agradáveis de ler no celular. Escreva sempre frases completas com pontuação final. NUNCA corte uma frase no meio.
+${instrucaoAudio}
+${!temAudio ? `MENSAGEM ATUAL DO CLIENTE:\n"${mensagemAtual}"` : ""}
+
+Responda diretamente ao cliente agora com o tom e carinho da Rubi:
 `.trim();
 }
