@@ -410,10 +410,21 @@ async function enviarMensagemMeta(
  * com fallback dinâmico entre modelos caso ocorra 404 (Not Found).
  */
 async function gerarRespostaGemini(apiKey: string, prompt: string): Promise<string | null> {
+  const chaveLimpa = (apiKey || "").trim();
+  if (!chaveLimpa) {
+    console.error("[WhatsAppWebhook] Chave de API do Gemini ausente ou vazia.");
+    return null;
+  }
+
   const modelos = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-2.0-flash"];
 
   const payload = {
-    contents: [{ parts: [{ text: prompt }] }],
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: prompt }]
+      }
+    ],
     generationConfig: {
       temperature: 0.4,
       maxOutputTokens: 600
@@ -422,21 +433,25 @@ async function gerarRespostaGemini(apiKey: string, prompt: string): Promise<stri
 
   for (const modelo of modelos) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(chaveLimpa)}`;
 
       const response = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify(payload)
       });
 
-      if (response.status === 404) {
-        console.warn(`[WhatsAppWebhook] Modelo ${modelo} retornou 404. Tentando próximo modelo...`);
-        continue;
-      }
-
       if (!response.ok) {
-        console.error(`[WhatsAppWebhook] Erro Gemini API com modelo ${modelo}: HTTP ${response.status}`);
+        const errorText = await response.text().catch(() => "");
+        console.error(
+          `[WhatsAppWebhook] Erro Gemini API (${modelo}) HTTP ${response.status}: ${errorText}`
+        );
+        if (response.status === 404) {
+          console.warn(`[WhatsAppWebhook] Modelo ${modelo} retornou 404. Tentando próximo modelo...`);
+          continue;
+        }
         return null;
       }
 
@@ -446,7 +461,7 @@ async function gerarRespostaGemini(apiKey: string, prompt: string): Promise<stri
         return textoGerado.trim();
       }
     } catch (err: any) {
-      console.error(`[WhatsAppWebhook] Exceção ao consultar Gemini (${modelo}):`, err?.message);
+      console.error(`[WhatsAppWebhook] Exceção ao consultar Gemini (${modelo}):`, err?.message || err);
     }
   }
 
