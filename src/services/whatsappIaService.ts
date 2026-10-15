@@ -2,44 +2,22 @@
 import { supabase } from '../lib/supabase';
 import { ConsumoWhatsApp, WhatsAppConfigForm } from '../types/whatsapp';
 
-// Modelos oficiais suportados pela Google REST API para o WhatsApp IA
-export const MODELOS_WHATSAPP_GEMINI = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-1.5-flash-8b'];
+import {
+  testarChaveGemini,
+  getAvailableGeminiModel,
+  getAvailableGeminiModels,
+  MODELOS_FALLBACK_CONTINGENCIA
+} from './geminiClient';
+
+// Modelos oficiais suportados pela Google REST API para o WhatsApp IA (contingência e referência)
+export const MODELOS_WHATSAPP_GEMINI = MODELOS_FALLBACK_CONTINGENCIA;
 
 /**
  * Testa a chave de API do Google Gemini informada pelo lojista (BYOK).
- * Realiza uma requisição leve com token reduzido para checar autenticidade e cota.
+ * Utiliza o cliente centralizado com rota oficial de listagem de modelos sem gastar cota de geração.
  */
-export const testarConexaoGemini = async (apiKey: string): Promise<{ sucesso: boolean; mensagem: string }> => {
-  const chaveLimpa = (apiKey || '').trim();
-  if (!chaveLimpa) {
-    return { sucesso: false, mensagem: 'Por favor, insira uma API Key válida do Google Gemini.' };
-  }
-
-  try {
-    // Utiliza a rota oficial de listagem de modelos para validação imediata da chave sem gastar cota de geração
-    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${chaveLimpa}`;
-
-    const resposta = await fetch(url, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' }
-    });
-
-    if (resposta.ok) {
-      return { sucesso: true, mensagem: 'Chave do Google Gemini validada com sucesso! Conexão ativa.' };
-    }
-
-    if (resposta.status === 400 || resposta.status === 403) {
-      return { sucesso: false, mensagem: 'Chave de API inválida ou sem permissão. Verifique sua chave no Google AI Studio.' };
-    }
-
-    if (resposta.status === 429) {
-      return { sucesso: false, mensagem: 'Cota de requisições excedida na API do Gemini. Tente novamente em instantes.' };
-    }
-
-    return { sucesso: false, mensagem: `Falha na verificação da chave (Status HTTP ${resposta.status}).` };
-  } catch (error: any) {
-    return { sucesso: false, mensagem: 'Não foi possível conectar aos servidores do Google Gemini. Verifique sua internet.' };
-  }
+export const testarConexaoGemini = async (apiKey: string): Promise<{ sucesso: boolean; mensagem: string; modelo?: string }> => {
+  return await testarChaveGemini(apiKey);
 };
 
 /**

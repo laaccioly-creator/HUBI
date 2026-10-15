@@ -11,8 +11,21 @@ import {
   FotoResultadoSerpApi
 } from './serpApiService';
 import { catalogJevService } from './catalogJevService';
+import {
+  getAvailableGeminiModels,
+  getAvailableGeminiModel,
+  invalidarCacheGemini,
+  testarChaveGemini
+} from './geminiClient';
 
-export { SerpApiQuotaError, SerpApiAuthError };
+export {
+  SerpApiQuotaError,
+  SerpApiAuthError,
+  getAvailableGeminiModels,
+  getAvailableGeminiModel,
+  invalidarCacheGemini,
+  testarChaveGemini
+};
 export type { FotoResultadoSerpApi };
 
 export interface ProdutoSugeridoIA {
@@ -440,82 +453,12 @@ export const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base
   });
 };
 
-const modelosGeminiValidosCache = new Map<string, string[]>();
-const MODELOS_PADRAO_ULTRA_RAPIDOS = ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-3.6-flash'];
-
-export const limparCacheModelosGemini = () => {
-  modelosGeminiValidosCache.clear();
+export const limparCacheModelosGemini = (apiKey?: string) => {
+  invalidarCacheGemini(apiKey);
 };
 
 export const obterModelosValidosGemini = async (apiKey: string): Promise<string[]> => {
-  const emCache = modelosGeminiValidosCache.get(apiKey);
-  if (emCache && emCache.length > 0) {
-    return emCache;
-  }
-
-  // Define imediatamente a lista padrão veloz para nunca bloquear o usuário em um round-trip de modelos
-  modelosGeminiValidosCache.set(apiKey, MODELOS_PADRAO_ULTRA_RAPIDOS);
-
-  // Consulta em background de forma silenciosa para atualizar o cache se necessário
-  (async () => {
-    try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-      if (res.ok) {
-        const data = await res.json();
-        const models = data?.models || [];
-        const lista = models
-          .filter((m: any) => {
-            const nome = (m.name || '').replace('models/', '').toLowerCase();
-            const suportaGenerate = Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent');
-            if (!suportaGenerate) return false;
-
-            if (
-              nome.includes('tts') ||
-              nome.includes('image') ||
-              nome.includes('embedding') ||
-              nome.includes('aqa') ||
-              nome.includes('bison') ||
-              nome.includes('live') ||
-              nome.includes('realtime') ||
-              nome.includes('omni') ||
-              nome.includes('transcribe') ||
-              nome.includes('customtools') ||
-              nome.includes('computer-use') ||
-              nome.includes('deep-research') ||
-              nome.includes('antigravity') ||
-              nome.includes('lyria') ||
-              nome.includes('gemma') ||
-              nome.includes('3.7') ||
-              nome.includes('3.8') ||
-              nome === 'gemini-flash-latest' ||
-              nome.includes('preview') ||
-              nome.startsWith('gemini-2.5-') ||
-              nome.includes('pro')
-            ) {
-              return false;
-            }
-            return true;
-          })
-          .map((m: any) => m.name.replace('models/', ''));
-
-        if (lista.length > 0) {
-          lista.sort((a: string, b: string) => {
-            const getScore = (name: string) => {
-              if (name === 'gemini-flash-lite-latest') return 100;
-              if (name === 'gemini-3.5-flash-lite') return 95;
-              if (name === 'gemini-3.6-flash') return 90;
-              return 10;
-            };
-            return getScore(b) - getScore(a);
-          });
-          const topModelos = lista.slice(0, 2);
-          modelosGeminiValidosCache.set(apiKey, topModelos);
-        }
-      }
-    } catch {}
-  })();
-
-  return MODELOS_PADRAO_ULTRA_RAPIDOS;
+  return await getAvailableGeminiModels(apiKey);
 };
 
 /**
@@ -623,6 +566,13 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
             } else {
               console.warn(`[Gemini] Modelo ${modelo} não possui cota gratuita ativa (limit: 0). Pulando para o próximo.`);
             }
+          }
+
+          // Se for 404 (Not Found / Modelo descontinuado), invalida o cache para Auto-Recuperação imediata
+          if (response.status === 404) {
+            console.warn(`[Gemini] Modelo ${modelo} retornou 404. Acionando auto-recuperação (Self-Healing)...`);
+            invalidarCacheGemini(apiKey);
+            break; // Pula para o próximo modelo
           }
 
           console.warn(`Tentativa com modelo ${modelo} retornou erro (${response.status}):`, msg);

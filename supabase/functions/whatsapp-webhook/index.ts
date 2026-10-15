@@ -405,9 +405,100 @@ async function enviarMensagemMeta(
   }
 }
 
+// Cache em memória dos modelos Gemini por API Key no ciclo de vida da Edge Function
+const cacheModelosValidosEdge = new Map<string, string[]>();
+const MODELOS_EDGE_CONTINGENCIA = ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-1.5-flash-8b"];
+
+/**
+ * Extrai pontuação de prioridade para modelos Gemini:
+ * Prioriza a família Flash e as versões mais recentes (3.8 > 3.5 > 2.5 > 1.5).
+ */
+function calcularScoreModeloEdge(nome: string): number {
+  const limpo = nome.toLowerCase().replace("models/", "");
+  let score = 0;
+  if (limpo.includes("flash")) score += 1000;
+  if (limpo.includes("pro")) score -= 200;
+
+  const match = limpo.match(/(\d+(?:\.\d+)?)/);
+  if (match) {
+    score += parseFloat(match[1]) * 100;
+  }
+  if (limpo.includes("lite")) score += 10;
+  return score;
+}
+
+/**
+ * Descoberta Dinâmica de Modelos Gemini disponíveis na conta do lojista (BYOK).
+ */
+async function getAvailableGeminiModelsEdge(
+  apiKey: string,
+  forcarAtualizacao = false
+): Promise<string[]> {
+  const chave = apiKey.trim();
+  if (!chave) return MODELOS_EDGE_CONTINGENCIA;
+
+  if (!forcarAtualizacao) {
+    const emCache = cacheModelosValidosEdge.get(chave);
+    if (emCache && emCache.length > 0) return emCache;
+  }
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(chave)}`;
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const models: any[] = data?.models || [];
+
+      const candidatos = models
+        .filter((m: any) => {
+          const nome = (m.name || "").replace("models/", "").toLowerCase();
+          const suportaGenerate =
+            Array.isArray(m.supportedGenerationMethods) &&
+            m.supportedGenerationMethods.includes("generateContent");
+
+          if (!suportaGenerate) return false;
+
+          // Ignora modelos não textuais ou pesados
+          if (
+            nome.includes("embedding") ||
+            nome.includes("aqa") ||
+            nome.includes("bison") ||
+            nome.includes("tts") ||
+            nome.includes("image") ||
+            nome.includes("live") ||
+            nome.includes("realtime") ||
+            nome.includes("customtools") ||
+            nome.includes("computer-use") ||
+            nome.includes("deep-research") ||
+            nome.includes("antigravity") ||
+            nome.includes("lyria")
+          ) {
+            return false;
+          }
+          return true;
+        })
+        .map((m: any) => (m.name || "").replace("models/", ""));
+
+      if (candidatos.length > 0) {
+        candidatos.sort((a, b) => calcularScoreModeloEdge(b) - calcularScoreModeloEdge(a));
+        cacheModelosValidosEdge.set(chave, candidatos);
+        return candidatos;
+      }
+    }
+  } catch (err: any) {
+    console.warn("[WhatsAppWebhook] Falha ao consultar modelos dinâmicos na Google API:", err?.message || err);
+  }
+
+  return MODELOS_EDGE_CONTINGENCIA;
+}
+
 /**
  * Gera a resposta através da Google Gemini API usando a chave BYOK do lojista,
- * com fallback dinâmico entre modelos caso ocorra 404 (Not Found).
+ * com descoberta dinâmica de modelos e auto-recuperação (Self-Healing) caso ocorra 404.
  */
 async function gerarRespostaGemini(apiKey: string, prompt: string): Promise<string | null> {
   const chaveLimpa = (apiKey || "").trim();
@@ -416,7 +507,7 @@ async function gerarRespostaGemini(apiKey: string, prompt: string): Promise<stri
     return null;
   }
 
-  const modelos = ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-1.5-flash-8b"];
+  let modelos = await getAvailableGeminiModelsEdge(chaveLimpa);
 
   const payload = {
     contents: [
@@ -431,7 +522,8 @@ async function gerarRespostaGemini(apiKey: string, prompt: string): Promise<stri
     }
   };
 
-  for (const modelo of modelos) {
+  for (let i = 0; i < modelos.length; i++) {
+    const modelo = modelos[i];
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${encodeURIComponent(chaveLimpa)}`;
 
@@ -448,8 +540,10 @@ async function gerarRespostaGemini(apiKey: string, prompt: string): Promise<stri
         console.error(
           `[WhatsAppWebhook] Erro Gemini API (${modelo}) HTTP ${response.status}: ${errorText}`
         );
+
         if (response.status === 404) {
-          console.warn(`[WhatsAppWebhook] Modelo ${modelo} retornou 404. Tentando próximo modelo...`);
+          console.warn(`[WhatsAppWebhook] Modelo ${modelo} retornou 404. Invalidando cache e auto-recuperando...`);
+          cacheModelosValidosEdge.delete(chaveLimpa);
           continue;
         }
         return null;
