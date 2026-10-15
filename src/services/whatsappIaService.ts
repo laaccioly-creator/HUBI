@@ -122,11 +122,11 @@ export const carregarConfiguracoesWhatsApp = async (lojaId: string): Promise<Wha
       ia_whatsapp_ativa: data.ia_whatsapp_ativa !== false,
       pausar_ao_atingir_limite: data.pausar_ao_atingir_limite === true,
       limite_mensal_alerta: data.limite_mensal_alerta || 1000,
-      gemini_api_key: data.gemini_api_key || '',
-      meta_waba_id: data.meta_waba_id || '',
-      meta_phone_number_id: data.meta_phone_number_id || '',
-      meta_access_token: data.meta_access_token || '',
-      meta_verify_token: data.meta_verify_token || 'hubi_whatsapp_webhook_token',
+      gemini_api_key: (data.gemini_api_key || '').trim(),
+      meta_waba_id: (data.meta_waba_id || '').trim(),
+      meta_phone_number_id: (data.meta_phone_number_id || '').trim(),
+      meta_access_token: (data.meta_access_token || '').trim(),
+      meta_verify_token: (data.meta_verify_token || 'hubi_whatsapp_webhook_token').trim(),
       prompt_personalizado: data.prompt_personalizado || '',
       mensagem_pausa_humano: data.mensagem_pausa_humano || 'Nosso atendimento por inteligência artificial está temporariamente pausado. Um atendente da nossa equipe continuará seu atendimento por aqui em breve!'
     };
@@ -150,13 +150,13 @@ export const salvarConfiguracoesWhatsApp = async (
       ia_whatsapp_ativa: config.ia_whatsapp_ativa ?? true,
       pausar_ao_atingir_limite: Boolean(config.pausar_ao_atingir_limite),
       limite_mensal_alerta: Number(config.limite_mensal_alerta) || 1000,
-      gemini_api_key: config.gemini_api_key ? config.gemini_api_key.trim() : null,
-      meta_waba_id: config.meta_waba_id ? config.meta_waba_id.trim() : null,
-      meta_phone_number_id: config.meta_phone_number_id ? config.meta_phone_number_id.trim() : null,
-      meta_access_token: config.meta_access_token ? config.meta_access_token.trim() : null,
-      meta_verify_token: config.meta_verify_token ? config.meta_verify_token.trim() : 'hubi_whatsapp_webhook_token',
-      prompt_personalizado: config.prompt_personalizado ? config.prompt_personalizado.trim() : null,
-      mensagem_pausa_humano: config.mensagem_pausa_humano ? config.mensagem_pausa_humano.trim() : null,
+      gemini_api_key: config.gemini_api_key?.trim() || null,
+      meta_waba_id: config.meta_waba_id?.trim() || null,
+      meta_phone_number_id: config.meta_phone_number_id?.trim() || null,
+      meta_access_token: config.meta_access_token?.trim() || null,
+      meta_verify_token: config.meta_verify_token?.trim() || 'hubi_whatsapp_webhook_token',
+      prompt_personalizado: config.prompt_personalizado?.trim() || null,
+      mensagem_pausa_humano: config.mensagem_pausa_humano?.trim() || null,
       atualizado_em: new Date().toISOString()
     };
 

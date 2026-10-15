@@ -244,9 +244,11 @@ async function processarEventoWhatsApp(payload: any) {
   }
 
   const wamid = message.id; // Identificador exclusivo da Meta (wamid.HBg...)
-  const metaPhoneNumberId = changes?.metadata?.phone_number_id;
+  const rawPhoneId = String(changes?.metadata?.phone_number_id || "").trim();
   const fromCliente = normalizarTelefone(message.from);
   const nomeCliente = changes?.contacts?.[0]?.profile?.name || "";
+
+  console.log("[WhatsAppWebhook] Evento recebido da Meta. Buscando loja com phone_number_id:", rawPhoneId);
 
   const messageType = message.type || "text";
   const isAudio = messageType === "audio" || Boolean(message.audio);
@@ -262,7 +264,8 @@ async function processarEventoWhatsApp(payload: any) {
     ""
   ).trim();
 
-  if (!wamid || !metaPhoneNumberId || !fromCliente) {
+  if (!wamid || !rawPhoneId || !fromCliente) {
+    console.warn("[WhatsAppWebhook] Dados essenciais ausentes:", { wamid, rawPhoneId, fromCliente });
     return;
   }
 
@@ -270,33 +273,18 @@ async function processarEventoWhatsApp(payload: any) {
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
   const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
-  // 1. Identificar o Tenant correspondente pelo Phone Number ID
-  const { data: loja, error: lojaError } = await supabaseAdmin
+  // 1. Identificar o Tenant correspondente pelo Phone Number ID sanitizado
+  const { data: loja, error: erroLoja } = await supabaseAdmin
     .from("lojas")
-    .select(`
-      id,
-      nome_fantasia,
-      slug_catalogo,
-      segmento,
-      configuracoes_extras,
-      ia_whatsapp_ativa,
-      pausar_ao_atingir_limite,
-      limite_mensal_alerta,
-      gemini_api_key,
-      meta_phone_number_id,
-      meta_access_token,
-      prompt_personalizado,
-      mensagem_pausa_humano,
-      endereco_logradouro,
-      endereco_numero,
-      endereco_bairro,
-      endereco_cidade
-    `)
-    .eq("meta_phone_number_id", metaPhoneNumberId)
+    .select("*")
+    .eq("meta_phone_number_id", rawPhoneId)
     .maybeSingle();
 
-  if (lojaError || !loja) {
-    console.warn(`[WhatsAppWebhook] Nenhuma loja encontrada para phone_number_id: ${metaPhoneNumberId}`);
+  if (erroLoja || !loja) {
+    console.error("[WhatsAppWebhook] Loja não encontrada para phone_number_id:", {
+      procurado: rawPhoneId,
+      erro: erroLoja?.message || erroLoja
+    });
     return;
   }
 
@@ -443,7 +431,8 @@ async function processarEventoWhatsApp(payload: any) {
       .select("id, nome, preco_venda_varejo, preco_promocional, promocao_ativa, descricao, categoria_id, variacoes:variacoes_produto(valor_variacao_1, valor_variacao_2)")
       .eq("loja_id", loja.id)
       .eq("ativo", true)
-      .limit(45),
+      .eq("exibir_catalogo", true)
+      .limit(30),
     supabaseAdmin
       .from("categorias")
       .select("id, nome")
@@ -458,15 +447,16 @@ async function processarEventoWhatsApp(payload: any) {
   ]);
 
   let produtosRaw = produtosRes.data || [];
-  if (produtosRes.error) {
-    console.warn("[WhatsAppWebhook] Aviso ao buscar produtos com variacoes:", produtosRes.error.message);
+  if (produtosRes.error || produtosRaw.length === 0) {
     const fallbackProds = await supabaseAdmin
       .from("produtos")
       .select("id, nome, preco_venda_varejo, preco_promocional, promocao_ativa, descricao, categoria_id")
       .eq("loja_id", loja.id)
       .eq("ativo", true)
-      .limit(45);
-    produtosRaw = fallbackProds.data || [];
+      .limit(30);
+    if (fallbackProds.data && fallbackProds.data.length > 0) {
+      produtosRaw = fallbackProds.data;
+    }
   }
 
   const mapaCategorias = new Map((categoriasRes.data || []).map((c: any) => [c.id, c.nome]));

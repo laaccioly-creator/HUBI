@@ -147,9 +147,21 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
       setSalvando(true);
       if (onSalvandoChange) onSalvandoChange(true);
 
-      const res = await salvarConfiguracoesWhatsApp(idLojaAlvo, form);
+      const formSanitizado: WhatsAppConfigForm = {
+        ...form,
+        meta_phone_number_id: (form.meta_phone_number_id || '').trim(),
+        meta_waba_id: (form.meta_waba_id || '').trim(),
+        meta_access_token: (form.meta_access_token || '').trim(),
+        gemini_api_key: (form.gemini_api_key || '').trim(),
+        prompt_personalizado: (form.prompt_personalizado || '').trim(),
+        mensagem_pausa_humano: (form.mensagem_pausa_humano || '').trim(),
+        meta_verify_token: (form.meta_verify_token || 'hubi_whatsapp_webhook_token').trim()
+      };
+
+      const res = await salvarConfiguracoesWhatsApp(idLojaAlvo, formSanitizado);
       if (res.sucesso) {
-        mostrarSucesso('Configurações Salvas', 'As preferências do WhatsApp com IA foram atualizadas no banco com sucesso!');
+        setForm(formSanitizado);
+        mostrarSucesso('Configurações Salvas', 'As credenciais e preferências do WhatsApp com IA foram atualizadas no banco com sucesso!');
         setMensagemSucesso('Configurações salvas no banco com sucesso!');
         setTimeout(() => setMensagemSucesso(null), 4000);
         if (recarregarDadosLoja) {
