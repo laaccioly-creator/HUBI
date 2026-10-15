@@ -13,16 +13,12 @@ export const testarConexaoGemini = async (apiKey: string): Promise<{ sucesso: bo
   }
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${chaveLimpa}`;
-    const payload = {
-      contents: [{ parts: [{ text: 'ping' }] }],
-      generationConfig: { maxOutputTokens: 2, temperature: 0.1 }
-    };
+    // Utiliza a rota oficial de listagem de modelos para validação imediata da chave sem gastar cota de geração
+    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${chaveLimpa}`;
 
     const resposta = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
     });
 
     if (resposta.ok) {
