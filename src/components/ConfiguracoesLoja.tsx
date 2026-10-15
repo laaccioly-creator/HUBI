@@ -48,7 +48,8 @@ import {
   Loader2,
   Gift,
   Target,
-  Tag
+  Tag,
+  Bot
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -69,6 +70,7 @@ import { paymentGatewayService } from '../services/paymentGatewayService';
 import { ImportarExportarProdutos } from './ImportarExportarProdutos';
 import { CentralImportarExportar } from './CentralImportarExportar';
 import { ConfiguracoesMetas } from './configuracoes/ConfiguracoesMetas';
+import { ConfiguracoesWhatsAppIA } from './configuracoes/ConfiguracoesWhatsAppIA';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { MobileHeader } from './layout/MobileHeader';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
@@ -82,6 +84,7 @@ type SubTelaConfig =
   | 'geral'
   | 'tipos-venda'
   | 'metas'
+  | 'whatsapp-ia'
   | 'dados-loja'
   | 'produtos'
   | 'catalogo'
@@ -1570,6 +1573,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
     { id: 'geral', label: 'Geral', icon: Settings },
     { id: 'tipos-venda', label: 'Tipos de Venda', icon: Tag },
     ...(podeGerenciarMetas ? [{ id: 'metas', label: 'Metas da Loja', icon: Target }] : []),
+    { id: 'whatsapp-ia', label: 'WhatsApp com IA', icon: Bot },
     { id: 'pagamentos', label: 'Opções de Pagamento', icon: CreditCard },
     { id: 'importar-exportar', label: 'Importar / Exportar', icon: FileSpreadsheet },
     { id: 'dados-loja', label: 'Dados da Loja', icon: Store },
@@ -1594,6 +1598,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
             subTela === 'geral' ? 'Geral' :
             subTela === 'tipos-venda' ? 'Tipos de Venda' :
             subTela === 'metas' ? 'Metas da Loja' :
+            subTela === 'whatsapp-ia' ? 'WhatsApp com IA' :
             subTela === 'pagamentos' ? 'Opções de Pagamento' :
             subTela === 'dados-loja' ? 'Dados da Loja' :
             subTela === 'recibo' ? 'Meu Recibo' :
@@ -2168,6 +2173,14 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
             />
           )}
 
+          {/* SUBTELA WHATSAPP IA MOBILE */}
+          {subTela === 'whatsapp-ia' && (
+            <ConfiguracoesWhatsAppIA
+              lojaId={loja?.id}
+              onVoltar={() => setSubTela('menu')}
+            />
+          )}
+
           {/* SUBTELA TIPOS DE VENDA MOBILE */}
           {subTela === 'tipos-venda' && (
             <div className="space-y-4">
@@ -2291,7 +2304,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           )}
 
           {/* DEMAIS SUBTELAS */}
-          {subTela !== 'menu' && subTela !== 'geral' && subTela !== 'tipos-venda' && subTela !== 'dados-loja' && subTela !== 'recibo' && subTela !== 'exportar' && subTela !== 'pagamentos' && subTela !== 'metas' && (
+          {subTela !== 'menu' && subTela !== 'geral' && subTela !== 'tipos-venda' && subTela !== 'dados-loja' && subTela !== 'recibo' && subTela !== 'exportar' && subTela !== 'pagamentos' && subTela !== 'metas' && subTela !== 'whatsapp-ia' && (
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
               <h3 className="font-bold text-sm text-slate-800">Configurações desta seção</h3>
               <p className="text-xs text-slate-500">
@@ -4372,6 +4385,16 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* ========================================================================= */}
         {subTela === 'metas' && (
           <ConfiguracoesMetas
+            lojaId={loja?.id}
+            onVoltar={() => setSubTela('menu')}
+          />
+        )}
+
+        {/* ========================================================================= */}
+        {/* SUBTELA: ATENDIMENTO WHATSAPP COM IA (BYOK + META CLOUD API) */}
+        {/* ========================================================================= */}
+        {subTela === 'whatsapp-ia' && (
+          <ConfiguracoesWhatsAppIA
             lojaId={loja?.id}
             onVoltar={() => setSubTela('menu')}
           />

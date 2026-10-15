@@ -273,6 +273,16 @@ export interface Loja {
   status_enviado?: boolean;
   status_entregue?: boolean;
   status_pronto_para_retirar?: boolean;
+  ia_whatsapp_ativa?: boolean;
+  pausar_ao_atingir_limite?: boolean;
+  limite_mensal_alerta?: number;
+  gemini_api_key?: string | null;
+  meta_waba_id?: string | null;
+  meta_phone_number_id?: string | null;
+  meta_access_token?: string | null;
+  meta_verify_token?: string | null;
+  prompt_personalizado?: string | null;
+  mensagem_pausa_humano?: string | null;
   tipos_venda?: {
     varejo?: boolean;
     atacado?: boolean;
