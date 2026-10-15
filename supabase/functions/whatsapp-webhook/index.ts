@@ -649,11 +649,18 @@ async function processarEventoWhatsApp(payload: any) {
     Boolean(audioBase64)
   );
 
-  // 13. Invocar a Google Gemini API com suporte a Áudio, Histórico e BYOK do Lojista
+  // 13. Invocar a Google Gemini API com suporte a Function Calling (Tools), Áudio, Histórico e BYOK do Lojista
   const respostaGemini = await gerarRespostaGemini(
     loja.gemini_api_key,
     systemInstructionText,
-    contents
+    contents,
+    {
+      supabaseAdmin,
+      loja,
+      fromCliente,
+      conversa,
+      sessaoId
+    }
   );
 
   if (!respostaGemini) {
@@ -852,13 +859,339 @@ async function getAvailableGeminiModelsEdge(
 }
 
 /**
+ * Declaração formal das ferramentas (Tools / Function Calling) para o Gemini
+ */
+const GEMINI_TOOLS_DECLARATIONS = [
+  {
+    functionDeclarations: [
+      {
+        name: "registrar_pedido",
+        description: "Grava formalmente um novo pedido de compra no sistema HUBI após o cliente confirmar os itens, endereço de entrega e forma de pagamento.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            nome_cliente: {
+              type: "STRING",
+              description: "Nome do cliente informado durante a conversa."
+            },
+            tipo_entrega: {
+              type: "STRING",
+              enum: ["entrega", "retirada"],
+              description: "Método de recebimento escolhido pelo cliente."
+            },
+            endereco_entrega: {
+              type: "OBJECT",
+              properties: {
+                logradouro: { type: "STRING" },
+                numero: { type: "STRING" },
+                bairro: { type: "STRING" },
+                complemento: { type: "STRING" },
+                ponto_referencia: { type: "STRING" }
+              },
+              description: "Dados de endereço completos (obrigatório se tipo_entrega for 'entrega')."
+            },
+            forma_pagamento: {
+              type: "STRING",
+              enum: ["pix", "cartao_credito", "cartao_debito", "dinheiro"],
+              description: "Forma de pagamento confirmada pelo cliente."
+            },
+            troco_para: {
+              type: "NUMBER",
+              description: "Valor para troco caso a forma de pagamento seja dinheiro."
+            },
+            itens: {
+              type: "ARRAY",
+              items: {
+                type: "OBJECT",
+                properties: {
+                  produto_id: { type: "STRING", description: "ID UUID do produto no catálogo." },
+                  nome_produto: { type: "STRING", description: "Nome exato do produto." },
+                  quantidade: { type: "INTEGER", description: "Quantidade solicitada." },
+                  preco_unitario: { type: "NUMBER", description: "Preço unitário em reais." },
+                  observacoes: { type: "STRING", description: "Variação, sabor ou observação." }
+                },
+                required: ["produto_id", "nome_produto", "quantidade", "preco_unitario"]
+              },
+              description: "Lista dos itens e quantidades validados."
+            },
+            observacoes_gerais: {
+              type: "STRING",
+              description: "Observações gerais adicionadas pelo cliente."
+            }
+          },
+          required: ["tipo_entrega", "forma_pagamento", "itens"]
+        }
+      },
+      {
+        name: "solicitar_atendente_humano",
+        description: "Pausa a assistência da IA e transfere a conversa para a equipe de atendimento humano no painel HUBI.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            motivo: {
+              type: "STRING",
+              description: "Resumo conciso do motivo da solicitação de transbordo humano."
+            }
+          },
+          required: ["motivo"]
+        }
+      }
+    ]
+  }
+];
+
+/**
+ * Salva formalmente um pedido na tabela public.pedidos e seus itens em public.itens_pedido
+ */
+async function salvarPedidoNoBanco(
+  supabaseAdmin: any,
+  loja: any,
+  telefoneCliente: string,
+  args: any,
+  sessaoId: string | null
+): Promise<{
+  success: boolean;
+  erro?: string;
+  pedido_id?: string;
+  numero_pedido?: number;
+  subtotal?: number;
+  valor_frete?: number;
+  valor_total?: number;
+  tipo_entrega?: string;
+  forma_pagamento?: string;
+  tempo_estimado?: string;
+}> {
+  try {
+    if (!args.itens || !Array.isArray(args.itens) || args.itens.length === 0) {
+      return { success: false, erro: "O pedido precisa conter pelo menos um item." };
+    }
+
+    // 1. Validar produtos e calcular subtotal com preços reais do banco
+    const produtoIds = args.itens.map((it: any) => it.produto_id).filter(Boolean);
+    const { data: produtosBanco } = await supabaseAdmin
+      .from("produtos")
+      .select("id, nome, preco_venda_varejo, preco_promocional, promocao_ativa, quantidade_estoque, ativo")
+      .in("id", produtoIds)
+      .eq("loja_id", loja.id);
+
+    const mapaProdutos = new Map<string, any>((produtosBanco || []).map((p: any) => [p.id, p]));
+
+    let subtotalCalculado = 0;
+    const itensValidados: any[] = [];
+
+    for (const item of args.itens) {
+      let prodDb = mapaProdutos.get(item.produto_id);
+
+      // Fallback: se não achar por id exato, busca por nome aproximado
+      if (!prodDb && item.nome_produto) {
+        const { data: prodPorNome } = await supabaseAdmin
+          .from("produtos")
+          .select("id, nome, preco_venda_varejo, preco_promocional, promocao_ativa, quantidade_estoque, ativo")
+          .ilike("nome", `%${item.nome_produto.trim()}%`)
+          .eq("loja_id", loja.id)
+          .eq("ativo", true)
+          .limit(1)
+          .maybeSingle();
+
+        if (prodPorNome) {
+          prodDb = prodPorNome;
+        }
+      }
+
+      if (!prodDb || prodDb.ativo === false) {
+        return {
+          success: false,
+          erro: `O produto "${item.nome_produto || item.produto_id}" não está ativo ou não consta no catálogo.`
+        };
+      }
+
+      // Checagem de estoque
+      if (prodDb.quantidade_estoque !== null && Number(prodDb.quantidade_estoque) <= 0) {
+        return {
+          success: false,
+          erro: `O produto "${prodDb.nome}" está esgotado no momento.`
+        };
+      }
+
+      // Preço de venda real (respeita promoção se ativa)
+      const precoPromo = Number(prodDb.preco_promocional || 0);
+      const precoVenda = (prodDb.promocao_ativa && precoPromo > 0)
+        ? precoPromo
+        : Number(prodDb.preco_venda_varejo || item.preco_unitario || 0);
+
+      const qtd = Math.max(1, parseInt(item.quantidade) || 1);
+      const subItem = qtd * precoVenda;
+      subtotalCalculado += subItem;
+
+      itensValidados.push({
+        loja_id: loja.id,
+        produto_id: prodDb.id,
+        nome_produto: prodDb.nome,
+        preco_venda_unitario: precoVenda,
+        quantidade: qtd,
+        subtotal: subItem,
+        tabela_preco_utilizada: "varejo",
+        observacoes: item.observacoes ? String(item.observacoes).slice(0, 200) : null
+      });
+    }
+
+    // 2. Calcular taxa de entrega / frete
+    let valorFrete = 0;
+    if (args.tipo_entrega === "entrega") {
+      const { data: shippingConfig } = await supabaseAdmin
+        .from("loja_shipping_configs")
+        .select("frete_proprio_ativo, frete_proprio_valor_padrao, frete_gratis_ativo, frete_gratis_valor_minimo")
+        .eq("loja_id", loja.id)
+        .maybeSingle();
+
+      const freteGratisAtivo = Boolean(shippingConfig?.frete_gratis_ativo || loja.frete_gratis_ativo);
+      const freteGratisMin = Number(shippingConfig?.frete_gratis_valor_minimo || loja.frete_gratis_valor_minimo || 0);
+
+      if (freteGratisAtivo && freteGratisMin > 0 && subtotalCalculado >= freteGratisMin) {
+        valorFrete = 0;
+      } else if (shippingConfig?.frete_proprio_ativo) {
+        valorFrete = Number(shippingConfig.frete_proprio_valor_padrao || 12.00);
+      } else {
+        valorFrete = 12.00; // Padrão de Fortaleza
+      }
+    }
+
+    const valorTotal = subtotalCalculado + valorFrete;
+
+    // 3. Formatar endereço de entrega
+    let enderecoTexto = "Retirada no balcão da loja";
+    if (args.tipo_entrega === "entrega") {
+      const end = args.endereco_entrega || {};
+      const partes = [
+        end.logradouro ? `${end.logradouro}, ${end.numero || "S/N"}` : null,
+        end.bairro ? `Bairro: ${end.bairro}` : null,
+        end.complemento ? `Compl: ${end.complemento}` : null,
+        end.ponto_referencia ? `Ponto de Ref: ${end.ponto_referencia}` : null
+      ].filter(Boolean);
+      enderecoTexto = partes.join(" - ") || "Endereço informado no WhatsApp";
+    }
+
+    // 4. Inserir Pedido na tabela public.pedidos
+    const { data: novoPedido, error: erroCriarPedido } = await supabaseAdmin
+      .from("pedidos")
+      .insert({
+        loja_id: loja.id,
+        cliente_nome_avulso: args.nome_cliente || "Cliente WhatsApp",
+        cliente_telefone_avulso: telefoneCliente,
+        origem: "whatsapp_bot",
+        tabela_preco_aplicada: "varejo",
+        status: "pendente",
+        status_pagamento: "pendente",
+        forma_pagamento_catalogo: args.forma_pagamento || "pix",
+        troco_para: args.troco_para ? Number(args.troco_para) : null,
+        subtotal: subtotalCalculado,
+        subtotal_produtos: subtotalCalculado,
+        valor_frete: valorFrete,
+        valor_total: valorTotal,
+        endereco_entrega: enderecoTexto,
+        observacoes: args.observacoes_gerais ? String(args.observacoes_gerais).slice(0, 400) : null,
+        data_venda: new Date().toISOString(),
+        metadados: {
+          tipo_entrega: args.tipo_entrega,
+          sessao_id: sessaoId,
+          gerado_por: "rubi_ia_function_calling",
+          criado_em_fortaleza: new Date().toISOString()
+        }
+      })
+      .select("id, numero_pedido")
+      .single();
+
+    if (erroCriarPedido || !novoPedido) {
+      console.error("[WhatsAppWebhook] Erro ao criar pedido:", erroCriarPedido?.message);
+      return { success: false, erro: "Erro ao registrar o pedido no banco de dados." };
+    }
+
+    // 5. Inserir Itens do Pedido na tabela public.itens_pedido
+    const itensComPedidoId = itensValidados.map((it: any) => ({
+      pedido_id: novoPedido.id,
+      ...it
+    }));
+
+    const { error: erroItens } = await supabaseAdmin
+      .from("itens_pedido")
+      .insert(itensComPedidoId);
+
+    if (erroItens) {
+      console.error("[WhatsAppWebhook] Erro ao criar itens do pedido, cancelando:", erroItens.message);
+      await supabaseAdmin.from("pedidos").delete().eq("id", novoPedido.id);
+      return { success: false, erro: "Falha ao gravar os itens do pedido." };
+    }
+
+    return {
+      success: true,
+      pedido_id: novoPedido.id,
+      numero_pedido: novoPedido.numero_pedido,
+      subtotal: subtotalCalculado,
+      valor_frete: valorFrete,
+      valor_total: valorTotal,
+      tipo_entrega: args.tipo_entrega,
+      forma_pagamento: args.forma_pagamento,
+      tempo_estimado: "30 a 50 minutos"
+    };
+  } catch (err: any) {
+    console.error("[WhatsAppWebhook] Exceção em salvarPedidoNoBanco:", err?.message || err);
+    return { success: false, erro: "Erro inesperado ao salvar pedido." };
+  }
+}
+
+/**
+ * Realiza o transbordo humano: pausa o bot e marca a conversa para atendimento manual
+ */
+async function pausarParaHandoffHumano(
+  supabaseAdmin: any,
+  loja: any,
+  conversa: any,
+  sessaoId: string | null,
+  motivo: string
+): Promise<void> {
+  const agoraIso = new Date().toISOString();
+
+  await supabaseAdmin
+    .from("conversas_whatsapp")
+    .update({ status: "humano", ultima_mensagem_em: agoraIso })
+    .eq("id", conversa.id);
+
+  if (sessaoId) {
+    await supabaseAdmin
+      .from("whatsapp_sessoes")
+      .update({
+        status: "pausado_humano",
+        atualizado_em: agoraIso
+      })
+      .eq("id", sessaoId);
+
+    await supabaseAdmin
+      .from("whatsapp_mensagens")
+      .insert({
+        sessao_id: sessaoId,
+        loja_id: loja.id,
+        origem: "model",
+        conteudo: `[TRANSBORDO HUMANO ACIONADO]: ${motivo}`,
+        metadata: { tipo: "handoff_humano", motivo, data: agoraIso }
+      });
+  }
+}
+
+/**
  * Gera a resposta através da Google Gemini API usando a chave BYOK do lojista,
- * com suporte a systemInstruction, histórico contextual em contents e auto-recuperação (Self-Healing).
+ * com suporte a Function Calling (Tools), systemInstruction, histórico contextual em contents e auto-recuperação (Self-Healing).
  */
 async function gerarRespostaGemini(
   apiKey: string,
   systemInstructionText: string,
-  contents: any[]
+  contents: any[],
+  contextoTool?: {
+    supabaseAdmin: any;
+    loja: any;
+    fromCliente: string;
+    conversa: any;
+    sessaoId: string | null;
+  }
 ): Promise<string | null> {
   const chaveLimpa = (apiKey || "").trim();
   if (!chaveLimpa) {
@@ -868,7 +1201,7 @@ async function gerarRespostaGemini(
 
   const modelos = await getAvailableGeminiModelsEdge(chaveLimpa);
 
-  const payload = {
+  const payload: any = {
     systemInstruction: {
       parts: [{ text: systemInstructionText }]
     },
@@ -878,6 +1211,10 @@ async function gerarRespostaGemini(
       maxOutputTokens: 1200
     }
   };
+
+  if (contextoTool) {
+    payload.tools = GEMINI_TOOLS_DECLARATIONS;
+  }
 
   for (let i = 0; i < modelos.length; i++) {
     const modelo = modelos[i];
@@ -902,6 +1239,25 @@ async function gerarRespostaGemini(
           console.warn(`[WhatsAppWebhook] Modelo ${modelo} retornou 404. Invalidando cache e auto-recuperando...`);
           cacheModelosValidosEdge.delete(chaveLimpa);
           continue;
+        }
+
+        // Se o modelo rejeitar o campo tools (caso de modelo incompatível), tentar sem tools
+        if (response.status === 400 && errorText.includes("tools")) {
+          console.warn(`[WhatsAppWebhook] Modelo ${modelo} não aceitou tools. Tentando sem tools...`);
+          const payloadSemTools = { ...payload };
+          delete payloadSemTools.tools;
+
+          const respSemTools = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payloadSemTools)
+          });
+
+          if (respSemTools.ok) {
+            const dataSt = await respSemTools.json();
+            const textoSt = dataSt?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (textoSt) return textoSt.trim();
+          }
         }
 
         // Se o modelo rejeitar o campo systemInstruction (caso legado), fallback embutindo na primeira mensagem
@@ -942,7 +1298,94 @@ async function gerarRespostaGemini(
       }
 
       const data = await response.json();
-      const textoGerado = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      const candidate = data?.candidates?.[0];
+      const parts = candidate?.content?.parts || [];
+      const functionCallPart = parts.find((p: any) => p.functionCall);
+
+      // Tratamento de Function Calling (Tools)
+      if (functionCallPart?.functionCall && contextoTool) {
+        const { name, args } = functionCallPart.functionCall;
+        console.log(`[WhatsAppWebhook] Gemini invocou Function Calling: ${name}`, JSON.stringify(args));
+
+        if (name === "solicitar_atendente_humano") {
+          await pausarParaHandoffHumano(
+            contextoTool.supabaseAdmin,
+            contextoTool.loja,
+            contextoTool.conversa,
+            contextoTool.sessaoId,
+            args?.motivo || "Solicitado pelo cliente via WhatsApp"
+          );
+          return "Entendido! Estou transferindo seu atendimento para nossa equipe agora mesmo. Um de nossos colaboradores assumirá a conversa por aqui em instantes. Obrigado pela compreensão!";
+        }
+
+        if (name === "registrar_pedido") {
+          const resultado = await salvarPedidoNoBanco(
+            contextoTool.supabaseAdmin,
+            contextoTool.loja,
+            contextoTool.fromCliente,
+            args,
+            contextoTool.sessaoId
+          );
+
+          // Segundo turno: informar o Gemini sobre o resultado da gravação do pedido para gerar a mensagem final amigável
+          try {
+            const payloadSegundoTurno = {
+              systemInstruction: {
+                parts: [{ text: systemInstructionText }]
+              },
+              contents: [
+                ...contents,
+                candidate.content,
+                {
+                  role: "function",
+                  parts: [
+                    {
+                      functionResponse: {
+                        name: "registrar_pedido",
+                        response: {
+                          name: "registrar_pedido",
+                          content: resultado
+                        }
+                      }
+                    }
+                  ]
+                }
+              ],
+              generationConfig: {
+                temperature: 0.3,
+                maxOutputTokens: 1200
+              }
+            };
+
+            const respTurno2 = await fetch(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payloadSegundoTurno)
+            });
+
+            if (respTurno2.ok) {
+              const data2 = await respTurno2.json();
+              const textoFinal = data2?.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (textoFinal && textoFinal.trim()) {
+                return textoFinal.trim();
+              }
+            }
+          } catch (errTurno2: any) {
+            console.warn("[WhatsAppWebhook] Aviso ao chamar 2º turno do tool:", errTurno2?.message);
+          }
+
+          // Fallback resiliente garantido caso o 2º turno da IA não responda
+          if (resultado.success) {
+            const freteTxt = resultado.valor_frete ? `R$ ${resultado.valor_frete.toFixed(2)}` : "Grátis";
+            return `🎉 *Pedido #${resultado.numero_pedido} Confirmado com Sucesso!*\n\n• *Subtotal:* R$ ${resultado.subtotal?.toFixed(2)}\n• *Taxa de Entrega:* ${freteTxt}\n• *Total Geral:* *R$ ${resultado.valor_total?.toFixed(2)}*\n• *Forma de Pagamento:* ${String(resultado.forma_pagamento || "pix").toUpperCase()}\n• *Tempo Estimado:* ${resultado.tempo_estimado}\n\nNossa equipe já recebeu seu pedido no sistema HUBI e está separando tudo com muito carinho!`;
+          } else {
+            return `Ops! Tivemos uma pequena divergência ao registrar seu pedido: ${resultado.erro || "Por favor, confirme os itens novamente com a gente."}`;
+          }
+        }
+      }
+
+      // Resposta textual direta
+      const textoGerado = parts[0]?.text;
       if (textoGerado) {
         return textoGerado.trim();
       }
@@ -1318,7 +1761,12 @@ ${catalogoFormatado}
    - PASSO 5 (Resumo e Finalização): Apresente o resumo prévio com os itens escolhidos, subtotal e previsão para confirmação final do cliente.
 
 4. TRANSBORDO / ATENDIMENTO HUMANO:
-   - Caso o cliente solicite explicitamente falar com um atendente humano ou demonstre insatisfação recorrente, informe com cordialidade que a equipe humana foi notificada e que em instantes um colaborador continuará o atendimento por aqui.
+   - Caso o cliente solicite explicitamente falar com um atendente humano ou demonstre insatisfação recorrente, acione a ferramenta 'solicitar_atendente_humano' ou informe com cordialidade que a equipe humana foi notificada.
+
+5. USO DE FERRAMENTAS / FUNCTION CALLING (GRAVAÇÃO DO PEDIDO):
+   - Quando o cliente concordar com os itens, endereço/método de entrega e forma de pagamento, invoque IMEDIATAMENTE a ferramenta 'registrar_pedido' com os dados validados.
+   - NUNCA diga que o pedido foi gerado ou finalizado sem antes acionar a ferramenta 'registrar_pedido'!
+   - Se o cliente solicitar falar com atendente ou pessoa da equipe, invoque a ferramenta 'solicitar_atendente_humano'.
 
 ${instrucaoAudio}
 Responda diretamente ao cliente agora com base no histórico da conversa e no catálogo ativo:
