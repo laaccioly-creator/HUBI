@@ -43,8 +43,11 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
   useEffect(() => {
     if (!loja?.id) return;
 
-    const channel = supabase
-      .channel(`realtime:loja_assinatura_${loja.id}`)
+    // Sufixo exclusivo para evitar colisão entre múltiplos componentes que usam o hook simultaneamente
+    const canalNome = `loja_assinatura_${loja.id}_${Math.random().toString(36).substring(2, 9)}`;
+
+    const canal = supabase
+      .channel(canalNome)
       .on(
         'postgres_changes',
         {
@@ -55,7 +58,7 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
         },
         async (payload) => {
           const novo = payload.new as Partial<Loja>;
-          // Se o status da assinatura ou data de fim foi alterado (ex: confirmação de pagamento do MP)
+          // Se o status da assinatura ou data de término foi alterado
           if (
             novo.status_assinatura !== loja.status_assinatura ||
             novo.assinatura_fim_em !== loja.assinatura_fim_em
@@ -70,9 +73,9 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(canal);
     };
-  }, [loja?.id, loja?.status_assinatura, loja?.assinatura_fim_em, recarregarDadosLoja]);
+  }, [loja?.id, recarregarDadosLoja]);
 
   // Avaliação do status da loja ativa
   const calculoStatusLojaAtiva = useMemo(() => {
