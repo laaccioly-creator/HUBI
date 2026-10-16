@@ -322,6 +322,46 @@ export async function obterMetasLoja(lojaId: string): Promise<LojaMetas> {
 }
 
 /**
+ * Consulta e agrega metas de todas as lojas do conglomerado
+ */
+export async function obterMetasConsolidadasConglomerado(lojasIds: string[]): Promise<LojaMetas> {
+  if (!lojasIds || lojasIds.length === 0) {
+    return {
+      id: 'consolidado-todas',
+      loja_id: 'todas',
+      ...METAS_PADRAO_LOJA
+    };
+  }
+
+  const metasPorLoja = await Promise.all(lojasIds.map(id => obterMetasLoja(id)));
+
+  const somaFaturamento = metasPorLoja.reduce((acc, m) => acc + Number(m.meta_faturamento || 0), 0);
+  const somaPedidos = metasPorLoja.reduce((acc, m) => acc + Number(m.meta_pedidos || 0), 0);
+  const somaLucro = metasPorLoja.reduce((acc, m) => acc + Number(m.meta_lucro_liquido || 0), 0);
+  const somaDespesas = metasPorLoja.reduce((acc, m) => acc + Number(m.meta_despesas_maximas || 0), 0);
+  const ticketMedioPonderado = somaPedidos > 0 ? Math.round((somaFaturamento / somaPedidos) * 100) / 100 : Number(METAS_PADRAO_LOJA.meta_ticket_medio);
+  const mediaInadimplencia = metasPorLoja.length > 0
+    ? metasPorLoja.reduce((acc, m) => acc + Number(m.meta_inadimplencia_maxima || 0), 0) / metasPorLoja.length
+    : Number(METAS_PADRAO_LOJA.meta_inadimplencia_maxima);
+  const mediaGiro = metasPorLoja.length > 0
+    ? metasPorLoja.reduce((acc, m) => acc + Number(m.meta_giro_estoque || 0), 0) / metasPorLoja.length
+    : Number(METAS_PADRAO_LOJA.meta_giro_estoque);
+
+  return {
+    id: 'consolidado-todas',
+    loja_id: 'todas',
+    meta_faturamento: somaFaturamento,
+    meta_pedidos: somaPedidos,
+    meta_lucro_liquido: somaLucro,
+    meta_ticket_medio: ticketMedioPonderado,
+    meta_despesas_maximas: somaDespesas,
+    meta_inadimplencia_maxima: Math.round(mediaInadimplencia * 100) / 100,
+    meta_giro_estoque: Math.round(mediaGiro * 100) / 100,
+    meta_saude_estoque_max_ruptura: 0
+  };
+}
+
+/**
  * Salva ou atualiza as metas da loja via upsert na tabela loja_metas
  */
 export async function salvarMetasLoja(
@@ -632,6 +672,7 @@ export const dashboardService = {
   calcularIntervaloPeriodo,
   calcularMetasProporcionais,
   obterMetasLoja,
+  obterMetasConsolidadasConglomerado,
   salvarMetasLoja,
   obterMetricasCockpit
 };

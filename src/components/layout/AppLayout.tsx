@@ -27,7 +27,9 @@ import {
   Moon,
   Laptop,
   Calendar,
-  LayoutDashboard
+  LayoutDashboard,
+  Building2,
+  Plus
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme, ModoTema } from '../../contexts/ThemeContext';
@@ -43,6 +45,9 @@ import { ChatAjudaIA } from '../ChatAjudaIA';
 import { DesktopAppPrompt, DesktopInstallButton } from '../DesktopAppPrompt';
 import { MobileMenuDrawer } from './MobileMenuDrawer';
 import { ModalSeletorDataOperacao } from '../ModalSeletorDataOperacao';
+import { ModalAdicionarLoja } from '../lojas/ModalAdicionarLoja';
+import { BannerAssinaturaTop } from '../assinatura/BannerAssinaturaTop';
+import { TelaBloqueioAssinatura } from '../assinatura/TelaBloqueioAssinatura';
 import { UsuarioLoja } from '../../types';
 
 export const AppLayout: React.FC = () => {
@@ -50,7 +55,7 @@ export const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
   const origemVendas = searchParams.get('origem') === 'sales';
-  const { loja, usuario, carregando, desconectarPdv, selecionarUsuario } = useAuth();
+  const { loja, usuario, carregando, desconectarPdv, selecionarUsuario, lojasDisponiveis, selecionarLoja } = useAuth();
   const permissions = usePermissions();
   const { verificarSaidaComConfirmacao } = useFeedbackModal();
   const { tema, setTema } = useTheme();
@@ -59,6 +64,7 @@ export const AppLayout: React.FC = () => {
   const [pedidosConfirmadosCount, setPedidosConfirmadosCount] = useState<number>(0);
   const [maisMenuOpen, setMaisMenuOpen] = useState<boolean>(false);
   const [userMenuOpen, setUserMenuOpen] = useState<boolean>(false);
+  const [modalAdicionarLojaAberto, setModalAdicionarLojaAberto] = useState<boolean>(false);
   const [listaUsuariosLoja, setListaUsuariosLoja] = useState<UsuarioLoja[]>([]);
 
   const maisMenuRef = useRef<HTMLDivElement>(null);
@@ -400,6 +406,9 @@ export const AppLayout: React.FC = () => {
 
   return (
     <div className={`flex flex-col h-screen w-screen overflow-hidden ${isDark ? 'bg-slate-950 text-slate-100' : (isDashboardRoute || isPosRoute) ? 'bg-slate-100 text-[#0F172A]' : 'bg-[#F8FAFC] text-[#0F172A]'}`}>
+      {/* BANNER CONTEXTUAL DE TRIAL E RENOVAÇÃO ANUAL */}
+      <BannerAssinaturaTop />
+
       {/* BANNER / BOTÃO DE INSTALAÇÃO DO APP DESKTOP */}
       <DesktopAppPrompt />
 
@@ -667,6 +676,56 @@ export const AppLayout: React.FC = () => {
                     <ExternalLink className={`w-3 h-3 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
                   </Link>
 
+                  {permissions.ehAdmin && (
+                    <div className="pt-2 pb-1 border-t border-slate-700/50">
+                      <div className="flex items-center justify-between px-3 mb-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Minhas Lojas
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUserMenuOpen(false);
+                            setModalAdicionarLojaAberto(true);
+                          }}
+                          className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 hover:text-emerald-300 transition"
+                        >
+                          <Plus className="w-3 h-3" />
+                          <span>Nova</span>
+                        </button>
+                      </div>
+
+                      <div className="max-h-36 overflow-y-auto space-y-0.5 custom-scrollbar">
+                        {lojasDisponiveis.map((l) => {
+                          const ativa = l.id === loja?.id;
+                          return (
+                            <button
+                              key={l.id}
+                              type="button"
+                              onClick={() => {
+                                setUserMenuOpen(false);
+                                if (!ativa) selecionarLoja(l.id);
+                              }}
+                              className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition text-left ${
+                                ativa
+                                  ? 'bg-emerald-500/15 text-emerald-400 font-semibold border border-emerald-500/30'
+                                  : isDark
+                                  ? 'text-slate-300 hover:bg-slate-800'
+                                  : 'text-slate-700 hover:bg-slate-100'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 truncate">
+                                <Building2 className={`w-3 h-3 shrink-0 ${ativa ? 'text-emerald-400' : 'text-slate-400'}`} />
+                                <span className="truncate">{l.nome_fantasia}</span>
+                              </div>
+                              {ativa && <Check className="w-3 h-3 text-emerald-400 shrink-0 ml-1" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => {
@@ -803,6 +862,15 @@ export const AppLayout: React.FC = () => {
 
       {/* MODAL DE AJUSTE DA DATA OPERACIONAL (OWNER ONLY) */}
       <ModalSeletorDataOperacao />
+
+      {/* MODAL DE EXPANSÃO / NOVA FILIAL DO CONGLOMERADO */}
+      <ModalAdicionarLoja
+        isOpen={modalAdicionarLojaAberto}
+        onClose={() => setModalAdicionarLojaAberto(false)}
+      />
+
+      {/* OVERLAY DE BLOQUEIO OPERACIONAL SELETIVO POR LOJA */}
+      <TelaBloqueioAssinatura />
     </div>
   );
 };

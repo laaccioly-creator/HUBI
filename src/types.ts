@@ -225,8 +225,46 @@ export interface ConfiguracoesExtrasLoja {
   };
 }
 
+export type StatusAssinaturaLoja = 'trial' | 'ativo' | 'atrasado' | 'bloqueado';
+
+export interface Organizacao {
+  id: string;
+  nome: string;
+  dono_usuario_id?: string | null;
+  email_principal?: string | null;
+  criado_em?: string;
+  atualizado_em?: string;
+}
+
+export interface HubiAssinaturaPagamento {
+  id: string;
+  loja_id: string;
+  organizacao_id: string;
+  mp_preference_id: string;
+  mp_payment_id?: string | null;
+  mp_collection_id?: string | null;
+  status_pagamento: 'pendente' | 'approved' | 'in_process' | 'rejected' | 'cancelled' | 'refunded';
+  meio_pagamento?: string | null;
+  bandeira_metodo?: string | null;
+  valor_total: number;
+  valor_mensal_referencia: number;
+  parcelas: number;
+  ciclo_meses: number;
+  periodo_inicio_em?: string | null;
+  periodo_fim_em?: string | null;
+  link_checkout?: string | null;
+  aprovado_em?: string | null;
+  criado_em?: string;
+  atualizado_em?: string;
+}
+
 export interface Loja {
   id: string;
+  organizacao_id?: string | null;
+  status_assinatura?: StatusAssinaturaLoja;
+  trial_fim_em?: string;
+  assinatura_fim_em?: string | null;
+  mp_preference_id?: string | null;
   nome_fantasia: string;
   razao_social?: string | null;
   tipo_documento?: TipoDocumento | null;

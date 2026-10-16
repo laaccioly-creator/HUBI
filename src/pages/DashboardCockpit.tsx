@@ -11,7 +11,10 @@ import {
   ChevronDown,
   Check,
   Zap,
-  Menu
+  Menu,
+  Building2,
+  Store,
+  Plus
 } from 'lucide-react';
 import { MobileMenuDrawer } from '../components/layout/MobileMenuDrawer';
 import { MobileHeader } from '../components/layout/MobileHeader';
@@ -38,11 +41,12 @@ import {
 } from '../components/dashboard/CockpitMetricDrawer';
 import { ConfiguracoesMetas } from '../components/configuracoes/ConfiguracoesMetas';
 import { ModalEntradaEstoque } from '../components/ModalEntradaEstoque';
+import { ModalAdicionarLoja } from '../components/lojas/ModalAdicionarLoja';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { supabase } from '../lib/supabase';
 
 export const DashboardCockpit: React.FC = () => {
-  const { loja, usuario } = useAuth();
+  const { loja, usuario, lojasDisponiveis } = useAuth();
   const permissions = usePermissions();
   const { tema } = useTheme();
   const { abrirMenuMobile } = useMenu();
@@ -54,6 +58,15 @@ export const DashboardCockpit: React.FC = () => {
     permissions.ehAdmin ||
     permissions.ehGerente ||
     permissions.podeAcessarConfig;
+
+  // Escopo de Loja: 'todas' (Visão Consolidada do Conglomerado) ou id da loja selecionada
+  const ehGestorConglomerado = permissions.ehOwner || permissions.ehAdmin || permissions.ehGerente;
+  const temMultiplasLojas = lojasDisponiveis && lojasDisponiveis.length > 1;
+  const [escopoLojaId, setEscopoLojaId] = useState<string>(
+    temMultiplasLojas && ehGestorConglomerado ? 'todas' : (loja?.id || 'todas')
+  );
+  const [dropdownLojasAberto, setDropdownLojasAberto] = useState<boolean>(false);
+  const [modalAdicionarLojaAberto, setModalAdicionarLojaAberto] = useState<boolean>(false);
 
   // Estados principais do seletor de período padronizado
   const [tipoPeriodo, setTipoPeriodo] = useState<TipoPeriodoDashboard>('este_mes');
@@ -81,6 +94,7 @@ export const DashboardCockpit: React.FC = () => {
     setProdutoSelecionadoEntrada(null);
   }, 'cockpit-modal-entrada');
   useRegisterOverlay(modalMetasAberto, () => setModalMetasAberto(false), 'cockpit-modal-metas');
+  useRegisterOverlay(modalAdicionarLojaAberto, () => setModalAdicionarLojaAberto(false), 'cockpit-modal-adicionar-loja');
 
   // Payload Executivo Consolidado fornecido pelo Jev (Type-Safe Schema)
   const [payloadExecutivo, setPayloadExecutivo] = useState<PayloadDashboardExecutivo | null>(null);
@@ -115,7 +129,10 @@ export const DashboardCockpit: React.FC = () => {
 
   // Função para buscar dados consolidados com SWR (0 ms no retorno ao Dashboard)
   const carregarMetricas = useCallback(async (forcar = false) => {
-    if (!loja?.id) return;
+    const idAlvo = escopoLojaId === 'todas' ? 'todas' : (escopoLojaId || loja?.id);
+    if (!idAlvo) return;
+
+    const listaLojasIds = (lojasDisponiveis || []).map(l => l.id);
 
     try {
       if (forcar) {
@@ -124,7 +141,8 @@ export const DashboardCockpit: React.FC = () => {
       setErroCarregamento(null);
 
       const res = await dashboardJevService.obterDashboardExecutivo({
-        lojaId: loja.id,
+        lojaId: idAlvo,
+        lojasIdsConglomerado: listaLojasIds,
         tipoPeriodo,
         periodoOffset,
         dataInicioCustom,
@@ -148,11 +166,11 @@ export const DashboardCockpit: React.FC = () => {
     } finally {
       setCarregando(false);
     }
-  }, [loja?.id, tipoPeriodo, periodoOffset, dataInicioCustom, dataFimCustom]);
+  }, [escopoLojaId, loja?.id, lojasDisponiveis, tipoPeriodo, periodoOffset, dataInicioCustom, dataFimCustom]);
 
   useEffect(() => {
     carregarMetricas();
-  }, [tipoPeriodo, periodoOffset, dataInicioCustom, dataFimCustom, loja?.id]);
+  }, [carregarMetricas]);
 
   // Ação de abertura de estoque a partir da gaveta lateral
   const handleAbrirEntradaEstoque = async (prodRisco?: ProdutoEstoqueRisco) => {
@@ -242,6 +260,105 @@ export const DashboardCockpit: React.FC = () => {
           {/* Seletor de Período Padronizado & Ações Rápidas */}
           <div className="flex flex-wrap items-center gap-2.5 sm:justify-end">
             
+            {/* Seletor de Escopo de Loja (Consolidado vs Individual) */}
+            {temMultiplasLojas && ehGestorConglomerado && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setDropdownLojasAberto(prev => !prev)}
+                  className="px-3 py-1.5 rounded-xl border border-slate-300 dark:border-[#1E293B] bg-white hover:bg-slate-50 dark:bg-[#000000] dark:hover:bg-[#0D111A] text-slate-800 dark:text-slate-100 text-xs font-bold flex items-center gap-2 transition cursor-pointer shadow-2xs"
+                >
+                  <Building2 className="w-3.5 h-3.5 text-emerald-500" />
+                  <span className="max-w-[130px] truncate">
+                    {escopoLojaId === 'todas'
+                      ? '🏢 Todas as Lojas'
+                      : (lojasDisponiveis.find(l => l.id === escopoLojaId)?.nome_fantasia || 'Loja')}
+                  </span>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                </button>
+
+                {dropdownLojasAberto && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setDropdownLojasAberto(false)} />
+                    <div className="absolute top-full left-0 mt-2 w-56 bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-[#1E293B] rounded-xl shadow-2xl p-1.5 z-50 text-left space-y-0.5 animate-in fade-in zoom-in-95">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEscopoLojaId('todas');
+                          setDropdownLojasAberto(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          escopoLojaId === 'todas'
+                            ? 'bg-emerald-50 border border-emerald-300 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30'
+                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1E293B]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <Building2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                          <span className="truncate">🏢 Visão Geral (Todas)</span>
+                        </div>
+                        {escopoLojaId === 'todas' && <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />}
+                      </button>
+
+                      <div className="my-1 border-t border-slate-200 dark:border-slate-800/80" />
+
+                      {lojasDisponiveis.map((l) => (
+                        <button
+                          key={l.id}
+                          type="button"
+                          onClick={() => {
+                            setEscopoLojaId(l.id);
+                            setDropdownLojasAberto(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition cursor-pointer ${
+                            escopoLojaId === l.id
+                              ? 'bg-emerald-50 border border-emerald-300 text-emerald-800 font-bold dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30'
+                              : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1E293B]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <Store className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate">{l.nome_fantasia}</span>
+                          </div>
+                          {escopoLojaId === l.id && <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />}
+                        </button>
+                      ))}
+
+                      {permissions.ehOwner && (
+                        <>
+                          <div className="my-1 border-t border-slate-200 dark:border-slate-800/80" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDropdownLojasAberto(false);
+                              setModalAdicionarLojaAberto(true);
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Adicionar Nova Loja</span>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Botão de Adicionar Nova Filial (atalho direto quando 1 loja) */}
+            {permissions.ehOwner && !temMultiplasLojas && (
+              <button
+                type="button"
+                onClick={() => setModalAdicionarLojaAberto(true)}
+                className="px-3 py-1.5 rounded-xl border border-dashed border-emerald-500/40 hover:border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-500/10 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
+                title="Adicionar Filial (+7 Dias Grátis)"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Nova Filial</span>
+              </button>
+            )}
+
             {/* Seletor de Períodos com Design System Canônico */}
             <div className="relative flex items-center bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 dark:bg-[#000000] dark:hover:bg-[#0D111A] dark:border-[#1E293B] dark:text-slate-200 font-semibold rounded-xl p-0.5 shadow-2xs transition">
               <button
@@ -543,6 +660,18 @@ export const DashboardCockpit: React.FC = () => {
       <MobileMenuDrawer
         aberto={menuDrawerAberto}
         onFechar={() => setMenuDrawerAberto(false)}
+      />
+
+      {/* ========================================================================= */}
+      {/* MODAL DE ADIÇÃO DE NOVA FILIAL NO CONGLOMERADO */}
+      {/* ========================================================================= */}
+      <ModalAdicionarLoja
+        isOpen={modalAdicionarLojaAberto}
+        onClose={() => setModalAdicionarLojaAberto(false)}
+        onLojaCriada={() => {
+          dashboardJevService.invalidarCache();
+          carregarMetricas(true);
+        }}
       />
 
     </div>

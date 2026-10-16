@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Loja, UsuarioLoja } from '../types';
+import { Loja, UsuarioLoja, Organizacao } from '../types';
 
 interface AuthContextType {
   loja: Loja | null;
   usuario: UsuarioLoja | null;
+  organizacao: Organizacao | null;
   lojasDisponiveis: Loja[];
   carregando: boolean;
   setLoja: (loja: Loja | null) => void;
@@ -12,6 +13,13 @@ interface AuthContextType {
   selecionarUsuario: (usuarioId: string) => Promise<boolean>;
   cadastrarPdv: (dadosLoja: Partial<Loja>, dadosUsuario: Partial<UsuarioLoja>) => Promise<Loja>;
   cadastrarMinimalista: (params: { nome: string; email: string; senha?: string }) => Promise<Loja>;
+  adicionarNovaFilial: (params: {
+    nome: string;
+    whatsapp?: string;
+    numero_documento?: string;
+    cidade?: string;
+    estado?: string;
+  }) => Promise<Loja>;
   entrarComEmail: (email: string, senha?: string) => Promise<boolean>;
   entrarComGoogle: () => Promise<any>;
   desconectarPdv: () => void;
@@ -26,6 +34,7 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [loja, setLoja] = useState<Loja | null>(null);
   const [usuario, setUsuario] = useState<UsuarioLoja | null>(null);
+  const [organizacao, setOrganizacao] = useState<Organizacao | null>(null);
   const [lojasDisponiveis, setLojasDisponiveis] = useState<Loja[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
 
@@ -72,6 +81,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (lojaParaAtivar) {
           setLoja(lojaParaAtivar);
           localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaParaAtivar.id);
+
+          if (lojaParaAtivar.organizacao_id) {
+            try {
+              const { data: orgData } = await supabase
+                .from('organizacoes')
+                .select('*')
+                .eq('id', lojaParaAtivar.organizacao_id)
+                .maybeSingle();
+              if (orgData) {
+                setOrganizacao(orgData as Organizacao);
+              }
+            } catch (orgErr) {
+              console.warn('Aviso ao carregar organização da loja:', orgErr);
+            }
+          }
 
           // Buscar usuário ativo da loja com autocura e fallback
           let usuarioAtivo: UsuarioLoja | null = null;
@@ -240,6 +264,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setLoja(lojaBuscada);
       localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaBuscada.id);
+
+      if (lojaBuscada.organizacao_id) {
+        try {
+          const { data: orgData } = await supabase
+            .from('organizacoes')
+            .select('*')
+            .eq('id', lojaBuscada.organizacao_id)
+            .maybeSingle();
+          if (orgData) {
+            setOrganizacao(orgData as Organizacao);
+          }
+        } catch (orgErr) {
+          console.warn('Aviso ao carregar organização na seleção de loja:', orgErr);
+        }
+      }
 
       const { data: { session } } = await supabase.auth.getSession();
       const authUserId = session?.user?.id || null;
@@ -521,6 +560,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const slugFinal = `${slugBase || 'loja'}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     const novaLojaPayload: Partial<Loja> = {
+      status_assinatura: 'trial',
+      trial_fim_em: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       nome_fantasia: nomeLimpo,
       razao_social: nomeLimpo,
       tipo_documento: 'CPF',
@@ -640,6 +681,129 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  // Adicionar nova filial vinculada à organização atual
+  const adicionarNovaFilial = async (params: {
+    nome: string;
+    whatsapp?: string;
+    numero_documento?: string;
+    cidade?: string;
+    estado?: string;
+  }): Promise<Loja> => {
+    const nomeLimpo = params.nome.trim();
+    if (!nomeLimpo) throw new Error('O nome da loja é obrigatório.');
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const authUserId = session?.user?.id || null;
+    const authEmail = session?.user?.email || loja?.email || 'contato@hubi.app';
+
+    // Determinar organizacao_id
+    let orgId = organizacao?.id || loja?.organizacao_id || null;
+    if (!orgId) {
+      const { data: novaOrg } = await supabase
+        .from('organizacoes')
+        .insert([{
+          nome: `Grupo ${loja?.nome_fantasia || nomeLimpo}`,
+          dono_usuario_id: authUserId,
+          email_principal: authEmail
+        }])
+        .select()
+        .single();
+
+      if (novaOrg) {
+        orgId = novaOrg.id;
+        setOrganizacao(novaOrg as Organizacao);
+        if (loja?.id) {
+          await supabase.from('lojas').update({ organizacao_id: novaOrg.id }).eq('id', loja.id);
+          setLoja(prev => prev ? { ...prev, organizacao_id: novaOrg.id } : null);
+        }
+      }
+    }
+
+    const slugBase = nomeLimpo
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    const slugFinal = `${slugBase || 'filial'}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const trialFimIso = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    const novaLojaPayload: Partial<Loja> = {
+      organizacao_id: orgId,
+      status_assinatura: 'trial',
+      trial_fim_em: trialFimIso,
+      nome_fantasia: nomeLimpo,
+      razao_social: nomeLimpo,
+      tipo_documento: 'CPF',
+      numero_documento: params.numero_documento || null,
+      whatsapp: params.whatsapp ? params.whatsapp.replace(/\D/g, '') : (loja?.whatsapp || '00000000000'),
+      email: authEmail,
+      endereco_cidade: params.cidade || loja?.endereco_cidade || null,
+      endereco_estado: params.estado || loja?.endereco_estado || null,
+      slug_catalogo: slugFinal,
+      cor_primaria: loja?.cor_primaria || '#10B981',
+      moeda: 'BRL',
+      aceita_pedidos_online: true,
+      resumo_whatsapp: true,
+      tipo_plano: 'GROW',
+      valor_minimo_pedido: 0,
+      sobre_loja: `Bem-vindo à ${nomeLimpo}! Faça seus pedidos online aqui.`
+    };
+
+    const { data: novaLoja, error: erroLoja } = await supabase
+      .from('lojas')
+      .insert([novaLojaPayload])
+      .select()
+      .single();
+
+    if (erroLoja || !novaLoja) {
+      throw new Error(`Erro ao criar filial: ${erroLoja?.message || 'Falha na criação da filial'}`);
+    }
+
+    // Criar perfil de Owner para o usuário na nova filial
+    if (authUserId) {
+      await supabase.from('usuarios_loja').insert([{
+        loja_id: novaLoja.id,
+        usuario_auth_id: authUserId,
+        nome_completo: usuario?.nome_completo || 'Proprietário',
+        email: authEmail,
+        perfil: 'owner',
+        pode_uso_celular_pessoal: true,
+        pode_ver_transacoes_outros: true,
+        pode_dar_desconto: true,
+        pode_cadastrar_alterar_produtos: true,
+        pode_gerenciar_estoque: true,
+        pode_ativar_fiado: true,
+        pode_ver_preco_custo: true,
+        pode_exportar_relatorios: true,
+        pode_editar_vendas_passadas: true,
+        ativo: true
+      }]);
+    }
+
+    // Formas de pagamento e entrega padrão para a nova filial
+    try {
+      await supabase.from('formas_pagamento').insert([
+        { loja_id: novaLoja.id, nome: 'Dinheiro', tipo: 'dinheiro', taxa_percentual: 0, ativo: true, exibir_catalogo: true },
+        { loja_id: novaLoja.id, nome: 'Pix (Imediato)', tipo: 'pix', taxa_percentual: 0, ativo: true, exibir_catalogo: true },
+        { loja_id: novaLoja.id, nome: 'Cartão de Débito', tipo: 'cartao_debito', taxa_percentual: 1.5, ativo: true, exibir_catalogo: true },
+        { loja_id: novaLoja.id, nome: 'Cartão de Crédito 1x', tipo: 'cartao_credito', taxa_percentual: 3.2, maximo_parcelas: 12, ativo: true, exibir_catalogo: true }
+      ]);
+      await supabase.from('formas_entrega').insert([
+        { loja_id: novaLoja.id, nome: 'Retirada no Balcão', tipo: 'retirada', valor_taxa: 0, tempo_estimado: 'Imediato', ativo: true }
+      ]);
+      await supabase.from('categorias').insert([
+        { loja_id: novaLoja.id, nome: 'Geral', ordem_exibicao: 1, ativo: true }
+      ]);
+    } catch (seedErr) {
+      console.warn('Aviso ao inicializar tabelas da filial:', seedErr);
+    }
+
+    setLojasDisponiveis(prev => [novaLoja as Loja, ...prev]);
+    return novaLoja as Loja;
+  };
+
   // Desconectar / Trocar de PDV
   const desconectarPdv = () => {
     try {
@@ -654,6 +818,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem(STORAGE_KEY_USUARIO_ID);
     setLoja(null);
     setUsuario(null);
+    setOrganizacao(null);
   };
 
   useEffect(() => {
@@ -756,6 +921,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         loja,
         usuario,
+        organizacao,
         lojasDisponiveis,
         carregando,
         setLoja,
@@ -763,6 +929,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         selecionarUsuario,
         cadastrarPdv,
         cadastrarMinimalista,
+        adicionarNovaFilial,
         entrarComEmail,
         entrarComGoogle,
         desconectarPdv,

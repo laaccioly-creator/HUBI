@@ -229,6 +229,11 @@ erDiagram
 | `endereco_cidade` | VARCHAR(100) | NULL | Cidade |
 | `endereco_estado` | VARCHAR(2) | NULL | UF (ex: PE, SP) |
 | `endereco_cep` | VARCHAR(10) | NULL | CEP da loja física |
+| `organizacao_id` | UUID | NULL, FK -> organizacoes(id) ON DELETE RESTRICT | Vínculo hierárquico ao Conglomerado / Holding |
+| `status_assinatura` | VARCHAR(20) | DEFAULT 'trial', CHECK ('trial', 'ativo', 'atrasado', 'bloqueado') | Ciclo de vida da assinatura individual da unidade |
+| `trial_fim_em` | TIMESTAMPTZ | DEFAULT NOW() + 7 days | Término do período de degustação de 7 dias |
+| `assinatura_fim_em` | TIMESTAMPTZ | NULL | Vencimento da anuidade de 12 meses da loja |
+| `mp_preference_id` | TEXT | NULL | Identificador da preferência ativa de pagamento no Mercado Pago |
 | `serpapi_key` | TEXT | NULL | Chave SerpApi BYOK do lojista para busca de fotos |
 | `status_em_separacao` | BOOLEAN | DEFAULT FALSE | Habilita status intermediário 'em_separacao' no kanban |
 | `status_em_expedicao` | BOOLEAN | DEFAULT FALSE | Habilita status intermediário 'em_expedicao' no kanban |
@@ -604,6 +609,37 @@ erDiagram
 | `lida` | BOOLEAN | NOT NULL DEFAULT FALSE | Status de visualização pelo cliente |
 | `link_acao` | VARCHAR(500) | NULL | URL ou rota interna para ação rápida |
 | `criado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Carimbo temporal da emissão |
+
+#### 20. Tabela `organizacoes` (Camada Conglomerado / Multi-lojas)
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | Identificador exclusivo da Organização / Grupo |
+| `nome` | VARCHAR(150) | NOT NULL | Nome comercial da holding ou grupo empresarial |
+| `dono_usuario_id` | UUID | NULL, FK -> auth.users(id) ON DELETE SET NULL | Usuário proprietário do conglomerado |
+| `email_principal` | VARCHAR(150) | NULL | E-mail principal de contato do gestor |
+| `criado_em` / `atualizado_em` | TIMESTAMPTZ | DEFAULT NOW() | Carimbos de auditoria temporal |
+
+#### 21. Tabela `hubi_assinaturas_pagamentos` (Histórico Relacional de Faturas e Vigência de Lojas)
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | Identificador exclusivo do pagamento de assinatura |
+| `loja_id` | UUID | NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Loja / Filial à qual a licença pertence |
+| `organizacao_id` | UUID | NOT NULL, FK -> organizacoes(id) ON DELETE CASCADE | Conglomerado proprietário da unidade |
+| `mp_preference_id` | TEXT | NOT NULL | ID da preferência criada no Mercado Pago |
+| `mp_payment_id` | TEXT | UNIQUE, NULL | ID do pagamento aprovado no Mercado Pago |
+| `mp_collection_id` | TEXT | NULL | Collection ID retornado pelo webhook |
+| `status_pagamento` | VARCHAR(30) | NOT NULL DEFAULT 'pendente' | Estado financeiro da licença anual |
+| `meio_pagamento` | VARCHAR(50) | NULL | Meio utilizado (ex: 'pix', 'credit_card', 'debit_card') |
+| `bandeira_metodo` | VARCHAR(50) | NULL | Bandeira do cartão ou método (ex: 'visa', 'master', 'pix') |
+| `valor_total` | NUMERIC(10,2) | NOT NULL DEFAULT 598.80 | Valor total anual contratado |
+| `valor_mensal_referencia` | NUMERIC(10,2) | NOT NULL DEFAULT 49.90 | Valor de referência mensal (R$ 49,90) |
+| `parcelas` | INTEGER | NOT NULL DEFAULT 1 | Quantidade de parcelas escolhida no MP (até 12x) |
+| `ciclo_meses` | INTEGER | NOT NULL DEFAULT 12 | Vigência do ciclo (12 meses) |
+| `periodo_inicio_em` | TIMESTAMPTZ | NULL | Início da vigência anual da loja |
+| `periodo_fim_em` | TIMESTAMPTZ | NULL | Fim da vigência anual da loja (+365 dias) |
+| `link_checkout` | TEXT | NULL | URL do Checkout Pro gerada no Mercado Pago |
+| `aprovado_em` | TIMESTAMPTZ | NULL | Data/hora de confirmação pelo webhook |
+| `criado_em` / `atualizado_em` | TIMESTAMPTZ | DEFAULT NOW() | Carimbos de auditoria |
 
 ### 3.3 Triggers, Automações e Segurança no Banco (RLS)
 1. **Baixa e Reajuste Automático de Estoque (`fn_atualizar_estoque_pedido`):**
@@ -983,6 +1019,20 @@ O assistente da loja opera sob uma arquitetura de 3 estágios que prioriza veloc
    - **Consultas Operacionais:** Apenas a tabela necessária é consultada com filtros estritos (ex: se o usuário perguntou sobre o caixa, busca apenas a sessão de caixa ativa).
 4. **Estágio 3 — Motor Gerativo (`geminiService.ts`):**
    - Acionado apenas quando a pergunta envolver conselhos criativos abertos, estratégias de marketing ou análise textual aprofundada, recebendo o contexto já sintetizado e seguro.
+
+### 5.13 Infraestrutura de Monetização SaaS, Multi-Lojas e Mercado Pago
+A monetização do HUBI adota arquitetura de licença anual autônoma por unidade (`loja_id`), vinculada à camada de organização/conglomerado (`organizacoes`), eliminando qualquer risco de inadimplência cruzada:
+1. **Ciclo de Vida Autônomo por Unidade:**
+   - **Trial de Degustação (7 dias):** Toda nova filial cadastrada recebe automaticamente 7 dias corridos de acesso integral e irrestrito.
+   - **Anuidade HUBI (12 meses):** Licença faturada em R$ 598,80 (equivalente a R$ 49,90/mês, parcelável em até 12x no Cartão de Crédito ou Pix à vista no Mercado Pago).
+   - **Régua de Alerta de 7 Dias:** Nos últimos 7 dias da vigência de uma filial, o sistema ativa um banner informativo no topo da aplicação convocando o gestor para renovação antecipada. A renovação soma +365 dias ao vencimento atual, sem perda de dias restantes.
+   - **Isolamento de Inadimplência:** Se uma filial expirar sem pagamento, o bloqueio operacional aplica-se estritamente à filial devedora (`TelaBloqueioAssinatura.tsx`), permitindo alternar a operação para outras filiais ativas do conglomerado sem interrupção.
+2. **Edge Function `hubi-criar-assinatura-mp`:**
+   - Gera a preferência de pagamento oficial no Mercado Pago com `external_reference = loja.id`, `installments = 12` e `unit_price = 598.80`.
+   - Registra auditoria com status `pendente` na tabela `public.hubi_assinaturas_pagamentos` e armazena `mp_preference_id` na loja.
+3. **Edge Function `hubi-webhook-mp` & Desbloqueio Realtime:**
+   - Recebe as notificações de `payment` do Mercado Pago e valida a autenticidade diretamente na API REST do gateway.
+   - Quando o status é `approved`, atualiza a loja para `status_assinatura = 'ativo'`, calcula a nova vigência (`assinatura_fim_em`), conclui a auditoria em `hubi_assinaturas_pagamentos` e propaga o evento instantaneamente para o front-end via `Supabase Realtime`, eliminando a necessidade de recarregamento manual pelo usuário.
 
 ---
 

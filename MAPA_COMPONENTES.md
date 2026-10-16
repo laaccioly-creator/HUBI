@@ -183,6 +183,9 @@
 | **Configuração de Recibo** | `src/components/ModalConfigurarRecibo.tsx` | Personalização do cabeçalho, rodapé e logotipo dos cupons impressos. |
 | **Confirmação de Exclusão** | `src/components/ModalConfirmacaoExclusao.tsx` | Modal com trava de segurança para deleções irreversíveis de registros. |
 | **Diálogo de Alerta / Feedback** | `src/components/ModalAlertaFeedback.tsx` | Modal acessível de feedback para mensagens de sucesso, alerta ou erro operacional. |
+| **Modal Nova Filial (Conglomerado)** | `src/components/lojas/ModalAdicionarLoja.tsx` | Cadastro rápido de nova loja com 7 dias de degustação gratuita vinculada à organização. |
+| **Banner de Trial e Renovação Anual** | `src/components/assinatura/BannerAssinaturaTop.tsx` | Régua contextual no topo com contagem regressiva de trial e alerta de renovação nos últimos 7 dias. |
+| **Tela de Bloqueio Operacional** | `src/components/assinatura/TelaBloqueioAssinatura.tsx` | Bloqueio irremovível da filial vencida, checkout Mercado Pago (12x R$ 49,90) e alternador para lojas ativas. |
 | **Prompt de Atualização PWA** | `src/components/pwa/ReloadPrompt.tsx` | Toast discreto de notificação para recarregar quando uma nova versão do app estiver pronta. |
 | **Prompt de Instalação Desktop** | `src/components/DesktopAppPrompt.tsx` | Convite contextual para instalação do HUBI como aplicativo nativo no computador. |
 
@@ -207,6 +210,7 @@
 | **useProdutos** | `src/hooks/useProdutos.ts` | Hook reativo para listagem, filtros rápidos e cache em memória do catálogo de produtos. |
 | **usePermissions** | `src/hooks/usePermissions.ts` | Validação declarativa de permissões RBAC do operador autenticado. |
 | **useNetworkStatus** | `src/hooks/useNetworkStatus.ts` | Monitoramento contínuo do status online/offline da conexão com a internet. |
+| **useAssinaturaStatus** | `src/hooks/useAssinaturaStatus.ts` | Avaliação do ciclo de vida da loja (Trial, Ativo, Alerta 7 dias, Bloqueado) e Realtime. |
 
 ---
 

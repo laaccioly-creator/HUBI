@@ -182,6 +182,7 @@ export interface PayloadDashboardExecutivo {
 
 export interface ParametrosConsultaDashboard {
   lojaId: string;
+  lojasIdsConglomerado?: string[];
   tipoPeriodo: TipoPeriodoDashboard;
   periodoOffset?: number;
   dataInicioCustom?: string;
@@ -205,7 +206,8 @@ const TTL_CACHE_MS = 60 * 1000; // 60 segundos de frescor absoluto
 function gerarChaveCache(params: ParametrosConsultaDashboard): string {
   const offset = params.periodoOffset || 0;
   const custom = `${params.dataInicioCustom || ''}_${params.dataFimCustom || ''}`;
-  return `hubi_cockpit_v4_${params.lojaId}_${params.tipoPeriodo}_${offset}_${custom}`;
+  const sufixoMulti = params.lojaId === 'todas' && params.lojasIdsConglomerado ? `_${params.lojasIdsConglomerado.sort().join('-')}` : '';
+  return `hubi_cockpit_v4_${params.lojaId}${sufixoMulti}_${params.tipoPeriodo}_${offset}_${custom}`;
 }
 
 function recuperarCache(chave: string): PayloadDashboardExecutivo | null {
@@ -360,84 +362,158 @@ export const dashboardJevService = {
     const dInicio = intervalo.dataInicio;
     const dFim = intervalo.dataFim;
 
-    // 2. Busca paralela das fontes de dados isoladas por tenant (loja_id)
-    const [metasLoja, pedidosRes, transacoesRes, movimentacoesCaixaRes, produtosRes, historicoPrimeiraVendaRes, lojaRes] = await Promise.all([
-      dashboardService.obterMetasLoja(lojaId),
+    const ehConsolidado = lojaId === 'todas';
+    const listaLojasIds = ehConsolidado ? (params.lojasIdsConglomerado || []) : [lojaId];
 
-      // Pedidos com relacionamentos analíticos completos e seguros
-      supabase
-        .from('pedidos')
-        .select(`
-          *,
-          cliente:clientes(*),
-          itens:itens_pedido(*),
-          pagamentos:pagamentos_pedido(
+    let metasLoja: LojaMetas;
+    let todosPedidos: any[] = [];
+    let todasTransacoes: any[] = [];
+    let todasMovimentacoesCaixa: any[] = [];
+    let todosProdutos: Produto[] = [];
+    let usarTaxaPdv = false;
+    let historicoPrimeiraVendaRes: any = null;
+    let lojaConfigExtras: any = null;
+
+    if (ehConsolidado && listaLojasIds.length > 0) {
+      metasLoja = await dashboardService.obterMetasConsolidadasConglomerado(listaLojasIds);
+
+      // Consultas paralelas isoladas por tenant (.eq('loja_id', id)) para conformidade estrita com RLS
+      const resultadosPorLoja = await Promise.all(
+        listaLojasIds.map(async (id) => {
+          const [pRes, tRes, mRes, prRes, lRes] = await Promise.all([
+            supabase
+              .from('pedidos')
+              .select(`
+                *,
+                cliente:clientes(*),
+                itens:itens_pedido(*),
+                pagamentos:pagamentos_pedido(
+                  *,
+                  forma_pagamento:formas_pagamento(*)
+                )
+              `)
+              .eq('loja_id', id),
+            supabase
+              .from('transacoes_financeiras')
+              .select('*')
+              .eq('loja_id', id)
+              .eq('status', 'pago'),
+            supabase
+              .from('movimentacoes_caixa')
+              .select('*')
+              .eq('loja_id', id)
+              .in('tipo', ['sangria', 'despesa']),
+            supabase
+              .from('produtos')
+              .select('*')
+              .eq('loja_id', id)
+              .eq('ativo', true),
+            supabase
+              .from('lojas')
+              .select('configuracoes_extras')
+              .eq('id', id)
+              .maybeSingle()
+          ]);
+
+          return {
+            pedidos: (pRes.data || []) as any[],
+            transacoes: (tRes.data || []) as any[],
+            movimentacoes: (mRes.data || []) as any[],
+            produtos: (prRes.data || []) as Produto[],
+            usarTaxaPdv: Boolean((lRes?.data as any)?.configuracoes_extras?.taxas_venda?.usar_taxa_pdv)
+          };
+        })
+      );
+
+      resultadosPorLoja.forEach(r => {
+        todosPedidos.push(...r.pedidos);
+        todasTransacoes.push(...r.transacoes);
+        todasMovimentacoesCaixa.push(...r.movimentacoes);
+        todosProdutos.push(...r.produtos);
+        if (r.usarTaxaPdv) usarTaxaPdv = true;
+      });
+    } else {
+      // 2. Busca paralela das fontes de dados isoladas por tenant (loja_id)
+      const [mLoja, pedidosRes, transacoesRes, movimentacoesCaixaRes, produtosRes, histRes, lojaRes] = await Promise.all([
+        dashboardService.obterMetasLoja(lojaId),
+
+        // Pedidos com relacionamentos analíticos completos e seguros
+        supabase
+          .from('pedidos')
+          .select(`
             *,
-            forma_pagamento:formas_pagamento(*)
-          )
-        `)
-        .eq('loja_id', lojaId),
+            cliente:clientes(*),
+            itens:itens_pedido(*),
+            pagamentos:pagamentos_pedido(
+              *,
+              forma_pagamento:formas_pagamento(*)
+            )
+          `)
+          .eq('loja_id', lojaId),
 
-      // Transações financeiras (despesas do período)
-      supabase
-        .from('transacoes_financeiras')
-        .select('*')
-        .eq('loja_id', lojaId)
-        .eq('status', 'pago'),
+        // Transações financeiras (despesas do período)
+        supabase
+          .from('transacoes_financeiras')
+          .select('*')
+          .eq('loja_id', lojaId)
+          .eq('status', 'pago'),
 
-      // Movimentações de caixa (sangrias e despesas operacionais da frente de caixa)
-      supabase
-        .from('movimentacoes_caixa')
-        .select('*')
-        .eq('loja_id', lojaId)
-        .in('tipo', ['sangria', 'despesa']),
+        // Movimentações de caixa (sangrias e despesas operacionais da frente de caixa)
+        supabase
+          .from('movimentacoes_caixa')
+          .select('*')
+          .eq('loja_id', lojaId)
+          .in('tipo', ['sangria', 'despesa']),
 
-      // Produtos ativos do catálogo
-      supabase
-        .from('produtos')
-        .select('*')
-        .eq('loja_id', lojaId)
-        .eq('ativo', true),
+        // Produtos ativos do catálogo
+        supabase
+          .from('produtos')
+          .select('*')
+          .eq('loja_id', lojaId)
+          .eq('ativo', true),
 
-      // Detecção de maturidade da loja (data da primeira venda histórica)
-      supabase
-        .from('pedidos')
-        .select('criado_em, data_venda')
-        .eq('loja_id', lojaId)
-        .neq('status', 'cancelado')
-        .order('criado_em', { ascending: true })
-        .limit(1)
-        .maybeSingle(),
+        // Detecção de maturidade da loja (data da primeira venda histórica)
+        supabase
+          .from('pedidos')
+          .select('criado_em, data_venda')
+          .eq('loja_id', lojaId)
+          .neq('status', 'cancelado')
+          .order('criado_em', { ascending: true })
+          .limit(1)
+          .maybeSingle(),
 
-      // Configurações extras da loja (para flags como taxas_venda.usar_taxa_pdv)
-      supabase
-        .from('lojas')
-        .select('configuracoes_extras')
-        .eq('id', lojaId)
-        .maybeSingle()
-    ]);
+        // Configurações extras da loja (para flags como taxas_venda.usar_taxa_pdv)
+        supabase
+          .from('lojas')
+          .select('configuracoes_extras')
+          .eq('id', lojaId)
+          .maybeSingle()
+      ]);
 
-    if (pedidosRes.error) {
-      console.error('[dashboardJevService] Erro ao carregar pedidos:', pedidosRes.error.message);
-    }
-    if (transacoesRes.error) {
-      console.error('[dashboardJevService] Erro ao carregar transações:', transacoesRes.error.message);
-    }
-    if (movimentacoesCaixaRes.error) {
-      console.error('[dashboardJevService] Erro ao carregar movimentações de caixa:', movimentacoesCaixaRes.error.message);
-    }
-    if (produtosRes.error) {
-      console.error('[dashboardJevService] Erro ao carregar produtos:', produtosRes.error.message);
+      if (pedidosRes.error) {
+        console.error('[dashboardJevService] Erro ao carregar pedidos:', pedidosRes.error.message);
+      }
+      if (transacoesRes.error) {
+        console.error('[dashboardJevService] Erro ao carregar transações:', transacoesRes.error.message);
+      }
+      if (movimentacoesCaixaRes.error) {
+        console.error('[dashboardJevService] Erro ao carregar movimentações de caixa:', movimentacoesCaixaRes.error.message);
+      }
+      if (produtosRes.error) {
+        console.error('[dashboardJevService] Erro ao carregar produtos:', produtosRes.error.message);
+      }
+
+      metasLoja = mLoja;
+      historicoPrimeiraVendaRes = histRes;
+      lojaConfigExtras = (lojaRes?.data as any)?.configuracoes_extras;
+      usarTaxaPdv = Boolean(lojaConfigExtras?.taxas_venda?.usar_taxa_pdv);
+      todosPedidos = (pedidosRes.data || []) as any[];
+      todasTransacoes = (transacoesRes.data || []) as any[];
+      todasMovimentacoesCaixa = (movimentacoesCaixaRes.data || []) as any[];
+      todosProdutos = (produtosRes.data || []) as Produto[];
     }
 
     const metasProporcionais = dashboardService.calcularMetasProporcionais(metasLoja, intervalo.diasIntervalo);
-    const lojaConfigExtras = (lojaRes?.data as any)?.configuracoes_extras;
-    const usarTaxaPdv = Boolean(lojaConfigExtras?.taxas_venda?.usar_taxa_pdv);
-
-    const todosPedidos = (pedidosRes.data || []) as any[];
-    const todasTransacoes = (transacoesRes.data || []) as any[];
-    const todasMovimentacoesCaixa = (movimentacoesCaixaRes.data || []) as any[];
-    const todosProdutos = (produtosRes.data || []) as Produto[];
 
     // ------------------------------------------------------------------------
     // A. FILTRAGEM DE PEDIDOS DO PERÍODO
