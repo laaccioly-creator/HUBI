@@ -54,3 +54,27 @@ export interface GdmResultadoSincronizacao {
   erros: string[];
   tempoExecucaoMs: number;
 }
+
+export type MlListingTypeId = 'gold_pro' | 'gold_special' | 'free';
+
+export interface GdmAtributoMercadoLivre {
+  id: string; // Ex: 'BRAND', 'MODEL', 'GTIN'
+  value_name: string;
+}
+
+export interface GdmAnuncioMercadoLivreCanonico {
+  produto_id: string;
+  variacao_id?: string | null;
+  ml_item_id?: string | null;
+  ml_variation_id?: number | null;
+  titulo_anuncio: string; // Limite estrito de 60 caracteres da API ML
+  categoria_ml_id: string; // Ex: 'MLB1430'
+  tipo_anuncio: MlListingTypeId;
+  preco_base_hubi: number;
+  margem_sobrepreco_percentual: number;
+  preco_final_ml: number;
+  estoque_fisico_disponivel: number;
+  codigo_barras_ean?: string | null;
+  fotos_urls: string[];
+  atributos_ml: GdmAtributoMercadoLivre[];
+}

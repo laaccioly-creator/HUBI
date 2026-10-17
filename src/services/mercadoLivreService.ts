@@ -184,4 +184,101 @@ export const mercadoLivreService = {
 
     return (data as MarketplaceAnuncioItem[]) || [];
   },
+
+  /**
+   * Vincula um anúncio existente do Mercado Livre via código MLB... ao produto do HUBI
+   */
+  async vincularAnuncioExistente(params: {
+    lojaId: string;
+    produtoId: string;
+    variacaoId?: string | null;
+    mlItemId: string;
+  }): Promise<{ sucesso: boolean; mensagem: string }> {
+    const { data, error } = await supabase.functions.invoke('ml-estoque-sync', {
+      body: {
+        action: 'link_existing',
+        loja_id: params.lojaId,
+        produto_id: params.produtoId,
+        variacao_id: params.variacaoId,
+        ml_item_id: params.mlItemId,
+      },
+    });
+
+    if (error || !data?.sucesso) {
+      throw new Error(data?.error || error?.message || 'Falha ao vincular anúncio do Mercado Livre.');
+    }
+
+    return data;
+  },
+
+  /**
+   * Publica um novo anúncio no Mercado Livre a partir do payload GDM gerado
+   */
+  async criarAnuncio(params: {
+    lojaId: string;
+    produtoId: string;
+    variacaoId?: string | null;
+    payloadMl: any;
+    margemSobrepreco?: number;
+  }): Promise<{ sucesso: boolean; mensagem: string; item: any }> {
+    const { data, error } = await supabase.functions.invoke('ml-estoque-sync', {
+      body: {
+        action: 'create_listing',
+        loja_id: params.lojaId,
+        produto_id: params.produtoId,
+        variacao_id: params.variacaoId,
+        payload_ml: params.payloadMl,
+        margem_sobrepreco: params.margemSobrepreco,
+      },
+    });
+
+    if (error || !data?.sucesso) {
+      throw new Error(data?.error || error?.message || 'Falha ao publicar anúncio no Mercado Livre.');
+    }
+
+    return data;
+  },
+
+  /**
+   * Dispara a sincronização de estoque no Mercado Livre para um produto específico (assíncrono)
+   */
+  async sincronizarEstoqueProduto(lojaId: string, produtoId: string): Promise<void> {
+    try {
+      await supabase.functions.invoke('ml-estoque-sync', {
+        body: {
+          action: 'sync_inventory',
+          loja_id: lojaId,
+          produto_id: produtoId,
+        },
+      });
+    } catch (err: any) {
+      console.warn('[mercadoLivreService] Aviso ao disparar sincronização pós-venda:', err?.message);
+    }
+  },
+
+  /**
+   * Baixa a etiqueta oficial do Mercado Envios em PDF e abre em nova aba para impressão
+   */
+  async imprimirEtiquetaPedido(pedidoId: string): Promise<void> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      throw new Error('Sessão expirada. Faça login novamente para imprimir a etiqueta.');
+    }
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+    const resposta = await fetch(`${supabaseUrl}/functions/v1/ml-etiquetas?pedido_id=${pedidoId}&formato=pdf`, {
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    });
+
+    if (!resposta.ok) {
+      const erroJson = await resposta.json().catch(() => ({}));
+      throw new Error(erroJson.error || 'Falha ao obter etiqueta do Mercado Envios.');
+    }
+
+    const blob = await resposta.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    window.open(blobUrl, '_blank');
+  },
 };

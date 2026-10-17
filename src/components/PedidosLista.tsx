@@ -43,7 +43,8 @@ import {
   Plus,
   AlertTriangle,
   AlertCircle,
-  Navigation
+  Navigation,
+  ShoppingBag
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -53,6 +54,7 @@ import { useCart } from '../contexts/CartContext';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import { UberDirectService } from '../services/uberDirectService';
 import { MelhorEnvioService } from '../services/melhorEnvioService';
+import { mercadoLivreService } from '../services/mercadoLivreService';
 import { Pedido, StatusPedido, StatusPagamento, TabelaPreco, ItemPedido, Produto, Cliente, UsuarioLoja } from '../types';
 import { PedidoEntrega, Transportadora } from '../types/shipping';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
@@ -265,7 +267,26 @@ export const PedidosLista: React.FC = () => {
   const [pedidoReceberFiadoModal, setPedidoReceberFiadoModal] = useState<Pedido | null>(null);
   const [pedidoAlterarStatusModal, setPedidoAlterarStatusModal] = useState<Pedido | null>(null);
   const [atualizandoStatusRapido, setAtualizandoStatusRapido] = useState<boolean>(false);
+  const [imprimindoEtiquetaMlId, setImprimindoEtiquetaMlId] = useState<string | null>(null);
   const [concluirAposReceber, setConcluirAposReceber] = useState<boolean>(false);
+
+  const handleImprimirEtiquetaMl = async (pedido: Pedido) => {
+    try {
+      setImprimindoEtiquetaMlId(pedido.id);
+      await mercadoLivreService.imprimirEtiquetaPedido(pedido.id);
+      mostrarSucesso('Etiqueta do Mercado Envios aberta para impressão!', 'Mercado Envios');
+      setPedidos((prev) =>
+        prev.map((p) => (p.id === pedido.id ? { ...p, ml_etiqueta_impressa: true } : p))
+      );
+      if (pedidoSelecionado && pedidoSelecionado.id === pedido.id) {
+        setPedidoSelecionado((prev) => (prev ? { ...prev, ml_etiqueta_impressa: true } : null));
+      }
+    } catch (err: any) {
+      mostrarErro(err.message || 'Falha ao gerar etiqueta do Mercado Envios.');
+    } finally {
+      setImprimindoEtiquetaMlId(null);
+    }
+  };
   const [produtoDetalhesModal, setProdutoDetalhesModal] = useState<Produto | null>(null);
   const [modalNovoClienteAberto, setModalNovoClienteAberto] = useState<boolean>(false);
   const [clienteParaEditar, setClienteParaEditar] = useState<Cliente | null>(null);
@@ -2367,7 +2388,31 @@ export const PedidosLista: React.FC = () => {
               </button>
 
               {/* 4. Botão Etiqueta */}
-              {(() => {
+              {pedidoSelecionado.origem === 'mercadolivre' && pedidoSelecionado.ml_shipment_id ? (
+                <button
+                  type="button"
+                  disabled={imprimindoEtiquetaMlId === pedidoSelecionado.id}
+                  onClick={() => handleImprimirEtiquetaMl(pedidoSelecionado)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-xs active:scale-95 disabled:opacity-50 ${
+                    pedidoSelecionado.ml_etiqueta_impressa
+                      ? 'bg-emerald-500/10 border border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-[#FFE600] hover:bg-[#F5DC00] text-slate-950 border border-amber-400'
+                  }`}
+                  title="Imprimir etiqueta oficial do Mercado Envios (PDF)"
+                >
+                  {imprimindoEtiquetaMlId === pedidoSelecionado.id ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Gerando Etiqueta...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Printer className="w-3.5 h-3.5" />
+                      <span>{pedidoSelecionado.ml_etiqueta_impressa ? 'Reimprimir Etiqueta ML' : 'Imprimir Etiqueta ML'}</span>
+                    </>
+                  )}
+                </button>
+              ) : (() => {
                 const { isRetirada } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
                 if (pedidoSelecionado.status !== 'cancelado' && !isRetirada) {
                   return (
@@ -3579,10 +3624,19 @@ export const PedidosLista: React.FC = () => {
                         <td className={`py-2.5 px-2 whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-black font-medium'}`}>
                           <div className="flex flex-col">
                             <div className="flex items-center gap-1.5">
-                              <User className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-black'}`} />
-                              <span className={`font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                                {pedido.origem === 'catalogo_online' ? 'Catálogo Online' : (pedido.vendedor?.nome_completo || 'Vendedor')}
-                              </span>
+                              {pedido.origem === 'mercadolivre' ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#FFE600]/20 border border-[#FFE600]/40 text-amber-500 font-black text-[11px]">
+                                  <ShoppingBag className="w-3 h-3 text-[#FFE600]" />
+                                  Mercado Livre
+                                </span>
+                              ) : (
+                                <>
+                                  <User className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-black'}`} />
+                                  <span className={`font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                                    {pedido.origem === 'catalogo_online' ? 'Catálogo Online' : (pedido.vendedor?.nome_completo || 'Vendedor')}
+                                  </span>
+                                </>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -3689,6 +3743,36 @@ export const PedidosLista: React.FC = () => {
                                   >
                                     <Edit className="w-3.5 h-3.5" />
                                     <span>Alterar</span>
+                                  </button>
+                                )}
+
+                                {/* BOTÃO ETIQUETA MERCADO ENVIOS */}
+                                {pedido.origem === 'mercadolivre' && pedido.ml_shipment_id && (
+                                  <button
+                                    type="button"
+                                    disabled={imprimindoEtiquetaMlId === pedido.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleImprimirEtiquetaMl(pedido);
+                                    }}
+                                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50 ${
+                                      pedido.ml_etiqueta_impressa
+                                        ? 'bg-emerald-500/10 border border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
+                                        : 'bg-[#FFE600] hover:bg-[#F5DC00] text-slate-950 border border-amber-400'
+                                    }`}
+                                    title="Imprimir etiqueta oficial do Mercado Envios (PDF)"
+                                  >
+                                    {imprimindoEtiquetaMlId === pedido.id ? (
+                                      <>
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        <span>Gerando...</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Printer className="w-3.5 h-3.5" />
+                                        <span>{pedido.ml_etiqueta_impressa ? 'Reimprimir' : 'Imprimir Etiqueta'}</span>
+                                      </>
+                                    )}
                                   </button>
                                 )}
 

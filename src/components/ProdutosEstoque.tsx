@@ -19,7 +19,8 @@ import {
   ArrowLeft,
   Filter,
   Check,
-  X
+  X,
+  ShoppingBag
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -29,6 +30,7 @@ import { Produto, Categoria } from '../types';
 import { ModalGerenciarCategorias } from './ModalGerenciarCategorias';
 import { ModalEntradaEstoque } from './ModalEntradaEstoque';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
+import { ModalVincularAnuncioMl } from './mercadolivre/ModalVincularAnuncioMl';
 import { ProdutosMobile } from './ProdutosMobile';
 import { formatarMoeda } from '../utils/formatters';
 
@@ -87,6 +89,7 @@ export const ProdutosEstoque: React.FC = () => {
   const [produtoEstoqueAlvo, setProdutoEstoqueAlvo] = useState<Produto | null>(null);
   const [produtoDetalhes, setProdutoDetalhes] = useState<Produto | null>(null);
   const [produtoGradeModal, setProdutoGradeModal] = useState<Produto | null>(null);
+  const [produtoMlModal, setProdutoMlModal] = useState<Produto | null>(null);
 
   const carregarProdutos = async () => {
     if (!loja?.id) return;
@@ -799,6 +802,17 @@ export const ProdutosEstoque: React.FC = () => {
                                 </Link>
 
                                 <button
+                                  type="button"
+                                  onClick={() => setProdutoMlModal(produto)}
+                                  className={`p-1.5 rounded-lg transition cursor-pointer ${
+                                    isDark ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-400/10' : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
+                                  }`}
+                                  title="Integrar com Mercado Livre (Vincular ou Publicar)"
+                                >
+                                  <ShoppingBag className="w-4 h-4 text-[#FFE600]" />
+                                </button>
+
+                                <button
                                   onClick={() => toggleDestaque(produto.id, produto.destaque)}
                                   className={`p-1.5 rounded-lg transition cursor-pointer ${
                                     produto.destaque ? 'text-amber-400' : isDark ? 'text-slate-500 hover:text-white' : 'text-slate-400 hover:text-black'
@@ -852,6 +866,16 @@ export const ProdutosEstoque: React.FC = () => {
         onClose={() => setProdutoGradeModal(null)}
         produto={produtoGradeModal}
         apenasGrade={true}
+      />
+
+      {/* Modal Integração Mercado Livre */}
+      <ModalVincularAnuncioMl
+        aberto={!!produtoMlModal}
+        onFechar={() => setProdutoMlModal(null)}
+        produto={produtoMlModal}
+        lojaId={loja?.id || ''}
+        isDark={isDark}
+        onSucesso={carregarProdutos}
       />
 
       {/* Modal de Filtros de Produtos & Estoque */}

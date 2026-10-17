@@ -2305,7 +2305,11 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               <div className="space-y-1.5">
                 {grupo.pedidos.map((ped) => {
                   const cli = ped.cliente_id ? mapaClientes.get(ped.cliente_id) : null;
-                  const vendedor = ped.origem === 'catalogo_online' ? 'Catálogo Online' : (ped.vendedor_id ? mapaUsuarios.get(ped.vendedor_id) : 'Operador');
+                  const vendedor = ped.origem === 'mercadolivre'
+                    ? 'Mercado Livre'
+                    : ped.origem === 'catalogo_online'
+                    ? 'Catálogo Online'
+                    : (ped.vendedor_id ? mapaUsuarios.get(ped.vendedor_id) : 'Operador');
                   const cancelado = ped.status === 'cancelado';
 
                   return (

@@ -4,6 +4,7 @@ import { ShippingOrchestrator } from './shippingOrchestrator';
 import { caixaService } from './caixaService';
 import { EstoquePedidoService, STATUS_QUE_BAIXAM_ESTOQUE } from './estoquePedidoService';
 import { logger } from './loggerService';
+import { mercadoLivreService } from './mercadoLivreService';
 import { Cliente, Pedido, StatusPedido, StatusPagamento, FormaPagamento } from '../types';
 import { PedidoEntrega } from '../types/shipping';
 
@@ -481,6 +482,14 @@ export class VendaService {
             itens: itensFormatados as any
           });
           estoqueBaixadoFlag = resEstoque.estoqueBaixado;
+
+          // 4f. Sincronização assíncrona de estoque com Mercado Livre para produtos vendidos
+          if (estoqueBaixadoFlag && itens && itens.length > 0) {
+            const produtosIdsUnicos = Array.from(new Set(itens.map((i) => i.produto?.id).filter(Boolean)));
+            for (const pId of produtosIdsUnicos) {
+              mercadoLivreService.sincronizarEstoqueProduto(lojaId, pId).catch(() => {});
+            }
+          }
         } catch (errEst: any) {
           logger.warn('VendaService', 'baixa_estoque', `Falha não-bloqueante ao processar baixa de estoque: ${errEst?.message || errEst}`, { loja_id: lojaId });
         }

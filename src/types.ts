@@ -17,7 +17,7 @@ export type TipoEntrega =
   | 'distancia_km' 
   | 'proprio' 
   | 'manual';
-export type OrigemVenda = 'pdv_mobile' | 'pdv_desktop' | 'catalogo_online';
+export type OrigemVenda = 'pdv_mobile' | 'pdv_desktop' | 'catalogo_online' | 'mercadolivre';
 export type StatusPedido =
   | 'pendente'
   | 'confirmado'
@@ -649,6 +649,12 @@ export interface Pedido {
   motivo_cancelamento?: string | null;
   criado_em?: string;
   atualizado_em?: string;
+  ml_order_id?: number | null;
+  ml_pack_id?: number | null;
+  ml_shipment_id?: number | null;
+  ml_logistic_type?: string | null;
+  ml_etiqueta_impressa?: boolean;
+  ml_etiqueta_impressa_em?: string | null;
   cupom_id?: string | null;
   cupom_codigo?: string | null;
   desconto_cupom?: number | null;
