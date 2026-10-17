@@ -180,9 +180,9 @@ Deno.serve(async (req: Request) => {
       }
 
       // Gera o state assinado via HMAC contendo loja_id e timestamp
-      const state = await gerarStateHmac(lojaId, stateSecret);
+      const stateGerado = await gerarStateHmac(lojaId, stateSecret);
 
-      const authUrl = `https://auth.mercadolivre.com.br/authorization?response_type=code&client_id=${mlAppId}&redirect_uri=${encodeURIComponent(mlRedirectUri)}&state=${encodeURIComponent(state)}`;
+      const authUrl = `https://auth.mercadolivre.com.br/authorization?response_type=code&client_id=${mlAppId}&redirect_uri=${encodeURIComponent(mlRedirectUri)}&state=${encodeURIComponent(stateGerado)}`;
 
       return new Response(
         JSON.stringify({ url: authUrl, state }),
