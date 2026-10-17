@@ -31,22 +31,22 @@ export const BannerAssinaturaTop: React.FC = () => {
   if (tipoBanner === 'trial') {
     return (
       <div className="relative z-40 bg-red-600 border-b border-red-700 text-white px-3 py-2 text-xs shadow-md transition-all">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-center sm:text-left">
-            <div className="p-1 rounded-full bg-white/20 shrink-0">
-              <Sparkles className="w-3.5 h-3.5 text-white animate-pulse" />
-            </div>
-            <div className="leading-tight text-white">
-              <span className="font-extrabold tracking-wide text-white">Período de Degustação Gratuito:</span>{' '}
-              <span className="text-white">
-                Restam <strong className="underline underline-offset-2 font-black text-white">{diasRestantesTrial} {diasRestantesTrial === 1 ? 'dia' : 'dias'}</strong> na loja{' '}
-                <strong className="font-extrabold text-white">{loja?.nome_fantasia}</strong>. Garanta o plano anual por apenas{' '}
-                <strong className="font-black text-white underline decoration-white/60">R$ 49,90/mês</strong>.
+        <div className="max-w-7xl mx-auto flex items-center justify-center relative">
+          {/* Conteúdo centralizado: Aviso + Botão lado a lado */}
+          <div className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 text-center px-8">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="p-1 rounded-full bg-white/20 inline-flex items-center justify-center">
+                <Sparkles className="w-3.5 h-3.5 text-white animate-pulse" />
               </span>
+              <span className="font-extrabold tracking-wide text-white">Período de Degustação Gratuito:</span>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-white">
+              Restam <strong className="underline underline-offset-2 font-black text-white">{diasRestantesTrial} {diasRestantesTrial === 1 ? 'dia' : 'dias'}</strong> na loja{' '}
+              <strong className="font-extrabold text-white">{loja?.nome_fantasia}</strong>. Garanta o plano anual por apenas{' '}
+              <strong className="font-black text-white underline decoration-white/60">R$ 49,90/mês</strong>.
+            </span>
+
             {erroCheckout && (
               <span className="text-[11px] text-white font-semibold bg-black/40 border border-white/20 px-2 py-0.5 rounded">
                 {erroCheckout}
@@ -57,7 +57,7 @@ export const BannerAssinaturaTop: React.FC = () => {
               type="button"
               onClick={handleCheckout}
               disabled={carregandoCheckout}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white text-red-600 font-extrabold hover:bg-red-50 active:scale-95 shadow-sm transition disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white text-red-600 font-extrabold hover:bg-red-50 active:scale-95 shadow-sm transition disabled:opacity-50 cursor-pointer shrink-0 ml-1"
             >
               {carregandoCheckout ? (
                 <>
@@ -67,22 +67,23 @@ export const BannerAssinaturaTop: React.FC = () => {
               ) : (
                 <>
                   <span>Assinar Agora</span>
-                  <ArrowRight className="w-3 h-3" />
+                  <ArrowRight className="w-3 h-3 text-red-600" />
                 </>
               )}
             </button>
-
-            {podeDispensar && (
-              <button
-                type="button"
-                onClick={() => setDispensado(true)}
-                title="Fechar aviso temporariamente"
-                className="p-1 rounded-md hover:bg-white/20 text-white/90 hover:text-white transition cursor-pointer"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
           </div>
+
+          {/* Botão dispensar alinhado à direita de forma absoluta */}
+          {podeDispensar && (
+            <button
+              type="button"
+              onClick={() => setDispensado(true)}
+              title="Fechar aviso temporariamente"
+              className="absolute right-0 p-1 rounded-md hover:bg-white/20 text-white hover:text-white transition cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5 text-white" />
+            </button>
+          )}
         </div>
       </div>
     );

@@ -44,6 +44,29 @@ export interface MarketplaceAnuncioItem {
   ultimo_erro_sincronizacao?: string | null;
 }
 
+/**
+ * Helper para obter a sessão JWT válida do usuário autenticado.
+ * Tenta refreshSession() caso a sessão inicial esteja nula ou expirada.
+ */
+async function obterSessaoValida() {
+  const { data: { session: sessaoInicial } } = await supabase.auth.getSession();
+  if (sessaoInicial?.access_token) {
+    return sessaoInicial;
+  }
+
+  // Tenta renovar a sessão persistida no storage local
+  try {
+    const { data: { session: sessaoRenovada } } = await supabase.auth.refreshSession();
+    if (sessaoRenovada?.access_token) {
+      return sessaoRenovada;
+    }
+  } catch (err) {
+    console.warn('[mercadoLivreService] Tentativa de renovar sessão falhou:', err);
+  }
+
+  throw new Error('Sessão não identificada. Por favor, atualize a página (F5) ou faça login novamente para continuar.');
+}
+
 export const mercadoLivreService = {
   /**
    * Obtém a conta conectada do Mercado Livre para a loja ativa
@@ -70,46 +93,37 @@ export const mercadoLivreService = {
    * Solicita a URL oficial de consentimento OAuth 2.0 à Edge Function ml-oauth
    */
   async obterUrlAutorizacao(lojaId: string): Promise<string> {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) {
-      throw new Error('Você precisa estar autenticado para conectar o Mercado Livre.');
-    }
+    const session = await obterSessaoValida();
 
-    const { data, error } = await supabase.functions.invoke('ml-oauth', {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+    const resposta = await fetch(`${supabaseUrl}/functions/v1/ml-oauth?action=authorize_url&loja_id=${lojaId}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${session.access_token}`,
       },
-      body: undefined, // GET query parameters
     });
 
-    // Se o invoke client não passar query params nativamente no GET, chamamos com URL direta
-    if (error || !data?.url) {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-      const resposta = await fetch(`${supabaseUrl}/functions/v1/ml-oauth?action=authorize_url&loja_id=${lojaId}`, {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
-
-      if (!resposta.ok) {
-        const erroJson = await resposta.json().catch(() => ({}));
-        throw new Error(erroJson.error || 'Falha ao gerar link de conexão do Mercado Livre.');
-      }
-
-      const resJson = await resposta.json();
-      return resJson.url;
+    if (!resposta.ok) {
+      const erroJson = await resposta.json().catch(() => ({}));
+      throw new Error(erroJson.error || 'Falha ao gerar link de conexão do Mercado Livre.');
     }
 
-    return data.url;
+    const resJson = await resposta.json();
+    if (!resJson?.url) {
+      throw new Error('URL de autorização não retornada pelo servidor.');
+    }
+
+    return resJson.url;
   },
 
   /**
    * Finaliza o fluxo OAuth trocando o authorization code recebido na URL de retorno
    */
   async processarCallbackCodigo(code: string, state: string): Promise<MarketplaceContaLoja> {
+    const session = await obterSessaoValida().catch(() => null);
     const { data, error } = await supabase.functions.invoke('ml-oauth', {
       body: { code, state },
+      headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
     });
 
     if (error || !data?.sucesso) {
@@ -123,8 +137,10 @@ export const mercadoLivreService = {
    * Desconecta a conta do Mercado Livre da loja ativa
    */
   async desconectarConta(lojaId: string): Promise<void> {
+    const session = await obterSessaoValida().catch(() => null);
     const { data, error } = await supabase.functions.invoke('ml-oauth', {
       body: { action: 'disconnect', loja_id: lojaId },
+      headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
     });
 
     if (error || !data?.sucesso) {
@@ -260,10 +276,7 @@ export const mercadoLivreService = {
    * Baixa a etiqueta oficial do Mercado Envios em PDF e abre em nova aba para impressão
    */
   async imprimirEtiquetaPedido(pedidoId: string): Promise<void> {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) {
-      throw new Error('Sessão expirada. Faça login novamente para imprimir a etiqueta.');
-    }
+    const session = await obterSessaoValida();
 
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
     const resposta = await fetch(`${supabaseUrl}/functions/v1/ml-etiquetas?pedido_id=${pedidoId}&formato=pdf`, {

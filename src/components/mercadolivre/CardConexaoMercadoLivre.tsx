@@ -60,9 +60,31 @@ export const CardConexaoMercadoLivre: React.FC<CardConexaoMercadoLivreProps> = (
     carregarDadosConta();
   }, [lojaId]);
 
-  // Listener para capturar retorno de OAuth se aberto via popup ou callback de URL
+  // Listener para capturar retorno de OAuth se aberto via redirect da URL (?ml_status=success/error ou ?code=...&origin=mercadolivre)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const mlStatus = params.get('ml_status');
+    const mlMsg = params.get('ml_msg');
+    const nickname = params.get('nickname');
+
+    if (mlStatus === 'success') {
+      const nomeConta = nickname ? `@${nickname}` : 'Mercado Livre';
+      mostrarSucesso(`Conta ${nomeConta} conectada com sucesso ao HUBI!`, 'Mercado Livre Conectado');
+      carregarDadosConta();
+      // Limpa query params da barra de endereço para higiene da URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    }
+
+    if (mlStatus === 'error') {
+      const msg = mlMsg || 'Não foi possível concluir a autorização com o Mercado Livre.';
+      setErroConexao(msg);
+      mostrarErro(msg, 'Erro OAuth');
+      // Limpa query params da barra de endereço para higiene da URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    }
+
     const code = params.get('code');
     const state = params.get('state');
 
