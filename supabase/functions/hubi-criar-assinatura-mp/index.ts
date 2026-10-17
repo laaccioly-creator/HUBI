@@ -54,10 +54,28 @@ serve(async (req: Request) => {
       );
     }
 
-    // 2. Parâmetros Comerciais HUBI (12x R$ 49,90 = R$ 598,80)
-    const VALOR_ANUAL_TOTAL = 598.80;
-    const VALOR_MENSAL_REF = 49.90;
-    const PARCELAS_MAXIMAS = 12;
+    // 2. Parâmetros Comerciais HUBI (dinâmicos da tabela configuracoes_plataforma)
+    let valorAnualTotal = 598.80;
+    let valorMensalRef = 49.90;
+    let parcelasMaximas = 12;
+
+    const { data: configPlataforma } = await supabaseAdmin
+      .from("configuracoes_plataforma")
+      .select("valor_anual_total, valor_mensal_anual, max_parcelas_cartao, parcelas_sem_juros")
+      .eq("id", 1)
+      .maybeSingle();
+
+    if (configPlataforma) {
+      if (Number(configPlataforma.valor_anual_total) > 0) {
+        valorAnualTotal = Number(configPlataforma.valor_anual_total);
+      }
+      if (Number(configPlataforma.valor_mensal_anual) > 0) {
+        valorMensalRef = Number(configPlataforma.valor_mensal_anual);
+      }
+      if (Number(configPlataforma.max_parcelas_cartao) > 0) {
+        parcelasMaximas = Number(configPlataforma.max_parcelas_cartao);
+      }
+    }
 
     const preferencePayload = {
       items: [
@@ -67,7 +85,7 @@ serve(async (req: Request) => {
           description: `Assinatura anual de 12 meses da unidade: ${loja.nome_fantasia}`,
           quantity: 1,
           currency_id: "BRL",
-          unit_price: VALOR_ANUAL_TOTAL,
+          unit_price: valorAnualTotal,
         },
       ],
       payer: {
@@ -75,8 +93,8 @@ serve(async (req: Request) => {
         email: loja.email || "faturamento@hubi.app",
       },
       payment_methods: {
-        installments: 12,
-        default_installments: 12,
+        installments: parcelasMaximas,
+        default_installments: parcelasMaximas,
       },
       back_urls: {
         success: "https://hubi.app/dashboard?assinatura=sucesso",
@@ -124,9 +142,9 @@ serve(async (req: Request) => {
           organizacao_id: loja.organizacao_id,
           mp_preference_id: prefData.id,
           status_pagamento: "pendente",
-          valor_total: VALOR_ANUAL_TOTAL,
-          valor_mensal_referencia: VALOR_MENSAL_REF,
-          parcelas: PARCELAS_MAXIMAS,
+          valor_total: valorAnualTotal,
+          valor_mensal_referencia: valorMensalRef,
+          parcelas: parcelasMaximas,
           ciclo_meses: 12,
           link_checkout: prefData.init_point,
         });

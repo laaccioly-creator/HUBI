@@ -79,6 +79,7 @@ import { setGoogleSearchConfig } from '../services/geminiService';
 import { testarConexaoSerpApi, salvarSerpApiKey, obterSerpApiKey } from '../services/serpApiService';
 import { useTheme } from '../contexts/ThemeContext';
 import { CardConexaoMercadoLivre } from './mercadolivre/CardConexaoMercadoLivre';
+import { CardParametrosHubiAdmin } from './configuracoes/CardParametrosHubiAdmin';
 
 type SubTelaConfig =
   | 'menu'
@@ -2578,6 +2579,13 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 ))}
               </div>
             </div>
+
+            {/* CARD EXCLUSIVO DE PARÂMETROS GLOBAIS (SUPER ADMIN) */}
+            {permissions.ehSuperAdmin && (
+              <div className="pt-2">
+                <CardParametrosHubiAdmin emailLogado={loja?.email || 'laaccioly@hotmail.com'} />
+              </div>
+            )}
           </div>
         )}
 

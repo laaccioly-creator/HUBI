@@ -12,10 +12,16 @@ export const BannerAssinaturaTop: React.FC = () => {
     tipoBanner,
     diasRestantesTrial,
     diasRestantesAnuidade,
+    valorMensalReferencia,
     iniciarCheckoutAssinatura,
     carregandoCheckout,
     erroCheckout
   } = useAssinaturaStatus();
+
+  const valorFormatado = (valorMensalReferencia || 49.90).toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  });
 
   const [dispensado, setDispensado] = useState<boolean>(false);
 
@@ -30,11 +36,11 @@ export const BannerAssinaturaTop: React.FC = () => {
 
   if (tipoBanner === 'trial') {
     return (
-      <div className="relative z-40 bg-red-600 border-b border-red-700 text-white px-3 py-2 text-xs shadow-md transition-all">
+      <div className="relative z-40 bg-red-600 border-b border-red-700 text-white px-3 py-2 text-xs shadow-md transition-all select-none">
         <div className="max-w-7xl mx-auto flex items-center justify-center relative">
-          {/* Conteúdo centralizado: Aviso + Botão lado a lado */}
-          <div className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 text-center px-8">
-            <div className="flex items-center gap-1.5 shrink-0">
+          {/* Conteúdo centralizado horizontalmente: Aviso + Botão lado a lado */}
+          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 text-center px-8">
+            <div className="inline-flex items-center gap-1.5 shrink-0 text-white">
               <span className="p-1 rounded-full bg-white/20 inline-flex items-center justify-center">
                 <Sparkles className="w-3.5 h-3.5 text-white animate-pulse" />
               </span>
@@ -44,11 +50,11 @@ export const BannerAssinaturaTop: React.FC = () => {
             <span className="text-white">
               Restam <strong className="underline underline-offset-2 font-black text-white">{diasRestantesTrial} {diasRestantesTrial === 1 ? 'dia' : 'dias'}</strong> na loja{' '}
               <strong className="font-extrabold text-white">{loja?.nome_fantasia}</strong>. Garanta o plano anual por apenas{' '}
-              <strong className="font-black text-white underline decoration-white/60">R$ 49,90/mês</strong>.
+              <strong className="font-black text-white underline decoration-white/60">{valorFormatado}/mês</strong>.
             </span>
 
             {erroCheckout && (
-              <span className="text-[11px] text-white font-semibold bg-black/40 border border-white/20 px-2 py-0.5 rounded">
+              <span className="text-[11px] text-white font-semibold bg-black/50 border border-white/30 px-2 py-0.5 rounded">
                 {erroCheckout}
               </span>
             )}
@@ -57,17 +63,17 @@ export const BannerAssinaturaTop: React.FC = () => {
               type="button"
               onClick={handleCheckout}
               disabled={carregandoCheckout}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white text-red-600 font-extrabold hover:bg-red-50 active:scale-95 shadow-sm transition disabled:opacity-50 cursor-pointer shrink-0 ml-1"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white hover:bg-gray-100 text-gray-900 font-bold active:scale-95 shadow-sm transition disabled:opacity-50 cursor-pointer shrink-0 ml-1"
             >
               {carregandoCheckout ? (
                 <>
-                  <Loader2 className="w-3 h-3 animate-spin text-red-600" />
-                  <span>Gerando Checkout...</span>
+                  <Loader2 className="w-3 h-3 animate-spin text-gray-900" />
+                  <span className="text-gray-900">Gerando Checkout...</span>
                 </>
               ) : (
                 <>
-                  <span>Assinar Agora</span>
-                  <ArrowRight className="w-3 h-3 text-red-600" />
+                  <span className="text-gray-900">Assinar Agora</span>
+                  <ArrowRight className="w-3 h-3 text-gray-900" />
                 </>
               )}
             </button>

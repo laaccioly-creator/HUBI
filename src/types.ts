@@ -227,6 +227,21 @@ export interface ConfiguracoesExtrasLoja {
 
 export type StatusAssinaturaLoja = 'trial' | 'ativo' | 'atrasado' | 'bloqueado';
 
+export interface ConfiguracoesPlataformaHubi {
+  id: number;
+  dias_trial: number;
+  valor_mensal_anual: number;
+  valor_anual_total: number;
+  valor_plano_mensal_avulso: number;
+  desconto_pix_percentual: number;
+  aceita_cartao_debito: boolean;
+  max_parcelas_cartao: number;
+  parcelas_sem_juros: number;
+  email_super_admin: string;
+  atualizado_em?: string;
+  atualizado_por?: string | null;
+}
+
 export interface Organizacao {
   id: string;
   nome: string;

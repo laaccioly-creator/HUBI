@@ -1,0 +1,11 @@
+# Configuração do Supabase CLI e Edge Functions
+# Documentação: https://supabase.com/docs/guides/cli/config
+
+[api]
+enabled = true
+
+[functions.ml-oauth]
+verify_jwt = false
+
+[functions.ml-webhook]
+verify_jwt = false

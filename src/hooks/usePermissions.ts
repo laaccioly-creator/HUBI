@@ -1,6 +1,7 @@
 import { useAuth } from '../contexts/AuthContext';
 
 export interface PermissionsState {
+  ehSuperAdmin: boolean;
   ehOwner: boolean;
   ehAdmin: boolean;
   ehGerente: boolean;
@@ -41,8 +42,11 @@ export interface PermissionsState {
 export const usePermissions = (): PermissionsState => {
   const { usuario } = useAuth();
 
+  const emailUsuario = (usuario?.email || '').toLowerCase().trim();
+  const ehSuperAdmin = emailUsuario === 'laaccioly@hotmail.com';
+
   const perfil = usuario?.perfil || 'comum';
-  const ehOwner = perfil === 'owner';
+  const ehOwner = ehSuperAdmin || perfil === 'owner';
   const ehAdmin = ehOwner || perfil === 'admin';
   const ehGerente = ehAdmin || perfil === 'gerente';
   const ehVendedorOuComum = !ehAdmin && !ehGerente;
@@ -85,6 +89,7 @@ export const usePermissions = (): PermissionsState => {
   const bloqueadoPorDispositivoMovel = isMobileScreen && !ehAdmin && !podeUsoCelularPessoal;
 
   return {
+    ehSuperAdmin,
     ehOwner,
     ehAdmin,
     ehGerente,
