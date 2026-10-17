@@ -2,19 +2,18 @@
 // Gerencia a autorização OAuth 2.0 com o Mercado Livre (Geração de URL de consentimento e troca de code por tokens).
 // Deploy: npx supabase functions deploy ml-oauth
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { gerarStateHmac, validarStateHmac, MlTokenResponse } from "../_shared/mlClient.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
 };
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { status: 200, headers: corsHeaders });
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
@@ -31,102 +30,101 @@ serve(async (req: Request) => {
     // ------------------------------------------------------------------------
     // 1. GET: ROTA DE CALLBACK OAUTH (REDIRECIONAMENTO DIRETO DO MERCADO LIVRE)
     // ------------------------------------------------------------------------
-    if (req.method === "GET" && url.searchParams.has("code") && url.searchParams.has("state")) {
-      const code = url.searchParams.get("code")!;
-      const state = url.searchParams.get("state")!;
-
-      // Validação do state assinado (anti-CSRF e extração do loja_id)
-      const { valido, lojaId } = await validarStateHmac(state, stateSecret);
-      if (!valido || !lojaId) {
-        console.error("[ml-oauth] State inválido ou expirado no callback GET");
-        const redirectErro = `${hubiFrontendUrl}/config?ml_status=error&ml_msg=${encodeURIComponent("Parâmetro de sessão expirado ou inválido. Tente novamente.")}`;
-        return Response.redirect(redirectErro, 302);
-      }
-
-      // Troca do authorization_code pelo par de access_token e refresh_token
-      const params = new URLSearchParams();
-      params.append("grant_type", "authorization_code");
-      params.append("client_id", mlAppId);
-      params.append("client_secret", mlClientSecret);
-      params.append("code", code);
-      params.append("redirect_uri", mlRedirectUri);
-
-      const respostaTroca = await fetch("https://api.mercadolibre.com/oauth/token", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "Accept": "application/json",
-        },
-        body: params.toString(),
-      });
-
-      if (!respostaTroca.ok) {
-        const erroJson = await respostaTroca.json().catch(() => ({}));
-        console.error("[ml-oauth] Falha na troca do code por token no callback GET:", erroJson);
-        const redirectErro = `${hubiFrontendUrl}/config?ml_status=error&ml_msg=${encodeURIComponent("Falha ao autorizar no Mercado Livre. Verifique as credenciais do aplicativo.")}`;
-        return Response.redirect(redirectErro, 302);
-      }
-
-      const tokenData: MlTokenResponse = await respostaTroca.json();
-
-      // Consulta dados do usuário vendedor (nickname, site_id)
-      const respostaUsuario = await fetch("https://api.mercadolibre.com/users/me", {
-        headers: {
-          "Authorization": `Bearer ${tokenData.access_token}`,
-          "Accept": "application/json",
-        },
-      });
-
-      let mlNickname = `vendedor_${tokenData.user_id}`;
-      let mlSiteId = "MLB";
-
-      if (respostaUsuario.ok) {
-        const usuarioDados = await respostaUsuario.json();
-        mlNickname = usuarioDados.nickname || mlNickname;
-        mlSiteId = usuarioDados.site_id || mlSiteId;
-      }
-
-      // Persistência segura via Service Role (sem RLS de usuário, pois é callback de sistema)
-      const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
-      const tokenExpiraEm = new Date(Date.now() + (tokenData.expires_in || 21600) * 1000).toISOString();
-
-      const { error: erroUpsert } = await supabaseAdmin
-        .from("marketplace_contas")
-        .upsert(
-          {
-            loja_id: lojaId,
-            provedor: "mercadolivre",
-            ml_user_id: tokenData.user_id,
-            ml_nickname: mlNickname,
-            ml_site_id: mlSiteId,
-            access_token: tokenData.access_token,
-            refresh_token: tokenData.refresh_token,
-            token_expira_em: tokenExpiraEm,
-            escopos: tokenData.scope || null,
-            status_conexao: "conectado",
-            sincronizar_estoque_automatico: true,
-            importar_pedidos_automatico: true,
-            ultima_sincronizacao_em: new Date().toISOString(),
-            ultimo_erro_mensagem: null,
-          },
-          { onConflict: "loja_id,provedor" }
-        );
-
-      if (erroUpsert) {
-        console.error("[ml-oauth] Erro ao gravar conta no banco via callback GET:", erroUpsert.message);
-        const redirectErro = `${hubiFrontendUrl}/config?ml_status=error&ml_msg=${encodeURIComponent("Erro ao salvar conta no banco de dados.")}`;
-        return Response.redirect(redirectErro, 302);
-      }
-
-      // Redirecionamento 302 de sucesso para a tela de configurações do HUBI
-      const redirectSucesso = `${hubiFrontendUrl}/config?ml_status=success&nickname=${encodeURIComponent(mlNickname)}`;
-      return Response.redirect(redirectSucesso, 302);
-    }
-
-    // ------------------------------------------------------------------------
-    // 2. GET: GERA A URL DE AUTORIZAÇÃO OAUTH 2.0 (REQUER AUTHENTICATION HEADER)
-    // ------------------------------------------------------------------------
     if (req.method === "GET") {
+      const code = url.searchParams.get("code");
+      const state = url.searchParams.get("state");
+
+      // CASO A: RETORNO DE CALLBACK DO MERCADO LIVRE (CODE + STATE)
+      if (code && state) {
+        // 1. Validação do state assinado (anti-CSRF e extração do loja_id)
+        const { valido, lojaId } = await validarStateHmac(state, stateSecret);
+        if (!valido || !lojaId) {
+          console.error("[ml-oauth] State inválido ou expirado no callback GET");
+          const redirectErro = `${hubiFrontendUrl}/config?ml_status=error&ml_msg=${encodeURIComponent("Parâmetro de sessão expirado ou inválido. Tente novamente.")}`;
+          return Response.redirect(redirectErro, 302);
+        }
+
+        // 2. Troca do authorization_code pelo par de access_token e refresh_token
+        const params = new URLSearchParams();
+        params.append("grant_type", "authorization_code");
+        params.append("client_id", mlAppId);
+        params.append("client_secret", mlClientSecret);
+        params.append("code", code);
+        params.append("redirect_uri", mlRedirectUri);
+
+        const respostaTroca = await fetch("https://api.mercadolibre.com/oauth/token", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json",
+          },
+          body: params.toString(),
+        });
+
+        if (!respostaTroca.ok) {
+          const erroJson = await respostaTroca.json().catch(() => ({}));
+          console.error("[ml-oauth] Falha na troca do code por token no callback GET:", erroJson);
+          const redirectErro = `${hubiFrontendUrl}/config?ml_status=error&ml_msg=${encodeURIComponent("Falha ao autorizar no Mercado Livre. Verifique as credenciais do aplicativo.")}`;
+          return Response.redirect(redirectErro, 302);
+        }
+
+        const tokenData: MlTokenResponse = await respostaTroca.json();
+
+        // 3. Consulta dados do usuário vendedor (nickname, site_id)
+        const respostaUsuario = await fetch("https://api.mercadolibre.com/users/me", {
+          headers: {
+            "Authorization": `Bearer ${tokenData.access_token}`,
+            "Accept": "application/json",
+          },
+        });
+
+        let mlNickname = `vendedor_${tokenData.user_id}`;
+        let mlSiteId = "MLB";
+
+        if (respostaUsuario.ok) {
+          const usuarioDados = await respostaUsuario.json();
+          mlNickname = usuarioDados.nickname || mlNickname;
+          mlSiteId = usuarioDados.site_id || mlSiteId;
+        }
+
+        // 4. Persistência segura via Service Role (sem RLS de usuário, pois é callback de sistema)
+        const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
+        const tokenExpiraEm = new Date(Date.now() + (tokenData.expires_in || 21600) * 1000).toISOString();
+
+        const { error: erroUpsert } = await supabaseAdmin
+          .from("marketplace_contas")
+          .upsert(
+            {
+              loja_id: lojaId,
+              provedor: "mercadolivre",
+              ml_user_id: tokenData.user_id,
+              ml_nickname: mlNickname,
+              ml_site_id: mlSiteId,
+              access_token: tokenData.access_token,
+              refresh_token: tokenData.refresh_token,
+              token_expira_em: tokenExpiraEm,
+              escopos: tokenData.scope || null,
+              status_conexao: "conectado",
+              sincronizar_estoque_automatico: true,
+              importar_pedidos_automatico: true,
+              ultima_sincronizacao_em: new Date().toISOString(),
+              ultimo_erro_mensagem: null,
+            },
+            { onConflict: "loja_id,provedor" }
+          );
+
+        if (erroUpsert) {
+          console.error("[ml-oauth] Erro ao gravar conta no banco via callback GET:", erroUpsert.message);
+          const redirectErro = `${hubiFrontendUrl}/config?ml_status=error&ml_msg=${encodeURIComponent("Erro ao salvar conta no banco de dados.")}`;
+          return Response.redirect(redirectErro, 302);
+        }
+
+        // 5. Redirecionamento 302 de sucesso para a tela de configurações do HUBI
+        const redirectSucesso = `${hubiFrontendUrl}/config?ml_status=success&nickname=${encodeURIComponent(mlNickname)}`;
+        return Response.redirect(redirectSucesso, 302);
+      }
+
+      // CASO B: GERA A URL DE AUTORIZAÇÃO OAUTH 2.0 (REQUER AUTHENTICATION HEADER)
       const lojaId = url.searchParams.get("loja_id");
       const action = url.searchParams.get("action");
 
