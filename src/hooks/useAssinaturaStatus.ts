@@ -146,9 +146,18 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
     }
 
     // 3. Verificação de Período Trial (Degustação de 7 dias)
+    // Se trial_fim_em estiver preenchido, usa-o diretamente. Caso contrário, calcula trial a partir de criado_em + 7 dias.
+    let trialFimMs: number | null = null;
     if (loja.trial_fim_em) {
-      const trialMs = new Date(loja.trial_fim_em).getTime();
-      const diffTrialDias = Math.ceil((trialMs - agoraMs) / (1000 * 60 * 60 * 24));
+      trialFimMs = new Date(loja.trial_fim_em).getTime();
+    } else if (loja.criado_em) {
+      // 7 dias a partir da criação da loja
+      trialFimMs = new Date(loja.criado_em).getTime() + 7 * 24 * 60 * 60 * 1000;
+    }
+
+    if (trialFimMs) {
+      // Diferença em dias inteiros considerando o final do dia
+      const diffTrialDias = Math.ceil((trialFimMs - agoraMs) / (1000 * 60 * 60 * 24));
 
       if (diffTrialDias <= 0) {
         // Trial expirou
@@ -162,7 +171,7 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
         };
       }
 
-      // Em período de trial
+      // Em período de trial ativo com contagem regressiva precisa
       return {
         status: 'TRIAL_ATIVO' as StatusCicloAssinatura,
         diasRestantesTrial: Math.max(1, diffTrialDias),
@@ -173,7 +182,7 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
       };
     }
 
-    // Fallback padrão seguro para novas lojas sem coluna preenchida
+    // Fallback padrão se não houver nenhuma data registrada
     return {
       status: 'TRIAL_ATIVO' as StatusCicloAssinatura,
       diasRestantesTrial: 7,
@@ -220,24 +229,28 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
             diasRestantes: diff
           });
         }
-      } else if (l.trial_fim_em) {
-        const trialMs = new Date(l.trial_fim_em).getTime();
-        const diffTrial = Math.ceil((trialMs - agoraMs) / (1000 * 60 * 60 * 24));
-        if (diffTrial <= 0) {
-          bloqueadas.push({
-            lojaId: l.id,
-            nomeLoja: l.nome_fantasia,
-            tipo: 'bloqueado',
-            diasRestantes: 0
-          });
-        } else if (diffTrial <= 3) {
-          // Alerta no conglomerado se restarem 3 dias ou menos de trial
-          alertas.push({
-            lojaId: l.id,
-            nomeLoja: l.nome_fantasia,
-            tipo: 'trial',
-            diasRestantes: diffTrial
-          });
+      } else {
+        const trialMs = l.trial_fim_em
+          ? new Date(l.trial_fim_em).getTime()
+          : (l.criado_em ? new Date(l.criado_em).getTime() + 7 * 24 * 60 * 60 * 1000 : null);
+        if (trialMs) {
+          const diffTrial = Math.ceil((trialMs - agoraMs) / (1000 * 60 * 60 * 24));
+          if (diffTrial <= 0) {
+            bloqueadas.push({
+              lojaId: l.id,
+              nomeLoja: l.nome_fantasia,
+              tipo: 'bloqueado',
+              diasRestantes: 0
+            });
+          } else if (diffTrial <= 3) {
+            // Alerta no conglomerado se restarem 3 dias ou menos de trial
+            alertas.push({
+              lojaId: l.id,
+              nomeLoja: l.nome_fantasia,
+              tipo: 'trial',
+              diasRestantes: diffTrial
+            });
+          }
         }
       }
     });

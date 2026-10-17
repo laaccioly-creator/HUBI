@@ -85,9 +85,20 @@ export const CardConexaoMercadoLivre: React.FC<CardConexaoMercadoLivreProps> = (
     }
   }, []);
 
-  const handleIniciarConexao = async () => {
+  const [erroConexao, setErroConexao] = useState<string | null>(null);
+
+  const handleIniciarConexao = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setErroConexao(null);
+
     if (!lojaId) {
-      mostrarAviso('Identificador da loja não localizado. Atualize a página e tente novamente.', 'Atenção');
+      const msg = 'Identificador da loja não localizado (loja_id ausente). Atualize a página e tente novamente.';
+      console.error('[ML OAuth Error]:', msg);
+      setErroConexao(msg);
+      mostrarErro(msg, 'Atenção');
       return;
     }
 
@@ -97,7 +108,10 @@ export const CardConexaoMercadoLivre: React.FC<CardConexaoMercadoLivreProps> = (
       // Redireciona o lojista com segurança para a tela oficial de autorização do Mercado Livre
       window.location.href = authUrl;
     } catch (err: any) {
-      mostrarErro(err.message || 'Não foi possível iniciar o login com o Mercado Livre.', 'Erro de Conexão');
+      const msgErro = err?.message || 'Não foi possível iniciar o login com o Mercado Livre.';
+      console.error('[ML OAuth Error]:', err);
+      setErroConexao(msgErro);
+      mostrarErro(msgErro, 'Erro de Conexão');
       setConectando(false);
     }
   };
@@ -211,7 +225,7 @@ export const CardConexaoMercadoLivre: React.FC<CardConexaoMercadoLivreProps> = (
           ) : (
             <button
               type="button"
-              onClick={handleIniciarConexao}
+              onClick={(e) => handleIniciarConexao(e)}
               disabled={conectando}
               className="px-4 py-2.5 rounded-xl bg-[#FFE600] hover:bg-[#F5DC00] text-slate-950 font-black text-xs transition flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50 active:scale-95"
             >
@@ -230,6 +244,17 @@ export const CardConexaoMercadoLivre: React.FC<CardConexaoMercadoLivreProps> = (
           )}
         </div>
       </div>
+
+      {/* ALERTA DE ERRO DE CONEXÃO OAUTH (PERSISTENTE NA TELA) */}
+      {erroConexao && (
+        <div className="mt-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs flex items-start gap-2.5 animate-in fade-in">
+          <AlertCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-bold">Falha ao conectar com Mercado Livre:</p>
+            <p className="mt-0.5 opacity-90">{erroConexao}</p>
+          </div>
+        </div>
+      )}
 
       {/* DETALHES DA CONTA CONECTADA & CONFIGURAÇÕES */}
       {isConectado && (
@@ -361,7 +386,7 @@ export const CardConexaoMercadoLivre: React.FC<CardConexaoMercadoLivreProps> = (
           </div>
           <button
             type="button"
-            onClick={handleIniciarConexao}
+            onClick={(e) => handleIniciarConexao(e)}
             className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-[11px] transition shrink-0 cursor-pointer"
           >
             Reconectar
