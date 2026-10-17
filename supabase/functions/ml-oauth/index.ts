@@ -22,7 +22,7 @@ Deno.serve(async (req: Request) => {
   const mlClientSecret = Deno.env.get("ML_CLIENT_SECRET") || "";
   const mlRedirectUri = Deno.env.get("ML_REDIRECT_URI") || "";
   const stateSecret = Deno.env.get("ML_STATE_HMAC_SECRET") || mlClientSecret || "hubi-ml-secret-salt";
-  const hubiFrontendUrl = Deno.env.get("HUBI_FRONTEND_URL") || "http://localhost:5173";
+  const hubiFrontendUrl = Deno.env.get("FRONTEND_URL") || Deno.env.get("HUBI_FRONTEND_URL") || "https://hubi-studio.ai.studio";
 
   const url = new URL(req.url);
 
@@ -64,7 +64,7 @@ Deno.serve(async (req: Request) => {
         if (!respostaTroca.ok) {
           const erroJson = await respostaTroca.json().catch(() => ({}));
           console.error("[ml-oauth] Falha na troca do code por token no callback GET:", erroJson);
-          const redirectErro = `${hubiFrontendUrl}/config?ml_status=error&ml_msg=${encodeURIComponent("Falha ao autorizar no Mercado Livre. Verifique as credenciais do aplicativo.")}`;
+          const redirectErro = `${hubiFrontendUrl}/config?ml_status=error&ml_msg=${encodeURIComponent("Falha ao autorizar no Mercado Livre. Verifique as credenciais do aplicativo.")}&ml_error=${encodeURIComponent(JSON.stringify(erroJson))}`;
           return Response.redirect(redirectErro, 302);
         }
 
@@ -91,31 +91,52 @@ Deno.serve(async (req: Request) => {
         const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
         const tokenExpiraEm = new Date(Date.now() + (tokenData.expires_in || 21600) * 1000).toISOString();
 
-        const { error: erroUpsert } = await supabaseAdmin
-          .from("marketplace_contas")
-          .upsert(
-            {
-              loja_id: lojaId,
-              provedor: "mercadolivre",
-              ml_user_id: tokenData.user_id,
-              ml_nickname: mlNickname,
-              ml_site_id: mlSiteId,
-              access_token: tokenData.access_token,
-              refresh_token: tokenData.refresh_token,
-              token_expira_em: tokenExpiraEm,
-              escopos: tokenData.scope || null,
-              status_conexao: "conectado",
-              sincronizar_estoque_automatico: true,
-              importar_pedidos_automatico: true,
-              ultima_sincronizacao_em: new Date().toISOString(),
-              ultimo_erro_mensagem: null,
-            },
-            { onConflict: "loja_id,provedor" }
-          );
+        const dadosConta = {
+          loja_id: lojaId,
+          provedor: "mercadolivre" as const,
+          ml_user_id: tokenData.user_id,
+          ml_nickname: mlNickname,
+          ml_site_id: mlSiteId,
+          access_token: tokenData.access_token,
+          refresh_token: tokenData.refresh_token,
+          token_expira_em: tokenExpiraEm,
+          escopos: tokenData.scope || null,
+          status_conexao: "conectado" as const,
+          sincronizar_estoque_automatico: true,
+          importar_pedidos_automatico: true,
+          ultima_sincronizacao_em: new Date().toISOString(),
+          ultimo_erro_mensagem: null,
+        };
 
-        if (erroUpsert) {
-          console.error("[ml-oauth] Erro ao gravar conta no banco via callback GET:", erroUpsert.message);
-          const redirectErro = `${hubiFrontendUrl}/config?ml_status=error&ml_msg=${encodeURIComponent("Erro ao salvar conta no banco de dados.")}`;
+        // Busca se já existe uma conta para esta loja ou para este vendedor ML
+        const { data: contaExistente, error: erroBusca } = await supabaseAdmin
+          .from("marketplace_contas")
+          .select("id")
+          .or(`loja_id.eq.${lojaId},ml_user_id.eq.${tokenData.user_id}`)
+          .maybeSingle();
+
+        if (erroBusca) {
+          console.error("[ml-oauth] Erro ao verificar conta existente:", erroBusca);
+        }
+
+        let erroPersistencia: any = null;
+
+        if (contaExistente?.id) {
+          const { error: erroUpdate } = await supabaseAdmin
+            .from("marketplace_contas")
+            .update(dadosConta)
+            .eq("id", contaExistente.id);
+          erroPersistencia = erroUpdate;
+        } else {
+          const { error: erroInsert } = await supabaseAdmin
+            .from("marketplace_contas")
+            .insert(dadosConta);
+          erroPersistencia = erroInsert;
+        }
+
+        if (erroPersistencia) {
+          console.error("[ml-oauth] Erro ao gravar conta no banco via callback GET:", erroPersistencia);
+          const redirectErro = `${hubiFrontendUrl}/config?ml_status=error&ml_msg=${encodeURIComponent("Erro ao salvar conta no banco de dados.")}&ml_error=${encodeURIComponent(erroPersistencia.message || JSON.stringify(erroPersistencia))}`;
           return Response.redirect(redirectErro, 302);
         }
 

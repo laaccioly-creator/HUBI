@@ -77,9 +77,11 @@ export const CardConexaoMercadoLivre: React.FC<CardConexaoMercadoLivreProps> = (
     }
 
     if (mlStatus === 'error') {
+      const mlError = params.get('ml_error');
       const msg = mlMsg || 'Não foi possível concluir a autorização com o Mercado Livre.';
-      setErroConexao(msg);
-      mostrarErro(msg, 'Erro OAuth');
+      const msgCompleta = mlError ? `${msg} Detalhes: ${mlError}` : msg;
+      setErroConexao(msgCompleta);
+      mostrarErro(msgCompleta, 'Erro OAuth');
       // Limpa query params da barra de endereço para higiene da URL
       window.history.replaceState({}, document.title, window.location.pathname);
       return;
