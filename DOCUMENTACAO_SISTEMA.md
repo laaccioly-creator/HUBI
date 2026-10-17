@@ -641,6 +641,23 @@ erDiagram
 | `aprovado_em` | TIMESTAMPTZ | NULL | Data/hora de confirmação pelo webhook |
 | `criado_em` / `atualizado_em` | TIMESTAMPTZ | DEFAULT NOW() | Carimbos de auditoria |
 
+#### 22. Tabela `sistema_logs` (Observabilidade, Auditoria de Erros e LGPD)
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | ID único da ocorrência de log |
+| `loja_id` | UUID | NULL, FK -> lojas(id) ON DELETE CASCADE | Vínculo tenant (se autenticado/contextualizado) |
+| `organizacao_id` | UUID | NULL, FK -> organizacoes(id) ON DELETE SET NULL | Conglomerado proprietário da loja |
+| `usuario_id` | UUID | NULL, FK -> usuarios_loja(id) ON DELETE SET NULL | Operador logado no momento da ocorrência |
+| `nivel` | VARCHAR(15) | NOT NULL, CHECK in ('ERROR', 'WARN', 'FATAL', 'INFO') | Severidade do evento de log |
+| `origem` | VARCHAR(60) | NOT NULL | Componente/serviço originador (ex: 'PosCheckout', 'ErrorBoundary') |
+| `contexto` | VARCHAR(120) | NOT NULL | Ação operacional em execução (ex: 'gravarVendaSupabase') |
+| `mensagem` | TEXT | NOT NULL | Mensagem sanitizada livre de dados pessoais (LGPD) |
+| `codigo_erro` | VARCHAR(50) | NULL | Código da exceção ou SQLSTATE |
+| `stack_trace` | TEXT | NULL | Rastreamento de pilha de chamadas (sanitizado) |
+| `rota_url` | VARCHAR(255) | NULL | URL / Rota ativa no momento do erro |
+| `dispositivo_info` | VARCHAR(255) | NULL | User-Agent do navegador / dispositivo |
+| `criado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Carimbo temporal da ocorrência (expurgo em 30 dias) |
+
 ### 3.3 Triggers, Automações e Segurança no Banco (RLS)
 1. **Baixa e Reajuste Automático de Estoque (`fn_atualizar_estoque_pedido`):**
    - Disparado em `AFTER INSERT` na tabela `itens_pedido`.
@@ -1033,6 +1050,20 @@ A monetização do HUBI adota arquitetura de licença anual autônoma por unidad
 3. **Edge Function `hubi-webhook-mp` & Desbloqueio Realtime:**
    - Recebe as notificações de `payment` do Mercado Pago e valida a autenticidade diretamente na API REST do gateway.
    - Quando o status é `approved`, atualiza a loja para `status_assinatura = 'ativo'`, calcula a nova vigência (`assinatura_fim_em`), conclui a auditoria em `hubi_assinaturas_pagamentos` e propaga o evento instantaneamente para o front-end via `Supabase Realtime`, eliminando a necessidade de recarregamento manual pelo usuário.
+
+### 5.14 Observabilidade Centralizada, Idempotência e Arquitetura de Dados Mestres (GDM)
+1. **Infraestrutura Centralizada de Logs (`loggerService.ts` / `public.sistema_logs`):**
+   - Tabela relacional normalizada com isolamento RLS multi-tenant (`loja_id`, `organizacao_id`, `usuario_id`, `nivel`, `origem`, `contexto`, `mensagem`, `codigo_erro`, `stack_trace`, `rota_url`, `dispositivo_info`).
+   - Fila assíncrona não-bloqueante (buffer em lote a cada 4 segundos ou 10 entradas) garantindo zero impacto na experiência do PDV.
+   - Sanitizador nativo de PII em conformidade estrita com LGPD (mascaramento automático de CPF, CNPJ, WhatsApp, e-mail e tokens de API).
+   - Função nativa de expurgo automático de retenção de 30 dias (`public.expurgar_sistema_logs_antigos()`).
+2. **Idempotência Operacional no Fechamento de Vendas (`VendaService`):**
+   - Transmissão de `clientRequestId` exclusivo por tentativa de checkout.
+   - Verificação preventiva em `public.pedidos` evitando duplicidade de vendas em caso de instabilidade de rede ou cliques múltiplos do operador.
+   - Tratamento defensivo com cancelamento automático do cabeçalho em falhas parciais de itens ou pagamentos para eliminar pedidos órfãos/fantasmas.
+3. **Arquitetura de Dados Mestres GDM (`gdmCatalogService.ts` / `src/types/gdm.ts`):**
+   - Padronização de contratos canônicos (`GdmProdutoCanonico`, `GdmVariacaoCanonica`).
+   - Mecanismo seguro de clonagem de catálogo mestre entre unidades do mesmo conglomerado, permitindo expansão rápida de filiais com replicação seletiva de categorias, regras de preço e variações de estoque.
 
 ---
 

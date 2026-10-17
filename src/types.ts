@@ -986,3 +986,22 @@ export interface MetricasCockpit {
   taxas_gateways?: number;
 }
 
+export interface SistemaLog {
+  id: string;
+  loja_id?: string | null;
+  organizacao_id?: string | null;
+  usuario_id?: string | null;
+  nivel: 'ERROR' | 'WARN' | 'FATAL' | 'INFO';
+  origem: string;
+  contexto: string;
+  mensagem: string;
+  codigo_erro?: string | null;
+  stack_trace?: string | null;
+  rota_url?: string | null;
+  dispositivo_info?: string | null;
+  criado_em?: string;
+}
+
+export * from './types/gdm';
+
+

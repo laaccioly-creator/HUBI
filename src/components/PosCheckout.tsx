@@ -1538,6 +1538,11 @@ export const PosCheckout: React.FC = () => {
         observacoes: item.observacoes || null
       }));
 
+      // Chave de idempotência para evitar registros duplicados em caso de duplo clique ou repetições de rede
+      const clientRequestId = pedidoEmEdicao?.id
+        ? (pedidoEmEdicao.metadados?.client_request_id || null)
+        : (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `req_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`);
+
       // Se estiver online, tenta enviar direto para o Supabase
       if (navigator.onLine) {
         try {
@@ -1548,6 +1553,7 @@ export const PosCheckout: React.FC = () => {
             clienteSelecionado: clienteSelecionado,
             pedidoEmEdicao: pedidoEmEdicao,
             pedidoEntrega: pedidoEntrega,
+            clientRequestId: clientRequestId,
             itens: itens,
             linhasPagamento: linhasAtivas,
             formasPagamentoDisponiveis: formasPagamento,

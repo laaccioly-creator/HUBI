@@ -78,6 +78,7 @@ import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { setGoogleSearchConfig } from '../services/geminiService';
 import { testarConexaoSerpApi, salvarSerpApiKey, obterSerpApiKey } from '../services/serpApiService';
 import { useTheme } from '../contexts/ThemeContext';
+import { CardConexaoMercadoLivre } from './mercadolivre/CardConexaoMercadoLivre';
 
 type SubTelaConfig =
   | 'menu'
@@ -2316,8 +2317,21 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
             </div>
           )}
 
+          {/* SUBTELA PARCEIROS MOBILE */}
+          {subTela === 'parceiros' && (
+            <div className="space-y-4">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-xs space-y-1">
+                <span className="font-bold text-sm text-slate-800 dark:text-slate-100 block">Integrar com Parceiros & Marketplaces</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 block leading-relaxed">
+                  Conecte o Mercado Livre e canais externos para sincronizar estoque e pedidos automaticamente.
+                </span>
+              </div>
+              <CardConexaoMercadoLivre lojaId={loja?.id} isDark={isDark} />
+            </div>
+          )}
+
           {/* DEMAIS SUBTELAS */}
-          {subTela !== 'menu' && subTela !== 'geral' && subTela !== 'tipos-venda' && subTela !== 'dados-loja' && subTela !== 'recibo' && subTela !== 'exportar' && subTela !== 'pagamentos' && subTela !== 'metas' && subTela !== 'whatsapp-ia' && (
+          {subTela !== 'menu' && subTela !== 'geral' && subTela !== 'tipos-venda' && subTela !== 'dados-loja' && subTela !== 'recibo' && subTela !== 'exportar' && subTela !== 'pagamentos' && subTela !== 'metas' && subTela !== 'whatsapp-ia' && subTela !== 'parceiros' && (
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
               <h3 className="font-bold text-sm text-slate-800">Configurações desta seção</h3>
               <p className="text-xs text-slate-500">
@@ -4152,8 +4166,16 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               : 'bg-white border-2 border-slate-300 text-black'
           }`}>
             <div>
-              <h2 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Integrar com Parceiros</h2>
-              <p className={`text-sm font-medium mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Instagram Shopping, Facebook Pixel, Google Merchant e TikTok</p>
+              <h2 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Integrar com Parceiros & Marketplaces</h2>
+              <p className={`text-sm font-medium mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Mercado Livre, Instagram Shopping, Facebook Pixel, Google Merchant e TikTok</p>
+            </div>
+
+            {/* MERCADO LIVRE NATIVO */}
+            <div className="space-y-3">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-300 flex items-center gap-2 uppercase tracking-wider">
+                <ShoppingBag className="w-4 h-4 text-[#FFE600]" /> Marketplace Mercado Livre
+              </span>
+              <CardConexaoMercadoLivre lojaId={loja?.id} isDark={isDark} />
             </div>
 
             {/* FACEBOOK & INSTAGRAM */}

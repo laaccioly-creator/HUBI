@@ -241,8 +241,9 @@ export const VendasHistorico: React.FC = () => {
     carregarVendas();
 
     if (loja?.id) {
+      const canalNome = `vendas_historico_realtime_${loja.id}_${Math.random().toString(36).substring(2, 9)}`;
       const channel = supabase
-        .channel(`vendas-historico-realtime-${loja.id}`)
+        .channel(canalNome)
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'pedidos', filter: `loja_id=eq.${loja.id}` },

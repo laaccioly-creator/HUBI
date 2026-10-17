@@ -188,6 +188,7 @@
 | **Tela de Bloqueio Operacional** | `src/components/assinatura/TelaBloqueioAssinatura.tsx` | Bloqueio irremovível da filial vencida, checkout Mercado Pago (12x R$ 49,90) e alternador para lojas ativas. |
 | **Prompt de Atualização PWA** | `src/components/pwa/ReloadPrompt.tsx` | Toast discreto de notificação para recarregar quando uma nova versão do app estiver pronta. |
 | **Prompt de Instalação Desktop** | `src/components/DesktopAppPrompt.tsx` | Convite contextual para instalação do HUBI como aplicativo nativo no computador. |
+| **Contenção Global de Erros** | `src/components/common/ErrorBoundary.tsx` | Error Boundary React com fallback Dark Slate, recuperação de sessão e captura global de exceções. |
 
 ---
 
@@ -242,6 +243,8 @@
 | **paymentGatewayService**| `src/services/paymentGatewayService.ts`| Emissão de cobranças e QR Code PIX dinâmico (Mercado Pago / Asaas). |
 | **usuarioService** | `src/services/usuarioService.ts` | CRUD e controle de operadores da loja com preferências de tela inicial. |
 | **serpApiService** | `src/services/serpApiService.ts` | Integração com Edge Function para busca de imagens de produtos no Google Imagens. |
+| **loggerService** | `src/services/loggerService.ts` | Singleton de observabilidade com fila assíncrona não-bloqueante e sanitizador de PII (LGPD). |
+| **gdmCatalogService** | `src/services/gdmCatalogService.ts` | Governança GDM: exportação canônica e clonagem de catálogos mestre entre filiais de uma organização. |
 
 ### Inteligência Artificial e Família TypeSafe AI / Jev
 | Serviço | Arquivo | Responsabilidade |

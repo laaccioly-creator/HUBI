@@ -75,8 +75,8 @@ serve(async (req: Request) => {
         email: loja.email || "faturamento@hubi.app",
       },
       payment_methods: {
-        installments: PARCELAS_MAXIMAS,
-        default_installments: PARCELAS_MAXIMAS,
+        installments: 12,
+        default_installments: 12,
       },
       back_urls: {
         success: "https://hubi.app/dashboard?assinatura=sucesso",

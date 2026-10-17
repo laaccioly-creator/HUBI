@@ -87,8 +87,25 @@ serve(async (req: Request) => {
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-    // 2. Se o pagamento foi aprovado, renova ou ativa a anuidade da loja
+    // 2. Se o pagamento foi aprovado, renova ou ativa a anuidade da loja com trava de idempotência
     if (statusPagamento === "approved") {
+      // Trava de Idempotência: verifica se este mp_payment_id já foi processado e aprovado anteriormente
+      const { data: pagamentoJaProcessado } = await supabaseAdmin
+        .from("hubi_assinaturas_pagamentos")
+        .select("id, status_pagamento")
+        .eq("mp_payment_id", String(payment.id))
+        .eq("status_pagamento", "approved")
+        .limit(1)
+        .maybeSingle();
+
+      if (pagamentoJaProcessado) {
+        console.log(`[hubi-webhook-mp] Idempotência: Pagamento ${payment.id} já processado anteriormente para a loja ${lojaId}. Ignorando duplicata.`);
+        return new Response(
+          JSON.stringify({ received: true, idempotent_skip: true, status: statusPagamento }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       // Busca dados atuais da loja para somar 365 dias (preservando dias restantes se renovação antecipada)
       const { data: lojaAtual } = await supabaseAdmin
         .from("lojas")

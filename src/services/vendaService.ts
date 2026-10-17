@@ -3,6 +3,7 @@ import { SyncService } from './syncService';
 import { ShippingOrchestrator } from './shippingOrchestrator';
 import { caixaService } from './caixaService';
 import { EstoquePedidoService, STATUS_QUE_BAIXAM_ESTOQUE } from './estoquePedidoService';
+import { logger } from './loggerService';
 import { Cliente, Pedido, StatusPedido, StatusPagamento, FormaPagamento } from '../types';
 import { PedidoEntrega } from '../types/shipping';
 
@@ -42,6 +43,7 @@ export interface GravarVendaParams {
   clienteSelecionado?: Cliente | null;
   pedidoEmEdicao?: Pedido | null;
   pedidoEntrega?: PedidoEntrega | null;
+  clientRequestId?: string | null;
   itens: ItemVendaInput[];
   linhasPagamento: LinhaPagamentoInput[];
   formasPagamentoDisponiveis?: FormaPagamento[];
@@ -72,6 +74,7 @@ export class VendaService {
       clienteSelecionado,
       pedidoEmEdicao,
       pedidoEntrega,
+      clientRequestId,
       itens,
       linhasPagamento,
       formasPagamentoDisponiveis = [],
@@ -91,6 +94,35 @@ export class VendaService {
     }
     if (!itens || itens.length === 0) {
       throw new Error('O carrinho não possui itens para fechamento de venda.');
+    }
+
+    // Idempotência: Se um clientRequestId for enviado em nova venda, verificar se já existe pedido salvo
+    if (clientRequestId && !pedidoEmEdicao?.id) {
+      try {
+        const { data: pedidoExistente } = await supabase
+          .from('pedidos')
+          .select('*')
+          .eq('loja_id', lojaId)
+          .contains('metadados', { client_request_id: clientRequestId })
+          .maybeSingle();
+
+        if (pedidoExistente) {
+          logger.warn(
+            'VendaService',
+            'idempotencia',
+            `Venda idempotente detectada para o clientRequestId: ${clientRequestId}. Retornando pedido já registrado.`,
+            { loja_id: lojaId }
+          );
+          return pedidoExistente as Pedido;
+        }
+      } catch (eIdemp: any) {
+        logger.warn(
+          'VendaService',
+          'idempotencia',
+          `Falha não-bloqueante ao verificar idempotência da venda: ${eIdemp?.message || eIdemp}`,
+          { loja_id: lojaId }
+        );
+      }
     }
 
     // Sanitização de UUIDs e referências relacionais
@@ -154,6 +186,9 @@ export class VendaService {
     metaExistente.provedor_frete = pedidoEntrega?.provedor || null;
     metaExistente.servico_frete_codigo = pedidoEntrega?.servico_codigo || null;
     metaExistente.tipo_atendimento = pedidoEntrega?.tipo_atendimento || (taxaEntrega > 0 ? 'entrega' : 'retirada');
+    if (clientRequestId) {
+      metaExistente.client_request_id = clientRequestId;
+    }
 
     // Montagem do Payload para public.pedidos SEM passar numero_pedido no insert
     const dadosBasePedido: any = {
@@ -219,7 +254,7 @@ export class VendaService {
         .single();
 
       if (erroUpd || !pedAtualizado) {
-        console.error('[VendaService] Erro ao atualizar pedido:', erroUpd);
+        logger.error('VendaService', 'atualizar_pedido', erroUpd || new Error('Falha ao atualizar pedido'), { loja_id: lojaId });
         throw new Error(erroUpd?.message || 'Falha ao atualizar registro de venda no banco de dados.');
       }
       pedidoGravado = pedAtualizado;
@@ -235,7 +270,7 @@ export class VendaService {
         .single();
 
       if (erroPedido || !novoPed) {
-        console.error('[VendaService] Erro ao inserir novo pedido no Supabase:', erroPedido);
+        logger.error('VendaService', 'inserir_pedido', erroPedido || new Error('Falha ao gravar pedido'), { loja_id: lojaId });
         throw new Error(erroPedido?.message || 'Falha ao gravar pedido no banco de dados.');
       }
       pedidoGravado = novoPed;
@@ -263,7 +298,18 @@ export class VendaService {
 
     const { error: erroItens } = await supabase.from('itens_pedido').insert(itensFormatados);
     if (erroItens) {
-      console.error('[VendaService] Erro ao inserir itens_pedido:', erroItens);
+      logger.error('VendaService', 'inserir_itens', erroItens, { loja_id: lojaId });
+      // Previne pedido órfão cancelando o cabeçalho criado
+      if (!pedidoEmEdicao?.id) {
+        await supabase
+          .from('pedidos')
+          .update({
+            status: 'cancelado',
+            motivo_cancelamento: `Falha técnica no salvamento de itens: ${erroItens.message}`
+          })
+          .eq('id', pedidoId)
+          .eq('loja_id', lojaId);
+      }
       throw new Error(`Falha ao registrar itens do pedido: ${erroItens.message}`);
     }
 
@@ -295,7 +341,17 @@ export class VendaService {
     if (pagamentosFormatados.length > 0) {
       const { error: erroPagamentos } = await supabase.from('pagamentos_pedido').insert(pagamentosFormatados);
       if (erroPagamentos) {
-        console.error('[VendaService] Erro ao inserir pagamentos_pedido:', erroPagamentos);
+        logger.error('VendaService', 'inserir_pagamentos', erroPagamentos, { loja_id: lojaId });
+        if (!pedidoEmEdicao?.id) {
+          await supabase
+            .from('pedidos')
+            .update({
+              status: 'cancelado',
+              motivo_cancelamento: `Falha técnica no salvamento de pagamentos: ${erroPagamentos.message}`
+            })
+            .eq('id', pedidoId)
+            .eq('loja_id', lojaId);
+        }
         throw new Error(`Falha ao registrar pagamentos do pedido: ${erroPagamentos.message}`);
       }
     }
@@ -333,8 +389,8 @@ export class VendaService {
     const taskEntrega = (async () => {
       try {
         entregaGravada = await ShippingOrchestrator.salvarPedidoEntrega(pedidoId, entregaPayload);
-      } catch (eEntrega) {
-        console.warn('[VendaService] Aviso não-bloqueante ao registrar pedido_entregas:', eEntrega);
+      } catch (eEntrega: any) {
+        logger.warn('VendaService', 'pedido_entregas', `Aviso não-bloqueante ao registrar entrega: ${eEntrega?.message || eEntrega}`, { loja_id: lojaId });
       }
     })();
     promessasPosVenda.push(taskEntrega);
@@ -364,8 +420,8 @@ export class VendaService {
               limite_credito: Math.max(0, limiteAtual - diferencaFiado),
               saldo_devedor_fiado: Math.max(0, saldoAtual + diferencaFiado)
             }).eq('id', clienteSelecionado.id);
-          } catch (errCli) {
-            console.warn('[VendaService] Aviso ao atualizar saldo devedor do cliente:', errCli);
+          } catch (errCli: any) {
+            logger.warn('VendaService', 'saldo_devedor', `Aviso ao atualizar saldo do cliente: ${errCli?.message || errCli}`, { loja_id: lojaId });
           }
         })();
         promessasPosVenda.push(taskFiado);
@@ -387,8 +443,8 @@ export class VendaService {
             })),
             usuarioId: usuarioId || ''
           });
-        } catch (errCaixa) {
-          console.warn('[VendaService] Aviso ao registrar movimentação na sessão de caixa:', errCaixa);
+        } catch (errCaixa: any) {
+          logger.warn('VendaService', 'sessao_caixa', `Aviso ao registrar movimentação na sessão de caixa: ${errCaixa?.message || errCaixa}`, { loja_id: lojaId });
         }
       })();
       promessasPosVenda.push(taskCaixa);
@@ -408,8 +464,8 @@ export class VendaService {
             ? (valorFiadoTotal > 0 ? 'Venda com parcela Fiado concluída no PDV' : 'Conclusão de pagamento no PDV')
             : (valorFiadoTotal > 0 ? 'Venda realizada no PDV com parcela a prazo (Fiado)' : 'Venda finalizada no PDV')
         });
-      } catch (errAudit) {
-        console.warn('[VendaService] Falha não-bloqueante ao registrar historico_pedidos:', errAudit);
+      } catch (errAudit: any) {
+        logger.warn('VendaService', 'historico_pedidos', `Falha não-bloqueante ao registrar histórico: ${errAudit?.message || errAudit}`, { loja_id: lojaId });
       }
     })();
     promessasPosVenda.push(taskAuditoria);
@@ -425,8 +481,8 @@ export class VendaService {
             itens: itensFormatados as any
           });
           estoqueBaixadoFlag = resEstoque.estoqueBaixado;
-        } catch (errEst) {
-          console.warn('[VendaService] Falha não-bloqueante ao processar baixa de estoque:', errEst);
+        } catch (errEst: any) {
+          logger.warn('VendaService', 'baixa_estoque', `Falha não-bloqueante ao processar baixa de estoque: ${errEst?.message || errEst}`, { loja_id: lojaId });
         }
       })();
       promessasPosVenda.push(taskEstoque);

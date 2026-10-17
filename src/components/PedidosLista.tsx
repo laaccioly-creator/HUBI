@@ -865,8 +865,9 @@ export const PedidosLista: React.FC = () => {
     carregarPedidos();
 
     if (loja?.id) {
+      const canalNome = `pedidos_lista_realtime_${loja.id}_${Math.random().toString(36).substring(2, 9)}`;
       const channel = supabase
-        .channel(`pedidos-lista-realtime-${loja.id}`)
+        .channel(canalNome)
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'pedidos', filter: `loja_id=eq.${loja.id}` },
@@ -880,7 +881,7 @@ export const PedidosLista: React.FC = () => {
         )
         .on(
           'postgres_changes',
-          { event: '*', schema: 'public', table: 'pedido_entregas' },
+          { event: '*', schema: 'public', table: 'pedido_entregas', filter: `loja_id=eq.${loja.id}` },
           () => {
             carregarPedidos(false);
           }

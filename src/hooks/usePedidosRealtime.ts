@@ -36,8 +36,9 @@ export const usePedidosRealtime = (lojaId?: string) => {
     carregarPedidos();
 
     if (lojaId) {
+      const canalNome = `hook_pedidos_realtime_${lojaId}_${Math.random().toString(36).substring(2, 9)}`;
       const channel = supabase
-        .channel('hook-pedidos-realtime')
+        .channel(canalNome)
         .on(
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'pedidos', filter: `loja_id=eq.${lojaId}` },

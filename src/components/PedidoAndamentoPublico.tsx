@@ -117,18 +117,31 @@ export const PedidoAndamentoPublico: React.FC = () => {
 
     carregarDados();
 
-    // Inscrição Realtime para atualizar status e histórico ao vivo
+    // Inscrição Realtime para atualizar status e histórico ao vivo escopado ao pedido
+    const canalNome = `andamento_pedido_${id}_${Math.random().toString(36).substring(2, 9)}`;
     const canal = supabase
-      .channel(`andamento_pedido_${id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, () => {
-        carregarDados();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pedido_entregas' }, () => {
-        carregarDados();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'historico_pedidos' }, () => {
-        carregarDados();
-      })
+      .channel(canalNome)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pedidos', filter: `id=eq.${id}` },
+        () => {
+          carregarDados();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pedido_entregas', filter: `pedido_id=eq.${id}` },
+        () => {
+          carregarDados();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'historico_pedidos', filter: `pedido_id=eq.${id}` },
+        () => {
+          carregarDados();
+        }
+      )
       .subscribe();
 
     return () => {

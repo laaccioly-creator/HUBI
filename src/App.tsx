@@ -6,6 +6,10 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { FeedbackProvider } from './contexts/FeedbackContext';
 import { usePermissions } from './hooks/usePermissions';
 import { AppLayout } from './components/layout/AppLayout';
+import { ErrorBoundary, inicializarCapturaErrosGlobais } from './components/common/ErrorBoundary';
+
+// Inicializa captura global de erros não tratados no navegador
+inicializarCapturaErrosGlobais();
 
 import { DashboardCockpit } from './pages/DashboardCockpit';
 import { PosCheckout } from './components/PosCheckout';
@@ -284,7 +288,9 @@ export const App: React.FC = () => {
             <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
               <FeedbackProvider>
                 <MenuProvider>
-                  <AppRotasInternas />
+                  <ErrorBoundary origem="AppRotas">
+                    <AppRotasInternas />
+                  </ErrorBoundary>
                   <ReloadPrompt />
                 </MenuProvider>
               </FeedbackProvider>

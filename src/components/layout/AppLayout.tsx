@@ -48,6 +48,8 @@ import { ModalSeletorDataOperacao } from '../ModalSeletorDataOperacao';
 import { ModalAdicionarLoja } from '../lojas/ModalAdicionarLoja';
 import { BannerAssinaturaTop } from '../assinatura/BannerAssinaturaTop';
 import { TelaBloqueioAssinatura } from '../assinatura/TelaBloqueioAssinatura';
+import { ErrorBoundary } from '../common/ErrorBoundary';
+import { logger } from '../../services/loggerService';
 import { UsuarioLoja } from '../../types';
 
 export const AppLayout: React.FC = () => {
@@ -185,6 +187,12 @@ export const AppLayout: React.FC = () => {
   useEffect(() => {
     if (!loja?.id) return;
 
+    logger.definirContexto({
+      lojaId: loja.id,
+      organizacaoId: loja.organizacao_id,
+      usuarioId: usuario?.id,
+    });
+
     const carregarConfirmados = async () => {
       let query = supabase
         .from('pedidos')
@@ -218,8 +226,9 @@ export const AppLayout: React.FC = () => {
     };
     carregarUsuariosLoja();
 
+    const canalNome = `pedidos_confirmados_${loja.id}_${Math.random().toString(36).substring(2, 9)}`;
     const channel = supabase
-      .channel('pedidos-confirmados-realtime')
+      .channel(canalNome)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'pedidos', filter: `loja_id=eq.${loja.id}` },
@@ -753,7 +762,9 @@ export const AppLayout: React.FC = () => {
 
       {/* ÁREA DE CONTEÚDO PRINCIPAL (BACKGROUND UNIFICADO #F8FAFC NO LIGHT / #020617 NO DARK) */}
       <main className={`flex-1 overflow-y-auto ${isDark ? 'bg-slate-950 text-slate-100' : (isDashboardRoute || isPosRoute) ? 'bg-slate-100 text-slate-900' : 'bg-slate-50 text-slate-900'} ${isDashboardRoute ? 'pb-16 md:pb-0' : 'pb-0'}`}>
-        <Outlet />
+        <ErrorBoundary origem="AppLayoutConteudo">
+          <Outlet />
+        </ErrorBoundary>
       </main>
 
       {/* WIDGET FLUTUANTE DE AJUDA & SUPORTE IA */}
