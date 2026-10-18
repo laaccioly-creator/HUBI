@@ -151,6 +151,8 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
       } else if (err instanceof SerpApiAuthError || err?.name === 'SerpApiAuthError') {
         setErroAutenticacao(true);
         setErro('Chave da SerpApi inválida ou expirada. Clique no botão abaixo para redefinir sua chave.');
+      } else if (err?.message?.includes('Tempo limite')) {
+        setErro('A busca na web demorou mais de 30 segundos para responder. Tente pesquisar novamente ou cole a imagem diretamente com Ctrl+V.');
       } else {
         setErro(err.message || 'Erro ao buscar fotos na internet. Tente novamente.');
       }

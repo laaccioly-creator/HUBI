@@ -19,20 +19,20 @@ serve(async (req: Request) => {
     let q = "";
     let apiKey = "";
     let lojaId = "";
-    let num = 20;
+    let num = 10;
 
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       q = body.q || "";
       apiKey = body.api_key || "";
       lojaId = body.loja_id || "";
-      num = body.num || 20;
+      num = Math.min(body.num || 10, 10);
     } else {
       const url = new URL(req.url);
       q = url.searchParams.get("q") || "";
       apiKey = url.searchParams.get("api_key") || "";
       lojaId = url.searchParams.get("loja_id") || "";
-      num = parseInt(url.searchParams.get("num") || "20", 10);
+      num = Math.min(parseInt(url.searchParams.get("num") || "10", 10), 10);
     }
 
     // Se a chave não foi passada diretamente no payload, tenta recuperá-la pelo lojaId no banco
@@ -83,6 +83,7 @@ serve(async (req: Request) => {
       hl: "pt",
       gl: "br",
       api_key: apiKey,
+      num: String(num),
     });
 
     const serpRes = await fetch(`https://serpapi.com/search.json?${searchParams.toString()}`);

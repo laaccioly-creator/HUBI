@@ -88,6 +88,33 @@ export const limparTermoParaBuscaGoogle = (termo: string): string => {
 };
 
 /**
+ * Extrai uma query enxuta (3 a 5 palavras principais) a partir do nome ou descrição.
+ * Elimina stop words e termos secundários para acelerar o scraping e indexação do Google Imagens.
+ */
+export const extrairTermoEnxutoBusca = (termo: string, maxPalavras = 4): string => {
+  const limpo = limparTermoParaBuscaGoogle(termo);
+  if (!limpo) return '';
+
+  const palavras = limpo.split(/\s+/).filter(Boolean);
+  if (palavras.length <= maxPalavras) return limpo;
+
+  const stopWords = new Set([
+    'de', 'do', 'da', 'dos', 'das', 'para', 'com', 'sem', 'em', 'no', 'na', 'nos', 'nas',
+    'por', 'pelo', 'pela', 'um', 'uma', 'uns', 'umas', 'o', 'a', 'os', 'as', 'e', 'ou'
+  ]);
+
+  const filtradas: string[] = [];
+  for (const p of palavras) {
+    if (!stopWords.has(p.toLowerCase())) {
+      filtradas.push(p);
+      if (filtradas.length >= maxPalavras) break;
+    }
+  }
+
+  return (filtradas.length > 0 ? filtradas : palavras.slice(0, maxPalavras)).join(' ');
+};
+
+/**
  * Formata os itens brutos retornados pela SerpApi em FotoResultadoSerpApi
  * Prioriza imagens em alta resolução e filtra miniaturas excessivamente pequenas
  */
@@ -478,7 +505,7 @@ export const simplificarTermoParaMiniatura = (termo: string): string => {
 export const buscarMiniaturaProduto = async (
   termo: string,
   loja?: any,
-  timeoutMs: number = 8000
+  timeoutMs: number = 30000
 ): Promise<string | null> => {
   if (!termo || !termo.trim()) return null;
 
@@ -547,7 +574,7 @@ export const buscarFotosGoogleImagesSerpApi = async (
     : chaveLimpa ? '***' : '(busca via lojaId no banco)';
 
   const queryFinal = limparTermoParaBuscaGoogle(termo);
-  const num = opcoes?.numResultados || 20;
+  const num = Math.min(opcoes?.numResultados || 10, 10);
 
   // 1. Verificação instantânea no Cache Local (Memória + sessionStorage)
   const fotosEmCache = obterCacheSerp(queryFinal);
@@ -579,7 +606,8 @@ export const buscarFotosGoogleImagesSerpApi = async (
     q: queryFinal,
     hl: 'pt',
     gl: 'br',
-    api_key: chaveLimpa
+    api_key: chaveLimpa,
+    num: String(num)
   });
 
   // =========================================================================
@@ -591,7 +619,7 @@ export const buscarFotosGoogleImagesSerpApi = async (
       logSerp('📡 [Método 1/2] Proxy local de desenvolvimento (/api/buscar-fotos-serpapi)...');
       const urlLocal = `/api/buscar-fotos-serpapi?${params.toString()}`;
       const ctrl = new AbortController();
-      const timeoutId = setTimeout(() => ctrl.abort(), 12000);
+      const timeoutId = setTimeout(() => ctrl.abort(), 30000);
       const response = await fetch(urlLocal, { signal: ctrl.signal });
       clearTimeout(timeoutId);
 
@@ -733,7 +761,7 @@ export const buscarFotosGoogleImagesSerpApi = async (
     });
 
     const timeoutGlobal = new Promise<FotoResultadoSerpApi[]>((_, reject) =>
-      setTimeout(() => reject(new Error('Tempo limite de busca na web esgotado (14s)')), 14000)
+      setTimeout(() => reject(new Error('Tempo limite de busca na web esgotado (30s)')), 30000)
     );
 
     const fotos = await Promise.race([corridaResultados, timeoutGlobal]);
@@ -742,8 +770,23 @@ export const buscarFotosGoogleImagesSerpApi = async (
       salvarCacheSerp(queryFinal, fotos);
       return fotos;
     }
+
+    // Fallback Automático: Se o termo completo não encontrou fotos e era extenso (> 4 palavras), tenta termo enxuto
+    const termoEnxuto = extrairTermoEnxutoBusca(queryFinal, 4);
+    if (termoEnxuto && termoEnxuto.toLowerCase() !== queryFinal.toLowerCase()) {
+      logSerpAviso(`[FALLBACK AUTOMÁTICO] Query longa "${queryFinal}" sem fotos. Buscando termo enxuto: "${termoEnxuto}"...`);
+      const fotosEnxutas = await buscarFotosGoogleImagesSerpApi(termoEnxuto, apiKey, opcoes);
+      if (fotosEnxutas && fotosEnxutas.length > 0) {
+        salvarCacheSerp(queryFinal, fotosEnxutas);
+        return fotosEnxutas;
+      }
+    }
   } catch (err: any) {
     if (err instanceof SerpApiQuotaError || err instanceof SerpApiAuthError) {
+      throw err;
+    }
+    if (err?.message?.includes('Tempo limite')) {
+      logSerpErro('Timeout de 30s atingido na busca SerpApi:', err.message);
       throw err;
     }
     logSerpAviso('Busca concorrente Supabase finalizada sem resultados:', err.message);

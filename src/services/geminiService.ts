@@ -6,6 +6,7 @@ import {
   obterOuBuscarSerpApiKey,
   buscarFotosGoogleImagesSerpApi,
   limparTermoParaBuscaGoogle,
+  extrairTermoEnxutoBusca,
   SerpApiQuotaError,
   SerpApiAuthError,
   FotoResultadoSerpApi
@@ -1067,8 +1068,14 @@ export const pesquisarFotosProdutoNaInternet = async (
   const termosParaPesquisar: string[] = [];
 
   if (termoLimpo) {
+    const termoEnxuto = extrairTermoEnxutoBusca(termoLimpo, 4);
     const segCurto = (segmentoLoja || loja?.segmento || '').split('/')[0].trim();
-    if (segCurto && !termoLimpo.toLowerCase().includes(segCurto.toLowerCase())) {
+
+    // Se o termo tem muitas palavras (> 4), a versão enxuta indexa muito mais rápido no Google Imagens
+    if (palavrasTermo.length > 4 && termoEnxuto) {
+      termosParaPesquisar.push(termoEnxuto);
+      termosParaPesquisar.push(termoLimpo);
+    } else if (segCurto && !termoLimpo.toLowerCase().includes(segCurto.toLowerCase())) {
       termosParaPesquisar.push(`${termoLimpo} ${segCurto}`);
     } else {
       termosParaPesquisar.push(termoLimpo);
@@ -1093,7 +1100,7 @@ export const pesquisarFotosProdutoNaInternet = async (
     serpApiKey = await obterOuBuscarSerpApiKey(loja);
   }
 
-  // O termo prioritário para SerpApi é o termo contextualizado com o segmento
+  // O termo prioritário para SerpApi é o termo otimizado
   const termoPrincipal = termosParaPesquisar[0] || termoLimpo;
 
   console.log(
@@ -1114,7 +1121,7 @@ export const pesquisarFotosProdutoNaInternet = async (
       const resultadosSerpApi = await buscarFotosGoogleImagesSerpApi(
         termoPrincipal,
         serpApiKey,
-        { lojaId: loja?.id, numResultados: 24 }
+        { lojaId: loja?.id, numResultados: 10 }
       );
       console.log(
         `%c[HUBI IMAGENS]%c SerpApi retornou ${resultadosSerpApi.length} fotos para "${termoPrincipal}"`,
