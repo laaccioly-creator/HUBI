@@ -20,6 +20,7 @@ interface DataOperacaoContextType {
   horaSimulada: string | null;
   modoSimulacaoAtivo: boolean;
   ehOwner: boolean;
+  podeAlterarData: boolean;
   servidorSincronizado: boolean;
   modalAberto: boolean;
   abrirModal: () => void;
@@ -37,6 +38,7 @@ const DataOperacaoContext = createContext<DataOperacaoContextType | undefined>(u
 export const DataOperacaoProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { usuario, loja, recarregarDadosLoja } = useAuth();
   const ehOwner = usuario?.perfil === 'owner';
+  const podeAlterarData = ehOwner || usuario?.perfil === 'admin';
 
   const [dataSimulada, setDataSimulada] = useState<string | null>(() => obterDataSimuladaSalva());
   const [horaSimulada, setHoraSimulada] = useState<string | null>(() => obterHoraSimuladaSalva());
@@ -44,15 +46,23 @@ export const DataOperacaoProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [modalAberto, setModalAberto] = useState<boolean>(false);
   const [sincronizado, setSincronizado] = useState<boolean>(() => isServidorSincronizado());
 
-  // Garante que se o usuário deslogar ou não for Owner, a simulação é limpa
+  // Sincroniza a data operacional global diretamente do banco da loja ativa (100% dos operadores)
   useEffect(() => {
-    if (usuario && !ehOwner && isModoSimulacaoAtivo()) {
-      limparDataOperacao();
-      setDataSimulada(null);
-      setHoraSimulada(null);
-      setModoAtivo(false);
+    const simLoja = loja?.configuracoes_extras?.simulacao_data_operacao;
+    if (simLoja?.ativa && simLoja?.dataYMD) {
+      definirDataOperacao(simLoja.dataYMD, simLoja.horaHM || null);
+      setDataSimulada(simLoja.dataYMD);
+      setHoraSimulada(simLoja.horaHM || null);
+      setModoAtivo(true);
+    } else if (loja && (!simLoja || !simLoja.ativa)) {
+      if (isModoSimulacaoAtivo()) {
+        limparDataOperacao();
+        setDataSimulada(null);
+        setHoraSimulada(null);
+        setModoAtivo(false);
+      }
     }
-  }, [usuario, ehOwner]);
+  }, [loja?.id, loja?.configuracoes_extras?.simulacao_data_operacao]);
 
   // Sincroniza com servidor Supabase
   useEffect(() => {
@@ -89,16 +99,16 @@ export const DataOperacaoProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, [sincronizarEstadosLocais]);
 
   const abrirModal = useCallback(() => {
-    if (!ehOwner) return;
+    if (!podeAlterarData) return;
     setModalAberto(true);
-  }, [ehOwner]);
+  }, [podeAlterarData]);
 
   const fecharModal = useCallback(() => {
     setModalAberto(false);
   }, []);
 
   const definirData = useCallback(async (dataYMD: string, horaHM?: string | null) => {
-    if (!ehOwner) return;
+    if (!podeAlterarData) return;
     definirDataOperacao(dataYMD, horaHM);
     setDataSimulada(dataYMD);
     setHoraSimulada(horaHM || null);
@@ -123,9 +133,10 @@ export const DataOperacaoProvider: React.FC<{ children: React.ReactNode }> = ({ 
         console.error('Erro ao atualizar simulacao_data_operacao:', e);
       }
     }
-  }, [ehOwner, loja, recarregarDadosLoja]);
+  }, [podeAlterarData, loja, recarregarDadosLoja]);
 
   const restaurarParaHoje = useCallback(async () => {
+    if (!podeAlterarData) return;
     limparDataOperacao();
     setDataSimulada(null);
     setHoraSimulada(null);
@@ -146,7 +157,7 @@ export const DataOperacaoProvider: React.FC<{ children: React.ReactNode }> = ({ 
         console.error('Erro ao restaurar simulacao_data_operacao:', e);
       }
     }
-  }, [loja, recarregarDadosLoja]);
+  }, [podeAlterarData, loja, recarregarDadosLoja]);
 
   const dataOperacaoYMD = useMemo(() => {
     return obterDataOperacaoYMD();
@@ -165,8 +176,9 @@ export const DataOperacaoProvider: React.FC<{ children: React.ReactNode }> = ({ 
       value={{
         dataSimulada,
         horaSimulada,
-        modoSimulacaoAtivo: ehOwner && modoAtivo,
+        modoSimulacaoAtivo: modoAtivo,
         ehOwner,
+        podeAlterarData,
         servidorSincronizado: sincronizado,
         modalAberto,
         abrirModal,

@@ -4,15 +4,15 @@ import { useDataOperacao } from '../contexts/DataOperacaoContext';
 
 export const BannerDataOperacao: React.FC = () => {
   const {
-    ehOwner,
     modoSimulacaoAtivo,
     dataOperacaoFormatada,
     abrirModal,
-    restaurarParaHoje
+    restaurarParaHoje,
+    podeAlterarData
   } = useDataOperacao();
 
-  // Exclusivo para Owner e apenas quando o modo de data simulada estiver ligado
-  if (!ehOwner || !modoSimulacaoAtivo) return null;
+  // Visível para 100% dos operadores da loja quando a simulação de data estiver ativa
+  if (!modoSimulacaoAtivo) return null;
 
   return (
     <div className="w-full bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-slate-950 px-4 py-2 flex flex-wrap items-center justify-between gap-3 shadow-md z-40 shrink-0 border-b border-amber-600/50">
@@ -33,26 +33,28 @@ export const BannerDataOperacao: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 ml-auto shrink-0">
-        <button
-          type="button"
-          onClick={abrirModal}
-          className="px-3 py-1 rounded-xl bg-slate-950 hover:bg-slate-900 text-amber-300 hover:text-amber-200 text-xs font-bold flex items-center gap-1.5 transition shadow-sm cursor-pointer"
-        >
-          <Edit3 className="w-3.5 h-3.5" />
-          <span>Trocar Dia</span>
-        </button>
+      {podeAlterarData && (
+        <div className="flex items-center gap-2 ml-auto shrink-0">
+          <button
+            type="button"
+            onClick={abrirModal}
+            className="px-3 py-1 rounded-xl bg-slate-950 hover:bg-slate-900 text-amber-300 hover:text-amber-200 text-xs font-bold flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+          >
+            <Edit3 className="w-3.5 h-3.5" />
+            <span>Trocar Dia</span>
+          </button>
 
-        <button
-          type="button"
-          onClick={restaurarParaHoje}
-          className="px-3 py-1 rounded-xl bg-slate-950/20 hover:bg-slate-950/30 text-slate-950 text-xs font-extrabold flex items-center gap-1.5 transition cursor-pointer"
-          title="Restaurar para a data oficial do Supabase em tempo real"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>Voltar para Hoje</span>
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={restaurarParaHoje}
+            className="px-3 py-1 rounded-xl bg-slate-950/20 hover:bg-slate-950/30 text-slate-950 text-xs font-extrabold flex items-center gap-1.5 transition cursor-pointer"
+            title="Restaurar para a data oficial do Supabase em tempo real"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Voltar para Hoje</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 };

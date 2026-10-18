@@ -23,7 +23,7 @@ interface AuthContextType {
   }) => Promise<Loja>;
   entrarComEmail: (email: string, senha?: string) => Promise<boolean>;
   entrarComGoogle: () => Promise<any>;
-  desconectarPdv: () => void;
+  desconectarPdv: () => void | Promise<void>;
   recarregarDadosLoja: () => Promise<void>;
 }
 
@@ -98,11 +98,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
 
-          // Buscar usuário ativo da loja com autocura e fallback
+          // Resolução soberana e consistente do operador ativo da loja
           let usuarioAtivo: UsuarioLoja | null = null;
 
-          if (authUser?.id) {
-            // 1. Consulta prioritária por usuario_auth_id = user.id
+          // 1. Prioridade Soberana: operador registrado localmente na sessão ativa do PDV (activeUsuarioId)
+          if (activeUsuarioId) {
+            const { data: userSalvo } = await supabase
+              .from('usuarios_loja')
+              .select('*')
+              .eq('id', activeUsuarioId)
+              .eq('loja_id', lojaParaAtivar.id)
+              .maybeSingle();
+
+            if (userSalvo && userSalvo.ativo !== false) {
+              const uSalvo = userSalvo as UsuarioLoja;
+              usuarioAtivo = uSalvo;
+
+              // Se o token Supabase Auth em cache pertencer a OUTRO e-mail/usuário, desconecta para evitar reversão involuntária
+              if (authUser?.id) {
+                const emailAuth = (authUser.email || '').trim().toLowerCase();
+                const emailSalvo = (uSalvo.email || '').trim().toLowerCase();
+
+                if (emailAuth && emailSalvo && emailAuth !== emailSalvo) {
+                  supabase.auth.signOut().catch(() => {});
+                } else if (!uSalvo.usuario_auth_id && emailAuth === emailSalvo) {
+                  try {
+                    await supabase
+                      .from('usuarios_loja')
+                      .update({ usuario_auth_id: authUser.id })
+                      .eq('id', uSalvo.id);
+                    await supabase.rpc('sincronizar_meu_usuario_auth');
+                    usuarioAtivo = { ...uSalvo, usuario_auth_id: authUser.id };
+                  } catch (vErr) {
+                    console.warn('Aviso ao vincular usuario_auth_id:', vErr);
+                  }
+                }
+              }
+            }
+          }
+
+          // 2. Se não houver operador ativo salvo no storage, consulta por conta autenticada no Supabase
+          if (!usuarioAtivo && authUser?.id) {
             const { data: userPorAuthId } = await supabase
               .from('usuarios_loja')
               .select('*')
@@ -110,10 +146,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .eq('loja_id', lojaParaAtivar.id)
               .maybeSingle();
 
-            if (userPorAuthId) {
+            if (userPorAuthId && userPorAuthId.ativo !== false) {
               usuarioAtivo = userPorAuthId;
             } else if (authUser.email) {
-              // 2. Fallback buscando por LOWER(email) = LOWER(user.email)
               const emailAuthLimpo = authUser.email.trim().toLowerCase();
               const { data: userPorEmail } = await supabase
                 .from('usuarios_loja')
@@ -122,7 +157,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 .eq('loja_id', lojaParaAtivar.id)
                 .maybeSingle();
 
-              if (userPorEmail) {
+              if (userPorEmail && userPorEmail.ativo !== false) {
                 try {
                   await supabase
                     .from('usuarios_loja')
@@ -138,58 +173,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
 
-          if (!usuarioAtivo && activeUsuarioId) {
-            const { data: userSalvo } = await supabase
-              .from('usuarios_loja')
-              .select('*')
-              .eq('id', activeUsuarioId)
-              .eq('loja_id', lojaParaAtivar.id)
-              .maybeSingle();
-
-            if (userSalvo) {
-              const uSalvo = userSalvo as UsuarioLoja;
-              if (authUser?.id && !uSalvo.usuario_auth_id) {
-                try {
-                  await supabase
-                    .from('usuarios_loja')
-                    .update({ usuario_auth_id: authUser.id })
-                    .eq('id', uSalvo.id);
-                  await supabase.rpc('sincronizar_meu_usuario_auth');
-                  usuarioAtivo = { ...uSalvo, usuario_auth_id: authUser.id };
-                } catch (vErr) {
-                  console.warn('Aviso ao vincular usuario_auth_id:', vErr);
-                  usuarioAtivo = uSalvo;
-                }
-              } else {
-                usuarioAtivo = uSalvo;
-              }
-            }
-          }
-
+          // 3. Fallback final: primeiro usuário ativo da loja
           if (!usuarioAtivo) {
             const { data: usuarios } = await supabase
               .from('usuarios_loja')
               .select('*')
               .eq('loja_id', lojaParaAtivar.id)
+              .eq('ativo', true)
               .order('criado_em', { ascending: true });
 
             if (usuarios && usuarios.length > 0) {
-              const primeiroUser = usuarios[0] as UsuarioLoja;
-              if (authUser?.id && !primeiroUser.usuario_auth_id) {
-                try {
-                  await supabase
-                    .from('usuarios_loja')
-                    .update({ usuario_auth_id: authUser.id })
-                    .eq('id', primeiroUser.id);
-                  await supabase.rpc('sincronizar_meu_usuario_auth');
-                  usuarioAtivo = { ...primeiroUser, usuario_auth_id: authUser.id };
-                } catch (vErr) {
-                  console.warn('Aviso ao vincular usuario_auth_id:', vErr);
-                  usuarioAtivo = primeiroUser;
-                }
-              } else {
-                usuarioAtivo = primeiroUser;
-              }
+              usuarioAtivo = usuarios[0] as UsuarioLoja;
             }
           }
 
@@ -238,6 +232,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.removeItem(key);
           }
         });
+      } catch {}
+
+      // Se houver sessão GoTrue ativa com e-mail conflitante, desconecta para garantir soberania do operador
+      try {
+        const { data: { session: sessaoExistente } } = await supabase.auth.getSession();
+        if (sessaoExistente?.user?.email && userBuscado.email && sessaoExistente.user.email.toLowerCase() !== userBuscado.email.toLowerCase()) {
+          await supabase.auth.signOut().catch(() => {});
+        }
       } catch {}
 
       setUsuario(userBuscado);
@@ -359,6 +361,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let authUserId: string | null = null;
       let usuarioEncontrado: UsuarioLoja | null = null;
       let lojaAssociada: Loja | null = null;
+
+      // Se houver uma sessão antiga do GoTrue com outro e-mail, encerra para evitar poluição
+      try {
+        const { data: { session: sessaoExistente } } = await supabase.auth.getSession();
+        if (sessaoExistente?.user?.email && sessaoExistente.user.email.toLowerCase() !== emailTrim) {
+          await supabase.auth.signOut().catch(() => {});
+        }
+      } catch {}
 
       // 1. Prioridade: verificar se o usuário é um operador/administrador cadastrado em usuarios_loja
       const { data: usersFound } = await supabase
@@ -807,21 +817,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return novaLoja as Loja;
   };
 
-  // Desconectar / Trocar de PDV
-  const desconectarPdv = () => {
+  // Desconectar / Trocar de PDV (Limpeza completa de ambiente e encerramento de sessão)
+  const desconectarPdv = async () => {
+    try {
+      await supabase.auth.signOut().catch(() => {});
+    } catch {}
+
     try {
       sessionStorage.clear();
+      const chavesParaPreservar = ['hubi_catalogo_slug', 'theme', 'vite-ui-theme'];
       Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('hubi_filtro_') || key.startsWith('hubi_mob_filtro_')) {
-          localStorage.removeItem(key);
+        if (!chavesParaPreservar.includes(key)) {
+          if (
+            key.startsWith('sb-') ||
+            key.startsWith('hubi_') ||
+            key === STORAGE_KEY_LOJA_ID ||
+            key === STORAGE_KEY_USUARIO_ID
+          ) {
+            localStorage.removeItem(key);
+          }
         }
       });
     } catch {}
-    localStorage.removeItem(STORAGE_KEY_LOJA_ID);
-    localStorage.removeItem(STORAGE_KEY_USUARIO_ID);
+
     setLoja(null);
     setUsuario(null);
     setOrganizacao(null);
+
+    // Notificar formulários e componentes da tela de login para limpeza imediata de credenciais
+    try {
+      window.dispatchEvent(new CustomEvent('hubi_logout_limpar_formulario'));
+    } catch {}
   };
 
   useEffect(() => {
@@ -838,10 +864,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
+      if (event === 'SIGNED_OUT') {
+        const activeUserLocal = localStorage.getItem(STORAGE_KEY_USUARIO_ID);
+        if (!activeUserLocal) {
+          setLoja(null);
+          setUsuario(null);
+          setOrganizacao(null);
+        }
+        return;
+      }
+
+      // Prevenção de reversão involuntária para o administrador ao renovar token ou iniciar sessão:
+      // Se já existe um operador local ativo na loja (STORAGE_KEY_USUARIO_ID) e o e-mail da sessão for diferente,
+      // a sessão local do operador ativo tem precedência soberana!
+      const activeUserLocal = localStorage.getItem(STORAGE_KEY_USUARIO_ID);
+      const activeLojaLocal = localStorage.getItem(STORAGE_KEY_LOJA_ID);
+
       if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
         if (session?.user?.email) {
           const emailAuth = session.user.email.toLowerCase();
           const nomeAuth = session.user.user_metadata?.full_name || session.user.user_metadata?.name || emailAuth.split('@')[0];
+
+          if (activeUserLocal && activeLojaLocal) {
+            const { data: checkLocal } = await supabase
+              .from('usuarios_loja')
+              .select('id, email, loja_id')
+              .eq('id', activeUserLocal)
+              .maybeSingle();
+
+            if (checkLocal && checkLocal.loja_id === activeLojaLocal) {
+              const emailLocal = (checkLocal.email || '').toLowerCase().trim();
+              if (emailLocal && emailLocal !== emailAuth) {
+                // Operador do PDV ativo é diferente da conta do Supabase Auth.
+                // Respeita soberania do operador local e não sobrescreve.
+                return;
+              }
+            }
+          }
 
           // Autocura / Sincronização referencial em usuarios_loja
           try {

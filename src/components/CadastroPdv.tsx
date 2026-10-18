@@ -80,6 +80,23 @@ export const CadastroPdv: React.FC = () => {
     return () => clearInterval(interval);
   }, [slides.length]);
 
+  // Limpeza total de credenciais e formulário ao desconectar / trocar de PDV
+  useEffect(() => {
+    const handleLimparFormulario = () => {
+      setEmail('');
+      setSenha('');
+      setNome('');
+      setErroMsg(null);
+      setMostrarSenha(false);
+      setScreen('signin_email');
+    };
+
+    window.addEventListener('hubi_logout_limpar_formulario', handleLimparFormulario);
+    return () => {
+      window.removeEventListener('hubi_logout_limpar_formulario', handleLimparFormulario);
+    };
+  }, []);
+
   // Adicionar domínio rápido ao e-mail
   const handleAddDomain = (domain: string) => {
     const domainLower = domain.toLowerCase();
@@ -278,6 +295,7 @@ export const CadastroPdv: React.FC = () => {
                     <input
                       type="text"
                       required
+                      autoComplete="off"
                       placeholder="Nome"
                       value={nome}
                       onChange={(e) => setNome(e.target.value)}
@@ -290,6 +308,7 @@ export const CadastroPdv: React.FC = () => {
                     <input
                       type="email"
                       required
+                      autoComplete="off"
                       placeholder="E-mail"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -316,6 +335,7 @@ export const CadastroPdv: React.FC = () => {
                     <div className="relative">
                       <input
                         type={mostrarSenha ? 'text' : 'password'}
+                        autoComplete="new-password"
                         placeholder="Senha"
                         value={senha}
                         onChange={(e) => setSenha(e.target.value)}
@@ -506,6 +526,7 @@ export const CadastroPdv: React.FC = () => {
                     <input
                       type="email"
                       required
+                      autoComplete="off"
                       placeholder="E-mail"
                       value={email}
                       onChange={(e) => {
@@ -537,6 +558,7 @@ export const CadastroPdv: React.FC = () => {
                   <div className="relative">
                     <input
                       type={mostrarSenha ? 'text' : 'password'}
+                      autoComplete="new-password"
                       placeholder="Senha de acesso"
                       value={senha}
                       onChange={(e) => {

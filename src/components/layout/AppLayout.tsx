@@ -47,6 +47,7 @@ import { MobileMenuDrawer } from './MobileMenuDrawer';
 import { ModalSeletorDataOperacao } from '../ModalSeletorDataOperacao';
 import { ModalAdicionarLoja } from '../lojas/ModalAdicionarLoja';
 import { BannerAssinaturaTop } from '../assinatura/BannerAssinaturaTop';
+import { BannerDataOperacao } from '../BannerDataOperacao';
 import { TelaBloqueioAssinatura } from '../assinatura/TelaBloqueioAssinatura';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { logger } from '../../services/loggerService';
@@ -418,6 +419,9 @@ export const AppLayout: React.FC = () => {
       {/* BANNER CONTEXTUAL DE TRIAL E RENOVAÇÃO ANUAL */}
       <BannerAssinaturaTop />
 
+      {/* BANNER GLOBAL DE DATA OPERACIONAL SIMULADA */}
+      <BannerDataOperacao />
+
       {/* BANNER / BOTÃO DE INSTALAÇÃO DO APP DESKTOP */}
       <DesktopAppPrompt />
 
@@ -596,7 +600,7 @@ export const AppLayout: React.FC = () => {
                     <p className="text-[10px] text-emerald-600 uppercase font-bold tracking-wider">{usuario?.perfil || 'Comum'}</p>
                   </div>
 
-                  {permissions.ehOwner && (
+                  {(permissions.ehOwner || permissions.ehAdmin) && (
                     <div className={`px-1 py-1 mb-1 border-b ${isDark ? 'border-slate-800' : 'border-[#E2E8F0]'}`}>
                       <button
                         type="button"

@@ -21,11 +21,12 @@ export const ModalSeletorDataOperacao: React.FC = () => {
     definirData,
     restaurarParaHoje,
     servidorSincronizado,
-    ehOwner
+    ehOwner,
+    podeAlterarData
   } = useDataOperacao();
 
-  // Se o usuário não for Owner, este modal nunca deve renderizar
-  if (!ehOwner || !modalAberto) return null;
+  // Se o usuário não tiver permissão ou modal não estiver aberto, não renderiza
+  if (!podeAlterarData || !modalAberto) return null;
 
   const [dataSelecionada, setDataSelecionada] = useState<string>(() => {
     if (dataSimulada) return dataSimulada;
