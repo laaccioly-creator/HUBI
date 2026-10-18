@@ -1825,7 +1825,7 @@ export class ShippingOrchestrator {
     // 1. Buscar dados atuais do pedido e cliente
     const { data: pedAtual } = await supabase
       .from('pedidos')
-      .select('subtotal, valor_desconto, valor_total, valor_pago, metadados, cliente_id, endereco_entrega, status, valor_frete, saldo_devedor, loja_id')
+      .select('subtotal, valor_desconto, valor_total, valor_pago, cliente_id, endereco_entrega, status, valor_frete, saldo_devedor, loja_id')
       .eq('id', pedidoId)
       .maybeSingle();
 
@@ -2009,31 +2009,6 @@ export class ShippingOrchestrator {
       ? pe.nome_app
       : (nomeTransportadora || (provedorFinal === 'uber' ? 'Uber Flash' : 'Entrega'));
 
-    const metaAtual = (pedAtual?.metadados && typeof pedAtual.metadados === 'object') ? { ...pedAtual.metadados } : {};
-    metaAtual.transportadora_nome = nomeRealFrete;
-    metaAtual.nome_app = pe.nome_app || null;
-    metaAtual.codigo_corrida = codigoCorridaLimpo;
-    if (cotacaoIdResolvido) {
-      metaAtual.cotacao_id = cotacaoIdResolvido;
-    }
-    metaAtual.codigo_rastreio = codigoRastreioLimpo;
-    metaAtual.link_rastreio = pe.link_rastreio || null;
-    metaAtual.provedor_frete = provedorFinal;
-    metaAtual.servico_frete_codigo = pe.servico_codigo || (provedorFinal === 'uber' ? 'uber_direct' : null);
-    metaAtual.tipo_atendimento = resultado.tipo_atendimento || 'entrega';
-    metaAtual.contato_entregador = pe.contato_entregador || (pe as any).entregador_telefone || null;
-
-    const pacRes = (resultado as any)?.pacote;
-    if (pacRes || pe.largura_cm || pe.peso_kg) {
-      metaAtual.pacote_envio = {
-        quantidade_volumes: pacRes?.quantidade_volumes || pe.quantidade_volumes || 1,
-        peso_kg: pacRes?.peso_kg || pe.peso_kg || 0.3,
-        largura_cm: pacRes?.largura_cm || pe.largura_cm || 15,
-        altura_cm: pacRes?.altura_cm || pe.altura_cm || 10,
-        comprimento_cm: pacRes?.comprimento_cm || pe.comprimento_cm || 20
-      };
-    }
-
     // 5. Atualizar snapshot relacional na tabela pedidos (preservando pedidos concluídos ou cancelados)
     // Regra Rígida: NUNCA transicionar para aguardando_envio sem quitação formal prévia
     const statusDestinoEnvio = (pedAtual?.status === 'concluido' || pedAtual?.status === 'cancelado')
@@ -2058,7 +2033,6 @@ export class ShippingOrchestrator {
         nome_transportadora: nomeRealFrete,
         entregador_nome: pe.entregador_nome || null,
         pin_entrega: pe.pin_entrega || null,
-        metadados: metaAtual,
         atualizado_por: usuarioId || null,
         atualizado_em: agora
       })

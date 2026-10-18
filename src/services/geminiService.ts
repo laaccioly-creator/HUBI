@@ -125,6 +125,7 @@ const STORAGE_KEY_GOOGLE_SEARCH_CX = 'hubi_google_search_cx';
 
 export const getGeminiApiKey = (loja?: any): string => {
   const chave = (
+    loja?.gemini_api_key ||
     loja?.configuracoes_extras?.ia?.gemini_api_key ||
     import.meta.env.VITE_GEMINI_API_KEY ||
     localStorage.getItem(STORAGE_KEY_GEMINI_KEY) ||
@@ -153,25 +154,33 @@ export const obterOuBuscarGeminiApiKey = async (loja?: Loja | any | null): Promi
     try {
       const { data, error } = await supabase
         .from('lojas')
-        .select('configuracoes_extras')
+        .select('gemini_api_key, configuracoes_extras')
         .eq('id', loja.id)
         .maybeSingle();
 
-      if (!error && data?.configuracoes_extras) {
-        let meta = data.configuracoes_extras;
-        if (typeof meta === 'string') {
-          try {
-            meta = JSON.parse(meta);
-          } catch {
-            meta = {};
-          }
+      if (!error && data) {
+        if (data.gemini_api_key && typeof data.gemini_api_key === 'string' && data.gemini_api_key.trim()) {
+          const limpa = data.gemini_api_key.trim();
+          localStorage.setItem(STORAGE_KEY_GEMINI_KEY, limpa);
+          return limpa;
         }
-        const chaveDb = (meta as any)?.ia?.gemini_api_key || '';
-        if (chaveDb && typeof chaveDb === 'string') {
-          const limpa = chaveDb.trim();
-          if (limpa) {
-            localStorage.setItem(STORAGE_KEY_GEMINI_KEY, limpa);
-            return limpa;
+
+        if (data.configuracoes_extras) {
+          let meta = data.configuracoes_extras;
+          if (typeof meta === 'string') {
+            try {
+              meta = JSON.parse(meta);
+            } catch {
+              meta = {};
+            }
+          }
+          const chaveDb = (meta as any)?.ia?.gemini_api_key || '';
+          if (chaveDb && typeof chaveDb === 'string') {
+            const limpa = chaveDb.trim();
+            if (limpa) {
+              localStorage.setItem(STORAGE_KEY_GEMINI_KEY, limpa);
+              return limpa;
+            }
           }
         }
       }
@@ -405,10 +414,32 @@ export const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base
       return;
     }
 
-    // Processamento do canvas a partir do data:image
+    // Fast-path: Se já for data:image e for leve (< 250KB), extrai direto em < 1ms sem sobrecarga de canvas
+    if (target.startsWith('data:image') && target.length < 250000) {
+      const mimeMatch = target.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,/);
+      const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+      const clean = target.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+      resolve({ base64: clean, mimeType });
+      return;
+    }
+
+    // Processamento do canvas a partir do data:image com proteção de timeout
+    let finalizado = false;
+    const timerFallback = setTimeout(() => {
+      if (!finalizado) {
+        finalizado = true;
+        const clean = target.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+        resolve({ base64: clean, mimeType: 'image/jpeg' });
+      }
+    }, 3500);
+
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
+      if (finalizado) return;
+      finalizado = true;
+      clearTimeout(timerFallback);
+
       const maxDim = 380;
       let width = img.width;
       let height = img.height;
@@ -443,6 +474,9 @@ export const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base
       });
     };
     img.onerror = () => {
+      if (finalizado) return;
+      finalizado = true;
+      clearTimeout(timerFallback);
       const clean = target.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
       resolve({
         base64: clean,
@@ -513,8 +547,8 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
     c.parts?.some((p: any) => p.inline_data || p.inlineData)
   );
 
-  // Timeouts resilientes para redes móveis: 15s para imagem multimodal e 10s para texto
-  const timeoutMs = temImagem ? 15000 : 10000;
+  // Timeouts resilientes para redes móveis: 20s para imagem multimodal e 10s para texto
+  const timeoutMs = temImagem ? 20000 : 10000;
 
   let tentativas = 0;
   for (const modelo of modelos) {
@@ -545,6 +579,12 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
           const errJson = await response.json().catch(() => ({}));
           const msg = errJson?.error?.message || response.statusText;
           if (!primeiroErro) primeiroErro = msg;
+
+          // Se for 401 ou 403 (chave não autorizada ou inválida), interromper e alertar imediatamente
+          if (response.status === 401 || response.status === 403) {
+            console.error(`[Gemini] Erro de autenticação (${response.status}) no modelo ${modelo}:`, msg);
+            throw new Error('Chave da API do Google Gemini inválida ou não autorizada. Verifique a chave nas configurações.');
+          }
 
           // Se for 400 (Bad Request - formato de imagem/payload inválido), não adianta tentar outro modelo
           if (response.status === 400) {
@@ -581,23 +621,25 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
       } catch (e: any) {
         const isAbort = e?.name === 'AbortError' || e?.message?.includes('aborted');
         if (isAbort) {
+          console.warn(`[Gemini] Timeout (${timeoutMs}ms) excedido para o modelo ${modelo}.`);
           primeiroErro = temImagem
             ? 'O processamento da imagem pela IA demorou mais que o esperado. Por favor, tente novamente com boa iluminação ou pelo nome/código de barras.'
             : 'A consulta de texto pela IA demorou mais que o esperado.';
           break; // Pula para próximo modelo
         }
 
-        if (subTentativa < 2 && !e?.message?.includes('cota') && !e?.message?.includes('não pôde ser interpretada')) {
+        console.error(`[Gemini] Erro ao chamar modelo ${modelo}:`, e);
+
+        if (subTentativa < 2 && !e?.message?.includes('cota') && !e?.message?.includes('inválida') && !e?.message?.includes('não pôde ser interpretada')) {
           // Retry rápido em oscilação momentânea de conexão móvel
           await new Promise((r) => setTimeout(r, 600));
           continue;
         }
 
         if (!primeiroErro) primeiroErro = e?.message || String(e);
-        if (e?.message?.includes('cota') || e?.message?.includes('limite temporário') || e?.message?.includes('não pôde ser interpretada')) {
+        if (e?.message?.includes('cota') || e?.message?.includes('limite temporário') || e?.message?.includes('não pôde ser interpretada') || e?.message?.includes('inválida')) {
           throw e;
         } else {
-          console.warn(`Exceção ao chamar modelo ${modelo}:`, e);
           break;
         }
       }
@@ -617,7 +659,10 @@ export const identificarProdutoPorFoto = async (
   segmentoLoja?: string,
   loja?: any
 ): Promise<ProdutoSugeridoIA> => {
-  const apiKey = getGeminiApiKey(loja);
+  let apiKey = getGeminiApiKey(loja);
+  if (!apiKey && loja?.id) {
+    apiKey = await obterOuBuscarGeminiApiKey(loja);
+  }
 
   if (!apiKey) {
     throw new Error('Chave da API do Google Gemini não configurada. Configure sua chave Gemini nas configurações.');
@@ -761,7 +806,10 @@ export const identificarProdutoPorTextoOuEan = async (
   segmentoLoja?: string,
   loja?: any
 ): Promise<ProdutoSugeridoIA> => {
-  const apiKey = getGeminiApiKey(loja);
+  let apiKey = getGeminiApiKey(loja);
+  if (!apiKey && loja?.id) {
+    apiKey = await obterOuBuscarGeminiApiKey(loja);
+  }
 
   if (!apiKey) {
     throw new Error('Chave da API do Google Gemini não configurada. Configure a chave no sistema.');
@@ -859,7 +907,10 @@ export const gerarDescricaoExclusivaIA = async (
   segmentoLoja?: string,
   loja?: any
 ): Promise<string> => {
-  const apiKey = getGeminiApiKey(loja);
+  let apiKey = getGeminiApiKey(loja);
+  if (!apiKey && loja?.id) {
+    apiKey = await obterOuBuscarGeminiApiKey(loja);
+  }
 
   if (apiKey && nomeProduto.trim()) {
     try {
@@ -1200,7 +1251,10 @@ export const atualizarProdutoExistenteComIA = async (dados: {
   ).catch(() => extrairDimensoesEPesoTexto(`${termoReferencia} ${dados.descricao || ''}`));
 
   // 2. Consulta ultrarrápida de enriquecimento textual com Gemini (se apiKey configurada)
-  const apiKey = getGeminiApiKey(dados.loja);
+  let apiKey = getGeminiApiKey(dados.loja);
+  if (!apiKey && dados.loja?.id) {
+    apiKey = await obterOuBuscarGeminiApiKey(dados.loja);
+  }
   let parsedIA: any = null;
 
   if (apiKey && termoReferencia.length > 2) {

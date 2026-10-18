@@ -1,7 +1,7 @@
 # 🗺️ MAPA DE COMPONENTES E ARQUITETURA FRONTEND (HUBI)
 
-> **Versão do Documento:** 1.5.0  
-> **Data de Atualização:** 12/10/2026  
+> **Versão do Documento:** 1.6.0  
+> **Data de Atualização:** 17/10/2026  
 > **Classificação:** Guia de Referência Rápida de Componentes, Hooks, Serviços e Utilitários  
 > **Objetivo:** Localização cirúrgica de arquivos em `src/`, agilizando a navegação de desenvolvedores e agentes de IA com máxima economia de contexto.
 
@@ -183,8 +183,11 @@
 | **Configuração de Recibo** | `src/components/ModalConfigurarRecibo.tsx` | Personalização do cabeçalho, rodapé e logotipo dos cupons impressos. |
 | **Confirmação de Exclusão** | `src/components/ModalConfirmacaoExclusao.tsx` | Modal com trava de segurança para deleções irreversíveis de registros. |
 | **Diálogo de Alerta / Feedback** | `src/components/ModalAlertaFeedback.tsx` | Modal acessível de feedback para mensagens de sucesso, alerta ou erro operacional. |
-| **Modal Nova Filial (Conglomerado)** | `src/components/lojas/ModalAdicionarLoja.tsx` | Cadastro rápido de nova loja com 7 dias de degustação gratuita vinculada à organização. |
-| **Banner de Trial e Renovação Anual** | `src/components/assinatura/BannerAssinaturaTop.tsx` | Régua contextual no topo com contagem regressiva de trial e alerta de renovação nos últimos 7 dias. |
+| **Modal Nova Filial (Conglomerado)** | `src/components/lojas/ModalAdicionarLoja.tsx` | Cadastro rápido de nova loja com degustação gratuita vinculada à organização. |
+| **Parâmetros Globais HUBI (Admin)** | `src/components/configuracoes/CardParametrosHubiAdmin.tsx` | Painel exclusivo do Super Admin (`laaccioly@hotmail.com`) para controle de dias de trial, valores base e modo manutenção. |
+| **Conexão Mercado Livre** | `src/components/CardConexaoMercadoLivre.tsx` | Card de integração OAuth 2.0 com Mercado Livre, status em tempo real, dados do vendedor e ações de vínculo. |
+| **Vínculo de Anúncio ML** | `src/components/ModalVincularAnuncioMl.tsx` | Modal para associação de anúncios/variações do Mercado Livre aos produtos e variações nativas do HUBI. |
+| **Banner de Trial e Renovação Anual** | `src/components/assinatura/BannerAssinaturaTop.tsx` | Tarja superior centralizada em vermelho e branco puro com dias restantes de trial e conversão rápida colada ao valor. |
 | **Tela de Bloqueio Operacional** | `src/components/assinatura/TelaBloqueioAssinatura.tsx` | Bloqueio irremovível da filial vencida, checkout Mercado Pago (12x R$ 49,90) e alternador para lojas ativas. |
 | **Prompt de Atualização PWA** | `src/components/pwa/ReloadPrompt.tsx` | Toast discreto de notificação para recarregar quando uma nova versão do app estiver pronta. |
 | **Prompt de Instalação Desktop** | `src/components/DesktopAppPrompt.tsx` | Convite contextual para instalação do HUBI como aplicativo nativo no computador. |
@@ -209,9 +212,9 @@
 | **useRegisterOverlay** | `src/hooks/useRegisterOverlay.ts` | Registra modais e drawers na pilha global, conectando-os à tecla ESC e ao botão voltar do celular. |
 | **usePedidosRealtime** | `src/hooks/usePedidosRealtime.ts` | Assinatura WebSocket do Supabase Realtime para atualização instantânea da central de pedidos. |
 | **useProdutos** | `src/hooks/useProdutos.ts` | Hook reativo para listagem, filtros rápidos e cache em memória do catálogo de produtos. |
-| **usePermissions** | `src/hooks/usePermissions.ts` | Validação declarativa de permissões RBAC do operador autenticado. |
+| **usePermissions** | `src/hooks/usePermissions.ts` | Validação declarativa de permissões RBAC do operador autenticado e flag mestre `ehSuperAdmin` (`laaccioly@hotmail.com`). |
 | **useNetworkStatus** | `src/hooks/useNetworkStatus.ts` | Monitoramento contínuo do status online/offline da conexão com a internet. |
-| **useAssinaturaStatus** | `src/hooks/useAssinaturaStatus.ts` | Avaliação do ciclo de vida da loja (Trial, Ativo, Alerta 7 dias, Bloqueado) e Realtime. |
+| **useAssinaturaStatus** | `src/hooks/useAssinaturaStatus.ts` | Avaliação dinâmica do ciclo de vida da loja (Trial via `dias_trial` global, Ativo, Alerta 7 dias, Bloqueado), valores de referência e Realtime. |
 
 ---
 
@@ -245,6 +248,8 @@
 | **serpApiService** | `src/services/serpApiService.ts` | Integração com Edge Function para busca de imagens de produtos no Google Imagens. |
 | **loggerService** | `src/services/loggerService.ts` | Singleton de observabilidade com fila assíncrona não-bloqueante e sanitizador de PII (LGPD). |
 | **gdmCatalogService** | `src/services/gdmCatalogService.ts` | Governança GDM: exportação canônica e clonagem de catálogos mestre entre filiais de uma organização. |
+| **mercadoLivreService** | `src/services/mercadoLivreService.ts` | Conexão OAuth com refresh preventivo de sessão, gestão de anúncios, vínculo de grades e download de etiquetas. |
+| **configuracoesPlataformaService** | `src/services/configuracoesPlataformaService.ts` | Singleton de governança com cache em memória para parâmetros de trial, valores base e Super Admin. |
 
 ### Inteligência Artificial e Família TypeSafe AI / Jev
 | Serviço | Arquivo | Responsabilidade |
@@ -286,3 +291,4 @@
 | **shippingDisplay.ts** | `src/utils/shippingDisplay.ts` | Helpers visuais para badges de frete grátis, etiquetas de prazos e nomes de transportadoras. |
 | **statusPedidoUtils.ts** | `src/utils/statusPedidoUtils.ts` | Rótulos em `pt-BR`, cores e fluxos de transição dos estados de pedidos. |
 | **imageCompressor.ts** | `src/utils/imageCompressor.ts` | Compressor de fotos no cliente via `createObjectURL` e Canvas para prevenir Out-of-Memory (OOM) no mobile. |
+| **gdmMercadoLivreMapper.ts** | `src/utils/gdmMercadoLivreMapper.ts` | Normalizador de atributos e variações de anúncios do Mercado Livre para modelo canônico GDM. |

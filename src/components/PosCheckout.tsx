@@ -1515,12 +1515,6 @@ export const PosCheckout: React.FC = () => {
         fiado_quitado: fiadoQuitado,
         data_vencimento_fiado: dataVencimentoFiado || null,
         observacoes: obsFinal || null,
-        metadados: {
-          transportadora_nome: pedidoEntrega?.transportadora_nome || null,
-          provedor_frete: pedidoEntrega?.provedor || null,
-          servico_frete_codigo: pedidoEntrega?.servico_codigo || null,
-          tipo_atendimento: pedidoEntrega?.tipo_atendimento || (taxaEntrega > 0 ? 'entrega' : 'retirada')
-        },
         data_venda: dataVendaFinal
       };
 

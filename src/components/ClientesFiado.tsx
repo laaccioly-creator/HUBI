@@ -77,7 +77,6 @@ export const ClientesFiado: React.FC = () => {
           data_venda,
           criado_em,
           data_vencimento_fiado,
-          metadados,
           saldo_devedor,
           fiado_quitado,
           valor_total,

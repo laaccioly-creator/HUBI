@@ -1,7 +1,7 @@
 # 📘 DOCUMENTAÇÃO TÉCNICA E ARQUITETURAL DO SISTEMA HUBI
 
-> **Versão do Documento:** 1.5.0  
-> **Data de Atualização:** 12/10/2026  
+> **Versão do Documento:** 1.6.0  
+> **Data de Atualização:** 17/10/2026  
 > **Classificação:** Documento Técnico de Arquitetura, Engenharia e Operações  
 > **Público-alvo:** Desenvolvedores, Engenheiros de Software, Arquitetos e Agentes de IA
 
@@ -33,6 +33,8 @@
    - [4.8 Módulo Área do Cliente e Onboarding no Catálogo Online](#48-módulo-área-do-cliente-e-onboarding-no-catálogo-online)
    - [4.9 Fluxo Idempotente de Controle e Movimentação de Estoque (Fase 3)](#49-fluxo-idempotente-de-controle-e-movimentação-de-estoque-fase-3)
    - [4.10 Central Unificada de Importação e Exportação (Planilhas XLSX e Feeds)](#410-central-unificada-de-importação-e-exportação-planilhas-xlsx-e-feeds)
+   - [4.11 Módulo de Parâmetros Globais da Plataforma e Painel Super Admin](#411-módulo-de-parâmetros-globais-da-plataforma-e-painel-super-admin)
+   - [4.12 Integração Nativa com Mercado Livre (OAuth 2.0, Estoque Local, Vínculo GDM e Expedição)](#412-integração-nativa-com-mercado-livre-oauth-20-estoque-local-vínculo-gdm-e-expedição)
 5. [Serviços e Utilitários Globais](#5-serviços-e-utilitários-globais)
    - [5.1 Supabase Client e Camada de Acesso a Dados](#51-supabase-client-e-camada-de-acesso-a-dados)
    - [5.2 Orquestrador e Serviços de Logística (Uber Direct, Melhor Envio e Despachos Manuais)](#52-orquestrador-e-serviços-de-logística-uber-direct-melhor-envio-e-despachos-manuais)
@@ -46,6 +48,10 @@
    - [5.10 Suíte Especializada de Micro-serviços Jev / TypeSafe AI](#510-suíte-especializada-de-micro-serviços-jev--typesafe-ai)
    - [5.11 Gerenciamento de Pilha de Overlays e Histórico Mobile (`overlayStackService.ts` & `useRegisterOverlay.ts`)](#511-gerenciamento-de-pilha-de-overlays-e-histórico-mobile-overlaystackservicets--useregisteroverlayts)
    - [5.12 Roteamento Híbrido da Rubi IA e Base de Conhecimento Local (`rubiRouterService.ts`)](#512-roteamento-híbrido-da-rubi-ia-e-base-de-conhecimento-local-rubirouterservicets)
+   - [5.13 Infraestrutura de Monetização SaaS, Multi-Lojas e Mercado Pago](#513-infraestrutura-de-monetização-saas-multi-lojas-e-mercado-pago)
+   - [5.14 Observabilidade Centralizada, Idempotência e Arquitetura de Dados Mestres (GDM)](#514-observabilidade-centralizada-idempotência-e-arquitetura-de-dados-mestres-gdm)
+   - [5.15 Integração Nativa com Mercado Livre: Serviços Frontend e Edge Functions](#515-integração-nativa-com-mercado-livre-serviços-frontend-e-edge-functions)
+   - [5.16 Gestão de Configurações da Plataforma e Assinaturas (`configuracoesPlataformaService.ts` & `useAssinaturaStatus.ts`)](#516-gestão-de-configurações-da-plataforma-e-assinaturas-configuracoesplataformaservicets--useassinaturastatusts)
 
 ---
 
@@ -658,6 +664,92 @@ erDiagram
 | `dispositivo_info` | VARCHAR(255) | NULL | User-Agent do navegador / dispositivo |
 | `criado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Carimbo temporal da ocorrência (expurgo em 30 dias) |
 
+#### 23. Tabela `configuracoes_plataforma` (Parâmetros Globais HUBI e Super Admin)
+Tabela singleton de governança do ecossistema HUBI (`id = 1`), permitindo ao Super Admin parametrizar dinamicamente regras comerciais, prazos de trial e suporte sem necessidade de redeploy de código.
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | INTEGER | PK, CHECK (id = 1) | Identificador singleton único da plataforma |
+| `dias_trial` | INTEGER | NOT NULL DEFAULT 7 | Dias de cortesia para novas filiais criadas |
+| `valor_mensal_base` | NUMERIC(10,2) | NOT NULL DEFAULT 49.90 | Valor de referência do plano mensal (R$) |
+| `valor_anual_base` | NUMERIC(10,2) | NOT NULL DEFAULT 598.80 | Valor da anuidade cobrada no Mercado Pago (R$) |
+| `email_super_admin` | VARCHAR(255) | NOT NULL DEFAULT 'laaccioly@hotmail.com' | E-mail mestre com acesso irrestrito ao painel de parâmetros |
+| `whatsapp_suporte` | VARCHAR(50) | NULL | WhatsApp oficial de atendimento e suporte aos lojistas |
+| `modo_manutencao` | BOOLEAN | NOT NULL DEFAULT FALSE | Flag de bloqueio temporário global para manutenções |
+| `mensagem_manutencao` | TEXT | NULL | Aviso informativo exibido em modo de manutenção |
+| `atualizado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Carimbo de auditoria da última alteração de parâmetros |
+| `atualizado_por` | UUID | NULL, FK -> auth.users(id) | Usuário autenticado que efetuou a alteração |
+
+> **Políticas de RLS da Tabela:**
+> - `SELECT`: Permitido para qualquer usuário autenticado (`auth.role() = 'authenticated'`).
+> - `UPDATE` / `INSERT`: Restrito estritamente a administradores globais autorizados via função `public.eh_super_admin_plataforma()`.
+
+#### 24. Tabela `marketplace_contas` (Conexões OAuth e Credenciais de Marketplaces)
+Gerencia os vínculos OAuth 2.0 multi-lojas com marketplaces externos (Mercado Livre), armazenando tokens de acesso, refresh tokens e flags de automação por filial.
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | Identificador exclusivo do vínculo |
+| `loja_id` | UUID | NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Filial proprietária da conexão |
+| `provedor` | VARCHAR(50) | NOT NULL DEFAULT 'mercadolivre' | Identificador do marketplace parceiro |
+| `ml_user_id` | VARCHAR(100) | NOT NULL, UNIQUE | ID numérico do lojista no Mercado Livre |
+| `ml_nickname` | VARCHAR(100) | NULL | Apelido / usuário oficial no Mercado Livre |
+| `ml_email` | VARCHAR(255) | NULL | E-mail da conta do Mercado Livre |
+| `ml_site_id` | VARCHAR(20) | NOT NULL DEFAULT 'MLB' | País da conta (MLB = Brasil) |
+| `access_token` | TEXT | NOT NULL | Token JWT de acesso às APIs do Mercado Livre |
+| `refresh_token` | TEXT | NOT NULL | Token de renovação de credenciais |
+| `token_expira_em` | TIMESTAMPTZ | NOT NULL | Data e hora de expiração do access token atual |
+| `sincronizar_estoque_auto` | BOOLEAN | NOT NULL DEFAULT TRUE | Habilita push automático de saldo ao alterar estoque local |
+| `importar_pedidos_auto` | BOOLEAN | NOT NULL DEFAULT TRUE | Habilita ingestão instantânea via webhooks de venda |
+| `status_conexao` | VARCHAR(30) | NOT NULL DEFAULT 'conectado' | Estado da sessão ('conectado', 'expirado', 'desconectado', 'erro') |
+| `ultimo_erro` | TEXT | NULL | Mensagem de erro capturada na última sincronização |
+| `criado_em` / `atualizado_em` | TIMESTAMPTZ | DEFAULT NOW() | Carimbos de auditoria |
+
+> **Restrições de Unicidade e RLS:**
+> - Constraint `UNIQUE (loja_id, provedor)` garantindo uma conta ativa por marketplace por filial.
+> - RLS blindado aplicando `public.usuario_pertence_loja(loja_id)` para operações de leitura e manutenção da loja.
+
+#### 25. Tabela `marketplace_anuncios` (Mapeamento de Anúncios e Vínculos de Estoque GDM)
+Tabela relacional que vincula anúncios ativos do Mercado Livre (simples ou com variação) aos produtos e variações nativas do catálogo do HUBI.
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | ID do mapeamento |
+| `loja_id` | UUID | NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Filial operadora do anúncio |
+| `conta_id` | UUID | NOT NULL, FK -> marketplace_contas(id) ON DELETE CASCADE | Vínculo com a credencial OAuth ativa |
+| `ml_item_id` | VARCHAR(100) | NOT NULL | Código do anúncio no ML (ex: 'MLB1234567890') |
+| `ml_variation_id` | VARCHAR(100) | NOT NULL DEFAULT '' | ID da variação no ML (ou vazio para produtos simples) |
+| `ml_titulo` | TEXT | NOT NULL | Título cadastrado no anúncio do Mercado Livre |
+| `ml_permalink` | TEXT | NULL | Link público direto do produto no Mercado Livre |
+| `ml_status` | VARCHAR(50) | NOT NULL DEFAULT 'active' | Status no ML ('active', 'paused', 'closed') |
+| `ml_preco` | NUMERIC(10,2) | NOT NULL DEFAULT 0 | Preço praticado no Mercado Livre |
+| `ml_estoque_disponivel` | INTEGER | NOT NULL DEFAULT 0 | Último saldo de estoque reportado no ML |
+| `produto_id` | UUID | NULL, FK -> produtos(id) ON DELETE SET NULL | Produto físico pai no estoque do HUBI |
+| `variacao_id` | UUID | NULL, FK -> variacoes_produto(id) ON DELETE SET NULL | Variação específica no estoque (se aplicável) |
+| `sincronizacao_ativa` | BOOLEAN | NOT NULL DEFAULT TRUE | Se deve propagar alterações de estoque local para o ML |
+| `ultima_sincronizacao_em` | TIMESTAMPTZ | NULL | Carimbo da última sincronização bem-sucedida |
+| `ultimo_status_sync` | VARCHAR(50) | NULL | Status da última operação ('sucesso', 'erro') |
+| `ultimo_erro_sync` | TEXT | NULL | Detalhes em caso de inconsistência na API do ML |
+| `criado_em` / `atualizado_em` | TIMESTAMPTZ | DEFAULT NOW() | Carimbos de auditoria |
+
+> **Unicidade:** `UNIQUE (conta_id, ml_item_id, ml_variation_id)` evitando duplicidade de vínculos.
+
+#### 26. Tabela `marketplace_pedidos_webhook` (Auditoria, Webhooks e Fila de Ingestão ML)
+Armazena as notificações brutas de webhooks disparadas pelo Mercado Livre (`orders_v2`), assegurando processamento assíncrono idempotente e rastreabilidade total.
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | ID único da notificação |
+| `loja_id` | UUID | NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Filial de destino |
+| `conta_id` | UUID | NOT NULL, FK -> marketplace_contas(id) ON DELETE CASCADE | Conta conectada receptora |
+| `provedor` | VARCHAR(50) | NOT NULL DEFAULT 'mercadolivre' | Identificador do canal emissor |
+| `topico` | VARCHAR(100) | NOT NULL | Tópico da notificação (ex: 'orders_v2') |
+| `resource` | TEXT | NOT NULL | URI do recurso no ML (ex: '/orders/2000001234567890') |
+| `ml_order_id` | VARCHAR(100) | NOT NULL | Identificador do pedido no Mercado Livre |
+| `payload_bruto` | JSONB | NULL | Payload completo de metadados recebido da notificação |
+| `status_processamento` | VARCHAR(30) | NOT NULL DEFAULT 'pendente' | Estado ('pendente', 'processado', 'ignorado', 'falha') |
+| `tentativas` | INTEGER | NOT NULL DEFAULT 0 | Contador de re-tentativas de ingestão |
+| `erro_mensagem` | TEXT | NULL | Mensagem de erro em caso de falha de processamento |
+| `pedido_id` | UUID | NULL, FK -> pedidos(id) ON DELETE SET NULL | Pedido local criado no HUBI |
+| `processado_em` | TIMESTAMPTZ | NULL | Momento da conversão em pedido nativo do HUBI |
+| `criado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Carimbo temporal de chegada do webhook |
+
 ### 3.3 Triggers, Automações e Segurança no Banco (RLS)
 1. **Baixa e Reajuste Automático de Estoque (`fn_atualizar_estoque_pedido`):**
    - Disparado em `AFTER INSERT` na tabela `itens_pedido`.
@@ -860,6 +952,54 @@ Para facilitar migrações de sistemas legados e integrações com canais extern
    - **Pedidos e Finanças (`financeExportService.ts` & `orderImportExportService.ts`):** Exportação de relatórios contábeis para conferência tributária.
 3. **Geração de Feeds para Marketplaces (`feedExportService.ts`):**
    - Geração dinâmica de catálogo estruturado em formato compatível com **Google Shopping** (XML/RSS) e **Meta Catalog** (Facebook/Instagram Shops CSV), permitindo campanhas de anúncios sincronizadas com os preços e estoques da loja.
+
+### 4.11 Módulo de Parâmetros Globais da Plataforma e Painel Super Admin
+Para conferir flexibilidade operacional aos mantenedores da plataforma sem necessidade de constantes deploys de código ou migrations DDL:
+1. **Tabela Singleton de Governança (`public.configuracoes_plataforma`):**
+   - Registro exclusivo com `id = 1` centralizando a parametrização de negócio do HUBI.
+   - Parâmetros administráveis: `dias_trial` (dias de degustação para novas lojas cadastradas), `valor_mensal_base` (R$ 49,90), `valor_anual_base` (R$ 598,80), `email_super_admin`, `whatsapp_suporte`, `modo_manutencao` e `mensagem_manutencao`.
+2. **Camada de Autorização Super Admin:**
+   - E-mail mestre global definido como `laaccioly@hotmail.com`.
+   - Validação a nível de banco de dados via função de segurança `public.eh_super_admin_plataforma()`, que inspeciona o e-mail do usuário autenticado (`auth.jwt() ->> 'email'`).
+   - Validação na camada de UI através de `usePermissions.ts` expondo a flag booleana `ehSuperAdmin`.
+3. **Painel de Gestão `CardParametrosHubiAdmin.tsx`:**
+   - Embutido na aba "Geral" da tela `ConfiguracoesLoja.tsx`.
+   - Renderização condicional restrita exclusivamente ao Super Admin autenticado.
+   - Interface com formulário reativo para edição dos parâmetros comerciais, status de manutenção e WhatsApp de suporte, persistindo as alterações com validação de tipagem via `configuracoesPlataformaService.ts`.
+4. **Propagação Dinâmica no Ecossistema:**
+   - **Trial de Degustação:** O hook `useAssinaturaStatus.ts` consome `dias_trial` do banco de dados, calculando a vigência de cortesia com precisão a partir de `loja.criado_em` + dias de trial configurados.
+   - **Tarja de Degustação (`BannerAssinaturaTop.tsx`):** Exibe contagem regressiva em tempo real ("Restam X dias"), layout centralizado horizontalmente com fundo vermelho sólido e tipografia 100% branca pura, exibindo os valores parametrizados e o botão de conversão rápida.
+   - **Checkout do Mercado Pago:** A Edge Function `hubi-criar-assinatura-mp` consulta os valores de anuidade diretamente da tabela singleton antes de emitir preferências de pagamento.
+
+### 4.12 Integração Nativa com Mercado Livre (OAuth 2.0, Estoque Local, Vínculo GDM e Expedição)
+O HUBI oferece integração nativa e em tempo real com o ecossistema do **Mercado Livre**, unificando o controle de estoque físico e online, mapeamento de variações de grade e automação de expedição:
+1. **Arquitetura de Conexão OAuth 2.0 Multi-Loja:**
+   - **Iniciação de Vínculo (`CardConexaoMercadoLivre.tsx` & `mercadoLivreService.ts`):** O lojista clica em "Conectar com Mercado Livre". O sistema verifica a persistência da sessão no Supabase Auth com fallback via `supabase.auth.refreshSession()` e requisita uma URL de autorização à Edge Function `ml-oauth?action=authorize_url`.
+   - **Segurança HMAC anti-CSRF:** A URL gerada inclui um token `state` criptograficamente assinado com HMAC-SHA256 (`ML_STATE_HMAC_SECRET`) contendo o `loja_id` e um timestamp de expiração (15 minutos).
+   - **Callback Transacional Resiliente (`ml-oauth`):**
+     - O Mercado Livre redireciona o lojista via `GET` com os parâmetros `code` e `state` na URL.
+     - A Edge Function `ml-oauth` opera com `verify_jwt = false` e trata a rota de callback como PRIMEIRA prioridade sem exigir header `Authorization`.
+     - Valida a autenticidade da assinatura HMAC e a vigência do `state`.
+     - Executa a troca do `code` por `access_token` e `refresh_token` na API oficial (`POST https://api.mercadolibre.com/oauth/token`).
+     - Consulta os dados do vendedor via `GET https://api.mercadolibre.com/users/me` para capturar `id`, `nickname` e `email`.
+     - Persiste as credenciais em `public.marketplace_contas` utilizando `SUPABASE_SERVICE_ROLE_KEY` através de uma rotina defensiva à prova de concorrência (busca prévia por `loja_id`/`ml_user_id` seguida de `UPDATE` ou `INSERT`), contornando limitações de conflito de índices parciais.
+     - Redireciona o lojista via HTTP 302 de volta para a aplicação em produção (`https://hubi-studio.ai.studio/config?ml_status=success`).
+2. **Mapeamento de Anúncios e Vínculo de Estoque GDM (`ModalVincularAnuncioMl.tsx`):**
+   - Permite consultar e listar anúncios ativos da conta conectada no Mercado Livre.
+   - O lojista pode associar cada anúncio (`MLB...`) e sua respectiva variação a um produto simples ou variação de grade nativa do estoque do HUBI, gravando o mapeamento na tabela `public.marketplace_anuncios`.
+3. **Sincronização de Estoque Push e Pull:**
+   - **Push Local -> Mercado Livre (`ml-estoque-sync`):** Sempre que o estoque local sofre movimentação (venda no PDV físico, entrada de mercadorias ou inventário), a Edge Function `ml-estoque-sync` atualiza a quantidade disponível (`available_quantity`) no Mercado Livre via API REST, prevenindo rupturas ou vendas sem estoque.
+4. **Ingestão Automatizada de Vendas e Baixa Atômica:**
+   - **Fila de Webhooks (`ml-webhook` & `marketplace_pedidos_webhook`):** Notificações de novos pedidos (`orders_v2`) enviadas pelo Mercado Livre são enfileiradas na tabela de auditoria.
+   - **RPC Atômica no PostgreSQL (`processar_pedido_mercado_livre_atomico`):**
+     - Cria o pedido em `public.pedidos` com canal de venda `'mercadolivre'`.
+     - Associa ou cadastra o cliente comprador com endereço de entrega.
+     - Insere os itens vinculados em `public.itens_pedido`.
+     - Decrementa o saldo físico com a trava idempotente `estoque_baixado = true`.
+     - Registra a movimentação no histórico imutável de `public.movimentacoes_estoque`.
+5. **Expedição e Emissão de Etiquetas de Envio:**
+   - **Identificação Visual (`PedidosLista.tsx`):** Pedidos gerados pelo Mercado Livre recebem badge em amarelo e preto com a marca do marketplace e número do pedido externo.
+   - **Impressão de Etiquetas Oficiais (`ml-etiquetas`):** Botão direto na listagem de pedidos que aciona a Edge Function `ml-etiquetas`. A função realiza proxy autenticado na API de Shipments do Mercado Livre (`/shipment_labels`) e entrega o PDF/ZPL pronto para impressão em impressoras térmicas (Zebra, Elgin) ou folhas A4 com etiquetas adesivas.
 
 ---
 
@@ -1064,6 +1204,48 @@ A monetização do HUBI adota arquitetura de licença anual autônoma por unidad
 3. **Arquitetura de Dados Mestres GDM (`gdmCatalogService.ts` / `src/types/gdm.ts`):**
    - Padronização de contratos canônicos (`GdmProdutoCanonico`, `GdmVariacaoCanonica`).
    - Mecanismo seguro de clonagem de catálogo mestre entre unidades do mesmo conglomerado, permitindo expansão rápida de filiais com replicação seletiva de categorias, regras de preço e variações de estoque.
+
+### 5.15 Integração Nativa com Mercado Livre: Serviços Frontend e Edge Functions
+1. **Camada de Serviços Frontend (`src/services/mercadoLivreService.ts`):**
+   - Centraliza todas as interações da interface com o ecossistema Mercado Livre.
+   - **Resiliência de Sessão Auth:** Executa `await supabase.auth.refreshSession()` preventivamente caso `supabase.auth.getSession()` retorne nulo, garantindo a recuperação da sessão persistida antes de gerar links de autorização.
+   - **Métodos Principais:**
+     - `obterUrlAutorizacao(lojaId)`: Invoca a Edge Function `ml-oauth?action=authorize_url` para obter a URL assinada com HMAC.
+     - `buscarContaConectada(lojaId)`: Retorna as credenciais e status de conexão da tabela `marketplace_contas`.
+     - `desconectarConta(lojaId)`: Revoga e exclui o vínculo de marketplace da loja.
+     - `listarAnuncios(lojaId)`: Consulta os anúncios sincronizados e mapeados em `marketplace_anuncios`.
+     - `vincularAnuncio(lojaId, dados)`: Cria ou atualiza o vínculo entre anúncio/variação ML e produto/variação HUBI.
+     - `baixarEtiquetaEnvio(lojaId, shipmentId)`: Dispara download direto do PDF de envio via Edge Function `ml-etiquetas`.
+2. **Suíte de Edge Functions Especializadas:**
+   - **`ml-oauth` (`supabase/functions/ml-oauth/index.ts`):**
+     - Orquestrador OAuth 2.0 operando com `verify_jwt = false`.
+     - Tratamento imediato de preflight CORS (`OPTIONS` retornando status 200).
+     - Rota prioritária de callback GET com verificação de assinatura HMAC (`ML_STATE_HMAC_SECRET`).
+     - Troca de `code` por tokens oficiais e persistência transacional em `marketplace_contas` com busca defensiva prévia antes de `UPDATE`/`INSERT`.
+     - Redirecionamento final HTTP 302 com fallback para a URL de produção (`https://hubi-studio.ai.studio`).
+   - **`ml-estoque-sync` (`supabase/functions/ml-estoque-sync/index.ts`):**
+     - Sincronização remota de estoque push via API REST (`PUT https://api.mercadolibre.com/items/{item_id}`).
+     - Renovação automática de access token expirado utilizando refresh token em caso de erro 401.
+   - **`ml-webhook` (`supabase/functions/ml-webhook/index.ts`):**
+     - Receptor oficial de webhooks (`orders_v2`). Registra o payload bruto em `marketplace_pedidos_webhook` e invoca a RPC atômica `processar_pedido_mercado_livre_atomico`.
+   - **`ml-etiquetas` (`supabase/functions/ml-etiquetas/index.ts`):**
+     - Proxy autenticado com a API de Shipments do Mercado Livre (`/shipment_labels`) para entrega direta de etiquetas de despacho em PDF ou ZPL.
+3. **Mapeador de Dados Canônicos (`src/utils/gdmMercadoLivreMapper.ts`):**
+   - Utilitário que normaliza atributos de anúncios brutos do Mercado Livre para o modelo canônico de catálogo do HUBI (`GdmProdutoCanonico`), facilitando a conversão de variações de cor, tamanho e voltagem.
+
+### 5.16 Gestão de Configurações da Plataforma e Assinaturas (`configuracoesPlataformaService.ts` & `useAssinaturaStatus.ts`)
+1. **Serviço de Parâmetros Globais (`src/services/configuracoesPlataformaService.ts`):**
+   - Fornece leitura e atualização da tabela singleton `public.configuracoes_plataforma`.
+   - Utiliza tipagem estrita `ConfiguracoesPlataformaHubi` (`dias_trial`, `valor_mensal_base`, `valor_anual_base`, `email_super_admin`, `whatsapp_suporte`, `modo_manutencao`, `mensagem_manutencao`).
+   - Implementa cache local em memória com expiração para garantir altíssimo desempenho sem sobrecarga de leituras no banco.
+2. **Hook de Ciclo de Vida de Assinatura (`src/hooks/useAssinaturaStatus.ts`):**
+   - Calcula em tempo real o estado de vigência da filial:
+     - Período de cortesia (trial): calculado a partir de `loja.criado_em` + `dias_trial` configurados dinamicamente na plataforma (padrão de 7 dias).
+     - Período de anuidade ativa: verificação de `loja.assinatura_fim_em` e flags de status.
+   - Expõe valores de referência formatados para apresentação na UI (`valorMensalReferencia`, `valorAnualReferencia`).
+3. **Componentes de Apresentação e Administração:**
+   - **`CardParametrosHubiAdmin.tsx`:** Painel administrativo interativo integrado na aba "Geral" de `ConfiguracoesLoja.tsx`, renderizado exclusivamente quando o usuário autenticado for o Super Admin (`laaccioly@hotmail.com`).
+   - **`BannerAssinaturaTop.tsx`:** Tarja superior de trial com fundo vermelho sólido, tipografia 100% branca pura, texto de dias restantes centralizado horizontalmente e botão de conversão rápida alinhado lado a lado ao valor.
 
 ---
 

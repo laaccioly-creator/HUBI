@@ -10,7 +10,7 @@ const cacheModeloAtivo = new Map<string, string>();
 const cacheModelosValidos = new Map<string, string[]>();
 
 // Fallback de contingência caso a rede do cliente oscile ou a listagem falhe temporariamente
-export const MODELOS_FALLBACK_CONTINGENCIA = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-1.5-flash-8b'];
+export const MODELOS_FALLBACK_CONTINGENCIA = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-8b'];
 
 /**
  * Invalida o cache em memória para forçar uma nova descoberta dinâmica.
@@ -29,7 +29,7 @@ export const invalidarCacheGemini = (apiKey?: string): void => {
 
 /**
  * Extrai o peso/score de um modelo Gemini para ordenação:
- * Prioriza a família Flash e as versões numéricas mais recentes (ex: 3.8 > 3.5 > 2.5 > 1.5).
+ * Prioriza a família Flash e os modelos estáveis (gemini-1.5-flash e gemini-2.0-flash).
  */
 export const calcularScoreModelo = (nome: string): number => {
   const limpo = nome.toLowerCase().replace('models/', '');
@@ -39,16 +39,25 @@ export const calcularScoreModelo = (nome: string): number => {
   if (limpo.includes('flash')) {
     score += 1000;
   }
+  // Modelos estáveis e consolidados para visão e varejo recebem bônus prioritário
+  if (limpo === 'gemini-1.5-flash' || limpo === 'gemini-2.0-flash') {
+    score += 500;
+  }
+  if (limpo === 'gemini-1.5-flash-8b') {
+    score += 400;
+  }
   // Penaliza modelos pesados (pro), que costumam ter latência maior para varejo/chat
   if (limpo.includes('pro')) {
     score -= 200;
   }
 
-  // Extrai versão numérica (ex: 3.8, 3.5, 2.5, 1.5)
+  // Extrai versão numérica (ex: 2.0, 1.5)
   const versaoMatch = limpo.match(/(\d+(?:\.\d+)?)/);
   if (versaoMatch) {
     const versao = parseFloat(versaoMatch[1]);
-    score += versao * 100;
+    if (versao <= 2.5) {
+      score += versao * 100;
+    }
   }
 
   // Prioriza lite para respostas ágeis se empatado em versão

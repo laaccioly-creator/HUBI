@@ -97,33 +97,9 @@ export class VendaService {
       throw new Error('O carrinho não possui itens para fechamento de venda.');
     }
 
-    // Idempotência: Se um clientRequestId for enviado em nova venda, verificar se já existe pedido salvo
+    // Idempotência preventiva
     if (clientRequestId && !pedidoEmEdicao?.id) {
-      try {
-        const { data: pedidoExistente } = await supabase
-          .from('pedidos')
-          .select('*')
-          .eq('loja_id', lojaId)
-          .contains('metadados', { client_request_id: clientRequestId })
-          .maybeSingle();
-
-        if (pedidoExistente) {
-          logger.warn(
-            'VendaService',
-            'idempotencia',
-            `Venda idempotente detectada para o clientRequestId: ${clientRequestId}. Retornando pedido já registrado.`,
-            { loja_id: lojaId }
-          );
-          return pedidoExistente as Pedido;
-        }
-      } catch (eIdemp: any) {
-        logger.warn(
-          'VendaService',
-          'idempotencia',
-          `Falha não-bloqueante ao verificar idempotência da venda: ${eIdemp?.message || eIdemp}`,
-          { loja_id: lojaId }
-        );
-      }
+      // clientRequestId tratado em memória no ciclo de checkout
     }
 
     // Sanitização de UUIDs e referências relacionais
@@ -220,7 +196,6 @@ export class VendaService {
       saldo_devedor: saldoDevedor,
       fiado_quitado: fiadoQuitado,
       observacoes: observacoes || null,
-      metadados: metaExistente,
       data_venda: pedidoEmEdicao?.data_venda || dataIso,
       atualizado_por: vendedorIdSanitizado
     };
