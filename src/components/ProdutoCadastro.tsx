@@ -2173,7 +2173,7 @@ export const ProdutoCadastro: React.FC = () => {
 
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Preço Autoatacado (R$)</label>
+                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Preço Distribuidor (R$)</label>
                   {precoVendaVarejo && (
                     <span className="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-100 dark:bg-[#000000] dark:text-indigo-300 dark:border-indigo-800/40 px-1.5 py-0.5 rounded-lg font-bold">
                       -{regrasPrecificacao.descontoAutoatacado}%

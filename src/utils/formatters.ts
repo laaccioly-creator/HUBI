@@ -50,7 +50,29 @@ export const formatarMoeda = (
 export const parseMoedaBanco = (valor: string | number | null | undefined): number => {
   if (valor === null || valor === undefined || valor === '') return 0;
   if (typeof valor === 'number') return isNaN(valor) ? 0 : valor;
-  const limpo = String(valor).trim().replace('R$', '').trim().replace(/\./g, '').replace(',', '.');
+  const limpo = String(valor).trim().replace('R$', '').trim();
+  if (!limpo) return 0;
+
+  // Se tiver tanto ponto quanto vírgula (ex: "1.250,50" ou "1,250.50")
+  if (limpo.includes(',') && limpo.includes('.')) {
+    const num = parseFloat(limpo.replace(/\./g, '').replace(',', '.'));
+    return isNaN(num) ? 0 : num;
+  }
+
+  // Se tiver apenas vírgula (ex: "12,50" ou "1250,50")
+  if (limpo.includes(',')) {
+    const num = parseFloat(limpo.replace(',', '.'));
+    return isNaN(num) ? 0 : num;
+  }
+
+  // Se tiver múltiplos pontos (ex: "1.000.000"), são separadores de milhar sem centavos
+  const partesPonto = limpo.split('.');
+  if (partesPonto.length > 2) {
+    const num = parseFloat(limpo.replace(/\./g, ''));
+    return isNaN(num) ? 0 : num;
+  }
+
+  // Decimal padrão JS / PostgreSQL (ex: "12.00", "25.00", "1250.50") ou inteiro puro ("42")
   const numero = parseFloat(limpo);
   return isNaN(numero) ? 0 : numero;
 };

@@ -477,47 +477,12 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- 4. TRIGGERS E AUTOMAÇÕES
 -- ==============================================================================
 
--- A) Baixa e Reajuste Automático de Estoque
-CREATE OR REPLACE FUNCTION public.fn_atualizar_estoque_pedido()
-RETURNS TRIGGER AS $$
-BEGIN
-    -- Se o item possui variação
-    IF NEW.variacao_id IS NOT NULL THEN
-        UPDATE public.variacoes_produto
-        SET quantidade_estoque = quantidade_estoque - NEW.quantidade
-        WHERE id = NEW.variacao_id;
-    ELSE
-        -- Produto simples sem variação
-        UPDATE public.produtos
-        SET quantidade_estoque = quantidade_estoque - NEW.quantidade
-        WHERE id = NEW.produto_id;
-    END IF;
-
-    -- Se o produto é um Combo/Kit, decrementa os itens filhos
-    IF EXISTS (SELECT 1 FROM public.produtos WHERE id = NEW.produto_id AND eh_combo = TRUE) THEN
-        UPDATE public.produtos p
-        SET quantidade_estoque = p.quantidade_estoque - (ic.quantidade * NEW.quantidade)
-        FROM public.itens_combo ic
-        WHERE ic.produto_combo_id = NEW.produto_id
-          AND ic.produto_filho_id = p.id
-          AND ic.variacao_filho_id IS NULL;
-
-        UPDATE public.variacoes_produto vp
-        SET quantidade_estoque = vp.quantidade_estoque - (ic.quantidade * NEW.quantidade)
-        FROM public.itens_combo ic
-        WHERE ic.produto_combo_id = NEW.produto_id
-          AND ic.variacao_filho_id = vp.id;
-    END IF;
-
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
+-- A) Baixa e Reajuste de Estoque (Centralizado no EstoquePedidoService - Fase 3 / Seção 4.9)
+-- NOTA: A trigger legada 'trg_atualizar_estoque_ao_inserir_item' foi DESATIVADA e REMOVIDA.
+-- A saída física e estorno de estoque são de autoridade única do EstoquePedidoService,
+-- utilizando a flag idempotente 'pedidos.estoque_baixado' e registrando auditoria em 'public.movimentacoes_estoque'.
 DROP TRIGGER IF EXISTS trg_atualizar_estoque_ao_inserir_item ON public.itens_pedido;
-CREATE TRIGGER trg_atualizar_estoque_ao_inserir_item
-AFTER INSERT ON public.itens_pedido
-FOR EACH ROW
-EXECUTE FUNCTION public.fn_atualizar_estoque_pedido();
+DROP FUNCTION IF EXISTS public.fn_atualizar_estoque_pedido();
 
 -- B) Nota: O saldo fiado é gerenciado estritamente através dos pagamentos do pedido (eh_pagamento_fiado = true)
 -- Triggers baseadas exclusivamente em saldo_devedor de pedidos causavam falsos débitos de fiado para compras pagas ou orçamentos.

@@ -1099,12 +1099,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                     <span className="text-amber-700 dark:text-amber-400 font-medium">Restante a Definir:</span>
                     <span className="font-semibold text-amber-700 dark:text-amber-400">{formatarMoeda(diferencaPagamento)}</span>
                   </>
-                ) : (
-                  <>
-                    <span className="text-rose-700 dark:text-rose-400 font-medium">Excedente Ultrapassado:</span>
-                    <span className="font-semibold text-rose-700 dark:text-rose-400">{formatarMoeda(Math.abs(diferencaPagamento))}</span>
-                  </>
-                )}
+                ) : null}
               </div>
             </div>
 

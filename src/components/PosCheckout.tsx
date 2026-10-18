@@ -1628,6 +1628,8 @@ export const PosCheckout: React.FC = () => {
           snapshotInicialRef.current = null;
           setTemAlteracoesNaoSalvas(false);
           setEhVendaOfflineSalva(false);
+          setModalFechamento(false);
+          setLinhasPagamento([]);
           setPedidoConcluido(pedidoCompletoFinal);
           limparCarrinho();
           try {
@@ -3152,12 +3154,7 @@ export const PosCheckout: React.FC = () => {
                     <span className="text-amber-700 dark:text-amber-400 font-bold">Restante a Definir:</span>
                     <span className="font-bold text-amber-700 dark:text-amber-400">{formatarMoeda(diferencaPagamento)}</span>
                   </>
-                ) : (
-                  <>
-                    <span className="text-rose-700 dark:text-rose-400 font-bold">Excedente Ultrapassado:</span>
-                    <span className="font-bold text-rose-700 dark:text-rose-400">{formatarMoeda(Math.abs(diferencaPagamento))}</span>
-                  </>
-                )}
+                ) : null}
               </div>
             </div>
 

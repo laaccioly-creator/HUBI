@@ -733,12 +733,7 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
                     <span className="text-amber-400">Restante a Definir:</span>
                     <span className="text-amber-400">R$ {diferencaPagamento.toFixed(2)}</span>
                   </>
-                ) : (
-                  <>
-                    <span className="text-rose-400">Excedente Ultrapassado:</span>
-                    <span className="text-rose-400">R$ {Math.abs(diferencaPagamento).toFixed(2)}</span>
-                  </>
-                )}
+                ) : null}
               </div>
             </div>
 

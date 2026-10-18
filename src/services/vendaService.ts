@@ -322,9 +322,12 @@ export class VendaService {
       const fpIdReal = await SyncService.resolverFormaPagamentoId(lojaId, l.forma_pagamento_id, l.forma_tipo);
       if (!fpIdReal || !SyncService.isUuidValido(fpIdReal)) return null;
 
-      const fpRef = formasPagamentoDisponiveis.find(f => f.id === l.forma_pagamento_id || f.tipo === l.forma_tipo);
+      const fpRef = formasPagamentoDisponiveis.find(f => f.id === l.forma_pagamento_id || f.id === fpIdReal || f.tipo === l.forma_tipo);
       const taxaValor = (valorNum * Number(fpRef?.taxa_percentual || 0)) / 100;
       const valorLiquido = valorNum - taxaValor;
+
+      const nomeForma = fpRef?.nome || l.forma_nome || (l.forma_tipo === 'dinheiro' ? 'Dinheiro' : l.forma_tipo === 'pix' ? 'PIX' : l.forma_tipo === 'cartao_credito' ? 'Cartão de Crédito' : l.forma_tipo === 'cartao_debito' ? 'Cartão de Débito' : l.forma_tipo === 'fiado' ? 'Fiado' : 'Outro');
+      const tipoForma = fpRef?.tipo || l.forma_tipo || 'dinheiro';
 
       return {
         loja_id: lojaId,
@@ -335,12 +338,18 @@ export class VendaService {
         valor_taxa: taxaValor,
         valor_liquido: valorLiquido,
         data_pagamento: dataIso,
-        eh_pagamento_fiado: l.forma_tipo === 'fiado'
+        eh_pagamento_fiado: l.forma_tipo === 'fiado',
+        forma_pagamento: {
+          id: fpIdReal,
+          nome: nomeForma,
+          tipo: tipoForma
+        }
       };
     }))).filter(Boolean) as any[];
 
     if (pagamentosFormatados.length > 0) {
-      const { error: erroPagamentos } = await supabase.from('pagamentos_pedido').insert(pagamentosFormatados);
+      const pagamentosParaDb = pagamentosFormatados.map(({ forma_pagamento, ...p }) => p);
+      const { error: erroPagamentos } = await supabase.from('pagamentos_pedido').insert(pagamentosParaDb);
       if (erroPagamentos) {
         logger.error('VendaService', 'inserir_pagamentos', erroPagamentos, { loja_id: lojaId });
         if (!pedidoEmEdicao?.id) {

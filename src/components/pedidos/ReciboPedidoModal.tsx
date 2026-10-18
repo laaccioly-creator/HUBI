@@ -364,7 +364,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                   {pagInfo.pagamentosDetalhados.map((pag, idx) => (
                     <div key={idx} className="flex justify-between items-start text-[11px]">
                       <div>
-                        <span className="font-semibold text-slate-900 block">{pag.forma}{pag.parcelas ? ` (${pag.parcelas}x)` : ''}</span>
+                        <span className="font-semibold text-slate-900 block">{pag.forma}{pag.parcelas ? ` (${pag.parcelas}x)` : ''}:</span>
                         {pag.origemGateway && (
                           <span className="text-[10px] text-slate-500 block font-medium">Origem: {pag.origemGateway}</span>
                         )}

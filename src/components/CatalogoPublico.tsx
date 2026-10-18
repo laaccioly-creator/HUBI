@@ -1516,7 +1516,7 @@ export const CatalogoPublico: React.FC = () => {
 
       const tabelaTexto =
         avaliacaoCarrinho.tabelaAtiva === 'autoatacado'
-          ? '⚡ Autoatacado (Distribuidor)'
+          ? '⚡ Distribuidor'
           : avaliacaoCarrinho.tabelaAtiva === 'atacado'
           ? '🏷️ Atacado'
           : '🛒 Varejo';
@@ -2523,13 +2523,13 @@ Fico no aguardo da confirmação! ✨`;
                                     }
                                     return `R$ ${avaliacaoCarrinho.faltaValorParaProximo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                                   })()}
-                                </b> para {avaliacaoCarrinho.proximoNivel === 'autoatacado' ? 'Autoatacado' : 'Atacado'}!
+                                </b> para {avaliacaoCarrinho.proximoNivel === 'autoatacado' ? 'Distribuidor' : 'Atacado'}!
                               </span>
                             </>
                           ) : avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? (
                             <>
                               <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />
-                              <span className="text-amber-300 font-bold">Autoatacado Conquistado!</span>
+                              <span className="text-amber-300 font-bold">Distribuidor Conquistado!</span>
                             </>
                           ) : (
                             <>
@@ -2664,7 +2664,7 @@ Fico no aguardo da confirmação! ✨`;
                           <div className="flex items-center gap-1.5 min-w-0">
                             <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                             <span className="truncate">
-                              Aumente este item para <b>{skuFracionado.quantidadeMinimaExigida} un</b> para liberar {avaliacaoCarrinho.proximoNivel === 'autoatacado' ? 'autoatacado' : 'atacado'}
+                              Aumente este item para <b>{skuFracionado.quantidadeMinimaExigida} un</b> para liberar {avaliacaoCarrinho.proximoNivel === 'autoatacado' ? 'distribuidor' : 'atacado'}
                             </span>
                           </div>
                           <button

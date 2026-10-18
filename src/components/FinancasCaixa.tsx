@@ -217,6 +217,22 @@ export const FinancasCaixa: React.FC = () => {
   const [observacaoFechamento, setObservacaoFechamento] = useState<string>('');
   const [processandoFechamento, setProcessandoFechamento] = useState<boolean>(false);
 
+  // Pré-preenche os meios digitais com os valores apurados pelo sistema no turno mantendo o dinheiro físico vazio
+  useEffect(() => {
+    if (modalFechamentoCego && resumoSessao) {
+      const pixVal = Number(resumoSessao.totaisPorMetodo?.pix || 0);
+      const debitoVal = Number(resumoSessao.totaisPorMetodo?.cartao_debito || 0);
+      const creditoVal = Number(resumoSessao.totaisPorMetodo?.cartao_credito || 0);
+      const outrosVal = Number(resumoSessao.totaisPorMetodo?.outros || 0);
+
+      setContagemPix(pixVal > 0 ? pixVal.toFixed(2) : '0.00');
+      setContagemDebito(debitoVal > 0 ? debitoVal.toFixed(2) : '0.00');
+      setContagemCredito(creditoVal > 0 ? creditoVal.toFixed(2) : '0.00');
+      setContagemOutros(outrosVal > 0 ? outrosVal.toFixed(2) : '0.00');
+      setContagemDinheiro('');
+    }
+  }, [modalFechamentoCego, resumoSessao]);
+
   // Relatório de Fechamento de Caixa
   const [modalRelatorioFechamento, setModalRelatorioFechamento] = useState<boolean>(false);
   const [relatorioFechamentoTexto, setRelatorioFechamentoTexto] = useState<string>('');
@@ -3513,11 +3529,10 @@ export const FinancasCaixa: React.FC = () => {
                 <div className={`rounded-2xl p-3.5 text-xs space-y-1 border ${
                   isDark ? 'bg-amber-500/10 border-amber-500/30 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-900'
                 }`}>
-                  <span className="font-black block">🔒 Procedimento de Conferência Cega:</span>
+                  <span className="font-black block">🔒 Conferência e Fechamento de Caixa:</span>
                   <p className="text-[11px] leading-relaxed font-medium">
-                    Digite os valores físicos apurados em cada meio de pagamento. Os saldos teóricos calculados pelo sistema
-                    <strong> NÃO são exibidos nesta tela</strong> para garantir a integridade da conferência. O sistema confrontará
-                    as divergências (Sobra/Falta) imediatamente após o envio.
+                    Os valores de <strong>Pix, Cartão e Outros Meios</strong> foram pré-preenchidos automaticamente com base nos lançamentos registrados pelo sistema para facilitar sua conferência com as maquininhas e extratos (editáveis se houver ajuste).
+                    O <strong>Dinheiro Físico</strong> deve ser contado na gaveta para apuração de sobra ou quebra.
                   </p>
                 </div>
 
@@ -3549,7 +3564,7 @@ export const FinancasCaixa: React.FC = () => {
                     <input
                       type="number"
                       step="0.01"
-                      placeholder="0.00 (Opcional)"
+                      placeholder="0.00"
                       value={contagemPix}
                       onChange={(e) => setContagemPix(e.target.value)}
                       className={`w-full rounded-xl px-3 py-2 text-xs font-bold text-center focus:outline-none transition ${
@@ -3565,7 +3580,7 @@ export const FinancasCaixa: React.FC = () => {
                     <input
                       type="number"
                       step="0.01"
-                      placeholder="0.00 (Opcional)"
+                      placeholder="0.00"
                       value={contagemDebito}
                       onChange={(e) => setContagemDebito(e.target.value)}
                       className={`w-full rounded-xl px-3 py-2 text-xs font-bold text-center focus:outline-none transition ${
@@ -3581,7 +3596,7 @@ export const FinancasCaixa: React.FC = () => {
                     <input
                       type="number"
                       step="0.01"
-                      placeholder="0.00 (Opcional)"
+                      placeholder="0.00"
                       value={contagemCredito}
                       onChange={(e) => setContagemCredito(e.target.value)}
                       className={`w-full rounded-xl px-3 py-2 text-xs font-bold text-center focus:outline-none transition ${
@@ -3597,7 +3612,7 @@ export const FinancasCaixa: React.FC = () => {
                     <input
                       type="number"
                       step="0.01"
-                      placeholder="0.00 (Opcional)"
+                      placeholder="0.00"
                       value={contagemOutros}
                       onChange={(e) => setContagemOutros(e.target.value)}
                       className={`w-full rounded-xl px-3 py-2 text-xs font-bold text-center focus:outline-none transition ${
