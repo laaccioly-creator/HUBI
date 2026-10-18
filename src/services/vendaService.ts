@@ -226,14 +226,18 @@ export class VendaService {
           atualizado_em: dataIso
         })
         .eq('id', pedidoEmEdicao.id)
-        .select()
-        .single();
+        .select();
 
-      if (erroUpd || !pedAtualizado) {
-        logger.error('VendaService', 'atualizar_pedido', erroUpd || new Error('Falha ao atualizar pedido'), { loja_id: lojaId });
+      if (erroUpd) {
+        logger.error('VendaService', 'atualizar_pedido', erroUpd, { loja_id: lojaId });
         throw new Error(erroUpd?.message || 'Falha ao atualizar registro de venda no banco de dados.');
       }
-      pedidoGravado = pedAtualizado;
+
+      const registroAtualizado = pedAtualizado && pedAtualizado.length > 0 ? pedAtualizado[0] : null;
+      if (!registroAtualizado) {
+        throw new Error('Não foi possível atualizar o pedido no banco de dados. Verifique as permissões do operador ou reconecte o PDV.');
+      }
+      pedidoGravado = registroAtualizado;
 
       // Limpa itens antigos para reinserção consistente
       await supabase.from('itens_pedido').delete().eq('pedido_id', pedidoEmEdicao.id);
@@ -242,14 +246,18 @@ export class VendaService {
       const { data: novoPed, error: erroPedido } = await supabase
         .from('pedidos')
         .insert([dadosBasePedido])
-        .select()
-        .single();
+        .select();
 
-      if (erroPedido || !novoPed) {
-        logger.error('VendaService', 'inserir_pedido', erroPedido || new Error('Falha ao gravar pedido'), { loja_id: lojaId });
+      if (erroPedido) {
+        logger.error('VendaService', 'inserir_pedido', erroPedido, { loja_id: lojaId });
         throw new Error(erroPedido?.message || 'Falha ao gravar pedido no banco de dados.');
       }
-      pedidoGravado = novoPed;
+
+      const registroNovo = novoPed && novoPed.length > 0 ? novoPed[0] : null;
+      if (!registroNovo) {
+        throw new Error('Não foi possível confirmar o registro do pedido no banco de dados.');
+      }
+      pedidoGravado = registroNovo;
     }
 
     const pedidoId = pedidoGravado.id;

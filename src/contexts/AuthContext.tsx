@@ -114,14 +114,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const uSalvo = userSalvo as UsuarioLoja;
               usuarioAtivo = uSalvo;
 
-              // Se o token Supabase Auth em cache pertencer a OUTRO e-mail/usuário, desconecta para evitar reversão involuntária
+              // Se o token Supabase Auth em cache pertencer ao mesmo e-mail, vincula se necessário
               if (authUser?.id) {
                 const emailAuth = (authUser.email || '').trim().toLowerCase();
                 const emailSalvo = (uSalvo.email || '').trim().toLowerCase();
 
-                if (emailAuth && emailSalvo && emailAuth !== emailSalvo) {
-                  supabase.auth.signOut().catch(() => {});
-                } else if (!uSalvo.usuario_auth_id && emailAuth === emailSalvo) {
+                if (!uSalvo.usuario_auth_id && emailAuth === emailSalvo) {
                   try {
                     await supabase
                       .from('usuarios_loja')
@@ -232,14 +230,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.removeItem(key);
           }
         });
-      } catch {}
-
-      // Se houver sessão GoTrue ativa com e-mail conflitante, desconecta para garantir soberania do operador
-      try {
-        const { data: { session: sessaoExistente } } = await supabase.auth.getSession();
-        if (sessaoExistente?.user?.email && userBuscado.email && sessaoExistente.user.email.toLowerCase() !== userBuscado.email.toLowerCase()) {
-          await supabase.auth.signOut().catch(() => {});
-        }
       } catch {}
 
       setUsuario(userBuscado);
@@ -361,14 +351,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let authUserId: string | null = null;
       let usuarioEncontrado: UsuarioLoja | null = null;
       let lojaAssociada: Loja | null = null;
-
-      // Se houver uma sessão antiga do GoTrue com outro e-mail, encerra para evitar poluição
-      try {
-        const { data: { session: sessaoExistente } } = await supabase.auth.getSession();
-        if (sessaoExistente?.user?.email && sessaoExistente.user.email.toLowerCase() !== emailTrim) {
-          await supabase.auth.signOut().catch(() => {});
-        }
-      } catch {}
 
       // 1. Prioridade: verificar se o usuário é um operador/administrador cadastrado em usuarios_loja
       const { data: usersFound } = await supabase
