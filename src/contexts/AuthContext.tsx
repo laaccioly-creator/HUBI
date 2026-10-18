@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Loja, UsuarioLoja, Organizacao } from '../types';
+import { authClientIsolado } from '../services/usuarioService';
 
 interface AuthContextType {
   loja: Loja | null;
@@ -350,48 +351,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Entrar com E-mail e Senha (com autocura RPC)
+  // Entrar com E-mail e Senha (com autocura RPC e suporte resiliente para operadores da loja)
   const entrarComEmail = async (emailBusca: string, senha?: string): Promise<boolean> => {
     try {
-      setCarregando(true);
       const emailTrim = emailBusca.trim().toLowerCase();
+      const senhaInformada = (senha || '').trim();
       let authUserId: string | null = null;
+      let authLoginSucceeded = false;
+      let authErrorMessage: string | null = null;
 
-      // Autenticação oficial via Supabase Auth se senha for fornecida
-      if (senha && senha.trim().length > 0) {
-        const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
-          email: emailTrim,
-          password: senha.trim()
-        });
+      // 1. Tentar autenticação oficial via Supabase Auth se senha for fornecida
+      if (senhaInformada.length > 0) {
+        try {
+          const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+            email: emailTrim,
+            password: senhaInformada
+          });
 
-        if (authErr) {
-          const msg = authErr.message.toLowerCase();
-          if (msg.includes('invalid login credentials') || msg.includes('invalid_grant')) {
-            throw new Error('E-mail ou senha incorretos. Por favor, verifique suas credenciais.');
+          if (!authErr && authData.session?.user) {
+            authUserId = authData.session.user.id;
+            authLoginSucceeded = true;
+            try {
+              await supabase.rpc('sincronizar_meu_usuario_auth');
+            } catch (rpcErr) {
+              console.warn('Aviso ao sincronizar pós signInWithPassword:', rpcErr);
+            }
+          } else if (authErr) {
+            authErrorMessage = authErr.message;
+            console.warn('Supabase Auth signInWithPassword não retornou sessão; verificando operadores da loja:', authErr.message);
           }
-          if (msg.includes('email not confirmed')) {
-            throw new Error('E-mail ainda não confirmado no sistema. Verifique sua caixa de entrada.');
-          }
-          throw new Error(authErr.message || 'Falha ao autenticar usuário.');
-        }
-
-        if (authData.session?.user) {
-          authUserId = authData.session.user.id;
-          try {
-            await supabase.rpc('sincronizar_meu_usuario_auth');
-          } catch (rpcErr) {
-            console.warn('Aviso ao sincronizar pós signInWithPassword:', rpcErr);
-          }
+        } catch (errAuth: any) {
+          authErrorMessage = errAuth?.message || 'Falha ao autenticar no servidor.';
+          console.warn('Exceção ao chamar signInWithPassword:', errAuth);
         }
       } else {
         const { data: { session } } = await supabase.auth.getSession();
         authUserId = session?.user?.id || null;
       }
 
-      // 1. Buscar perfil em usuarios_loja prioritariamente por usuario_auth_id (auth.uid())
+      // 2. Buscar perfil em usuarios_loja
       let usuarioEncontrado: UsuarioLoja | null = null;
       let lojaAssociada: Loja | null = null;
 
+      // 2A. Prioridade por usuario_auth_id (auth.uid()) caso o login oficial do Supabase tenha sucedido
       if (authUserId) {
         const { data: userAuth } = await supabase
           .from('usuarios_loja')
@@ -405,33 +407,80 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // 2. Fallback por LOWER(email) = LOWER(session.user.email) com autocura imediata
+      // 2B. Consulta por e-mail na equipe da loja (usuarios_loja) com validação de credencial
       if (!usuarioEncontrado) {
         const { data: usersFound } = await supabase
           .from('usuarios_loja')
           .select('*, loja:lojas(*)')
-          .ilike('email', emailTrim)
-          .limit(1);
+          .ilike('email', emailTrim);
 
         if (usersFound && usersFound.length > 0) {
-          const uRaw = usersFound[0] as any;
-          const u = uRaw as UsuarioLoja;
-          if (authUserId && (!u.usuario_auth_id || u.usuario_auth_id !== authUserId)) {
+          // Prioriza operador ativo
+          const uCand = (usersFound.find(u => u.ativo !== false) || usersFound[0]) as any;
+
+          if (uCand.ativo === false) {
+            throw new Error('Este usuário foi desativado pelo administrador da loja.');
+          }
+
+          // Se forneceu senha e o login oficial do Supabase Auth não passou:
+          if (senhaInformada.length > 0 && !authLoginSucceeded) {
+            const senhaGravada = (uCand.senha_hash || '').trim();
+
+            // Validação de senha: se há senha cadastrada, deve bater com o que foi digitado
+            if (senhaGravada && senhaGravada !== senhaInformada) {
+              throw new Error('E-mail ou senha incorretos. Por favor, verifique suas credenciais.');
+            }
+
+            // Tenta criar/sincronizar credencial no Supabase Auth de forma resiliente
+            try {
+              const { data: signUpData } = await authClientIsolado.auth.signUp({
+                email: emailTrim,
+                password: senhaInformada,
+                options: {
+                  data: {
+                    full_name: uCand.nome_completo,
+                    loja_id: uCand.loja_id,
+                    perfil: uCand.perfil
+                  }
+                }
+              });
+              if (signUpData?.user?.id) {
+                authUserId = signUpData.user.id;
+              }
+            } catch (syncErr) {
+              console.warn('Aviso ao sincronizar credencial isolada:', syncErr);
+            }
+          }
+
+          if (authUserId && (!uCand.usuario_auth_id || uCand.usuario_auth_id !== authUserId)) {
             try {
               await supabase
                 .from('usuarios_loja')
                 .update({ usuario_auth_id: authUserId })
-                .eq('id', u.id);
+                .eq('id', uCand.id);
               await supabase.rpc('sincronizar_meu_usuario_auth');
-              usuarioEncontrado = { ...u, usuario_auth_id: authUserId };
+              usuarioEncontrado = { ...uCand, usuario_auth_id: authUserId };
             } catch (syncErr) {
               console.warn('Aviso ao auto-vincular usuario_auth_id no login:', syncErr);
-              usuarioEncontrado = u;
+              usuarioEncontrado = uCand;
             }
           } else {
-            usuarioEncontrado = u;
+            usuarioEncontrado = uCand;
           }
-          lojaAssociada = (uRaw.loja || null) as Loja | null;
+
+          lojaAssociada = (uCand.loja || null) as Loja | null;
+
+          // Se a loja não veio preenchida no join, busca diretamente por loja_id
+          if (!lojaAssociada && uCand.loja_id) {
+            const { data: lojaDb } = await supabase
+              .from('lojas')
+              .select('*')
+              .eq('id', uCand.loja_id)
+              .maybeSingle();
+            if (lojaDb) {
+              lojaAssociada = lojaDb as Loja;
+            }
+          }
         }
       }
 
@@ -445,6 +494,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (lojasEncontradas && lojasEncontradas.length > 0) {
           const lojaPrimeira = lojasEncontradas[0];
+
+          // Se o dono informou senha mas a autenticação oficial do Supabase falhou
+          if (senhaInformada.length > 0 && !authLoginSucceeded) {
+            if (authErrorMessage) {
+              const msg = authErrorMessage.toLowerCase();
+              if (msg.includes('invalid login credentials') || msg.includes('invalid_grant')) {
+                throw new Error('E-mail ou senha incorretos. Por favor, verifique suas credenciais.');
+              }
+              if (msg.includes('email not confirmed')) {
+                throw new Error('E-mail ainda não confirmado no sistema. Verifique sua caixa de entrada.');
+              }
+              throw new Error(authErrorMessage);
+            }
+            throw new Error('E-mail ou senha incorretos. Por favor, verifique suas credenciais.');
+          }
+
           lojaAssociada = lojaPrimeira;
           const { data: usuarios } = await supabase
             .from('usuarios_loja')
@@ -471,6 +536,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
+      // Se nenhum usuário e nenhuma loja foram encontrados
+      if (!usuarioEncontrado && !lojaAssociada) {
+        if (senhaInformada.length > 0 && !authLoginSucceeded && authErrorMessage) {
+          const msg = authErrorMessage.toLowerCase();
+          if (msg.includes('invalid login credentials') || msg.includes('invalid_grant')) {
+            throw new Error('E-mail ou senha incorretos. Por favor, verifique suas credenciais.');
+          }
+          if (msg.includes('email not confirmed')) {
+            throw new Error('E-mail ainda não confirmado no sistema. Verifique sua caixa de entrada.');
+          }
+        }
+        throw new Error('Nenhuma conta encontrada com este e-mail. Crie uma nova conta em segundos!');
+      }
+
       if (lojaAssociada) {
         setLoja(lojaAssociada);
         localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaAssociada.id);
@@ -485,8 +564,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err: any) {
       console.error('Erro ao entrar com e-mail:', err);
       throw err;
-    } finally {
-      setCarregando(false);
     }
   };
 

@@ -6,7 +6,7 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://eylpiwynsbnmca
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_SNuv08eSyBClEQWGF3Z3oQ_28nI--9P';
 
 // Cliente isolado do Supabase Auth para registrar novos operadores sem sobrescrever a sessão do administrador local
-const authClientIsolado = createClient(supabaseUrl, supabaseAnonKey, {
+export const authClientIsolado = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: false,
     autoRefreshToken: false,

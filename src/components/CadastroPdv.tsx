@@ -127,7 +127,8 @@ export const CadastroPdv: React.FC = () => {
       setErroMsg(null);
       await entrarComEmail(email, senha);
     } catch (err: any) {
-      setErroMsg(err.message || 'Conta não localizada. Cadastre-se em segundos!');
+      console.warn('Falha na autenticação do operador:', err);
+      setErroMsg(err?.message || 'E-mail ou senha incorretos. Por favor, verifique suas credenciais.');
     } finally {
       setSalvando(false);
     }
@@ -167,8 +168,8 @@ export const CadastroPdv: React.FC = () => {
               </div>
             </div>
 
-            {/* Mensagem de Erro */}
-            {erroMsg && (
+            {/* Mensagem de Erro (telas gerais) */}
+            {erroMsg && screen !== 'signin_email' && (
               <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center gap-2.5 text-xs text-rose-300 animate-in fade-in">
                 <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
                 <span className="flex-1">{erroMsg}</span>
@@ -491,6 +492,14 @@ export const CadastroPdv: React.FC = () => {
                   <p className="text-xs text-slate-400">Digite seu e-mail para abrir seu PDV</p>
                 </div>
 
+                {/* Alerta Visual de Erro na Tela de Login */}
+                {erroMsg && (
+                  <div className="p-3.5 bg-rose-500/15 border border-rose-500/40 rounded-xl flex items-center gap-2.5 text-xs text-rose-200 animate-in fade-in">
+                    <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                    <span className="flex-1 font-medium leading-relaxed">{erroMsg}</span>
+                  </div>
+                )}
+
                 <div className="space-y-3">
                   {/* E-mail */}
                   <div className="space-y-2">
@@ -499,8 +508,11 @@ export const CadastroPdv: React.FC = () => {
                       required
                       placeholder="E-mail"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (erroMsg) setErroMsg(null);
+                      }}
+                      className={`w-full bg-slate-800/80 border ${erroMsg ? 'border-rose-500/50' : 'border-slate-700'} rounded-xl px-4 py-3 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 transition`}
                     />
 
                     {/* Chips de Domínio */}
@@ -509,7 +521,10 @@ export const CadastroPdv: React.FC = () => {
                         <button
                           key={domain}
                           type="button"
-                          onClick={() => handleAddDomain(domain)}
+                          onClick={() => {
+                            handleAddDomain(domain);
+                            if (erroMsg) setErroMsg(null);
+                          }}
                           className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-emerald-400 border border-slate-700/80 transition"
                         >
                           {domain}
@@ -522,10 +537,13 @@ export const CadastroPdv: React.FC = () => {
                   <div className="relative">
                     <input
                       type={mostrarSenha ? 'text' : 'password'}
-                      placeholder="Senha (opcional)"
+                      placeholder="Senha de acesso"
                       value={senha}
-                      onChange={(e) => setSenha(e.target.value)}
-                      className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 pr-10"
+                      onChange={(e) => {
+                        setSenha(e.target.value);
+                        if (erroMsg) setErroMsg(null);
+                      }}
+                      className={`w-full bg-slate-800/80 border ${erroMsg ? 'border-rose-500/50' : 'border-slate-700'} rounded-xl px-4 py-3 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 pr-10 transition`}
                     />
                     <button
                       type="button"

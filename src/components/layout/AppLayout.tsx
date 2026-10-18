@@ -257,7 +257,7 @@ export const AppLayout: React.FC = () => {
   }, [loja?.id, usuario?.id, permissions.podeVerTransacoesOutros]);
 
   // Se estiver carregando os dados do PDV
-  if (carregando) {
+  if (carregando && (loja || lojasDisponiveis.length === 0)) {
     return (
       <div className="h-screen w-screen bg-slate-950 flex flex-col items-center justify-center space-y-4">
         <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shadow-2xl">
