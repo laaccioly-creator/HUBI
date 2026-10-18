@@ -491,6 +491,7 @@ export const PosCheckout: React.FC = () => {
         forma_tipo: fp.tipo,
         forma_nome: fp.nome,
         valor: val,
+        valor_entregue: fp.tipo === 'dinheiro' ? (l.valor_entregue ?? l.valor) : null,
         parcelas: fp.tipo === 'cartao_credito' ? (l.parcelas || 1) : 1
       };
     }));
@@ -513,8 +514,25 @@ export const PosCheckout: React.FC = () => {
   const handleAlterarEntregueLinha = (linhaId: string, valorEntregue: number) => {
     setLinhasPagamento(prev => prev.map(l => {
       if (l.id !== linhaId) return l;
-      return { ...l, valor_entregue: valorEntregue };
+      return { ...l, valor_entregue: Math.max(0, valorEntregue) };
     }));
+  };
+
+  const handleUsarEntregueComoValorLinha = (linhaId: string) => {
+    setLinhasPagamento(prev => prev.map(l => {
+      if (l.id !== linhaId) return l;
+      const novoVal = l.valor_entregue && l.valor_entregue > 0 ? l.valor_entregue : l.valor;
+      return { ...l, valor: novoVal };
+    }));
+  };
+
+  const handlePreencherRestanteLinha = (linhaId: string) => {
+    setLinhasPagamento(prev => {
+      const outrasLinhas = prev.filter(l => l.id !== linhaId);
+      const somaOutras = outrasLinhas.reduce((sum, l) => sum + (Number(l.valor) || 0), 0);
+      const restante = Math.max(0, Number((total - somaOutras).toFixed(2)));
+      return prev.map(l => l.id === linhaId ? { ...l, valor: restante } : l);
+    });
   };
 
   const handleAlterarParcelasLinha = (linhaId: string, parcelas: number) => {
@@ -536,7 +554,7 @@ export const PosCheckout: React.FC = () => {
         forma_tipo: fpPadrao.tipo,
         forma_nome: fpPadrao.nome,
         valor: restante,
-        valor_entregue: null,
+        valor_entregue: fpPadrao.tipo === 'dinheiro' ? (restante > 0 ? restante : null) : null,
         parcelas: 1
       }
     ]);
@@ -1321,7 +1339,12 @@ export const PosCheckout: React.FC = () => {
       return;
     }
 
-    const linhasAtivas = (linhasPagamento?.length || 0) > 0 ? linhasPagamento : [
+    if (linhasPagamento && linhasPagamento.length > 0 && linhasPagamento.some(l => Number(l.valor) <= 0)) {
+      mostrarAviso('Existem formas de pagamento com valor zerado ou inválido. Remova-as ou informe um valor maior que zero.');
+      return;
+    }
+
+    const linhasAtivas = (linhasPagamento?.length || 0) > 0 ? linhasPagamento.filter(l => Number(l.valor) > 0) : [
       {
         id: `linha_1_${Date.now()}`,
         forma_pagamento_id: formaPagamentoEscolhida?.id || FORMAS_PADRAO[0].id,
@@ -1331,6 +1354,11 @@ export const PosCheckout: React.FC = () => {
         parcelas: 1
       }
     ];
+
+    if (linhasAtivas.length === 0) {
+      mostrarAviso('Informe ao menos uma forma de pagamento com valor válido.');
+      return;
+    }
 
     const somaLinhas = linhasAtivas.reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
     if (Math.abs(somaLinhas - total) > 0.05) {
@@ -1601,8 +1629,10 @@ export const PosCheckout: React.FC = () => {
           setTemAlteracoesNaoSalvas(false);
           setEhVendaOfflineSalva(false);
           setPedidoConcluido(pedidoCompletoFinal);
-          setModalFechamento(false);
           limparCarrinho();
+          try {
+            localStorage.removeItem(`hubi_pos_cart_draft_${loja.id}`);
+          } catch (_) {}
           setValorRecebidoDinheiro('');
           setSubTelaMobile('vender');
           return;
@@ -2831,7 +2861,19 @@ export const PosCheckout: React.FC = () => {
                     <div className={`flex items-center justify-between gap-2 pt-1 border-t ${
                       isDark ? 'border-slate-800' : 'border-slate-200'
                     }`}>
-                      <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>Valor a pagar:</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>Valor a pagar:</span>
+                        {diferencaPagamento > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => handlePreencherRestanteLinha(linha.id)}
+                            className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 underline cursor-pointer"
+                            title="Preencher com o saldo restante da venda"
+                          >
+                            + Restante
+                          </button>
+                        )}
+                      </div>
                       <div className={`flex items-center gap-1 border-2 rounded-xl px-2.5 py-1.5 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 ${
                         isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-50 border-slate-300'
                       }`}>
@@ -2848,7 +2890,7 @@ export const PosCheckout: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Dinheiro: Valor Entregue e Troco */}
+                    {/* Dinheiro: Valor Entregue e Troco para QUALQUER meio em dinheiro */}
                     {linha.forma_tipo === 'dinheiro' && (
                       <div className={`space-y-1.5 pt-1.5 border-t text-xs ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                         <div className="flex items-center justify-between gap-2">
@@ -2868,17 +2910,34 @@ export const PosCheckout: React.FC = () => {
                           </div>
                         </div>
 
-                        {linha.valor_entregue != null && linha.valor_entregue > linha.valor && (
-                          <div className={`flex items-center justify-between gap-2 pt-1 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
-                            <span className={`font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>Troco a devolver:</span>
-                            <div className={`flex items-center gap-1 border-2 rounded-xl px-2.5 py-1.5 ${
-                              isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-50 border-slate-300'
-                            }`}>
-                              <span className="w-28 text-right text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                                {formatarMoeda(Number(linha.valor_entregue - linha.valor))}
-                              </span>
+                        {/* Cálculo Explicito do Troco para Qualquer Meio em Dinheiro */}
+                        {linha.valor_entregue != null && linha.valor_entregue > 0 && (
+                          linha.valor_entregue >= linha.valor ? (
+                            <div className={`flex items-center justify-between gap-2 pt-1 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                              <span className={`font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>Troco a devolver:</span>
+                              <div className={`flex items-center gap-1 border-2 rounded-xl px-2.5 py-1.5 ${
+                                isDark ? 'bg-[#08131A] border-emerald-500/40' : 'bg-emerald-50 border-emerald-300'
+                              }`}>
+                                <span className="w-28 text-right text-xs font-black text-emerald-600 dark:text-emerald-400">
+                                  {formatarMoeda(Math.max(0, Number(linha.valor_entregue - linha.valor)))}
+                                </span>
+                              </div>
                             </div>
-                          </div>
+                          ) : (
+                            <div className={`flex items-center justify-between gap-2 pt-1.5 border-t text-[11px] ${
+                              isDark ? 'border-slate-800 text-amber-400' : 'border-slate-200 text-amber-700'
+                            }`}>
+                              <span>Faltam {formatarMoeda(linha.valor - linha.valor_entregue)} nesta forma.</span>
+                              <button
+                                type="button"
+                                onClick={() => handleUsarEntregueComoValorLinha(linha.id)}
+                                className="px-2 py-0.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold transition cursor-pointer"
+                                title="Definir o valor entregue como o montante pago nesta forma"
+                              >
+                                Pagar {formatarMoeda(linha.valor_entregue)} nesta forma
+                              </button>
+                            </div>
+                          )
                         )}
                       </div>
                     )}
@@ -3140,6 +3199,8 @@ export const PosCheckout: React.FC = () => {
                   salvandoPendente ||
                   (ehEnvio && !isFreteConfirmado) ||
                   Math.abs(diferencaPagamento) >= 0.01 ||
+                  linhasPagamento.length === 0 ||
+                  linhasPagamento.some(l => Number(l.valor) <= 0) ||
                   linhasPagamento.some(l => l.forma_tipo === 'fiado' && l.valor > (Number(clienteSelecionado?.limite_credito || 0) + 0.01))
                 }
                 onClick={handleFinalizarVenda}

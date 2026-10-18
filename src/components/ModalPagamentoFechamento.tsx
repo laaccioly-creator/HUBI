@@ -303,7 +303,8 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
   const formasDisponiveis = formasPagamento.length > 0 ? formasPagamento : FORMAS_PADRAO;
 
   const handleAdicionarLinha = () => {
-    const valorRestanteSugerido = diferencaPagamento > 0 ? diferencaPagamento : 0;
+    const somaAtual = linhasPagamento.reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
+    const valorRestanteSugerido = Math.max(0, Number((saldoDevedorAtual - somaAtual).toFixed(2)));
     const fpPadrao = formasDisponiveis.find(f => f.tipo === 'pix') || formasDisponiveis[0];
 
     const novaLinha: LinhaPagamentoRecebimento = {
@@ -819,7 +820,26 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                   <div className={`flex items-center justify-between gap-2 pt-1 border-t ${
                     isDark ? 'border-slate-800' : 'border-slate-200'
                   }`}>
-                    <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>Valor a pagar:</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>Valor a pagar:</span>
+                      {(() => {
+                        const somaOutras = linhasPagamento.filter(l => l.id !== linha.id).reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
+                        const restanteParaEstaLinha = Number((saldoDevedorAtual - somaOutras).toFixed(2));
+                        if (restanteParaEstaLinha > 0 && Math.abs(linha.valor - restanteParaEstaLinha) > 0.01) {
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => handleAlterarValorLinha(linha.id, restanteParaEstaLinha)}
+                              className="text-[10px] text-emerald-500 hover:text-emerald-400 underline font-bold cursor-pointer"
+                              title="Preencher com o saldo restante da venda"
+                            >
+                              + Restante ({formatarMoeda(restanteParaEstaLinha)})
+                            </button>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
                     <div className={`flex items-center gap-1 border rounded-xl px-2.5 py-1.5 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 ${
                       isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-300'
                     }`}>
@@ -859,7 +879,24 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                         </div>
                       </div>
 
-                      {linha.valor_entregue != null && linha.valor_entregue > linha.valor && (
+                      {linha.valor_entregue != null && linha.valor_entregue > 0 && linha.valor_entregue < linha.valor && (
+                        <div className="flex items-center justify-between text-[11px] text-amber-500 pt-0.5">
+                          <span>Valor entregue menor que a parcela.</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (linha.valor_entregue != null && linha.valor_entregue > 0) {
+                                handleAlterarValorLinha(linha.id, linha.valor_entregue);
+                              }
+                            }}
+                            className="underline font-bold hover:text-amber-400 cursor-pointer"
+                          >
+                            Pagar R$ {formatarValorBRL(linha.valor_entregue)} nesta forma
+                          </button>
+                        </div>
+                      )}
+
+                      {linha.valor_entregue != null && (
                         <div className={`flex items-center justify-between gap-2 pt-1 border-t ${
                           isDark ? 'border-slate-800' : 'border-slate-200'
                         }`}>
@@ -868,8 +905,10 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                             isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-300'
                           }`}>
                             <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">R$</span>
-                            <span className={`w-28 text-right text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                              {formatarValorBRL(linha.valor_entregue - linha.valor)}
+                            <span className={`w-28 text-right text-xs font-bold ${
+                              linha.valor_entregue >= linha.valor ? 'text-emerald-500' : (isDark ? 'text-slate-400' : 'text-slate-500')
+                            }`}>
+                              {formatarValorBRL(Math.max(0, linha.valor_entregue - linha.valor))}
                             </span>
                           </div>
                         </div>
@@ -1123,7 +1162,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
 
               <button
                 type="submit"
-                disabled={processando || salvando || freteADefinir || totalLinhasPagamento <= 0 || Math.abs(diferencaPagamento) > 0.01}
+                disabled={processando || salvando || freteADefinir || totalLinhasPagamento <= 0 || Math.abs(diferencaPagamento) > 0.01 || linhasPagamento.some(l => Number(l.valor) <= 0)}
                 className="flex-[2] py-3 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-98"
               >
                 {processando ? (

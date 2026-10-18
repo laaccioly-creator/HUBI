@@ -202,22 +202,33 @@ export class VendaService {
 
     let pedidoGravado: any;
 
-    if (pedidoEmEdicao?.id) {
+    // Verificar se realmente se trata de uma edição legítima de pedido existente e pendente
+    let ehEdicaoReal = false;
+    if (pedidoEmEdicao?.id && SyncService.isUuidValido(pedidoEmEdicao.id)) {
       if (pedidoEmEdicao.status === 'cancelado') {
         throw new Error('Pedidos cancelados são estritamente somente leitura e não podem ser editados.');
       }
 
-      // Verificação de segurança no banco de dados para evitar condições de corrida
+      // Verificação no banco de dados para checar existência real na loja e status editável
       const { data: checkPed } = await supabase
         .from('pedidos')
-        .select('status')
+        .select('id, status, loja_id')
         .eq('id', pedidoEmEdicao.id)
+        .eq('loja_id', lojaId)
         .maybeSingle();
 
-      if (checkPed?.status === 'cancelado') {
-        throw new Error('Este pedido foi cancelado e não permite modificações.');
+      if (checkPed) {
+        if (checkPed.status === 'cancelado') {
+          throw new Error('Este pedido foi cancelado e não permite modificações.');
+        }
+        // Apenas pedidos pendentes/orçamento em aberto são atualizados; vendas concluídas geram novo pedido
+        if (checkPed.status === 'pendente' || checkPed.status === 'em_separacao' || checkPed.status === 'orcamento') {
+          ehEdicaoReal = true;
+        }
       }
+    }
 
+    if (ehEdicaoReal && pedidoEmEdicao) {
       // Edição: Atualiza registro existente
       const { data: pedAtualizado, error: erroUpd } = await supabase
         .from('pedidos')
@@ -226,6 +237,7 @@ export class VendaService {
           atualizado_em: dataIso
         })
         .eq('id', pedidoEmEdicao.id)
+        .eq('loja_id', lojaId)
         .select();
 
       if (erroUpd) {
@@ -242,7 +254,7 @@ export class VendaService {
       // Limpa itens antigos para reinserção consistente
       await supabase.from('itens_pedido').delete().eq('pedido_id', pedidoEmEdicao.id);
     } else {
-      // Novo pedido: INSERE SEM passar numero_pedido para usar a sequence nativa
+      // Nova Venda de Balcão: Insere registro limpo com nova sequence de pedido
       const { data: novoPed, error: erroPedido } = await supabase
         .from('pedidos')
         .insert([dadosBasePedido])
@@ -303,24 +315,29 @@ export class VendaService {
       await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedidoId);
     } catch {}
 
-    const pagamentosFormatados = await Promise.all(linhasAtivas.map(async (l) => {
+    const pagamentosFormatados = (await Promise.all(linhasAtivas.map(async (l) => {
+      const valorNum = Number(l.valor) || 0;
+      if (valorNum <= 0) return null; // Elimina estritamente registros de pagamento com valor zero
+
       const fpIdReal = await SyncService.resolverFormaPagamentoId(lojaId, l.forma_pagamento_id, l.forma_tipo);
+      if (!fpIdReal || !SyncService.isUuidValido(fpIdReal)) return null;
+
       const fpRef = formasPagamentoDisponiveis.find(f => f.id === l.forma_pagamento_id || f.tipo === l.forma_tipo);
-      const taxaValor = (Number(l.valor) * Number(fpRef?.taxa_percentual || 0)) / 100;
-      const valorLiquido = Number(l.valor) - taxaValor;
+      const taxaValor = (valorNum * Number(fpRef?.taxa_percentual || 0)) / 100;
+      const valorLiquido = valorNum - taxaValor;
 
       return {
         loja_id: lojaId,
         pedido_id: pedidoId,
         forma_pagamento_id: fpIdReal,
-        valor: Number(l.valor),
+        valor: valorNum,
         parcelas: l.parcelas || 1,
         valor_taxa: taxaValor,
         valor_liquido: valorLiquido,
         data_pagamento: dataIso,
         eh_pagamento_fiado: l.forma_tipo === 'fiado'
       };
-    }));
+    }))).filter(Boolean) as any[];
 
     if (pagamentosFormatados.length > 0) {
       const { error: erroPagamentos } = await supabase.from('pagamentos_pedido').insert(pagamentosFormatados);
