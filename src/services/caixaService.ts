@@ -8,7 +8,13 @@ import {
   DeclaradoPorMetodo,
   Pedido
 } from '../types';
-import { obterDataOperacao, obterDataOperacaoISO, formatarDataLocalYMD } from '../utils/dataOperacao';
+import {
+  obterDataOperacao,
+  obterDataOperacaoISO,
+  formatarDataLocalYMD,
+  formatarDataHoraSemDesvioUTC,
+  isModoSimulacaoAtivo
+} from '../utils/dataOperacao';
 
 export const caixaService = {
   /**
@@ -631,7 +637,9 @@ export const caixaService = {
 
     const payload = {
       fechado_por_usuario_id: usuarioId,
-      fechado_em: dataFechamento.toISOString(),
+      fechado_em: isModoSimulacaoAtivo()
+        ? formatarDataHoraSemDesvioUTC(dataFechamento)
+        : dataFechamento.toISOString(),
       status: 'FECHADO',
       total_entradas_sistema: totalEntradas,
       total_saidas_sistema: totalSaidas,
@@ -700,15 +708,11 @@ export const caixaService = {
       }
 
       if (filtros?.dataInicio) {
-        const dInicio = new Date(`${filtros.dataInicio}T00:00:00`);
-        const isoInicio = !isNaN(dInicio.getTime()) ? dInicio.toISOString() : `${filtros.dataInicio}T00:00:00`;
-        query = query.gte('aberto_em', isoInicio);
+        query = query.gte('aberto_em', `${filtros.dataInicio}T00:00:00.000Z`);
       }
 
       if (filtros?.dataFim) {
-        const dFim = new Date(`${filtros.dataFim}T23:59:59.999`);
-        const isoFim = !isNaN(dFim.getTime()) ? dFim.toISOString() : `${filtros.dataFim}T23:59:59.999Z`;
-        query = query.lte('aberto_em', isoFim);
+        query = query.lte('aberto_em', `${filtros.dataFim}T23:59:59.999Z`);
       }
 
       if (filtros?.limite) {

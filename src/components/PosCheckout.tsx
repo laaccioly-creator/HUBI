@@ -2880,30 +2880,49 @@ export const PosCheckout: React.FC = () => {
             </div>
 
             <div className="space-y-2 max-h-60 overflow-y-auto">
-              {produtoModalVariacao.variacoes?.map((variacao) => (
-                <button
-                  key={variacao.id}
-                  onClick={() => {
-                    adicionarItem(produtoModalVariacao, variacao);
-                    setProdutoModalVariacao(null);
-                  }}
-                  className={`w-full p-3 rounded-xl border flex items-center justify-between text-left transition cursor-pointer ${
-                    isDark
-                      ? 'bg-[#000000] hover:bg-slate-900 border-slate-700 text-white'
-                      : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black shadow-xs'
-                  }`}
-                >
-                  <div>
-                    <span className={`font-bold text-xs block ${isDark ? 'text-white' : 'text-black'}`}>
-                      {variacao.valor_variacao_1} {variacao.valor_variacao_2 ? `- ${variacao.valor_variacao_2}` : ''}
-                    </span>
-                    <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-900 font-semibold'}`}>Estoque: {variacao.quantidade_estoque} un</span>
-                  </div>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400 text-xs">
-                    R$ {Number(variacao.preco_venda_varejo).toFixed(2)}
-                  </span>
-                </button>
-              ))}
+              {produtoModalVariacao.variacoes?.map((variacao) => {
+                const temPromocao = Boolean(
+                  (variacao.preco_promocional && Number(variacao.preco_promocional) > 0) ||
+                  (produtoModalVariacao.promocao_ativa && produtoModalVariacao.preco_promocional && Number(produtoModalVariacao.preco_promocional) > 0)
+                );
+                const precoNormal = Number(variacao.preco_venda_varejo || produtoModalVariacao.preco_venda_varejo || 0);
+                const precoPromo = Number(variacao.preco_promocional || produtoModalVariacao.preco_promocional || 0);
+                const precoFinal = (temPromocao && precoPromo > 0) ? precoPromo : precoNormal;
+
+                return (
+                  <button
+                    key={variacao.id}
+                    onClick={() => {
+                      adicionarItem(produtoModalVariacao, variacao);
+                      setProdutoModalVariacao(null);
+                    }}
+                    className={`w-full p-3 rounded-xl border flex items-center justify-between text-left transition cursor-pointer ${
+                      isDark
+                        ? 'bg-[#000000] hover:bg-slate-900 border-slate-700 text-white'
+                        : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black shadow-xs'
+                    }`}
+                  >
+                    <div>
+                      <span className={`font-bold text-xs block ${isDark ? 'text-white' : 'text-black'}`}>
+                        {variacao.valor_variacao_1} {variacao.valor_variacao_2 ? `- ${variacao.valor_variacao_2}` : ''}
+                      </span>
+                      <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-900 font-semibold'}`}>
+                        Estoque: {variacao.quantidade_estoque} un
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-1.5 text-right">
+                      <span className={`font-black text-xs ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                        R$ {precoFinal.toFixed(2)}
+                      </span>
+                      {temPromocao && precoNormal > precoFinal && (
+                        <span className="text-[10px] text-slate-400 line-through">
+                          R$ {precoNormal.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

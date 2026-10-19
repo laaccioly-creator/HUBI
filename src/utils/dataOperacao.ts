@@ -161,9 +161,60 @@ export function obterDataOperacao(): Date {
 }
 
 /**
+ * Converte um Date ou string para ISO preservando o calendário local na data YYYY-MM-DD
+ * sem somar o deslocamento do meridiano UTC.
+ */
+export function formatarDataHoraSemDesvioUTC(d: Date | string): string {
+  if (typeof d === 'string') {
+    const trimmed = d.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return `${trimmed}T12:00:00.000Z`;
+    }
+    const parsed = new Date(trimmed);
+    if (isNaN(parsed.getTime())) return trimmed;
+    d = parsed;
+  }
+  const ano = d.getFullYear();
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  const horas = String(d.getHours()).padStart(2, '0');
+  const minutos = String(d.getMinutes()).padStart(2, '0');
+  const segundos = String(d.getSeconds()).padStart(2, '0');
+  const ms = String(d.getMilliseconds()).padStart(3, '0');
+  return `${ano}-${mes}-${dia}T${horas}:${minutos}:${segundos}.${ms}Z`;
+}
+
+/**
  * Retorna a data operacional atual em formato ISO 8601 (pronto para gravação no Supabase)
+ * mantendo estritamente a data YYYY-MM-DD configurada no modo retroativo sem desvio por fuso horário UTC.
  */
 export function obterDataOperacaoISO(): string {
+  const dataSimuladaStr = obterDataSimuladaSalva();
+
+  if (dataSimuladaStr && dataSimuladaStr.trim().length >= 10) {
+    const ymd = dataSimuladaStr.trim().slice(0, 10);
+    const agoraServidor = obterHorarioServidorReal();
+    const horaSimuladaStr = obterHoraSimuladaSalva();
+
+    let horas = agoraServidor.getHours();
+    let minutos = agoraServidor.getMinutes();
+    let segundos = agoraServidor.getSeconds();
+    let ms = agoraServidor.getMilliseconds();
+
+    if (horaSimuladaStr && horaSimuladaStr.includes(':')) {
+      const [h, m] = horaSimuladaStr.split(':');
+      horas = parseInt(h, 10) || 0;
+      minutos = parseInt(m, 10) || 0;
+    }
+
+    const hStr = String(horas).padStart(2, '0');
+    const mStr = String(minutos).padStart(2, '0');
+    const sStr = String(segundos).padStart(2, '0');
+    const msStr = String(ms).padStart(3, '0');
+
+    return `${ymd}T${hStr}:${mStr}:${sStr}.${msStr}Z`;
+  }
+
   return obterDataOperacao().toISOString();
 }
 
@@ -284,9 +335,31 @@ export function obterDataOperacaoParaLoja(lojaOuExtras?: any): Date {
 }
 
 /**
- * Retorna a data operacional da loja em formato ISO 8601
+ * Retorna a data operacional da loja em formato ISO 8601 preservando a data simulada sem desvio UTC
  */
 export function obterDataOperacaoISOParaLoja(lojaOuExtras?: any): string {
-  return obterDataOperacaoParaLoja(lojaOuExtras).toISOString();
+  const simLoja = lojaOuExtras?.configuracoes_extras?.simulacao_data_operacao || lojaOuExtras?.simulacao_data_operacao;
+  if (simLoja?.ativa && simLoja?.dataYMD && simLoja.dataYMD.length >= 10) {
+    const ymd = simLoja.dataYMD.trim().slice(0, 10);
+    const agoraServidor = obterHorarioServidorReal();
+    let horas = agoraServidor.getHours();
+    let minutos = agoraServidor.getMinutes();
+    let segundos = agoraServidor.getSeconds();
+    let ms = agoraServidor.getMilliseconds();
+
+    if (simLoja.horaHM && simLoja.horaHM.includes(':')) {
+      const [h, m] = simLoja.horaHM.split(':');
+      horas = parseInt(h, 10) || 0;
+      minutos = parseInt(m, 10) || 0;
+    }
+
+    const hStr = String(horas).padStart(2, '0');
+    const mStr = String(minutos).padStart(2, '0');
+    const sStr = String(segundos).padStart(2, '0');
+    const msStr = String(ms).padStart(3, '0');
+    return `${ymd}T${hStr}:${mStr}:${sStr}.${msStr}Z`;
+  }
+
+  return obterDataOperacaoISO();
 }
 

@@ -7,6 +7,7 @@ import { logger } from './loggerService';
 import { mercadoLivreService } from './mercadoLivreService';
 import { Cliente, Pedido, StatusPedido, StatusPagamento, FormaPagamento } from '../types';
 import { PedidoEntrega } from '../types/shipping';
+import { obterDataOperacaoISO } from '../utils/dataOperacao';
 
 export interface ItemVendaInput {
   produto: {
@@ -93,6 +94,8 @@ export class VendaService {
       tabelaPrecoCalculada,
       dataIso
     } = params;
+
+    const dataIsoFinal = (dataIso && typeof dataIso === 'string' && dataIso.trim()) ? dataIso.trim() : obterDataOperacaoISO();
 
     if (!lojaId) {
       throw new Error('Estabelecimento não informado para a gravação da venda.');
@@ -203,7 +206,7 @@ export class VendaService {
       saldo_devedor: saldoDevedor,
       fiado_quitado: fiadoQuitado,
       observacoes: observacoes || null,
-      data_venda: pedidoEmEdicao?.data_venda || dataIso,
+      data_venda: pedidoEmEdicao?.data_venda || dataIsoFinal,
       atualizado_por: vendedorIdSanitizado
     };
 
@@ -241,7 +244,7 @@ export class VendaService {
         .from('pedidos')
         .update({
           ...dadosBasePedido,
-          atualizado_em: dataIso
+          atualizado_em: dataIsoFinal
         })
         .eq('id', pedidoEmEdicao.id)
         .eq('loja_id', lojaId)
@@ -367,7 +370,7 @@ export class VendaService {
         parcelas: l.parcelas || 1,
         valor_taxa: taxaValor,
         valor_liquido: valorLiquido,
-        data_pagamento: dataIso,
+        data_pagamento: dataIsoFinal,
         eh_pagamento_fiado: l.forma_tipo === 'fiado',
         forma_pagamento: {
           id: fpIdReal,
