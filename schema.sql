@@ -232,6 +232,7 @@ CREATE TABLE IF NOT EXISTS public.pedidos (
     forma_entrega_id UUID REFERENCES public.formas_entrega(id) ON DELETE SET NULL,
     forma_pagamento_catalogo VARCHAR(50),
     troco_para NUMERIC(12,2),
+    cupom_id UUID REFERENCES public.cupons(id) ON DELETE SET NULL,
     cupom_codigo VARCHAR(50),
     valor_desconto_cupom NUMERIC(12,2) DEFAULT 0.00,
     cliente_nome_avulso VARCHAR(150),

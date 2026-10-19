@@ -20,6 +20,7 @@ export interface ItemVendaInput {
     valor_variacao_2?: string | null;
     preco_custo?: number | null;
   } | null;
+  variacao_id?: string | null;
   tabelaPrecoUtilizada: string;
   precoUnitario: number;
   quantidade: number;
@@ -54,6 +55,9 @@ export interface GravarVendaParams {
   descontoPercentual: number;
   tipoDesconto: 'valor' | 'percentual';
   total: number;
+  cupomId?: string | null;
+  cupomCodigo?: string | null;
+  valorDescontoCupom?: number | null;
   observacoes?: string | null;
   tabelaPrecoCalculada: string;
   dataIso: string;
@@ -192,6 +196,9 @@ export class VendaService {
       valor_frete: taxaEntrega,
       endereco_entrega: enderecoEntregaFinal,
       valor_total: total,
+      cupom_id: params.cupomId || null,
+      cupom_codigo: params.cupomCodigo || null,
+      valor_desconto_cupom: Number(params.valorDescontoCupom || 0),
       valor_pago: valorPago,
       saldo_devedor: saldoDevedor,
       fiado_quitado: fiadoQuitado,
@@ -270,6 +277,25 @@ export class VendaService {
         throw new Error('Não foi possível confirmar o registro do pedido no banco de dados.');
       }
       pedidoGravado = registroNovo;
+
+      if (params.cupomId) {
+        try {
+          const { data: cupomAtual } = await supabase
+            .from('cupons')
+            .select('usos_count')
+            .eq('id', params.cupomId)
+            .maybeSingle();
+
+          if (cupomAtual) {
+            await supabase
+              .from('cupons')
+              .update({ usos_count: (cupomAtual.usos_count || 0) + 1 })
+              .eq('id', params.cupomId);
+          }
+        } catch (err) {
+          console.warn('[VendaService] Erro ao incrementar usos_count do cupom:', err);
+        }
+      }
     }
 
     const pedidoId = pedidoGravado.id;
@@ -279,7 +305,11 @@ export class VendaService {
       loja_id: lojaId,
       pedido_id: pedidoId,
       produto_id: item.produto.id,
-      variacao_id: item.variacao && SyncService.isUuidValido(item.variacao.id) ? item.variacao.id : null,
+      variacao_id: (item.variacao_id && SyncService.isUuidValido(item.variacao_id))
+        ? item.variacao_id
+        : (item.variacao?.id && SyncService.isUuidValido(item.variacao.id))
+          ? item.variacao.id
+          : null,
       tabela_preco_utilizada: item.tabelaPrecoUtilizada,
       nome_produto: item.produto.nome,
       rotulo_variacao: item.variacao

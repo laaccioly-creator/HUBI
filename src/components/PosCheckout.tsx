@@ -37,7 +37,8 @@ import {
   ShieldCheck,
   AlertTriangle,
   AlertOctagon,
-  Sparkles
+  Sparkles,
+  Ticket
 } from 'lucide-react';
 import { creditRiskJevService, AvaliacaoRiscoCredito } from '../services/creditRiskJevService';
 import { useNavigate } from 'react-router-dom';
@@ -47,7 +48,8 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useCart, FORMA_ENTREGA_RETIRADA_PADRAO, CartItem } from '../contexts/CartContext';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { Produto, VariacaoProduto, Cliente, FormaPagamento, TabelaPreco, Pedido, ItemPedido, Categoria, StatusPedido, StatusPagamento, TipoPagamento, PedidoEntrega } from '../types';
+import { Produto, VariacaoProduto, Cliente, FormaPagamento, TabelaPreco, Pedido, ItemPedido, Categoria, StatusPedido, StatusPagamento, TipoPagamento, PedidoEntrega, Cupom } from '../types';
+import { CupomService } from '../services/cupomService';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { ModalNovoCliente } from './ModalNovoCliente';
 import { ModalLeitorCodigoBarras } from './ModalLeitorCodigoBarras';
@@ -342,6 +344,20 @@ export const PosCheckout: React.FC = () => {
   const [carregando, setCarregando] = useState<boolean>(true);
   const [buscaProduto, setBuscaProduto] = useState<string>('');
   const [buscaCodigoBarras, setBuscaCodigoBarras] = useState<string>('');
+  const [apenasEmEstoque, setApenasEmEstoque] = useState<boolean>(() => {
+    try {
+      const salvo = localStorage.getItem('hubi_pdv_apenas_em_estoque');
+      return salvo !== null ? salvo === 'true' : false;
+    } catch {
+      return false;
+    }
+  });
+
+  const [codigoCupomInput, setCodigoCupomInput] = useState<string>('');
+  const [cupomAplicado, setCupomAplicado] = useState<Cupom | null>(null);
+  const [valorDescontoCupom, setValorDescontoCupom] = useState<number>(0);
+  const [validandoCupom, setValidandoCupom] = useState<boolean>(false);
+  const [mensagemCupom, setMensagemCupom] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
 
   const [produtoModalVariacao, setProdutoModalVariacao] = useState<Produto | null>(null);
   const [modalFechamento, setModalFechamento] = useState<boolean>(false);
@@ -731,6 +747,67 @@ export const PosCheckout: React.FC = () => {
     setModalFechamento(true);
   };
 
+  const handleAplicarCupom = async () => {
+    if (!loja?.id || !codigoCupomInput.trim()) return;
+    setValidandoCupom(true);
+    setMensagemCupom(null);
+    try {
+      const res = await CupomService.validarCupomCatalogo(loja.id, codigoCupomInput, subtotal);
+      if (res.valido && res.cupom) {
+        setCupomAplicado(res.cupom);
+        const descCupom = res.freteGratis ? Number(taxaEntrega || 0) : res.descontoCalculado;
+        setValorDescontoCupom(descCupom);
+        setMensagemCupom({
+          tipo: 'sucesso',
+          texto: res.freteGratis
+            ? 'Cupom de Frete Grátis aplicado com sucesso!'
+            : `Cupom ${res.cupom.codigo} aplicado: -${formatarMoeda(descCupom)}`
+        });
+
+        const novoTotal = Math.max(0, total - descCupom);
+        setLinhasPagamento(prev => {
+          if (prev.length <= 1) {
+            return prev.map(l => ({
+              ...l,
+              valor: novoTotal,
+              valor_entregue: l.forma_tipo === 'dinheiro' ? novoTotal : l.valor_entregue
+            }));
+          }
+          return prev;
+        });
+      } else {
+        setCupomAplicado(null);
+        setValorDescontoCupom(0);
+        setMensagemCupom({
+          tipo: 'erro',
+          texto: res.mensagem || 'Cupom inválido ou não encontrado.'
+        });
+      }
+    } catch (err) {
+      setMensagemCupom({ tipo: 'erro', texto: 'Erro ao validar cupom.' });
+    } finally {
+      setValidandoCupom(false);
+    }
+  };
+
+  const handleRemoverCupom = () => {
+    setCupomAplicado(null);
+    setValorDescontoCupom(0);
+    setCodigoCupomInput('');
+    setMensagemCupom(null);
+
+    setLinhasPagamento(prev => {
+      if (prev.length <= 1) {
+        return prev.map(l => ({
+          ...l,
+          valor: total,
+          valor_entregue: l.forma_tipo === 'dinheiro' ? total : l.valor_entregue
+        }));
+      }
+      return prev;
+    });
+  };
+
   const adicionarProdutoPorCodigo = (rawBarcode: string) => {
     const barcode = rawBarcode.trim();
     if (!barcode) return;
@@ -946,7 +1023,11 @@ export const PosCheckout: React.FC = () => {
       const itensFormatados = itens.map(item => ({
         loja_id: loja.id,
         produto_id: item.produto.id,
-        variacao_id: item.variacao && SyncService.isUuidValido(item.variacao.id) ? item.variacao.id : null,
+        variacao_id: (item.variacao_id && SyncService.isUuidValido(item.variacao_id))
+          ? item.variacao_id
+          : (item.variacao?.id && SyncService.isUuidValido(item.variacao.id))
+            ? item.variacao.id
+            : null,
         tabela_preco_utilizada: item.tabelaPrecoUtilizada,
         nome_produto: item.produto.nome,
         rotulo_variacao: item.variacao ? `${item.variacao.valor_variacao_1} ${item.variacao.valor_variacao_2 || ''}`.trim() : null,
@@ -1202,7 +1283,11 @@ export const PosCheckout: React.FC = () => {
       const itensFormatados = itens.map(item => ({
         loja_id: loja.id,
         produto_id: item.produto.id,
-        variacao_id: item.variacao && SyncService.isUuidValido(item.variacao.id) ? item.variacao.id : null,
+        variacao_id: (item.variacao_id && SyncService.isUuidValido(item.variacao_id))
+          ? item.variacao_id
+          : (item.variacao?.id && SyncService.isUuidValido(item.variacao.id))
+            ? item.variacao.id
+            : null,
         tabela_preco_utilizada: item.tabelaPrecoUtilizada,
         nome_produto: item.produto.nome,
         rotulo_variacao: item.variacao ? `${item.variacao.valor_variacao_1} ${item.variacao.valor_variacao_2 || ''}`.trim() : null,
@@ -1344,13 +1429,15 @@ export const PosCheckout: React.FC = () => {
       return;
     }
 
+    const totalEfetivo = valorDescontoCupom > 0 ? Math.max(0, total - valorDescontoCupom) : total;
+
     const linhasAtivas = (linhasPagamento?.length || 0) > 0 ? linhasPagamento.filter(l => Number(l.valor) > 0) : [
       {
         id: `linha_1_${Date.now()}`,
         forma_pagamento_id: formaPagamentoEscolhida?.id || FORMAS_PADRAO[0].id,
         forma_tipo: formaPagamentoEscolhida?.tipo || 'dinheiro',
         forma_nome: formaPagamentoEscolhida?.nome || 'Dinheiro',
-        valor: total,
+        valor: totalEfetivo,
         parcelas: 1
       }
     ];
@@ -1361,8 +1448,8 @@ export const PosCheckout: React.FC = () => {
     }
 
     const somaLinhas = linhasAtivas.reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
-    if (Math.abs(somaLinhas - total) > 0.05) {
-      mostrarAviso(`A soma dos pagamentos (R$ ${somaLinhas.toFixed(2)}) difere do total da venda (R$ ${total.toFixed(2)}). Ajuste os valores antes de continuar.`);
+    if (Math.abs(somaLinhas - totalEfetivo) > 0.05) {
+      mostrarAviso(`A soma dos pagamentos (R$ ${somaLinhas.toFixed(2)}) difere do total da venda (R$ ${totalEfetivo.toFixed(2)}). Ajuste os valores antes de continuar.`);
       return;
     }
 
@@ -1549,7 +1636,11 @@ export const PosCheckout: React.FC = () => {
       const itensFormatados = itens.map(item => ({
         loja_id: loja.id,
         produto_id: item.produto.id,
-        variacao_id: item.variacao ? item.variacao.id : null,
+        variacao_id: (item.variacao_id && SyncService.isUuidValido(item.variacao_id))
+          ? item.variacao_id
+          : (item.variacao?.id && SyncService.isUuidValido(item.variacao.id))
+            ? item.variacao.id
+            : null,
         tabela_preco_utilizada: item.tabelaPrecoUtilizada,
         nome_produto: item.produto.nome,
         rotulo_variacao: item.variacao ? `${item.variacao.valor_variacao_1} ${item.variacao.valor_variacao_2 || ''}`.trim() : null,
@@ -1581,10 +1672,13 @@ export const PosCheckout: React.FC = () => {
             formasPagamentoDisponiveis: formasPagamento,
             taxaEntrega: taxaEntrega,
             subtotal: subtotal,
-            desconto: desconto,
+            desconto: Number(((desconto || 0) + (valorDescontoCupom || 0)).toFixed(2)),
             descontoPercentual: descontoPercentual,
             tipoDesconto: tipoDesconto,
-            total: total,
+            total: totalEfetivo,
+            cupomId: cupomAplicado?.id || null,
+            cupomCodigo: cupomAplicado?.codigo || null,
+            valorDescontoCupom: valorDescontoCupom || 0,
             observacoes: obsFinal,
             tabelaPrecoCalculada: tabelaPrecoCalculada,
             dataIso: dataIso
@@ -1632,6 +1726,10 @@ export const PosCheckout: React.FC = () => {
           setLinhasPagamento([]);
           setPedidoConcluido(pedidoCompletoFinal);
           limparCarrinho();
+          setCupomAplicado(null);
+          setValorDescontoCupom(0);
+          setCodigoCupomInput('');
+          setMensagemCupom(null);
           try {
             localStorage.removeItem(`hubi_pos_cart_draft_${loja.id}`);
           } catch (_) {}
@@ -1812,6 +1910,14 @@ export const PosCheckout: React.FC = () => {
         return false;
       }
 
+      // Filtro de produtos em estoque
+      if (apenasEmEstoque) {
+        const estoqueTotal = p.tem_variacoes && p.variacoes && p.variacoes.length > 0
+          ? p.variacoes.reduce((acc, v) => acc + Number(v.quantidade_estoque || 0), 0)
+          : Number(p.quantidade_estoque || 0);
+        if (estoqueTotal <= 0) return false;
+      }
+
       // Filtro de busca por texto / código
       if (!termo) return true;
       return (
@@ -1828,7 +1934,7 @@ export const PosCheckout: React.FC = () => {
       if (pesoA !== pesoB) return pesoA - pesoB;
       return a.nome.localeCompare(b.nome, 'pt-BR');
     });
-  }, [produtos, buscaProduto, categoriaSelecionada, mapaCategorias]);
+  }, [produtos, buscaProduto, categoriaSelecionada, apenasEmEstoque, mapaCategorias]);
 
   const trocoCalculado = Math.max(0, (Number(valorRecebidoDinheiro) || 0) - total);
 
@@ -1934,6 +2040,29 @@ export const PosCheckout: React.FC = () => {
               <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
 
+            {/* Toggle Filtro de Produtos em Estoque */}
+            <button
+              type="button"
+              onClick={() => {
+                setApenasEmEstoque(prev => {
+                  const novo = !prev;
+                  try { localStorage.setItem('hubi_pdv_apenas_em_estoque', String(novo)); } catch {}
+                  return novo;
+                });
+              }}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 border ${
+                apenasEmEstoque
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-xs'
+                  : isDark
+                  ? 'bg-[#000000] border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+                  : 'bg-white border-2 border-slate-300 text-slate-700 hover:text-black hover:border-slate-400'
+              }`}
+              title={apenasEmEstoque ? 'Exibindo apenas produtos em estoque. Clique para exibir todo o catálogo.' : 'Clique para ocultar produtos esgotados.'}
+            >
+              <span className={`w-2 h-2 rounded-full ${apenasEmEstoque ? 'bg-white animate-pulse' : 'bg-slate-400'}`} />
+              <span>Em estoque</span>
+            </button>
+
             {/* Campo de Busca por Nome / Código (Tamanho Otimizado) */}
             <div className="relative flex-1 w-full min-w-[170px]">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -1989,13 +2118,23 @@ export const PosCheckout: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-2">
               {produtosFiltrados.map((produto) => {
                 const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
-                const estoqueQtd = Number(produto.quantidade_estoque ?? 0);
+                const estoqueQtd = produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0
+                  ? produto.variacoes.reduce((acc, v) => acc + Number(v.quantidade_estoque || 0), 0)
+                  : Number(produto.quantidade_estoque ?? 0);
                 const isEsgotado = estoqueQtd <= 0;
                 const temEstoqueBaixo = estoqueQtd > 0 && estoqueQtd <= Number(produto.estoque_minimo_alerta || 0);
 
-                let precoExibido = produto.preco_venda_varejo;
-                if (tabelaPrecoCalculada === 'atacado' && produto.preco_venda_atacado) precoExibido = produto.preco_venda_atacado;
-                if (tabelaPrecoCalculada === 'autoatacado' && produto.preco_venda_autoatacado) precoExibido = produto.preco_venda_autoatacado;
+                let precoFinal = produto.preco_venda_varejo;
+                if (tabelaPrecoCalculada === 'atacado' && produto.preco_venda_atacado) {
+                  precoFinal = produto.preco_venda_atacado;
+                } else if (tabelaPrecoCalculada === 'autoatacado' && produto.preco_venda_autoatacado) {
+                  precoFinal = produto.preco_venda_autoatacado;
+                } else if (produto.promocao_ativa && Number(produto.preco_promocional) > 0) {
+                  precoFinal = Number(produto.preco_promocional);
+                }
+                const precoOriginal = (produto.promocao_ativa && Number(produto.preco_promocional) > 0 && precoFinal !== produto.preco_venda_varejo)
+                  ? produto.preco_venda_varejo
+                  : null;
 
                 return (
                   <div
@@ -2026,11 +2165,20 @@ export const PosCheckout: React.FC = () => {
                               Esgotado
                             </span>
                           </div>
-                        ) : temEstoqueBaixo ? (
-                          <span className="absolute top-1 right-1 bg-amber-500/90 text-slate-950 font-black text-[8px] px-1 py-0.2 rounded shadow">
-                            Est: {estoqueQtd}
-                          </span>
-                        ) : null}
+                        ) : (
+                          <>
+                            {produto.promocao_ativa && Number(produto.preco_promocional) > 0 && (
+                              <span className="absolute top-1 left-1 bg-rose-600 text-white font-black text-[8px] px-1.5 py-0.5 rounded shadow uppercase tracking-wider">
+                                PROMO
+                              </span>
+                            )}
+                            {temEstoqueBaixo ? (
+                              <span className="absolute top-1 right-1 bg-amber-500/90 text-slate-950 font-black text-[8px] px-1 py-0.2 rounded shadow">
+                                Est: {estoqueQtd}
+                              </span>
+                            ) : null}
+                          </>
+                        )}
                       </div>
 
                       <h3 className={`font-bold text-[11px] sm:text-xs line-clamp-2 leading-tight ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
@@ -2042,10 +2190,17 @@ export const PosCheckout: React.FC = () => {
                     </div>
 
                     <div className={`mt-1.5 pt-1.5 border-t flex items-center justify-between ${isDark ? 'border-slate-800/80' : 'border-slate-200'}`}>
-                      <span className={`font-black text-xs ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
-                        R$ {Number(precoExibido).toFixed(2)}
-                      </span>
-                      <span className={`w-5 h-5 rounded-md flex items-center justify-center transition ${isDark ? 'bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white' : 'bg-emerald-50 text-emerald-700 border border-emerald-300 group-hover:bg-emerald-600 group-hover:text-white'}`}>
+                      <div className="flex items-baseline gap-1.5 overflow-hidden">
+                        <span className={`font-black text-xs ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                          R$ {Number(precoFinal).toFixed(2)}
+                        </span>
+                        {precoOriginal && (
+                          <span className="text-[10px] text-slate-400 line-through">
+                            R$ {Number(precoOriginal).toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                      <span className={`w-5 h-5 rounded-md flex items-center justify-center transition shrink-0 ${isDark ? 'bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white' : 'bg-emerald-50 text-emerald-700 border border-emerald-300 group-hover:bg-emerald-600 group-hover:text-white'}`}>
                         <Plus className="w-3 h-3" />
                       </span>
                     </div>
@@ -2781,7 +2936,87 @@ export const PosCheckout: React.FC = () => {
               isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
             } p-3.5 rounded-2xl text-center space-y-0.5`}>
               <span className={`text-xs block font-bold ${isDark ? 'text-emerald-400' : 'text-black'}`}>Valor Total da Venda</span>
-              <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400">{formatarMoeda(total)}</span>
+              <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400">
+                {formatarMoeda(valorDescontoCupom > 0 ? Math.max(0, total - valorDescontoCupom) : total)}
+              </span>
+              {valorDescontoCupom > 0 && (
+                <div className="flex items-center justify-center gap-2 pt-1 text-xs">
+                  <span className="text-slate-400 line-through">{formatarMoeda(total)}</span>
+                  <span className="text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    Cupom {cupomAplicado?.codigo}: -{formatarMoeda(valorDescontoCupom)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Inclusão de Cupom de Desconto */}
+            <div className={`p-3 rounded-2xl border space-y-2 ${
+              isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className={`text-xs font-bold flex items-center gap-1.5 ${isDark ? 'text-white' : 'text-slate-800'}`}>
+                  <Ticket className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Cupom de Desconto</span>
+                </span>
+                {cupomAplicado && (
+                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                    Ativo: {cupomAplicado.codigo}
+                  </span>
+                )}
+              </div>
+
+              {!cupomAplicado ? (
+                <div className="space-y-1.5">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={codigoCupomInput}
+                      onChange={(e) => setCodigoCupomInput(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAplicarCupom();
+                        }
+                      }}
+                      placeholder="CÓDIGO DO CUPOM"
+                      className={`flex-1 rounded-xl px-3 py-1.5 text-xs uppercase font-bold focus:outline-none focus:border-emerald-500 ${
+                        isDark
+                          ? 'bg-[#08131A] border border-slate-700 text-white placeholder:text-slate-500'
+                          : 'bg-slate-50 border border-slate-300 text-black placeholder:text-slate-400'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAplicarCupom}
+                      disabled={validandoCupom || !codigoCupomInput.trim()}
+                      className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition disabled:opacity-50 cursor-pointer"
+                    >
+                      {validandoCupom ? 'Validando...' : 'Aplicar'}
+                    </button>
+                  </div>
+                  {mensagemCupom && (
+                    <p className={`text-[11px] font-medium ${mensagemCupom.tipo === 'sucesso' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {mensagemCupom.texto}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span className="text-xs font-bold text-emerald-400">
+                      Cupom {cupomAplicado.codigo} (-{formatarMoeda(valorDescontoCupom)})
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemoverCupom}
+                    className="text-xs text-rose-400 hover:text-rose-300 underline font-semibold cursor-pointer"
+                  >
+                    Remover
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Linhas de Pagamento (Múltiplas formas de pagamento) */}

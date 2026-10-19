@@ -18,6 +18,7 @@ export interface CartItem {
   id: string;
   produto: Produto;
   variacao?: VariacaoProduto | null;
+  variacao_id?: string | null;
   quantidade: number;
   tabelaPrecoUtilizada: TabelaPreco;
   precoUnitario: number;
@@ -341,9 +342,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (index >= 0) {
         const novaQtd = prev[index].quantidade + quantidade;
         const preco = calcularPrecoItemContext(produto, variacao, tabelaPrecoCalculada);
+        const varId = variacao?.id || null;
         const atualizados = [...prev];
         atualizados[index] = {
           ...atualizados[index],
+          variacao: variacao || atualizados[index].variacao,
+          variacao_id: varId || atualizados[index].variacao_id || atualizados[index].variacao?.id || null,
           quantidade: novaQtd,
           precoUnitario: preco,
           tabelaPrecoUtilizada: tabelaPrecoCalculada,
@@ -359,6 +363,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             id: cartId,
             produto,
             variacao,
+            variacao_id: variacao?.id || null,
             quantidade,
             precoUnitario: preco,
             tabelaPrecoUtilizada: tabelaPrecoCalculada,
@@ -749,6 +754,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: item.variacao_id ? `${item.produto_id}-${item.variacao_id}` : `${item.produto_id}`,
         produto: prodCompleto,
         variacao: varCompleta,
+        variacao_id: item.variacao_id || varCompleta?.id || null,
         quantidade: Number(item.quantidade) || 1,
         tabelaPrecoUtilizada: item.tabela_preco_utilizada || pedido.tabela_preco_aplicada || 'varejo',
         precoUnitario: Number(item.preco_venda_unitario) || 0,

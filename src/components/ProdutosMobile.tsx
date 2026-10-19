@@ -87,6 +87,7 @@ import { ModalDuvidaProdutoIA } from './ModalDuvidaProdutoIA';
 import { obterSerpApiKey, obterOuBuscarSerpApiKey } from '../services/serpApiService';
 import { comprimirFotoProduto } from '../utils/imageCompressor';
 import { formatarMoeda } from '../utils/formatters';
+import { ProdutoService } from '../services/produtoService';
 
 interface ProdutosMobileProps {
   produtos: Produto[];
@@ -1269,36 +1270,32 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         setMensagemFeedback({ texto: 'Produto cadastrado com sucesso!', tipo: 'sucesso' });
       }
 
-      // Persistência relacional em variacoes_produto (SEM JSONB) com blindagem RLS por loja_id
+      // Persistência relacional em variacoes_produto (SEM JSONB) via sincronização Delta inteligente (preservando PKs)
       if (produtoSalvoId) {
-        if (formData.temVariacoes && formData.variacoes.length > 0) {
-          await supabase.from('variacoes_produto').delete().eq('produto_id', produtoSalvoId);
-          const variacoesFormatadas = formData.variacoes.map(v => {
-            const rot1 = (v.valor_variacao_1 || '').trim();
-            const rot2 = (v.valor_variacao_2 || '').trim();
-            const combNome = rot2 ? `${rot1} / ${rot2}` : rot1;
-            return {
-              loja_id: loja.id,
-              produto_id: produtoSalvoId,
-              valor_variacao_1: rot1 || 'Padrão',
-              valor_variacao_2: rot2 || null,
-              combinacao_nome: combNome || null,
-              codigo_barras: v.codigo_barras || null,
-              sku: v.sku || null,
-              preco_venda_varejo: Number(v.preco_venda_varejo) || precoVendaNum,
-              preco_venda_atacado: v.preco_venda_atacado ? Number(v.preco_venda_atacado) : null,
-              quantidade_estoque: Number(v.quantidade_estoque) || 0,
-              estoque_minimo_alerta: Number(v.estoque_minimo_alerta || formData.estoqueMinimo) || 0,
-              ativo: v.ativo !== false
-            };
-          });
-          const { error: erroVar } = await supabase.from('variacoes_produto').insert(variacoesFormatadas);
-          if (erroVar) {
-            console.warn('Aviso ao sincronizar variações:', erroVar);
-          }
-        } else {
-          await supabase.from('variacoes_produto').delete().eq('produto_id', produtoSalvoId);
-        }
+        const variacoesDelta = (formData.variacoes || []).map(v => {
+          const rot1 = (v.valor_variacao_1 || '').trim();
+          const rot2 = (v.valor_variacao_2 || '').trim();
+          const combNome = rot2 ? `${rot1} / ${rot2}` : rot1;
+          return {
+            id: v.id || null,
+            valor_variacao_1: rot1 || 'Padrão',
+            valor_variacao_2: rot2 || null,
+            combinacao_nome: combNome || null,
+            codigo_barras: v.codigo_barras || null,
+            sku: v.sku || null,
+            preco_venda_varejo: Number(v.preco_venda_varejo) || precoVendaNum,
+            preco_venda_atacado: v.preco_venda_atacado ? Number(v.preco_venda_atacado) : null,
+            quantidade_estoque: Number(v.quantidade_estoque) || 0,
+            estoque_minimo_alerta: Number(v.estoque_minimo_alerta || formData.estoqueMinimo) || 0,
+            ativo: v.ativo !== false
+          };
+        });
+        await ProdutoService.sincronizarVariacoesDelta(
+          loja.id,
+          produtoSalvoId,
+          variacoesDelta,
+          Boolean(formData.temVariacoes && formData.variacoes.length > 0)
+        );
       }
 
       await onRecarregar();

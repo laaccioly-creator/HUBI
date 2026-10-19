@@ -42,6 +42,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
+import { ProdutoService } from '../services/produtoService';
 import { Categoria, Fornecedor, UnidadeMedida } from '../types';
 import { UNIDADES_PADRAO } from './CadastrosAuxiliares';
 import { MobileHeader } from './layout/MobileHeader';
@@ -1422,8 +1423,8 @@ export const ProdutoCadastro: React.FC = () => {
         tipo_minimo_autoatacado: tipoMinimoAutoatacado,
         qtd_minima_autoatacado: tipoMinimoAutoatacado === 'quantidade' ? (Number(qtdMinimaAutoatacado) || 24) : 0,
         valor_minimo_autoatacado: tipoMinimoAutoatacado === 'valor' ? (Number(valorMinimoAutoatacado) || 0) : null,
-        preco_promocional: precoPromocional ? Number(precoPromocional) : null,
-        promocao_ativa: promocaoAtiva,
+        preco_promocional: (promocaoAtiva && precoPromocional) ? Number(precoPromocional) : null,
+        promocao_ativa: Boolean(promocaoAtiva && precoPromocional && Number(precoPromocional) > 0),
         quantidade_estoque: tipoItem === 'servico' ? 0 : estoqueFinal,
         estoque_minimo_alerta: tipoItem === 'servico' ? 0 : (Number(estoqueMinimoAlerta) || 0),
         tem_variacoes: temVariacoes && opcoesVariacao.length > 0,
@@ -1463,24 +1464,18 @@ export const ProdutoCadastro: React.FC = () => {
 
         if (erroUpdate) throw erroUpdate;
 
-        if (temVariacoes && opcoesVariacao.length > 0) {
-          await supabase.from('variacoes_produto').delete().eq('produto_id', id);
-          const variacoesFormatadas = opcoesVariacao.map(v => ({
-            loja_id: loja.id,
-            produto_id: id,
-            valor_variacao_1: v.nome,
-            valor_variacao_2: null,
-            codigo_barras: v.barcode || null,
-            preco_venda_varejo: Number(v.precoVarejo) || Number(precoVendaVarejo),
-            preco_venda_atacado: v.precoAtacado ? Number(v.precoAtacado) : null,
-            quantidade_estoque: Number(v.estoque) || 0,
-            estoque_minimo_alerta: Number(estoqueMinimoAlerta) || 0,
-            ativo: true
-          }));
-          await supabase.from('variacoes_produto').insert(variacoesFormatadas);
-        } else {
-          await supabase.from('variacoes_produto').delete().eq('produto_id', id);
-        }
+        const variacoesDelta = opcoesVariacao.map(v => ({
+          id: v.id || null,
+          valor_variacao_1: v.nome,
+          valor_variacao_2: null,
+          codigo_barras: v.barcode || null,
+          preco_venda_varejo: Number(v.precoVarejo) || Number(precoVendaVarejo),
+          preco_venda_atacado: v.precoAtacado ? Number(v.precoAtacado) : null,
+          quantidade_estoque: Number(v.estoque) || 0,
+          estoque_minimo_alerta: Number(estoqueMinimoAlerta) || 0,
+          ativo: true
+        }));
+        await ProdutoService.sincronizarVariacoesDelta(loja.id, id, variacoesDelta, temVariacoes && opcoesVariacao.length > 0);
       } else {
         let { data: prodCriado, error: erroProd } = await supabase
           .from('produtos')
@@ -1509,9 +1504,8 @@ export const ProdutoCadastro: React.FC = () => {
         if (erroProd || !prodCriado) throw erroProd;
 
         if (temVariacoes && opcoesVariacao.length > 0) {
-          const variacoesFormatadas = opcoesVariacao.map(v => ({
-            loja_id: loja.id,
-            produto_id: prodCriado.id,
+          const variacoesDelta = opcoesVariacao.map(v => ({
+            id: null,
             valor_variacao_1: v.nome,
             valor_variacao_2: null,
             codigo_barras: v.barcode || null,
@@ -1522,7 +1516,7 @@ export const ProdutoCadastro: React.FC = () => {
             ativo: true
           }));
 
-          await supabase.from('variacoes_produto').insert(variacoesFormatadas);
+          await ProdutoService.sincronizarVariacoesDelta(loja.id, prodCriado.id, variacoesDelta, true);
         }
       }
 
@@ -2189,6 +2183,55 @@ export const ProdutoCadastro: React.FC = () => {
                 />
                 <span className="text-xs text-slate-500 dark:text-slate-400 block">Conforme regra da loja</span>
               </div>
+            </div>
+
+            {/* Linha de Preço Promocional */}
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={promocaoAtiva}
+                    onChange={(e) => {
+                      const ativo = e.target.checked;
+                      setPromocaoAtiva(ativo);
+                      if (!ativo) setPrecoPromocional('');
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-600"></div>
+                </label>
+                <div>
+                  <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
+                    Ativar Preço Promocional
+                  </span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                    Exibe o preço de varejo riscado no PDV e catálogo vitrine
+                  </span>
+                </div>
+              </div>
+
+              {promocaoAtiva && (
+                <div className="w-full sm:w-64 space-y-1 animate-in fade-in">
+                  <label className="text-xs font-semibold text-amber-600 dark:text-amber-400 flex items-center justify-between">
+                    <span>Preço Promocional (R$) *</span>
+                    {precoVendaVarejo && Number(precoPromocional) > 0 && (
+                      <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/40 px-1.5 py-0.2 rounded-lg font-bold">
+                        {Math.round(((Number(precoVendaVarejo) - Number(precoPromocional)) / Number(precoVendaVarejo)) * 100)}% OFF
+                      </span>
+                    )}
+                  </label>
+                  <MoneyInput
+                    value={precoPromocional}
+                    onChange={(val) => setPrecoPromocional(val > 0 ? val.toFixed(2) : '')}
+                    placeholder="0,00"
+                    className="py-2 border-2 border-amber-500/70 dark:border-amber-500/50 text-amber-600 dark:text-amber-400 font-bold"
+                  />
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                    Substitui o preço de varejo nas vendas enquanto ativo
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 

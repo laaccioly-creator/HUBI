@@ -177,6 +177,14 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   const [buscaAberta, setBuscaAberta] = useState<boolean>(false); // Tela 004
   const [termoBusca, setTermoBusca] = useState<string>('');
   const [categoriaAtiva, setCategoriaAtiva] = useState<string>('tudo');
+  const [apenasEmEstoque, setApenasEmEstoque] = useState<boolean>(() => {
+    try {
+      const salvo = localStorage.getItem('hubi_pdv_apenas_em_estoque');
+      return salvo !== null ? salvo === 'true' : false;
+    } catch {
+      return false;
+    }
+  });
   const [multiplicadorQtd, setMultiplicadorQtd] = useState<number>(1);
   const [modalMultiplicador, setModalMultiplicador] = useState<boolean>(false);
   const [modalTabelaPrecoAberto, setModalTabelaPrecoAberto] = useState<boolean>(false);
@@ -262,6 +270,14 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
         if (!matchNome && !matchSku && !matchEan) return false;
       }
 
+      // Filtro de produtos em estoque
+      if (apenasEmEstoque) {
+        const estoqueTotal = p.tem_variacoes && p.variacoes && p.variacoes.length > 0
+          ? p.variacoes.reduce((acc, v) => acc + Number(v.quantidade_estoque || 0), 0)
+          : Number(p.quantidade_estoque || 0);
+        if (estoqueTotal <= 0) return false;
+      }
+
       // Filtro de categoria
       if (categoriaAtiva === 'destaques') {
         return p.destaque === true;
@@ -279,7 +295,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
       if (pesoA !== pesoB) return pesoA - pesoB;
       return a.nome.localeCompare(b.nome, 'pt-BR');
     });
-  }, [produtos, termoBusca, categoriaAtiva, mapaCategorias]);
+  }, [produtos, termoBusca, categoriaAtiva, apenasEmEstoque, mapaCategorias]);
 
   // Clientes filtrados na tela 003
   const clientesFiltrados = useMemo(() => {
@@ -1704,6 +1720,28 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               </button>
             )}
           </div>
+          {/* Toggle Em Estoque na Busca Aberta */}
+          <button
+            type="button"
+            onClick={() => {
+              setApenasEmEstoque(prev => {
+                const novo = !prev;
+                try { localStorage.setItem('hubi_pdv_apenas_em_estoque', String(novo)); } catch {}
+                return novo;
+              });
+            }}
+            className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0 border ${
+              apenasEmEstoque
+                ? 'bg-emerald-600 text-white border-emerald-500 shadow-xs'
+                : isDark
+                ? 'bg-[#000000] border-slate-700 text-slate-300 hover:text-white'
+                : 'bg-white border-2 border-slate-300 text-slate-700 hover:text-black'
+            }`}
+            title="Filtrar apenas produtos em estoque"
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${apenasEmEstoque ? 'bg-white animate-pulse' : 'bg-slate-400'}`} />
+            <span>Em estoque</span>
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -1770,18 +1808,43 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             </button>
           </div>
 
-          {/* Multiplicador 1X */}
-          <button
-            type="button"
-            onClick={() => setModalMultiplicador(true)}
-            className={`px-2.5 py-1 rounded-xl text-xs font-black shadow-xs transition cursor-pointer ${
-              isDark
-                ? 'border border-slate-700 text-white bg-[#000000] hover:bg-slate-900'
-                : 'border-2 border-slate-300 text-black bg-white hover:bg-slate-50'
-            }`}
-          >
-            {multiplicadorQtd}X
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Toggle Filtro Em Estoque */}
+            <button
+              type="button"
+              onClick={() => {
+                setApenasEmEstoque(prev => {
+                  const novo = !prev;
+                  try { localStorage.setItem('hubi_pdv_apenas_em_estoque', String(novo)); } catch {}
+                  return novo;
+                });
+              }}
+              className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition flex items-center gap-1.5 cursor-pointer border ${
+                apenasEmEstoque
+                  ? 'bg-emerald-600 text-white border-emerald-500 shadow-xs'
+                  : isDark
+                  ? 'border border-slate-700 text-slate-300 bg-[#000000] hover:text-white'
+                  : 'border-2 border-slate-300 text-slate-700 bg-white hover:text-black'
+              }`}
+              title="Filtrar apenas produtos em estoque"
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${apenasEmEstoque ? 'bg-white animate-pulse' : 'bg-slate-400'}`} />
+              <span>Em estoque</span>
+            </button>
+
+            {/* Multiplicador 1X */}
+            <button
+              type="button"
+              onClick={() => setModalMultiplicador(true)}
+              className={`px-2.5 py-1 rounded-xl text-xs font-black shadow-xs transition cursor-pointer ${
+                isDark
+                  ? 'border border-slate-700 text-white bg-[#000000] hover:bg-slate-900'
+                  : 'border-2 border-slate-300 text-black bg-white hover:bg-slate-50'
+              }`}
+            >
+              {multiplicadorQtd}X
+            </button>
+          </div>
         </div>
       )}
 
