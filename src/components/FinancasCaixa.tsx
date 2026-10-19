@@ -1172,9 +1172,11 @@ export const FinancasCaixa: React.FC = () => {
 
       const valPago = Number(p.valor_pago || 0);
       const valTotal = Number(p.valor_total || 0);
-      const valEfetivo = (statusPag === 'pago' || p.status === 'concluido')
-        ? (valPago > 0 ? valPago : valTotal)
-        : (statusPag === 'parcialmente_pago' ? valPago : 0);
+      const saldoDev = Number(p.saldo_devedor || 0);
+      // Se tiver saldo devedor > 0 ou não estiver quitado, o valor efetivo é estritamente o que foi pago
+      const valEfetivo = saldoDev > 0 || (statusPag as string) === 'parcialmente_pago' || (statusPag as string) === 'fiado'
+        ? valPago
+        : (valPago > 0 ? valPago : valTotal);
 
       if (valEfetivo <= 0) {
         if (p.id) pedidosContabilizados.add(p.id.toLowerCase());

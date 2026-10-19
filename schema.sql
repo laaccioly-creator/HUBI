@@ -493,28 +493,116 @@ DROP FUNCTION IF EXISTS public.fn_atualizar_saldo_fiado_cliente();
 -- C) Geração Automática de Lançamento Financeiro por Pagamento
 CREATE OR REPLACE FUNCTION public.fn_gerar_financeiro_pagamento()
 RETURNS TRIGGER AS $$
+DECLARE
+    v_data_vencimento_fiado DATE;
+    v_numero_pedido BIGINT;
+    v_transacao_pendente_id UUID;
+    v_valor_pendente NUMERIC(12,2);
 BEGIN
-    INSERT INTO public.transacoes_financeiras (
-        loja_id,
-        tipo,
-        categoria,
-        descricao,
-        valor,
-        data_vencimento,
-        data_pagamento,
-        status,
-        pedido_id
-    ) VALUES (
-        NEW.loja_id,
-        'ENTRADA',
-        'Venda',
-        'Recebimento Pedido #' || NEW.pedido_id,
-        NEW.valor_liquido,
-        CURRENT_DATE,
-        NEW.data_pagamento,
-        'pago',
-        NEW.pedido_id
-    );
+    -- Se for pagamento/registro a prazo (Fiado)
+    IF NEW.eh_pagamento_fiado IS TRUE THEN
+        -- Buscar data de vencimento acordada e número do pedido
+        SELECT data_vencimento_fiado, numero_pedido
+        INTO v_data_vencimento_fiado, v_numero_pedido
+        FROM public.pedidos
+        WHERE id = NEW.pedido_id;
+
+        INSERT INTO public.transacoes_financeiras (
+            loja_id,
+            tipo,
+            categoria,
+            descricao,
+            valor,
+            data_vencimento,
+            data_pagamento,
+            status,
+            pedido_id
+        ) VALUES (
+            NEW.loja_id,
+            'ENTRADA',
+            'Venda a Prazo (Fiado)',
+            'Venda a Prazo (Fiado) - Pedido #' || COALESCE(v_numero_pedido::text, SUBSTRING(NEW.pedido_id::text, 1, 8)),
+            NEW.valor_liquido,
+            COALESCE(v_data_vencimento_fiado, (CURRENT_DATE + INTERVAL '30 days')::DATE),
+            NULL,
+            'pendente',
+            NEW.pedido_id
+        );
+    ELSE
+        -- Se for pagamento à vista ou quitação real do fiado
+        -- Verificar se existe transação de fiado pendente associada a este pedido
+        SELECT id, valor INTO v_transacao_pendente_id, v_valor_pendente
+        FROM public.transacoes_financeiras
+        WHERE pedido_id = NEW.pedido_id
+          AND status = 'pendente'
+          AND tipo = 'ENTRADA'
+        LIMIT 1;
+
+        IF v_transacao_pendente_id IS NOT NULL THEN
+            IF NEW.valor_liquido >= v_valor_pendente THEN
+                -- Quitação total da pendência
+                UPDATE public.transacoes_financeiras
+                SET status = 'pago',
+                    data_pagamento = COALESCE(NEW.data_pagamento, NOW()),
+                    categoria = 'Recebimento de Fiado',
+                    atualizado_em = NOW()
+                WHERE id = v_transacao_pendente_id;
+            ELSE
+                -- Quitação parcial: abate o valor da pendência
+                UPDATE public.transacoes_financeiras
+                SET valor = valor - NEW.valor_liquido,
+                    atualizado_em = NOW()
+                WHERE id = v_transacao_pendente_id;
+
+                -- Registra a parcela quitada como transação paga
+                INSERT INTO public.transacoes_financeiras (
+                    loja_id,
+                    tipo,
+                    categoria,
+                    descricao,
+                    valor,
+                    data_vencimento,
+                    data_pagamento,
+                    status,
+                    pedido_id
+                ) VALUES (
+                    NEW.loja_id,
+                    'ENTRADA',
+                    'Recebimento de Fiado',
+                    'Recebimento Parcial Fiado - Pedido #' || SUBSTRING(NEW.pedido_id::text, 1, 8),
+                    NEW.valor_liquido,
+                    CURRENT_DATE,
+                    COALESCE(NEW.data_pagamento, NOW()),
+                    'pago',
+                    NEW.pedido_id
+                );
+            END IF;
+        ELSE
+            -- Pagamento imediato comum (Dinheiro, PIX, Cartão, etc.)
+            INSERT INTO public.transacoes_financeiras (
+                loja_id,
+                tipo,
+                categoria,
+                descricao,
+                valor,
+                data_vencimento,
+                data_pagamento,
+                status,
+                pedido_id
+            ) VALUES (
+                NEW.loja_id,
+                'ENTRADA',
+                'Venda',
+                'Recebimento Pedido #' || NEW.pedido_id,
+                NEW.valor_liquido,
+                CURRENT_DATE,
+                COALESCE(NEW.data_pagamento, NOW()),
+                'pago',
+                NEW.pedido_id
+            );
+        END IF;
+    END IF;
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

@@ -1695,7 +1695,8 @@ export const PosCheckout: React.FC = () => {
             valorDescontoCupom: valorDescontoCupom || 0,
             observacoes: obsFinal,
             tabelaPrecoCalculada: tabelaPrecoCalculada,
-            dataIso: dataIso
+            dataIso: dataIso,
+            dataVencimentoFiado: dataVencimentoFiado
           });
 
           // Atualizar o Limite de Crédito e Saldo Devedor do Cliente na memória local

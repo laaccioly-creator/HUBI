@@ -62,6 +62,7 @@ export interface GravarVendaParams {
   observacoes?: string | null;
   tabelaPrecoCalculada: string;
   dataIso: string;
+  dataVencimentoFiado?: string | null;
 }
 
 export class VendaService {
@@ -92,7 +93,8 @@ export class VendaService {
       total,
       observacoes,
       tabelaPrecoCalculada,
-      dataIso
+      dataIso,
+      dataVencimentoFiado
     } = params;
 
     const dataIsoFinal = (dataIso && typeof dataIso === 'string' && dataIso.trim()) ? dataIso.trim() : obterDataOperacaoISO();
@@ -205,6 +207,7 @@ export class VendaService {
       valor_pago: valorPago,
       saldo_devedor: saldoDevedor,
       fiado_quitado: fiadoQuitado,
+      data_vencimento_fiado: dataVencimentoFiado || (valorFiadoTotal > 0 ? (pedidoEmEdicao?.data_vencimento_fiado || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]) : null),
       observacoes: observacoes || null,
       data_venda: pedidoEmEdicao?.data_venda || dataIsoFinal,
       atualizado_por: vendedorIdSanitizado
@@ -370,7 +373,7 @@ export class VendaService {
         parcelas: l.parcelas || 1,
         valor_taxa: taxaValor,
         valor_liquido: valorLiquido,
-        data_pagamento: dataIsoFinal,
+        data_pagamento: l.forma_tipo === 'fiado' ? null : dataIsoFinal,
         eh_pagamento_fiado: l.forma_tipo === 'fiado',
         forma_pagamento: {
           id: fpIdReal,

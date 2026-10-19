@@ -482,7 +482,8 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
           forma_pagamento: linhasRecebimento.map(l => l.forma_nome).join(' + '),
           status: 'pago',
           data_vencimento: dataIso.split('T')[0],
-          data_pagamento: dataIso
+          data_pagamento: dataIso,
+          pedido_id: pedidoSelecionadoReceber?.id || null
         }]);
       } catch (errFin) {
         console.warn('Aviso ao registrar transação financeira:', errFin);

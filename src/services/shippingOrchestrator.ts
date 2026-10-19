@@ -699,6 +699,22 @@ export class ShippingOrchestrator {
     }
 
     // Sanitizar campos virtuais ou de precificação que não existem no schema de pedido_entregas
+    if (payload.app_entrega && typeof payload.app_entrega === 'object') {
+      if (!payload.app_entrega_id && payload.app_entrega.id) payload.app_entrega_id = payload.app_entrega.id;
+      if (!payload.nome_app && payload.app_entrega.nome) payload.nome_app = payload.app_entrega.nome;
+      delete payload.app_entrega;
+    } else {
+      delete payload.app_entrega;
+    }
+
+    if (payload.transportadora && typeof payload.transportadora === 'object') {
+      if (!payload.transportadora_id && payload.transportadora.id) payload.transportadora_id = payload.transportadora.id;
+      if (!payload.nome_transportadora && payload.transportadora.nome) payload.nome_transportadora = payload.transportadora.nome;
+      delete payload.transportadora;
+    } else {
+      delete payload.transportadora;
+    }
+
     delete payload.forma_entrega_nome;
     delete payload.is_frete_gratis;
     delete payload.is_upgrade_subsidio;
