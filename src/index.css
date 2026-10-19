@@ -243,6 +243,8 @@ html.light input[type="number"],
 html.light input[type="tel"],
 html.light input[type="email"],
 html.light input[type="password"],
+html.light input[type="date"],
+html.light input[type="time"],
 html.light select,
 html.light textarea {
   background-color: #ffffff !important;

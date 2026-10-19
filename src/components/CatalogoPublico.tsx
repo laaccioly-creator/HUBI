@@ -28,11 +28,12 @@ import {
   avaliarNivelCarrinho,
   calcularPrecoUnitarioPorTabela
 } from '../services/pricingEngine';
-import { LayoutGrid, List, Smartphone, Info, Copy, QrCode, ExternalLink, Ticket, Check, Loader2, User, Phone, MapPin, UserCheck, Edit2, Banknote, CreditCard, Eye, Store, Bell, Star, Clock, Package, LogOut, ArrowRight } from 'lucide-react';
+import { LayoutGrid, List, Smartphone, Info, Copy, QrCode, ExternalLink, Ticket, Check, Loader2, User, Phone, MapPin, UserCheck, Edit2, Banknote, CreditCard, Eye, Store, Bell, Star, Clock, Package, LogOut, ArrowRight, Sun, Moon } from 'lucide-react';
 import { paymentGatewayService, PixDinamicoResponse } from '../services/paymentGatewayService';
 import { CupomService } from '../services/cupomService';
 import { audioService } from '../services/audioService';
 import { useCart } from '../contexts/CartContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { ModalBuscaClienteCatalogo } from './ModalBuscaClienteCatalogo';
 import { ModalContatoClienteCatalogo, DadosContatoCliente } from './ModalContatoClienteCatalogo';
 import { ModalEnderecoClienteCatalogo, DadosEnderecoCliente } from './ModalEnderecoClienteCatalogo';
@@ -68,6 +69,7 @@ interface PedidoConcluidoInfo {
 export const CatalogoPublico: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const cartContext = useCart();
+  const { isDark, alternarTema } = useTheme();
   const [loja, setLoja] = useState<Loja | null>(null);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -998,8 +1000,8 @@ export const CatalogoPublico: React.FC = () => {
     }
   };
 
-
-  const corTema = loja?.cor_primaria || '#10B981';
+  // Diretriz Visual Institucional: Branco no tema escuro e Preto no tema claro
+  const corTema = isDark ? '#FFFFFF' : '#000000';
 
   // Carregar e Avaliar Regras de Precificação em Tempo Real
   const regrasAtivas = useMemo(() => obterRegrasPrecificacao(loja), [loja]);
@@ -1339,7 +1341,7 @@ export const CatalogoPublico: React.FC = () => {
         subtotal,
         subtotal_produtos: subtotal,
         valor_frete: valorFreteEfetivo,
-        valor_desconto: (Number(avaliacaoCarrinho.economiaTotal || 0) + Number(descontoCupom || 0)),
+        valor_desconto: Number(descontoCupom || 0),
         valor_total: total,
         saldo_devedor: total,
         troco_para: null,
@@ -1603,7 +1605,22 @@ Fico no aguardo da confirmação! ✨`;
         mp.checkout({
           preference: { id: pedidoConcluidoModal.preferenceId },
           autoOpen: true,
+          theme: {
+            elementsColor: '#FFE600',
+            headerColor: '#FFE600'
+          }
         });
+
+        // Limpeza de segurança caso o usuário feche o modal do MP
+        const limparOverlaysMP = () => {
+          const wrappers = document.querySelectorAll('.mp-mercadopago-checkout-wrapper, .mercadopago-modal-overlay');
+          wrappers.forEach((el) => {
+            if (el.parentNode && (el as HTMLElement).style.display === 'none') {
+              el.parentNode.removeChild(el);
+            }
+          });
+        };
+        window.addEventListener('focus', limparOverlaysMP, { once: true });
         return;
       } catch (err) {
         console.warn('⚠️ Falha ao abrir modal SDK, usando redirecionamento direto:', err);
@@ -1668,12 +1685,10 @@ Fico no aguardo da confirmação! ✨`;
       const matchCat = categoriaSelecionada === 'todas' || p.categoria_id === categoriaSelecionada;
       if (!matchCat) return false;
 
-      // Regra de produtos sem estoque
-      if (semEstoqueModo === 'ocultar') {
-        if (p.tipo_item !== 'servico') {
-          const est = getEstoqueTotal(p);
-          if (est <= 0) return false;
-        }
+      // Regra de produtos sem estoque: Ocultar produtos sem estoque ou esgotados
+      if (p.tipo_item !== 'servico') {
+        const est = getEstoqueTotal(p);
+        if (est <= 0) return false;
       }
 
       // Regra de produtos sem foto (padrão desligado / false)
@@ -1733,16 +1748,16 @@ Fico no aguardo da confirmação! ✨`;
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-white">
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-white transition-colors duration-200">
       {/* HEADER PRINCIPAL DO CATÁLOGO COM COR DO TEMA */}
       <header
         ref={headerRef}
-        className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-4"
+        className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-4 shadow-xs"
       >
         {/* Identidade da Loja e Mensagem Institucional (Esquerda) */}
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 max-w-[48%] md:max-w-[50%] lg:max-w-[45%]">
           {loja?.url_logo ? (
-            <img src={loja.url_logo} alt={loja.nome_fantasia} className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl object-contain bg-slate-900 border border-slate-800 shrink-0" />
+            <img src={loja.url_logo} alt={loja.nome_fantasia} className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl object-contain bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shrink-0 shadow-xs" />
           ) : (
             <div
               className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center font-bold text-white shadow text-xs sm:text-base shrink-0"
@@ -1842,6 +1857,20 @@ Fico no aguardo da confirmação! ✨`;
             <Bell className="w-4 h-4 text-slate-300" />
             {contagemNotificacoesNaoLidas > 0 && (
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse border-2 border-slate-900"></span>
+            )}
+          </button>
+
+          {/* Toggle de Tema (Claro / Escuro) */}
+          <button
+            type="button"
+            onClick={alternarTema}
+            className="p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700/80 hover:border-slate-300 dark:hover:border-slate-600 transition flex items-center gap-1.5 cursor-pointer text-xs font-semibold"
+            title={isDark ? 'Alternar para Tema Claro' : 'Alternar para Tema Escuro'}
+          >
+            {isDark ? (
+              <Sun className="w-4 h-4 text-amber-400" />
+            ) : (
+              <Moon className="w-4 h-4 text-indigo-500" />
             )}
           </button>
 
@@ -1975,7 +2004,7 @@ Fico no aguardo da confirmação! ✨`;
 
       {/* BARRA FIXA: SELETOR DE CATEGORIAS, PESQUISA E MODOS DE EXIBIÇÃO */}
       <div
-        className="sticky z-20 bg-slate-950/95 backdrop-blur-md border-b border-slate-800/80 shadow-md py-2.5 sm:py-3 transition-all"
+        className="sticky z-20 bg-slate-100/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 shadow-sm py-2.5 sm:py-3 transition-all"
         style={{ top: `${headerHeight}px` }}
       >
         <div className="max-w-6xl mx-auto px-4">
@@ -1983,22 +2012,21 @@ Fico no aguardo da confirmação! ✨`;
             {/* Seletor Dropdown de Categorias */}
             <div className="relative w-full sm:w-56 md:w-64 shrink-0 order-2 sm:order-1">
               <Layers
-                className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-                style={{ color: corTema || '#10B981' }}
+                className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 dark:text-slate-400"
               />
               <select
                 value={categoriaSelecionada}
                 onChange={(e) => setCategoriaSelecionada(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-emerald-500 rounded-2xl pl-10 pr-9 py-2.5 sm:py-3 text-xs font-semibold text-slate-200 focus:outline-none transition appearance-none cursor-pointer shadow-xs"
+                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-700 focus:border-emerald-500 rounded-2xl pl-10 pr-9 py-2.5 sm:py-3 text-xs font-semibold text-slate-900 dark:text-slate-200 focus:outline-none transition appearance-none cursor-pointer shadow-xs"
                 title="Filtrar produtos por categoria"
               >
-                <option value="todas" className="bg-slate-900 text-slate-200">
-                  Todas as Categorias ({produtos.length})
+                <option value="todas" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
+                  Todas as Categorias ({produtos.filter(p => p.tipo_item === 'servico' || getEstoqueTotal(p) > 0).length})
                 </option>
                 {categoriasOrdenadas.map((cat) => {
-                  const totalCat = produtos.filter(p => p.categoria_id === cat.id).length;
+                  const totalCat = produtos.filter(p => p.categoria_id === cat.id && (p.tipo_item === 'servico' || getEstoqueTotal(p) > 0)).length;
                   return (
-                    <option key={cat.id} value={cat.id} className="bg-slate-900 text-slate-200">
+                    <option key={cat.id} value={cat.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
                       {cat.nome} ({totalCat})
                     </option>
                   );
@@ -2016,17 +2044,17 @@ Fico no aguardo da confirmação! ✨`;
                   placeholder="O que você está procurando hoje?"
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-10 pr-4 py-2.5 sm:py-3 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl pl-10 pr-4 py-2.5 sm:py-3 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 shadow-xs"
                 />
               </div>
 
               {/* BOTÕES DE ALTERNAR MODO DE EXIBIÇÃO (LISTA / GRADE / INSTAVIEW) */}
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-1 flex items-center gap-1 shrink-0">
+              <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-1 flex items-center gap-1 shrink-0 shadow-xs">
                 <button
                   type="button"
                   onClick={() => setModoExibicaoPublico('lista')}
                   className={`p-2 rounded-xl transition cursor-pointer ${
-                    modoExibicaoPublico === 'lista' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'
+                    modoExibicaoPublico === 'lista' ? 'bg-slate-100 dark:bg-slate-800 text-slate-950 dark:text-white shadow-xs' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                   }`}
                   title="Modo Lista"
                 >
@@ -2036,7 +2064,7 @@ Fico no aguardo da confirmação! ✨`;
                   type="button"
                   onClick={() => setModoExibicaoPublico('grade')}
                   className={`p-2 rounded-xl transition cursor-pointer ${
-                    modoExibicaoPublico === 'grade' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'
+                    modoExibicaoPublico === 'grade' ? 'bg-slate-100 dark:bg-slate-800 text-slate-950 dark:text-white shadow-xs' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                   }`}
                   title="Modo Grade"
                 >
@@ -2046,7 +2074,7 @@ Fico no aguardo da confirmação! ✨`;
                   type="button"
                   onClick={() => setModoExibicaoPublico('instaview')}
                   className={`p-2 rounded-xl transition cursor-pointer ${
-                    modoExibicaoPublico === 'instaview' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'
+                    modoExibicaoPublico === 'instaview' ? 'bg-slate-100 dark:bg-slate-800 text-slate-950 dark:text-white shadow-xs' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                   }`}
                   title="Modo Instaview"
                 >
@@ -2075,12 +2103,12 @@ Fico no aguardo da confirmação! ✨`;
               return (
                 <div
                   key={produto.id}
-                  className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-sm hover:border-slate-700 transition"
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div
                       onClick={() => setProdutoDetalhesModal(produto)}
-                      className="relative w-16 h-16 rounded-xl overflow-hidden bg-slate-950 shrink-0 cursor-pointer hover:opacity-90 transition group/photo"
+                      className="relative w-16 h-16 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-950 shrink-0 cursor-pointer hover:opacity-90 transition group/photo"
                       title="Clique para ver fotos e detalhes"
                     >
                       <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover group-hover/photo:scale-105 transition duration-200" />
@@ -2094,16 +2122,16 @@ Fico no aguardo da confirmação! ✨`;
                     <div className="min-w-0">
                       <h3
                         onClick={() => setProdutoDetalhesModal(produto)}
-                        className="font-bold text-xs sm:text-sm text-slate-100 truncate cursor-pointer hover:underline"
+                        className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 truncate cursor-pointer hover:underline"
                         title="Ver detalhes do produto"
                       >
                         {produto.nome}
                       </h3>
                       {produto.descricao && (
-                        <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">{formatarResumoDescricao(produto.descricao)}</p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">{formatarResumoDescricao(produto.descricao)}</p>
                       )}
                       <div className="flex items-baseline gap-2 mt-1">
-                        <span className="font-black text-sm" style={{ color: corTema }}>
+                        <span className="font-black text-sm text-slate-950 dark:text-white">
                           R$ {Number(produto.promocao_ativa && produto.preco_promocional ? produto.preco_promocional : produto.preco_venda_varejo).toFixed(2)}
                         </span>
                       </div>
@@ -2117,12 +2145,12 @@ Fico no aguardo da confirmação! ✨`;
                         e.stopPropagation();
                         handleToggleFavorito(produto.id);
                       }}
-                      className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 transition cursor-pointer text-slate-400 hover:text-amber-400"
+                      className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition cursor-pointer text-slate-400 hover:text-amber-500"
                       title={favoritosIds.has(produto.id) ? 'Remover dos favoritos' : 'Favoritar produto'}
                     >
                       <Star
                         className={`w-4 h-4 ${
-                          favoritosIds.has(produto.id) ? 'text-amber-400 fill-amber-400' : 'text-slate-400'
+                          favoritosIds.has(produto.id) ? 'text-amber-500 fill-amber-500 dark:text-amber-400 dark:fill-amber-400' : 'text-slate-400'
                         }`}
                       />
                     </button>
@@ -2130,10 +2158,10 @@ Fico no aguardo da confirmação! ✨`;
                     <button
                       type="button"
                       onClick={() => setProdutoDetalhesModal(produto)}
-                      className="px-2.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer border border-slate-700"
+                      className="px-2.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition cursor-pointer border border-slate-200 dark:border-slate-700 shadow-xs"
                       title="Ver Detalhes do Produto"
                     >
-                      <Eye className="w-3.5 h-3.5 text-slate-400" />
+                      <Eye className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                       <span className="hidden sm:inline">Detalhar</span>
                     </button>
 
@@ -2148,12 +2176,11 @@ Fico no aguardo da confirmação! ✨`;
                           adicionarAoCarrinho(produto);
                         }
                       }}
-                      className={`px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition shadow-sm ${
+                      className={`px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition shadow-xs ${
                         esgotado
-                          ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-60'
-                          : 'text-white cursor-pointer hover:brightness-110'
+                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-60'
+                          : 'bg-slate-950 dark:bg-white text-white dark:text-slate-950 cursor-pointer hover:opacity-90 active:scale-95'
                       }`}
-                      style={{ backgroundColor: esgotado ? undefined : corTema }}
                     >
                       {esgotado ? (
                         <span>Esgotado</span>
@@ -2179,11 +2206,11 @@ Fico no aguardo da confirmação! ✨`;
               return (
                 <div
                   key={produto.id}
-                  className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl flex flex-col justify-between"
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm flex flex-col justify-between"
                 >
                   <div
                     onClick={() => setProdutoDetalhesModal(produto)}
-                    className="relative aspect-square w-full bg-slate-950 cursor-pointer hover:opacity-95 transition group/photo"
+                    className="relative aspect-square w-full bg-slate-100 dark:bg-slate-950 cursor-pointer hover:opacity-95 transition group/photo"
                     title="Clique para ver fotos e detalhes"
                   >
                     <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover group-hover/photo:scale-102 transition duration-300" />
@@ -2193,14 +2220,14 @@ Fico no aguardo da confirmação! ✨`;
                         e.stopPropagation();
                         handleToggleFavorito(produto.id);
                       }}
-                      className="absolute top-3 right-3 z-10 w-9 h-9 rounded-2xl bg-slate-900/80 backdrop-blur-xs flex items-center justify-center border border-slate-700/80 shadow-lg transition hover:scale-110 active:scale-95 cursor-pointer"
+                      className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full bg-white/90 dark:bg-slate-900/80 backdrop-blur-xs flex items-center justify-center border border-slate-200 dark:border-slate-700/60 shadow transition hover:scale-110 active:scale-95 cursor-pointer"
                       title={favoritosIds.has(produto.id) ? 'Remover dos favoritos' : 'Favoritar produto'}
                     >
                       <Star
                         className={`w-4 h-4 transition-colors ${
                           favoritosIds.has(produto.id)
-                            ? 'text-amber-400 fill-amber-400'
-                            : 'text-slate-400 hover:text-amber-400'
+                            ? 'text-amber-500 fill-amber-500 dark:text-amber-400 dark:fill-amber-400'
+                            : 'text-slate-400 hover:text-amber-500'
                         }`}
                       />
                     </button>
@@ -2222,19 +2249,19 @@ Fico no aguardo da confirmação! ✨`;
                     <div>
                       <h3
                         onClick={() => setProdutoDetalhesModal(produto)}
-                        className="font-bold text-sm text-slate-100 cursor-pointer hover:underline"
+                        className="font-bold text-sm text-slate-900 dark:text-slate-100 cursor-pointer hover:underline"
                         title="Ver detalhes"
                       >
                         {produto.nome}
                       </h3>
                       {produto.descricao && (
-                        <p className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">{formatarResumoDescricao(produto.descricao)}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">{formatarResumoDescricao(produto.descricao)}</p>
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
                       <div>
-                        <span className="text-base font-black" style={{ color: corTema }}>
+                        <span className="text-base font-black text-slate-950 dark:text-white">
                           R$ {Number(produto.promocao_ativa && produto.preco_promocional ? produto.preco_promocional : produto.preco_venda_varejo).toFixed(2)}
                         </span>
                       </div>
@@ -2243,10 +2270,10 @@ Fico no aguardo da confirmação! ✨`;
                         <button
                           type="button"
                           onClick={() => setProdutoDetalhesModal(produto)}
-                          className="px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer border border-slate-700 shadow"
+                          className="px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition cursor-pointer border border-slate-200 dark:border-slate-700 shadow-xs"
                           title="Ver detalhes do produto"
                         >
-                          <Eye className="w-4 h-4 text-slate-400" />
+                          <Eye className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                           <span>Detalhar</span>
                         </button>
 
@@ -2261,12 +2288,11 @@ Fico no aguardo da confirmação! ✨`;
                               adicionarAoCarrinho(produto);
                             }
                           }}
-                          className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md transition ${
+                          className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-xs transition ${
                             esgotado
-                              ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-60'
-                              : 'text-white cursor-pointer hover:brightness-110'
+                              ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-60'
+                              : 'bg-slate-950 dark:bg-white text-white dark:text-slate-950 cursor-pointer hover:opacity-90 active:scale-95'
                           }`}
-                          style={{ backgroundColor: esgotado ? undefined : corTema }}
                         >
                           {esgotado ? (
                             <span>Esgotado</span>
@@ -2294,12 +2320,12 @@ Fico no aguardo da confirmação! ✨`;
               return (
                 <div
                   key={produto.id}
-                  className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 flex flex-col justify-between shadow-sm hover:border-slate-700 transition group"
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 flex flex-col justify-between shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition group"
                 >
                   <div>
                     <div
                       onClick={() => setProdutoDetalhesModal(produto)}
-                      className="relative aspect-square rounded-xl overflow-hidden bg-slate-950 mb-2.5 cursor-pointer hover:opacity-95 transition group/photo"
+                      className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-950 mb-2.5 cursor-pointer hover:opacity-95 transition group/photo"
                       title="Clique para ver fotos e detalhes"
                     >
                       <img
@@ -2313,14 +2339,14 @@ Fico no aguardo da confirmação! ✨`;
                           e.stopPropagation();
                           handleToggleFavorito(produto.id);
                         }}
-                        className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-slate-900/80 backdrop-blur-xs flex items-center justify-center border border-slate-700/60 shadow transition hover:scale-110 active:scale-95 cursor-pointer"
+                        className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-white/90 dark:bg-slate-900/80 backdrop-blur-xs flex items-center justify-center border border-slate-200 dark:border-slate-700/60 shadow transition hover:scale-110 active:scale-95 cursor-pointer"
                         title={favoritosIds.has(produto.id) ? 'Remover dos favoritos' : 'Favoritar produto'}
                       >
                         <Star
                           className={`w-3.5 h-3.5 transition-colors ${
                             favoritosIds.has(produto.id)
-                              ? 'text-amber-400 fill-amber-400'
-                              : 'text-slate-400 hover:text-amber-400'
+                              ? 'text-amber-500 fill-amber-500 dark:text-amber-400 dark:fill-amber-400'
+                              : 'text-slate-400 hover:text-amber-500'
                           }`}
                         />
                       </button>
@@ -2341,21 +2367,21 @@ Fico no aguardo da confirmação! ✨`;
 
                     <h3
                       onClick={() => setProdutoDetalhesModal(produto)}
-                      className="font-bold text-xs text-slate-100 line-clamp-2 leading-snug cursor-pointer hover:underline"
+                      className="font-bold text-xs text-slate-900 dark:text-slate-100 line-clamp-2 leading-snug cursor-pointer hover:underline"
                       title="Ver detalhes do produto"
                     >
                       {produto.nome}
                     </h3>
                   </div>
 
-                  <div className="mt-3 pt-2 border-t border-slate-800/80 flex items-center justify-between">
+                  <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
                     <div>
                       {produto.promocao_ativa && produto.preco_promocional && (
-                        <span className="text-[10px] text-slate-500 line-through block leading-none">
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 line-through block leading-none">
                           {formatarMoeda(Number(produto.preco_venda_varejo))}
                         </span>
                       )}
-                      <span className="font-black text-sm" style={{ color: corTema }}>
+                      <span className="font-black text-sm text-slate-950 dark:text-white">
                         {formatarMoeda(Number(produto.promocao_ativa && produto.preco_promocional ? produto.preco_promocional : produto.preco_venda_varejo))}
                       </span>
                     </div>
@@ -2364,10 +2390,10 @@ Fico no aguardo da confirmação! ✨`;
                       <button
                         type="button"
                         onClick={() => setProdutoDetalhesModal(produto)}
-                        className="p-2 rounded-xl flex items-center justify-center transition shadow-sm font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 cursor-pointer"
+                        className="p-2 rounded-xl flex items-center justify-center transition shadow-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 cursor-pointer"
                         title="Ver Detalhes do Produto"
                       >
-                        <Eye className="w-3.5 h-3.5 text-slate-400" />
+                        <Eye className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                       </button>
 
                       <button
@@ -2381,12 +2407,11 @@ Fico no aguardo da confirmação! ✨`;
                             adicionarAoCarrinho(produto);
                           }
                         }}
-                        className={`w-8 h-8 rounded-xl flex items-center justify-center transition shadow-sm font-bold ${
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center transition shadow-xs font-bold ${
                           esgotado
-                            ? 'bg-slate-800 text-slate-600 border border-slate-700 cursor-not-allowed opacity-50'
-                            : 'text-white cursor-pointer hover:brightness-110'
+                            ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 border border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-50'
+                            : 'bg-slate-950 dark:bg-white text-white dark:text-slate-950 cursor-pointer hover:opacity-90 active:scale-95'
                         }`}
-                        style={{ backgroundColor: esgotado ? undefined : corTema }}
                         title={esgotado ? 'Produto Esgotado' : 'Adicionar ao Pedido'}
                       >
                         {esgotado ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
@@ -2452,10 +2477,10 @@ Fico no aguardo da confirmação! ✨`;
 
       {drawerCarrinhoAberto && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-end z-50 animate-in fade-in overscroll-contain">
-          <div className="w-full max-w-md bg-slate-900 border-l border-slate-800 h-full flex flex-col animate-in slide-in-from-right duration-200">
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-              <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
-                <ShoppingBag className="w-5 h-5 text-emerald-400" />
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 h-full flex flex-col animate-in slide-in-from-right duration-200">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <h3 className="font-bold text-base text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <ShoppingBag className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 <span>Seu Pedido</span>
               </h3>
               <div className="flex items-center gap-2">
@@ -2500,17 +2525,17 @@ Fico no aguardo da confirmação! ✨`;
               if (!temRegraAtacado && !temRegraFreteGratis) return null;
 
               return (
-                <div className="px-3.5 py-2.5 mx-4 mt-2 rounded-xl bg-slate-900 border border-slate-800 space-y-2 shadow-md">
+                <div className="px-3.5 py-2.5 mx-4 mt-2 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2.5 shadow-sm">
                   {/* Linha 1: Atacado / Volume */}
                   {temRegraAtacado && (
                     <div className="space-y-1">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-300 flex items-center gap-1.5 truncate">
+                      <div className="flex items-center justify-between text-xs sm:text-[13px]">
+                        <span className="text-slate-900 dark:text-slate-100 font-bold flex items-center gap-1.5 truncate">
                           {avaliacaoCarrinho.proximoNivel ? (
                             <>
-                              <Tag className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                              <Tag className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                               <span className="truncate">
-                                Faltam <b className="text-emerald-400 font-bold">
+                                Faltam <b className="text-emerald-600 dark:text-emerald-400 font-black">
                                   {(() => {
                                     const isAuto = avaliacaoCarrinho.proximoNivel === 'autoatacado';
                                     const qtdMin = isAuto ? loja?.qtd_minima_padrao_autoatacado : loja?.qtd_minima_padrao_atacado;
@@ -2528,28 +2553,23 @@ Fico no aguardo da confirmação! ✨`;
                             </>
                           ) : avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? (
                             <>
-                              <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />
-                              <span className="text-amber-300 font-bold">Distribuidor Conquistado!</span>
+                              <Zap className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />
+                              <span className="text-amber-600 dark:text-amber-300 font-black">Distribuidor Conquistado!</span>
                             </>
                           ) : (
                             <>
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                              <span className="text-emerald-300 font-bold">Preço de Atacado Liberado!</span>
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                              <span className="text-emerald-600 dark:text-emerald-300 font-black">Preço de Atacado Liberado!</span>
                             </>
                           )}
                         </span>
                         <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                          {avaliacaoCarrinho.economiaTotal > 0 && (
-                            <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                              -R$ {avaliacaoCarrinho.economiaTotal.toFixed(2)}
-                            </span>
-                          )}
-                          <span className="text-[10px] font-bold text-emerald-400">
+                          <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
                             {avaliacaoCarrinho.progressoGeralPercent}%
                           </span>
                         </div>
                       </div>
-                      <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800/80">
+                      <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-950 rounded-full overflow-hidden border border-slate-300 dark:border-slate-800/80">
                         <div
                           className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500"
                           style={{ width: `${avaliacaoCarrinho.progressoGeralPercent}%` }}
@@ -2561,29 +2581,29 @@ Fico no aguardo da confirmação! ✨`;
                   {/* Linha 2: Frete Grátis com Subsídio em Upgrade */}
                   {temRegraFreteGratis && (
                     <div className="space-y-1">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-300 flex items-center gap-1.5 truncate">
+                      <div className="flex items-center justify-between text-xs sm:text-[13px]">
+                        <span className="text-slate-900 dark:text-slate-100 font-bold flex items-center gap-1.5 truncate">
                           {valorFaltante === 0 ? (
                             <>
-                              <Gift className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                              <span className="text-emerald-400 font-bold truncate">🎉 Você ganhou Frete Grátis!</span>
+                              <Gift className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                              <span className="text-emerald-600 dark:text-emerald-400 font-black truncate">🎉 Você ganhou Frete Grátis!</span>
                             </>
                           ) : (
                             <>
-                              <Truck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                              <Truck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                               <span className="truncate">
-                                Faltam <b className="text-emerald-400 font-bold">
+                                Faltam <b className="text-emerald-600 dark:text-emerald-400 font-black">
                                   R$ {valorFaltante.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </b> para Frete Grátis! ({percentual}%)
+                                </b> para Frete Grátis!
                               </span>
                             </>
                           )}
                         </span>
-                        <span className="text-[10px] font-bold text-emerald-400 shrink-0 ml-2">
+                        <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 shrink-0 ml-2">
                           {percentual}%
                         </span>
                       </div>
-                      <div className="w-full h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                      <div className="w-full h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
                         <div
                           className="h-full bg-emerald-500 rounded-full transition-all duration-500"
                           style={{ width: `${percentual}%` }}
@@ -2759,44 +2779,29 @@ Fico no aguardo da confirmação! ✨`;
             </div>
 
             {carrinho.length > 0 && (
-              <div className="p-4 border-t border-slate-800 bg-slate-900/95 space-y-3">
+              <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-900/95 space-y-3">
                 <div className="space-y-2">
                   {/* Linha Subtotal */}
                   <div className="flex items-center justify-between py-1 px-1">
-                    <span className="text-sm font-medium text-slate-300 text-left">
+                    <span className="text-sm font-medium text-slate-600 dark:text-slate-300 text-left">
                       Subtotal:
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-slate-100 tabular-nums w-28 text-right">
+                      <span className="text-sm font-bold text-slate-900 dark:text-slate-100 tabular-nums w-28 text-right">
                         {formatarMoeda(subtotal)}
                       </span>
                       <div className="w-20 shrink-0" aria-hidden="true" />
                     </div>
                   </div>
 
-                  {/* Desconto de Volume se houver */}
-                  {avaliacaoCarrinho.economiaTotal > 0 && (
-                    <div className="flex items-center justify-between py-0.5 px-1 text-emerald-400">
-                      <span className="text-xs font-medium text-emerald-400 text-left">
-                        Desconto de Volume ({avaliacaoCarrinho.tabelaAtiva}):
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-emerald-400 tabular-nums w-28 text-right">
-                          - {formatarMoeda(avaliacaoCarrinho.economiaTotal)}
-                        </span>
-                        <div className="w-20 shrink-0" aria-hidden="true" />
-                      </div>
-                    </div>
-                  )}
-
                   {/* Desconto de Cupom se houver */}
                   {descontoCupom > 0 && (
-                    <div className="flex items-center justify-between py-0.5 px-1 text-emerald-400">
-                      <span className="text-xs font-medium text-emerald-400 text-left">
+                    <div className="flex items-center justify-between py-0.5 px-1 text-emerald-600 dark:text-emerald-400">
+                      <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 text-left">
                         Desconto Cupom ({cupomAplicado?.codigo}):
                       </span>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-emerald-400 tabular-nums w-28 text-right">
+                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 tabular-nums w-28 text-right">
                           - {formatarMoeda(descontoCupom)}
                         </span>
                         <div className="w-20 shrink-0" aria-hidden="true" />
@@ -2805,42 +2810,42 @@ Fico no aguardo da confirmação! ✨`;
                   )}
 
                   {/* Linha Forma de Entrega */}
-                  <div className="flex items-center justify-between py-2 px-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60">
-                    <span className="text-sm font-medium text-slate-300 text-left">
+                  <div className="flex items-center justify-between py-2 px-2.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 shadow-xs">
+                    <span className="text-sm font-medium text-slate-600 dark:text-slate-300 text-left">
                       Forma de Entrega:
                     </span>
                     <div className="flex items-center gap-2">
                       <div className="text-sm font-bold tabular-nums w-28 text-right truncate">
                         {!pedidoEntrega ? (
                           elegivelFreteGratisLoja ? (
-                            <span className="text-emerald-400 font-bold text-xs">Frete Grátis</span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs">Frete Grátis</span>
                           ) : (
-                            <span className="text-amber-400 font-medium text-xs">Não selecionada</span>
+                            <span className="text-amber-600 dark:text-amber-400 font-medium text-xs">Não selecionada</span>
                           )
                         ) : pedidoEntrega.tipo_atendimento === 'retirada' ? (
-                          <span className="text-slate-200 font-bold text-xs">Retirar na Loja</span>
+                          <span className="text-slate-900 dark:text-slate-200 font-bold text-xs">Retirar na Loja</span>
                         ) : (pedidoEntrega.servico_codigo === 'frete_a_combinar' || pedidoEntrega.forma_entrega_nome === 'Frete a Combinar') ? (
-                          <span className="text-emerald-400 font-bold text-xs">A Combinar</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs">A Combinar</span>
                         ) : (pedidoEntrega.is_frete_gratis || valorFreteEfetivo === 0 || freteGratisCupom) ? (
                           <div className="flex flex-col items-end leading-tight">
                             {pedidoEntrega.valor_original != null && pedidoEntrega.valor_original > 0 && (
-                              <span className="text-[10px] line-through text-slate-300 font-semibold">
+                              <span className="text-[10px] line-through text-slate-400 dark:text-slate-300 font-semibold">
                                 {formatarMoeda(pedidoEntrega.valor_original)}
                               </span>
                             )}
-                            <span className="text-emerald-400 font-bold text-xs">Frete Grátis</span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs">Frete Grátis</span>
                           </div>
                         ) : pedidoEntrega.valor_subsidio && pedidoEntrega.valor_subsidio > 0 && pedidoEntrega.valor_original ? (
                           <div className="flex flex-col items-end leading-tight">
-                            <span className="text-[10px] line-through text-slate-300 font-semibold">
+                            <span className="text-[10px] line-through text-slate-400 dark:text-slate-300 font-semibold">
                               {formatarMoeda(pedidoEntrega.valor_original)}
                             </span>
-                            <span className="text-emerald-400 font-bold text-xs">
+                            <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs">
                               {formatarMoeda(valorFreteEfetivo)}
                             </span>
                           </div>
                         ) : (
-                          <span className="text-emerald-400">{formatarMoeda(valorFreteEfetivo)}</span>
+                          <span className="text-emerald-600 dark:text-emerald-400">{formatarMoeda(valorFreteEfetivo)}</span>
                         )}
                       </div>
 
@@ -2850,8 +2855,8 @@ Fico no aguardo da confirmação! ✨`;
                           onClick={handleClicarFormaEntregaCatalogo}
                           className={`px-2 py-1 rounded-lg font-bold text-xs transition cursor-pointer ${
                             !pedidoEntrega
-                              ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-sm shadow-emerald-500/20'
-                              : 'text-emerald-400 hover:text-emerald-300 underline'
+                              ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs'
+                              : 'text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 underline'
                           }`}
                         >
                           {!pedidoEntrega ? 'Selecionar' : 'Alterar'}
@@ -2861,12 +2866,12 @@ Fico no aguardo da confirmação! ✨`;
                   </div>
 
                   {/* Linha Total do Pedido */}
-                  <div className="flex items-center justify-between py-1.5 px-1 border-t border-slate-800 pt-2.5">
-                    <span className="text-sm font-medium text-slate-300 text-left">
+                  <div className="flex items-center justify-between py-1.5 px-1 border-t border-slate-200 dark:border-slate-800 pt-2.5">
+                    <span className="text-sm font-medium text-slate-600 dark:text-slate-300 text-left">
                       Total do Pedido:
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-emerald-400 tabular-nums w-28 text-right">
+                      <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 tabular-nums w-28 text-right">
                         {formatarMoeda(total)}
                       </span>
                       <div className="w-20 shrink-0" aria-hidden="true" />
@@ -2878,8 +2883,7 @@ Fico no aguardo da confirmação! ✨`;
                   type="button"
                   onClick={handleFinalizarPedido}
                   disabled={enviandoPedido}
-                  className="w-full py-4 rounded-2xl text-white font-bold text-sm shadow-lg flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer hover:brightness-110"
-                  style={{ backgroundColor: corTema }}
+                  className="w-full py-4 rounded-2xl bg-slate-950 dark:bg-white text-white dark:text-slate-950 font-black text-sm shadow-md flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer hover:opacity-90 active:scale-98"
                 >
                   <Share2 className="w-5 h-5" />
                   <span>{enviandoPedido ? 'Enviando Pedido...' : aceitaPedidos ? 'Finalizar e Enviar Pedido' : 'Enviar Consulta via WhatsApp'}</span>
@@ -2941,20 +2945,20 @@ Fico no aguardo da confirmação! ✨`;
               <button
                 type="button"
                 onClick={handleAbrirCheckoutMP}
-                className="w-full py-3.5 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-sky-600/25 transition cursor-pointer"
+                className="w-full py-4 rounded-2xl bg-[#FFE600] hover:bg-[#F5DC00] text-slate-950 font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-400/20 transition cursor-pointer active:scale-98 border border-amber-300"
               >
                 <span>Pagar com Mercado Pago</span>
-                <ExternalLink className="w-4 h-4" />
+                <ExternalLink className="w-4 h-4 text-slate-950" />
               </button>
             )}
 
             <div className="space-y-2 pt-2">
               <Link
                 to={`/order-tracking/${pedidoConcluidoModal.numeroPedido}`}
-                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer border border-slate-700"
+                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer border border-slate-200 dark:border-slate-700"
                 target="_blank"
               >
-                <ShoppingBag className="w-3.5 h-3.5 text-emerald-400" />
+                <ShoppingBag className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
                 <span>Acompanhar Pedido #{pedidoConcluidoModal.numeroPedido}</span>
               </Link>
 
@@ -2963,9 +2967,9 @@ Fico no aguardo da confirmação! ✨`;
                   href={pedidoConcluidoModal.whatsAppUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25 transition cursor-pointer"
+                  className="w-full py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
                 >
-                  <Share2 className="w-4 h-4" />
+                  <Share2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <span>Enviar Resumo no WhatsApp da Loja</span>
                 </a>
               )}
@@ -3189,17 +3193,17 @@ Fico no aguardo da confirmação! ✨`;
             modalEnderecoAberto ? 'opacity-0 pointer-events-none' : 'opacity-100'
           }`}
         >
-          <div className="bg-slate-900 border-2 border-slate-600/80 rounded-3xl w-full max-w-xl p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto text-white">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-xl p-5 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto text-slate-900 dark:text-white">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-emerald-950/60 text-emerald-400 border border-emerald-500/20">
+                <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
                   <MapPin className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-white">
+                  <h3 className="font-bold text-base text-slate-900 dark:text-white">
                     Escolha Como Deseja Receber
                   </h3>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     Retirada presencial na loja física ou entrega no seu endereço
                   </p>
                 </div>
@@ -3210,7 +3214,7 @@ Fico no aguardo da confirmação! ✨`;
                   setDraftResultadoShipping(null);
                   setModalShippingAberto(false);
                 }}
-                className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-white transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -3255,6 +3259,7 @@ Fico no aguardo da confirmação! ✨`;
               opcaoSelecionadaId={pedidoEntrega?.servico_codigo}
               tipoAtendimentoAtual={pedidoEntrega?.tipo_atendimento}
               modoCatalogo={true}
+              temaDark={isDark}
               onSolicitarAtualizarEndereco={() => setModalEnderecoAberto(true)}
               onChange={(resultado) => {
                 setDraftResultadoShipping(resultado);

@@ -79,7 +79,7 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
     const s = (status || '').toLowerCase();
     if (s === 'concluido' || s === 'entregue') {
       return (
-        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 flex items-center gap-1">
           <CheckCircle className="w-3 h-3" />
           <span>{status.toUpperCase()}</span>
         </span>
@@ -87,7 +87,7 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
     }
     if (s === 'em_rota' || s === 'despachado') {
       return (
-        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-sky-500/20 text-sky-400 border border-sky-500/30 flex items-center gap-1">
+        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-sky-50 dark:bg-sky-500/20 text-sky-700 dark:text-sky-400 border border-sky-200 dark:border-sky-500/30 flex items-center gap-1">
           <Truck className="w-3 h-3" />
           <span>EM ROTA</span>
         </span>
@@ -95,7 +95,7 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
     }
     if (s === 'preparando' || s === 'aprovado') {
       return (
-        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1">
+        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30 flex items-center gap-1">
           <Clock className="w-3 h-3" />
           <span>PREPARANDO</span>
         </span>
@@ -103,13 +103,13 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
     }
     if (s === 'cancelado') {
       return (
-        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">
+        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 dark:bg-rose-500/20 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30">
           CANCELADO
         </span>
       );
     }
     return (
-      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700 flex items-center gap-1">
+      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center gap-1">
         <Clock className="w-3 h-3" />
         <span>{status.toUpperCase()}</span>
       </span>
@@ -118,9 +118,9 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in">
-      <div className="bg-slate-900 border-2 border-slate-700/80 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95">
         {/* Cabeçalho */}
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/70">
+        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-950/70">
           <div className="flex items-center gap-2.5">
             <div
               className="w-9 h-9 rounded-xl flex items-center justify-center text-white shadow"
@@ -129,14 +129,14 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
               <Package className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-extrabold text-sm sm:text-base text-slate-100">Meus Pedidos</h3>
-              <p className="text-[11px] text-slate-400">Histórico de compras e rastreamento em tempo real</p>
+              <h3 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-slate-100">Meus Pedidos</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">Histórico de compras e rastreamento em tempo real</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -144,8 +144,8 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
 
         {/* Mensagem de Erro */}
         {erro && (
-          <div className="mx-4 mt-3 p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-xs text-rose-300 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+          <div className="mx-4 mt-3 p-3 rounded-xl bg-rose-50 dark:bg-rose-500/15 border border-rose-200 dark:border-rose-500/30 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-500 dark:text-rose-400" />
             <span>{erro}</span>
           </div>
         )}
@@ -153,18 +153,18 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
         {/* Lista de Pedidos */}
         <div className="p-4 overflow-y-auto flex-1 space-y-3">
           {carregando ? (
-            <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-400">
-              <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
+            <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-500 dark:text-slate-400">
+              <Loader2 className="w-6 h-6 animate-spin text-emerald-600 dark:text-emerald-400" />
               <span className="text-xs">Carregando seus pedidos...</span>
             </div>
           ) : pedidos.length === 0 ? (
             <div className="py-12 text-center flex flex-col items-center justify-center gap-3">
-              <div className="w-14 h-14 rounded-2xl bg-slate-800/80 border border-slate-700 flex items-center justify-center text-slate-500">
+              <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 dark:text-slate-500">
                 <ShoppingBag className="w-7 h-7" />
               </div>
               <div>
-                <p className="text-sm font-bold text-slate-200">Nenhum pedido encontrado</p>
-                <p className="text-xs text-slate-400 mt-1 max-w-xs">
+                <p className="text-sm font-bold text-slate-900 dark:text-slate-200">Nenhum pedido encontrado</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs">
                   Você ainda não finalizou compras com este cadastro nesta loja.
                 </p>
               </div>
@@ -186,11 +186,11 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
             pedidos.map((ped) => (
               <div
                 key={ped.id}
-                className="bg-slate-950/60 border border-slate-800 hover:border-slate-700 rounded-2xl p-3.5 space-y-2.5 transition"
+                className="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-3.5 space-y-2.5 transition"
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-black text-white">Pedido #{ped.numero_pedido}</span>
+                    <span className="text-xs font-black text-slate-900 dark:text-white">Pedido #{ped.numero_pedido}</span>
                     <span className="text-[10px] text-slate-500">
                       • {formatarData(ped.criado_em || ped.data_venda)}
                     </span>
@@ -198,10 +198,10 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                   {getStatusBadge(ped.status)}
                 </div>
 
-                <div className="flex items-center justify-between pt-1 border-t border-slate-800/60 text-xs">
+                <div className="flex items-center justify-between pt-1 border-t border-slate-200 dark:border-slate-800/60 text-xs">
                   <div>
-                    <span className="text-slate-400 text-[11px]">Total: </span>
-                    <strong className="text-slate-100 font-extrabold">
+                    <span className="text-slate-500 dark:text-slate-400 text-[11px]">Total: </span>
+                    <strong className="text-slate-900 dark:text-slate-100 font-extrabold">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
                         ped.valor_total || 0
                       )}
@@ -212,18 +212,18 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                     <button
                       type="button"
                       onClick={() => setPedidoReciboModal(ped)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs border border-slate-700 transition cursor-pointer active:scale-95 shadow-sm"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white font-bold text-xs border border-slate-200 dark:border-slate-700 transition cursor-pointer active:scale-95 shadow-sm"
                       title="Visualizar Recibo do Pedido"
                     >
-                      <Receipt className="w-3.5 h-3.5 text-emerald-400" />
+                      <Receipt className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                       <span>Recibo</span>
                     </button>
 
                     <a
-                      href={`/order-tracking/${ped.numero_pedido}`}
+                      href={`/order-tracking/${ped.id || ped.numero_pedido}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 font-bold text-xs border border-slate-700 transition cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-bold text-xs border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-sm"
                     >
                       <span>Rastrear Pedido</span>
                       <ExternalLink className="w-3.5 h-3.5" />

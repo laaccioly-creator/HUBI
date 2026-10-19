@@ -1345,23 +1345,27 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
               onClick={handleSelecionarRetirada}
               className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                 modalidade === 'retirada'
-                  ? 'bg-emerald-950/30 border-2 border-emerald-500 text-white shadow-sm shadow-emerald-950/40'
-                  : 'bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/60 text-slate-200'
+                  ? ehDark
+                    ? 'bg-emerald-950/30 border-2 border-emerald-500 text-white shadow-sm shadow-emerald-950/40'
+                    : 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
+                  : ehDark
+                    ? 'bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/60 text-slate-200'
+                    : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 shadow-xs'
               }`}
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-all ${
                   modalidade === 'retirada'
                     ? 'bg-emerald-500 text-slate-950 shadow-sm'
-                    : 'border-2 border-slate-500'
+                    : ehDark ? 'border-2 border-slate-500' : 'border-2 border-slate-300'
                 }`}>
                   {modalidade === 'retirada' && <Check className="w-2.5 h-2.5 stroke-[3]" />}
                 </div>
-                <Store className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span className="text-xs font-bold text-slate-100 truncate">
+                <Store className="w-4 h-4 text-emerald-500 dark:text-emerald-400 shrink-0" />
+                <span className={`text-xs font-bold truncate ${ehDark ? 'text-slate-100' : 'text-slate-900'}`}>
                   Retirar na Loja
                 </span>
-                <span className="text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20 shrink-0">
+                <span className="text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20 shrink-0">
                   Grátis
                 </span>
               </div>
@@ -1373,10 +1377,14 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                     e.stopPropagation();
                     setModalMapaLojaAberto(true);
                   }}
-                  className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 font-bold text-[11px] flex items-center gap-1 transition cursor-pointer"
+                  className={`px-2.5 py-1 rounded-xl font-bold text-[11px] flex items-center gap-1 transition cursor-pointer border ${
+                    ehDark
+                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700/80'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-950 border-slate-200'
+                  }`}
                   title="Ver endereço e rota no mapa"
                 >
-                  <Navigation className="w-3 h-3 text-emerald-400" />
+                  <Navigation className="w-3 h-3 text-emerald-500 dark:text-emerald-400" />
                   <span>Ver no Mapa</span>
                 </button>
 
@@ -2224,32 +2232,36 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                         onClick={handleSelecionarFreteACombinar}
                         className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                           modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar')
-                            ? 'bg-emerald-950/30 border-2 border-emerald-500 text-white shadow-sm shadow-emerald-950/40'
-                            : 'bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/60 text-slate-200'
+                            ? ehDark
+                              ? 'bg-emerald-950/30 border-2 border-emerald-500 text-white shadow-sm shadow-emerald-950/40'
+                              : 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
+                            : ehDark
+                              ? 'bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/60 text-slate-200'
+                              : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 shadow-xs'
                         }`}
                       >
                         <div className="flex items-start gap-3 min-w-0">
-                          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20 mt-0.5">
-                            <Truck className="w-5 h-5 text-emerald-400" />
+                          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20 mt-0.5">
+                            <Truck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                           </div>
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-slate-100">Frete a combinar</span>
-                              <span className="text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                              <span className={`text-xs font-bold ${ehDark ? 'text-slate-100' : 'text-slate-900'}`}>Frete a combinar</span>
+                              <span className="text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20">
                                 A Combinar
                               </span>
                             </div>
-                            <p className="text-xs text-slate-400 leading-relaxed">
+                            <p className={`text-xs leading-relaxed ${ehDark ? 'text-slate-400' : 'text-slate-600'}`}>
                               Nossa equipe entrará em contato via WhatsApp ou telefone para calcular a melhor opção de envio após a confirmação do seu pedido.
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-extrabold text-xs text-emerald-400">R$ 0,00</span>
+                          <span className="font-extrabold text-xs text-emerald-600 dark:text-emerald-400">R$ 0,00</span>
                           <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
                             modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar')
                               ? 'bg-emerald-500 text-slate-950 shadow-sm'
-                              : 'border-2 border-slate-500'
+                              : ehDark ? 'border-2 border-slate-500' : 'border-2 border-slate-300'
                           }`}>
                             {modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar') && (
                               <Check className="w-3.5 h-3.5 stroke-[3]" />

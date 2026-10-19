@@ -187,7 +187,7 @@ export const FinancasCaixa: React.FC = () => {
 
   // Abertura de Sessão de Caixa
   const [modalAberturaCaixa, setModalAberturaCaixa] = useState<boolean>(false);
-  const [fundoTroco, setFundoTroco] = useState<string>('100.00');
+  const [fundoTroco, setFundoTroco] = useState<string>('0.00');
   const [abrindoCaixa, setAbrindoCaixa] = useState<boolean>(false);
 
   // Movimentações: Suprimento, Sangria e Despesa Rápida
@@ -3203,7 +3203,7 @@ export const FinancasCaixa: React.FC = () => {
                     type="number"
                     step="0.01"
                     required
-                    placeholder="Ex: 100.00"
+                    placeholder="Ex: 0.00"
                     value={fundoTroco}
                     onChange={(e) => setFundoTroco(e.target.value)}
                     className={`w-full rounded-xl px-4 py-3 text-2xl font-black text-center focus:outline-none transition border-2 ${

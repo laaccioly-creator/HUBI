@@ -46,40 +46,72 @@ export const PedidoAndamentoPublico: React.FC = () => {
     const carregarDados = async () => {
       if (!id) return;
       try {
+        const rawId = (id || '').trim();
+        const numMatch = rawId.match(/^(?:#|PED-|c-)?(\d+)$/i);
+        const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId);
+
+        const aplicarFiltro = (q: any) => {
+          if (numMatch) {
+            return q.eq('numero_pedido', parseInt(numMatch[1], 10));
+          } else if (ehUuid) {
+            return q.eq('id', rawId);
+          } else {
+            const apenasDigitos = rawId.replace(/\D/g, '');
+            if (apenasDigitos.length > 0 && apenasDigitos.length <= 10) {
+              return q.eq('numero_pedido', parseInt(apenasDigitos, 10));
+            } else {
+              return q.eq('id', rawId);
+            }
+          }
+        };
+
         let query = supabase
           .from('pedidos')
           .select(`
             *,
             cliente:clientes(*),
             itens:itens_pedido(*),
-            vendedor:usuarios(*),
+            vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
             pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*)),
             pedido_entregas:pedido_entregas(*)
           `);
 
-        const rawId = (id || '').trim();
-        // Remove prefixos comuns: #, PED-, ped-, c-, C-
-        const numMatch = rawId.match(/^(?:#|PED-|c-)?(\d+)$/i);
-        const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId);
+        query = aplicarFiltro(query);
 
-        if (numMatch) {
-          query = query.eq('numero_pedido', parseInt(numMatch[1], 10));
-        } else if (ehUuid) {
-          query = query.eq('id', rawId);
-        } else {
-          // Extrai dígitos se for um código numérico com caracteres extras
-          const apenasDigitos = rawId.replace(/\D/g, '');
-          if (apenasDigitos.length > 0 && apenasDigitos.length <= 10) {
-            query = query.eq('numero_pedido', parseInt(apenasDigitos, 10));
-          } else {
-            query = query.eq('id', rawId);
+        let { data: pedidosData, error } = await query;
+        let ped = pedidosData?.[0];
+
+        // Fallback resiliente: caso a query com todas as relações aninhadas falhe
+        if (error || !ped) {
+          console.warn('[PedidoAndamentoPublico] Tentando busca direta resiliente do pedido...', error);
+          let simpleQuery = supabase.from('pedidos').select('*');
+          simpleQuery = aplicarFiltro(simpleQuery);
+          const { data: simplePed, error: simpleErr } = await simpleQuery.maybeSingle();
+
+          if (simplePed && !simpleErr) {
+            ped = simplePed;
+            const [itensRes, clienteRes, pagRes, entregaRes] = await Promise.allSettled([
+              supabase.from('itens_pedido').select('*').eq('pedido_id', simplePed.id),
+              simplePed.cliente_id ? supabase.from('clientes').select('*').eq('id', simplePed.cliente_id).maybeSingle() : Promise.resolve({ data: null }),
+              supabase.from('pagamentos_pedido').select('*, forma_pagamento:formas_pagamento(*)').eq('pedido_id', simplePed.id),
+              supabase.from('pedido_entregas').select('*').eq('pedido_id', simplePed.id)
+            ]);
+
+            if (itensRes.status === 'fulfilled' && (itensRes.value as any)?.data) {
+              (ped as any).itens = (itensRes.value as any).data;
+            }
+            if (clienteRes.status === 'fulfilled' && (clienteRes.value as any)?.data) {
+              (ped as any).cliente = (clienteRes.value as any).data;
+            }
+            if (pagRes.status === 'fulfilled' && (pagRes.value as any)?.data) {
+              (ped as any).pagamentos = (pagRes.value as any).data;
+            }
+            if (entregaRes.status === 'fulfilled' && (entregaRes.value as any)?.data) {
+              (ped as any).pedido_entregas = (entregaRes.value as any).data;
+            }
           }
         }
 
-        const { data: pedidosData, error } = await query;
-        if (error) throw error;
-
-        const ped = pedidosData?.[0];
         if (ped && !cancelado) {
           if (!(ped as any).pedido_entrega && (ped as any).pedido_entregas) {
             (ped as any).pedido_entrega = Array.isArray((ped as any).pedido_entregas)
@@ -123,21 +155,21 @@ export const PedidoAndamentoPublico: React.FC = () => {
       .channel(canalNome)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'pedidos', filter: `id=eq.${id}` },
+        { event: '*', schema: 'public', table: 'pedidos' },
         () => {
           carregarDados();
         }
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'pedido_entregas', filter: `pedido_id=eq.${id}` },
+        { event: '*', schema: 'public', table: 'pedido_entregas' },
         () => {
           carregarDados();
         }
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'historico_pedidos', filter: `pedido_id=eq.${id}` },
+        { event: '*', schema: 'public', table: 'historico_pedidos' },
         () => {
           carregarDados();
         }
