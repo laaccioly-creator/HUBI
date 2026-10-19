@@ -147,7 +147,10 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
     return url.includes('/storage/v1/object/public/etiquetas/');
   };
 
-  const obterDocumentosOficiais = async (): Promise<{ url_etiqueta: string; url_dace: string }> => {
+  const obterDocumentosOficiais = async (apenasEtiqueta = false): Promise<{ url_etiqueta: string; url_dace: string }> => {
+    if (apenasEtiqueta && urlEtiquetaOficial) {
+      return { url_etiqueta: urlEtiquetaOficial, url_dace: urlDaceOficial || urlEtiquetaOficial };
+    }
     if (urlEtiquetaOficial && urlDaceOficial) {
       return { url_etiqueta: urlEtiquetaOficial, url_dace: urlDaceOficial };
     }
@@ -222,16 +225,30 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
   };
 
   const handleAbrirEtiquetaMelhorEnvio = async () => {
+    if (urlEtiquetaOficial) {
+      abrirOuImprimir(urlEtiquetaOficial);
+      return;
+    }
+
+    // Abre a aba sincronamente dentro do clique para contornar o bloqueador de popup
+    const abaPrevia = window.open('about:blank', '_blank');
+
     try {
       setObtendoEtiquetaOficial(true);
       mostrarToast('Abrindo Etiqueta Oficial do Melhor Envio...', 'info');
-      const docs = await obterDocumentosOficiais();
+      const docs = await obterDocumentosOficiais(true);
       if (docs.url_etiqueta) {
-        abrirOuImprimir(docs.url_etiqueta);
+        if (abaPrevia && !abaPrevia.closed) {
+          abaPrevia.location.replace(docs.url_etiqueta);
+        } else {
+          abrirOuImprimir(docs.url_etiqueta);
+        }
       } else {
+        abaPrevia?.close();
         mostrarErro('Etiqueta oficial não encontrada.');
       }
     } catch (err: any) {
+      abaPrevia?.close();
       console.error('[DEBUG_ETIQUETA] Erro ao abrir etiqueta:', err);
       mostrarErro(err?.message || 'Falha ao abrir a Etiqueta Oficial.');
     } finally {
@@ -240,17 +257,30 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
   };
 
   const handleAbrirDace = async () => {
+    if (urlDaceOficial) {
+      abrirOuImprimir(urlDaceOficial);
+      return;
+    }
+
+    const abaPrevia = window.open('about:blank', '_blank');
+
     try {
       setObtendoDace(true);
       mostrarToast('Abrindo Declaração de Conteúdo (DACE)...', 'info');
       const docs = await obterDocumentosOficiais();
       const urlDaceFinal = docs.url_dace || docs.url_etiqueta;
       if (urlDaceFinal) {
-        abrirOuImprimir(urlDaceFinal);
+        if (abaPrevia && !abaPrevia.closed) {
+          abaPrevia.location.replace(urlDaceFinal);
+        } else {
+          abrirOuImprimir(urlDaceFinal);
+        }
       } else {
+        abaPrevia?.close();
         mostrarToast('Declaração de Conteúdo não disponível para esta ordem.', 'aviso');
       }
     } catch (err: any) {
+      abaPrevia?.close();
       console.error('[DEBUG_ETIQUETA] Erro ao abrir DACE:', err);
       mostrarErro(err?.message || 'Falha ao abrir a Declaração de Conteúdo.');
     } finally {

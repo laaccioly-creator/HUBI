@@ -867,4 +867,27 @@ export class MelhorEnvioService {
 
     return data;
   }
+
+  /**
+   * Executa a sincronização periódica de todos os pedidos com envio pendente na loja
+   */
+  public static async sincronizarRastreiosPendentes(lojaId: string): Promise<{ processados: number; atualizados_para_entregue: number }> {
+    try {
+      const { data, error } = await supabase.functions.invoke('melhor-envio-despacho', {
+        body: {
+          loja_id: lojaId,
+          acao: 'sincronizar_rastreios_pendentes'
+        }
+      });
+      if (error || !data?.sucesso) {
+        return { processados: 0, atualizados_para_entregue: 0 };
+      }
+      return {
+        processados: data.processados || 0,
+        atualizados_para_entregue: data.atualizados_para_entregue || 0
+      };
+    } catch {
+      return { processados: 0, atualizados_para_entregue: 0 };
+    }
+  }
 }

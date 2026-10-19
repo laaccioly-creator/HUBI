@@ -871,6 +871,23 @@ export const PedidosLista: React.FC = () => {
           const atualizado = pedidosNormalizados.find((p: any) => p.id === prev.id);
           return atualizado ? (atualizado as unknown as Pedido) : prev;
         });
+
+        // Sincronização automática em segundo plano para pedidos enviados
+        const temPedidosEnviados = (pedidosNormalizados as any[]).some((p: any) => p.status === 'enviado');
+        if (temPedidosEnviados && loja?.id) {
+          const chaveThrottle = `hubi_ultimo_sync_rastreio_${loja.id}`;
+          const ultimoSync = sessionStorage.getItem(chaveThrottle);
+          const agoraTs = Date.now();
+          if (!ultimoSync || agoraTs - parseInt(ultimoSync, 10) > 600000) {
+            sessionStorage.setItem(chaveThrottle, String(agoraTs));
+            MelhorEnvioService.sincronizarRastreiosPendentes(loja.id).then((res) => {
+              if (res.atualizados_para_entregue > 0) {
+                carregarPedidos(false, true);
+              }
+            }).catch(() => {});
+          }
+        }
+
         if (tocarAlerta && somAtivo) {
           audioService.playNewOrderSound();
         }
@@ -1279,14 +1296,15 @@ export const PedidosLista: React.FC = () => {
         };
       }
 
-      // 2. Garantir que dados do cliente (nome, telefone) estejam presentes no pedido
+      // 2. Garantir que dados do cliente (nome, telefone, documento) estejam presentes no pedido
       let pedCompleto = ped;
-      if ((!pedCompleto.cliente || !pedCompleto.cliente.whatsapp) && pedCompleto.cliente_id) {
+      if ((!pedCompleto.cliente || !pedCompleto.cliente.whatsapp || !pedCompleto.cliente.numero_documento) && (pedCompleto.cliente_id || pedCompleto.cliente?.id)) {
         try {
           const { data: cliDb } = await supabase
             .from('clientes')
             .select('*')
-            .eq('id', pedCompleto.cliente_id)
+            .eq('id', pedCompleto.cliente_id || pedCompleto.cliente?.id)
+            .eq('loja_id', loja.id)
             .maybeSingle();
 
           if (cliDb) {
@@ -1520,22 +1538,52 @@ export const PedidosLista: React.FC = () => {
       const { ped, entrega } = pedidoPendenteDespacho;
 
       // 1. Atualiza o documento no cliente (se cadastrado) e no pedido
-      if (ped.cliente_id) {
-        await supabase
+      const clienteIdAlvo = ped.cliente_id || ped.cliente?.id;
+      const tipoDoc: 'CPF' | 'CNPJ' = docLimpo.length > 11 ? 'CNPJ' : 'CPF';
+      if (clienteIdAlvo) {
+        const { error: errCli } = await supabase
           .from('clientes')
-          .update({ numero_documento: docLimpo })
-          .eq('id', ped.cliente_id);
+          .update({
+            numero_documento: docLimpo,
+            tipo_documento: tipoDoc,
+            atualizado_em: new Date().toISOString()
+          })
+          .eq('id', clienteIdAlvo)
+          .eq('loja_id', loja.id);
+
+        if (errCli) {
+          console.error('Erro ao atualizar documento do cliente:', errCli);
+        }
       }
 
       await supabase
         .from('pedidos')
-        .update({ cliente_documento_avulso: docLimpo })
-        .eq('id', ped.id);
+        .update({
+          cliente_documento_avulso: docLimpo,
+          atualizado_em: new Date().toISOString()
+        })
+        .eq('id', ped.id)
+        .eq('loja_id', loja.id);
+
+      setClientes((prev) =>
+        prev.map((c) => (c.id === clienteIdAlvo ? { ...c, numero_documento: docLimpo, tipo_documento: tipoDoc } : c))
+      );
+      setPedidos((prev) =>
+        prev.map((p) =>
+          p.id === ped.id || (clienteIdAlvo && (p.cliente_id === clienteIdAlvo || p.cliente?.id === clienteIdAlvo))
+            ? {
+                ...p,
+                cliente_documento_avulso: p.id === ped.id ? docLimpo : p.cliente_documento_avulso,
+                cliente: p.cliente ? { ...p.cliente, numero_documento: docLimpo, tipo_documento: tipoDoc } : p.cliente
+              }
+            : p
+        )
+      );
 
       const pedAtualizado: Pedido = {
         ...ped,
         cliente_documento_avulso: docLimpo,
-        cliente: ped.cliente ? { ...ped.cliente, numero_documento: docLimpo } : ped.cliente
+        cliente: ped.cliente ? { ...ped.cliente, numero_documento: docLimpo, tipo_documento: tipoDoc } : ped.cliente
       };
 
       setModalCpfClienteAberto(false);
@@ -4554,16 +4602,7 @@ export const PedidosLista: React.FC = () => {
               />
             </div>
 
-            <div className="flex items-center justify-between gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => setCpfClienteInput('012.345.678-90')}
-                className="text-[11px] text-emerald-500 hover:text-emerald-400 underline font-semibold transition cursor-pointer"
-                title="Preencher documento fictício para testes no Sandbox"
-              >
-                Preencher CPF Teste
-              </button>
-
+            <div className="flex items-center justify-end gap-2 pt-1">
               <div className="flex items-center gap-2">
                 <button
                   type="button"

@@ -809,7 +809,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   const emitirSelecaoManual = useCallback((
     forma: FormaEntrega,
     valorStr: string,
-    endAlvo: ClienteEndereco | null,
+    endAlvo?: ClienteEndereco | Partial<ClienteEndereco> | null,
     dadosAdicionais?: {
       entregador?: string;
       contatoEntregador?: string;
@@ -824,7 +824,17 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
       transportadoraId?: string;
     }
   ) => {
-    if (!endAlvo) return;
+    const endSeguro: ClienteEndereco = (endAlvo && (endAlvo as ClienteEndereco).id ? endAlvo as ClienteEndereco : null) || (enderecoEntregaAtual && (enderecoEntregaAtual as ClienteEndereco).id ? enderecoEntregaAtual as ClienteEndereco : null) || {
+      id: 'end_manual_provisorio',
+      cliente_id: clienteId || '',
+      logradouro: 'Endereço a confirmar',
+      numero: 'S/N',
+      bairro: '',
+      cidade: '',
+      uf: '',
+      cep: '00000000',
+      is_principal: true
+    };
     const numVal = parseFloat(valorStr.replace(',', '.')) || 0;
 
     let tipoEntregaCalculado: 'proprio' | 'transportadora' | 'manual' = 'manual';
@@ -908,7 +918,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
       tipo_cobranca: 'manual'
     };
 
-    const chaveEmissao = `manual_${forma.id}_${numVal}_${endAlvo.cep}_${endAlvo.numero}_${entregadorFinal || ''}_${rastreioFinal || ''}_${linkFinal || ''}_${pinFinal || ''}_${nomeAppFinal || ''}_${servicoCorreiosFinal || ''}_${nomeTransportadoraFinal || ''}_${appEntregaIdFinal || ''}_${transportadoraIdFinal || ''}_${codigoCorridaFinal || ''}`;
+    const chaveEmissao = `manual_${forma.id}_${numVal}_${endSeguro.cep}_${endSeguro.numero}_${entregadorFinal || ''}_${rastreioFinal || ''}_${linkFinal || ''}_${pinFinal || ''}_${nomeAppFinal || ''}_${servicoCorreiosFinal || ''}_${nomeTransportadoraFinal || ''}_${appEntregaIdFinal || ''}_${transportadoraIdFinal || ''}_${codigoCorridaFinal || ''}`;
     if (ultimoResultadoEmitidoRef.current === chaveEmissao) return;
     ultimoResultadoEmitidoRef.current = chaveEmissao;
 
@@ -917,7 +927,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
       valor_frete: numVal,
       opcao_frete: opcaoManual,
       opcao_selecionada: opcaoManual,
-      endereco_selecionado: endAlvo,
+      endereco_selecionado: endSeguro,
       pedido_entrega: {
         pedido_id: '',
         forma_entrega_id: forma.id,
@@ -925,16 +935,16 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         tipo_entrega: tipoEntregaCalculado,
         tipo_operacao: forma.tipo,
         tipo_atendimento: 'entrega',
-        cliente_endereco_id: endAlvo.id && isUuidValido(endAlvo.id) ? endAlvo.id : null,
-        destino_cep: endAlvo.cep,
-        destino_logradouro: endAlvo.logradouro,
-        destino_numero: endAlvo.numero,
-        destino_complemento: endAlvo.complemento,
-        destino_bairro: endAlvo.bairro,
-        destino_cidade: endAlvo.cidade,
-        destino_uf: endAlvo.uf,
-        destino_latitude: endAlvo.latitude,
-        destino_longitude: endAlvo.longitude,
+        cliente_endereco_id: endSeguro.id && isUuidValido(endSeguro.id) ? endSeguro.id : null,
+        destino_cep: endSeguro.cep,
+        destino_logradouro: endSeguro.logradouro,
+        destino_numero: endSeguro.numero,
+        destino_complemento: endSeguro.complemento,
+        destino_bairro: endSeguro.bairro,
+        destino_cidade: endSeguro.cidade,
+        destino_uf: endSeguro.uf,
+        destino_latitude: endSeguro.latitude,
+        destino_longitude: endSeguro.longitude,
         provedor: provedorFinal,
         transportadora_nome: transpOuAppFinal,
         servico_codigo: forma.tipo,
@@ -967,57 +977,55 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     setFormaManualEscolhidaId(forma.id);
     setModalidade('entrega');
     setViaEntrega('manual');
-    if (enderecoSelecionado) {
-      emitirSelecaoManual(forma, novoTexto, enderecoSelecionado);
-    }
+    emitirSelecaoManual(forma, novoTexto, enderecoSelecionado || enderecoEntregaAtual);
   };
 
   const handleAlterarEntregador = (forma: FormaEntrega, valor: string) => {
     setEntregadores(prev => ({ ...prev, [forma.id]: valor }));
-    if (enderecoSelecionado && formaManualEscolhidaId === forma.id) {
+    if (formaManualEscolhidaId === forma.id) {
       const preco = valoresManuais[forma.id] ?? (forma.valor_taxa > 0 ? forma.valor_taxa.toString() : '0');
-      emitirSelecaoManual(forma, preco, enderecoSelecionado, { entregador: valor });
+      emitirSelecaoManual(forma, preco, enderecoSelecionado || enderecoEntregaAtual, { entregador: valor });
     }
   };
 
   const handleAlterarContatoEntregador = (forma: FormaEntrega, valor: string) => {
     setContatosEntregadores(prev => ({ ...prev, [forma.id]: valor }));
-    if (enderecoSelecionado && formaManualEscolhidaId === forma.id) {
+    if (formaManualEscolhidaId === forma.id) {
       const preco = valoresManuais[forma.id] ?? (forma.valor_taxa > 0 ? forma.valor_taxa.toString() : '0');
-      emitirSelecaoManual(forma, preco, enderecoSelecionado, { contatoEntregador: valor });
+      emitirSelecaoManual(forma, preco, enderecoSelecionado || enderecoEntregaAtual, { contatoEntregador: valor });
     }
   };
 
   const handleAlterarCodigoRastreio = (forma: FormaEntrega, valor: string) => {
     setCodigosRastreio(prev => ({ ...prev, [forma.id]: valor }));
-    if (enderecoSelecionado && formaManualEscolhidaId === forma.id) {
+    if (formaManualEscolhidaId === forma.id) {
       const preco = valoresManuais[forma.id] ?? (forma.valor_taxa > 0 ? forma.valor_taxa.toString() : '0');
-      emitirSelecaoManual(forma, preco, enderecoSelecionado, { rastreio: valor });
+      emitirSelecaoManual(forma, preco, enderecoSelecionado || enderecoEntregaAtual, { rastreio: valor });
     }
   };
 
   const handleAlterarLinkRastreio = (forma: FormaEntrega, valor: string) => {
     setLinksRastreio(prev => ({ ...prev, [forma.id]: valor }));
-    if (enderecoSelecionado && formaManualEscolhidaId === forma.id) {
+    if (formaManualEscolhidaId === forma.id) {
       const preco = valoresManuais[forma.id] ?? (forma.valor_taxa > 0 ? forma.valor_taxa.toString() : '0');
-      emitirSelecaoManual(forma, preco, enderecoSelecionado, { link: valor });
+      emitirSelecaoManual(forma, preco, enderecoSelecionado || enderecoEntregaAtual, { link: valor });
     }
   };
 
   const handleAlterarPin = (forma: FormaEntrega, valor: string) => {
     const limpo = valor.replace(/\D/g, '').slice(0, 4);
     setPinsEntrega(prev => ({ ...prev, [forma.id]: limpo }));
-    if (enderecoSelecionado && formaManualEscolhidaId === forma.id) {
+    if (formaManualEscolhidaId === forma.id) {
       const preco = valoresManuais[forma.id] ?? (forma.valor_taxa > 0 ? forma.valor_taxa.toString() : '0');
-      emitirSelecaoManual(forma, preco, enderecoSelecionado, { pin: limpo });
+      emitirSelecaoManual(forma, preco, enderecoSelecionado || enderecoEntregaAtual, { pin: limpo });
     }
   };
 
   const handleAlterarNomeApp = (forma: FormaEntrega, valor: string) => {
     setNomesApp(prev => ({ ...prev, [forma.id]: valor }));
-    if (enderecoSelecionado && formaManualEscolhidaId === forma.id) {
+    if (formaManualEscolhidaId === forma.id) {
       const preco = valoresManuais[forma.id] ?? (forma.valor_taxa > 0 ? forma.valor_taxa.toString() : '0');
-      emitirSelecaoManual(forma, preco, enderecoSelecionado, { nomeApp: valor });
+      emitirSelecaoManual(forma, preco, enderecoSelecionado || enderecoEntregaAtual, { nomeApp: valor });
     }
   };
 
@@ -1027,9 +1035,9 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     if (app) {
       setNomesApp(prev => ({ ...prev, [forma.id]: app.nome }));
     }
-    if (enderecoSelecionado && formaManualEscolhidaId === forma.id) {
+    if (formaManualEscolhidaId === forma.id) {
       const preco = valoresManuais[forma.id] ?? (forma.valor_taxa > 0 ? forma.valor_taxa.toString() : '0');
-      emitirSelecaoManual(forma, preco, enderecoSelecionado, {
+      emitirSelecaoManual(forma, preco, enderecoSelecionado || enderecoEntregaAtual, {
         appEntregaId: appId,
         nomeApp: app?.nome
       });
@@ -1038,9 +1046,9 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
   const handleAlterarCodigoCorrida = (forma: FormaEntrega, codigo: string) => {
     setCodigosCorrida(prev => ({ ...prev, [forma.id]: codigo }));
-    if (enderecoSelecionado && formaManualEscolhidaId === forma.id) {
+    if (formaManualEscolhidaId === forma.id) {
       const preco = valoresManuais[forma.id] ?? (forma.valor_taxa > 0 ? forma.valor_taxa.toString() : '0');
-      emitirSelecaoManual(forma, preco, enderecoSelecionado, { codigoCorrida: codigo });
+      emitirSelecaoManual(forma, preco, enderecoSelecionado || enderecoEntregaAtual, { codigoCorrida: codigo });
     }
   };
 
@@ -1050,9 +1058,9 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     if (transp) {
       setNomesTransportadora(prev => ({ ...prev, [forma.id]: transp.nome }));
     }
-    if (enderecoSelecionado && formaManualEscolhidaId === forma.id) {
+    if (formaManualEscolhidaId === forma.id) {
       const preco = valoresManuais[forma.id] ?? (forma.valor_taxa > 0 ? forma.valor_taxa.toString() : '0');
-      emitirSelecaoManual(forma, preco, enderecoSelecionado, {
+      emitirSelecaoManual(forma, preco, enderecoSelecionado || enderecoEntregaAtual, {
         transportadoraId: transpId,
         nomeTransportadora: transp?.nome
       });
@@ -1061,35 +1069,26 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
   const handleAlterarServicoCorreios = (forma: FormaEntrega, valor: 'PAC' | 'SEDEX') => {
     setServicosCorreios(prev => ({ ...prev, [forma.id]: valor }));
-    if (enderecoSelecionado && formaManualEscolhidaId === forma.id) {
+    if (formaManualEscolhidaId === forma.id) {
       const preco = valoresManuais[forma.id] ?? (forma.valor_taxa > 0 ? forma.valor_taxa.toString() : '0');
-      emitirSelecaoManual(forma, preco, enderecoSelecionado, { servicoCorreios: valor });
+      emitirSelecaoManual(forma, preco, enderecoSelecionado || enderecoEntregaAtual, { servicoCorreios: valor });
     }
   };
 
   const handleAlterarNomeTransportadora = (forma: FormaEntrega, valor: string) => {
     setNomesTransportadora(prev => ({ ...prev, [forma.id]: valor }));
-    if (enderecoSelecionado && formaManualEscolhidaId === forma.id) {
+    if (formaManualEscolhidaId === forma.id) {
       const preco = valoresManuais[forma.id] ?? (forma.valor_taxa > 0 ? forma.valor_taxa.toString() : '0');
-      emitirSelecaoManual(forma, preco, enderecoSelecionado, { nomeTransportadora: valor });
+      emitirSelecaoManual(forma, preco, enderecoSelecionado || enderecoEntregaAtual, { nomeTransportadora: valor });
     }
   };
 
   const handleSelecionarFormaManual = (forma: FormaEntrega) => {
-    const cepLimpo = (enderecoSelecionado?.cep || '').replace(/\D/g, '');
-    const logrLimpo = (enderecoSelecionado?.logradouro || '').trim();
-    const numLimpo = (enderecoSelecionado?.numero || '').trim();
-
-    if (!clienteId || !enderecoSelecionado || cepLimpo.length !== 8 || !logrLimpo || !numLimpo) {
-      onSolicitarAtualizarEndereco?.();
-      return;
-    }
-
     setModalidade('entrega');
     setViaEntrega('manual');
     setFormaManualEscolhidaId(forma.id);
     const preco = valoresManuais[forma.id] ?? (forma.valor_taxa > 0 ? forma.valor_taxa.toString() : '0');
-    emitirSelecaoManual(forma, preco, enderecoSelecionado);
+    emitirSelecaoManual(forma, preco, enderecoSelecionado || enderecoEntregaAtual);
   };
 
   // Dispara cotação automática quando o endereço for definido e houver integrações ativas
@@ -1638,32 +1637,6 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
               <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
               <span>Verificando endereço para entrega...</span>
             </div>
-          ) : (!clienteId || !enderecoSelecionado || !(enderecoSelecionado.cep || '').replace(/\D/g, '') || !(enderecoSelecionado.logradouro || '').trim()) ? (
-            <div className={`p-3.5 rounded-2xl space-y-2.5 border ${
-              ehDark
-                ? 'bg-[#000000] border-amber-500/40 text-white'
-                : 'bg-white border-2 border-amber-400 text-slate-900 shadow-xs'
-            }`}>
-              <div className={`flex items-center gap-2 font-bold text-xs ${
-                ehDark ? 'text-amber-400' : 'text-amber-900'
-              }`}>
-                <AlertCircle className={`w-4 h-4 shrink-0 ${ehDark ? 'text-amber-400' : 'text-amber-600'}`} />
-                <span>Endereço incompleto para entrega</span>
-              </div>
-              <p className={`text-xs leading-relaxed ${
-                ehDark ? 'text-slate-200' : 'text-black font-semibold'
-              }`}>
-                Para calcular e despachar entregas, atualize o endereço do cliente.
-              </p>
-              <button
-                type="button"
-                onClick={() => onSolicitarAtualizarEndereco?.()}
-                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm active:scale-95"
-              >
-                <MapPin className="w-3.5 h-3.5" />
-                <span>Atualizar Endereço</span>
-              </button>
-            </div>
           ) : (
             <div className="space-y-3">
               {/* Seletor de Duas Vias de Entrega (Apenas no painel do lojista se houver integração automática ativa) */}
@@ -1715,6 +1688,50 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
               {/* VIA A: COTAÇÃO AUTOMÁTICA EM TEMPO REAL (UBER DIRECT / MELHOR ENVIO) */}
               {(viaEntrega === 'cotar' || ehCatalogo) && (
+                (!clienteId || !enderecoSelecionado || !(enderecoSelecionado.cep || '').replace(/\D/g, '') || !(enderecoSelecionado.logradouro || '').trim()) ? (
+                  <div className={`p-3.5 rounded-2xl space-y-2.5 border ${
+                    ehDark
+                      ? 'bg-[#000000] border-amber-500/40 text-white'
+                      : 'bg-white border-2 border-amber-400 text-slate-900 shadow-xs'
+                  }`}>
+                    <div className={`flex items-center gap-2 font-bold text-xs ${
+                      ehDark ? 'text-amber-400' : 'text-amber-900'
+                    }`}>
+                      <AlertCircle className={`w-4 h-4 shrink-0 ${ehDark ? 'text-amber-400' : 'text-amber-600'}`} />
+                      <span>Endereço incompleto para cotação automática</span>
+                    </div>
+                    <p className={`text-xs leading-relaxed ${
+                      ehDark ? 'text-slate-200' : 'text-black font-semibold'
+                    }`}>
+                      Para cotar via Uber Direct ou Melhor Envio, informe o endereço completo. Ou, se preferir, lance o frete manualmente.
+                    </p>
+                    <div className="flex items-center gap-2 pt-1 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => onSolicitarAtualizarEndereco?.()}
+                        className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm active:scale-95"
+                      >
+                        <MapPin className="w-3.5 h-3.5" />
+                        <span>Atualizar Endereço</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setModalidade('entrega');
+                          setViaEntrega('manual');
+                        }}
+                        className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm active:scale-95 border ${
+                          ehDark
+                            ? 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
+                        }`}
+                      >
+                        <PenLine className="w-3.5 h-3.5" />
+                        <span>Informar Frete (Manual)</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
                 <div className="space-y-3">
                   {/* Painel de Conferência de Volumes e Dimensões do Pacote (Apenas lojista) */}
                   {(temMelhorEnvio || temUber) && !ehCatalogo && (
@@ -2407,7 +2424,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                     </div>
                   )}
                 </div>
-              )}
+              )
+            )}
 
               {/* VIA B: INFORMAR FRETE MANUALMENTE (FORMAS RELACIONAIS CADASTRADAS) */}
               {viaEntrega === 'manual' && (

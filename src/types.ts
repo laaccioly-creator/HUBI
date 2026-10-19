@@ -536,6 +536,7 @@ export interface Cliente {
   whatsapp?: string | null;
   email?: string | null;
   numero_documento?: string | null;
+  tipo_documento?: TipoDocumento | string | null;
   tabela_preco_padrao: TabelaPreco;
   endereco_cep?: string | null;
   endereco_logradouro?: string | null;

@@ -1108,6 +1108,137 @@ serve(async (req: Request) => {
     }
 
     // -------------------------------------------------------------------------
+    // AÇÃO DEDICADA: Sincronização Periódica / Em Lote de Rastreios Pendentes
+    // -------------------------------------------------------------------------
+    if (acao === "sincronizar_rastreios_pendentes" || acao === "sync_pendentes") {
+      console.log(`[MelhorEnvio-Edge] Iniciando sincronização em lote para loja ${lojaId}...`);
+
+      const { data: pedidosPendentes, error: errPed } = await supabaseAdmin
+        .from("pedidos")
+        .select("id, status, codigo_rastreio, link_rastreio, despachado_em, metadados, pedido_entregas(id, status_envio, codigo_rastreio, provedor)")
+        .eq("loja_id", lojaId)
+        .eq("status", "enviado")
+        .limit(25);
+
+      if (errPed || !pedidosPendentes || pedidosPendentes.length === 0) {
+        return new Response(
+          JSON.stringify({ sucesso: true, processados: 0, atualizados_para_entregue: 0, mensagem: "Nenhum pedido pendente de rastreio." }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      let totalAtualizados = 0;
+      const agora = new Date().toISOString();
+
+      for (const pedItem of pedidosPendentes) {
+        try {
+          const orderIdME = pedItem.metadados?.melhor_envio_order_id;
+          const codRastreio = pedItem.codigo_rastreio || pedItem.pedido_entregas?.[0]?.codigo_rastreio;
+
+          let ehEntregue = false;
+
+          if (codRastreio && !codRastreio.startsWith("ORD-")) {
+            try {
+              const mrQuery = {
+                query: `query {
+                  findByTrackingCode(tracker: { trackingCode: "${codRastreio}" }) {
+                    lastStatus
+                    deliveredAt
+                  }
+                }`
+              };
+              const mrRes = await fetch("https://api.melhorrastreio.com.br/graphql", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "User-Agent": "HUBI Sistema (suporte@hubi.app)"
+                },
+                body: JSON.stringify(mrQuery)
+              });
+              if (mrRes.ok) {
+                const mrJson = await mrRes.json();
+                const parcel = mrJson?.data?.findByTrackingCode;
+                if (parcel?.deliveredAt || parcel?.lastStatus === "DELIVERED") {
+                  ehEntregue = true;
+                }
+              }
+            } catch (eMr) {
+              console.warn(`[MelhorEnvio-Edge] Falha GraphQL para ${codRastreio}:`, eMr);
+            }
+          }
+
+          if (!ehEntregue && orderIdME) {
+            try {
+              const resTrack = await fetch(`${baseUrl}/api/v2/me/shipment/tracking`, {
+                method: "POST",
+                headers: headersComuns,
+                body: JSON.stringify({ orders: [orderIdME] })
+              });
+              if (resTrack.ok) {
+                const trackData = await resTrack.json();
+                const info = trackData[orderIdME];
+                const st = (info?.status || "").toLowerCase();
+                if (st === "delivered" || st === "entregue") {
+                  ehEntregue = true;
+                }
+              }
+            } catch (eTrack) {
+              console.warn(`[MelhorEnvio-Edge] Falha tracking API para order ${orderIdME}:`, eTrack);
+            }
+          }
+
+          if (ehEntregue) {
+            totalAtualizados++;
+            await supabaseAdmin
+              .from("pedido_entregas")
+              .update({
+                status_envio: "entregue",
+                atualizado_em: agora,
+              })
+              .eq("pedido_id", pedItem.id);
+
+            await supabaseAdmin
+              .from("pedidos")
+              .update({
+                status: "entregue",
+                atualizado_em: agora,
+                metadados: {
+                  ...(pedItem.metadados || {}),
+                  data_entrega: agora,
+                  melhor_envio_status: "delivered",
+                }
+              })
+              .eq("id", pedItem.id);
+
+            try {
+              await supabaseAdmin.from("historico_pedidos").insert({
+                loja_id: lojaId,
+                pedido_id: pedItem.id,
+                tipo_evento: "status_alterado",
+                status_anterior: "enviado",
+                status_novo: "entregue",
+                descricao: "Entrega sincronizada automaticamente em segundo plano",
+                motivo: "Verificação periódica de rastreio",
+                criado_em: agora,
+              });
+            } catch (_) {}
+          }
+        } catch (eLoop) {
+          console.warn(`[MelhorEnvio-Edge] Erro ao sincronizar pedido ${pedItem.id}:`, eLoop);
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          sucesso: true,
+          processados: pedidosPendentes.length,
+          atualizados_para_entregue: totalAtualizados,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // -------------------------------------------------------------------------
     // 3. Validação e Sanitização de Documentos (from.document e to.document)
     // -------------------------------------------------------------------------
     // A. Remetente (from.document): Loja / Titular da Conta

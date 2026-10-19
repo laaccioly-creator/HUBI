@@ -335,7 +335,9 @@ export const obterInfoEntregaRecibo = (
   } else if (ehCorreios) {
     formaEntregaTexto = servicoCorreios ? `Correios (${servicoCorreios})` : 'Correios';
   } else if (ehAppEntrega) {
-    if (nomeApp && !nomeApp.toLowerCase().includes('direct')) {
+    if (provedor === 'uber' || transp.toLowerCase().includes('uber direct') || (nomeApp && nomeApp.toLowerCase().includes('uber direct'))) {
+      formaEntregaTexto = 'Uber Direct';
+    } else if (nomeApp && !nomeApp.toLowerCase().includes('direct')) {
       formaEntregaTexto = nomeApp;
     } else if (transp.toLowerCase().includes('uber flash')) {
       formaEntregaTexto = 'Uber Flash';
@@ -343,6 +345,8 @@ export const obterInfoEntregaRecibo = (
       formaEntregaTexto = '99 Entrega';
     } else if (transp.toLowerCase().includes('lalamove')) {
       formaEntregaTexto = 'Lalamove';
+    } else if (transp && transp.toLowerCase() !== 'entrega' && !transp.toLowerCase().includes('corrida')) {
+      formaEntregaTexto = transp;
     } else {
       formaEntregaTexto = (nomeApp && nomeApp.toLowerCase().includes('uber')) ? 'Uber Direct' : (nomeApp || 'App de Corrida');
     }
@@ -470,7 +474,7 @@ export class PrintService {
 
       const receiptInnerHtml = `
         <div class="receipt-container" style="
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+          font-family: 'ui-monospace', 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
           color: #1e293b !important;
           background: #ffffff !important;
           font-size: ${isA4 ? '13px' : '11px'};
@@ -481,40 +485,43 @@ export class PrintService {
           padding: ${isA4 ? '35px 25px' : '12px 8px'};
           box-sizing: border-box;
         ">
-          <!-- Logo da Loja -->
-          ${logoHtml}
-
-          <!-- Título RECIBO # -->
-          <div style="text-align: center; margin-bottom: 18px;">
-            <h2 style="margin: 0; font-size: ${isA4 ? '20px' : '16px'}; font-weight: 700; color: #334155; letter-spacing: 0.5px;">
-              RECIBO #${pedido.numero_pedido}
-            </h2>
-            ${pedido.status === 'cancelado' ? `
-            <div style="display: inline-block; margin-top: 8px; padding: 6px 14px; border: 2px dashed #e11d48; background: #fff1f2; border-radius: 8px; text-align: center;">
-              <span style="color: #e11d48; font-weight: 900; font-size: ${isA4 ? '16px' : '13px'}; letter-spacing: 1.5px; text-transform: uppercase; display: block;">
-                PEDIDO CANCELADO
-              </span>
-              <span style="color: #be123c; font-size: ${isA4 ? '11px' : '9px'}; font-weight: 700; text-transform: uppercase; display: block; margin-top: 2px;">
-                Venda anulada no sistema
-              </span>
-            </div>
-            ` : ''}
-          </div>
-
-          <!-- Informações da Loja -->
-          <div style="margin-bottom: 14px; font-size: ${isA4 ? '13px' : '11px'}; color: #334155;">
-            <div style="font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">
+          <!-- Logo e Cabeçalho da Loja -->
+          <div style="text-align: center; border-bottom: 1px dashed #cbd5e1; padding-bottom: 10px; margin-bottom: 10px;">
+            ${logoHtml}
+            <div style="font-weight: 800; font-size: ${isA4 ? '16px' : '13px'}; text-transform: uppercase; margin-bottom: 2px; color: #0f172a;">
               ${nomeLoja}
             </div>
-            ${lojaContatoFormatado ? `<div>${lojaContatoFormatado}</div>` : ''}
+            ${enderecoLinha ? `<div style="font-size: ${isA4 ? '12px' : '10px'}; color: #475569;">${enderecoLinha}</div>` : ''}
+            ${telefoneLoja ? `<div style="font-size: ${isA4 ? '12px' : '10px'}; color: #475569;">${telefoneLoja}</div>` : ''}
           </div>
 
+          <!-- Título RECIBO # e Data/Hora no Topo -->
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #cbd5e1; padding-bottom: 8px; margin-bottom: 10px; font-size: ${isA4 ? '12px' : '10px'};">
+            <span style="font-weight: 800; color: #0f172a; font-size: ${isA4 ? '14px' : '11px'};">
+              RECIBO #${pedido.numero_pedido}
+            </span>
+            <span style="color: #475569; font-weight: 600;">
+              ${dataFormatada}
+            </span>
+          </div>
+
+          ${pedido.status === 'cancelado' ? `
+          <div style="display: block; margin-bottom: 10px; padding: 6px 14px; border: 2px dashed #e11d48; background: #fff1f2; border-radius: 8px; text-align: center;">
+            <span style="color: #e11d48; font-weight: 900; font-size: ${isA4 ? '15px' : '12px'}; letter-spacing: 1.5px; text-transform: uppercase; display: block;">
+              PEDIDO CANCELADO
+            </span>
+            <span style="color: #be123c; font-size: ${isA4 ? '11px' : '9px'}; font-weight: 700; text-transform: uppercase; display: block; margin-top: 2px;">
+              Venda anulada no sistema
+            </span>
+          </div>
+          ` : ''}
+
           <!-- Informações do Vendedor / Origem (Antes do Cliente) -->
-          <div style="margin-bottom: 12px; font-size: ${isA4 ? '13px' : '11px'}; color: #334155; border-bottom: 1px dashed #e2e8f0; padding-bottom: 6px;">
+          <div style="margin-bottom: 10px; font-size: ${isA4 ? '12px' : '10px'}; color: #334155; border-bottom: 1px dashed #e2e8f0; padding-bottom: 6px;">
             <div style="font-size: ${isA4 ? '11px' : '9px'}; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1px;">
               ${vendedorInfo.label}:
             </div>
-            <div style="font-weight: 700; color: #0f172a; font-size: ${isA4 ? '14px' : '12px'};">
+            <div style="font-weight: 700; color: #0f172a; font-size: ${isA4 ? '13px' : '11px'};">
               ${vendedorInfo.valor}
               ${vendedorInfo.ehCatalogo ? `<span style="font-size: ${isA4 ? '11px' : '9px'}; font-weight: 600; color: #059669; margin-left: 4px;">(Pedido Online)</span>` : ''}
             </div>
@@ -522,13 +529,18 @@ export class PrintService {
           </div>
 
           <!-- Informações do Cliente -->
-          <div style="margin-bottom: 12px; font-size: ${isA4 ? '13px' : '11px'}; color: #334155;">
+          <div style="margin-bottom: 10px; font-size: ${isA4 ? '12px' : '10px'}; color: #334155; border-bottom: 1px dashed #e2e8f0; padding-bottom: 6px;">
             <div style="font-size: ${isA4 ? '11px' : '9px'}; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1px;">
               Cliente:
             </div>
-            <div style="font-weight: 600; margin-bottom: 2px; color: #0f172a;">
+            <div style="font-weight: 700; color: #0f172a; font-size: ${isA4 ? '13px' : '11px'};">
               ${clienteNome}
             </div>
+            ${clienteTelefone ? `
+              <div style="font-size: ${isA4 ? '11px' : '10px'}; color: #475569; margin-top: 1px;">
+                ${clienteTelefone}
+              </div>
+            ` : ''}
           </div>
 
           <!-- Bloco de Forma de Entrega e Endereço -->
@@ -599,9 +611,13 @@ export class PrintService {
             ` : ''}
           </div>
 
-          <!-- Total -->
-          <div style="text-align: right; margin: 12px 0 6px 0; font-size: ${isA4 ? '16px' : '14px'}; font-weight: 700; color: #0f172a;">
-            Total: R$ ${Number(pedido.valor_total || 0).toFixed(2)}
+          <!-- Linha Divisória Tracejada -->
+          <div style="border-top: 1px dashed #cbd5e1; margin: 8px 0 6px 0;"></div>
+
+          <!-- Total da Venda em Destaque -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin: 8px 0 6px 0; font-size: ${isA4 ? '15px' : '13px'}; font-weight: 800; color: #0f172a;">
+            <span>VALOR TOTAL:</span>
+            <span style="font-size: ${isA4 ? '18px' : '15px'}; font-weight: 900; color: #0f172a;">R$ ${Number(pedido.valor_total || 0).toFixed(2)}</span>
           </div>
 
           ${(pagamentoInfo.ehFiado && Number(pedido.saldo_devedor || 0) > 0) ? `
@@ -657,14 +673,6 @@ export class PrintService {
                 Aguardando quitação pelo cliente ou confirmação de pagamento.
               </div>
             `}
-          </div>
-
-          <!-- Linha Divisória Inferior -->
-          <div style="border-top: 1.5px solid #334155; margin: 8px 0 14px 0;"></div>
-
-          <!-- Data e Hora por Extenso -->
-          <div style="text-align: center; font-size: ${isA4 ? '12px' : '10px'}; color: #64748b; font-weight: 400;">
-            ${dataFormatada}
           </div>
         </div>
       `;
@@ -915,17 +923,18 @@ export class PrintService {
     let text = '';
     text += '\x1B\x61\x01'; // Align Center
     text += '\x1B\x45\x01'; // Bold ON
-    text += `RECIBO #${pedido.numero_pedido}\n`;
     text += `${(loja.nome_fantasia || 'HUBI').toUpperCase()}\n`;
     text += '\x1B\x45\x00'; // Bold OFF
+    if (loja.telefone || loja.whatsapp) text += `Tel/Whats: ${loja.whatsapp || loja.telefone}\n`;
+    if (loja.endereco_cidade) text += `${loja.endereco_cidade} - ${loja.endereco_estado || ''}\n`;
+    text += divider;
+    text += `RECIBO #${pedido.numero_pedido}   ${formatarDataRecibo(pedido.data_venda || pedido.criado_em)}\n`;
     if (pedido.status === 'cancelado') {
       text += '\x1B\x45\x01'; // Bold ON
       text += `*** PEDIDO CANCELADO ***\n`;
       text += `(VENDA ANULADA NO SISTEMA)\n`;
       text += '\x1B\x45\x00'; // Bold OFF
     }
-    if (loja.telefone || loja.whatsapp) text += `Tel/Whats: ${loja.whatsapp || loja.telefone}\n`;
-    if (loja.endereco_cidade) text += `${loja.endereco_cidade} - ${loja.endereco_estado || ''}\n`;
     text += divider;
 
     const {
@@ -937,8 +946,12 @@ export class PrintService {
 
     const vendedorInfo = formatarVendedorRecibo(pedido);
     text += `Vendedor: ${vendedorInfo.valor}\n`;
-    if (pedido.cliente?.nome) text += `Cliente: ${pedido.cliente.nome}\n`;
-    text += `Forma de Entrega: ${formaEntregaTexto}\n`;
+    if (pedido.cliente?.nome) {
+      text += `Cliente: ${pedido.cliente.nome}\n`;
+      const telCli = pedido.cliente?.whatsapp || pedido.cliente?.telefone || (pedido as any).cliente_telefone_avulso;
+      if (telCli) text += `Contato: ${telCli}\n`;
+    }
+    text += `Forma de Entrega: ${formaEntregaTexto.toUpperCase()}\n`;
     if (enderecoExibicao) {
       text += `${labelEndereco} ${enderecoExibicao.slice(0, cols - 10)}\n`;
     }

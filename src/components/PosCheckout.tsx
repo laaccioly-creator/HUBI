@@ -487,9 +487,14 @@ export const PosCheckout: React.FC = () => {
     };
   }, [clienteSelecionado, loja?.id, valorLinhaFiado]);
 
+  const ehCupomFreteGratis = Boolean(cupomAplicado && cupomAplicado.tipo === 'frete_gratis');
+  const totalComCupom = useMemo(() => {
+    return Math.max(0, Number((total - (valorDescontoCupom || 0)).toFixed(2)));
+  }, [total, valorDescontoCupom]);
+
   const diferencaPagamento = useMemo(() => {
-    return Number((total - totalLinhasPagamento).toFixed(2));
-  }, [total, totalLinhasPagamento]);
+    return Number((totalComCupom - totalLinhasPagamento).toFixed(2));
+  }, [totalComCupom, totalLinhasPagamento]);
 
   const handleAlterarFormaLinha = (linhaId: string, fp: FormaPagamento) => {
     setLinhasPagamento(prev => prev.map(l => {
@@ -546,7 +551,7 @@ export const PosCheckout: React.FC = () => {
     setLinhasPagamento(prev => {
       const outrasLinhas = prev.filter(l => l.id !== linhaId);
       const somaOutras = outrasLinhas.reduce((sum, l) => sum + (Number(l.valor) || 0), 0);
-      const restante = Math.max(0, Number((total - somaOutras).toFixed(2)));
+      const restante = Math.max(0, Number((totalComCupom - somaOutras).toFixed(2)));
       return prev.map(l => l.id === linhaId ? { ...l, valor: restante } : l);
     });
   };
@@ -1659,20 +1664,29 @@ export const PosCheckout: React.FC = () => {
       // Se estiver online, tenta enviar direto para o Supabase
       if (navigator.onLine) {
         try {
+          const taxaEntregaFinal = ehCupomFreteGratis ? 0 : taxaEntrega;
+          const pedidoEntregaFinal = pedidoEntrega ? {
+            ...pedidoEntrega,
+            valor_frete: taxaEntregaFinal,
+            is_frete_gratis: ehCupomFreteGratis || pedidoEntrega.is_frete_gratis,
+            valor_original: pedidoEntrega.valor_original ?? taxaEntrega,
+            valor_subsidio: ehCupomFreteGratis ? taxaEntrega : (pedidoEntrega.valor_subsidio || 0)
+          } : pedidoEntrega;
+
           const pedidoCriado = await VendaService.gravarVendaSupabase({
             lojaId: loja.id,
             usuarioId: usuario?.id || vendedorId,
             usuario: usuario,
             clienteSelecionado: clienteSelecionado,
             pedidoEmEdicao: pedidoEmEdicao,
-            pedidoEntrega: pedidoEntrega,
+            pedidoEntrega: pedidoEntregaFinal,
             clientRequestId: clientRequestId,
             itens: itens,
             linhasPagamento: linhasAtivas,
             formasPagamentoDisponiveis: formasPagamento,
-            taxaEntrega: taxaEntrega,
+            taxaEntrega: taxaEntregaFinal,
             subtotal: subtotal,
-            desconto: Number(((desconto || 0) + (valorDescontoCupom || 0)).toFixed(2)),
+            desconto: Number(((desconto || 0) + (ehCupomFreteGratis ? 0 : (valorDescontoCupom || 0))).toFixed(2)),
             descontoPercentual: descontoPercentual,
             tipoDesconto: tipoDesconto,
             total: totalEfetivo,
@@ -1707,10 +1721,10 @@ export const PosCheckout: React.FC = () => {
           }
 
           // Preservar o snapshot completo da entrega no pedido concluído antes de limpar o carrinho
-          const entregaFinalSnapshot = pedidoCriado.pedido_entrega || (pedidoEntrega ? {
-            ...pedidoEntrega,
+          const entregaFinalSnapshot = pedidoCriado.pedido_entrega || (pedidoEntregaFinal ? {
+            ...pedidoEntregaFinal,
             pedido_id: pedidoCriado.id,
-            valor_frete: taxaEntrega
+            valor_frete: taxaEntregaFinal
           } as any : null);
 
           const pedidoCompletoFinal: Pedido = {
@@ -2516,7 +2530,6 @@ export const PosCheckout: React.FC = () => {
                       servico_codigo: 'pendente'
                     });
                     setFreteConfirmado(false);
-                    setModalDefinirEnvioAberto(true);
                   }}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
                     pedidoEntrega?.tipo_atendimento === 'entrega'
@@ -3355,7 +3368,12 @@ export const PosCheckout: React.FC = () => {
                   </button>
                 ) : (
                   <span className={`font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-                    {taxaEntrega > 0 ? (
+                    {ehCupomFreteGratis ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        {taxaEntrega > 0 && <span className="line-through text-slate-400 text-[11px]">{formatarMoeda(taxaEntrega)}</span>}
+                        <span className="text-emerald-500 font-black">Grátis (Cupom)</span>
+                      </span>
+                    ) : taxaEntrega > 0 ? (
                       formatarMoeda(taxaEntrega)
                     ) : pedidoEntrega?.tipo_atendimento === 'retirada' ? (
                       'Grátis (Balcão)'
@@ -3381,7 +3399,7 @@ export const PosCheckout: React.FC = () => {
                 isDark ? 'border-slate-800 text-white' : 'border-slate-200 text-black'
               }`}>
                 <span>Total da Venda:</span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-black text-base">{formatarMoeda(total)}</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-black text-base">{formatarMoeda(totalComCupom)}</span>
               </div>
 
               {/* Total dos Meios Informados */}
@@ -3589,7 +3607,6 @@ export const PosCheckout: React.FC = () => {
               });
             }
             setModalDefinirEnvioAberto(false);
-            mostrarSucesso(`Frete definido: R$ ${valFrete.toFixed(2)}!`);
           }}
           onFeedbackSucesso={() => {}}
           onFeedbackErro={(msg) => mostrarErro(msg)}
