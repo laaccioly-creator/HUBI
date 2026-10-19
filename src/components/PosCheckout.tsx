@@ -2584,8 +2584,8 @@ export const PosCheckout: React.FC = () => {
                   </div>
                 )}
 
-                {/* Termômetro Frete Grátis */}
-                {freteGratisAtivoLoja && freteGratisMinimoLoja > 0 && (
+                {/* Termômetro Frete Grátis (Exibido estritamente se for Envio) */}
+                {pedidoEntrega?.tipo_atendimento === 'entrega' && freteGratisAtivoLoja && freteGratisMinimoLoja > 0 && (
                   <div className={`p-2 rounded-xl space-y-1.5 shadow-2xs ${
                     isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
                   }`}>

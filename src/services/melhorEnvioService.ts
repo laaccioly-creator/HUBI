@@ -582,11 +582,33 @@ export class MelhorEnvioService {
     const logradouroOrigem = limparLogradouro(dadosLoja.logradouro || 'Rua Bélgica', numOrigem) || 'Rua Bélgica';
 
     const numDestino = sanitizarNum(endEntrega.numero);
-    const logradouroDestino = limparLogradouro(endEntrega.logradouro || 'Rua Lindolfo Color', numDestino) || 'Rua Lindolfo Color';
+    const logradouroDestino = limparLogradouro(endEntrega.logradouro || 'Rua do Cliente', numDestino) || 'Rua do Cliente';
+    let resolvedService = Number(entrega?.servico_codigo);
+    if (!resolvedService || isNaN(resolvedService)) {
+      const servicoNome = (
+        (entrega as any)?.servico_correios ||
+        (entrega as any)?.transportadora_nome ||
+        (pedido as any)?.servico_correios ||
+        (pedido as any)?.nome_transportadora ||
+        ''
+      ).toUpperCase();
+
+      if (servicoNome.includes('SEDEX')) {
+        resolvedService = 2; // 2: SEDEX no Melhor Envio
+      } else if (servicoNome.includes('PAC')) {
+        resolvedService = 1; // 1: PAC no Melhor Envio
+      } else if (servicoNome.includes('.PACKAGE') || servicoNome.includes('PACKAGE')) {
+        resolvedService = 3; // 3: Jadlog .Package
+      } else if (servicoNome.includes('.COM') || servicoNome.includes('COM')) {
+        resolvedService = 4; // 4: Jadlog .Com
+      } else {
+        resolvedService = 1;
+      }
+    }
 
     // Payload de inserção no carrinho do Melhor Envio
     const cartPayload = {
-      service: Number(entrega.servico_codigo) || 1, // 1: Correios PAC, 2: SEDEX, 3: Jadlog .Package, 4: .Com
+      service: resolvedService, // 1: Correios PAC, 2: SEDEX, 3: Jadlog .Package, 4: .Com
       agency: null,
       from: {
         name: nomeRemetenteFinal,
@@ -675,13 +697,21 @@ export class MelhorEnvioService {
 
       if (edgeData && !edgeData.sucesso) {
         console.error('>>> RESPOSTA COMPLETA DA API DO MELHOR ENVIO:', edgeData.motivo_real_api || edgeData);
-        let motivoStr = edgeData.erro || edgeData.error || 'Falha ao processar com a API do Melhor Envio.';
-        if (edgeData.motivo_real_api) {
-          motivoStr += `\n\nDetalhes da API do Melhor Envio:\n` + JSON.stringify(edgeData.motivo_real_api, null, 2);
+        const motivoRaw = JSON.stringify(edgeData.motivo_real_api || edgeData);
+        
+        if (
+          motivoRaw.includes('E-CRT-0001') ||
+          motivoRaw.includes('valor segurado') ||
+          (motivoRaw.includes('1.000,00') || motivoRaw.includes('1000')) && motivoRaw.includes('comerciais')
+        ) {
+          const errFriendly: any = new Error(
+            'O Melhor Envio limita o valor segurado para envios com Declaração de Conteúdo (sem Nota Fiscal) a R$ 1.000,00. Para pedidos acima deste valor, selecione o Despacho Manual ou gere a etiqueta diretamente no painel do Melhor Envio com NF-e.'
+          );
+          errFriendly.code = 'MELHOR_ENVIO_LIMITE_SEGURO_SEM_NFE';
+          throw errFriendly;
         }
-        if (typeof window !== 'undefined' && typeof window.alert === 'function') {
-          window.alert(`[Melhor Envio] Falha no Despacho:\n\n${motivoStr}`);
-        }
+
+        let motivoStr = edgeData.erro || edgeData.error || 'Falha ao processar despacho com o Melhor Envio.';
         throw new Error(motivoStr);
       }
 
@@ -692,13 +722,21 @@ export class MelhorEnvioService {
           if (edgeErr.context && typeof edgeErr.context.json === 'function') {
             const jsonErr = await edgeErr.context.json();
             detalheErro = jsonErr.error || jsonErr.erro || jsonErr.message || JSON.stringify(jsonErr);
-            if (jsonErr.motivo_real_api) {
-              console.error('>>> RESPOSTA COMPLETA DA API DO MELHOR ENVIO:', jsonErr.motivo_real_api);
-              detalheErro += `\n\nDetalhes da API:\n` + JSON.stringify(jsonErr.motivo_real_api, null, 2);
+            const rawStr = JSON.stringify(jsonErr);
+            if (
+              rawStr.includes('E-CRT-0001') ||
+              rawStr.includes('valor segurado') ||
+              (rawStr.includes('1.000,00') || rawStr.includes('1000')) && rawStr.includes('comerciais')
+            ) {
+              const errFriendly: any = new Error(
+                'O Melhor Envio limita o valor segurado para envios com Declaração de Conteúdo (sem Nota Fiscal) a R$ 1.000,00. Para pedidos acima deste valor, selecione o Despacho Manual ou gere a etiqueta diretamente no painel do Melhor Envio com NF-e.'
+              );
+              errFriendly.code = 'MELHOR_ENVIO_LIMITE_SEGURO_SEM_NFE';
+              throw errFriendly;
             }
           }
-        } catch {
-          // Mantém mensagem padrão
+        } catch (eJson) {
+          if ((eJson as any)?.code === 'MELHOR_ENVIO_LIMITE_SEGURO_SEM_NFE') throw eJson;
         }
 
         // Se a Edge Function não estiver instalada (404 / Function not found / network error), faz fallback para a RPC do Supabase
@@ -711,9 +749,6 @@ export class MelhorEnvioService {
         ) {
           console.info('[MelhorEnvio] Edge Function indisponível. Tentando fallback para Supabase RPC despachar_melhor_envio_rpc...');
         } else {
-          if (typeof window !== 'undefined' && typeof window.alert === 'function') {
-            window.alert(`[Melhor Envio] Erro na Edge Function:\n\n${detalheErro}`);
-          }
           throw new Error(detalheErro);
         }
       }

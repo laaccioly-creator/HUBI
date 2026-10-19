@@ -1035,8 +1035,8 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           )}
         </div>
 
-        {/* 1. Termômetro Dinâmico de Frete Grátis (loja_shipping_configs) */}
-        {freteGratisAtivo && freteGratisValorMinimo > 0 && (() => {
+        {/* 1. Termômetro Dinâmico de Frete Grátis (loja_shipping_configs - Exibido apenas se Envio) */}
+        {pedidoEntrega?.tipo_atendimento === 'entrega' && freteGratisAtivo && freteGratisValorMinimo > 0 && (() => {
           const faltaFrete = Math.max(0, freteGratisValorMinimo - subtotal);
           const percentualFrete = Math.min(100, Math.round((subtotal / freteGratisValorMinimo) * 100));
           const ganhouFrete = subtotal >= freteGratisValorMinimo;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import {
   ShoppingBag,
@@ -249,6 +249,7 @@ export const CatalogoPublico: React.FC = () => {
     }
     return null;
   });
+  const logoutManualRef = useRef<boolean>(false);
   const [modalBuscaClienteAberto, setModalBuscaClienteAberto] = useState<boolean>(false);
   const [modalContatoAberto, setModalContatoAberto] = useState<boolean>(false);
   const [modalEnderecoAberto, setModalEnderecoAberto] = useState<boolean>(false);
@@ -298,6 +299,12 @@ export const CatalogoPublico: React.FC = () => {
   });
 
   const handleSelecionarCliente = (cliente: Cliente) => {
+    logoutManualRef.current = false;
+    try {
+      sessionStorage.removeItem(`hubi_catalogo_logout_manual_${slugKey}`);
+    } catch {
+      // Ignore
+    }
     setClienteSelecionado(cliente);
     try {
       sessionStorage.setItem(`hubi_cliente_catalogo_${slugKey}`, JSON.stringify(cliente));
@@ -358,8 +365,24 @@ export const CatalogoPublico: React.FC = () => {
     }
   };
 
-  const handleLogoutCliente = () => {
+  const handleLogoutCliente = async () => {
     carrinhoRemotoCarregadoRef.current = false;
+    logoutManualRef.current = true;
+    try {
+      sessionStorage.setItem(`hubi_catalogo_logout_manual_${slugKey}`, 'true');
+    } catch {
+      // Ignore
+    }
+
+    // Fechar todos os modais e menus de conta
+    setMenuUsuarioAberto(false);
+    setModalOnboardingAberto(false);
+    setModalContatoAberto(false);
+    setModalEnderecoAberto(false);
+    setModalPedidosAberto(false);
+    setModalFavoritosAberto(false);
+    setModalNotificacoesAberto(false);
+
     setClienteSelecionado(null);
     setNomeCliente('');
     setWhatsappCliente('');
@@ -372,7 +395,15 @@ export const CatalogoPublico: React.FC = () => {
       sessionStorage.removeItem(`hubi_whatsapp_cliente_catalogo_${slugKey}`);
       sessionStorage.removeItem(`hubi_endereco_catalogo_${slugKey}`);
       sessionStorage.removeItem(`hubi_endereco_formatado_catalogo_${slugKey}`);
+      localStorage.removeItem('hubi_oauth_catalogo_login');
+      localStorage.removeItem('hubi_oauth_catalogo_slug');
       cartContext?.setClienteSelecionado(null);
+
+      // Desconectar sessão se foi login de cliente OAuth
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        await supabase.auth.signOut({ scope: 'local' });
+      }
     } catch {
       // Ignore
     }
@@ -577,6 +608,15 @@ export const CatalogoPublico: React.FC = () => {
 
     async function verificarSessaoOAuth() {
       if (!loja?.id || clienteSelecionado?.id) return;
+      if (logoutManualRef.current) return;
+      try {
+        if (sessionStorage.getItem(`hubi_catalogo_logout_manual_${slugKey}`) === 'true') {
+          return;
+        }
+      } catch {
+        // Ignore
+      }
+
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user && ativo) {
@@ -590,6 +630,15 @@ export const CatalogoPublico: React.FC = () => {
     verificarSessaoOAuth();
 
     const { data: authSub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (logoutManualRef.current) return;
+      try {
+        if (sessionStorage.getItem(`hubi_catalogo_logout_manual_${slugKey}`) === 'true') {
+          return;
+        }
+      } catch {
+        // Ignore
+      }
+
       if (session?.user && ativo && !clienteSelecionado?.id) {
         await sincronizarUsuarioOAuth(session.user);
       }
@@ -1353,6 +1402,12 @@ export const CatalogoPublico: React.FC = () => {
           : `${formaEntregaEscolhida?.nome || 'Entrega'} - ${enderecoEntrega || 'Retirada'}`,
         observacoes: observacoes?.trim() || null,
         forma_entrega_id: formaEntregaIdSanitizada,
+        nome_transportadora: pedidoEntrega?.transportadora_nome || (formaEntregaEscolhida?.nome || null),
+        servico_correios: pedidoEntrega?.servico_correios || (
+          pedidoEntrega?.transportadora_nome?.toUpperCase().includes('SEDEX') ? 'SEDEX' :
+          pedidoEntrega?.transportadora_nome?.toUpperCase().includes('PAC') ? 'PAC' : null
+        ),
+        tipo_operacao: (pedidoEntrega?.tipo_atendimento || (formaEntregaEscolhida?.tipo === 'entrega' ? 'entrega' : 'retirada')) as any,
         cliente_nome_avulso: nomeCliente || null,
         cliente_telefone_avulso: whatsappCliente || null,
         cliente_documento_avulso: dadosContato.cpfCnpj || null,
@@ -1387,7 +1442,12 @@ export const CatalogoPublico: React.FC = () => {
           ...pedidoEntrega,
           pedido_id: pedidoCriado.id,
           valor_frete: valorFreteEfetivo,
-          forma_entrega_id: formaEntregaIdSanitizada
+          forma_entrega_id: formaEntregaIdSanitizada,
+          servico_correios: pedidoEntrega.servico_correios || (
+            pedidoEntrega.transportadora_nome?.toUpperCase().includes('SEDEX') ? 'SEDEX' :
+            pedidoEntrega.transportadora_nome?.toUpperCase().includes('PAC') ? 'PAC' : null
+          ),
+          is_frete_gratis: valorFreteEfetivo === 0 && (freteGratisCupom || elegivelFreteGratisLoja)
         } : {
           pedido_id: pedidoCriado.id,
           tipo_atendimento: (ehEntregaFallback || valorFreteEfetivo > 0 ? 'entrega' : 'retirada') as any,
@@ -1395,7 +1455,8 @@ export const CatalogoPublico: React.FC = () => {
           provedor: (ehEntregaFallback || valorFreteEfetivo > 0 ? 'uber' : 'retirada_loja') as any,
           transportadora_nome: (ehEntregaFallback || valorFreteEfetivo > 0) ? (formaEntregaEscolhida?.nome || 'Entrega Padrão') : 'Retirada na Loja',
           status_envio: 'pendente',
-          forma_entrega_id: formaEntregaIdSanitizada
+          forma_entrega_id: formaEntregaIdSanitizada,
+          is_frete_gratis: valorFreteEfetivo === 0 && (freteGratisCupom || elegivelFreteGratisLoja)
         };
         await ShippingOrchestrator.salvarPedidoEntrega(pedidoCriado.id, entregaPayload);
       } catch (eEntregaCat) {
@@ -1768,16 +1829,16 @@ Fico no aguardo da confirmação! ✨`;
           )}
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <h1 className="font-extrabold text-xs sm:text-sm text-slate-100 leading-tight truncate">
+              <h1 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white leading-tight truncate">
                 {loja?.nome_fantasia || 'Catálogo Online'}
               </h1>
-              <span className="text-[10px] sm:text-[11px] font-medium flex items-center gap-1 truncate" style={{ color: aceitaPedidos ? corTema : '#94A3B8' }}>
-                <span className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0" style={{ backgroundColor: aceitaPedidos ? corTema : '#64748B' }}></span>
+              <span className="text-[10px] sm:text-[11px] font-semibold flex items-center gap-1 truncate text-emerald-600 dark:text-emerald-400">
+                <span className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0 bg-emerald-500"></span>
                 {aceitaPedidos ? 'Aberto' : 'Mostruário'}
               </span>
             </div>
-            <p className="text-[10px] sm:text-[11px] text-slate-400 font-normal leading-tight truncate hidden md:block mt-0.5">
-              Bem-vindo ao catálogo da <strong className="font-semibold text-slate-200">{loja?.nome_fantasia || 'Hotamazon'}</strong>. Faça seus pedidos online aqui.
+            <p className="text-[10px] sm:text-[11px] text-slate-600 dark:text-white font-medium leading-tight truncate hidden md:block mt-0.5">
+              Bem-vindo ao catálogo da <strong className="font-bold text-slate-950 dark:text-white">{loja?.nome_fantasia || 'Hotamazon'}</strong>. Faça seus pedidos online aqui.
             </p>
           </div>
         </div>
@@ -1792,10 +1853,10 @@ Fico no aguardo da confirmação! ✨`;
               setBusca('');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
-            className="p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-800/80 hover:bg-slate-750 text-slate-200 border border-slate-700/80 hover:border-slate-600 transition flex items-center gap-1.5 cursor-pointer text-xs font-semibold"
+            className="p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/90 dark:hover:bg-slate-800 dark:text-white dark:border-2 dark:border-emerald-400 font-bold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs"
             title="Início do catálogo de produtos"
           >
-            <Store className="w-4 h-4 text-emerald-400" />
+            <Store className="w-4 h-4 text-emerald-500" />
             <span className="hidden xl:inline">Vitrine</span>
           </button>
 
@@ -1810,10 +1871,10 @@ Fico no aguardo da confirmação! ✨`;
                 setModalPedidosAberto(true);
               }
             }}
-            className="p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-800/80 hover:bg-slate-750 text-slate-200 border border-slate-700/80 hover:border-slate-600 transition flex items-center gap-1.5 cursor-pointer text-xs font-semibold"
+            className="p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs"
             title="Meus Pedidos & Rastreamento"
           >
-            <Package className="w-4 h-4 text-sky-400" />
+            <Package className="w-4 h-4 text-sky-500" />
             <span className="hidden lg:inline">Pedidos</span>
           </button>
 
@@ -1828,10 +1889,10 @@ Fico no aguardo da confirmação! ✨`;
                 setModalFavoritosAberto(true);
               }
             }}
-            className="relative p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-800/80 hover:bg-slate-750 text-slate-200 border border-slate-700/80 hover:border-amber-500/50 transition flex items-center gap-1.5 cursor-pointer text-xs font-semibold"
+            className="relative p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs"
             title="Produtos Favoritos"
           >
-            <Star className={`w-4 h-4 ${favoritosIds.size > 0 ? 'text-amber-400 fill-amber-400' : 'text-slate-400'}`} />
+            <Star className={`w-4 h-4 ${favoritosIds.size > 0 ? 'text-amber-500 fill-amber-500' : 'text-slate-500 dark:text-slate-300'}`} />
             <span className="hidden lg:inline">Favoritos</span>
             {favoritosIds.size > 0 && (
               <span className="bg-amber-500 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full leading-none">
@@ -1851,12 +1912,12 @@ Fico no aguardo da confirmação! ✨`;
                 setModalNotificacoesAberto(true);
               }
             }}
-            className="relative p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-800/80 hover:bg-slate-750 text-slate-200 border border-slate-700/80 hover:border-slate-600 transition flex items-center gap-1.5 cursor-pointer text-xs font-semibold"
+            className="relative p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs"
             title="Notificações e Avisos"
           >
-            <Bell className="w-4 h-4 text-slate-300" />
+            <Bell className="w-4 h-4 text-slate-700 dark:text-slate-200" />
             {contagemNotificacoesNaoLidas > 0 && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse border-2 border-slate-900"></span>
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse border-2 border-white dark:border-slate-900"></span>
             )}
           </button>
 
@@ -1864,36 +1925,35 @@ Fico no aguardo da confirmação! ✨`;
           <button
             type="button"
             onClick={alternarTema}
-            className="p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700/80 hover:border-slate-300 dark:hover:border-slate-600 transition flex items-center gap-1.5 cursor-pointer text-xs font-semibold"
+            className="p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs"
             title={isDark ? 'Alternar para Tema Claro' : 'Alternar para Tema Escuro'}
           >
             {isDark ? (
               <Sun className="w-4 h-4 text-amber-400" />
             ) : (
-              <Moon className="w-4 h-4 text-indigo-500" />
+              <Moon className="w-4 h-4 text-indigo-600" />
             )}
           </button>
 
-          {/* 5. Carrinho com Badge e Valor Consolidado */}
+          {/* 5. Carrinho com Badge e Valor Consolidado (Item 1: Contraste corrigido) */}
           <button
             type="button"
             onClick={() => setDrawerCarrinhoAberto(true)}
-            className="relative px-2.5 sm:px-3.5 py-2 rounded-xl text-white font-bold text-xs flex items-center gap-1.5 sm:gap-2 shadow-lg transition hover:brightness-110 active:scale-95 cursor-pointer shrink-0"
-            style={{ backgroundColor: corTema }}
+            className="relative px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-900 text-white dark:bg-slate-800/90 dark:hover:bg-slate-750 dark:border-2 dark:border-emerald-400 font-bold text-xs flex items-center gap-1.5 sm:gap-2 shadow-xs transition active:scale-95 cursor-pointer shrink-0"
             title="Ver Carrinho de Compras"
           >
-            <ShoppingBag className="w-4 h-4" />
+            <ShoppingBag className="w-4 h-4 text-emerald-400" />
             {totalItens > 0 ? (
               <>
-                <span className="bg-white text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full">
+                <span className="bg-emerald-500 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full">
                   {totalItens}
                 </span>
-                <span className="hidden sm:inline font-extrabold">
+                <span className="hidden sm:inline font-extrabold text-white">
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}
                 </span>
               </>
             ) : (
-              <span className="hidden sm:inline">Carrinho</span>
+              <span className="hidden sm:inline text-white">Carrinho</span>
             )}
           </button>
 
@@ -1903,10 +1963,10 @@ Fico no aguardo da confirmação! ✨`;
               <button
                 type="button"
                 onClick={() => setMenuUsuarioAberto(!menuUsuarioAberto)}
-                className="px-2.5 py-1.5 sm:py-2 rounded-xl bg-slate-800 hover:bg-slate-750 border border-emerald-500/40 text-emerald-400 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                className="px-2.5 py-1.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-emerald-500/50 text-emerald-700 dark:bg-slate-800/90 dark:hover:bg-slate-750 dark:border-2 dark:border-emerald-400 dark:text-emerald-300 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                 title="Minha Conta"
               >
-                <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-[10px] font-black">
+                <div className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center text-[10px] font-black">
                   {clienteSelecionado.nome.charAt(0).toUpperCase()}
                 </div>
                 <span className="hidden sm:inline max-w-[80px] md:max-w-[110px] truncate">
@@ -1915,10 +1975,10 @@ Fico no aguardo da confirmação! ✨`;
               </button>
 
               {menuUsuarioAberto && (
-                <div className="absolute right-0 mt-2 w-48 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95">
-                  <div className="px-3.5 py-2 border-b border-slate-800">
-                    <p className="text-xs font-bold text-slate-200 truncate">{clienteSelecionado.nome}</p>
-                    <p className="text-[11px] text-slate-400 truncate">{clienteSelecionado.telefone || clienteSelecionado.whatsapp}</p>
+                <div className="absolute right-0 mt-2 w-48 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95">
+                  <div className="px-3.5 py-2 border-b border-slate-100 dark:border-slate-800">
+                    <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{clienteSelecionado.nome}</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{clienteSelecionado.telefone || clienteSelecionado.whatsapp}</p>
                   </div>
                   <button
                     type="button"
@@ -1926,9 +1986,9 @@ Fico no aguardo da confirmação! ✨`;
                       setMenuUsuarioAberto(false);
                       setModalPedidosAberto(true);
                     }}
-                    className="w-full px-3.5 py-2 text-left text-xs text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                    className="w-full px-3.5 py-2 text-left text-xs text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
                   >
-                    <Package className="w-3.5 h-3.5 text-sky-400" />
+                    <Package className="w-3.5 h-3.5 text-sky-500" />
                     <span>Meus Pedidos</span>
                   </button>
                   <button
@@ -1937,9 +1997,9 @@ Fico no aguardo da confirmação! ✨`;
                       setMenuUsuarioAberto(false);
                       setModalFavoritosAberto(true);
                     }}
-                    className="w-full px-3.5 py-2 text-left text-xs text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                    className="w-full px-3.5 py-2 text-left text-xs text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
                   >
-                    <Star className="w-3.5 h-3.5 text-amber-400" />
+                    <Star className="w-3.5 h-3.5 text-amber-500" />
                     <span>Favoritos</span>
                   </button>
                   <button
@@ -1948,7 +2008,7 @@ Fico no aguardo da confirmação! ✨`;
                       setMenuUsuarioAberto(false);
                       handleLogoutCliente();
                     }}
-                    className="w-full px-3.5 py-2 text-left text-xs text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 cursor-pointer border-t border-slate-800 mt-1"
+                    className="w-full px-3.5 py-2 text-left text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 cursor-pointer border-t border-slate-100 dark:border-slate-800 mt-1 font-semibold"
                   >
                     <LogOut className="w-3.5 h-3.5" />
                     <span>Sair da Conta</span>
@@ -1963,10 +2023,10 @@ Fico no aguardo da confirmação! ✨`;
                 setModalOnboardingMotivo('geral');
                 setModalOnboardingAberto(true);
               }}
-              className="px-2.5 sm:px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-100 border border-slate-700 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer hover:border-emerald-500/50"
+              className="px-2.5 sm:px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
               title="Entrar ou Cadastrar"
             >
-              <User className="w-3.5 h-3.5 text-emerald-400" />
+              <User className="w-3.5 h-3.5 text-emerald-500" />
               <span className="hidden sm:inline">Entrar</span>
             </button>
           )}
@@ -2012,12 +2072,12 @@ Fico no aguardo da confirmação! ✨`;
             {/* Seletor Dropdown de Categorias */}
             <div className="relative w-full sm:w-56 md:w-64 shrink-0 order-2 sm:order-1">
               <Layers
-                className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 dark:text-slate-400"
+                className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 dark:text-slate-300"
               />
               <select
                 value={categoriaSelecionada}
                 onChange={(e) => setCategoriaSelecionada(e.target.value)}
-                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-700 focus:border-emerald-500 rounded-2xl pl-10 pr-9 py-2.5 sm:py-3 text-xs font-semibold text-slate-900 dark:text-slate-200 focus:outline-none transition appearance-none cursor-pointer shadow-xs"
+                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-2 dark:border-slate-400 hover:border-slate-400 dark:hover:border-emerald-400 focus:border-emerald-500 rounded-2xl pl-10 pr-9 py-2.5 sm:py-3 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none transition appearance-none cursor-pointer shadow-xs"
                 title="Filtrar produtos por categoria"
               >
                 <option value="todas" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
@@ -2032,29 +2092,29 @@ Fico no aguardo da confirmação! ✨`;
                   );
                 })}
               </select>
-              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-300 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
 
             {/* BUSCA E SELETORES DE MODO DE EXIBIÇÃO */}
             <div className="flex items-center gap-2 flex-1 min-w-0 order-1 sm:order-2">
               <div className="relative flex-1 min-w-0">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Search className="w-4 h-4 text-slate-500 dark:text-slate-300 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   placeholder="O que você está procurando hoje?"
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
-                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl pl-10 pr-4 py-2.5 sm:py-3 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 shadow-xs"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-2 dark:border-slate-400 rounded-2xl pl-10 pr-4 py-2.5 sm:py-3 text-xs text-slate-900 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-300 focus:outline-none focus:border-emerald-500 shadow-xs"
                 />
               </div>
 
               {/* BOTÕES DE ALTERNAR MODO DE EXIBIÇÃO (LISTA / GRADE / INSTAVIEW) */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-2xl p-1 flex items-center gap-1 shrink-0 shadow-xs">
+              <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-2 dark:border-slate-400 rounded-2xl p-1 flex items-center gap-1 shrink-0 shadow-xs">
                 <button
                   type="button"
                   onClick={() => setModoExibicaoPublico('lista')}
                   className={`p-2 rounded-xl transition cursor-pointer ${
-                    modoExibicaoPublico === 'lista' ? 'bg-slate-100 dark:bg-slate-800 text-slate-950 dark:text-white shadow-xs' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                    modoExibicaoPublico === 'lista' ? 'bg-slate-200 dark:bg-slate-800 text-slate-950 dark:text-white font-bold shadow-xs' : 'text-slate-500 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
                   }`}
                   title="Modo Lista"
                 >
@@ -2064,7 +2124,7 @@ Fico no aguardo da confirmação! ✨`;
                   type="button"
                   onClick={() => setModoExibicaoPublico('grade')}
                   className={`p-2 rounded-xl transition cursor-pointer ${
-                    modoExibicaoPublico === 'grade' ? 'bg-slate-100 dark:bg-slate-800 text-slate-950 dark:text-white shadow-xs' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                    modoExibicaoPublico === 'grade' ? 'bg-slate-200 dark:bg-slate-800 text-slate-950 dark:text-white font-bold shadow-xs' : 'text-slate-500 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
                   }`}
                   title="Modo Grade"
                 >
@@ -2074,7 +2134,7 @@ Fico no aguardo da confirmação! ✨`;
                   type="button"
                   onClick={() => setModoExibicaoPublico('instaview')}
                   className={`p-2 rounded-xl transition cursor-pointer ${
-                    modoExibicaoPublico === 'instaview' ? 'bg-slate-100 dark:bg-slate-800 text-slate-950 dark:text-white shadow-xs' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                    modoExibicaoPublico === 'instaview' ? 'bg-slate-200 dark:bg-slate-800 text-slate-950 dark:text-white font-bold shadow-xs' : 'text-slate-500 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
                   }`}
                   title="Modo Instaview"
                 >
@@ -2516,7 +2576,8 @@ Fico no aguardo da confirmação! ✨`;
 
               const freteGratisAtivo = Boolean(configShippingLoja?.frete_gratis_ativo ?? loja?.frete_gratis_ativo ?? cartContext?.freteGratisAtivo);
               const valorMinimoFreteGratis = Number(configShippingLoja?.frete_gratis_valor_minimo ?? loja?.frete_gratis_valor_minimo ?? cartContext?.freteGratisValorMinimo) || 0;
-              const temRegraFreteGratis = freteGratisAtivo && valorMinimoFreteGratis > 0;
+              const isRetiradaSelecionada = pedidoEntrega?.tipo_atendimento === 'retirada';
+              const temRegraFreteGratis = !isRetiradaSelecionada && freteGratisAtivo && valorMinimoFreteGratis > 0;
               const valorFaltante = Math.max(0, valorMinimoFreteGratis - subtotal);
               const percentual = valorMinimoFreteGratis > 0 
                 ? Math.min(100, Math.round((subtotal / valorMinimoFreteGratis) * 100)) 
@@ -3256,7 +3317,7 @@ Fico no aguardo da confirmação! ✨`;
                 comprimento_cm: (i.produto as any)?.comprimento_cm || undefined
               }))}
               valorFreteAtual={valorFreteEfetivo}
-              opcaoSelecionadaId={pedidoEntrega?.servico_codigo}
+              opcaoSelecionadaId={(pedidoEntrega as any)?.id || pedidoEntrega?.servico_codigo}
               tipoAtendimentoAtual={pedidoEntrega?.tipo_atendimento}
               modoCatalogo={true}
               temaDark={isDark}

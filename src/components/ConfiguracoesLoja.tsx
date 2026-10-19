@@ -368,13 +368,26 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const [transacoesCanceladas, setTransacoesCanceladas] = useState<'riscadas' | 'ocultar'>('riscadas');
   const [ordenarProdutosPdv, setOrdenarProdutosPdv] = useState<'cadastro' | 'alfabetica'>('cadastro');
 
-  // 1.1 TIPOS DE VENDA ATIVOS (VAREJO, ATACADO, DISTRIBUIDOR)
+  // 1.1 TIPOS DE VENDA ATIVOS (VAREJO, ATACADO, DISTRIBUIDOR) & REGRAS DE PRECIFICAÇÃO
   const [tipoVendaVarejo, setTipoVendaVarejo] = useState<boolean>(true);
   const [tipoVendaAtacado, setTipoVendaAtacado] = useState<boolean>(true);
   const [tipoVendaDistribuidor, setTipoVendaDistribuidor] = useState<boolean>(true);
   const [erroTiposVenda, setErroTiposVenda] = useState<string | null>(null);
   const [carregandoTiposVenda, setCarregandoTiposVenda] = useState<boolean>(false);
   const [salvandoTiposVenda, setSalvandoTiposVenda] = useState<boolean>(false);
+
+  // Regras de Precificação Unificadas
+  const [descontoAtacado, setDescontoAtacado] = useState<string>('20');
+  const [tipoMinimoAtacado, setTipoMinimoAtacado] = useState<'valor' | 'quantidade'>('valor');
+  const [valorMinimoAtacado, setValorMinimoAtacado] = useState<string>('1500.00');
+  const [qtdTotalMinimaAtacado, setQtdTotalMinimaAtacado] = useState<string>('50');
+  const [qtdMinimaSkuAtacado, setQtdMinimaSkuAtacado] = useState<string>('6');
+
+  const [descontoAutoatacado, setDescontoAutoatacado] = useState<string>('25');
+  const [tipoMinimoDistribuidor, setTipoMinimoDistribuidor] = useState<'valor' | 'quantidade'>('valor');
+  const [valorMinimoAutoatacado, setValorMinimoAutoatacado] = useState<string>('3000.00');
+  const [qtdTotalMinimaAutoatacado, setQtdTotalMinimaAutoatacado] = useState<string>('100');
+  const [qtdMinimaSkuAutoatacado, setQtdMinimaSkuAutoatacado] = useState<string>('6');
 
   const carregarTiposVendaDoBanco = async () => {
     if (!loja?.id) return;
@@ -393,6 +406,103 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         setTipoVendaVarejo(configBanco.varejo !== false);
         setTipoVendaAtacado(configBanco.atacado !== false);
         setTipoVendaDistribuidor(configBanco.distribuidor !== false);
+
+        // Hidratar regras de precificação (prioriza localStorage, fallback para colunas do banco)
+        const keyStorage = `hubi_regras_precificacao_${loja.id}`;
+        const regrasSalvas = localStorage.getItem(keyStorage);
+
+        let initDescAtacado = '20';
+        let initTipoMinimoAtacado: 'valor' | 'quantidade' = 'valor';
+        let initValorMinimoAtacado = '1500.00';
+        let initQtdTotalMinimaAtacado = '50';
+        let initQtdMinimaSkuAtacado = '6';
+
+        let initDescAuto = '25';
+        let initTipoMinimoDistribuidor: 'valor' | 'quantidade' = 'valor';
+        let initValorMinimoAutoatacado = '3000.00';
+        let initQtdTotalMinimaAutoatacado = '100';
+        let initQtdMinimaSkuAutoatacado = '6';
+
+        if (regrasSalvas) {
+          try {
+            const parsed = JSON.parse(regrasSalvas);
+            if (parsed.descontoAtacado !== undefined) initDescAtacado = String(parsed.descontoAtacado);
+            if (parsed.valorMinimoAtacado && Number(parsed.valorMinimoAtacado) > 0) {
+              initTipoMinimoAtacado = 'valor';
+              initValorMinimoAtacado = String(parsed.valorMinimoAtacado);
+              initQtdTotalMinimaAtacado = '';
+              initQtdMinimaSkuAtacado = '';
+            } else if (parsed.qtdTotalMinimaAtacado && Number(parsed.qtdTotalMinimaAtacado) > 0) {
+              initTipoMinimoAtacado = 'quantidade';
+              initValorMinimoAtacado = '';
+              initQtdTotalMinimaAtacado = String(parsed.qtdTotalMinimaAtacado);
+              initQtdMinimaSkuAtacado = String(parsed.qtdMinimaSkuAtacado || '6');
+            } else {
+              initValorMinimoAtacado = String(parsed.valorMinimoAtacado ?? '1500.00');
+              initQtdTotalMinimaAtacado = String(parsed.qtdTotalMinimaAtacado ?? '50');
+              initQtdMinimaSkuAtacado = String(parsed.qtdMinimaSkuAtacado ?? '6');
+            }
+
+            if (parsed.descontoAutoatacado !== undefined) initDescAuto = String(parsed.descontoAutoatacado);
+            if (parsed.valorMinimoAutoatacado && Number(parsed.valorMinimoAutoatacado) > 0) {
+              initTipoMinimoDistribuidor = 'valor';
+              initValorMinimoAutoatacado = String(parsed.valorMinimoAutoatacado);
+              initQtdTotalMinimaAutoatacado = '';
+              initQtdMinimaSkuAutoatacado = '';
+            } else if (parsed.qtdTotalMinimaAutoatacado && Number(parsed.qtdTotalMinimaAutoatacado) > 0) {
+              initTipoMinimoDistribuidor = 'quantidade';
+              initValorMinimoAutoatacado = '';
+              initQtdTotalMinimaAutoatacado = String(parsed.qtdTotalMinimaAutoatacado);
+              initQtdMinimaSkuAutoatacado = String(parsed.qtdMinimaSkuAutoatacado || '6');
+            } else {
+              initValorMinimoAutoatacado = String(parsed.valorMinimoAutoatacado ?? '3000.00');
+              initQtdTotalMinimaAutoatacado = String(parsed.qtdTotalMinimaAutoatacado ?? '100');
+              initQtdMinimaSkuAutoatacado = String(parsed.qtdMinimaSkuAutoatacado ?? '6');
+            }
+          } catch (e) {
+            // Ignora erro de parse
+          }
+        } else {
+          if ((data as any).desconto_padrao_atacado_percentual !== undefined && (data as any).desconto_padrao_atacado_percentual !== null) {
+            initDescAtacado = String((data as any).desconto_padrao_atacado_percentual);
+          }
+          if ((data as any).valor_minimo_padrao_atacado !== undefined && (data as any).valor_minimo_padrao_atacado !== null && Number((data as any).valor_minimo_padrao_atacado) > 0) {
+            initTipoMinimoAtacado = 'valor';
+            initValorMinimoAtacado = String((data as any).valor_minimo_padrao_atacado);
+            initQtdTotalMinimaAtacado = '';
+          } else if ((data as any).qtd_minima_padrao_atacado !== undefined && (data as any).qtd_minima_padrao_atacado !== null && Number((data as any).qtd_minima_padrao_atacado) > 0) {
+            initTipoMinimoAtacado = 'quantidade';
+            initValorMinimoAtacado = '';
+            initQtdTotalMinimaAtacado = String((data as any).qtd_minima_padrao_atacado);
+            initQtdMinimaSkuAtacado = String((data as any).qtd_minima_sku_padrao_atacado || '6');
+          }
+
+          if ((data as any).desconto_padrao_autoatacado_percentual !== undefined && (data as any).desconto_padrao_autoatacado_percentual !== null) {
+            initDescAuto = String((data as any).desconto_padrao_autoatacado_percentual);
+          }
+          if ((data as any).valor_minimo_padrao_autoatacado !== undefined && (data as any).valor_minimo_padrao_autoatacado !== null && Number((data as any).valor_minimo_padrao_autoatacado) > 0) {
+            initTipoMinimoDistribuidor = 'valor';
+            initValorMinimoAutoatacado = String((data as any).valor_minimo_padrao_autoatacado);
+            initQtdTotalMinimaAutoatacado = '';
+          } else if ((data as any).qtd_minima_padrao_autoatacado !== undefined && (data as any).qtd_minima_padrao_autoatacado !== null && Number((data as any).qtd_minima_padrao_autoatacado) > 0) {
+            initTipoMinimoDistribuidor = 'quantidade';
+            initValorMinimoAutoatacado = '';
+            initQtdTotalMinimaAutoatacado = String((data as any).qtd_minima_padrao_autoatacado);
+            initQtdMinimaSkuAutoatacado = String((data as any).qtd_minima_sku_padrao_autoatacado || '6');
+          }
+        }
+
+        setDescontoAtacado(initDescAtacado);
+        setTipoMinimoAtacado(initTipoMinimoAtacado);
+        setValorMinimoAtacado(initValorMinimoAtacado);
+        setQtdTotalMinimaAtacado(initQtdTotalMinimaAtacado);
+        setQtdMinimaSkuAtacado(initQtdMinimaSkuAtacado);
+
+        setDescontoAutoatacado(initDescAuto);
+        setTipoMinimoDistribuidor(initTipoMinimoDistribuidor);
+        setValorMinimoAutoatacado(initValorMinimoAutoatacado);
+        setQtdTotalMinimaAutoatacado(initQtdTotalMinimaAutoatacado);
+        setQtdMinimaSkuAutoatacado(initQtdMinimaSkuAutoatacado);
       }
     } catch (err: any) {
       console.warn('Erro ao carregar tipos de venda diretamente do Supabase:', err);
@@ -477,15 +587,70 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         }
       }
 
-      if (erroDb) throw erroDb;
+      // Processar regras de precificação
+      const descAtacadoNum = Number(descontoAtacado) || 0;
+      const valAtacadoNum = tipoMinimoAtacado === 'valor' ? (Number(valorMinimoAtacado) || 0) : 0;
+      const qtdTotAtacadoNum = tipoMinimoAtacado === 'quantidade' ? (Number(qtdTotalMinimaAtacado) || 0) : 0;
+      const qtdSkuAtacadoNum = tipoMinimoAtacado === 'quantidade' ? (Number(qtdMinimaSkuAtacado) || 1) : 0;
+
+      const descAutoNum = Number(descontoAutoatacado) || 0;
+      const valAutoNum = tipoMinimoDistribuidor === 'valor' ? (Number(valorMinimoAutoatacado) || 0) : 0;
+      const qtdTotAutoNum = tipoMinimoDistribuidor === 'quantidade' ? (Number(qtdTotalMinimaAutoatacado) || 0) : 0;
+      const qtdSkuAutoNum = tipoMinimoDistribuidor === 'quantidade' ? (Number(qtdMinimaSkuAutoatacado) || 1) : 0;
+
+      // 1. Salvar no localStorage para uso instantâneo pelo pricingEngine
+      const keyStorage = `hubi_regras_precificacao_${loja.id}`;
+      localStorage.setItem(
+        keyStorage,
+        JSON.stringify({
+          descontoAtacado: descAtacadoNum,
+          tipoMinimoAtacado,
+          valorMinimoAtacado: valAtacadoNum,
+          qtdTotalMinimaAtacado: qtdTotAtacadoNum,
+          qtdMinimaSkuAtacado: qtdSkuAtacadoNum,
+
+          descontoAutoatacado: descAutoNum,
+          tipoMinimoDistribuidor,
+          valorMinimoAutoatacado: valAutoNum,
+          qtdTotalMinimaAutoatacado: qtdTotAutoNum,
+          qtdMinimaSkuAutoatacado: qtdSkuAutoNum
+        })
+      );
+
+      // Notificar outros componentes / abas sobre alteração nas regras de precificação
+      window.dispatchEvent(new CustomEvent('hubi_regras_precificacao_alteradas', {
+        detail: { lojaId: loja.id }
+      }));
+
+      // 2. Atualizar colunas de precificação e tipos de venda no Supabase
+      try {
+        await supabase
+          .from('lojas')
+          .update({
+            desconto_padrao_atacado_percentual: descAtacadoNum,
+            tipo_minimo_padrao_atacado: tipoMinimoAtacado,
+            valor_minimo_padrao_atacado: valAtacadoNum,
+            qtd_minima_padrao_atacado: qtdTotAtacadoNum,
+            qtd_minima_sku_padrao_atacado: qtdSkuAtacadoNum,
+
+            desconto_padrao_autoatacado_percentual: descAutoNum,
+            tipo_minimo_padrao_autoatacado: tipoMinimoDistribuidor,
+            valor_minimo_padrao_autoatacado: valAutoNum,
+            qtd_minima_padrao_autoatacado: qtdTotAutoNum,
+            qtd_minima_sku_padrao_autoatacado: qtdSkuAutoNum
+          })
+          .eq('id', loja.id);
+      } catch (e) {
+        console.warn('Colunas de desconto na tabela lojas não disponíveis ainda no schema.', e);
+      }
 
       salvouRecenteRef.current = true;
       await recarregarDadosLoja();
       setSnapshotInicial(snapshotAtual);
       setTemAlteracoesNaoSalvas(false);
 
-      mostrarToast('Tipos de venda salvos no Supabase com sucesso!');
-      mostrarSucesso('As modalidades de venda foram salvas no Supabase e sincronizadas com o PDV.', 'Configurações Salvas');
+      mostrarToast('Tipos de venda e regras de precificação salvas com sucesso!');
+      mostrarSucesso('As modalidades e regras de precificação foram salvas e sincronizadas com o PDV e Catálogo.', 'Configurações Salvas');
     } catch (err: any) {
       console.error('Erro ao salvar tipos de venda:', err);
       const msg = err?.message || 'Falha ao gravar modalidades no banco de dados. Verifique a conexão e permissões.';
@@ -2244,47 +2409,339 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 </div>
 
                 {/* Atacado */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex items-center justify-between">
-                  <div className="space-y-0.5 max-w-[75%]">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-xs text-slate-800">Atacado</span>
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400">Volume</span>
+                <div className={`rounded-2xl p-4 shadow-xs border space-y-3 transition-all ${
+                  isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+                } ${!tipoVendaAtacado ? 'opacity-60' : ''}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5 max-w-[75%]">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-xs">Atacado</span>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400">Volume</span>
+                      </div>
+                      <span className="text-[11px] text-emerald-600 dark:text-emerald-400 block leading-tight font-medium">
+                        Desconto por volume
+                      </span>
                     </div>
-                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400 block leading-tight font-medium">
-                      Desconto por volume
-                    </span>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={tipoVendaAtacado}
+                        onChange={() => handleToggleTipoVenda('atacado')}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                    </label>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={tipoVendaAtacado}
-                      onChange={() => handleToggleTipoVenda('atacado')}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                  </label>
+
+                  {tipoVendaAtacado && (
+                    <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-3">
+                      <div>
+                        <label className="text-[11px] font-bold block mb-1 text-slate-600 dark:text-slate-400">
+                          Desconto Padrão (%):
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            value={descontoAtacado}
+                            onChange={(e) => setDescontoAtacado(e.target.value)}
+                            className={`w-full rounded-xl px-3 py-1.5 text-xs font-black focus:outline-none transition border ${
+                              isDark
+                                ? 'bg-[#08131A] border-slate-700 text-emerald-400 focus:border-emerald-500'
+                                : 'bg-slate-50 border-slate-300 text-emerald-600 focus:border-emerald-500'
+                            }`}
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">%</span>
+                        </div>
+                      </div>
+
+                      <div
+                        onClick={() => {
+                          setTipoMinimoAtacado('valor');
+                          setQtdTotalMinimaAtacado('');
+                          setQtdMinimaSkuAtacado('');
+                        }}
+                        className={`p-2.5 rounded-xl border transition cursor-pointer space-y-1.5 ${
+                          tipoMinimoAtacado === 'valor'
+                            ? isDark
+                              ? 'bg-[#08131A] border-emerald-500'
+                              : 'bg-emerald-50/40 border-emerald-500'
+                            : isDark
+                            ? 'bg-[#000000] border-slate-800 opacity-60'
+                            : 'bg-white border-slate-200 opacity-60'
+                        }`}
+                      >
+                        <label className="text-xs font-black flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="tipo_minimo_atacado_mob"
+                            checked={tipoMinimoAtacado === 'valor'}
+                            onChange={() => {
+                              setTipoMinimoAtacado('valor');
+                              setQtdTotalMinimaAtacado('');
+                              setQtdMinimaSkuAtacado('');
+                            }}
+                            className="text-emerald-500 focus:ring-emerald-500"
+                          />
+                          <span>Por Valor Mínimo (R$)</span>
+                        </label>
+                        <div className="relative pt-0.5">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">R$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            disabled={tipoMinimoAtacado !== 'valor'}
+                            placeholder="1500.00"
+                            value={valorMinimoAtacado}
+                            onChange={(e) => {
+                              setTipoMinimoAtacado('valor');
+                              setValorMinimoAtacado(e.target.value);
+                            }}
+                            className={`w-full rounded-xl pl-8 pr-2.5 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
+                              isDark
+                                ? 'bg-[#000000] border-slate-700 text-white focus:border-emerald-500'
+                                : 'bg-white border-slate-300 text-black focus:border-emerald-500'
+                            }`}
+                          />
+                        </div>
+                      </div>
+
+                      <div
+                        onClick={() => {
+                          setTipoMinimoAtacado('quantidade');
+                          setValorMinimoAtacado('');
+                        }}
+                        className={`p-2.5 rounded-xl border transition cursor-pointer space-y-1.5 ${
+                          tipoMinimoAtacado === 'quantidade'
+                            ? isDark
+                              ? 'bg-[#08131A] border-emerald-500'
+                              : 'bg-emerald-50/40 border-emerald-500'
+                            : isDark
+                            ? 'bg-[#000000] border-slate-800 opacity-60'
+                            : 'bg-white border-slate-200 opacity-60'
+                        }`}
+                      >
+                        <label className="text-xs font-black flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="tipo_minimo_atacado_mob"
+                            checked={tipoMinimoAtacado === 'quantidade'}
+                            onChange={() => {
+                              setTipoMinimoAtacado('quantidade');
+                              setValorMinimoAtacado('');
+                            }}
+                            className="text-emerald-500 focus:ring-emerald-500"
+                          />
+                          <span>Por Quantidade de Peças</span>
+                        </label>
+                        <div className="grid grid-cols-2 gap-2 pt-0.5">
+                          <div>
+                            <label className="text-[10px] font-bold block mb-0.5 text-slate-500">Qtd Total:</label>
+                            <input
+                              type="number"
+                              min="1"
+                              disabled={tipoMinimoAtacado !== 'quantidade'}
+                              placeholder="50"
+                              value={qtdTotalMinimaAtacado}
+                              onChange={(e) => setQtdTotalMinimaAtacado(e.target.value)}
+                              className={`w-full rounded-xl px-2 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
+                                isDark
+                                  ? 'bg-[#000000] border-slate-700 text-white focus:border-emerald-500'
+                                  : 'bg-white border-slate-300 text-black focus:border-emerald-500'
+                              }`}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold block mb-0.5 text-slate-500">Mín por SKU:</label>
+                            <input
+                              type="number"
+                              min="1"
+                              disabled={tipoMinimoAtacado !== 'quantidade'}
+                              placeholder="6"
+                              value={qtdMinimaSkuAtacado}
+                              onChange={(e) => setQtdMinimaSkuAtacado(e.target.value)}
+                              className={`w-full rounded-xl px-2 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
+                                isDark
+                                  ? 'bg-[#000000] border-slate-700 text-white focus:border-emerald-500'
+                                  : 'bg-white border-slate-300 text-black focus:border-emerald-500'
+                              }`}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Distribuidor */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex items-center justify-between">
-                  <div className="space-y-0.5 max-w-[75%]">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-xs text-slate-800">Distribuidor</span>
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400">Lotes/Fardos</span>
+                <div className={`rounded-2xl p-4 shadow-xs border space-y-3 transition-all ${
+                  isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+                } ${!tipoVendaDistribuidor ? 'opacity-60' : ''}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5 max-w-[75%]">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-xs">Distribuidor</span>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400">Lotes/Fardos</span>
+                      </div>
+                      <span className="text-[11px] text-emerald-600 dark:text-emerald-400 block leading-tight font-medium">
+                        Lotes / Fardos
+                      </span>
                     </div>
-                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400 block leading-tight font-medium">
-                      Lotes / Fardos
-                    </span>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={tipoVendaDistribuidor}
+                        onChange={() => handleToggleTipoVenda('distribuidor')}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                    </label>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={tipoVendaDistribuidor}
-                      onChange={() => handleToggleTipoVenda('distribuidor')}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                  </label>
+
+                  {tipoVendaDistribuidor && (
+                    <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-3">
+                      <div>
+                        <label className="text-[11px] font-bold block mb-1 text-slate-600 dark:text-slate-400">
+                          Desconto Padrão (%):
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            value={descontoAutoatacado}
+                            onChange={(e) => setDescontoAutoatacado(e.target.value)}
+                            className={`w-full rounded-xl px-3 py-1.5 text-xs font-black focus:outline-none transition border ${
+                              isDark
+                                ? 'bg-[#08131A] border-slate-700 text-indigo-400 focus:border-indigo-500'
+                                : 'bg-slate-50 border-slate-300 text-indigo-600 focus:border-indigo-500'
+                            }`}
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">%</span>
+                        </div>
+                      </div>
+
+                      <div
+                        onClick={() => {
+                          setTipoMinimoDistribuidor('valor');
+                          setQtdTotalMinimaAutoatacado('');
+                          setQtdMinimaSkuAutoatacado('');
+                        }}
+                        className={`p-2.5 rounded-xl border transition cursor-pointer space-y-1.5 ${
+                          tipoMinimoDistribuidor === 'valor'
+                            ? isDark
+                              ? 'bg-[#08131A] border-indigo-500'
+                              : 'bg-indigo-50/40 border-indigo-500'
+                            : isDark
+                            ? 'bg-[#000000] border-slate-800 opacity-60'
+                            : 'bg-white border-slate-200 opacity-60'
+                        }`}
+                      >
+                        <label className="text-xs font-black flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="tipo_minimo_distribuidor_mob"
+                            checked={tipoMinimoDistribuidor === 'valor'}
+                            onChange={() => {
+                              setTipoMinimoDistribuidor('valor');
+                              setQtdTotalMinimaAutoatacado('');
+                              setQtdMinimaSkuAutoatacado('');
+                            }}
+                            className="text-indigo-500 focus:ring-indigo-500"
+                          />
+                          <span>Por Valor Mínimo (R$)</span>
+                        </label>
+                        <div className="relative pt-0.5">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">R$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            disabled={tipoMinimoDistribuidor !== 'valor'}
+                            placeholder="3000.00"
+                            value={valorMinimoAutoatacado}
+                            onChange={(e) => {
+                              setTipoMinimoDistribuidor('valor');
+                              setValorMinimoAutoatacado(e.target.value);
+                            }}
+                            className={`w-full rounded-xl pl-8 pr-2.5 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
+                              isDark
+                                ? 'bg-[#000000] border-slate-700 text-white focus:border-indigo-500'
+                                : 'bg-white border-slate-300 text-black focus:border-indigo-500'
+                            }`}
+                          />
+                        </div>
+                      </div>
+
+                      <div
+                        onClick={() => {
+                          setTipoMinimoDistribuidor('quantidade');
+                          setValorMinimoAutoatacado('');
+                        }}
+                        className={`p-2.5 rounded-xl border transition cursor-pointer space-y-1.5 ${
+                          tipoMinimoDistribuidor === 'quantidade'
+                            ? isDark
+                              ? 'bg-[#08131A] border-indigo-500'
+                              : 'bg-indigo-50/40 border-indigo-500'
+                            : isDark
+                            ? 'bg-[#000000] border-slate-800 opacity-60'
+                            : 'bg-white border-slate-200 opacity-60'
+                        }`}
+                      >
+                        <label className="text-xs font-black flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="tipo_minimo_distribuidor_mob"
+                            checked={tipoMinimoDistribuidor === 'quantidade'}
+                            onChange={() => {
+                              setTipoMinimoDistribuidor('quantidade');
+                              setValorMinimoAutoatacado('');
+                            }}
+                            className="text-indigo-500 focus:ring-indigo-500"
+                          />
+                          <span>Por Quantidade de Peças</span>
+                        </label>
+                        <div className="grid grid-cols-2 gap-2 pt-0.5">
+                          <div>
+                            <label className="text-[10px] font-bold block mb-0.5 text-slate-500">Qtd Total:</label>
+                            <input
+                              type="number"
+                              min="1"
+                              disabled={tipoMinimoDistribuidor !== 'quantidade'}
+                              placeholder="100"
+                              value={qtdTotalMinimaAutoatacado}
+                              onChange={(e) => setQtdTotalMinimaAutoatacado(e.target.value)}
+                              className={`w-full rounded-xl px-2 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
+                                isDark
+                                  ? 'bg-[#000000] border-slate-700 text-white focus:border-indigo-500'
+                                  : 'bg-white border-slate-300 text-black focus:border-indigo-500'
+                              }`}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold block mb-0.5 text-slate-500">Mín por SKU:</label>
+                            <input
+                              type="number"
+                              min="1"
+                              disabled={tipoMinimoDistribuidor !== 'quantidade'}
+                              placeholder="6"
+                              value={qtdMinimaSkuAutoatacado}
+                              onChange={(e) => setQtdMinimaSkuAutoatacado(e.target.value)}
+                              className={`w-full rounded-xl px-2 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
+                                isDark
+                                  ? 'bg-[#000000] border-slate-700 text-white focus:border-indigo-500'
+                                  : 'bg-white border-slate-300 text-black focus:border-indigo-500'
+                              }`}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -2697,7 +3154,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               </div>
 
               {/* Card Atacado */}
-              <div className={`p-5 rounded-2xl border transition-all ${
+              <div className={`p-5 rounded-2xl border transition-all space-y-4 ${
                 tipoVendaAtacado
                   ? isDark
                     ? 'bg-[#000000] border-emerald-500/50 shadow-sm'
@@ -2706,7 +3163,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     ? 'bg-[#000000] border-slate-800 opacity-60'
                     : 'bg-slate-50 border-2 border-slate-200 opacity-60'
               }`}>
-                <div className="flex items-start justify-between mb-3">
+                <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2">
                     <span className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-black text-xs">
                       2
@@ -2726,13 +3183,162 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     <div className="w-11 h-6 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                   </label>
                 </div>
+
                 <p className={`text-xs leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                   Permite aplicar automaticamente o preço de atacado quando o carrinho atingir a quantidade mínima de itens ou valor configurado.
                 </p>
+
+                {tipoVendaAtacado && (
+                  <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-3">
+                    <div>
+                      <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
+                        Desconto Padrão (%):
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max="100"
+                          value={descontoAtacado}
+                          onChange={(e) => setDescontoAtacado(e.target.value)}
+                          className={`w-full rounded-xl px-3 py-1.5 text-xs font-black focus:outline-none transition border ${
+                            isDark
+                              ? 'bg-[#08131A] border-slate-700 text-emerald-400 focus:border-emerald-500'
+                              : 'bg-slate-50 border-slate-300 text-emerald-600 focus:border-emerald-500'
+                          }`}
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">%</span>
+                      </div>
+                    </div>
+
+                    {/* OPÇÃO 1: VALOR */}
+                    <div
+                      onClick={() => {
+                        setTipoMinimoAtacado('valor');
+                        setQtdTotalMinimaAtacado('');
+                        setQtdMinimaSkuAtacado('');
+                      }}
+                      className={`p-3 rounded-xl border transition cursor-pointer space-y-1.5 ${
+                        tipoMinimoAtacado === 'valor'
+                          ? isDark
+                            ? 'bg-[#08131A] border-emerald-500 shadow-2xs'
+                            : 'bg-emerald-50/40 border-emerald-500 shadow-2xs'
+                          : isDark
+                          ? 'bg-[#000000] border-slate-800 opacity-60'
+                          : 'bg-white border-slate-200 opacity-60'
+                      }`}
+                    >
+                      <label className={`text-xs font-black flex items-center gap-2 cursor-pointer ${
+                        isDark ? 'text-white' : 'text-black'
+                      }`}>
+                        <input
+                          type="radio"
+                          name="tipo_minimo_atacado_desk"
+                          checked={tipoMinimoAtacado === 'valor'}
+                          onChange={() => {
+                            setTipoMinimoAtacado('valor');
+                            setQtdTotalMinimaAtacado('');
+                            setQtdMinimaSkuAtacado('');
+                          }}
+                          className="text-emerald-500 focus:ring-emerald-500"
+                        />
+                        <span>Por Valor Mínimo (R$)</span>
+                      </label>
+                      <div className="relative pt-0.5">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">R$</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          disabled={tipoMinimoAtacado !== 'valor'}
+                          placeholder="1500.00"
+                          value={valorMinimoAtacado}
+                          onChange={(e) => {
+                            setTipoMinimoAtacado('valor');
+                            setValorMinimoAtacado(e.target.value);
+                          }}
+                          className={`w-full rounded-xl pl-9 pr-3 py-1.5 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
+                            isDark
+                              ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500'
+                              : 'bg-white border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-500'
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* OPÇÃO 2: QUANTIDADE */}
+                    <div
+                      onClick={() => {
+                        setTipoMinimoAtacado('quantidade');
+                        setValorMinimoAtacado('');
+                      }}
+                      className={`p-3 rounded-xl border transition cursor-pointer space-y-1.5 ${
+                        tipoMinimoAtacado === 'quantidade'
+                          ? isDark
+                            ? 'bg-[#08131A] border-emerald-500 shadow-2xs'
+                            : 'bg-emerald-50/40 border-emerald-500 shadow-2xs'
+                          : isDark
+                          ? 'bg-[#000000] border-slate-800 opacity-60'
+                          : 'bg-white border-slate-200 opacity-60'
+                      }`}
+                    >
+                      <label className={`text-xs font-black flex items-center gap-2 cursor-pointer ${
+                        isDark ? 'text-white' : 'text-black'
+                      }`}>
+                        <input
+                          type="radio"
+                          name="tipo_minimo_atacado_desk"
+                          checked={tipoMinimoAtacado === 'quantidade'}
+                          onChange={() => {
+                            setTipoMinimoAtacado('quantidade');
+                            setValorMinimoAtacado('');
+                          }}
+                          className="text-emerald-500 focus:ring-emerald-500"
+                        />
+                        <span>Por Quantidade de Peças</span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-2 pt-0.5">
+                        <div>
+                          <label className={`text-[10px] font-bold block mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Qtd Total:</label>
+                          <input
+                            type="number"
+                            min="1"
+                            disabled={tipoMinimoAtacado !== 'quantidade'}
+                            placeholder="50"
+                            value={qtdTotalMinimaAtacado}
+                            onChange={(e) => setQtdTotalMinimaAtacado(e.target.value)}
+                            className={`w-full rounded-xl px-2.5 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
+                              isDark
+                                ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500'
+                                : 'bg-white border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-500'
+                            }`}
+                          />
+                        </div>
+                        <div>
+                          <label className={`text-[10px] font-bold block mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Mín por SKU:</label>
+                          <input
+                            type="number"
+                            min="1"
+                            disabled={tipoMinimoAtacado !== 'quantidade'}
+                            placeholder="6"
+                            value={qtdMinimaSkuAtacado}
+                            onChange={(e) => setQtdMinimaSkuAtacado(e.target.value)}
+                            className={`w-full rounded-xl px-2.5 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
+                              isDark
+                                ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500'
+                                : 'bg-white border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-500'
+                            }`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Card Distribuidor */}
-              <div className={`p-5 rounded-2xl border transition-all ${
+              <div className={`p-5 rounded-2xl border transition-all space-y-4 ${
                 tipoVendaDistribuidor
                   ? isDark
                     ? 'bg-[#000000] border-emerald-500/50 shadow-sm'
@@ -2741,7 +3347,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     ? 'bg-[#000000] border-slate-800 opacity-60'
                     : 'bg-slate-50 border-2 border-slate-200 opacity-60'
               }`}>
-                <div className="flex items-start justify-between mb-3">
+                <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2">
                     <span className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-black text-xs">
                       3
@@ -2761,9 +3367,158 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     <div className="w-11 h-6 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                   </label>
                 </div>
+
                 <p className={`text-xs leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                   Modalidade voltada para caixas fechadas, revendedores e grandes fardos com preço diferenciado por lote.
                 </p>
+
+                {tipoVendaDistribuidor && (
+                  <div className="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-3">
+                    <div>
+                      <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
+                        Desconto Padrão (%):
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max="100"
+                          value={descontoAutoatacado}
+                          onChange={(e) => setDescontoAutoatacado(e.target.value)}
+                          className={`w-full rounded-xl px-3 py-1.5 text-xs font-black focus:outline-none transition border ${
+                            isDark
+                              ? 'bg-[#08131A] border-slate-700 text-indigo-400 focus:border-indigo-500'
+                              : 'bg-slate-50 border-slate-300 text-indigo-600 focus:border-indigo-500'
+                          }`}
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">%</span>
+                      </div>
+                    </div>
+
+                    {/* OPÇÃO 1: VALOR */}
+                    <div
+                      onClick={() => {
+                        setTipoMinimoDistribuidor('valor');
+                        setQtdTotalMinimaAutoatacado('');
+                        setQtdMinimaSkuAutoatacado('');
+                      }}
+                      className={`p-3 rounded-xl border transition cursor-pointer space-y-1.5 ${
+                        tipoMinimoDistribuidor === 'valor'
+                          ? isDark
+                            ? 'bg-[#08131A] border-indigo-500 shadow-2xs'
+                            : 'bg-indigo-50/40 border-indigo-500 shadow-2xs'
+                          : isDark
+                          ? 'bg-[#000000] border-slate-800 opacity-60'
+                          : 'bg-white border-slate-200 opacity-60'
+                      }`}
+                    >
+                      <label className={`text-xs font-black flex items-center gap-2 cursor-pointer ${
+                        isDark ? 'text-white' : 'text-black'
+                      }`}>
+                        <input
+                          type="radio"
+                          name="tipo_minimo_distribuidor_desk"
+                          checked={tipoMinimoDistribuidor === 'valor'}
+                          onChange={() => {
+                            setTipoMinimoDistribuidor('valor');
+                            setQtdTotalMinimaAutoatacado('');
+                            setQtdMinimaSkuAutoatacado('');
+                          }}
+                          className="text-indigo-500 focus:ring-indigo-500"
+                        />
+                        <span>Por Valor Mínimo (R$)</span>
+                      </label>
+                      <div className="relative pt-0.5">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">R$</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          disabled={tipoMinimoDistribuidor !== 'valor'}
+                          placeholder="3000.00"
+                          value={valorMinimoAutoatacado}
+                          onChange={(e) => {
+                            setTipoMinimoDistribuidor('valor');
+                            setValorMinimoAutoatacado(e.target.value);
+                          }}
+                          className={`w-full rounded-xl pl-9 pr-3 py-1.5 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
+                            isDark
+                              ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-indigo-500'
+                              : 'bg-white border-slate-300 text-black placeholder:text-slate-400 focus:border-indigo-500'
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* OPÇÃO 2: QUANTIDADE */}
+                    <div
+                      onClick={() => {
+                        setTipoMinimoDistribuidor('quantidade');
+                        setValorMinimoAutoatacado('');
+                      }}
+                      className={`p-3 rounded-xl border transition cursor-pointer space-y-1.5 ${
+                        tipoMinimoDistribuidor === 'quantidade'
+                          ? isDark
+                            ? 'bg-[#08131A] border-indigo-500 shadow-2xs'
+                            : 'bg-indigo-50/40 border-indigo-500 shadow-2xs'
+                          : isDark
+                          ? 'bg-[#000000] border-slate-800 opacity-60'
+                          : 'bg-white border-slate-200 opacity-60'
+                      }`}
+                    >
+                      <label className={`text-xs font-black flex items-center gap-2 cursor-pointer ${
+                        isDark ? 'text-white' : 'text-black'
+                      }`}>
+                        <input
+                          type="radio"
+                          name="tipo_minimo_distribuidor_desk"
+                          checked={tipoMinimoDistribuidor === 'quantidade'}
+                          onChange={() => {
+                            setTipoMinimoDistribuidor('quantidade');
+                            setValorMinimoAutoatacado('');
+                          }}
+                          className="text-indigo-500 focus:ring-indigo-500"
+                        />
+                        <span>Por Quantidade de Peças</span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-2 pt-0.5">
+                        <div>
+                          <label className={`text-[10px] font-bold block mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Qtd Total:</label>
+                          <input
+                            type="number"
+                            min="1"
+                            disabled={tipoMinimoDistribuidor !== 'quantidade'}
+                            placeholder="100"
+                            value={qtdTotalMinimaAutoatacado}
+                            onChange={(e) => setQtdTotalMinimaAutoatacado(e.target.value)}
+                            className={`w-full rounded-xl px-2.5 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
+                              isDark
+                                ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-indigo-500'
+                                : 'bg-white border-slate-300 text-black placeholder:text-slate-400 focus:border-indigo-500'
+                            }`}
+                          />
+                        </div>
+                        <div>
+                          <label className={`text-[10px] font-bold block mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Mín por SKU:</label>
+                          <input
+                            type="number"
+                            min="1"
+                            disabled={tipoMinimoDistribuidor !== 'quantidade'}
+                            placeholder="6"
+                            value={qtdMinimaSkuAutoatacado}
+                            onChange={(e) => setQtdMinimaSkuAutoatacado(e.target.value)}
+                            className={`w-full rounded-xl px-2.5 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
+                              isDark
+                                ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-indigo-500'
+                                : 'bg-white border-slate-300 text-black placeholder:text-slate-400 focus:border-indigo-500'
+                            }`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -2780,7 +3535,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               <ul className="text-xs space-y-1 list-disc list-inside font-medium">
                 <li><strong className={isDark ? 'text-white' : 'text-black'}>Apenas 1 modalidade ativa:</strong> O seletor manual de tipo de venda no cabeçalho do carrinho e os termômetros de progressão de atacado/distribuidor são automaticamente ocultados.</li>
                 <li><strong className={isDark ? 'text-white' : 'text-black'}>2 ou mais modalidades ativas:</strong> O operador do PDV visualiza apenas os botões das modalidades habilitadas e os termômetros calculam o próximo nível aplicável.</li>
-                <li><strong className={isDark ? 'text-white' : 'text-black'}>Regras de Precificação:</strong> As regras de Atacado ou Distribuidor desativadas aqui são sinalizadas e protegidas em <em>Cadastros &amp; Tabelas &gt; Regras de Precificação</em>.</li>
+                <li><strong className={isDark ? 'text-white' : 'text-black'}>Regras de Precificação Unificadas:</strong> Configure percentuais de desconto e regras de ativação diretamente nos cards de Atacado e Distribuidor desta tela.</li>
               </ul>
             </div>
 

@@ -1542,13 +1542,6 @@ export const CadastrosAuxiliares: React.FC = () => {
       descricao: 'PIX, dinheiro, cartões, maquininhas e taxas'
     },
     {
-      id: 'precificacao' as const,
-      label: 'Regras de Precificação',
-      icon: Percent,
-      badge: 'Atacado & Varejo',
-      descricao: 'Descontos progressivos e regras de atacado'
-    },
-    {
       id: 'formas_envio' as const,
       label: 'Formas de Envio',
       icon: Truck,

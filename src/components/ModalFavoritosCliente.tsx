@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { X, Star, ShoppingBag, Loader2, AlertCircle, Trash2, Check } from 'lucide-react';
 import { Produto, ClienteFavorito } from '../types';
 import { ClienteCatalogoService } from '../services/clienteCatalogoService';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface ModalFavoritosClienteProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ export const ModalFavoritosCliente: React.FC<ModalFavoritosClienteProps> = ({
   onRemoverFavorito,
   onExplorarCatalogo
 }) => {
+  const { isDark } = useTheme();
   const [favoritos, setFavoritos] = useState<ClienteFavorito[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -75,31 +77,41 @@ export const ModalFavoritosCliente: React.FC<ModalFavoritosClienteProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in">
-      <div className="bg-slate-900 border-2 border-slate-700/80 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95">
+      <div className={`w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 border-2 ${
+        isDark ? 'bg-slate-900 border-slate-700/80 text-slate-100' : 'bg-white border-slate-300 text-slate-900'
+      }`}>
         {/* Cabeçalho */}
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/70">
+        <div className={`p-4 border-b flex items-center justify-between ${
+          isDark ? 'border-slate-800 bg-slate-950/70' : 'border-slate-200 bg-slate-50'
+        }`}>
           <div className="flex items-center gap-2.5">
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-amber-400 bg-amber-400/10 border border-amber-400/20 shadow"
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-amber-500 bg-amber-500/10 border border-amber-500/20 shadow-xs"
             >
-              <Star className="w-5 h-5 fill-amber-400" />
+              <Star className="w-5 h-5 fill-amber-500" />
             </div>
             <div>
-              <h3 className="font-extrabold text-sm sm:text-base text-slate-100 flex items-center gap-2">
+              <h3 className={`font-extrabold text-sm sm:text-base flex items-center gap-2 ${
+                isDark ? 'text-white' : 'text-slate-900'
+              }`}>
                 <span>Meus Favoritos</span>
                 {favoritos.length > 0 && (
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-amber-400 border border-amber-500/20">
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+                    isDark ? 'bg-slate-800 text-amber-400 border-amber-500/20' : 'bg-amber-50 text-amber-800 border-amber-300'
+                  }`}>
                     {favoritos.length}
                   </span>
                 )}
               </h3>
-              <p className="text-[11px] text-slate-400">Produtos que você marcou com a estrelinha</p>
+              <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Produtos que você marcou com a estrelinha</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition cursor-pointer"
+            className={`p-1.5 rounded-xl transition cursor-pointer ${
+              isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/80'
+            }`}
           >
             <X className="w-5 h-5" />
           </button>
@@ -107,8 +119,8 @@ export const ModalFavoritosCliente: React.FC<ModalFavoritosClienteProps> = ({
 
         {/* Mensagem de Erro */}
         {erro && (
-          <div className="mx-4 mt-3 p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-xs text-rose-300 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+          <div className="mx-4 mt-3 p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-xs text-rose-500 flex items-center gap-2 font-medium">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
             <span>{erro}</span>
           </div>
         )}
@@ -116,18 +128,20 @@ export const ModalFavoritosCliente: React.FC<ModalFavoritosClienteProps> = ({
         {/* Lista de Produtos Favoritados */}
         <div className="p-4 overflow-y-auto flex-1 space-y-3">
           {carregando ? (
-            <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-400">
-              <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
+            <div className={`py-12 flex flex-col items-center justify-center gap-2 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
               <span className="text-xs">Carregando favoritos...</span>
             </div>
           ) : favoritos.length === 0 ? (
             <div className="py-12 text-center flex flex-col items-center justify-center gap-3">
-              <div className="w-14 h-14 rounded-2xl bg-slate-800/80 border border-slate-700 flex items-center justify-center text-amber-400/40">
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
+                isDark ? 'bg-slate-800/80 border border-slate-700 text-amber-400/40' : 'bg-slate-100 border border-slate-300 text-amber-500/50'
+              }`}>
                 <Star className="w-7 h-7" />
               </div>
               <div>
-                <p className="text-sm font-bold text-slate-200">Sua lista de favoritos está vazia</p>
-                <p className="text-xs text-slate-400 mt-1 max-w-xs">
+                <p className={`text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>Sua lista de favoritos está vazia</p>
+                <p className={`text-xs mt-1 max-w-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                   Toque na estrelinha nos produtos do catálogo para salvá-los aqui e comprar quando quiser.
                 </p>
               </div>
@@ -138,8 +152,7 @@ export const ModalFavoritosCliente: React.FC<ModalFavoritosClienteProps> = ({
                     onClose();
                     onExplorarCatalogo();
                   }}
-                  className="mt-2 px-4 py-2 rounded-xl text-xs font-bold text-white shadow transition hover:brightness-110 cursor-pointer"
-                  style={{ backgroundColor: corTema }}
+                  className="mt-2 px-4 py-2 rounded-xl text-xs font-bold text-white shadow-xs bg-emerald-600 hover:bg-emerald-500 transition cursor-pointer active:scale-95"
                 >
                   Explorar Catálogo
                 </button>
@@ -153,21 +166,27 @@ export const ModalFavoritosCliente: React.FC<ModalFavoritosClienteProps> = ({
               return (
                 <div
                   key={fav.id}
-                  className="bg-slate-950/60 border border-slate-800 hover:border-slate-700 rounded-2xl p-3 flex items-center gap-3 transition"
+                  className={`rounded-2xl p-3 flex items-center gap-3 transition border ${
+                    isDark
+                      ? 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                      : 'bg-white border-slate-200 hover:border-emerald-500/40 shadow-xs'
+                  }`}
                 >
                   {/* Foto do Produto */}
-                  <div className="w-16 h-16 rounded-xl bg-slate-900 border border-slate-800 shrink-0 overflow-hidden flex items-center justify-center">
+                  <div className={`w-16 h-16 rounded-xl shrink-0 overflow-hidden flex items-center justify-center border ${
+                    isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'
+                  }`}>
                     {prod.fotos_urls && prod.fotos_urls.length > 0 ? (
                       <img src={prod.fotos_urls[0]} alt={prod.nome} className="w-full h-full object-cover" />
                     ) : (
-                      <ShoppingBag className="w-6 h-6 text-slate-600" />
+                      <ShoppingBag className={`w-6 h-6 ${isDark ? 'text-slate-600' : 'text-slate-400'}`} />
                     )}
                   </div>
 
                   {/* Informações */}
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-xs font-bold text-slate-100 truncate">{prod.nome}</h4>
-                    <p className="text-[11px] text-slate-400 mt-0.5 font-medium">
+                    <h4 className={`text-xs font-bold truncate ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{prod.nome}</h4>
+                    <p className={`text-[11px] mt-0.5 font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
                       {formatarPreco(prod.promocao_ativa && prod.preco_promocional ? Number(prod.preco_promocional) : Number(prod.preco_venda_varejo))}
                     </p>
                   </div>
@@ -177,7 +196,9 @@ export const ModalFavoritosCliente: React.FC<ModalFavoritosClienteProps> = ({
                     <button
                       type="button"
                       onClick={() => handleRemover(prod.id)}
-                      className="p-2 text-slate-500 hover:text-rose-400 hover:bg-slate-800 rounded-xl transition cursor-pointer"
+                      className={`p-2 rounded-xl transition cursor-pointer ${
+                        isDark ? 'text-slate-400 hover:text-rose-400 hover:bg-slate-800' : 'text-slate-500 hover:text-rose-600 hover:bg-slate-100'
+                      }`}
                       title="Remover dos favoritos"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -186,12 +207,11 @@ export const ModalFavoritosCliente: React.FC<ModalFavoritosClienteProps> = ({
                     <button
                       type="button"
                       onClick={() => handleAdicionarItem(prod)}
-                      className={`px-3 py-2 rounded-xl text-white font-bold text-xs flex items-center gap-1.5 shadow transition-all active:scale-95 cursor-pointer ${
+                      className={`px-3 py-2 rounded-xl text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer ${
                         produtosAdicionados[prod.id]
-                          ? 'bg-emerald-600 hover:bg-emerald-500 ring-2 ring-emerald-400/50'
-                          : 'hover:brightness-110'
+                          ? 'bg-emerald-700 ring-2 ring-emerald-400/50'
+                          : 'bg-emerald-600 hover:bg-emerald-500'
                       }`}
-                      style={{ backgroundColor: produtosAdicionados[prod.id] ? undefined : corTema }}
                       title={produtosAdicionados[prod.id] ? 'Produto adicionado ao seu carrinho!' : 'Adicionar ao carrinho'}
                     >
                       {produtosAdicionados[prod.id] ? (

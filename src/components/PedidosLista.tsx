@@ -1439,6 +1439,15 @@ export const PedidosLista: React.FC = () => {
       console.error('Erro ao despachar pedido via API integrada:', err);
       let mensagem = err?.message || 'Falha na comunicação com o provedor de frete.';
       const msgLower = mensagem.toLowerCase();
+
+      if (err?.code === 'MELHOR_ENVIO_LIMITE_SEGURO_SEM_NFE' || msgLower.includes('e-crt-0001') || (msgLower.includes('valor segurado') && msgLower.includes('1.000,00'))) {
+        mensagem = 'O Melhor Envio limita envios com Declaração de Conteúdo (sem Nota Fiscal) a R$ 1.000,00. Abrindo o Despacho Manual para você concluir o envio com código de rastreio ou transportadora...';
+        mostrarErro(mensagem);
+        setPedidoParaDespacho(ped);
+        setModalDespachoAberto(true);
+        return;
+      }
+
       if (msgLower.includes('raio') || msgLower.includes('radius') || msgLower.includes('distance') || msgLower.includes('fora do raio') || msgLower.includes('undeliverable')) {
         mensagem = 'Endereço fora do raio de atendimento da Uber (máx. ~5 km). Utilize o botão "Trocar Frete" para despachar via Frete Próprio ou Melhor Envio.';
       } else if (msgLower.includes('saldo') || msgLower.includes('wallet')) {

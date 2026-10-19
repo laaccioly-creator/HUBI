@@ -790,6 +790,11 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         provedor: opcao.provedor,
         transportadora_nome: opcao.transportadora_nome,
         servico_codigo: opcao.servico_codigo,
+        servico_correios: (
+          opcao.servico_nome?.toUpperCase().includes('SEDEX') || opcao.transportadora_nome?.toUpperCase().includes('SEDEX') || String(opcao.servico_codigo) === '2' ? 'SEDEX' :
+          opcao.servico_nome?.toUpperCase().includes('PAC') || opcao.transportadora_nome?.toUpperCase().includes('PAC') || String(opcao.servico_codigo) === '1' ? 'PAC' :
+          opcao.servico_nome?.toUpperCase().includes('MINI') || opcao.transportadora_nome?.toUpperCase().includes('MINI') ? 'MINI_ENVIOS' : null
+        ),
         valor_frete: opcao.valor_frete,
         valor_original: opcao.valor_original ?? opcao.valor_frete,
         valor_subsidio: opcao.valor_subsidio ?? 0,
@@ -2303,6 +2308,19 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                   ) : (
                     /* Lista de Cotações Automáticas */
                     <div className="space-y-2">
+                      {subtotal > 1000 && cotacoes.some(c => c.provedor === 'melhor_envio') && (
+                        <div className={`p-3 rounded-xl border flex items-start gap-2.5 text-xs ${
+                          ehDark ? 'bg-amber-950/20 border-amber-500/40 text-amber-200' : 'bg-amber-50 border-amber-300 text-amber-900'
+                        }`}>
+                          <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                          <div className="space-y-0.5 leading-relaxed">
+                            <span className="font-bold block">Aviso sobre Envios acima de R$ 1.000,00</span>
+                            <p className="text-[11px]">
+                              Para envios via Melhor Envio com valor de produtos acima de R$ 1.000,00, a emissão automática exige Nota Fiscal Eletrônica (NF-e). Caso envie com Declaração de Conteúdo, utilize o envio manual ou despache diretamente no balcão da transportadora.
+                            </p>
+                          </div>
+                        </div>
+                      )}
                       {cotacoes.map((opcao) => {
                         const selecionada = modalidade === 'entrega' && viaEntrega === 'cotar' && cotacaoEscolhida?.id === opcao.id;
                         const desabilitada = Boolean(opcao.desabilitada);

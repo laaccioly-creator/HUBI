@@ -161,7 +161,11 @@ const uploadFotoParaSupabase = async (
   }
 };
 
-const processarListaConcorrentes = (rawList: any[], precoMedioFallback: number): DadosMercadoIA => {
+const processarListaConcorrentes = (
+  rawList: any[],
+  precoMedioFallback: number,
+  precoCustoRef?: number
+): DadosMercadoIA => {
   const listaBruta: PrecoConcorrente[] = (Array.isArray(rawList) ? rawList : [])
     .map((c: any) => ({
       loja: String(c.loja || c.estabelecimento || 'Loja de Varejo'),
@@ -171,35 +175,72 @@ const processarListaConcorrentes = (rawList: any[], precoMedioFallback: number):
     }))
     .filter((c: PrecoConcorrente) => c.preco > 0);
 
-  const ordenados = [...listaBruta].sort((a, b) => a.preco - b.preco);
+  if (listaBruta.length === 0) {
+    const fallback = Number(precoMedioFallback) || 0;
+    return {
+      precoMedio: fallback,
+      menorPreco: fallback,
+      maiorPreco: fallback,
+      totalPesquisados: 0,
+      concorrentes: [],
+      menoresPrecos: [],
+      maioresPrecos: [],
+      dataConsulta: new Date().toLocaleDateString('pt-BR')
+    };
+  }
+
+  // Ordenar para calcular a mediana
+  const precosOrdenados = [...listaBruta].map(c => c.preco).sort((a, b) => a - b);
+  const meio = Math.floor(precosOrdenados.length / 2);
+  const mediana = precosOrdenados.length % 2 === 0
+    ? (precosOrdenados[meio - 1] + precosOrdenados[meio]) / 2
+    : precosOrdenados[meio];
+
+  // Filtragem estatística de discrepâncias e outliers extremos
+  // Descarta preços menores que 40% da mediana (acessórios/refis) ou maiores que 220% da mediana
+  const listaFiltrada = listaBruta.filter(c => {
+    if (precosOrdenados.length >= 4) {
+      if (c.preco < mediana * 0.40) return false;
+      if (c.preco > mediana * 2.20) return false;
+    }
+    if (precoCustoRef && precoCustoRef > 0 && c.preco < precoCustoRef * 0.65) {
+      return false;
+    }
+    return true;
+  });
+
+  const baseFinal = listaFiltrada.length > 0 ? listaFiltrada : listaBruta;
+  const ordenados = [...baseFinal].sort((a, b) => a.preco - b.preco);
   const menoresPrecos = ordenados.slice(0, 5);
   const maioresPrecos = [...ordenados].reverse().slice(0, 5);
 
-  const soma = listaBruta.reduce((acc, c) => acc + c.preco, 0);
-  const mediaCalculada = listaBruta.length > 0
-    ? Number((soma / listaBruta.length).toFixed(2))
-    : Number(precoMedioFallback) || 0;
+  const soma = baseFinal.reduce((acc, c) => acc + c.preco, 0);
+  const mediaCalculada = Number((soma / baseFinal.length).toFixed(2));
 
   return {
     precoMedio: mediaCalculada,
     menorPreco: ordenados.length > 0 ? ordenados[0].preco : mediaCalculada,
     maiorPreco: ordenados.length > 0 ? ordenados[ordenados.length - 1].preco : mediaCalculada,
-    totalPesquisados: listaBruta.length,
-    concorrentes: listaBruta,
+    totalPesquisados: baseFinal.length,
+    concorrentes: baseFinal,
     menoresPrecos,
     maioresPrecos,
     dataConsulta: new Date().toLocaleDateString('pt-BR')
   };
 };
 
-
-
 export const pesquisarPrecosMercadoIA = async (
   nomeProduto: string,
   categoriaNome?: string,
   barcode?: string,
   loja?: any,
-  segmentoLoja?: string
+  segmentoLoja?: string,
+  opcoesExtras?: {
+    descricao?: string;
+    precoCusto?: number;
+    precoVendaAtual?: number;
+    tipoUnidade?: string;
+  }
 ): Promise<DadosMercadoIA> => {
   const apiKey = getGeminiApiKey(loja);
   if (!apiKey) {
@@ -209,35 +250,37 @@ export const pesquisarPrecosMercadoIA = async (
   const segmento = segmentoLoja || (loja ? obterNomeSegmentoLoja(loja) : '') || '';
 
   const promptTexto = `
-Você é um especialista em inteligência de mercado, precificação competitiva e monitoramento de preços no varejo e e-commerce brasileiro${segmento ? ` (segmento da loja: "${segmento}")` : ''}.
+Você é um especialista sênior em inteligência de mercado, precificação competitiva e monitoramento de preços no varejo e e-commerce brasileiro${segmento ? ` (segmento da loja: "${segmento}")` : ''}.
 Pesquise e levante com rigor técnico os preços reais de varejo praticados atualmente no mercado brasileiro para o seguinte item:
 
 PRODUTO: "${nomeProduto}"
 ${categoriaNome ? `CATEGORIA: "${categoriaNome}"` : ''}
 ${barcode ? `CÓDIGO DE BARRAS / EAN: "${barcode}"` : ''}
 ${segmento ? `SEGMENTO DE MERCADO: "${segmento}"` : ''}
+${opcoesExtras?.descricao ? `DESCRIÇÃO / ESPECIFICAÇÕES TÉCNICAS: "${opcoesExtras.descricao.substring(0, 300)}"` : ''}
+${opcoesExtras?.tipoUnidade ? `UNIDADE DE MEDIDA: "${opcoesExtras.tipoUnidade}"` : ''}
+${opcoesExtras?.precoCusto ? `PREÇO DE CUSTO INFORMADO PELO LOJISTA: R$ ${opcoesExtras.precoCusto.toFixed(2)}` : ''}
+${opcoesExtras?.precoVendaAtual ? `PREÇO DE VENDA ATUAL DA LOJA: R$ ${opcoesExtras.precoVendaAtual.toFixed(2)}` : ''}
 
-DIRETRIZES DE CALIBRAÇÃO REALISTA DE PREÇOS NO BRASIL:
-1. IDENTIFICAÇÃO DE FAIXA DE VALOR:
-   - Se for um item de entrada/popular (ex: mini vibrador bullet básico a pilha, cabos, bijuterias, acessórios simples importados), os marketplaces populares (Shopee, AliExpress Brasil) praticam preços extremamente agressivos, comumente entre R$ 11,00 e R$ 19,90.
-   - Nos marketplaces líderes (Mercado Livre e Amazon Brasil), itens de entrada giram entre R$ 18,90 e R$ 29,90.
-   - Em lojas online especializadas de nicho e marcas próprias, o valor fica entre R$ 24,90 e R$ 38,00.
-   - Itens intermediários ou de marcas consagradas/recarregáveis têm tickets proporcionalmente mais altos.
-2. CONCORRÊNCIA COERENTE COM O NICHO:
-   - Identifique entre 10 e 14 concorrentes REAIS no Brasil adequados ao segmento "${segmento || 'Varejo'}".
-   - Sempre inclua Shopee com preços agressivos reais de marketplace popular.
-   - Inclua Mercado Livre e Amazon Brasil.
-   - Inclua lojas e e-commerces especializados que de fato comercializam esta categoria${segmento ? ` (ex: para ${segmento}, inclua marcas e e-commerces reais do setor como Miess, Sex Shop Virtual, Hot Flowers, Sapeka, Sexy Fantasy, Intt, etc.)` : ''}.
-   - NUNCA invente lojas não correlatas (ex: não cite Casas Bahia, Americanas, Kalunga ou Pão de Açúcar para produtos de sex shop ou itens fora do sortimento deles).
+DIRETRIZES DE CALIBRAÇÃO E PRECISÃO DE PREÇOS NO BRASIL:
+1. IDENTIFICAÇÃO EXATA DO PRODUTO:
+   - Identifique rigorosamente a marca exata, modelo, tamanho/volume (ml, g, kg, L) e se é unidade avulsa ou kit/fardo.
+   - NUNCA confunda o produto principal com sachês, amostras grátis, refis avulsos, pilhas, peças de reposição ou acessórios secundários.
+   - Os preços devem refletir estritamente o produto NOVO e COMPLETO para o consumidor final em reais (R$ BRL).
+2. CONCORRÊNCIA E LOJAS ADEQUADAS AO NICHO:
+   - Identifique entre 10 e 14 concorrentes REAIS e ativos no Brasil que de fato comercializam esta categoria.
+   - Inclua os maiores marketplaces (Mercado Livre, Amazon Brasil, Shopee Lojas Oficiais).
+   - Inclua e-commerces e redes especializadas do nicho no Brasil.
+   - Pratique preços realistas de mercado sem ancoragem artificial para baixo.
 
 Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e sem texto adicional):
 {
   "preco_medio": 0.00,
   "concorrentes": [
-    { "loja": "Shopee", "preco": 12.90, "tipo": "Marketplace" },
-    { "loja": "Mercado Livre", "preco": 19.90, "tipo": "Marketplace" },
-    { "loja": "Amazon Brasil", "preco": 22.90, "tipo": "Marketplace" },
-    { "loja": "Loja Especializada", "preco": 28.00, "tipo": "E-commerce Especializado" }
+    { "loja": "Mercado Livre", "preco": 0.00, "tipo": "Marketplace" },
+    { "loja": "Amazon Brasil", "preco": 0.00, "tipo": "Marketplace" },
+    { "loja": "Shopee Oficial", "preco": 0.00, "tipo": "Marketplace" },
+    { "loja": "Loja Especializada", "preco": 0.00, "tipo": "E-commerce Especializado" }
   ]
 }
 `;
@@ -263,7 +306,11 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
   if (!parsed) throw new Error('Não foi possível interpretar a resposta da IA.');
 
   const lista = parsed.concorrentes || [];
-  return processarListaConcorrentes(lista, Number(parsed.preco_medio) || 0);
+  return processarListaConcorrentes(
+    lista,
+    Number(parsed.preco_medio) || 0,
+    opcoesExtras?.precoCusto
+  );
 };
 
 
