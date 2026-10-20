@@ -545,7 +545,7 @@ export const DashboardCockpit: React.FC = () => {
             titulo="Despesas Operacionais"
             subtituloTag="Teto Orçamentário"
             valorRealizado={metricas.despesas ?? 0}
-            valorMeta={metasProporcionais.meta_despesas_maximas ?? metasProporcionais.meta_despesas ?? 5000}
+            valorMeta={metasProporcionais.meta_despesas_maximas ?? metasProporcionais.meta_despesas ?? 0}
             tipoFormato="moeda"
             escalaInvertida={true}
             isLoading={carregando && !payloadExecutivo}
@@ -643,12 +643,12 @@ export const DashboardCockpit: React.FC = () => {
       {/* ========================================================================= */}
       {modalMetasAberto && (
         <ConfiguracoesMetas
-          lojaId={loja?.id}
+          lojaId={escopoLojaId !== 'todas' ? escopoLojaId : (loja?.id || '')}
           isModal={true}
           onClose={() => setModalMetasAberto(false)}
           onSucessoSalvar={() => {
             setModalMetasAberto(false);
-            dashboardJevService.invalidarCache(loja?.id);
+            dashboardJevService.invalidarCache(escopoLojaId !== 'todas' ? escopoLojaId : undefined);
             carregarMetricas(true);
           }}
         />

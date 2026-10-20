@@ -62,8 +62,8 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
   let percentualMeta = 0;
   if (metaValida > 0) {
     percentualMeta = Math.max(0, (realizadoValido / metaValida) * 100);
-  } else if (realizadoValido > 0) {
-    percentualMeta = 100;
+  } else {
+    percentualMeta = 0;
   }
 
   // Escala visual máxima do velocímetro: 125% da meta
@@ -161,6 +161,9 @@ export const CockpitGaugeF1: React.FC<CockpitGaugeF1Props> = ({
     if (ehNegativo) {
       badgeCor = 'text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border-rose-300 dark:border-rose-500/30';
       badgeTexto = 'Prejuízo';
+    } else if (metaValida === 0) {
+      badgeCor = 'text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700';
+      badgeTexto = 'Sem meta';
     } else if (percentualMeta >= 100) {
       badgeCor = 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/30';
       badgeTexto = `${percentualMeta.toFixed(0)}% da meta`;

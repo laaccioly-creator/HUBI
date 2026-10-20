@@ -305,6 +305,13 @@ export const PosCheckout: React.FC = () => {
       return;
     }
 
+    // Se o carrinho estiver vazio e não for edição de pedido existente, não há venda a proteger
+    if (itens.length === 0) {
+      snapshotInicialRef.current = snapshotAtual;
+      setTemAlteracoesNaoSalvas(false);
+      return;
+    }
+
     // Inicializa o snapshot de referência da sessão quando o PDV monta ou após salvar/limpar
     if (snapshotInicialRef.current === null) {
       snapshotInicialRef.current = snapshotAtual;
@@ -323,6 +330,7 @@ export const PosCheckout: React.FC = () => {
     isHydrated,
     pedidoEmEdicao,
     temAlteracoesPedido,
+    itens.length,
     snapshotAtual,
     setTemAlteracoesNaoSalvas
   ]);
@@ -425,8 +433,8 @@ export const PosCheckout: React.FC = () => {
   // Verifica se o cliente selecionado está habilitado e possui saldo no limite de crédito fiado
   const clienteAptoFiado = useMemo(() => {
     return Boolean(
-      clienteSelecionado &&
-      clienteSelecionado.permite_fiado &&
+      clienteSelecionado?.id &&
+      clienteSelecionado.permite_fiado === true &&
       Number(clienteSelecionado.limite_credito || 0) > 0
     );
   }, [clienteSelecionado]);
@@ -443,6 +451,24 @@ export const PosCheckout: React.FC = () => {
       return true;
     });
   }, [formasPagamento, permissions.podeAtivarFiado, clienteAptoFiado]);
+
+  // Sanitiza linhas de pagamento caso o cliente selecionado mude ou não possua limite fiado
+  useEffect(() => {
+    if (!clienteAptoFiado && linhasPagamento.some(l => l.forma_tipo === 'fiado')) {
+      const fpPadrao = formasPagamentoDisponiveis.find(f => f.tipo === 'dinheiro') || formasPagamentoDisponiveis[0] || FORMAS_PADRAO[0];
+      setLinhasPagamento(prev => prev.map(l => {
+        if (l.forma_tipo === 'fiado') {
+          return {
+            ...l,
+            forma_pagamento_id: fpPadrao.id,
+            forma_tipo: fpPadrao.tipo,
+            forma_nome: fpPadrao.nome
+          };
+        }
+        return l;
+      }));
+    }
+  }, [clienteAptoFiado, formasPagamentoDisponiveis, linhasPagamento]);
 
   // Totais e balanço das linhas de pagamento do pedido
   const totalLinhasPagamento = useMemo(() => {

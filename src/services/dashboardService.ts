@@ -33,16 +33,16 @@ const MESES_COMPLETOS = [
 ];
 
 /**
- * Metas de mercado padrão adotadas para lojas novas ou sem metas personalizadas
+ * Metas padrão adotadas para lojas novas ou sem metas configuradas (todos os valores zerados)
  */
 export const METAS_PADRAO_LOJA: Omit<LojaMetas, 'id' | 'loja_id'> = {
-  meta_faturamento: 50000.0,
-  meta_pedidos: 300,
-  meta_lucro_liquido: 15000.0,
-  meta_ticket_medio: 166.0,
-  meta_despesas_maximas: 5000.0,
-  meta_inadimplencia_maxima: 5.0,
-  meta_giro_estoque: 25.0,
+  meta_faturamento: 0.0,
+  meta_pedidos: 0,
+  meta_lucro_liquido: 0.0,
+  meta_ticket_medio: 0.0,
+  meta_despesas_maximas: 0.0,
+  meta_inadimplencia_maxima: 0.0,
+  meta_giro_estoque: 0.0,
   meta_saude_estoque_max_ruptura: 0.0
 };
 
@@ -247,13 +247,13 @@ export function calcularMetasProporcionais(
 
   return {
     ...metasMensais,
-    meta_faturamento: Math.round(Number(metasMensais.meta_faturamento) * fator * 100) / 100,
-    meta_pedidos: Math.max(1, Math.round(Number(metasMensais.meta_pedidos) * fator)),
-    meta_lucro_liquido: Math.round(Number(metasMensais.meta_lucro_liquido) * fator * 100) / 100,
-    meta_ticket_medio: Number(metasMensais.meta_ticket_medio),
-    meta_despesas_maximas: Math.round(Number(metasMensais.meta_despesas_maximas ?? metasMensais.meta_despesas ?? METAS_PADRAO_LOJA.meta_despesas_maximas ?? 5000.0) * fator * 100) / 100,
-    meta_inadimplencia_maxima: Number(metasMensais.meta_inadimplencia_maxima),
-    meta_giro_estoque: Number(metasMensais.meta_giro_estoque),
+    meta_faturamento: Math.round(Number(metasMensais.meta_faturamento || 0) * fator * 100) / 100,
+    meta_pedidos: Math.max(0, Math.round(Number(metasMensais.meta_pedidos || 0) * fator)),
+    meta_lucro_liquido: Math.round(Number(metasMensais.meta_lucro_liquido || 0) * fator * 100) / 100,
+    meta_ticket_medio: Number(metasMensais.meta_ticket_medio || 0),
+    meta_despesas_maximas: Math.round(Number(metasMensais.meta_despesas_maximas ?? metasMensais.meta_despesas ?? METAS_PADRAO_LOJA.meta_despesas_maximas ?? 0) * fator * 100) / 100,
+    meta_inadimplencia_maxima: Number(metasMensais.meta_inadimplencia_maxima || 0),
+    meta_giro_estoque: Number(metasMensais.meta_giro_estoque || 0),
     meta_saude_estoque_max_ruptura: Number(
       metasMensais.meta_saude_estoque_max_ruptura !== undefined && metasMensais.meta_saude_estoque_max_ruptura !== null
         ? metasMensais.meta_saude_estoque_max_ruptura
@@ -263,9 +263,16 @@ export function calcularMetasProporcionais(
 }
 
 /**
- * Consulta as metas cadastradas da loja ou retorna valores padrão se inexistente
+ * Consulta as metas cadastradas da loja ou retorna valores zerados se inexistente
  */
 export async function obterMetasLoja(lojaId: string): Promise<LojaMetas> {
+  const chaveStorage = `hubi_loja_metas_${lojaId}`;
+  let metasCacheLocal: LojaMetas | null = null;
+  try {
+    const salvo = localStorage.getItem(chaveStorage);
+    if (salvo) metasCacheLocal = JSON.parse(salvo);
+  } catch {}
+
   try {
     const { data, error } = await supabase
       .from('loja_metas')
@@ -274,7 +281,8 @@ export async function obterMetasLoja(lojaId: string): Promise<LojaMetas> {
       .maybeSingle();
 
     if (error) {
-      console.warn('[dashboardService] Falha ao consultar loja_metas, adotando padrões:', error.message);
+      console.warn('[dashboardService] Falha ao consultar loja_metas, adotando padrões/cache:', error.message);
+      if (metasCacheLocal) return metasCacheLocal;
       return {
         id: `default-${lojaId}`,
         loja_id: lojaId,
@@ -286,16 +294,16 @@ export async function obterMetasLoja(lojaId: string): Promise<LojaMetas> {
       const rupturaCarregada = Number(
         data.meta_saude_estoque_max_ruptura !== undefined && data.meta_saude_estoque_max_ruptura !== null
           ? data.meta_saude_estoque_max_ruptura
-          : (data.meta_giro_estoque !== undefined && data.meta_giro_estoque !== null ? data.meta_giro_estoque : METAS_PADRAO_LOJA.meta_saude_estoque_max_ruptura ?? 0)
+          : (data.meta_giro_estoque !== undefined && data.meta_giro_estoque !== null ? data.meta_giro_estoque : (metasCacheLocal?.meta_saude_estoque_max_ruptura ?? METAS_PADRAO_LOJA.meta_saude_estoque_max_ruptura ?? 0))
       );
 
       const despesasCarregada = Number(
         data.meta_despesas_maximas !== undefined && data.meta_despesas_maximas !== null
           ? data.meta_despesas_maximas
-          : (data.meta_despesas !== undefined && data.meta_despesas !== null ? data.meta_despesas : METAS_PADRAO_LOJA.meta_despesas_maximas ?? 5000.0)
+          : (data.meta_despesas !== undefined && data.meta_despesas !== null ? data.meta_despesas : (metasCacheLocal?.meta_despesas_maximas ?? METAS_PADRAO_LOJA.meta_despesas_maximas ?? 0))
       );
 
-      return {
+      const resultado: LojaMetas = {
         id: data.id,
         loja_id: data.loja_id,
         meta_faturamento: Number(data.meta_faturamento ?? METAS_PADRAO_LOJA.meta_faturamento),
@@ -309,10 +317,18 @@ export async function obterMetasLoja(lojaId: string): Promise<LojaMetas> {
         criado_em: data.criado_em,
         atualizado_em: data.atualizado_em
       };
+
+      try {
+        localStorage.setItem(chaveStorage, JSON.stringify(resultado));
+      } catch {}
+
+      return resultado;
     }
   } catch (err) {
     console.warn('[dashboardService] Exceção ao buscar metas da loja:', err);
   }
+
+  if (metasCacheLocal) return metasCacheLocal;
 
   return {
     id: `default-${lojaId}`,
@@ -377,7 +393,7 @@ export async function salvarMetasLoja(
   const despesasValor = Number(
     metas.meta_despesas_maximas !== undefined && metas.meta_despesas_maximas !== null
       ? metas.meta_despesas_maximas
-      : (metas.meta_despesas ?? METAS_PADRAO_LOJA.meta_despesas_maximas ?? 5000.0)
+      : (metas.meta_despesas ?? METAS_PADRAO_LOJA.meta_despesas_maximas ?? 0.0)
   );
 
   const payload: any = {
@@ -389,6 +405,7 @@ export async function salvarMetasLoja(
     meta_despesas_maximas: despesasValor,
     meta_inadimplencia_maxima: Number(metas.meta_inadimplencia_maxima ?? METAS_PADRAO_LOJA.meta_inadimplencia_maxima),
     meta_giro_estoque: rupturaValor,
+    meta_saude_estoque_max_ruptura: rupturaValor,
     atualizado_em: new Date().toISOString()
   };
 
@@ -398,16 +415,26 @@ export async function salvarMetasLoja(
     .select()
     .single();
 
-  // Fallback gracioso se a coluna meta_despesas_maximas não existir no banco
-  if (error && error.message && error.message.includes('meta_despesas_maximas')) {
-    delete payload.meta_despesas_maximas;
-    const retry = await supabase
-      .from('loja_metas')
-      .upsert(payload, { onConflict: 'loja_id' })
-      .select()
-      .single();
-    data = retry.data;
-    error = retry.error;
+  // Fallback gracioso se as colunas novas ainda não existirem no cache do PostgREST
+  if (error && error.message) {
+    let retryNeeded = false;
+    if (error.message.includes('meta_despesas_maximas')) {
+      delete payload.meta_despesas_maximas;
+      retryNeeded = true;
+    }
+    if (error.message.includes('meta_saude_estoque_max_ruptura')) {
+      delete payload.meta_saude_estoque_max_ruptura;
+      retryNeeded = true;
+    }
+    if (retryNeeded) {
+      const retry = await supabase
+        .from('loja_metas')
+        .upsert(payload, { onConflict: 'loja_id' })
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
   }
 
   if (error) {
@@ -415,7 +442,7 @@ export async function salvarMetasLoja(
     throw new Error('Não foi possível salvar as metas da loja. Tente novamente.');
   }
 
-  return {
+  const resultado: LojaMetas = {
     id: data.id,
     loja_id: data.loja_id,
     meta_faturamento: Number(data.meta_faturamento),
@@ -429,6 +456,12 @@ export async function salvarMetasLoja(
     criado_em: data.criado_em,
     atualizado_em: data.atualizado_em
   };
+
+  try {
+    localStorage.setItem(`hubi_loja_metas_${lojaId}`, JSON.stringify(resultado));
+  } catch {}
+
+  return resultado;
 }
 
 /**

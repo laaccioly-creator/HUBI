@@ -1061,7 +1061,6 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
 
         setSnapshotInicial(
         gerarSnapshotConfig({
-          telaInicialPadrao: geral.tela_inicial_padrao || 'inicio',
           moeda: geral.moeda || 'BR - R$',
           casasDecimais: geral.casas_decimais ?? extras.preferencias_gerais?.casas_decimais ?? true,
           controlarEstoque: extras.controlar_estoque ?? geral.controlar_estoque ?? true,
@@ -1142,19 +1141,23 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           tipoTaxaCatalogo: taxas.tipo_taxa_catalogo || 'percentual',
           aplicarTaxaCatalogo: taxas.aplicar_taxa_catalogo || 'adicionar',
           taxaCatalogoSomenteEntrega: taxas.taxa_catalogo_somente_entrega ?? true,
-          statusEmSeparacao: typeof statusLojaData?.status_em_separacao === 'boolean' ? statusLojaData.status_em_separacao : (statusAtivos.em_separacao ?? statusAtivos.em_producao ?? false),
-          statusEmExpedicao: typeof statusLojaData?.status_em_expedicao === 'boolean' ? statusLojaData.status_em_expedicao : (statusAtivos.em_expedicao ?? false),
-          statusAguardandoEnvio: typeof statusLojaData?.status_aguardando_envio === 'boolean' ? statusLojaData.status_aguardando_envio : (statusAtivos.aguardando_envio ?? false),
-          statusEnviado: typeof statusLojaData?.status_enviado === 'boolean' ? statusLojaData.status_enviado : (statusAtivos.enviado ?? statusAtivos.saiu_para_entrega ?? false),
-          statusEntregue: typeof statusLojaData?.status_entregue === 'boolean' ? statusLojaData.status_entregue : (statusAtivos.entregue ?? false),
-          statusProntoRetirar: typeof statusLojaData?.status_pronto_para_retirar === 'boolean' ? statusLojaData.status_pronto_para_retirar : (statusAtivos.pronto_para_retirar ?? false),
+          statusEmSeparacao: typeof statusLojaData?.status_em_separacao === 'boolean' ? statusLojaData.status_em_separacao : (statusAtivos.em_separacao ?? statusAtivos.em_producao ?? true),
+          statusEmExpedicao: typeof statusLojaData?.status_em_expedicao === 'boolean' ? statusLojaData.status_em_expedicao : (statusAtivos.em_expedicao ?? true),
+          statusAguardandoEnvio: typeof statusLojaData?.status_aguardando_envio === 'boolean' ? statusLojaData.status_aguardando_envio : (statusAtivos.aguardando_envio ?? true),
+          statusEnviado: typeof statusLojaData?.status_enviado === 'boolean' ? statusLojaData.status_enviado : (statusAtivos.enviado ?? statusAtivos.saiu_para_entrega ?? true),
+          statusEntregue: typeof statusLojaData?.status_entregue === 'boolean' ? statusLojaData.status_entregue : (statusAtivos.entregue ?? true),
+          statusProntoRetirar: typeof statusLojaData?.status_pronto_para_retirar === 'boolean' ? statusLojaData.status_pronto_para_retirar : (statusAtivos.pronto_para_retirar ?? true),
           trabalhoComEntregas: entregaRet.trabalho_com_entregas ?? true,
+          descricaoEntregas: entregaRet.descricao_entregas || '',
           trabalhoComRetirada: retBalcaoFinal,
           descricaoRetirada: entregaRet.descricao_retirada || '',
           freteGratisAtivo: freteGratisFinal,
           freteGratisValorMinimo: freteMinimoFinal,
           facebookPixelId: parceiros.facebook_pixel_id || '',
-          tiktokPixelId: parceiros.tiktok_pixel_id || ''
+          tiktokPixelId: parceiros.tiktok_pixel_id || '',
+          tipoVendaVarejo: tiposVenda.varejo !== false,
+          tipoVendaAtacado: tiposVenda.atacado !== false,
+          tipoVendaDistribuidor: tiposVenda.distribuidor !== false
         })
       );
 
@@ -1543,6 +1546,9 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       especialidadeNegocio,
       tomVozRubi,
       geminiApiKey,
+      googleSearchApiKey,
+      googleSearchCx,
+      serpApiKey,
       nomeLoja,
       urlLogo,
       telefone,
@@ -1639,6 +1645,9 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
     especialidadeNegocio,
     tomVozRubi,
     geminiApiKey,
+    googleSearchApiKey,
+    googleSearchCx,
+    serpApiKey,
     nomeLoja,
     urlLogo,
     telefone,
@@ -1726,7 +1735,12 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
     tipoVendaDistribuidor
   ]);
 
-  const isDirty = Boolean(snapshotInicial && snapshotAtual !== snapshotInicial);
+  const isDirty = Boolean(
+    subTela !== 'menu' &&
+    !['metas', 'whatsapp-ia', 'exportar', 'importar-exportar', 'importar-exportar-produtos'].includes(subTela) &&
+    snapshotInicial &&
+    snapshotAtual !== snapshotInicial
+  );
 
   useEffect(() => {
     setTemAlteracoesNaoSalvas(isDirty);

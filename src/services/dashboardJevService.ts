@@ -281,11 +281,11 @@ export const dashboardJevService = {
   invalidarCache(lojaId?: string) {
     if (lojaId) {
       Array.from(memoryCache.keys()).forEach(k => {
-        if (k.includes(lojaId)) memoryCache.delete(k);
+        if (k.includes(lojaId) || k.includes('_todas_')) memoryCache.delete(k);
       });
       try {
         Object.keys(sessionStorage).forEach(k => {
-          if (k.includes(lojaId)) sessionStorage.removeItem(k);
+          if (k.includes(lojaId) || k.includes('_todas_')) sessionStorage.removeItem(k);
         });
       } catch {}
     } else {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   X,
   CreditCard,
@@ -300,12 +300,31 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
   const totalLinhasPagamento = linhasPagamento.reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
   const diferencaPagamento = Number((saldoDevedorAtual - totalLinhasPagamento).toFixed(2));
 
-  const formasDisponiveis = formasPagamento.length > 0 ? formasPagamento : FORMAS_PADRAO;
+  const clientePedido = pedAtivo?.cliente || pedidoLocal?.cliente || pedido?.cliente;
+  const clienteAptoFiado = useMemo(() => {
+    return Boolean(
+      clientePedido?.id &&
+      clientePedido.permite_fiado === true &&
+      Number(clientePedido.limite_credito || 0) > 0
+    );
+  }, [clientePedido]);
+
+  const formasDisponiveis: FormaPagamento[] = useMemo(() => {
+    const lista = formasPagamento.length > 0 ? formasPagamento : FORMAS_PADRAO;
+    return lista.filter((fp: FormaPagamento) => {
+      if (!fp.ativo) return false;
+      if (fp.tipo === 'fiado') {
+        const linhaJaUsaFiado = linhasPagamento.some(l => l.forma_tipo === 'fiado' || l.forma_pagamento_id === fp.id);
+        return clienteAptoFiado || linhaJaUsaFiado;
+      }
+      return true;
+    });
+  }, [formasPagamento, clienteAptoFiado, linhasPagamento]);
 
   const handleAdicionarLinha = () => {
     const somaAtual = linhasPagamento.reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
     const valorRestanteSugerido = Math.max(0, Number((saldoDevedorAtual - somaAtual).toFixed(2)));
-    const fpPadrao = formasDisponiveis.find(f => f.tipo === 'pix') || formasDisponiveis[0];
+    const fpPadrao = formasDisponiveis.find((f: FormaPagamento) => f.tipo === 'pix') || formasDisponiveis[0];
 
     const novaLinha: LinhaPagamentoRecebimento = {
       id: `linha_${Date.now()}_${Math.random()}`,
@@ -451,7 +470,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
       // 1. Gravar cada pagamento na tabela pagamentos_pedido
       for (const linha of linhasAtivas) {
         const fpRealId = await SyncService.resolverFormaPagamentoId(loja?.id || '', linha.forma_pagamento_id, linha.forma_tipo);
-        const fpRef = formasDisponiveis.find(f => f.id === linha.forma_pagamento_id || f.tipo === linha.forma_tipo);
+        const fpRef = formasDisponiveis.find((f: FormaPagamento) => f.id === linha.forma_pagamento_id || f.tipo === linha.forma_tipo);
         const taxaPerc = Number(fpRef?.taxa_percentual || 0);
         const taxaValor = Number(((linha.valor * taxaPerc) / 100).toFixed(2));
         const valorLiquido = Number((linha.valor - taxaValor).toFixed(2));
@@ -789,7 +808,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
 
                   {/* Seleção da Forma de Pagamento */}
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                    {formasDisponiveis.map((fp) => {
+                    {formasDisponiveis.map((fp: FormaPagamento) => {
                       const estaSelecionado = linha.forma_pagamento_id === fp.id || (!linha.forma_pagamento_id && linha.forma_tipo === fp.tipo);
                       return (
                         <button

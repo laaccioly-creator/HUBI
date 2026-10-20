@@ -58,7 +58,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
   const [metaPedidos, setMetaPedidos] = useState<number>(METAS_PADRAO_LOJA.meta_pedidos);
   const [metaLucroLiquido, setMetaLucroLiquido] = useState<number>(METAS_PADRAO_LOJA.meta_lucro_liquido);
   const [metaTicketMedio, setMetaTicketMedio] = useState<number>(METAS_PADRAO_LOJA.meta_ticket_medio);
-  const [metaDespesasMaximas, setMetaDespesasMaximas] = useState<number>(METAS_PADRAO_LOJA.meta_despesas_maximas ?? 5000);
+  const [metaDespesasMaximas, setMetaDespesasMaximas] = useState<number>(METAS_PADRAO_LOJA.meta_despesas_maximas ?? 0);
   const [metaInadimplenciaMaxima, setMetaInadimplenciaMaxima] = useState<number>(METAS_PADRAO_LOJA.meta_inadimplencia_maxima);
   const [metaSaudeEstoqueRuptura, setMetaSaudeEstoqueRuptura] = useState<number>(METAS_PADRAO_LOJA.meta_saude_estoque_max_ruptura ?? 0);
 
@@ -84,7 +84,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
           setMetaPedidos(Number(dados.meta_pedidos ?? METAS_PADRAO_LOJA.meta_pedidos));
           setMetaLucroLiquido(Number(dados.meta_lucro_liquido ?? METAS_PADRAO_LOJA.meta_lucro_liquido));
           setMetaTicketMedio(Number(dados.meta_ticket_medio ?? METAS_PADRAO_LOJA.meta_ticket_medio));
-          setMetaDespesasMaximas(Number(dados.meta_despesas_maximas ?? dados.meta_despesas ?? METAS_PADRAO_LOJA.meta_despesas_maximas ?? 5000));
+          setMetaDespesasMaximas(Number(dados.meta_despesas_maximas ?? dados.meta_despesas ?? METAS_PADRAO_LOJA.meta_despesas_maximas ?? 0));
           setMetaInadimplenciaMaxima(Number(dados.meta_inadimplencia_maxima ?? METAS_PADRAO_LOJA.meta_inadimplencia_maxima));
           const rupturaCarregada = Number(
             dados.meta_saude_estoque_max_ruptura !== undefined && dados.meta_saude_estoque_max_ruptura !== null
@@ -113,7 +113,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
     setMetaPedidos(METAS_PADRAO_LOJA.meta_pedidos);
     setMetaLucroLiquido(METAS_PADRAO_LOJA.meta_lucro_liquido);
     setMetaTicketMedio(METAS_PADRAO_LOJA.meta_ticket_medio);
-    setMetaDespesasMaximas(METAS_PADRAO_LOJA.meta_despesas_maximas ?? 5000);
+    setMetaDespesasMaximas(METAS_PADRAO_LOJA.meta_despesas_maximas ?? 0);
     setMetaInadimplenciaMaxima(METAS_PADRAO_LOJA.meta_inadimplencia_maxima);
     setMetaSaudeEstoqueRuptura(METAS_PADRAO_LOJA.meta_saude_estoque_max_ruptura ?? 0);
   };
@@ -134,7 +134,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
       setSalvando(true);
       const payload: Partial<LojaMetas> = {
         meta_faturamento: Math.max(0, metaFaturamento),
-        meta_pedidos: Math.max(1, Math.round(metaPedidos)),
+        meta_pedidos: Math.max(0, Math.round(metaPedidos)),
         meta_lucro_liquido: Math.max(0, metaLucroLiquido),
         meta_ticket_medio: Math.max(0, metaTicketMedio),
         meta_despesas_maximas: Math.max(0, metaDespesasMaximas),
@@ -282,7 +282,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
             <input
               type="number"
               step="10"
-              min="1"
+              min="0"
               disabled={!podeEditar || carregando}
               value={metaPedidos}
               onChange={(e) => setMetaPedidos(parseInt(e.target.value, 10) || 0)}

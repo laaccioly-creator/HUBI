@@ -1253,7 +1253,7 @@ export const CadastrosAuxiliares: React.FC = () => {
     qtdMinimaSkuAutoatacado
   ]);
 
-  const isDirtyPrecificacao = Boolean(snapshotPrecificacaoInicial && snapshotPrecificacaoAtual !== snapshotPrecificacaoInicial);
+  const isDirtyPrecificacao = Boolean(modalSecaoAberta === 'precificacao' && snapshotPrecificacaoInicial && snapshotPrecificacaoAtual !== snapshotPrecificacaoInicial);
   const isDirtyCategoria = modalCategoriaAberta && Boolean(
     catEditando
       ? (catNome.trim() !== (catEditando.nome || '').trim() || (catIcone.trim() || '📦') !== (catEditando.icone || '📦'))
