@@ -104,9 +104,12 @@ export const CatalogoPublico: React.FC = () => {
   useEffect(() => {
     try {
       const slugKey = slug || window.location.pathname.split('/').pop() || 'default';
+      const keyCartCliente = `hubi_carrinho_catalogo_${slugKey}_${clienteSelecionado?.id || 'visitante'}`;
       if (carrinho.length > 0) {
+        sessionStorage.setItem(keyCartCliente, JSON.stringify(carrinho));
         sessionStorage.setItem(`hubi_carrinho_catalogo_${slugKey}`, JSON.stringify(carrinho));
       } else {
+        sessionStorage.removeItem(keyCartCliente);
         sessionStorage.removeItem(`hubi_carrinho_catalogo_${slugKey}`);
       }
     } catch (e) {
@@ -395,20 +398,32 @@ export const CatalogoPublico: React.FC = () => {
       // Ignore
     }
 
-    // Fechar todos os modais e menus de conta
+    // Fechar todos os modais secundários e menu de conta
     setMenuUsuarioAberto(false);
-    setModalOnboardingAberto(false);
     setModalContatoAberto(false);
     setModalEnderecoAberto(false);
     setModalPedidosAberto(false);
     setModalFavoritosAberto(false);
     setModalNotificacoesAberto(false);
 
+    // Item 5: Limpeza total e mandatória do carrinho na sessão ao sair
+    setCarrinho([]);
+    setPedidoEntrega(null);
+    setCupomAplicado(null);
+    setDescontoCupom(0);
+    setFreteGratisCupom(false);
+    setCodigoCupomInput('');
+    setMensagemCupom(null);
+    setObservacoes('');
+    cartContext?.limparCarrinho();
+
+    const cliIdAnterior = clienteSelecionado?.id;
     setClienteSelecionado(null);
     setNomeCliente('');
     setWhatsappCliente('');
     setFavoritosIds(new Set());
     setContagemNotificacoesNaoLidas(0);
+
     try {
       sessionStorage.removeItem(`hubi_cliente_catalogo_${slugKey}`);
       sessionStorage.removeItem(`hubi_contato_catalogo_${slugKey}`);
@@ -416,6 +431,11 @@ export const CatalogoPublico: React.FC = () => {
       sessionStorage.removeItem(`hubi_whatsapp_cliente_catalogo_${slugKey}`);
       sessionStorage.removeItem(`hubi_endereco_catalogo_${slugKey}`);
       sessionStorage.removeItem(`hubi_endereco_formatado_catalogo_${slugKey}`);
+      sessionStorage.removeItem(`hubi_carrinho_catalogo_${slugKey}`);
+      if (cliIdAnterior) {
+        sessionStorage.removeItem(`hubi_carrinho_catalogo_${slugKey}_${cliIdAnterior}`);
+      }
+      sessionStorage.removeItem(`hubi_carrinho_catalogo_${slugKey}_visitante`);
       localStorage.removeItem('hubi_oauth_catalogo_login');
       localStorage.removeItem('hubi_oauth_catalogo_slug');
       cartContext?.setClienteSelecionado(null);
@@ -428,6 +448,10 @@ export const CatalogoPublico: React.FC = () => {
     } catch {
       // Ignore
     }
+
+    // Item 1: Abrir imediatamente a Área do Cliente (Boas-vindas / Login) para feedback claro de saída
+    setModalOnboardingMotivo('geral');
+    setModalOnboardingAberto(true);
   };
 
   const handleToggleFavorito = async (produtoId: string) => {
@@ -2224,10 +2248,10 @@ Fico no aguardo da confirmação! ✨`;
                     <button
                       type="button"
                       onClick={() => setProdutoDetalhesModal(produto)}
-                      className="px-2.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition cursor-pointer border border-slate-200 dark:border-slate-700 shadow-xs"
+                      className="p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs"
                       title="Ver Detalhes do Produto"
                     >
-                      <Eye className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                      <Eye className="w-3.5 h-3.5 text-slate-700 dark:text-slate-200 shrink-0" />
                       <span className="hidden sm:inline">Detalhar</span>
                     </button>
 
@@ -2244,15 +2268,15 @@ Fico no aguardo da confirmação! ✨`;
                       }}
                       className={`px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition shadow-xs ${
                         esgotado
-                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-60'
-                          : 'bg-slate-950 dark:bg-white text-white dark:text-slate-950 cursor-pointer hover:opacity-90 active:scale-95'
+                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 font-semibold cursor-not-allowed opacity-60'
+                          : 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 dark:border-2 dark:border-emerald-400 cursor-pointer active:scale-95'
                       }`}
                     >
                       {esgotado ? (
                         <span>Esgotado</span>
                       ) : (
                         <>
-                          <Plus className="w-3.5 h-3.5" />
+                          <Plus className="w-3.5 h-3.5 text-white" />
                           <span className="hidden sm:inline">Adicionar</span>
                         </>
                       )}
@@ -2336,10 +2360,10 @@ Fico no aguardo da confirmação! ✨`;
                         <button
                           type="button"
                           onClick={() => setProdutoDetalhesModal(produto)}
-                          className="px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition cursor-pointer border border-slate-200 dark:border-slate-700 shadow-xs"
+                          className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs"
                           title="Ver detalhes do produto"
                         >
-                          <Eye className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                          <Eye className="w-4 h-4 text-slate-700 dark:text-slate-200 shrink-0" />
                           <span>Detalhar</span>
                         </button>
 
@@ -2356,15 +2380,15 @@ Fico no aguardo da confirmação! ✨`;
                           }}
                           className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-xs transition ${
                             esgotado
-                              ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-60'
-                              : 'bg-slate-950 dark:bg-white text-white dark:text-slate-950 cursor-pointer hover:opacity-90 active:scale-95'
+                              ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 font-semibold cursor-not-allowed opacity-60'
+                              : 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 dark:border-2 dark:border-emerald-400 cursor-pointer active:scale-95'
                           }`}
                         >
                           {esgotado ? (
                             <span>Esgotado</span>
                           ) : (
                             <>
-                              <ShoppingBag className="w-4 h-4" />
+                              <ShoppingBag className="w-4 h-4 text-white" />
                               <span>Adicionar</span>
                             </>
                           )}
@@ -2456,10 +2480,10 @@ Fico no aguardo da confirmação! ✨`;
                       <button
                         type="button"
                         onClick={() => setProdutoDetalhesModal(produto)}
-                        className="p-2 rounded-xl flex items-center justify-center transition shadow-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 cursor-pointer"
+                        className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center justify-center cursor-pointer shadow-xs"
                         title="Ver Detalhes do Produto"
                       >
-                        <Eye className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                        <Eye className="w-3.5 h-3.5 text-slate-700 dark:text-slate-200" />
                       </button>
 
                       <button
@@ -2475,12 +2499,12 @@ Fico no aguardo da confirmação! ✨`;
                         }}
                         className={`w-8 h-8 rounded-xl flex items-center justify-center transition shadow-xs font-bold ${
                           esgotado
-                            ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 border border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-50'
-                            : 'bg-slate-950 dark:bg-white text-white dark:text-slate-950 cursor-pointer hover:opacity-90 active:scale-95'
+                            ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 font-semibold cursor-not-allowed opacity-60'
+                            : 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 dark:border-2 dark:border-emerald-400 cursor-pointer active:scale-95'
                         }`}
                         title={esgotado ? 'Produto Esgotado' : 'Adicionar ao Pedido'}
                       >
-                        {esgotado ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                        {esgotado ? <X className="w-4 h-4 text-slate-400" /> : <Plus className="w-4 h-4 text-white" />}
                       </button>
                     </div>
                   </div>
@@ -2728,10 +2752,10 @@ Fico no aguardo da confirmação! ✨`;
                   const skuFracionado = avaliacaoCarrinho.skusFracionados.find(s => s.id === itemKey);
 
                   return (
-                    <div key={idx} className="bg-slate-800/60 p-3.5 rounded-2xl border border-slate-800 space-y-2">
+                    <div key={idx} className="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2 shadow-2xs">
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-bold text-xs text-slate-100 truncate">{item.produto.nome}</h4>
+                          <h4 className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">{item.produto.nome}</h4>
                           {item.variacao && (
                             <span className="text-[10px] text-slate-400 block">
                               {item.variacao.valor_variacao_1} {item.variacao.valor_variacao_2 ? `- ${item.variacao.valor_variacao_2}` : ''}
@@ -2762,12 +2786,12 @@ Fico no aguardo da confirmação! ✨`;
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
 
-                          <div className="flex items-center border border-slate-700 bg-slate-900 rounded-lg overflow-hidden">
-                            <button onClick={() => atualizarQtdCarrinho(idx, item.quantidade - 1)} className="p-1 text-slate-400 hover:text-white cursor-pointer">
+                          <div className="flex items-center border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-lg overflow-hidden">
+                            <button onClick={() => atualizarQtdCarrinho(idx, item.quantidade - 1)} className="p-1 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer">
                               <Minus className="w-3.5 h-3.5" />
                             </button>
-                            <span className="px-2 text-xs font-bold text-slate-100 min-w-[20px] text-center">{item.quantidade}</span>
-                            <button onClick={() => atualizarQtdCarrinho(idx, item.quantidade + 1)} className="p-1 text-slate-400 hover:text-white cursor-pointer">
+                            <span className="px-2 text-xs font-bold text-slate-900 dark:text-slate-100 min-w-[20px] text-center">{item.quantidade}</span>
+                            <button onClick={() => atualizarQtdCarrinho(idx, item.quantidade + 1)} className="p-1 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer">
                               <Plus className="w-3.5 h-3.5" />
                             </button>
                           </div>
@@ -2798,33 +2822,33 @@ Fico no aguardo da confirmação! ✨`;
               )}
 
               {carrinho.length > 0 && (
-                <form id="formCheckout" onSubmit={handleFinalizarPedido} className="pt-4 border-t border-slate-800 space-y-3">
+                <form id="formCheckout" onSubmit={handleFinalizarPedido} className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
                   <div>
                     <input
                       type="text"
                       placeholder="Observações do pedido (opcional)..."
                       value={observacoes}
                       onChange={(e) => setObservacoes(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100"
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     />
                   </div>
 
                   {/* CAMPO DE CUPOM DE DESCONTO */}
-                  <div className="pt-2 border-t border-slate-800/80 space-y-1.5">
-                    <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
-                      <Ticket className="w-3.5 h-3.5 text-emerald-400" />
+                  <div className="pt-2 border-t border-slate-200 dark:border-slate-800/80 space-y-1.5">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <Ticket className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                       <span>Possui cupom de desconto?</span>
                     </span>
 
                     {cupomAplicado ? (
-                      <div className="p-2.5 bg-emerald-950/40 border border-emerald-500/40 rounded-xl flex items-center justify-between">
+                      <div className="p-2.5 bg-slate-100 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-500/40 rounded-xl flex items-center justify-between shadow-2xs">
                         <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">
+                          <div className="w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 flex items-center justify-center font-bold text-xs">
                             ✓
                           </div>
                           <div>
-                            <span className="text-xs font-black text-slate-100">{cupomAplicado.codigo}</span>
-                            <span className="text-[10px] text-emerald-400 block">
+                            <span className="text-xs font-black text-slate-900 dark:text-slate-100">{cupomAplicado.codigo}</span>
+                            <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 block">
                               {freteGratisCupom ? 'Frete Grátis Aplicado' : `R$ ${descontoCupom.toFixed(2)} OFF`}
                             </span>
                           </div>
@@ -2832,7 +2856,7 @@ Fico no aguardo da confirmação! ✨`;
                         <button
                           type="button"
                           onClick={handleRemoverCupom}
-                          className="p-1 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition text-xs"
+                          className="p-1 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-500/10 transition text-xs cursor-pointer"
                           title="Remover cupom"
                         >
                           <X className="w-3.5 h-3.5" />
@@ -2846,7 +2870,7 @@ Fico no aguardo da confirmação! ✨`;
                             placeholder="CÓDIGO DO CUPOM"
                             value={codigoCupomInput}
                             onChange={(e) => setCodigoCupomInput(e.target.value.toUpperCase())}
-                            className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 font-bold placeholder:text-slate-500 placeholder:font-normal focus:outline-none focus:border-emerald-500 tracking-wider"
+                            className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-bold placeholder:text-slate-400 dark:placeholder:text-slate-500 placeholder:font-normal focus:outline-none focus:border-emerald-500 tracking-wider"
                           />
                           <button
                             type="button"

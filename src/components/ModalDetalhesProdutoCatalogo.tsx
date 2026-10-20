@@ -108,10 +108,7 @@ export const ModalDetalhesProdutoCatalogo: React.FC<ModalDetalhesProdutoCatalogo
     }
 
     onAdicionarAoCarrinho(produto, variacaoSelecionada, quantidade);
-    setAdicionadoSucesso(true);
-    setTimeout(() => {
-      setAdicionadoSucesso(false);
-    }, 2000);
+    onClose();
   };
 
   return (

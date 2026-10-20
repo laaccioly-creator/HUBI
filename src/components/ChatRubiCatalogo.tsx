@@ -1237,31 +1237,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
               ))}
             </div>
 
-            {/* Indicador de Escuta com Tolerância Confortável de Pausa */}
-            {escutandoVoz && (
-              <div className="px-3.5 py-2 bg-gradient-to-r from-rose-950/80 via-slate-900 to-slate-950 border-t border-rose-500/40 flex items-center justify-between text-xs text-rose-200 animate-in fade-in shrink-0">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="flex h-2.5 w-2.5 relative shrink-0">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
-                  </span>
-                  <span className="truncate font-medium text-[11px]">
-                    {inputTexto.trim()
-                      ? 'Ouvindo... Pode falar no seu ritmo (pausa de 2s envia automaticamente)'
-                      : 'Gravando... Fale a sua frase com calma, estou te ouvindo!'}
-                  </span>
-                </div>
-                {inputTexto.trim() && (
-                  <button
-                    type="button"
-                    onClick={() => pararGravacaoVoz(true)}
-                    className="ml-2 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] shrink-0 transition shadow-sm cursor-pointer"
-                  >
-                    Enviar Agora
-                  </button>
-                )}
-              </div>
-            )}
+
 
             {/* Formulário de Envio com Microfone Integrado */}
             <form
@@ -1279,7 +1255,9 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                 onClick={alternarGravacaoVoz}
                 className={`p-2.5 rounded-xl border transition cursor-pointer shrink-0 ${
                   escutandoVoz
-                    ? 'bg-rose-600 border-rose-500 text-white animate-pulse shadow-lg shadow-rose-600/30'
+                    ? isDark
+                      ? 'bg-emerald-950/80 border-emerald-500/60 text-emerald-400 shadow-xs'
+                      : 'bg-emerald-50 border-emerald-400 text-emerald-700 shadow-xs'
                     : isDark
                     ? 'bg-slate-900 border-slate-700 text-slate-300 hover:text-emerald-400 hover:border-emerald-500/50'
                     : 'bg-slate-100 border-slate-300 text-slate-700 hover:text-emerald-700 hover:bg-slate-200'

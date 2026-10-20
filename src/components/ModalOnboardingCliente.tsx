@@ -73,16 +73,48 @@ export const ModalOnboardingCliente: React.FC<ModalOnboardingClienteProps> = ({
   const [carregandoGeoloc, setCarregandoGeoloc] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
+  // Limpeza profunda de estados e credenciais
+  const resetarFormulario = React.useCallback(() => {
+    setNome('');
+    setTelefone('');
+    setSenha('');
+    setMostrarSenha(false);
+    setCep('');
+    setLogradouro('');
+    setNumero('');
+    setComplemento('');
+    setBairro('');
+    setCidade('');
+    setUf('');
+    setLat(undefined);
+    setLng(undefined);
+    setLoginTelefone('');
+    setLoginSenha('');
+    setMostrarLoginSenha(false);
+    setErro(null);
+  }, []);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      resetarFormulario();
+      setModo('boas_vindas');
+    }
+  }, [isOpen, resetarFormulario]);
+
+  const emFluxoCadastroAtivo = modo === 'passo1_identificacao' || modo === 'passo2_endereco';
+
   React.useEffect(() => {
     if (!isOpen || !onClose) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        // Bloqueia fechamento por Escape durante cadastro ativo para não perder dados digitados
+        if (emFluxoCadastroAtivo) return;
         onClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, emFluxoCadastroAtivo]);
 
   if (!isOpen) return null;
 
@@ -337,7 +369,7 @@ export const ModalOnboardingCliente: React.FC<ModalOnboardingClienteProps> = ({
   return (
     <div
       onClick={(e) => {
-        if (e.target === e.currentTarget && !bloqueioObrigatorio && onClose) {
+        if (e.target === e.currentTarget && !bloqueioObrigatorio && !emFluxoCadastroAtivo && onClose) {
           onClose();
         }
       }}
@@ -488,6 +520,8 @@ export const ModalOnboardingCliente: React.FC<ModalOnboardingClienteProps> = ({
                   type="button"
                   onClick={() => {
                     setErro(null);
+                    setLoginSenha('');
+                    setMostrarLoginSenha(false);
                     setModo('login');
                   }}
                   className="text-xs text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 font-semibold underline underline-offset-4 transition cursor-pointer"
@@ -502,62 +536,108 @@ export const ModalOnboardingCliente: React.FC<ModalOnboardingClienteProps> = ({
           {/* TELA DE LOGIN (TELEFONE + SENHA)                              */}
           {/* ============================================================ */}
           {modo === 'login' && (
-            <form onSubmit={handleSubmeterLogin} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Celular / WhatsApp
-                </label>
-                <div className="relative">
-                  <Smartphone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="tel"
-                    required
-                    placeholder="(00) 00000-0000"
-                    value={loginTelefone}
-                    onChange={(e) => setLoginTelefone(formatarTelefone(e.target.value))}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 font-medium"
-                  />
+            <div className="space-y-4">
+              <form onSubmit={handleSubmeterLogin} className="space-y-4" autoComplete="off">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Celular / WhatsApp
+                  </label>
+                  <div className="relative">
+                    <Smartphone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="tel"
+                      required
+                      autoComplete="username tel"
+                      placeholder="(00) 00000-0000"
+                      value={loginTelefone}
+                      onChange={(e) => setLoginTelefone(formatarTelefone(e.target.value))}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 font-medium"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Sua Senha
-                </label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type={mostrarLoginSenha ? 'text' : 'password'}
-                    required
-                    placeholder="Digite sua senha"
-                    value={loginSenha}
-                    onChange={(e) => setLoginSenha(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl pl-10 pr-10 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 font-medium"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setMostrarLoginSenha(!mostrarLoginSenha)}
-                    className="p-1 text-slate-400 hover:text-slate-200 absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
-                  >
-                    {mostrarLoginSenha ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Sua Senha
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type={mostrarLoginSenha ? 'text' : 'password'}
+                      required
+                      autoComplete="current-password"
+                      placeholder="Digite sua senha"
+                      value={loginSenha}
+                      onChange={(e) => setLoginSenha(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl pl-10 pr-10 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 font-medium"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setMostrarLoginSenha(!mostrarLoginSenha)}
+                      className="p-1 text-slate-400 hover:text-slate-200 absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+                    >
+                      {mostrarLoginSenha ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              <button
-                type="submit"
-                disabled={carregando}
-                className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition active:scale-[0.99] cursor-pointer"
-              >
-                {carregando ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Entrando...</span>
-                  </>
-                ) : (
-                  <span>Acessar Minha Conta</span>
-                )}
-              </button>
+                <button
+                  type="submit"
+                  disabled={carregando}
+                  className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition active:scale-[0.99] cursor-pointer"
+                >
+                  {carregando ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Entrando...</span>
+                    </>
+                  ) : (
+                    <span>Acessar Minha Conta</span>
+                  )}
+                </button>
+              </form>
+
+              {/* Botões de Login Social no Modal de Login */}
+              <div className="space-y-2 pt-1 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={handleLoginGoogle}
+                  disabled={carregando}
+                  className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-800 dark:text-slate-100 border border-slate-300/80 dark:border-slate-700/80 font-bold text-xs flex items-center justify-center gap-2.5 transition cursor-pointer"
+                >
+                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.17 0 9.97 0 12s.45 3.83 1.25 5.42l4.03-3.15z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+                    />
+                  </svg>
+                  <span>Entrar com Google</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleLoginApple}
+                  disabled={carregando}
+                  className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-black dark:hover:bg-neutral-900 text-white border border-slate-800 dark:border-neutral-700/80 font-bold text-xs flex items-center justify-center gap-2.5 transition cursor-pointer"
+                >
+                  <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 170 170">
+                    <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.35.13-9.16-1.9-14.42-6.08-3.69-3.04-7.69-7.85-12.01-14.42-6.53-9.9-11.66-21.33-15.39-34.29-3.73-12.96-5.6-25.29-5.6-36.99 0-15.39 3.86-28.09 11.59-38.1 7.72-10.02 17.51-15.18 29.36-15.48 4.9 0 10.23 1.25 16 3.75 5.77 2.5 9.77 3.86 12.01 4.1 1.74-.24 5.86-1.66 12.37-4.24 6.51-2.58 11.75-3.75 15.72-3.51 12.39.63 22.45 5.17 30.18 13.62-10.88 6.53-16.2 15.54-15.96 27.02.24 9.14 3.79 16.89 10.65 23.26 6.86 6.37 14.86 10.12 24 11.24-2.18 6.74-4.85 13.27-8.01 19.59zM119.22 33.15c0-7.39 2.67-14.37 8-20.93 5.34-6.56 12-10.87 19.98-12.92.54 1.74.82 3.42.82 5.05 0 7.39-2.73 14.42-8.19 21.09-5.46 6.67-12.28 10.88-20.46 12.63-.07-1.54-.15-3.18-.15-4.92z" />
+                  </svg>
+                  <span>Entrar com Apple</span>
+                </button>
+              </div>
 
               <div className="text-center pt-2">
                 <button
@@ -566,19 +646,19 @@ export const ModalOnboardingCliente: React.FC<ModalOnboardingClienteProps> = ({
                     setErro(null);
                     setModo('boas_vindas');
                   }}
-                  className="text-xs text-slate-400 hover:text-emerald-400 transition cursor-pointer"
+                  className="text-xs text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition cursor-pointer"
                 >
-                  Ainda não tem conta? <strong className="text-emerald-400 font-bold">Cadastre-se</strong>
+                  Ainda não tem conta? <strong className="text-emerald-600 dark:text-emerald-400 font-bold">Cadastre-se</strong>
                 </button>
               </div>
-            </form>
+            </div>
           )}
 
           {/* ============================================================ */}
           {/* PASSO 1: IDENTIFICAÇÃO (NOME, CELULAR, SENHA)                */}
           {/* ============================================================ */}
           {modo === 'passo1_identificacao' && (
-            <form onSubmit={handleAvancarPasso1} className="space-y-4">
+            <form onSubmit={handleAvancarPasso1} className="space-y-4" autoComplete="off">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                   Nome Completo <span className="text-rose-400">*</span>
@@ -626,6 +706,8 @@ export const ModalOnboardingCliente: React.FC<ModalOnboardingClienteProps> = ({
                     type={mostrarSenha ? 'text' : 'password'}
                     required
                     minLength={6}
+                    autoComplete="new-password"
+                    name="nova_senha_cadastro_hubi"
                     placeholder="Mínimo de 6 caracteres"
                     value={senha}
                     onChange={(e) => setSenha(e.target.value)}
