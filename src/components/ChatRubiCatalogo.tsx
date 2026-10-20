@@ -927,31 +927,8 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                 </div>
               </div>
 
-              {/* Botões de Ação no Header (Viva-Voz, Áudio, Tela Cheia, Fechar) */}
+              {/* Botões de Ação no Header (Áudio, Tela Cheia, Fechar) */}
               <div className="flex items-center gap-1">
-                {/* Botão de Modo Sempre Atenta (Wake Word Rubi) */}
-                <button
-                  type="button"
-                  onClick={alternarModoWakeWord}
-                  className={`px-2 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 text-xs font-semibold ${
-                    modoWakeWord
-                      ? 'text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/20 border border-emerald-300 dark:border-emerald-500/40 shadow-xs'
-                      : isDark
-                      ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                      : 'text-slate-600 hover:text-slate-950 hover:bg-slate-200/70'
-                  }`}
-                  title={
-                    modoWakeWord
-                      ? "Modo Sempre Atenta ATIVO (Diga 'Rubi...' para falar). Clique para desativar."
-                      : "Ativar Modo Sempre Atenta (Alexa): Fale 'Rubi...' sem precisar tocar na tela"
-                  }
-                >
-                  <Radio className={`w-3.5 h-3.5 ${modoWakeWord ? 'text-emerald-600 dark:text-emerald-400 animate-pulse' : ''}`} />
-                  <span className="hidden sm:inline text-[11px]">
-                    {modoWakeWord ? 'Viva-Voz Ativo' : 'Viva-Voz (tipo Alexa)'}
-                  </span>
-                </button>
-
                 {/* Botão de Ativar/Desativar Voz (TTS) */}
                 <button
                   type="button"

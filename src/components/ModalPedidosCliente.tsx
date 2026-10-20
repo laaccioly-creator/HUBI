@@ -29,6 +29,15 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
   const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  useEffect(() => {
     let ativo = true;
 
     async function carregar() {
@@ -117,15 +126,20 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in cursor-pointer"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 cursor-default"
+      >
         {/* Cabeçalho */}
         <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-950/70">
           <div className="flex items-center gap-2.5">
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-white shadow"
-              style={{ backgroundColor: corTema }}
-            >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white shadow bg-emerald-600">
               <Package className="w-5 h-5" />
             </div>
             <div>
@@ -175,8 +189,7 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                     onClose();
                     onExplorarCatalogo();
                   }}
-                  className="mt-2 px-4 py-2 rounded-xl text-xs font-bold text-white shadow transition hover:brightness-110 cursor-pointer"
-                  style={{ backgroundColor: corTema }}
+                  className="mt-2 px-4 py-2 rounded-xl text-xs font-bold text-white shadow transition hover:bg-emerald-500 bg-emerald-600 cursor-pointer"
                 >
                   Explorar Vitrine
                 </button>

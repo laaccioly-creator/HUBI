@@ -263,6 +263,27 @@ export const CatalogoPublico: React.FC = () => {
   const [modalFavoritosAberto, setModalFavoritosAberto] = useState<boolean>(false);
   const [modalNotificacoesAberto, setModalNotificacoesAberto] = useState<boolean>(false);
   const [menuUsuarioAberto, setMenuUsuarioAberto] = useState<boolean>(false);
+  const menuUsuarioRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuUsuarioAberto) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuUsuarioRef.current && !menuUsuarioRef.current.contains(event.target as Node)) {
+        setMenuUsuarioAberto(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMenuUsuarioAberto(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [menuUsuarioAberto]);
   const [dadosContato, setDadosContato] = useState<DadosContatoCliente>(() => {
     if (typeof window === 'undefined') return { nome: '', telefone: '', telefoneIsWhatsapp: true };
     try {
@@ -1790,23 +1811,8 @@ Fico no aguardo da confirmação! ✨`;
     );
   }
 
-  // 1. BLOQUEIO OBRIGATÓRIO DE ACESSO AO CATÁLOGO
-  // O cliente NÃO pode visualizar os produtos nem navegar pelo catálogo sem antes ter uma conta cadastrada/logada.
-  if (!clienteSelecionado) {
-    return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4">
-        <ModalOnboardingCliente
-          isOpen={true}
-          bloqueioObrigatorio={true}
-          lojaId={loja.id}
-          nomeLoja={loja.nome_fantasia || 'HUBI'}
-          corTema={corTema}
-          motivoAbertura="geral"
-          onSucesso={handleSelecionarCliente}
-        />
-      </div>
-    );
-  }
+  // Navegação livre na vitrine: clientes e visitantes podem ver os produtos,
+  // abrindo o modal de onboarding sob demanda quando necessário.
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-white transition-colors duration-200">
@@ -1959,7 +1965,7 @@ Fico no aguardo da confirmação! ✨`;
 
           {/* 6. Identificação / Conta */}
           {clienteSelecionado ? (
-            <div className="relative">
+            <div ref={menuUsuarioRef} className="relative">
               <button
                 type="button"
                 onClick={() => setMenuUsuarioAberto(!menuUsuarioAberto)}
@@ -2557,8 +2563,16 @@ Fico no aguardo da confirmação! ✨`;
       )}
 
       {drawerCarrinhoAberto && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-end z-50 animate-in fade-in overscroll-contain">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 h-full flex flex-col animate-in slide-in-from-right duration-200">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setDrawerCarrinhoAberto(false);
+          }}
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-end z-50 animate-in fade-in overscroll-contain cursor-pointer"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 h-full flex flex-col animate-in slide-in-from-right duration-200 cursor-default"
+          >
             <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <h3 className="font-bold text-base text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <ShoppingBag className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
@@ -2961,15 +2975,25 @@ Fico no aguardo da confirmação! ✨`;
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleFinalizarPedido}
-                  disabled={enviandoPedido}
-                  className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer active:scale-98"
-                >
-                  <Share2 className="w-5 h-5" />
-                  <span>{enviandoPedido ? 'Enviando Pedido...' : aceitaPedidos ? 'Finalizar e Enviar Pedido' : 'Enviar Consulta via WhatsApp'}</span>
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setDrawerCarrinhoAberto(false)}
+                    className="w-full py-3.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer active:scale-98 order-2 sm:order-1"
+                  >
+                    <span>Continuar Comprando</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleFinalizarPedido}
+                    disabled={enviandoPedido}
+                    className="w-full py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer active:scale-98 order-1 sm:order-2"
+                  >
+                    <Share2 className="w-4 h-4 shrink-0" />
+                    <span>{enviandoPedido ? 'Enviando...' : aceitaPedidos ? 'Finalizar Pedido' : 'Enviar Consulta'}</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>

@@ -46,6 +46,15 @@ export const ModalNotificacoesCliente: React.FC<ModalNotificacoesClienteProps> =
     }
   }, [isOpen, lojaId, clienteId]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleMarcarLida = async (notif: ClienteNotificacao) => {
@@ -95,19 +104,24 @@ export const ModalNotificacoesCliente: React.FC<ModalNotificacoesClienteProps> =
   const naoLidas = notificacoes.filter((n) => !n.lida).length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in">
-      <div className="bg-slate-900 border-2 border-slate-700/80 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in cursor-pointer"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 cursor-default"
+      >
         {/* Cabeçalho */}
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/70">
+        <div className="p-4 border-b border-slate-150 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-950/70">
           <div className="flex items-center gap-2.5">
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-white shadow"
-              style={{ backgroundColor: corTema }}
-            >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white shadow bg-emerald-600">
               <Bell className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-extrabold text-sm sm:text-base text-slate-100 flex items-center gap-2">
+              <h3 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <span>Notificações</span>
                 {naoLidas > 0 && (
                   <span className="text-[10px] font-black px-1.5 py-0.2 rounded-full bg-rose-500 text-white">
@@ -121,7 +135,7 @@ export const ModalNotificacoesCliente: React.FC<ModalNotificacoesClienteProps> =
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-150 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
