@@ -948,7 +948,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                 >
                   <Radio className={`w-3.5 h-3.5 ${modoWakeWord ? 'text-emerald-600 dark:text-emerald-400 animate-pulse' : ''}`} />
                   <span className="hidden sm:inline text-[11px]">
-                    {modoWakeWord ? 'Sempre Atenta' : 'Viva-Voz'}
+                    {modoWakeWord ? 'Viva-Voz Ativo' : 'Viva-Voz (tipo Alexa)'}
                   </span>
                 </button>
 
@@ -1067,22 +1067,44 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                       </div>
 
                       {msg.remetente === 'rubi' && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!audioAtivo) setAudioAtivo(true);
-                            falarTexto(msg.texto, true);
-                          }}
-                          className={`text-[10px] flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition cursor-pointer select-none font-semibold ${
-                            isDark
-                              ? 'text-emerald-400 hover:text-emerald-300 bg-slate-950/70 hover:bg-slate-950 border-emerald-500/30'
-                              : 'text-emerald-800 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 border-emerald-300 shadow-2xs'
-                          }`}
-                          title="Tocar áudio desta resposta no seu fone"
-                        >
-                          <Volume2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                          <span>🔊 Ouvir resposta</span>
-                        </button>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!audioAtivo) setAudioAtivo(true);
+                              falarTexto(msg.texto, true);
+                            }}
+                            className={`text-[10px] flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition cursor-pointer select-none font-semibold ${
+                              isDark
+                                ? 'text-emerald-400 hover:text-emerald-300 bg-slate-950/70 hover:bg-slate-950 border-emerald-500/30'
+                                : 'text-emerald-800 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 border-emerald-300 shadow-2xs'
+                            }`}
+                            title="Tocar áudio desta resposta no seu fone"
+                          >
+                            <Volume2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                            <span>🔊 Ouvir resposta</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={alternarModoWakeWord}
+                            className={`text-[10px] flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition cursor-pointer select-none font-bold ${
+                              modoWakeWord
+                                ? 'bg-emerald-600 text-white border-emerald-500 shadow-xs ring-2 ring-emerald-500/30'
+                                : isDark
+                                  ? 'text-indigo-300 hover:text-white bg-indigo-950/70 hover:bg-indigo-900/80 border-indigo-500/40'
+                                  : 'text-indigo-800 hover:text-indigo-950 bg-indigo-50 hover:bg-indigo-100 border-indigo-300 shadow-2xs'
+                            }`}
+                            title={
+                              modoWakeWord
+                                ? "Modo Viva-Voz contínuo ativado. Diga 'Rubi...' a qualquer momento para falar."
+                                : "Ativar Modo Viva-Voz contínuo (tipo Alexa). Fale livremente sem tocar na tela."
+                            }
+                          >
+                            <Radio className={`w-3 h-3 shrink-0 ${modoWakeWord ? 'text-white animate-pulse' : 'text-indigo-500 dark:text-indigo-400'}`} />
+                            <span>{modoWakeWord ? '🟢 Viva-Voz Ativo (tipo Alexa)' : '🎙️ Viva-Voz (tipo Alexa)'}</span>
+                          </button>
+                        </div>
                       )}
                     </div>
 

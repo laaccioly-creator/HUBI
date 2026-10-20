@@ -205,6 +205,7 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
               setModalEnderecoAberto(true);
             }}
             dadosEnvioIniciais={dadosEnvioIniciais}
+            possuiNfe={Boolean((pedido as any)?.chave_nfe || (pedido as any)?.nfe_numero || (pedido as any)?.metadados?.chave_nfe || (pedido as any)?.metadados?.nfe_numero)}
             onEnderecoAlterado={(novoEnd) => {
               setEnderecoAtualizadoLocal(novoEnd);
             }}

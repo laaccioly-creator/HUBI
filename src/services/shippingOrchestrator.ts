@@ -58,6 +58,10 @@ export class ShippingOrchestrator {
             ? Boolean(dadosShipping.permite_retirada_loja)
             : Boolean(dadosLoja?.retirada_loja_ativa)));
 
+      const limiteDeclaracaoConteudo = dadosShipping?.limite_declaracao_conteudo !== undefined && dadosShipping?.limite_declaracao_conteudo !== null
+        ? Number(dadosShipping.limite_declaracao_conteudo)
+        : 1000.00;
+
       if (dadosShipping) {
         return {
           ...dadosShipping,
@@ -65,7 +69,8 @@ export class ShippingOrchestrator {
           retirada_balcao_ativa: retiradaAtiva,
           permite_retirada_loja: retiradaAtiva,
           frete_gratis_ativo: freteGratisAtivo,
-          frete_gratis_valor_minimo: freteGratisValorMinimo
+          frete_gratis_valor_minimo: freteGratisValorMinimo,
+          limite_declaracao_conteudo: limiteDeclaracaoConteudo
         };
       }
 
@@ -94,7 +99,8 @@ export class ShippingOrchestrator {
           retirada_balcao_ativa: retiradaAtiva,
           retirada_loja_ativa: retiradaAtiva,
           frete_gratis_ativo: freteGratisAtivo,
-          frete_gratis_valor_minimo: freteGratisValorMinimo
+          frete_gratis_valor_minimo: freteGratisValorMinimo,
+          limite_declaracao_conteudo: 1000.00
         };
       }
 

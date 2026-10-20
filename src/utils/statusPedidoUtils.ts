@@ -209,11 +209,12 @@ export function obterOpcoesStatusAlteracao(
     return opcoes;
   }
 
-  // De enviado: Permite transitar para Entregue ou retornar para Aguardando envio (estorno operacional)
+  // De enviado: Permite transitar para Entregue, Concluído ou retornar para Aguardando envio (estorno operacional)
   if (statusAtual === 'enviado' || statusAtual === 'saiu_para_entrega') {
     if (isStatusPedidoAtivo('entregue', loja)) {
       opcoes.push({ id: 'entregue', label: 'Entregue' });
     }
+    opcoes.push({ id: 'concluido', label: 'Concluído' });
     if (isStatusPedidoAtivo('aguardando_envio', loja)) {
       opcoes.push({ id: 'aguardando_envio', label: 'Retornar para Aguardando envio' });
     }
@@ -365,11 +366,11 @@ export function validarTransicaoStatusPedido(
   }
 
   if (statusAtual === 'enviado' || statusAtual === 'saiu_para_entrega') {
-    const permitidos = ['entregue', 'aguardando_envio', 'cancelado'];
+    const permitidos = ['entregue', 'concluido', 'aguardando_envio', 'cancelado'];
     if (!permitidos.includes(novoStatus)) {
       return {
         permitido: false,
-        motivo: 'A partir de Enviado, o pedido pode avançar para Entregue ou retornar para Aguardando envio.'
+        motivo: 'A partir de Enviado, o pedido pode avançar para Entregue, Concluído ou retornar para Aguardando envio.'
       };
     }
   }

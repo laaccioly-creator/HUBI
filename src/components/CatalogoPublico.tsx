@@ -2487,17 +2487,31 @@ Fico no aguardo da confirmação! ✨`;
 
       {produtoModalVariacao && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-sm text-slate-100">{produtoModalVariacao.nome}</h3>
-              <button onClick={() => setProdutoModalVariacao(null)} className="text-slate-400 hover:text-white">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-150 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">{produtoModalVariacao.nome}</h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Selecione a opção desejada para adicionar ao pedido</p>
+              </div>
+              <button onClick={() => setProdutoModalVariacao(null)} className="p-1 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg transition cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-2 max-h-60 overflow-y-auto">
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
               {produtoModalVariacao.variacoes?.map((variacao) => {
                 const varEsgotada = isVariacaoEsgotada(produtoModalVariacao, variacao);
+                const precoOriginalVar = Number(variacao.preco_venda_varejo || produtoModalVariacao.preco_venda_varejo || 0);
+                const precoPromoCandidato = Number(
+                  (variacao.preco_promocional && Number(variacao.preco_promocional) > 0)
+                    ? variacao.preco_promocional
+                    : (produtoModalVariacao.promocao_ativa && produtoModalVariacao.preco_promocional ? produtoModalVariacao.preco_promocional : 0)
+                );
+                const temPromoVar = Boolean(
+                  (variacao.preco_promocional && Number(variacao.preco_promocional) > 0) ||
+                  (produtoModalVariacao.promocao_ativa && produtoModalVariacao.preco_promocional && Number(produtoModalVariacao.preco_promocional) > 0)
+                ) && precoPromoCandidato > 0 && precoPromoCandidato < precoOriginalVar;
+                const precoEfetivoVar = temPromoVar ? precoPromoCandidato : precoOriginalVar;
 
                 return (
                   <button
@@ -2510,23 +2524,30 @@ Fico no aguardo da confirmação! ✨`;
                     }}
                     className={`w-full p-3 rounded-xl border flex items-center justify-between text-left transition ${
                       varEsgotada
-                        ? 'bg-slate-800/40 border-slate-800/80 opacity-50 cursor-not-allowed'
-                        : 'bg-slate-800 hover:bg-slate-700/80 border-slate-700 cursor-pointer'
+                        ? 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800/80 opacity-50 cursor-not-allowed'
+                        : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700/80 border-slate-200 dark:border-slate-700 cursor-pointer shadow-xs'
                     }`}
                   >
-                    <div className="flex items-center gap-2">
-                      <span className={`font-bold text-xs ${varEsgotada ? 'text-slate-400 line-through' : 'text-slate-100'}`}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`font-bold text-xs truncate ${varEsgotada ? 'text-slate-400 line-through' : 'text-slate-800 dark:text-slate-100'}`}>
                         {variacao.valor_variacao_1} {variacao.valor_variacao_2 ? `- ${variacao.valor_variacao_2}` : ''}
                       </span>
                       {varEsgotada && (
-                        <span className="text-[10px] font-black text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/30">
+                        <span className="text-[10px] font-black text-rose-500 dark:text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/30 shrink-0">
                           Esgotado
                         </span>
                       )}
                     </div>
-                    <span className={`font-bold text-xs ${varEsgotada ? 'text-slate-500' : 'text-emerald-400'}`}>
-                      R$ {Number(variacao.preco_venda_varejo).toFixed(2)}
-                    </span>
+                    <div className="flex items-baseline gap-1.5 text-right shrink-0">
+                      {temPromoVar && (
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 line-through">
+                          {formatarMoeda(precoOriginalVar)}
+                        </span>
+                      )}
+                      <span className={`font-bold text-xs ${varEsgotada ? 'text-slate-400 dark:text-slate-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                        {formatarMoeda(precoEfetivoVar)}
+                      </span>
+                    </div>
                   </button>
                 );
               })}
@@ -2944,7 +2965,7 @@ Fico no aguardo da confirmação! ✨`;
                   type="button"
                   onClick={handleFinalizarPedido}
                   disabled={enviandoPedido}
-                  className="w-full py-4 rounded-2xl bg-slate-950 dark:bg-white text-white dark:text-slate-950 font-black text-sm shadow-md flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer hover:opacity-90 active:scale-98"
+                  className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer active:scale-98"
                 >
                   <Share2 className="w-5 h-5" />
                   <span>{enviandoPedido ? 'Enviando Pedido...' : aceitaPedidos ? 'Finalizar e Enviar Pedido' : 'Enviar Consulta via WhatsApp'}</span>

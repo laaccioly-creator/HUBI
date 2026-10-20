@@ -109,6 +109,7 @@ export const ShippingSettingsScreen: React.FC = () => {
   const [embalagemPadraoAlturaCm, setEmbalagemPadraoAlturaCm] = useState<string>('4');
   const [embalagemPadraoLarguraCm, setEmbalagemPadraoLarguraCm] = useState<string>('12');
   const [embalagemPadraoComprimentoCm, setEmbalagemPadraoComprimentoCm] = useState<string>('17');
+  const [limiteDeclaracaoConteudo, setLimiteDeclaracaoConteudo] = useState<string>('1000.00');
 
   // 4. Retirada
   const [permiteRetiradaLoja, setPermiteRetiradaLoja] = useState<boolean>(true);
@@ -163,6 +164,7 @@ export const ShippingSettingsScreen: React.FC = () => {
           if (config.embalagem_padrao_altura_cm != null) setEmbalagemPadraoAlturaCm(String(config.embalagem_padrao_altura_cm));
           if (config.embalagem_padrao_largura_cm != null) setEmbalagemPadraoLarguraCm(String(config.embalagem_padrao_largura_cm));
           if (config.embalagem_padrao_comprimento_cm != null) setEmbalagemPadraoComprimentoCm(String(config.embalagem_padrao_comprimento_cm));
+          setLimiteDeclaracaoConteudo(config.limite_declaracao_conteudo != null ? String(config.limite_declaracao_conteudo) : '1000.00');
 
           const retiradaAtiva = Boolean(config.retirada_balcao_ativa ?? config.retirada_loja_ativa ?? config.permite_retirada_loja ?? false);
           setPermiteRetiradaLoja(retiradaAtiva);
@@ -403,6 +405,7 @@ export const ShippingSettingsScreen: React.FC = () => {
         embalagem_padrao_altura_cm: embalagemPadraoAlturaCm.trim() ? parseFloat(embalagemPadraoAlturaCm.replace(',', '.')) : 4,
         embalagem_padrao_largura_cm: embalagemPadraoLarguraCm.trim() ? parseFloat(embalagemPadraoLarguraCm.replace(',', '.')) : 12,
         embalagem_padrao_comprimento_cm: embalagemPadraoComprimentoCm.trim() ? parseFloat(embalagemPadraoComprimentoCm.replace(',', '.')) : 17,
+        limite_declaracao_conteudo: limiteDeclaracaoConteudo.trim() ? parseFloat(limiteDeclaracaoConteudo.replace(',', '.')) : 1000.00,
 
         permite_retirada_loja: retiradaBalcaoAtiva,
         retirada_balcao_ativa: retiradaBalcaoAtiva,
@@ -824,6 +827,29 @@ export const ShippingSettingsScreen: React.FC = () => {
               onChange={(e) => setMelhorEnvioToken(e.target.value)}
               className="w-full px-3.5 py-2 rounded-xl text-sm font-mono border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Limite para Declaração de Conteúdo sem NF-e (R$)
+            </label>
+            <div className="relative max-w-xs">
+              <span className="absolute left-3 top-2 text-sm font-bold text-slate-400 dark:text-slate-500">
+                R$
+              </span>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="1000.00"
+                value={limiteDeclaracaoConteudo}
+                onChange={(e) => setLimiteDeclaracaoConteudo(e.target.value)}
+                className="w-full pl-9 pr-3.5 py-2 rounded-xl text-sm font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none"
+              />
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+              Pedidos com valor de produtos acima deste teto e sem NF-e associada serão direcionados para envio manual, evitando cotações que falhariam na emissão da etiqueta.
+            </p>
           </div>
 
           {/* Sub-bloco: Embalagem Padrão para Cotações */}

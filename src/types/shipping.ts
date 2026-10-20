@@ -83,6 +83,7 @@ export interface LojaShippingConfig {
   embalagem_padrao_altura_cm?: number;
   embalagem_padrao_largura_cm?: number;
   embalagem_padrao_comprimento_cm?: number;
+  limite_declaracao_conteudo?: number;
   criado_em?: string;
   atualizado_em?: string;
 }

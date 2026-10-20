@@ -143,6 +143,11 @@ export const calcularPrecoUnitarioPorTabela = (
   }
 
   // Varejo / Padrão (com checagem de promoção)
+  const precoPromoVar = variacao?.preco_promocional && Number(variacao.preco_promocional) > 0 ? Number(variacao.preco_promocional) : null;
+  if (precoPromoVar) {
+    return precoPromoVar;
+  }
+
   if (produto.promocao_ativa && produto.preco_promocional && Number(produto.preco_promocional) > 0) {
     return Number(produto.preco_promocional);
   }

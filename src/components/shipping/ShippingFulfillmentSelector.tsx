@@ -102,6 +102,7 @@ export interface ShippingFulfillmentSelectorProps {
   modoCompacto?: boolean;
   modoCatalogo?: boolean;
   temaDark?: boolean;
+  possuiNfe?: boolean;
 }
 
 const resolverEnderecoInicial = (
@@ -167,7 +168,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   className = '',
   modoCompacto = false,
   modoCatalogo = false,
-  temaDark
+  temaDark,
+  possuiNfe = false
 }) => {
   const { tema } = useTheme();
   const isDark = tema === 'dark';
@@ -570,6 +572,9 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     configLoja?.retirada_balcao_ativa !== false
   );
 
+  const limiteDeclaracaoConteudo = Number(configLoja?.limite_declaracao_conteudo ?? 1000);
+  const excedeLimiteSemNfe = !ehCatalogo && subtotal > limiteDeclaracaoConteudo && !possuiNfe;
+
   // Se a loja não permite retirada, garantir que a modalidade seja estritamente 'entrega'
   useEffect(() => {
     if (configLoja && !permiteRetirada) {
@@ -579,10 +584,16 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     }
   }, [configLoja, permiteRetirada, modalidade]);
 
+  // Se houver excesso do teto sem NF-e, força diretamente a aba 'manual'.
   // Se houver integração automática ativa (Melhor Envio ou Uber Direct), abre e prioriza 'cotar'.
   // Se nenhuma integração estiver configurada, abre e permanece exclusivamente em 'manual'.
   useEffect(() => {
     if (!configLoja) return;
+    if (excedeLimiteSemNfe) {
+      setViaEntrega('manual');
+      inicializouAbaViaEntregaRef.current = true;
+      return;
+    }
     if (!inicializouAbaViaEntregaRef.current) {
       inicializouAbaViaEntregaRef.current = true;
       if (temIntegracaoAutomatica) {
@@ -593,11 +604,11 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     } else if (!temIntegracaoAutomatica) {
       setViaEntrega('manual');
     }
-  }, [configLoja, temIntegracaoAutomatica]);
+  }, [configLoja, temIntegracaoAutomatica, excedeLimiteSemNfe]);
 
   // 3. Executar Cotação Automática (Uber Direct e Melhor Envio)
   const executarCotacao = useCallback(async (endAlvo: ClienteEndereco, forcar = false) => {
-    if (!temUber && !temMelhorEnvio) {
+    if (excedeLimiteSemNfe || (!temUber && !temMelhorEnvio)) {
       setCotacoes([]);
       return;
     }
@@ -754,7 +765,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     } finally {
       setCotando(false);
     }
-  }, [configLoja, lojaId, modalidade, viaEntrega, subtotal, itensSig, itens, temUber, temMelhorEnvio, opcaoSelecionadaId, obterPacoteAtual]);
+  }, [configLoja, lojaId, modalidade, viaEntrega, subtotal, itensSig, itens, temUber, temMelhorEnvio, opcaoSelecionadaId, obterPacoteAtual, excedeLimiteSemNfe]);
 
   // Emissão de cotação automática padronizada
   const emitirSelecao = useCallback((opcao: OpcaoFreteCotada, endAlvo: ClienteEndereco | null) => {
@@ -1096,12 +1107,12 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     emitirSelecaoManual(forma, preco, enderecoSelecionado || enderecoEntregaAtual);
   };
 
-  // Dispara cotação automática quando o endereço for definido e houver integrações ativas
+  // Dispara cotação automática quando o endereço for definido e houver integrações ativas (e dentro do limite sem NF-e)
   useEffect(() => {
-    if (enderecoSelecionado && configLoja && (temUber || temMelhorEnvio)) {
+    if (enderecoSelecionado && configLoja && (temUber || temMelhorEnvio) && !excedeLimiteSemNfe) {
       executarCotacao(enderecoSelecionado);
     }
-  }, [enderecoSelecionado, configLoja, temUber, temMelhorEnvio, executarCotacao]);
+  }, [enderecoSelecionado, configLoja, temUber, temMelhorEnvio, excedeLimiteSemNfe, executarCotacao]);
 
   // Selecionar Modalidade de Retirada (Balcão Físico - Grátis)
   const handleSelecionarRetirada = () => {
@@ -1652,8 +1663,25 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
             </div>
           ) : (
             <div className="space-y-3">
-              {/* Seletor de Duas Vias de Entrega (Apenas no painel do lojista se houver integração automática ativa) */}
-              {!ehCatalogo && temIntegracaoAutomatica && (
+              {/* Alerta Orientativo quando o valor dos produtos excede o limite sem NF-e */}
+              {!ehCatalogo && excedeLimiteSemNfe && (
+                <div className={`p-3.5 rounded-2xl border flex items-start gap-3 text-xs ${
+                  ehDark ? 'bg-amber-950/30 border-amber-500/50 text-amber-200' : 'bg-amber-50 border-amber-300 text-amber-900 shadow-xs'
+                }`}>
+                  <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <span className="font-bold block text-sm">
+                      Envio sem NF-e acima do Limite de Declaração de Conteúdo ({formatarMoeda(limiteDeclaracaoConteudo)})
+                    </span>
+                    <p className="text-xs leading-relaxed">
+                      Este pedido possui valor de produtos ({formatarMoeda(subtotal)}) superior ao teto permitido para envio com Declaração de Conteúdo nas transportadoras integradas e não possui NF-e associada. A cotação automática foi ocultada; selecione e informe abaixo uma modalidade de frete manual para expedição.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Seletor de Duas Vias de Entrega (Apenas no painel do lojista se houver integração automática ativa e dentro do limite) */}
+              {!ehCatalogo && temIntegracaoAutomatica && !excedeLimiteSemNfe && (
                 <div className={`grid grid-cols-2 gap-2 p-1 rounded-2xl border ${
                   ehDark ? 'bg-black border-slate-800' : 'bg-slate-100 border-slate-200'
                 }`}>
@@ -1700,7 +1728,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
               )}
 
               {/* VIA A: COTAÇÃO AUTOMÁTICA EM TEMPO REAL (UBER DIRECT / MELHOR ENVIO) */}
-              {(viaEntrega === 'cotar' || ehCatalogo) && (
+              {!excedeLimiteSemNfe && (viaEntrega === 'cotar' || ehCatalogo) && (
                 (!clienteId || !enderecoSelecionado || !(enderecoSelecionado.cep || '').replace(/\D/g, '') || !(enderecoSelecionado.logradouro || '').trim()) ? (
                   <div className={`p-3.5 rounded-2xl space-y-2.5 border ${
                     ehDark
@@ -2308,15 +2336,15 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                   ) : (
                     /* Lista de Cotações Automáticas */
                     <div className="space-y-2">
-                      {subtotal > 1000 && cotacoes.some(c => c.provedor === 'melhor_envio') && (
+                      {subtotal > limiteDeclaracaoConteudo && cotacoes.some(c => c.provedor === 'melhor_envio') && (
                         <div className={`p-3 rounded-xl border flex items-start gap-2.5 text-xs ${
                           ehDark ? 'bg-amber-950/20 border-amber-500/40 text-amber-200' : 'bg-amber-50 border-amber-300 text-amber-900'
                         }`}>
                           <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                           <div className="space-y-0.5 leading-relaxed">
-                            <span className="font-bold block">Aviso sobre Envios acima de R$ 1.000,00</span>
+                            <span className="font-bold block">Aviso sobre Envios acima de {formatarMoeda(limiteDeclaracaoConteudo)}</span>
                             <p className="text-[11px]">
-                              Para envios via Melhor Envio com valor de produtos acima de R$ 1.000,00, a emissão automática exige Nota Fiscal Eletrônica (NF-e). Caso envie com Declaração de Conteúdo, utilize o envio manual ou despache diretamente no balcão da transportadora.
+                              Para envios via Melhor Envio com valor de produtos acima de {formatarMoeda(limiteDeclaracaoConteudo)}, a emissão da etiqueta exige Nota Fiscal Eletrônica (NF-e). Caso envie com Declaração de Conteúdo, utilize o envio manual ou despache diretamente no balcão da transportadora.
                             </p>
                           </div>
                         </div>

@@ -193,7 +193,7 @@ export const DescricaoFormatadaProduto: React.FC<DescricaoFormatadaProps> = ({
 
   if (!descricao || !descricao.trim() || blocos.length === 0) {
     return (
-      <div className="p-4 rounded-2xl bg-slate-950/40 border border-slate-800/60 text-slate-400 text-xs sm:text-sm italic">
+      <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/60 text-slate-500 dark:text-slate-400 text-xs sm:text-sm italic">
         Nenhuma descrição detalhada informada para este produto.
       </div>
     );
@@ -201,14 +201,14 @@ export const DescricaoFormatadaProduto: React.FC<DescricaoFormatadaProps> = ({
 
   return (
     <div
-      className={`p-4 sm:p-5 rounded-2xl bg-slate-950/60 border border-slate-800/70 text-slate-200 text-xs sm:text-sm leading-relaxed space-y-3.5 shadow-inner ${className}`}
+      className={`p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/70 text-slate-800 dark:text-slate-900 dark:text-slate-200 text-xs sm:text-sm leading-relaxed space-y-3.5 shadow-inner ${className}`}
     >
       {blocos.map((bloco, idx) => {
         if (bloco.tipo === 'titulo_secao') {
           return (
             <div
               key={idx}
-              className="pt-2 pb-0.5 first:pt-0 flex items-center gap-2 border-b border-slate-800/60"
+              className="pt-2 pb-0.5 first:pt-0 flex items-center gap-2 border-b border-slate-200 dark:border-slate-800/60"
             >
               {bloco.icone === 'modo_uso' ? (
                 <Zap className="w-4 h-4 text-amber-400 shrink-0" />
@@ -231,7 +231,7 @@ export const DescricaoFormatadaProduto: React.FC<DescricaoFormatadaProps> = ({
             <div key={idx} className="flex items-start gap-2.5 pl-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-2 shrink-0 ring-4 ring-emerald-500/10" />
               <p
-                className={`flex-1 text-slate-300 ${
+                className={`flex-1 text-slate-700 dark:text-slate-300 ${
                   justificado ? 'text-justify [text-justify:inter-word]' : 'text-left'
                 }`}
               >
@@ -245,7 +245,7 @@ export const DescricaoFormatadaProduto: React.FC<DescricaoFormatadaProps> = ({
         return (
           <p
             key={idx}
-            className={`text-slate-300 font-normal ${
+            className={`text-slate-700 dark:text-slate-300 font-normal ${
               justificado ? 'text-justify [text-justify:inter-word]' : 'text-left'
             }`}
           >
