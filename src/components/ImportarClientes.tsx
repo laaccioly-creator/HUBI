@@ -10,7 +10,8 @@ import {
   Users,
   RefreshCw,
   Info,
-  ArrowLeft
+  ArrowLeft,
+  HelpCircle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -20,6 +21,7 @@ import {
   ResultadoParseClienteImportacao,
   RelatorioResultadoClienteImportacao
 } from '../services/clientImportExportService';
+import { ModalGuiaExportacaoWhatsApp } from './ModalGuiaExportacaoWhatsApp';
 
 interface ImportarClientesProps {
   onVoltar: () => void;
@@ -40,6 +42,7 @@ export const ImportarClientes: React.FC<ImportarClientesProps> = ({ onVoltar }) 
   const [statusTextoProgresso, setStatusTextoProgresso] = useState<string>('');
   const [relatorioFinal, setRelatorioFinal] = useState<RelatorioResultadoClienteImportacao | null>(null);
   const [filtroVisualizacao, setFiltroVisualizacao] = useState<'todos' | 'novos' | 'atualizacoes' | 'erros'>('todos');
+  const [modalGuiaAberto, setModalGuiaAberto] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -192,11 +195,32 @@ export const ImportarClientes: React.FC<ImportarClientesProps> = ({ onVoltar }) 
           <div className="flex items-center gap-2 shrink-0 flex-wrap">
             <button
               type="button"
-              onClick={() => clientImportExportService.downloadModeloXLSX()}
+              onClick={() => setModalGuiaAberto(true)}
+              className="px-4 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-bold text-xs flex items-center gap-2 border border-amber-500/30 transition cursor-pointer"
+              title="Passo a Passo de como extrair contatos do WhatsApp ou Celular"
+            >
+              <HelpCircle className="w-4 h-4" />
+              <span>Como Extrair Contatos? (Guia)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => clientImportExportService.downloadModeloSimplificadoXLSX()}
               className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition cursor-pointer active:scale-95"
+              title="Planilha Simplificada (Nome, WhatsApp, Endereço e Observações)"
             >
               <FileSpreadsheet className="w-4 h-4" />
-              <span>Baixar Modelo (.XLSX Excel)</span>
+              <span>Modelo WhatsApp (.XLSX)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => clientImportExportService.downloadModeloXLSX()}
+              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-2 border border-slate-700 transition cursor-pointer"
+              title="Planilha Completa HUBI com Fiado e Dados Pessoais"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+              <span>Modelo Completo (.XLSX)</span>
             </button>
 
             <button
@@ -205,7 +229,7 @@ export const ImportarClientes: React.FC<ImportarClientesProps> = ({ onVoltar }) 
               className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-2 border border-slate-700 transition cursor-pointer"
             >
               <FileText className="w-4 h-4 text-slate-400" />
-              <span>Baixar Modelo (.CSV)</span>
+              <span>Modelo (.CSV)</span>
             </button>
           </div>
         </div>
@@ -507,6 +531,14 @@ export const ImportarClientes: React.FC<ImportarClientesProps> = ({ onVoltar }) 
             </button>
           </div>
         </div>
+      )}
+
+      {/* Modal Guia Didático */}
+      {modalGuiaAberto && (
+        <ModalGuiaExportacaoWhatsApp
+          isOpen={modalGuiaAberto}
+          onClose={() => setModalGuiaAberto(false)}
+        />
       )}
     </div>
   );

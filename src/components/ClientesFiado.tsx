@@ -20,7 +20,8 @@ import {
   Mail,
   Pencil,
   ArrowLeft,
-  Receipt
+  Receipt,
+  Upload
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -36,6 +37,7 @@ import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 import { formatarMoeda } from '../utils/formatters';
 import { ModalExtratoCadernetaCliente } from './ModalExtratoCadernetaCliente';
+import { ModalImportarClientes } from './ModalImportarClientes';
 
 export const ClientesFiado: React.FC = () => {
   const { loja } = useAuth();
@@ -52,6 +54,7 @@ export const ClientesFiado: React.FC = () => {
   const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
   const [clientePerfilMobile, setClientePerfilMobile] = useState<Cliente | null>(null);
   const [modalNovoCliente, setModalNovoCliente] = useState<boolean>(false);
+  const [modalImportarAberto, setModalImportarAberto] = useState<boolean>(false);
   const [clienteEditar, setClienteEditar] = useState<Cliente | null>(null);
   const [clienteHistoricoFiado, setClienteHistoricoFiado] = useState<Cliente | null>(null);
   const [clienteExtratoCaderneta, setClienteExtratoCaderneta] = useState<Cliente | null>(null);
@@ -396,6 +399,20 @@ export const ClientesFiado: React.FC = () => {
                 )}
               </button>
 
+              {/* Botão Importar Mobile */}
+              <button
+                type="button"
+                onClick={() => setModalImportarAberto(true)}
+                className={`p-2 rounded-xl border text-xs font-bold transition cursor-pointer flex items-center justify-center ${
+                  isDark
+                    ? 'bg-[#000000] border-slate-700 text-slate-300 hover:text-white'
+                    : 'bg-white border-2 border-slate-300 text-slate-700 hover:text-black'
+                }`}
+                title="Importar Clientes em Lote"
+              >
+                <Upload className="w-3.5 h-3.5" />
+              </button>
+
               {/* Botão + Novo */}
               <button
                 type="button"
@@ -720,6 +737,21 @@ export const ClientesFiado: React.FC = () => {
                 <span>Exportar</span>
               </button>
             )}
+
+            {/* Botão Importar */}
+            <button
+              type="button"
+              onClick={() => setModalImportarAberto(true)}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-bold transition cursor-pointer shadow-sm shrink-0 ${
+                isDark
+                  ? 'bg-[#000000] hover:bg-slate-900 border-slate-700 text-white'
+                  : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black'
+              }`}
+              title="Importar Clientes em Lote (WhatsApp / CSV / Google)"
+            >
+              <Upload className={`w-4 h-4 ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
+              <span>Importar</span>
+            </button>
 
             {/* Botão + Cliente */}
             <button
@@ -1266,6 +1298,19 @@ export const ClientesFiado: React.FC = () => {
           onClose={() => setClienteExtratoCaderneta(null)}
           cliente={clienteExtratoCaderneta}
           onAtualizado={() => {
+            carregarClientes();
+          }}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL IMPORTAÇÃO DE CLIENTES EM LOTE                                      */}
+      {/* ========================================================================= */}
+      {modalImportarAberto && (
+        <ModalImportarClientes
+          isOpen={modalImportarAberto}
+          onClose={() => setModalImportarAberto(false)}
+          onSucesso={() => {
             carregarClientes();
           }}
         />
