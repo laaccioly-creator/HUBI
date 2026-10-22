@@ -19,7 +19,8 @@ import {
   CreditCard,
   Mail,
   Pencil,
-  ArrowLeft
+  ArrowLeft,
+  Receipt
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -34,6 +35,7 @@ import { ModalHistoricoFiadoCliente } from './ModalHistoricoFiadoCliente';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 import { formatarMoeda } from '../utils/formatters';
+import { ModalExtratoCadernetaCliente } from './ModalExtratoCadernetaCliente';
 
 export const ClientesFiado: React.FC = () => {
   const { loja } = useAuth();
@@ -52,8 +54,9 @@ export const ClientesFiado: React.FC = () => {
   const [modalNovoCliente, setModalNovoCliente] = useState<boolean>(false);
   const [clienteEditar, setClienteEditar] = useState<Cliente | null>(null);
   const [clienteHistoricoFiado, setClienteHistoricoFiado] = useState<Cliente | null>(null);
+  const [clienteExtratoCaderneta, setClienteExtratoCaderneta] = useState<Cliente | null>(null);
   const [filtroApenasFiado, setFiltroApenasFiado] = useState<boolean>(false);
-  const [filtroStatus, setFiltroStatus] = useState<'todos' | 'fiado' | 'vencido'>('todos');
+  const [filtroStatus, setFiltroStatus] = useState<'todos' | 'fiado' | 'vencido' | 'caderneta'>('todos');
   const [vencidosClienteIds, setVencidosClienteIds] = useState<Set<string>>(new Set());
   const [vencidosPorCliente, setVencidosPorCliente] = useState<Record<string, number>>({});
   const [aVencerPorCliente, setAVencerPorCliente] = useState<Record<string, number>>({});
@@ -306,8 +309,10 @@ export const ClientesFiado: React.FC = () => {
 
   const totalClientesComFiado = clientes.filter(c => Number(c.saldo_devedor_fiado || 0) > 0).length;
   const totalClientesVencidos = clientes.filter(c => Number(c.saldo_devedor_fiado || 0) > 0 && ((vencidosPorCliente[c.id] || 0) > 0 || vencidosClienteIds.has(c.id))).length;
+  const totalClientesCaderneta = clientes.filter(c => Boolean(c.permite_caderneta) || Number(c.saldo_devedor_caderneta || 0) > 0).length;
+  const totalSaldoDevedorCaderneta = clientes.reduce((acc, c) => acc + Number(c.saldo_devedor_caderneta || 0), 0);
 
-  // Filtragem de clientes pela busca e pelos cards/botão (TODOS / FIADO / VENCIDO)
+  // Filtragem de clientes pela busca e pelos cards/botão (TODOS / FIADO / VENCIDO / CADERNETA)
   const clientesFiltrados = clientes.filter(c => {
     const saldo = Number(c.saldo_devedor_fiado || 0);
     const vencidoCli = Math.min(saldo, vencidosPorCliente[c.id] || 0);
@@ -317,6 +322,9 @@ export const ClientesFiado: React.FC = () => {
       return false;
     }
     if (filtroStatus === 'vencido' && vencidoCli <= 0) {
+      return false;
+    }
+    if (filtroStatus === 'caderneta' && !c.permite_caderneta && Number(c.saldo_devedor_caderneta || 0) <= 0) {
       return false;
     }
     if (filtroApenasFiado && saldo <= 0) {
@@ -431,8 +439,8 @@ export const ClientesFiado: React.FC = () => {
           </div>
         </div>
 
-        {/* Resumo de Débito / Fiado: 3 Indicadores de Topo */}
-        <div className={`p-3 grid grid-cols-3 gap-2 shrink-0 ${isDark ? 'bg-[#08131A]' : 'bg-slate-100'}`}>
+        {/* Resumo de Débito / Fiado: Indicadores de Topo */}
+        <div className={`p-3 grid ${Boolean(loja?.caderneta_ativa) ? 'grid-cols-4' : 'grid-cols-3'} gap-2 shrink-0 ${isDark ? 'bg-[#08131A]' : 'bg-slate-100'}`}>
           {/* Card 1: Clientes */}
           <div
             onClick={() => {
@@ -515,6 +523,36 @@ export const ClientesFiado: React.FC = () => {
               R$ {totalFiadoVencido.toFixed(2)}
             </p>
           </div>
+
+          {/* Card 4: Caderneta (Visível se ativa na loja) */}
+          {Boolean(loja?.caderneta_ativa) && (
+            <div
+              onClick={() => {
+                const novo = filtroStatus === 'caderneta' ? 'todos' : 'caderneta';
+                setFiltroStatus(novo);
+                setFiltroApenasFiado(false);
+              }}
+              className={`p-2.5 rounded-2xl border transition cursor-pointer flex flex-col justify-between ${
+                filtroStatus === 'caderneta'
+                  ? isDark
+                    ? 'bg-[#000000] border-2 border-amber-400 text-amber-400 shadow-sm'
+                    : 'bg-amber-50 border-2 border-amber-500 text-amber-900 shadow-sm'
+                  : isDark
+                  ? 'bg-[#000000] border border-slate-700 hover:border-amber-500/50 text-amber-400'
+                  : 'bg-white border-2 border-slate-300 hover:border-amber-400 text-amber-700'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] font-bold uppercase">Caderneta</span>
+                {filtroStatus === 'caderneta' && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                )}
+              </div>
+              <p className="text-xs sm:text-sm font-black truncate">
+                R$ {totalSaldoDevedorCaderneta.toFixed(2)}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Lista de Clientes em Cards */}
@@ -526,6 +564,7 @@ export const ClientesFiado: React.FC = () => {
           ) : (
             clientesFiltrados.map((cliente) => {
               const emDebito = Number(cliente.saldo_devedor_fiado || 0) > 0;
+              const emDebitoCaderneta = Number(cliente.saldo_devedor_caderneta || 0) > 0;
               const estaVencido = emDebito && vencidosClienteIds.has(cliente.id);
               const phoneWhatsapp = cliente.whatsapp || cliente.telefone;
 
@@ -533,7 +572,13 @@ export const ClientesFiado: React.FC = () => {
                 <div
                   key={cliente.id}
                   onClick={() => {
-                    setClientePerfilMobile(cliente);
+                    if (emDebitoCaderneta || cliente.permite_caderneta) {
+                      setClienteExtratoCaderneta(cliente);
+                    } else if (emDebito) {
+                      setClienteHistoricoFiado(cliente);
+                    } else {
+                      setClientePerfilMobile(cliente);
+                    }
                   }}
                   className={`p-3 rounded-2xl transition cursor-pointer space-y-2 shadow-xs ${
                     isDark
@@ -563,7 +608,14 @@ export const ClientesFiado: React.FC = () => {
                     </div>
 
                     <div className="text-right shrink-0">
-                      {emDebito ? (
+                      {emDebitoCaderneta ? (
+                        <div>
+                          <span className="text-[10px] text-amber-500 font-bold block">Caderneta</span>
+                          <span className="font-black text-xs sm:text-sm text-amber-500 font-mono">
+                            {formatarMoeda(cliente.saldo_devedor_caderneta || 0)}
+                          </span>
+                        </div>
+                      ) : emDebito ? (
                         <div>
                           <div className="flex items-center justify-end gap-1">
                             {estaVencido && (
@@ -731,6 +783,7 @@ export const ClientesFiado: React.FC = () => {
                   <th className="py-3.5 px-4">Celular/WhatsApp</th>
                   <th className="py-3.5 px-4 hidden md:table-cell">E-mail</th>
                   <th className="py-3.5 px-4">Valor Fiado</th>
+                  {Boolean(loja?.caderneta_ativa) && <th className="py-3.5 px-4">Caderneta</th>}
                   <th className="py-3.5 px-4 text-right">Ações</th>
                 </tr>
               </thead>
@@ -848,9 +901,52 @@ export const ClientesFiado: React.FC = () => {
                           )}
                         </td>
 
+                        {/* Coluna Caderneta */}
+                        {Boolean(loja?.caderneta_ativa) && (
+                          <td className="py-3 px-4 font-bold">
+                            {Number(cliente.saldo_devedor_caderneta || 0) > 0 ? (
+                              <button
+                                type="button"
+                                onClick={() => setClienteExtratoCaderneta(cliente)}
+                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl transition cursor-pointer text-xs font-black font-mono shadow-xs active:scale-98 ${
+                                  isDark
+                                    ? 'bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-400'
+                                    : 'bg-amber-100 hover:bg-amber-200 border-2 border-amber-300 text-amber-900'
+                                }`}
+                                title="Abrir Extrato e Pagamento da Caderneta"
+                              >
+                                <span>{formatarMoeda(cliente.saldo_devedor_caderneta || 0)}</span>
+                              </button>
+                            ) : cliente.permite_caderneta ? (
+                              <button
+                                type="button"
+                                onClick={() => setClienteExtratoCaderneta(cliente)}
+                                className={`text-[11px] font-bold underline cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-black'}`}
+                                title="Ver limite e extrato da caderneta"
+                              >
+                                Disp: {formatarMoeda(cliente.limite_caderneta || 0)}
+                              </button>
+                            ) : (
+                              <span className={`font-mono text-[11px] font-bold ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>-</span>
+                            )}
+                          </td>
+                        )}
+
                         {/* Coluna 5: Ações (Ver Fiado / Ver Endereço / Alterar / Excluir) */}
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            {/* Botão Ver Caderneta se habilitado ou houver débito */}
+                            {(Boolean(cliente.permite_caderneta) || Number(cliente.saldo_devedor_caderneta || 0) > 0) && (
+                              <button
+                                type="button"
+                                onClick={() => setClienteExtratoCaderneta(cliente)}
+                                className="p-1.5 rounded-lg text-amber-500 hover:bg-amber-500/20 transition cursor-pointer"
+                                title="Ver Extrato da Caderneta e Abater"
+                              >
+                                <Receipt className="w-4 h-4" />
+                              </button>
+                            )}
+
                             {/* Botão Ver Fiado se houver débito */}
                             {emDebito && (
                               <button
@@ -1157,6 +1253,20 @@ export const ClientesFiado: React.FC = () => {
           onClienteAtualizado={(cliAtualizado) => {
             handleClienteCadastrado(cliAtualizado);
             setClienteHistoricoFiado(cliAtualizado);
+          }}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL EXTRATO E GESTÃO DA CADERNETA DE MERCADINHO                          */}
+      {/* ========================================================================= */}
+      {clienteExtratoCaderneta && (
+        <ModalExtratoCadernetaCliente
+          isOpen={!!clienteExtratoCaderneta}
+          onClose={() => setClienteExtratoCaderneta(null)}
+          cliente={clienteExtratoCaderneta}
+          onAtualizado={() => {
+            carregarClientes();
           }}
         />
       )}
