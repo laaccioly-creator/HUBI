@@ -424,7 +424,7 @@ export const PedidoAndamentoPublico: React.FC = () => {
                     href={linkRastreio}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-full py-3.5 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 transition cursor-pointer active:scale-95 border border-emerald-400"
+                    className="w-full py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25 transition cursor-pointer active:scale-95 border border-emerald-500"
                   >
                     <span className="text-base">🚗</span>
                     <span>Acompanhar Motorista no Mapa ao Vivo</span>

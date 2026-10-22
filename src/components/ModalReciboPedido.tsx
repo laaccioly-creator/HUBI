@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   Store,
   Printer,
   Edit,
-  Loader2
+  Loader2,
+  Download,
+  Copy
 } from 'lucide-react';
 import { Pedido, Loja, ItemPedido } from '../types';
 import { supabase } from '../lib/supabase';
@@ -14,6 +16,7 @@ import {
   obterInfoEntregaRecibo,
   PrintService
 } from '../services/printService';
+import { ReceiptPdfService } from '../services/receiptPdfService';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -39,6 +42,9 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
   const [pedidoCompleto, setPedidoCompleto] = useState<Pedido | null>(null);
   const [lojaCompleta, setLojaCompleta] = useState<Loja | null>(lojaProp || null);
   const [carregando, setCarregando] = useState<boolean>(true);
+  const [baixandoPdf, setBaixandoPdf] = useState<boolean>(false);
+  const [copiado, setCopiado] = useState<boolean>(false);
+  const reciboRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let ativo = true;
@@ -171,6 +177,26 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
   const valorFrete = Number(pedAtual.valor_frete || 0);
   const valorTotal = Number(pedAtual.valor_total || 0);
 
+  const handleBaixarPdf = async () => {
+    if (!reciboRef.current || !pedAtual || !lojaAtual) return;
+    try {
+      setBaixandoPdf(true);
+      await ReceiptPdfService.baixarPdfRecibo(reciboRef.current, pedAtual, lojaAtual);
+    } catch (err) {
+      console.error('Erro ao gerar PDF do recibo:', err);
+    } finally {
+      setBaixandoPdf(false);
+    }
+  };
+
+  const handleCopiarRecibo = () => {
+    if (!pedAtual || !lojaAtual) return;
+    const txt = PrintService.generateWhatsAppMessage(pedAtual, lojaAtual);
+    navigator.clipboard.writeText(txt);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2000);
+  };
+
   return (
     <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
       <div className={`w-full max-w-2xl border rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 ${
@@ -204,7 +230,7 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
               <span className="text-xs font-medium">Carregando dados do recibo...</span>
             </div>
           ) : (
-            <div className="w-full max-w-sm bg-white text-slate-900 rounded-xl p-5 shadow-xl border border-slate-200 font-mono text-xs space-y-3.5 min-h-fit mb-6">
+            <div ref={reciboRef} className="w-full max-w-sm bg-white text-slate-900 rounded-xl p-5 shadow-xl border border-slate-200 font-mono text-xs space-y-3.5 min-h-fit mb-6">
               {/* Logo e Cabeçalho do Recibo */}
               <div className="text-center space-y-1 border-b border-slate-200 border-dashed pb-3">
                 {logoLojaUrl ? (
@@ -393,19 +419,32 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
             <button
               type="button"
               onClick={() => PrintService.printReceipt(pedAtual, lojaAtual, '80mm')}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2.5 rounded-xl border border-emerald-500 shadow-sm shadow-emerald-600/20 transition text-xs flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl border border-emerald-500 shadow-sm shadow-emerald-600/20 transition text-xs flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
+              title="Imprimir Recibo"
             >
               <Printer className="w-3.5 h-3.5 text-white shrink-0" />
-              <span>Térmica 58/80mm</span>
+              <span>Imprimir</span>
             </button>
 
             <button
               type="button"
-              onClick={() => PrintService.printReceipt(pedAtual, lojaAtual, 'a4')}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2.5 rounded-xl border border-emerald-500 shadow-sm shadow-emerald-600/20 transition text-xs flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
+              disabled={baixandoPdf}
+              onClick={handleBaixarPdf}
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-400 font-bold border border-slate-700 text-xs flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50 active:scale-95 whitespace-nowrap"
+              title="Baixar PDF"
             >
-              <Printer className="w-3.5 h-3.5 text-white shrink-0" />
-              <span>Imprimir A4</span>
+              {baixandoPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+              <span>PDF</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleCopiarRecibo}
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold border border-slate-700 text-xs flex items-center gap-1.5 transition cursor-pointer active:scale-95 whitespace-nowrap"
+              title="Copiar texto do recibo"
+            >
+              <Copy className="w-3.5 h-3.5 text-emerald-400" />
+              <span>{copiado ? 'Copiado!' : 'Copiar'}</span>
             </button>
           </div>
         </div>

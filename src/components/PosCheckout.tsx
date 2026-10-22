@@ -3357,6 +3357,13 @@ export const PosCheckout: React.FC = () => {
                 </div>
               )}
 
+              {valorDescontoCupom > 0 && (
+                <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
+                  <span className="font-semibold">Desconto (Cupom: {cupomAplicado?.codigo || 'Ativo'}):</span>
+                  <span className="font-bold text-rose-600 dark:text-rose-400">- {formatarMoeda(valorDescontoCupom)}</span>
+                </div>
+              )}
+
               {/* Discriminação explícita do Frete / Retirada */}
               <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
                 <span className="flex items-center gap-1.5 font-semibold">

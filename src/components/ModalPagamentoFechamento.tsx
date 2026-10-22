@@ -1016,7 +1016,9 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
 
               {Number(pedido.valor_desconto || 0) > 0 && (
                 <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
-                  <span className="font-medium">Desconto Aplicado:</span>
+                  <span className="font-medium">
+                    Desconto {pedido.cupom_codigo ? `(Cupom: ${pedido.cupom_codigo})` : 'Aplicado'}:
+                  </span>
                   <span className="font-semibold text-rose-600 dark:text-rose-400">
                     - {formatarMoeda(Number(pedido.valor_desconto || 0))}
                   </span>

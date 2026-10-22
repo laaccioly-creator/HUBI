@@ -4,7 +4,7 @@ export type TipoDocumento = 'CPF' | 'CNPJ';
 export type PerfilUsuario = 'owner' | 'admin' | 'gerente' | 'vendedor' | 'comum';
 export type TipoUnidade = 'un' | 'kg' | 'l' | 'm';
 export type TabelaPreco = 'varejo' | 'atacado' | 'autoatacado' | 'promocional';
-export type TipoPagamento = 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito' | 'fiado' | 'outro';
+export type TipoPagamento = 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito' | 'fiado' | 'caderneta' | 'outro';
 export type TipoEntrega = 
   | 'retirada' 
   | 'frota_propria' 
@@ -318,6 +318,8 @@ export interface Loja {
   valor_minimo_padrao_autoatacado?: number | null;
   serpapi_key?: string | null;
   retirada_loja_ativa?: boolean;
+  caderneta_ativa?: boolean;
+  dia_vencimento_padrao_caderneta?: number;
   frete_gratis_ativo?: boolean;
   frete_gratis_valor_minimo?: number;
   status_em_separacao?: boolean;
@@ -559,6 +561,10 @@ export interface Cliente {
   limite_credito: number;
   saldo_credito?: number;
   permite_fiado: boolean;
+  permite_caderneta?: boolean;
+  limite_caderneta?: number;
+  saldo_devedor_caderneta?: number;
+  dia_vencimento_caderneta?: number | null;
   data_aniversario?: string | null;
   observacoes?: string | null;
   senha_hash?: string | null;
@@ -648,6 +654,8 @@ export interface Pedido {
   valor_pago: number;
   saldo_devedor: number;
   fiado_quitado: boolean;
+  eh_venda_caderneta?: boolean;
+  ciclo_referencia_caderneta?: string | null;
   endereco_entrega?: string | null;
   observacoes?: string | null;
   metadados?: Record<string, any> | string | null;
@@ -756,6 +764,7 @@ export interface PagamentoPedido {
   valor_liquido: number;
   data_pagamento: string;
   eh_pagamento_fiado: boolean;
+  eh_pagamento_caderneta?: boolean;
   criado_em?: string;
   forma_pagamento?: FormaPagamento | null;
 }
@@ -826,6 +835,29 @@ export interface CaixaMovimentacao {
 }
 
 export type TipoCupom = 'desconto_fixo' | 'desconto_percentual' | 'frete_gratis';
+
+export type TipoLancamentoCaderneta = 'compra' | 'pagamento' | 'estorno' | 'ajuste';
+
+export interface CadernetaLancamento {
+  id: string;
+  loja_id: string;
+  cliente_id: string;
+  pedido_id?: string | null;
+  pagamento_pedido_id?: string | null;
+  forma_pagamento_id?: string | null;
+  usuario_id?: string | null;
+  tipo_lancamento: TipoLancamentoCaderneta;
+  valor: number;
+  saldo_anterior: number;
+  saldo_posterior: number;
+  ciclo_referencia: string;
+  data_vencimento_ciclo: string;
+  descricao: string;
+  observacoes?: string | null;
+  criado_em?: string;
+  pedido?: Pedido | null;
+  forma_pagamento?: FormaPagamento | null;
+}
 
 export interface Cupom {
   id: string;
