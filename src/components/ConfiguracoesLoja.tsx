@@ -748,6 +748,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const [outrosAtivo, setOutrosAtivo] = useState<boolean>(false);
   const [outrosDescricao, setOutrosDescricao] = useState<string>('');
   const [permitirFiado, setPermitirFiado] = useState<boolean>(true);
+  const [cadernetaAtiva, setCadernetaAtiva] = useState<boolean>(false);
+  const [diaVencimentoPadraoCaderneta, setDiaVencimentoPadraoCaderneta] = useState<number>(10);
 
   // Prazos e Taxas Maquininha
   const [maqCreditoAtivo, setMaqCreditoAtivo] = useState<boolean>(true);
@@ -948,6 +950,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       setOutrosAtivo(pagManuais.outros_ativo ?? false);
       setOutrosDescricao(pagManuais.outros_orientacoes || '');
       setPermitirFiado(pagManuais.permitir_fiado ?? true);
+      setCadernetaAtiva(Boolean(loja.caderneta_ativa));
+      setDiaVencimentoPadraoCaderneta(Number(loja.dia_vencimento_padrao_caderneta || 10));
 
       // Maquininhas Prazos
       setMaqCreditoAtivo(prazosMaq.credito_ativo ?? true);
@@ -1372,6 +1376,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           status_enviado: statusEnviado,
           status_entregue: statusEntregue,
           status_pronto_para_retirar: statusProntoRetirar,
+          caderneta_ativa: Boolean(cadernetaAtiva),
+          dia_vencimento_padrao_caderneta: Number(diaVencimentoPadraoCaderneta || 10),
           tipos_venda: {
             varejo: tipoVendaVarejo,
             atacado: tipoVendaAtacado,
@@ -4418,6 +4424,54 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   />
                   <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                 </label>
+              </div>
+
+              {/* CADERNETA DE MERCADINHO */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3.5 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <FileText className="w-5 h-5 text-amber-500" />
+                    <div>
+                      <span className="font-bold text-base text-slate-900 dark:text-white block">Caderneta de Mercadinho</span>
+                      <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">Conta corrente contínua com ciclo de acerto mensal por cliente</span>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={cadernetaAtiva}
+                      onChange={(e) => setCadernetaAtiva(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                  </label>
+                </div>
+
+                {cadernetaAtiva && (
+                  <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                    <div>
+                      <span className="font-bold text-slate-900 dark:text-slate-100 block">Dia Padrão de Fechamento/Vencimento Mensal:</span>
+                      <span className="text-slate-500 dark:text-slate-400">Sugerido automaticamente ao cadastrar novos clientes na caderneta</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-slate-700 dark:text-slate-300">Todo dia</span>
+                      <select
+                        value={diaVencimentoPadraoCaderneta}
+                        onChange={(e) => setDiaVencimentoPadraoCaderneta(Number(e.target.value))}
+                        className={`border rounded-xl px-2.5 py-1 text-xs font-bold focus:outline-none ${
+                          isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                        }`}
+                      >
+                        {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                          <option key={d} value={d}>
+                            {d}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="font-medium text-slate-700 dark:text-slate-300">do mês</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

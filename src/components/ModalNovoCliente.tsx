@@ -209,6 +209,9 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
   // Fiado e Tabela de Preço
   const [permiteFiado, setPermiteFiado] = useState(permissions.podeAtivarFiado);
   const [limiteCredito, setLimiteCredito] = useState('500,00');
+  const [permiteCaderneta, setPermiteCaderneta] = useState(false);
+  const [limiteCaderneta, setLimiteCaderneta] = useState('500,00');
+  const [diaVencimentoCaderneta, setDiaVencimentoCaderneta] = useState<number>(Number(loja?.dia_vencimento_padrao_caderneta || 10));
   const [tabelaPreco, setTabelaPreco] = useState<TabelaPreco>('varejo');
 
   // Endereço
@@ -246,6 +249,9 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
         const tel2Whats = clienteEditar.telefone2_is_whatsapp ?? false;
         const fiado = clienteEditar.permite_fiado ?? permissions.podeAtivarFiado;
         const lim = formatarValorBRL(clienteEditar.limite_credito ?? 500);
+        const cad = Boolean(clienteEditar.permite_caderneta);
+        const limCad = formatarValorBRL(clienteEditar.limite_caderneta ?? 500);
+        const diaCad = Number(clienteEditar.dia_vencimento_caderneta || loja?.dia_vencimento_padrao_caderneta || 10);
         const tab = clienteEditar.tabela_preco_padrao || 'varejo';
 
         // Endereço: se já tiver campos estruturados, usa-os
@@ -295,6 +301,9 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
         setTelefone2IsWhatsapp(tel2Whats);
         setPermiteFiado(fiado);
         setLimiteCredito(lim);
+        setPermiteCaderneta(cad);
+        setLimiteCaderneta(limCad);
+        setDiaVencimentoCaderneta(diaCad);
         setTabelaPreco(tab);
 
         setCep(finalCep);
@@ -340,6 +349,9 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
         setTelefone2IsWhatsapp(false);
         setPermiteFiado(permissions.podeAtivarFiado);
         setLimiteCredito(permissions.podeAtivarFiado ? '500,00' : '0,00');
+        setPermiteCaderneta(false);
+        setLimiteCaderneta('500,00');
+        setDiaVencimentoCaderneta(Number(loja?.dia_vencimento_padrao_caderneta || 10));
         setTabelaPreco('varejo');
         setCep('');
         setRua('');
@@ -621,6 +633,10 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
       permite_fiado: permiteFiado,
       limite_credito: limiteCreditoNum,
       saldo_devedor_fiado: clienteEditar ? (Number(clienteEditar.saldo_devedor_fiado) || 0) : 0,
+      permite_caderneta: permiteCaderneta,
+      limite_caderneta: permiteCaderneta ? (parseFloat(String(limiteCaderneta || '').trim().replace(/\./g, '').replace(',', '.')) || 0) : 0,
+      saldo_devedor_caderneta: clienteEditar ? (Number(clienteEditar.saldo_devedor_caderneta) || 0) : 0,
+      dia_vencimento_caderneta: permiteCaderneta ? diaVencimentoCaderneta : null,
       tabela_preco_padrao: tabelaPreco,
       observacoes: observacoes.trim() || null,
       endereco_cep: cep.trim() || null,
@@ -1132,6 +1148,117 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                       </div>
                     </div>
                   )}
+                  {/* CADERNETA DE MERCADINHO (CASO HABILITADA NA LOJA) */}
+                  {Boolean(loja?.caderneta_ativa) && (
+                    <>
+                      <div className={`sm:col-span-2 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs border ${
+                        isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+                      }`}>
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
+                            permiteCaderneta
+                              ? isDark
+                                ? 'bg-amber-500/20 border-amber-500/40 text-amber-400'
+                                : 'bg-amber-50 border-2 border-amber-300 text-amber-700'
+                              : isDark
+                                ? 'bg-[#000000] border-slate-700 text-slate-500'
+                                : 'bg-slate-100 border-2 border-slate-300 text-slate-400'
+                          }`}>
+                            <FileText className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <span className={`text-xs font-black block ${isDark ? 'text-white' : 'text-black'}`}>Permite Caderneta de Mercadinho?</span>
+                            <span className={`text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                              {permiteCaderneta
+                                ? 'Cliente autorizado para conta corrente contínua com ciclo de acerto mensal'
+                                : 'Cliente não participa da caderneta'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={permiteCaderneta}
+                          onClick={() => setPermiteCaderneta(!permiteCaderneta)}
+                          className="flex items-center gap-2 cursor-pointer select-none shrink-0 self-start sm:self-auto"
+                          title={permiteCaderneta ? 'Desativar caderneta' : 'Ativar caderneta'}
+                        >
+                          <span className={`text-xs font-bold transition ${permiteCaderneta ? (isDark ? 'text-amber-400' : 'text-amber-700') : (isDark ? 'text-slate-400' : 'text-slate-600')}`}>
+                            {permiteCaderneta ? 'Habilitado' : 'Bloqueado'}
+                          </span>
+                          <div
+                            className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                              permiteCaderneta ? 'bg-amber-500' : isDark ? 'bg-slate-700' : 'bg-slate-300'
+                            }`}
+                          >
+                            <span
+                              aria-hidden="true"
+                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                                permiteCaderneta ? 'translate-x-5' : 'translate-x-0'
+                              }`}
+                            />
+                          </div>
+                        </button>
+                      </div>
+
+                      {permiteCaderneta && (
+                        <div className={`sm:col-span-2 rounded-2xl p-4 space-y-3 border animate-in fade-in slide-in-from-top-2 ${
+                          isDark
+                            ? 'bg-[#000000] border-amber-500/40 text-white'
+                            : 'bg-amber-50/50 border-2 border-amber-300 text-black'
+                        }`}>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                            <div className="space-y-1">
+                              <label className={`text-xs font-black block ${isDark ? 'text-white' : 'text-black'}`}>
+                                Limite da Caderneta (R$) <span className="text-rose-500">*</span>
+                              </label>
+                              <div className="relative">
+                                <span className={`absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-black ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>R$</span>
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  placeholder="500,00"
+                                  value={limiteCaderneta}
+                                  onChange={(e) => {
+                                    const val = e.target.value.replace(/[^0,1-9.,]/g, '');
+                                    setLimiteCaderneta(val);
+                                  }}
+                                  className={`w-full rounded-xl pl-10 pr-3.5 py-2.5 text-sm font-black focus:outline-none transition ${
+                                    isDark
+                                      ? 'bg-[#000000] border border-amber-500 text-amber-400 placeholder:text-slate-600'
+                                      : 'bg-white border-2 border-amber-600 text-amber-800 placeholder:text-slate-400'
+                                  }`}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className={`text-xs font-black block ${isDark ? 'text-white' : 'text-black'}`}>
+                                Dia Fixo de Fechamento/Acerto <span className="text-rose-500">*</span>
+                              </label>
+                              <select
+                                value={diaVencimentoCaderneta}
+                                onChange={(e) => setDiaVencimentoCaderneta(Number(e.target.value))}
+                                className={`w-full rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none transition cursor-pointer ${
+                                  isDark
+                                    ? 'bg-[#000000] border border-amber-500 text-amber-400'
+                                    : 'bg-white border-2 border-amber-600 text-amber-800'
+                                }`}
+                              >
+                                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                                  <option key={d} value={d}>
+                                    Todo dia {d} do mês
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
                 </>
               )}
             </div>

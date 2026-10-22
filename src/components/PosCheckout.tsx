@@ -400,7 +400,8 @@ export const PosCheckout: React.FC = () => {
     { id: `fp_pix_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Pix (Imediato)', tipo: 'pix', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
     { id: `fp_debito_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Cartão de Débito', tipo: 'cartao_debito', taxa_percentual: 1.5, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
     { id: `fp_credito_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Cartão de Crédito', tipo: 'cartao_credito', taxa_percentual: 3.2, taxa_fixa: 0, maximo_parcelas: 12, ativo: true, exibir_catalogo: true },
-    { id: `fp_fiado_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Fiado / A Prazo', tipo: 'fiado', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: false }
+    { id: `fp_fiado_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Fiado / A Prazo', tipo: 'fiado', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: false },
+    { id: `fp_caderneta_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Caderneta', tipo: 'caderneta', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: false }
   ];
 
   useEffect(() => {
@@ -439,25 +440,55 @@ export const PosCheckout: React.FC = () => {
     );
   }, [clienteSelecionado]);
 
-  // Filtra as formas de pagamento disponíveis: Fiado só aparece se cliente permitir e tiver limite
+  // Verifica se a loja e o cliente estão habilitados para a Caderneta de Mercadinho
+  const clienteAptoCaderneta = useMemo(() => {
+    if (!loja?.caderneta_ativa || !clienteSelecionado?.id) return false;
+    const permite = Boolean(clienteSelecionado.permite_caderneta);
+    const limite = Number(clienteSelecionado.limite_caderneta || 0);
+    const saldo = Number(clienteSelecionado.saldo_devedor_caderneta || 0);
+    return permite && (limite - saldo) > 0;
+  }, [loja?.caderneta_ativa, clienteSelecionado]);
+
+  // Filtra as formas de pagamento disponíveis: Fiado e Caderneta respeitam habilitação e saldo
   const formasPagamentoDisponiveis = useMemo(() => {
     const listaFPs = ((formasPagamento?.length || 0) > 0) ? formasPagamento : FORMAS_PADRAO;
-    return listaFPs.filter(fp => {
+    const base = [...listaFPs];
+    // Se a loja tem caderneta ativa e não veio na lista do banco, injeta opção padrão de caderneta
+    if (loja?.caderneta_ativa && !base.some(f => f.tipo === 'caderneta')) {
+      base.push({
+        id: `fp_caderneta_${loja?.id || 'default'}`,
+        loja_id: loja?.id || '',
+        nome: 'Caderneta',
+        tipo: 'caderneta',
+        taxa_percentual: 0,
+        taxa_fixa: 0,
+        maximo_parcelas: 1,
+        ativo: true,
+        exibir_catalogo: false
+      });
+    }
+
+    return base.filter(fp => {
       if (!fp.ativo) return false;
-      // Regra: Meio de pagamento fiado só deve aparecer para os clientes com permitir venda fiado ligada e com saldo no limite de crédito
       if (fp.tipo === 'fiado') {
         return permissions.podeAtivarFiado && clienteAptoFiado;
       }
+      if (fp.tipo === 'caderneta') {
+        return Boolean(loja?.caderneta_ativa) && clienteAptoCaderneta;
+      }
       return true;
     });
-  }, [formasPagamento, permissions.podeAtivarFiado, clienteAptoFiado]);
+  }, [formasPagamento, permissions.podeAtivarFiado, clienteAptoFiado, clienteAptoCaderneta, loja?.caderneta_ativa, loja?.id]);
 
-  // Sanitiza linhas de pagamento caso o cliente selecionado mude ou não possua limite fiado
+  // Sanitiza linhas de pagamento caso o cliente selecionado mude ou não possua limite fiado/caderneta
   useEffect(() => {
-    if (!clienteAptoFiado && linhasPagamento.some(l => l.forma_tipo === 'fiado')) {
+    const temFiadoInvalido = !clienteAptoFiado && linhasPagamento.some(l => l.forma_tipo === 'fiado');
+    const temCadernetaInvalida = !clienteAptoCaderneta && linhasPagamento.some(l => l.forma_tipo === 'caderneta');
+
+    if (temFiadoInvalido || temCadernetaInvalida) {
       const fpPadrao = formasPagamentoDisponiveis.find(f => f.tipo === 'dinheiro') || formasPagamentoDisponiveis[0] || FORMAS_PADRAO[0];
       setLinhasPagamento(prev => prev.map(l => {
-        if (l.forma_tipo === 'fiado') {
+        if ((!clienteAptoFiado && l.forma_tipo === 'fiado') || (!clienteAptoCaderneta && l.forma_tipo === 'caderneta')) {
           return {
             ...l,
             forma_pagamento_id: fpPadrao.id,
@@ -3320,6 +3351,48 @@ export const PosCheckout: React.FC = () => {
                         ) : null}
                       </div>
                     )}
+
+                    {/* Caderneta de Mercadinho: Informações do Cliente, Limite e Dia de Vencimento */}
+                    {linha.forma_tipo === 'caderneta' && (
+                      <div className="p-2.5 bg-amber-500/10 dark:bg-amber-950/30 border border-amber-500/30 rounded-xl space-y-2 text-xs text-amber-900 dark:text-amber-200">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>Caderneta Mensal:</span>
+                          </span>
+                          <span className="text-slate-800 dark:text-slate-200 font-semibold truncate max-w-[200px]">
+                            {clienteSelecionado ? clienteSelecionado.nome : 'Nenhum selecionado'}
+                          </span>
+                        </div>
+                        {clienteSelecionado && (
+                          <div className="space-y-1 text-[11px] text-slate-600 dark:text-slate-400">
+                            <div className="flex justify-between">
+                              <span>Saldo Devedor Atual:</span>
+                              <span className="font-bold text-slate-800 dark:text-slate-200">
+                                {formatarMoeda(Number(clienteSelecionado.saldo_devedor_caderneta || 0))}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Limite Disponível na Caderneta:</span>
+                              <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                {formatarMoeda(Math.max(0, Number(clienteSelecionado.limite_caderneta || 0) - Number(clienteSelecionado.saldo_devedor_caderneta || 0)))}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Ciclo de Acerto / Vencimento:</span>
+                              <span className="font-bold text-amber-700 dark:text-amber-300">
+                                Todo dia {clienteSelecionado.dia_vencimento_caderneta || loja?.dia_vencimento_padrao_caderneta || 10}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                        {clienteSelecionado && linha.valor > Math.max(0, Number(clienteSelecionado.limite_caderneta || 0) - Number(clienteSelecionado.saldo_devedor_caderneta || 0)) && (
+                          <p className="text-[11px] text-rose-600 dark:text-rose-400 font-bold pt-1 border-t border-rose-300 dark:border-rose-900/50">
+                            ⚠️ Valor informado excede o limite disponível na caderneta ({formatarMoeda(Math.max(0, Number(clienteSelecionado.limite_caderneta || 0) - Number(clienteSelecionado.saldo_devedor_caderneta || 0)))}).
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -3504,7 +3577,8 @@ export const PosCheckout: React.FC = () => {
                   Math.abs(diferencaPagamento) >= 0.01 ||
                   linhasPagamento.length === 0 ||
                   linhasPagamento.some(l => Number(l.valor) <= 0) ||
-                  linhasPagamento.some(l => l.forma_tipo === 'fiado' && l.valor > (Number(clienteSelecionado?.limite_credito || 0) + 0.01))
+                  linhasPagamento.some(l => l.forma_tipo === 'fiado' && l.valor > (Number(clienteSelecionado?.limite_credito || 0) + 0.01)) ||
+                  linhasPagamento.some(l => l.forma_tipo === 'caderneta' && l.valor > (Math.max(0, Number(clienteSelecionado?.limite_caderneta || 0) - Number(clienteSelecionado?.saldo_devedor_caderneta || 0)) + 0.01))
                 }
                 onClick={handleFinalizarVenda}
                 className={`flex-[2] py-3 px-3 rounded-2xl font-black text-xs shadow-md flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-98 ${

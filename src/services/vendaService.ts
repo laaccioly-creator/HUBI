@@ -362,7 +362,7 @@ export class VendaService {
       const taxaValor = (valorNum * Number(fpRef?.taxa_percentual || 0)) / 100;
       const valorLiquido = valorNum - taxaValor;
 
-      const nomeForma = fpRef?.nome || l.forma_nome || (l.forma_tipo === 'dinheiro' ? 'Dinheiro' : l.forma_tipo === 'pix' ? 'PIX' : l.forma_tipo === 'cartao_credito' ? 'Cartão de Crédito' : l.forma_tipo === 'cartao_debito' ? 'Cartão de Débito' : l.forma_tipo === 'fiado' ? 'Fiado' : 'Outro');
+      const nomeForma = fpRef?.nome || l.forma_nome || (l.forma_tipo === 'dinheiro' ? 'Dinheiro' : l.forma_tipo === 'pix' ? 'PIX' : l.forma_tipo === 'cartao_credito' ? 'Cartão de Crédito' : l.forma_tipo === 'cartao_debito' ? 'Cartão de Débito' : l.forma_tipo === 'fiado' ? 'Fiado' : l.forma_tipo === 'caderneta' ? 'Caderneta' : 'Outro');
       const tipoForma = fpRef?.tipo || l.forma_tipo || 'dinheiro';
 
       return {
@@ -373,8 +373,9 @@ export class VendaService {
         parcelas: l.parcelas || 1,
         valor_taxa: taxaValor,
         valor_liquido: valorLiquido,
-        data_pagamento: l.forma_tipo === 'fiado' ? null : dataIsoFinal,
+        data_pagamento: (l.forma_tipo === 'fiado' || l.forma_tipo === 'caderneta') ? null : dataIsoFinal,
         eh_pagamento_fiado: l.forma_tipo === 'fiado',
+        eh_pagamento_caderneta: l.forma_tipo === 'caderneta',
         forma_pagamento: {
           id: fpIdReal,
           nome: nomeForma,
@@ -472,10 +473,33 @@ export class VendaService {
         })();
         promessasPosVenda.push(taskFiado);
       }
+
+      // Lançamento e débito na Caderneta de Mercadinho
+      const valorCadernetaTotal = linhasAtivas
+        .filter(l => l.forma_tipo === 'caderneta')
+        .reduce((sum, l) => sum + Number(l.valor || 0), 0);
+
+      if (valorCadernetaTotal > 0) {
+        const taskCaderneta = (async () => {
+          try {
+            const { CadernetaService } = await import('./cadernetaService');
+            await CadernetaService.registrarCompraCaderneta({
+              lojaId,
+              clienteId: clienteSelecionado.id,
+              pedidoId,
+              valor: valorCadernetaTotal,
+              numeroPedido: pedidoGravado.numero_pedido
+            });
+          } catch (errCad: any) {
+            logger.error('VendaService', 'caderneta_registro', errCad, { loja_id: lojaId });
+          }
+        })();
+        promessasPosVenda.push(taskCaderneta);
+      }
     }
 
     // 4c. Registro na sessão de caixa ativa se houver pagamentos em dinheiro/pix/cartão
-    const pagamentosCaixa = linhasAtivas.filter(l => l.forma_tipo !== 'fiado' && Number(l.valor) > 0);
+    const pagamentosCaixa = linhasAtivas.filter(l => l.forma_tipo !== 'fiado' && l.forma_tipo !== 'caderneta' && Number(l.valor) > 0);
     if (pagamentosCaixa.length > 0) {
       const taskCaixa = (async () => {
         try {
