@@ -382,7 +382,8 @@ export async function obterMetasConsolidadasConglomerado(lojasIds: string[]): Pr
  */
 export async function salvarMetasLoja(
   lojaId: string,
-  metas: Partial<LojaMetas>
+  metas: Partial<LojaMetas>,
+  usuarioId?: string
 ): Promise<LojaMetas> {
   const rupturaValor = Number(
     metas.meta_saude_estoque_max_ruptura !== undefined && metas.meta_saude_estoque_max_ruptura !== null
@@ -402,6 +403,8 @@ export async function salvarMetasLoja(
   const numTicket = Number(metas.meta_ticket_medio ?? METAS_PADRAO_LOJA.meta_ticket_medio);
   const numInadimplencia = Number(metas.meta_inadimplencia_maxima ?? METAS_PADRAO_LOJA.meta_inadimplencia_maxima);
 
+  const operadorId = usuarioId || (typeof localStorage !== 'undefined' ? localStorage.getItem('hubi_active_usuario_id') : null) || null;
+
   // 1. Reconciliação prévia da sessão ativa do Supabase Auth para blindagem de RLS
   try {
     const { data: sessaoData } = await supabase.auth.getSession();
@@ -410,7 +413,7 @@ export async function salvarMetasLoja(
     }
   } catch {}
 
-  // 2. Estratégia Principal: Executar via RPC segura SECURITY DEFINER (imune a erros 401 de RLS/sessão transitória)
+  // 2. Estratégia Principal: Executar via RPC segura SECURITY DEFINER com suporte a auth.uid() e operador local
   try {
     const { data: rpcData, error: rpcError } = await supabase.rpc('salvar_loja_metas_seguro', {
       p_loja_id: lojaId,
@@ -421,7 +424,8 @@ export async function salvarMetasLoja(
       p_meta_despesas_maximas: despesasValor,
       p_meta_inadimplencia_maxima: numInadimplencia,
       p_meta_giro_estoque: rupturaValor,
-      p_meta_saude_estoque_max_ruptura: rupturaValor
+      p_meta_saude_estoque_max_ruptura: rupturaValor,
+      p_usuario_id: operadorId
     });
 
     if (!rpcError && rpcData) {

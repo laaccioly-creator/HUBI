@@ -40,7 +40,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
   onSucessoSalvar
 }) => {
   const { isDark } = useTheme();
-  const { loja } = useAuth();
+  const { loja, usuario } = useAuth();
   const permissions = usePermissions();
   const { mostrarSucesso, mostrarErro } = useFeedbackModal();
 
@@ -155,7 +155,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
         meta_saude_estoque_max_ruptura: numRuptura
       };
 
-      const resultado = await dashboardService.salvarMetasLoja(idLojaAlvo, payload);
+      const resultado = await dashboardService.salvarMetasLoja(idLojaAlvo, payload, usuario?.id);
       mostrarSucesso('Metas da loja atualizadas com sucesso!');
       setMensagemSucesso('Metas mensais salvas com sucesso!');
       setTimeout(() => setMensagemSucesso(null), 3500);
