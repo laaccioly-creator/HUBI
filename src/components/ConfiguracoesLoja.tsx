@@ -752,7 +752,6 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const [permitirFiado, setPermitirFiado] = useState<boolean>(true);
   const [cadernetaAtiva, setCadernetaAtiva] = useState<boolean>(false);
   const [diaVencimentoPadraoCaderneta, setDiaVencimentoPadraoCaderneta] = useState<number>(10);
-  const [salvandoCaderneta, setSalvandoCaderneta] = useState<boolean>(false);
 
   // Prazos e Taxas Maquininha
   const [maqCreditoAtivo, setMaqCreditoAtivo] = useState<boolean>(true);
@@ -1203,30 +1202,6 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
     }
   };
 
-  const salvarConfiguracaoCadernetaImediata = async (novaAtiva: boolean, novoDia: number) => {
-    if (!loja?.id) return;
-    try {
-      setSalvandoCaderneta(true);
-      const { error } = await supabase
-        .from('lojas')
-        .update({
-          caderneta_ativa: Boolean(novaAtiva),
-          dia_vencimento_padrao_caderneta: Number(novoDia || 10)
-        })
-        .eq('id', loja.id);
-
-      if (error) throw error;
-
-      await recarregarDadosLoja();
-      mostrarToast('Configurações da Caderneta salvas com sucesso!');
-    } catch (err: any) {
-      console.error('Erro ao salvar caderneta:', err);
-      mostrarErro('Erro ao salvar configurações da Caderneta.');
-    } finally {
-      setSalvandoCaderneta(false);
-    }
-  };
-
   const handleSalvarTodasConfiguracoes = async () => {
     if (!loja?.id) return;
     try {
@@ -1450,6 +1425,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               status_enviado: statusEnviado,
               status_entregue: statusEntregue,
               status_pronto_para_retirar: statusProntoRetirar,
+              caderneta_ativa: Boolean(cadernetaAtiva),
+              dia_vencimento_padrao_caderneta: Number(diaVencimentoPadraoCaderneta || 10),
               configuracoes_extras: novasExtras
             })
             .eq('id', loja.id);
@@ -1491,6 +1468,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       setTemAlteracoesNaoSalvas(false);
       await recarregarDadosLoja();
       mostrarToast('Configurações salvas com sucesso!');
+      setSubTela('menu');
     } catch (err: any) {
       console.error('Erro ao salvar:', err);
       mostrarErro(err.message || 'Tente novamente.', 'Erro ao salvar configurações');
@@ -2412,12 +2390,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       <input
                         type="checkbox"
                         checked={cadernetaAtiva}
-                        disabled={salvandoCaderneta}
-                        onChange={async (e) => {
-                          const novoValor = e.target.checked;
-                          setCadernetaAtiva(novoValor);
-                          await salvarConfiguracaoCadernetaImediata(novoValor, diaVencimentoPadraoCaderneta);
-                        }}
+                        onChange={(e) => setCadernetaAtiva(e.target.checked)}
                         className="rounded text-amber-600 focus:ring-amber-500"
                       />
                     </label>
@@ -2428,12 +2401,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                           <span className="text-[11px] text-slate-500">Dia</span>
                           <select
                             value={diaVencimentoPadraoCaderneta}
-                            disabled={salvandoCaderneta}
-                            onChange={async (e) => {
-                              const novoDia = Number(e.target.value);
-                              setDiaVencimentoPadraoCaderneta(novoDia);
-                              await salvarConfiguracaoCadernetaImediata(cadernetaAtiva, novoDia);
-                            }}
+                            onChange={(e) => setDiaVencimentoPadraoCaderneta(Number(e.target.value))}
                             className="bg-white border border-slate-300 rounded-lg px-2 py-0.5 text-xs font-bold text-slate-800"
                           >
                             {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
@@ -4528,12 +4496,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     <input
                       type="checkbox"
                       checked={cadernetaAtiva}
-                      disabled={salvandoCaderneta}
-                      onChange={async (e) => {
-                        const novoValor = e.target.checked;
-                        setCadernetaAtiva(novoValor);
-                        await salvarConfiguracaoCadernetaImediata(novoValor, diaVencimentoPadraoCaderneta);
-                      }}
+                      onChange={(e) => setCadernetaAtiva(e.target.checked)}
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
@@ -4550,12 +4513,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       <span className="font-medium text-slate-700 dark:text-slate-300">Todo dia</span>
                       <select
                         value={diaVencimentoPadraoCaderneta}
-                        disabled={salvandoCaderneta}
-                        onChange={async (e) => {
-                          const novoDia = Number(e.target.value);
-                          setDiaVencimentoPadraoCaderneta(novoDia);
-                          await salvarConfiguracaoCadernetaImediata(cadernetaAtiva, novoDia);
-                        }}
+                        onChange={(e) => setDiaVencimentoPadraoCaderneta(Number(e.target.value))}
                         className={`border rounded-xl px-2.5 py-1 text-xs font-bold focus:outline-none ${
                           isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
                         }`}
