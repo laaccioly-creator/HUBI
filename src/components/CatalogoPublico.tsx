@@ -28,7 +28,7 @@ import {
   avaliarNivelCarrinho,
   calcularPrecoUnitarioPorTabela
 } from '../services/pricingEngine';
-import { LayoutGrid, List, Smartphone, Info, Copy, QrCode, ExternalLink, Ticket, Check, Loader2, User, Phone, MapPin, UserCheck, Edit2, Banknote, CreditCard, Eye, Store, Bell, Star, Clock, Package, LogOut, ArrowRight, Sun, Moon } from 'lucide-react';
+import { LayoutGrid, List, Smartphone, Info, Copy, QrCode, ExternalLink, Ticket, Check, Loader2, User, Phone, MapPin, UserCheck, Edit2, Banknote, CreditCard, Eye, Store, Bell, Star, Clock, Package, LogOut, ArrowRight, Sun, Moon, FileText } from 'lucide-react';
 import { paymentGatewayService, PixDinamicoResponse } from '../services/paymentGatewayService';
 import { CupomService } from '../services/cupomService';
 import { audioService } from '../services/audioService';
@@ -42,6 +42,7 @@ import { ModalOnboardingCliente } from './ModalOnboardingCliente';
 import { ModalPedidosCliente } from './ModalPedidosCliente';
 import { ModalFavoritosCliente } from './ModalFavoritosCliente';
 import { ModalNotificacoesCliente } from './ModalNotificacoesCliente';
+import { ModalCadernetaClienteCatalogo } from './ModalCadernetaClienteCatalogo';
 import { ClienteCatalogoService } from '../services/clienteCatalogoService';
 import { formatarResumoDescricao } from './DescricaoFormatadaProduto';
 import { ChatRubiCatalogo } from './ChatRubiCatalogo';
@@ -265,6 +266,7 @@ export const CatalogoPublico: React.FC = () => {
   const [modalPedidosAberto, setModalPedidosAberto] = useState<boolean>(false);
   const [modalFavoritosAberto, setModalFavoritosAberto] = useState<boolean>(false);
   const [modalNotificacoesAberto, setModalNotificacoesAberto] = useState<boolean>(false);
+  const [modalCadernetaAberto, setModalCadernetaAberto] = useState<boolean>(false);
   const [menuUsuarioAberto, setMenuUsuarioAberto] = useState<boolean>(false);
   const menuUsuarioRef = useRef<HTMLDivElement>(null);
 
@@ -1931,6 +1933,24 @@ Fico no aguardo da confirmação! ✨`;
             )}
           </button>
 
+          {/* 3.1 Caderneta de Mercadinho (Exibida se a loja tem ativa e cliente tem permissão ou débito) */}
+          {Boolean(loja?.caderneta_ativa && clienteSelecionado && (clienteSelecionado.permite_caderneta || Number(clienteSelecionado.saldo_devedor_caderneta || 0) > 0)) && (
+            <button
+              type="button"
+              onClick={() => setModalCadernetaAberto(true)}
+              className="relative p-2 sm:px-2.5 sm:py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 text-amber-700 dark:text-amber-300 font-bold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs active:scale-95"
+              title="Minha Caderneta e Extrato"
+            >
+              <FileText className="w-4 h-4 text-amber-500" />
+              <span className="hidden lg:inline">Caderneta</span>
+              {Number(clienteSelecionado?.saldo_devedor_caderneta || 0) > 0 && (
+                <span className="bg-amber-500 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full leading-none">
+                  !
+                </span>
+              )}
+            </button>
+          )}
+
           {/* 4. Notificações */}
           <button
             type="button"
@@ -3264,6 +3284,16 @@ Fico no aguardo da confirmação! ✨`;
           }
         }}
       />
+
+      {/* MODAL DA CADERNETA DO CLIENTE NO CATÁLOGO */}
+      {modalCadernetaAberto && (
+        <ModalCadernetaClienteCatalogo
+          isOpen={modalCadernetaAberto}
+          onClose={() => setModalCadernetaAberto(false)}
+          cliente={clienteSelecionado}
+          loja={loja}
+        />
+      )}
 
       {/* MODAL DETALHES DO PRODUTO NO CATÁLOGO */}
       {produtoDetalhesModal && (
