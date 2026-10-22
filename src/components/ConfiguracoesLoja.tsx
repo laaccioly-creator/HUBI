@@ -266,6 +266,8 @@ const gerarSnapshotConfig = (dados: any) => {
     outrosAtivo: Boolean(dados.outrosAtivo),
     outrosDescricao: (dados.outrosDescricao || '').trim(),
     permitirFiado: Boolean(dados.permitirFiado),
+    cadernetaAtiva: Boolean(dados.cadernetaAtiva),
+    diaVencimentoPadraoCaderneta: Number(dados.diaVencimentoPadraoCaderneta ?? 10),
     maqCreditoAtivo: Boolean(dados.maqCreditoAtivo),
     maqCreditoDias: Number(dados.maqCreditoDias ?? 30),
     maqCreditoTaxa: Number(dados.maqCreditoTaxa ?? 2.99),
@@ -750,6 +752,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const [permitirFiado, setPermitirFiado] = useState<boolean>(true);
   const [cadernetaAtiva, setCadernetaAtiva] = useState<boolean>(false);
   const [diaVencimentoPadraoCaderneta, setDiaVencimentoPadraoCaderneta] = useState<number>(10);
+  const [salvandoCaderneta, setSalvandoCaderneta] = useState<boolean>(false);
 
   // Prazos e Taxas Maquininha
   const [maqCreditoAtivo, setMaqCreditoAtivo] = useState<boolean>(true);
@@ -1127,6 +1130,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           outrosAtivo: pagManuais.outros_ativo ?? false,
           outrosDescricao: pagManuais.outros_orientacoes || '',
           permitirFiado: pagManuais.permitir_fiado ?? true,
+          cadernetaAtiva: Boolean(loja.caderneta_ativa),
+          diaVencimentoPadraoCaderneta: Number(loja.dia_vencimento_padrao_caderneta || 10),
           maqCreditoAtivo: prazosMaq.credito_ativo ?? true,
           maqCreditoDias: prazosMaq.credito_dias ?? 30,
           maqCreditoTaxa: prazosMaq.credito_taxa_percentual ?? 2.99,
@@ -1195,6 +1200,30 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       setTimeout(() => setCopiadoTexto(''), 2500);
     } catch (err) {
       console.error('Falha ao copiar:', err);
+    }
+  };
+
+  const salvarConfiguracaoCadernetaImediata = async (novaAtiva: boolean, novoDia: number) => {
+    if (!loja?.id) return;
+    try {
+      setSalvandoCaderneta(true);
+      const { error } = await supabase
+        .from('lojas')
+        .update({
+          caderneta_ativa: Boolean(novaAtiva),
+          dia_vencimento_padrao_caderneta: Number(novoDia || 10)
+        })
+        .eq('id', loja.id);
+
+      if (error) throw error;
+
+      await recarregarDadosLoja();
+      mostrarToast('Configurações da Caderneta salvas com sucesso!');
+    } catch (err: any) {
+      console.error('Erro ao salvar caderneta:', err);
+      mostrarErro('Erro ao salvar configurações da Caderneta.');
+    } finally {
+      setSalvandoCaderneta(false);
     }
   };
 
@@ -1605,6 +1634,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       outrosAtivo,
       outrosDescricao,
       permitirFiado,
+      cadernetaAtiva,
+      diaVencimentoPadraoCaderneta,
       maqCreditoAtivo,
       maqCreditoDias,
       maqCreditoTaxa,
@@ -1704,6 +1735,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
     outrosAtivo,
     outrosDescricao,
     permitirFiado,
+    cadernetaAtiva,
+    diaVencimentoPadraoCaderneta,
     maqCreditoAtivo,
     maqCreditoDias,
     maqCreditoTaxa,
@@ -2358,6 +2391,61 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       className="rounded text-emerald-600 focus:ring-emerald-500"
                     />
                   </label>
+                  <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer">
+                    <div>
+                      <span className="text-xs font-bold text-slate-700 block">Fiado / Venda a Prazo</span>
+                      <span className="text-[10px] text-slate-500">Saldo por cliente com limite</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={permitirFiado}
+                      onChange={(e) => setPermitirFiado(e.target.checked)}
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                  </label>
+                  <div className="p-2.5 rounded-xl bg-amber-50/50 border border-amber-200/60 space-y-2">
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <div>
+                        <span className="text-xs font-bold text-slate-800 block">Caderneta de Mercadinho</span>
+                        <span className="text-[10px] text-slate-600">Acerto mensal contínuo</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={cadernetaAtiva}
+                        disabled={salvandoCaderneta}
+                        onChange={async (e) => {
+                          const novoValor = e.target.checked;
+                          setCadernetaAtiva(novoValor);
+                          await salvarConfiguracaoCadernetaImediata(novoValor, diaVencimentoPadraoCaderneta);
+                        }}
+                        className="rounded text-amber-600 focus:ring-amber-500"
+                      />
+                    </label>
+                    {cadernetaAtiva && (
+                      <div className="pt-2 border-t border-amber-200/50 flex items-center justify-between text-xs">
+                        <span className="text-[11px] font-medium text-slate-600">Dia de vencimento:</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] text-slate-500">Dia</span>
+                          <select
+                            value={diaVencimentoPadraoCaderneta}
+                            disabled={salvandoCaderneta}
+                            onChange={async (e) => {
+                              const novoDia = Number(e.target.value);
+                              setDiaVencimentoPadraoCaderneta(novoDia);
+                              await salvarConfiguracaoCadernetaImediata(cadernetaAtiva, novoDia);
+                            }}
+                            className="bg-white border border-slate-300 rounded-lg px-2 py-0.5 text-xs font-bold text-slate-800"
+                          >
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                              <option key={d} value={d}>
+                                {d}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -4440,7 +4528,12 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     <input
                       type="checkbox"
                       checked={cadernetaAtiva}
-                      onChange={(e) => setCadernetaAtiva(e.target.checked)}
+                      disabled={salvandoCaderneta}
+                      onChange={async (e) => {
+                        const novoValor = e.target.checked;
+                        setCadernetaAtiva(novoValor);
+                        await salvarConfiguracaoCadernetaImediata(novoValor, diaVencimentoPadraoCaderneta);
+                      }}
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
@@ -4457,7 +4550,12 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       <span className="font-medium text-slate-700 dark:text-slate-300">Todo dia</span>
                       <select
                         value={diaVencimentoPadraoCaderneta}
-                        onChange={(e) => setDiaVencimentoPadraoCaderneta(Number(e.target.value))}
+                        disabled={salvandoCaderneta}
+                        onChange={async (e) => {
+                          const novoDia = Number(e.target.value);
+                          setDiaVencimentoPadraoCaderneta(novoDia);
+                          await salvarConfiguracaoCadernetaImediata(cadernetaAtiva, novoDia);
+                        }}
                         className={`border rounded-xl px-2.5 py-1 text-xs font-bold focus:outline-none ${
                           isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
                         }`}

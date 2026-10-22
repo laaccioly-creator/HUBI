@@ -1,7 +1,7 @@
 # 📘 DOCUMENTAÇÃO TÉCNICA E ARQUITETURAL DO SISTEMA HUBI
 
-> **Versão do Documento:** 1.6.0  
-> **Data de Atualização:** 17/10/2026  
+> **Versão do Documento:** 1.7.0  
+> **Data de Atualização:** 22/10/2026  
 > **Classificação:** Documento Técnico de Arquitetura, Engenharia e Operações  
 > **Público-alvo:** Desenvolvedores, Engenheiros de Software, Arquitetos e Agentes de IA
 
@@ -35,6 +35,8 @@
    - [4.10 Central Unificada de Importação e Exportação (Planilhas XLSX e Feeds)](#410-central-unificada-de-importação-e-exportação-planilhas-xlsx-e-feeds)
    - [4.11 Módulo de Parâmetros Globais da Plataforma e Painel Super Admin](#411-módulo-de-parâmetros-globais-da-plataforma-e-painel-super-admin)
    - [4.12 Integração Nativa com Mercado Livre (OAuth 2.0, Estoque Local, Vínculo GDM e Expedição)](#412-integração-nativa-com-mercado-livre-oauth-20-estoque-local-vínculo-gdm-e-expedição)
+   - [4.13 Módulo Caderneta de Mercadinho (Conta Corrente, Ciclo Mensal e Coexistência com Fiado)](#413-módulo-caderneta-de-mercadinho-conta-corrente-ciclo-mensal-e-coexistência-com-fiado)
+   - [4.14 Importação de Clientes em Lote (WhatsApp, Google Contatos e CSV) com Guia Passo a Passo](#414-importação-de-clientes-em-lote-whatsapp-google-contatos-e-csv-com-guia-passo-a-passo)
 5. [Serviços e Utilitários Globais](#5-serviços-e-utilitários-globais)
    - [5.1 Supabase Client e Camada de Acesso a Dados](#51-supabase-client-e-camada-de-acesso-a-dados)
    - [5.2 Orquestrador e Serviços de Logística (Uber Direct, Melhor Envio e Despachos Manuais)](#52-orquestrador-e-serviços-de-logística-uber-direct-melhor-envio-e-despachos-manuais)
@@ -52,6 +54,8 @@
    - [5.14 Observabilidade Centralizada, Idempotência e Arquitetura de Dados Mestres (GDM)](#514-observabilidade-centralizada-idempotência-e-arquitetura-de-dados-mestres-gdm)
    - [5.15 Integração Nativa com Mercado Livre: Serviços Frontend e Edge Functions](#515-integração-nativa-com-mercado-livre-serviços-frontend-e-edge-functions)
    - [5.16 Gestão de Configurações da Plataforma e Assinaturas (`configuracoesPlataformaService.ts` & `useAssinaturaStatus.ts`)](#516-gestão-de-configurações-da-plataforma-e-assinaturas-configuracoesplataformaservicets--useassinaturastatusts)
+   - [5.17 Motor e Ledger da Caderneta de Mercadinho (`cadernetaService.ts`)](#517-motor-e-ledger-da-caderneta-de-mercadinho-cadernetaservicets)
+   - [5.18 Higienização Telefônica Brasileira e Parser Multi-Origem (`clientImportExportService.ts`)](#518-higienização-telefônica-brasileira-e-parser-multi-origem-clientimportexportservicets)
 
 ---
 
@@ -247,6 +251,8 @@ erDiagram
 | `status_enviado` | BOOLEAN | DEFAULT FALSE | Habilita status intermediário 'enviado' no kanban |
 | `status_entregue` | BOOLEAN | DEFAULT FALSE | Habilita status final 'entregue' no fluxo operacional |
 | `status_pronto_para_retirar` | BOOLEAN | DEFAULT FALSE | Habilita status 'pronto_para_retirar' para retiradas na loja |
+| `caderneta_ativa` | BOOLEAN | DEFAULT FALSE | Feature toggle para habilitar o módulo de Caderneta de Mercadinho |
+| `dia_vencimento_padrao_caderneta` | INTEGER | DEFAULT 10, CHECK (dia >= 1 AND dia <= 31) | Dia padrão de fechamento/acerto da caderneta na loja |
 | `tipos_venda` | JSONB | DEFAULT '{"varejo":true,"atacado":true,"distribuidor":true}' | Flags de tipos de venda habilitados no PDV |
 | `configuracoes_extras` | JSONB | DEFAULT '{}' | Preferências de layout, recibo e interface |
 | `criado_em` / `atualizado_em` | TIMESTAMPTZ | DEFAULT NOW() | Carimbos de auditoria temporal |
@@ -341,6 +347,9 @@ erDiagram
 | `saldo_devedor` | NUMERIC(12,2) | DEFAULT 0.00 | Valor pendente (em casos de fiado ou parcial) |
 | `fiado_quitado` | BOOLEAN | DEFAULT FALSE | Flag de liquidação total do débito fiado |
 | `data_vencimento_fiado` | DATE | NULL | Data de vencimento do saldo fiado |
+| `eh_caderneta` | BOOLEAN | DEFAULT FALSE | Indica se a venda foi lançada na Caderneta de Mercadinho |
+| `dia_vencimento_caderneta` | INTEGER | NULL | Dia de acerto no mês definido para o cliente |
+| `ciclo_referencia_caderneta` | VARCHAR(7) | NULL | Mês de competência da fatura (ex: '2026-11') |
 | `forma_entrega_id` | UUID | FK -> formas_entrega(id) ON DELETE SET NULL | Modalidade selecionada |
 | `endereco_entrega` | TEXT | NULL | Endereço descritivo (fallback para entregas rápidas) |
 | `troco_para` | NUMERIC(12,2) | NULL | Valor em espécie entregue pelo cliente para troco |
@@ -750,6 +759,59 @@ Armazena as notificações brutas de webhooks disparadas pelo Mercado Livre (`or
 | `processado_em` | TIMESTAMPTZ | NULL | Momento da conversão em pedido nativo do HUBI |
 | `criado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Carimbo temporal de chegada do webhook |
 
+#### 27. Tabela `clientes` (Base Geral de Clientes, Crediário Fiado e Caderneta)
+Centraliza o cadastro unificado de clientes do estabelecimento, limites de crédito tradicionais e as configurações de conta corrente da Caderneta de Mercadinho.
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | Identificador único do cliente |
+| `loja_id` | UUID | NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Vínculo multi-tenant com a loja |
+| `nome` | VARCHAR(150) | NOT NULL | Nome completo ou razão social |
+| `telefone` | VARCHAR(25) | NULL | Telefone fixo ou celular secundário |
+| `whatsapp` | VARCHAR(25) | NULL | WhatsApp higienizado (chave para catálogo e cobrança) |
+| `email` | VARCHAR(150) | NULL | E-mail do cliente |
+| `numero_documento` | VARCHAR(25) | NULL | CPF ou CNPJ |
+| `tabela_preco_padrao` | VARCHAR(20) | DEFAULT 'varejo' | Tabela de preço padrão vinculada (varejo, atacado, autoatacado) |
+| `permite_fiado` | BOOLEAN | DEFAULT TRUE | Habilita compras na modalidade tradicional de fiado |
+| `limite_credito` | NUMERIC(12,2) | DEFAULT 0.00 | Limite máximo de crédito para fiado individual |
+| `saldo_devedor_fiado` | NUMERIC(12,2) | DEFAULT 0.00 | Saldo em aberto acumulado de fiado tradicional |
+| `permite_caderneta` | BOOLEAN | DEFAULT FALSE | Habilita compras no módulo Caderneta de Mercadinho |
+| `limite_caderneta` | NUMERIC(12,2) | DEFAULT 0.00 | Limite de crédito rotativo para a caderneta |
+| `saldo_devedor_caderneta`| NUMERIC(12,2) | DEFAULT 0.00 | Saldo devedor total acumulado no ciclo corrente da caderneta |
+| `dia_vencimento_caderneta`| INTEGER | DEFAULT 10, CHECK (dia >= 1 AND dia <= 31) | Dia fixo de acerto/fechamento mensal da caderneta |
+| `endereco_cep` | VARCHAR(10) | NULL | CEP residencial ou comercial |
+| `endereco_logradouro` | VARCHAR(200) | NULL | Logradouro / Rua |
+| `endereco_numero` | VARCHAR(20) | NULL | Número |
+| `endereco_complemento` | VARCHAR(100) | NULL | Complemento |
+| `endereco_bairro` | VARCHAR(100) | NULL | Bairro |
+| `endereco_cidade` | VARCHAR(100) | NULL | Município |
+| `endereco_estado` | VARCHAR(2) | NULL | Estado (UF) |
+| `endereco_principal` | TEXT | NULL | Endereço completo concatenado para exibição rápida |
+| `data_aniversario` | DATE | NULL | Data de nascimento do cliente |
+| `observacoes` | TEXT | NULL | Notas e histórico interno do lojista |
+| `ativo` | BOOLEAN | DEFAULT TRUE | Status ativo/inativo |
+| `criado_em` / `atualizado_em` | TIMESTAMPTZ | DEFAULT NOW() | Carimbos de auditoria temporal |
+
+#### 28. Tabela `caderneta_lancamentos` (Ledger Contábil da Caderneta de Mercadinho)
+Registra de forma normalizada, auditada e imutável todas as movimentações financeiras da Caderneta de Mercadinho (compras, pagamentos parciais, liquidações totais e estornos).
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | ID exclusivo do lançamento no ledger |
+| `loja_id` | UUID | NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Vínculo multi-tenant estrito |
+| `cliente_id` | UUID | NOT NULL, FK -> clientes(id) ON DELETE CASCADE | Cliente associado à caderneta |
+| `pedido_id` | UUID | NULL, FK -> pedidos(id) ON DELETE SET NULL | Pedido originador (quando for compra ou estorno) |
+| `usuario_id` | UUID | NULL, FK -> usuarios_loja(id) ON DELETE SET NULL | Operador responsável pelo lançamento |
+| `tipo` | VARCHAR(20) | NOT NULL, CHECK ('compra', 'pagamento', 'estorno') | Tipo do lançamento contábil |
+| `valor` | NUMERIC(12,2) | NOT NULL | Valor transacionado |
+| `saldo_anterior` | NUMERIC(12,2) | NOT NULL DEFAULT 0.00 | Saldo devedor do cliente imediatamente antes da operação |
+| `saldo_posterior` | NUMERIC(12,2) | NOT NULL DEFAULT 0.00 | Saldo devedor resultante após a operação |
+| `ciclo_referencia` | VARCHAR(7) | NOT NULL | Mês/Ano de competência contábil (formato YYYY-MM) |
+| `data_vencimento` | DATE | NOT NULL | Data calculada do próximo acerto mensal da fatura |
+| `pago` | BOOLEAN | NOT NULL DEFAULT FALSE | Status de quitação da fatura/compra individual |
+| `data_pagamento` | TIMESTAMPTZ | NULL | Carimbo do momento em que o acerto foi efetuado |
+| `forma_pagamento_id` | UUID | NULL, FK -> formas_pagamento(id) ON DELETE SET NULL | Meio financeiro utilizado no pagamento (Pix, Dinheiro, Débito) |
+| `observacoes` | TEXT | NULL | Histórico e notas complementares do lançamento |
+| `criado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Momento da gravação do lançamento no ledger |
+
 ### 3.3 Triggers, Automações e Segurança no Banco (RLS)
 1. **Baixa e Reajuste Automático de Estoque (`fn_atualizar_estoque_pedido`):**
    - Disparado em `AFTER INSERT` na tabela `itens_pedido`.
@@ -1001,6 +1063,58 @@ O HUBI oferece integração nativa e em tempo real com o ecossistema do **Mercad
    - **Identificação Visual (`PedidosLista.tsx`):** Pedidos gerados pelo Mercado Livre recebem badge em amarelo e preto com a marca do marketplace e número do pedido externo.
    - **Impressão de Etiquetas Oficiais (`ml-etiquetas`):** Botão direto na listagem de pedidos que aciona a Edge Function `ml-etiquetas`. A função realiza proxy autenticado na API de Shipments do Mercado Livre (`/shipment_labels`) e entrega o PDF/ZPL pronto para impressão em impressoras térmicas (Zebra, Elgin) ou folhas A4 com etiquetas adesivas.
 
+### 4.13 Módulo Caderneta de Mercadinho (Conta Corrente, Ciclo Mensal e Coexistência com Fiado)
+O HUBI introduz a modalidade **Caderneta de Mercadinho**, desenhada especificamente para comércios de vizinhança e compras recorrentes, operando no modelo de conta corrente contínua com ciclo de fechamento mensal:
+1. **Coexistência com o Fiado Tradicional:**
+   - O Fiado clássico (com vencimento determinado a cada venda avulsa, ex: 15 ou 30 dias após a data da compra) permanece 100% ativo e independente.
+   - A Caderneta opera em paralelo: cada compra adiciona saldo devedor a uma fatura única mensal acumulada, sem que cada item tenha vencimento próprio.
+2. **Ciclo de Fechamento e Vencimento Mensal:**
+   - O cliente possui um **Dia Fixo de Acerto/Vencimento** no mês (ex: todo dia 10, dia 20 ou dia 30).
+   - O serviço contábil `cadernetaService.ts` calcula automaticamente o ciclo de competência (`YYYY-MM`) e a data exata do próximo acerto, inclusive tratando viradas de mês e meses com 28/29/30 dias.
+3. **Controle Hierárquico e Limite de Crédito:**
+   - **Toggle Global da Loja:** Controlado em `lojas.caderneta_ativa` e configurável na tela de Parâmetros Gerais da Loja.
+   - **Habilitação por Cliente:** O lojista define individualmente no cadastro do cliente se ele está apto (`permite_caderneta`), estipulando seu `limite_caderneta` (R$) e o `dia_vencimento_caderneta`.
+4. **Ledger Contábil Normalizado (`caderneta_lancamentos`):**
+   - Todas as transações são registradas com saldo anterior, valor e saldo posterior, garantindo auditoria estrita sem uso de colunas genéricas JSONB.
+   - Tipos de lançamento: `'compra'` (origem PDV), `'pagamento'` (amortização/quitação parcial ou total) e `'estorno'` (cancelamento de venda).
+5. **Experiência no PDV (Frente de Caixa):**
+   - Na etapa de fechamento de pagamento (`PosCheckout.tsx`), caso o cliente tenha caderneta ativa, é exibida a forma de pagamento **Caderneta** acompanhada de card analítico com o limite total, saldo devedor atual e saldo disponível.
+   - Validação preventiva: caso a compra exceda o limite disponível, o botão de finalização é bloqueado com alerta amigável.
+6. **Experiência no Catálogo Online (Cliente Autenticado):**
+   - Se a loja tiver o módulo ativo e o cliente logado tiver permissão ou débitos pendentes, é exibido o botão **"Caderneta"** na barra superior do catálogo (`CatalogoPublico.tsx`).
+   - O cliente abre o modal [`ModalCadernetaClienteCatalogo.tsx`](file:///c:/Users/User/Documents/HUBI/src/components/ModalCadernetaClienteCatalogo.tsx) para consultar de forma transparente seu extrato cronológico de compras, pagamentos, total devido e limite disponível, além de botão direto para contato via WhatsApp.
+7. **Painel do Lojista e Amortizações (`ModalExtratoCadernetaCliente.tsx` & `ClientesFiado.tsx`):**
+   - Card analítico dedicado de topo na tela de Clientes com o total consolidado de débitos em caderneta.
+   - Coluna de acesso rápido e filtro exclusivo `Caderneta`.
+   - Modal com timeline de transações, filtros por status e submodal para registrar quitação parcial ou total com baixa na conta e envio de comprovante via WhatsApp.
+
+### 4.14 Importação de Clientes em Lote (WhatsApp, Google Contatos e CSV) com Guia Passo a Passo
+Módulo universal acessível diretamente na tela de Clientes (`ClientesFiado.tsx`) e na Central de Importação (`ImportarClientes.tsx`), permitindo ao lojista carregar instantaneamente centenas de contatos:
+1. **Parser Polimórfico Multi-Origem (SheetJS / XLSX):**
+   - Leitura client-side sem envio de arquivos para servidores terceiros, compatível com `.csv`, `.xlsx` e `.xls`.
+   - Mapeamento inteligente de colunas nativas do **Google Contacts CSV** (`Given Name`, `Family Name`, `Phone 1 - Value`, `Address 1 - Formatted`), extensões do **WhatsApp Web** (`Saved Name`, `Public Name`, `Display Name`, `Phone`, `Number`, `wa_id`, `Label`) e o modelo oficial do **HUBI**.
+   - Tratamento de nomes em branco quando houver telefone válido (`Cliente (XX) 9XXXX-XXXX`), evitando perda de contatos.
+2. **Motor de Higienização Telefônica Brasileira (`sanitizarTelefoneBrasileiro`):**
+   - Desmembramento de números múltiplos concatenados por `:::` ou `/`.
+   - Limpeza de caracteres não numéricos e sufixos de mensageria (`@c.us`, `@s.whatsapp.net`).
+   - Remoção automática de DDI nacional `+55` para contatos de 12 ou 13 dígitos.
+   - **Injeção Automática do DDD da Loja:** Quando o número for salvo no celular com 8 ou 9 dígitos (sem DDD), o motor insere automaticamente o DDD da loja (extraído do WhatsApp/telefone cadastrado).
+   - **Normalização do 9º Dígito (Celulares Anatel):** Identifica se o primeiro dígito local após o DDD é `6, 7, 8 ou 9`. Caso tenha 10 dígitos, insere automaticamente o `9`, padronizando para `(DD) 9XXXX-XXXX`. Números fixos (`2, 3, 4, 5`) são mantidos em 10 dígitos `(DD) XXXX-XXXX`.
+3. **Deduplicação Inteligente em Dois Níveis:**
+   - Geração da **Chave Canônica** (`DDD + 8 últimos dígitos`), impedindo duplicidade por diferença de máscara ou presença/ausência do nono dígito.
+   - **Intra-Arquivo:** Identifica números repetidos dentro da mesma planilha.
+   - **Contra o Banco da Loja:** Cruzamento com os clientes já cadastrados.
+   - **Diretriz Configurável pelo Lojista:**
+     - Modo `Ignorar Duplicados` (Padrão): Não altera clientes existentes e cadastra apenas novos.
+     - Modo `Atualizar Dados`: Atualiza telefones, endereços e configurações em lote, preservando intactos os saldos devedores de fiado e caderneta.
+4. **Facilitador de Adoção da Caderneta em Lote:**
+   - Durante o fluxo de importação, o lojista pode acionar o switch para ativar a Caderneta de Mercadinho para toda a lista importada, definindo o limite de crédito padrão e o dia fixo de vencimento com 1 clique.
+5. **Gravação em Chunks (Batch Processing) e RLS:**
+   - Inserção de novos cadastros em lotes de **50 registros** (`supabase.from('clientes').insert(loteNovos)`), reduzindo o tempo de processamento de minutos para poucos segundos, com fallback individual linha por linha caso haja restrição de schema.
+   - Governança RLS total com cláusula explícita `.eq('loja_id', lojaId)`.
+6. **Guia Didático Passo a Passo (`ModalGuiaExportacaoWhatsApp.tsx`):**
+   - Modal com 3 abas ilustradas orientando o lojista sobre como extrair contatos do **Google Contatos** (`contacts.google.com`), do **WhatsApp Web/Business** (via extensões do Chrome) e disponibilizando download direto da **Planilha Modelo Simplificada** (Nome, WhatsApp, Endereço e Observações) em `.xlsx` e `.csv`.
+
 ---
 
 ## 5. SERVIÇOS E UTILITÁRIOS GLOBAIS
@@ -1246,6 +1360,30 @@ A monetização do HUBI adota arquitetura de licença anual autônoma por unidad
 3. **Componentes de Apresentação e Administração:**
    - **`CardParametrosHubiAdmin.tsx`:** Painel administrativo interativo integrado na aba "Geral" de `ConfiguracoesLoja.tsx`, renderizado exclusivamente quando o usuário autenticado for o Super Admin (`laaccioly@hotmail.com`).
    - **`BannerAssinaturaTop.tsx`:** Tarja superior de trial com fundo vermelho sólido, tipografia 100% branca pura, texto de dias restantes centralizado horizontalmente e botão de conversão rápida alinhado lado a lado ao valor.
+
+### 5.17 Motor e Ledger da Caderneta de Mercadinho (`cadernetaService.ts`)
+1. **Regras de Negócio e Cálculo de Ciclo Temporal:**
+   - **`calcularProximoVencimento(diaVencimento, dataBase)`:** Determina com precisão milimétrica a data do próximo acerto da fatura mensal. Caso o dia alvo no mês atual já tenha passado, projeta para o mês subsequente, tratando limites de meses com 28, 29 ou 30 dias (ex: dia 31 em fevereiro converge para o último dia válido do mês).
+   - **`obterCicloReferenciaAtual(diaVencimento, dataBase)`:** Retorna a competência fiscal no formato `YYYY-MM`.
+2. **Operações Contábeis e Ledger:**
+   - **`obterResumoCliente(clienteId, lojaId)`:** Consolida instantaneamente limite contratado, saldo devedor atual, saldo disponível e data do próximo vencimento.
+   - **`registrarCompraCaderneta(lojaId, clienteId, pedidoId, valor, usuarioId, observacoes)`:** Grava o débito em `public.caderneta_lancamentos` com snapshot do saldo anterior e posterior, e incrementa atômica e simultaneamente `clientes.saldo_devedor_caderneta`.
+   - **`registrarPagamentoCaderneta(lojaId, clienteId, valor, formaPagamentoId, usuarioId, observacoes)`:** Registra a amortização ou liquidação total, decrementando o saldo devedor e vinculando o meio de pagamento financeiro.
+   - **`listarExtratoCliente(lojaId, clienteId)`:** Retorna a linha do tempo cronológica com descrição de compras, pedidos vinculados e baixas efetuadas.
+
+### 5.18 Higienização Telefônica Brasileira e Parser Multi-Origem (`clientImportExportService.ts`)
+1. **Algoritmo de Normalização e Higienização (`sanitizarTelefoneBrasileiro`):**
+   - Limpa ruídos de importação, caracteres não-dígito, sufixos de mensageria (`@c.us`, `@s.whatsapp.net`) e múltiplos telefones concatenados por `:::` ou `/`.
+   - Remove o código internacional `55` quando presente em números de 12 ou 13 dígitos.
+   - **Injeção de DDD de Fallback:** Extrai o DDD padrão da loja e o insere automaticamente em números locais salvos sem DDD (8 ou 9 dígitos).
+   - **Ajuste Automático do Nono Dígito:** Analisa a faixa numérica da Anatel (dígitos `6`, `7`, `8` ou `9` após o DDD). Se o número possuir 10 dígitos, adiciona o nono dígito `9` antes dos 8 dígitos locais, padronizando para `(DD) 9XXXX-XXXX`. Telefones fixos mantêm o padrão de 10 dígitos.
+   - **Chave Canônica de Deduplicação:** Gera a chave única `DDD + 8 últimos dígitos` para cruzamento à prova de falhas com a base existente.
+2. **Mapeador Polimórfico de Colunas:**
+   - Reconhece colunas do **Google Contacts CSV** (`Given Name`, `Family Name`, `Phone 1 - Value`, `Address 1 - Formatted`), extensões do **WhatsApp Web** (`Saved Name`, `Public Name`, `Display Name`, `Phone`, `Number`, `wa_id`, `Label`) e o layout padrão **HUBI**.
+3. **Persistência em Chunks e Tolerância a Falhas:**
+   - Executa inserções em lotes de 50 registros (`TAMANHO_LOTE = 50`) com fallback linha por linha em caso de restrição de schema, garantindo altíssima performance com isolamento multi-tenant `.eq('loja_id', lojaId)`.
+4. **Geradores de Modelos:**
+   - `downloadModeloSimplificadoXLSX()` e `downloadModeloSimplificadoCSV()` com as 4 colunas essenciais (*Nome*, *WhatsApp*, *Endereço*, *Observações*).
 
 ---
 

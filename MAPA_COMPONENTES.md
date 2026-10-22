@@ -1,7 +1,7 @@
 # 🗺️ MAPA DE COMPONENTES E ARQUITETURA FRONTEND (HUBI)
 
-> **Versão do Documento:** 1.6.0  
-> **Data de Atualização:** 17/10/2026  
+> **Versão do Documento:** 1.7.0  
+> **Data de Atualização:** 22/10/2026  
 > **Classificação:** Guia de Referência Rápida de Componentes, Hooks, Serviços e Utilitários  
 > **Objetivo:** Localização cirúrgica de arquivos em `src/`, agilizando a navegação de desenvolvedores e agentes de IA com máxima economia de contexto.
 
@@ -96,6 +96,7 @@
 | **Área do Cliente: Favoritos** | `src/components/ModalFavoritosCliente.tsx` | Gerenciamento de produtos favoritados persistidos na tabela `cliente_favoritos`. |
 | **Área do Cliente: Notificações** | `src/components/ModalNotificacoesCliente.tsx` | Central de avisos, promoções e atualizações de entrega da loja para o cliente. |
 | **Área do Cliente: Meus Endereços** | `src/components/ModalEnderecoClienteCatalogo.tsx` | Gerenciamento de múltiplos endereços de entrega pelo próprio cliente final. |
+| **Área do Cliente: Caderneta e Extrato** | `src/components/ModalCadernetaClienteCatalogo.tsx` | Visualização transparente de compras na caderneta, débitos do ciclo mensal, limite disponível e contato com a loja. |
 | **Busca Inteligente no Catálogo** | `src/components/ModalBuscaClienteCatalogo.tsx` | Modal de busca instantânea com filtros e sugestões semânticas. |
 | **Detalhes do Produto no Catálogo** | `src/components/ModalDetalhesProdutoCatalogo.tsx` | Modal completo com galeria de fotos, grade de variações, preços por volume e botão de sacola. |
 | **Dúvidas de Produto com IA** | `src/components/ModalDuvidaProdutoIA.tsx` | Esclarecimento de dúvidas técnicas sobre o item usando IA sem alucinação. |
@@ -129,6 +130,9 @@
 | **Cadastro Rápido de Novo Cliente** | `src/components/ModalNovoCliente.tsx` | Cadastro ágil de cliente com busca de CEP via ViaCEP e limite de crédito inicial. |
 | **Histórico de Compras Fiado** | `src/components/ModalHistoricoFiadoCliente.tsx` | Modal detalhado de pedidos comprados no fiado com status aberto, parcial e quitado. |
 | **Amortização e Quitação de Fiado** | `src/components/ModalReceberFiado.tsx` | Baixa de débitos de fiado com split de pagamento e envio de comprovante via WhatsApp. |
+| **Extrato da Caderneta de Mercadinho**| `src/components/ModalExtratoCadernetaCliente.tsx` | Painel da caderneta com limite de crédito, saldo devedor, amortização/quitação e envio de comprovante por WhatsApp. |
+| **Importação de Clientes em Lote** | `src/components/ModalImportarClientes.tsx` | Modal universal para upload de CSV/Excel (WhatsApp/Google), prévia com higienização e adoção em lote da Caderneta. |
+| **Guia Didático de Exportação Contatos**| `src/components/ModalGuiaExportacaoWhatsApp.tsx` | Guia com 3 abas ilustradas (Google Contatos, WhatsApp Web e Planilha HUBI) com download de modelos. |
 | **Gestão de Usuários e Permissões** | `src/components/UsuariosGestao.tsx` | Controle de operadores da loja com controle RBAC (Admin, Gerente, Vendedor) e restrições de tela. |
 | **Drawer de Usuário e Loja** | `src/components/ModalUsuarioDrawer.tsx` | Drawer lateral para perfil do operador, seleção da tela inicial padrão e alternância de filial. |
 
@@ -164,7 +168,7 @@
 | :--- | :--- | :--- |
 | **Central de Importação/Exportação** | `src/components/CentralImportarExportar.tsx` | Hub consolidado para intercâmbio de dados em planilhas Excel (XLSX). |
 | **Importar/Exportar Produtos** | `src/components/ImportarExportarProdutos.tsx` | Carga e download de produtos, grades de variação, preços e fotos. |
-| **Importar Clientes** | `src/components/ImportarClientes.tsx` | Importação em lote de clientes com telefones, endereços e saldos de fiado. |
+| **Importar Clientes** | `src/components/ImportarClientes.tsx` | Importação em lote de clientes com higienização de telefones, integração com o guia didático e download de modelos. |
 | **Exportar Clientes** | `src/components/ExportarClientes.tsx` | Exportação da base de clientes para planilhas gerenciais. |
 | **Importar Pedidos** | `src/components/ImportarPedidos.tsx` | Migração e importação de histórico de pedidos legados. |
 | **Exportar Pedidos** | `src/components/ExportarPedidos.tsx` | Relatório consolidado de pedidos e itens vendidos por período. |
@@ -239,6 +243,7 @@
 | **pricingEngine** | `src/services/pricingEngine.ts` | Aplicação automática de regras de Atacado (6+ un), Autoatacado (24+ un) e Promoções ativas. |
 | **estoquePedidoService**| `src/services/estoquePedidoService.ts`| Baixa e estorno estritamente idempotentes de estoque de pedidos com log em `movimentacoes_estoque`. |
 | **vendaService** | `src/services/vendaService.ts` | Transações de finalização de vendas do PDV e split de meios de pagamento. |
+| **cadernetaService** | `src/services/cadernetaService.ts` | Gestão de ledger da Caderneta de Mercadinho, cálculo de ciclo mensal de acerto, compras e amortizações. |
 | **cupomService** | `src/services/cupomService.ts` | Validação de regras e aplicação de cupons de desconto no PDV e catálogo. |
 | **clienteCatalogoService**| `src/services/clienteCatalogoService.ts`| Autenticação com Web Crypto SHA-256, sincronização de carrinho, favoritos e notificações do cliente. |
 | **syncService** | `src/services/syncService.ts` | Sincronização em segundo plano entre o banco local IndexedDB e o Supabase. |
@@ -272,7 +277,7 @@
 | Serviço | Arquivo | Responsabilidade |
 | :--- | :--- | :--- |
 | **productImportExportService**| `src/services/productImportExportService.ts`| Parsing e geração de planilhas Excel (XLSX) de produtos e variações. |
-| **clientImportExportService** | `src/services/clientImportExportService.ts` | Parsing e geração de planilhas de clientes e saldos de crediário. |
+| **clientImportExportService** | `src/services/clientImportExportService.ts` | Parsing de Google Contatos/WhatsApp/CSV, higienização telefônica (+55, 9º dígito, DDD da loja), inserção em chunks e Caderneta. |
 | **orderImportExportService** | `src/services/orderImportExportService.ts` | Exportação de histórico de vendas e importação de pedidos legados. |
 | **financeExportService** | `src/services/financeExportService.ts` | Exportação de lançamentos financeiros, despesas e fluxo de caixa em XLSX. |
 | **feedExportService** | `src/services/feedExportService.ts` | Geração de catálogo XML/CSV para integração com Google Shopping e Meta Catalog. |
