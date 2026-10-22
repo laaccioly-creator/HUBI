@@ -53,14 +53,14 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
     permissions.ehGerente ||
     permissions.podeAcessarConfig;
 
-  // Estados dos campos de metas
-  const [metaFaturamento, setMetaFaturamento] = useState<number>(METAS_PADRAO_LOJA.meta_faturamento);
-  const [metaPedidos, setMetaPedidos] = useState<number>(METAS_PADRAO_LOJA.meta_pedidos);
-  const [metaLucroLiquido, setMetaLucroLiquido] = useState<number>(METAS_PADRAO_LOJA.meta_lucro_liquido);
-  const [metaTicketMedio, setMetaTicketMedio] = useState<number>(METAS_PADRAO_LOJA.meta_ticket_medio);
-  const [metaDespesasMaximas, setMetaDespesasMaximas] = useState<number>(METAS_PADRAO_LOJA.meta_despesas_maximas ?? 0);
-  const [metaInadimplenciaMaxima, setMetaInadimplenciaMaxima] = useState<number>(METAS_PADRAO_LOJA.meta_inadimplencia_maxima);
-  const [metaSaudeEstoqueRuptura, setMetaSaudeEstoqueRuptura] = useState<number>(METAS_PADRAO_LOJA.meta_saude_estoque_max_ruptura ?? 0);
+  // Estados dos campos de metas (permitindo string vazia durante a digitação para edição fluida)
+  const [metaFaturamento, setMetaFaturamento] = useState<string | number>(METAS_PADRAO_LOJA.meta_faturamento);
+  const [metaPedidos, setMetaPedidos] = useState<string | number>(METAS_PADRAO_LOJA.meta_pedidos);
+  const [metaLucroLiquido, setMetaLucroLiquido] = useState<string | number>(METAS_PADRAO_LOJA.meta_lucro_liquido);
+  const [metaTicketMedio, setMetaTicketMedio] = useState<string | number>(METAS_PADRAO_LOJA.meta_ticket_medio);
+  const [metaDespesasMaximas, setMetaDespesasMaximas] = useState<string | number>(METAS_PADRAO_LOJA.meta_despesas_maximas ?? 0);
+  const [metaInadimplenciaMaxima, setMetaInadimplenciaMaxima] = useState<string | number>(METAS_PADRAO_LOJA.meta_inadimplencia_maxima);
+  const [metaSaudeEstoqueRuptura, setMetaSaudeEstoqueRuptura] = useState<string | number>(METAS_PADRAO_LOJA.meta_saude_estoque_max_ruptura ?? 0);
 
   const [carregando, setCarregando] = useState<boolean>(true);
   const [salvando, setSalvando] = useState<boolean>(false);
@@ -132,22 +132,42 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
 
     try {
       setSalvando(true);
+
+      const numFaturamento = Math.max(0, parseFloat(String(metaFaturamento)) || 0);
+      const numPedidos = Math.max(0, Math.round(parseFloat(String(metaPedidos)) || 0));
+      const numLucro = Math.max(0, parseFloat(String(metaLucroLiquido)) || 0);
+      const numTicket = numPedidos > 0
+        ? Math.round((numFaturamento / numPedidos) * 100) / 100
+        : (parseFloat(String(metaTicketMedio)) || 0);
+      const numDespesas = Math.max(0, parseFloat(String(metaDespesasMaximas)) || 0);
+      const numInadimplencia = Math.min(100, Math.max(0, parseFloat(String(metaInadimplenciaMaxima)) || 0));
+      const numRuptura = Math.min(1000, Math.max(0, Math.round(parseFloat(String(metaSaudeEstoqueRuptura)) || 0)));
+
       const payload: Partial<LojaMetas> = {
-        meta_faturamento: Math.max(0, metaFaturamento),
-        meta_pedidos: Math.max(0, Math.round(metaPedidos)),
-        meta_lucro_liquido: Math.max(0, metaLucroLiquido),
-        meta_ticket_medio: Math.max(0, metaTicketMedio),
-        meta_despesas_maximas: Math.max(0, metaDespesasMaximas),
-        meta_despesas: Math.max(0, metaDespesasMaximas),
-        meta_inadimplencia_maxima: Math.min(100, Math.max(0, metaInadimplenciaMaxima)),
-        meta_giro_estoque: Math.min(1000, Math.max(0, metaSaudeEstoqueRuptura)),
-        meta_saude_estoque_max_ruptura: Math.min(1000, Math.max(0, metaSaudeEstoqueRuptura))
+        meta_faturamento: numFaturamento,
+        meta_pedidos: numPedidos,
+        meta_lucro_liquido: numLucro,
+        meta_ticket_medio: numTicket,
+        meta_despesas_maximas: numDespesas,
+        meta_despesas: numDespesas,
+        meta_inadimplencia_maxima: numInadimplencia,
+        meta_giro_estoque: numRuptura,
+        meta_saude_estoque_max_ruptura: numRuptura
       };
 
       const resultado = await dashboardService.salvarMetasLoja(idLojaAlvo, payload);
       mostrarSucesso('Metas da loja atualizadas com sucesso!');
       setMensagemSucesso('Metas mensais salvas com sucesso!');
       setTimeout(() => setMensagemSucesso(null), 3500);
+
+      // Normaliza estados locais para os valores numéricos salvos
+      setMetaFaturamento(resultado.meta_faturamento);
+      setMetaPedidos(resultado.meta_pedidos);
+      setMetaLucroLiquido(resultado.meta_lucro_liquido);
+      setMetaTicketMedio(resultado.meta_ticket_medio);
+      setMetaDespesasMaximas(resultado.meta_despesas_maximas ?? numDespesas);
+      setMetaInadimplenciaMaxima(resultado.meta_inadimplencia_maxima);
+      setMetaSaudeEstoqueRuptura(resultado.meta_saude_estoque_max_ruptura ?? numRuptura);
 
       if (onSucessoSalvar) {
         onSucessoSalvar(resultado);
@@ -240,7 +260,17 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               min="0"
               disabled={!podeEditar || carregando}
               value={metaFaturamento}
-              onChange={(e) => setMetaFaturamento(parseFloat(e.target.value) || 0)}
+              onChange={(e) => setMetaFaturamento(e.target.value === '' ? '' : e.target.value)}
+              onFocus={(e) => {
+                if (metaFaturamento === 0 || metaFaturamento === '0') e.target.select();
+              }}
+              onBlur={() => {
+                if (metaFaturamento === '' || isNaN(Number(metaFaturamento))) {
+                  setMetaFaturamento(0);
+                } else {
+                  setMetaFaturamento(Math.max(0, parseFloat(String(metaFaturamento))));
+                }
+              }}
               className={`w-full rounded-xl pl-10 pr-3.5 py-2.5 text-sm font-bold font-mono focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50 ${
                 isDark
                   ? 'bg-[#000000] border border-slate-700 text-white placeholder-slate-500'
@@ -285,7 +315,17 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               min="0"
               disabled={!podeEditar || carregando}
               value={metaPedidos}
-              onChange={(e) => setMetaPedidos(parseInt(e.target.value, 10) || 0)}
+              onChange={(e) => setMetaPedidos(e.target.value === '' ? '' : e.target.value)}
+              onFocus={(e) => {
+                if (metaPedidos === 0 || metaPedidos === '0') e.target.select();
+              }}
+              onBlur={() => {
+                if (metaPedidos === '' || isNaN(Number(metaPedidos))) {
+                  setMetaPedidos(0);
+                } else {
+                  setMetaPedidos(Math.max(0, Math.round(parseFloat(String(metaPedidos)))));
+                }
+              }}
               className={`w-full rounded-xl px-3.5 py-2.5 text-sm font-black font-mono focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50 ${
                 isDark
                   ? 'bg-[#000000] border border-slate-700 text-white placeholder-slate-500'
@@ -335,7 +375,17 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               min="0"
               disabled={!podeEditar || carregando}
               value={metaLucroLiquido}
-              onChange={(e) => setMetaLucroLiquido(parseFloat(e.target.value) || 0)}
+              onChange={(e) => setMetaLucroLiquido(e.target.value === '' ? '' : e.target.value)}
+              onFocus={(e) => {
+                if (metaLucroLiquido === 0 || metaLucroLiquido === '0') e.target.select();
+              }}
+              onBlur={() => {
+                if (metaLucroLiquido === '' || isNaN(Number(metaLucroLiquido))) {
+                  setMetaLucroLiquido(0);
+                } else {
+                  setMetaLucroLiquido(Math.max(0, parseFloat(String(metaLucroLiquido))));
+                }
+              }}
               className={`w-full rounded-xl pl-10 pr-3.5 py-2.5 text-sm font-bold font-mono focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50 ${
                 isDark
                   ? 'bg-[#000000] border border-slate-700 text-white placeholder-slate-500'
@@ -385,7 +435,17 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               min="0"
               disabled={!podeEditar || carregando}
               value={metaDespesasMaximas}
-              onChange={(e) => setMetaDespesasMaximas(parseFloat(e.target.value) || 0)}
+              onChange={(e) => setMetaDespesasMaximas(e.target.value === '' ? '' : e.target.value)}
+              onFocus={(e) => {
+                if (metaDespesasMaximas === 0 || metaDespesasMaximas === '0') e.target.select();
+              }}
+              onBlur={() => {
+                if (metaDespesasMaximas === '' || isNaN(Number(metaDespesasMaximas))) {
+                  setMetaDespesasMaximas(0);
+                } else {
+                  setMetaDespesasMaximas(Math.max(0, parseFloat(String(metaDespesasMaximas))));
+                }
+              }}
               className={`w-full rounded-xl pl-10 pr-3.5 py-2.5 text-sm font-bold font-mono focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50 ${
                 isDark
                   ? 'bg-[#000000] border border-slate-700 text-white placeholder-slate-500'
@@ -431,7 +491,17 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               max="100"
               disabled={!podeEditar || carregando}
               value={metaInadimplenciaMaxima}
-              onChange={(e) => setMetaInadimplenciaMaxima(parseFloat(e.target.value) || 0)}
+              onChange={(e) => setMetaInadimplenciaMaxima(e.target.value === '' ? '' : e.target.value)}
+              onFocus={(e) => {
+                if (metaInadimplenciaMaxima === 0 || metaInadimplenciaMaxima === '0') e.target.select();
+              }}
+              onBlur={() => {
+                if (metaInadimplenciaMaxima === '' || isNaN(Number(metaInadimplenciaMaxima))) {
+                  setMetaInadimplenciaMaxima(0);
+                } else {
+                  setMetaInadimplenciaMaxima(Math.min(100, Math.max(0, parseFloat(String(metaInadimplenciaMaxima)))));
+                }
+              }}
               className={`w-full rounded-xl pl-3.5 pr-8 py-2.5 text-sm font-bold font-mono focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50 ${
                 isDark
                   ? 'bg-[#000000] border border-slate-700 text-white placeholder-slate-500'
@@ -482,7 +552,17 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               max="500"
               disabled={!podeEditar || carregando}
               value={metaSaudeEstoqueRuptura}
-              onChange={(e) => setMetaSaudeEstoqueRuptura(parseInt(e.target.value) || 0)}
+              onChange={(e) => setMetaSaudeEstoqueRuptura(e.target.value === '' ? '' : e.target.value)}
+              onFocus={(e) => {
+                if (metaSaudeEstoqueRuptura === 0 || metaSaudeEstoqueRuptura === '0') e.target.select();
+              }}
+              onBlur={() => {
+                if (metaSaudeEstoqueRuptura === '' || isNaN(Number(metaSaudeEstoqueRuptura))) {
+                  setMetaSaudeEstoqueRuptura(0);
+                } else {
+                  setMetaSaudeEstoqueRuptura(Math.min(1000, Math.max(0, Math.round(parseFloat(String(metaSaudeEstoqueRuptura))))));
+                }
+              }}
               className={`w-full rounded-xl pl-3.5 pr-14 py-2.5 text-sm font-bold font-mono focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition disabled:opacity-50 ${
                 isDark
                   ? 'bg-[#000000] border border-slate-700 text-white placeholder-slate-500'

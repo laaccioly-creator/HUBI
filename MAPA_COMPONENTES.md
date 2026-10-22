@@ -45,7 +45,7 @@
 | :--- | :--- | :--- |
 | **Velocímetro Analógico F1 (Gauge)** | `src/components/dashboard/CockpitGaugeF1.tsx` | Gauge SVG com ponteiro dinâmico, arcos coloridos, zonas de tolerância e comparação meta vs. realizado. |
 | **Drawer Analítico de Métrica F1** | `src/components/dashboard/CockpitMetricDrawer.tsx` | Drawer lateral com decomposição profunda da métrica (canais, formas de pagamento, horários de pico, DRE real e insights Jev). |
-| **Configuração de Metas da Loja** | `src/components/configuracoes/ConfiguracoesMetas.tsx` | Painel para parametrização de metas (faturamento, pedidos, ticket médio, lucro, inadimplência e giro). |
+| **Configuração de Metas da Loja** | `src/components/configuracoes/ConfiguracoesMetas.tsx` | Painel para parametrização de metas (faturamento, pedidos, ticket médio, lucro, despesas, inadimplência e giro/ruptura). Suporta edição fluida sem travamento de zero, seleção no foco e persistência atômica via RPC. |
 | **Estatísticas e Analytics Clássico** | `src/components/EstatisticasAnalytics.tsx` | Painel de relatórios gráficos de faturamento, curvas de vendas e giro de estoque. |
 
 ---
@@ -187,7 +187,7 @@
 | **Configuração de Recibo** | `src/components/ModalConfigurarRecibo.tsx` | Personalização do cabeçalho, rodapé e logotipo dos cupons impressos. |
 | **Confirmação de Exclusão** | `src/components/ModalConfirmacaoExclusao.tsx` | Modal com trava de segurança para deleções irreversíveis de registros. |
 | **Diálogo de Alerta / Feedback** | `src/components/ModalAlertaFeedback.tsx` | Modal acessível de feedback para mensagens de sucesso, alerta ou erro operacional. |
-| **Modal Nova Filial (Conglomerado)** | `src/components/lojas/ModalAdicionarLoja.tsx` | Cadastro rápido de nova loja com degustação gratuita vinculada à organização. |
+| **Modal Nova Filial (Conglomerado)** | `src/components/lojas/ModalAdicionarLoja.tsx` | Cadastro de nova unidade/filial com degustação gratuita, formulário de endereço completo (CEP, logradouro, número, complemento, bairro, cidade, UF), autopreenchimento assíncrono via ViaCEP e foco automático. |
 | **Parâmetros Globais HUBI (Admin)** | `src/components/configuracoes/CardParametrosHubiAdmin.tsx` | Painel exclusivo do Super Admin (`laaccioly@hotmail.com`) para controle de dias de trial, valores base e modo manutenção. |
 | **Conexão Mercado Livre** | `src/components/CardConexaoMercadoLivre.tsx` | Card de integração OAuth 2.0 com Mercado Livre, status em tempo real, dados do vendedor e ações de vínculo. |
 | **Vínculo de Anúncio ML** | `src/components/ModalVincularAnuncioMl.tsx` | Modal para associação de anúncios/variações do Mercado Livre aos produtos e variações nativas do HUBI. |

@@ -20,6 +20,13 @@ interface AuthContextType {
     numero_documento?: string;
     cidade?: string;
     estado?: string;
+    endereco_cep?: string;
+    endereco_logradouro?: string;
+    endereco_numero?: string;
+    endereco_complemento?: string;
+    endereco_bairro?: string;
+    endereco_cidade?: string;
+    endereco_estado?: string;
   }) => Promise<Loja>;
   entrarComEmail: (email: string, senha?: string) => Promise<boolean>;
   entrarComGoogle: () => Promise<any>;
@@ -683,6 +690,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     numero_documento?: string;
     cidade?: string;
     estado?: string;
+    endereco_cep?: string;
+    endereco_logradouro?: string;
+    endereco_numero?: string;
+    endereco_complemento?: string;
+    endereco_bairro?: string;
+    endereco_cidade?: string;
+    endereco_estado?: string;
   }): Promise<Loja> => {
     const nomeLimpo = params.nome.trim();
     if (!nomeLimpo) throw new Error('O nome da loja é obrigatório.');
@@ -724,6 +738,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const slugFinal = `${slugBase || 'filial'}-${Math.floor(1000 + Math.random() * 9000)}`;
     const trialFimIso = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
+    const cidadeFinal = params.endereco_cidade || params.cidade || loja?.endereco_cidade || null;
+    const estadoFinal = params.endereco_estado || params.estado || loja?.endereco_estado || null;
+
     const novaLojaPayload: Partial<Loja> = {
       organizacao_id: orgId,
       status_assinatura: 'trial',
@@ -734,8 +751,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       numero_documento: params.numero_documento || null,
       whatsapp: params.whatsapp ? params.whatsapp.replace(/\D/g, '') : (loja?.whatsapp || '00000000000'),
       email: authEmail,
-      endereco_cidade: params.cidade || loja?.endereco_cidade || null,
-      endereco_estado: params.estado || loja?.endereco_estado || null,
+      endereco_cep: params.endereco_cep ? params.endereco_cep.replace(/\D/g, '') : (loja?.endereco_cep || null),
+      endereco_logradouro: params.endereco_logradouro || loja?.endereco_logradouro || null,
+      endereco_numero: params.endereco_numero || loja?.endereco_numero || null,
+      endereco_complemento: params.endereco_complemento || loja?.endereco_complemento || null,
+      endereco_bairro: params.endereco_bairro || loja?.endereco_bairro || null,
+      endereco_cidade: cidadeFinal,
+      endereco_estado: estadoFinal,
       slug_catalogo: slugFinal,
       cor_primaria: loja?.cor_primaria || '#10B981',
       moeda: 'BRL',
@@ -777,7 +799,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }]);
     }
 
-    // Formas de pagamento e entrega padrão para a nova filial
+    // Formas de pagamento, entrega e logística padrão para a nova filial
     try {
       await supabase.from('formas_pagamento').insert([
         { loja_id: novaLoja.id, nome: 'Dinheiro', tipo: 'dinheiro', taxa_percentual: 0, ativo: true, exibir_catalogo: true },
@@ -791,6 +813,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await supabase.from('categorias').insert([
         { loja_id: novaLoja.id, nome: 'Geral', ordem_exibicao: 1, ativo: true }
       ]);
+      try {
+        await supabase.from('loja_shipping_configs').insert([{
+          loja_id: novaLoja.id,
+          retirada_balcao_ativa: true,
+          retirada_loja_ativa: true,
+          permite_retirada_loja: true,
+          frete_gratis_ativo: false,
+          frete_gratis_valor_minimo: 0.00
+        }]);
+      } catch {}
     } catch (seedErr) {
       console.warn('Aviso ao inicializar tabelas da filial:', seedErr);
     }

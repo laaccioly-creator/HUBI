@@ -378,7 +378,7 @@ export async function obterMetasConsolidadasConglomerado(lojasIds: string[]): Pr
 }
 
 /**
- * Salva ou atualiza as metas da loja via upsert na tabela loja_metas
+ * Salva ou atualiza as metas da loja via upsert na tabela loja_metas ou RPC segura
  */
 export async function salvarMetasLoja(
   lojaId: string,
@@ -396,14 +396,73 @@ export async function salvarMetasLoja(
       : (metas.meta_despesas ?? METAS_PADRAO_LOJA.meta_despesas_maximas ?? 0.0)
   );
 
+  const numFaturamento = Number(metas.meta_faturamento ?? METAS_PADRAO_LOJA.meta_faturamento);
+  const numPedidos = Math.max(0, Math.round(Number(metas.meta_pedidos ?? METAS_PADRAO_LOJA.meta_pedidos)));
+  const numLucro = Number(metas.meta_lucro_liquido ?? METAS_PADRAO_LOJA.meta_lucro_liquido);
+  const numTicket = Number(metas.meta_ticket_medio ?? METAS_PADRAO_LOJA.meta_ticket_medio);
+  const numInadimplencia = Number(metas.meta_inadimplencia_maxima ?? METAS_PADRAO_LOJA.meta_inadimplencia_maxima);
+
+  // 1. Reconciliação prévia da sessão ativa do Supabase Auth para blindagem de RLS
+  try {
+    const { data: sessaoData } = await supabase.auth.getSession();
+    if (sessaoData?.session?.user) {
+      await supabase.rpc('sincronizar_meu_usuario_auth');
+    }
+  } catch {}
+
+  // 2. Estratégia Principal: Executar via RPC segura SECURITY DEFINER (imune a erros 401 de RLS/sessão transitória)
+  try {
+    const { data: rpcData, error: rpcError } = await supabase.rpc('salvar_loja_metas_seguro', {
+      p_loja_id: lojaId,
+      p_meta_faturamento: numFaturamento,
+      p_meta_pedidos: numPedidos,
+      p_meta_lucro_liquido: numLucro,
+      p_meta_ticket_medio: numTicket,
+      p_meta_despesas_maximas: despesasValor,
+      p_meta_inadimplencia_maxima: numInadimplencia,
+      p_meta_giro_estoque: rupturaValor,
+      p_meta_saude_estoque_max_ruptura: rupturaValor
+    });
+
+    if (!rpcError && rpcData) {
+      const resultado: LojaMetas = {
+        id: rpcData.id,
+        loja_id: rpcData.loja_id,
+        meta_faturamento: Number(rpcData.meta_faturamento ?? numFaturamento),
+        meta_pedidos: Number(rpcData.meta_pedidos ?? numPedidos),
+        meta_lucro_liquido: Number(rpcData.meta_lucro_liquido ?? numLucro),
+        meta_ticket_medio: Number(rpcData.meta_ticket_medio ?? numTicket),
+        meta_despesas_maximas: Number(rpcData.meta_despesas_maximas ?? despesasValor),
+        meta_inadimplencia_maxima: Number(rpcData.meta_inadimplencia_maxima ?? numInadimplencia),
+        meta_giro_estoque: Number(rpcData.meta_giro_estoque ?? rupturaValor),
+        meta_saude_estoque_max_ruptura: Number(rpcData.meta_saude_estoque_max_ruptura ?? rupturaValor),
+        criado_em: rpcData.criado_em,
+        atualizado_em: rpcData.atualizado_em
+      };
+
+      try {
+        localStorage.setItem(`hubi_loja_metas_${lojaId}`, JSON.stringify(resultado));
+      } catch {}
+
+      return resultado;
+    }
+
+    if (rpcError) {
+      console.warn('[dashboardService] RPC salvar_loja_metas_seguro indisponível ou recusada, usando fallback direto:', rpcError.message);
+    }
+  } catch (rpcErr) {
+    console.warn('[dashboardService] Exceção na RPC salvar_loja_metas_seguro, usando fallback direto:', rpcErr);
+  }
+
+  // 3. Estratégia Fallback: Upsert direto via Supabase Client com cláusula multitenant explícita
   const payload: any = {
     loja_id: lojaId,
-    meta_faturamento: Number(metas.meta_faturamento ?? METAS_PADRAO_LOJA.meta_faturamento),
-    meta_pedidos: Number(metas.meta_pedidos ?? METAS_PADRAO_LOJA.meta_pedidos),
-    meta_lucro_liquido: Number(metas.meta_lucro_liquido ?? METAS_PADRAO_LOJA.meta_lucro_liquido),
-    meta_ticket_medio: Number(metas.meta_ticket_medio ?? METAS_PADRAO_LOJA.meta_ticket_medio),
+    meta_faturamento: numFaturamento,
+    meta_pedidos: numPedidos,
+    meta_lucro_liquido: numLucro,
+    meta_ticket_medio: numTicket,
     meta_despesas_maximas: despesasValor,
-    meta_inadimplencia_maxima: Number(metas.meta_inadimplencia_maxima ?? METAS_PADRAO_LOJA.meta_inadimplencia_maxima),
+    meta_inadimplencia_maxima: numInadimplencia,
     meta_giro_estoque: rupturaValor,
     meta_saude_estoque_max_ruptura: rupturaValor,
     atualizado_em: new Date().toISOString()
@@ -439,7 +498,7 @@ export async function salvarMetasLoja(
 
   if (error) {
     console.error('[dashboardService] Erro ao salvar metas da loja:', error);
-    throw new Error('Não foi possível salvar as metas da loja. Tente novamente.');
+    throw new Error('Não foi possível salvar as metas da loja. Por favor, verifique se possui perfil de administrador ou tente novamente.');
   }
 
   const resultado: LojaMetas = {

@@ -569,13 +569,17 @@ erDiagram
 | :--- | :--- | :--- | :--- |
 | `id` | UUID | PK, DEFAULT gen_random_uuid() | ID do registro de metas |
 | `loja_id` | UUID | UNIQUE, NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Vínculo 1:1 com a loja |
-| `meta_faturamento` | NUMERIC(12,2) | NOT NULL DEFAULT 50000.00 | Meta de faturamento bruto do período |
-| `meta_pedidos` | INTEGER | NOT NULL DEFAULT 300 | Meta de volume de pedidos finalizados |
-| `meta_lucro_liquido` | NUMERIC(12,2) | NOT NULL DEFAULT 15000.00 | Meta de lucro líquido real (deduzindo CMV e despesas) |
-| `meta_ticket_medio` | NUMERIC(10,2) | NOT NULL DEFAULT 166.00 | Meta de valor médio gasto por venda |
-| `meta_inadimplencia_maxima`| NUMERIC(5,2) | NOT NULL DEFAULT 5.00 | Teto percentual tolerado de fiado atrasado |
-| `meta_giro_estoque` | NUMERIC(5,2) | NOT NULL DEFAULT 25.00 | Percentual alvo de giro e renovação de estoque |
+| `meta_faturamento` | NUMERIC(12,2) | NOT NULL DEFAULT 0.00 | Meta de faturamento bruto do período |
+| `meta_pedidos` | INTEGER | NOT NULL DEFAULT 0 | Meta de volume de pedidos finalizados |
+| `meta_lucro_liquido` | NUMERIC(12,2) | NOT NULL DEFAULT 0.00 | Meta de lucro líquido real (deduzindo CMV e despesas) |
+| `meta_ticket_medio` | NUMERIC(10,2) | NOT NULL DEFAULT 0.00 | Meta de valor médio gasto por venda |
+| `meta_despesas_maximas` | NUMERIC(12,2) | NOT NULL DEFAULT 0.00 | Teto orçamentário mensal para despesas/sangrias |
+| `meta_inadimplencia_maxima`| NUMERIC(5,2) | NOT NULL DEFAULT 0.00 | Teto percentual tolerado de fiado atrasado |
+| `meta_giro_estoque` | NUMERIC(5,2) | NOT NULL DEFAULT 0.00 | Percentual alvo de giro e renovação de estoque |
+| `meta_saude_estoque_max_ruptura` | NUMERIC(8,2) | NOT NULL DEFAULT 0.00 | Quantidade máxima tolerada de itens em ruptura de estoque |
 | `criado_em` / `atualizado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Carimbos de controle temporal |
+
+> **Blindagem RLS & RPC:** Protegida por RLS com `GRANT ALL` para `authenticated`, políticas de isolamento via `public.usuario_pertence_loja(loja_id)` e persistência atômica via RPC `public.salvar_loja_metas_seguro`.
 
 #### 16. Tabela `movimentacoes_estoque` (Auditoria e Log Físico de Estoque)
 | Coluna | Tipo | Restrições | Descrição |
@@ -973,7 +977,9 @@ O Cockpit Executivo F1 é o centro de comando analítico da loja, projetado para
      - *DRE de Lucro Real:* Detalhamento em cascata (Faturamento - CMV - Taxas - Despesas = Lucro Real).
      - *Diagnóstico Jev / System One:* Análise textual sem alucinação gerada pelo serviço `dashboardJevService.ts` com alertas de gargalos e recomendações de ação.
 3. **Parametrização de Metas (`ConfiguracoesMetas.tsx` & `loja_metas`):**
-   - Interface gerencial para os gestores configurarem suas metas mensais/semanais. Caso a loja não tenha metas cadastradas, o sistema adota as constantes `METAS_PADRAO_LOJA` do `dashboardService.ts`.
+   - Interface gerencial para os gestores configurarem suas metas mensais/semanais. Caso a loja não tenha metas cadastradas, o sistema adota as constantes `METAS_PADRAO_LOJA` do `dashboardService.ts` com valores zerados (0.00).
+   - *Experiência de Edição Fluida:* Inputs numéricos com suporte a campo vazio (`""`) para digitação natural com Backspace/Delete sem travamento forçado de zeros, auto-seleção no foco e coerção numérica sanitizada no `onBlur` e no submit.
+   - *Persistência Resiliente:* Salvamento atômico prioritário via RPC `salvar_loja_metas_seguro` com verificação de segurança `public.usuario_pertence_loja`, eliminando erros 401 de PostgREST.
 
 ### 4.8 Módulo Área do Cliente e Onboarding no Catálogo Online
 O Catálogo Virtual PWA conta com uma camada completa de fidelização e autoatendimento para o cliente final:

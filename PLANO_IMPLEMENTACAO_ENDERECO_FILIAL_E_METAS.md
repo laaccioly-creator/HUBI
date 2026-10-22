@@ -171,14 +171,14 @@ flowchart LR
 4. Aplicadas permissões explícitas (`GRANT ALL ON TABLE public.loja_metas TO authenticated, service_role;` e `GRANT SELECT TO anon`) e recriadas as 4 políticas RLS granulares (`SELECT`, `INSERT`, `UPDATE`, `DELETE`) em `public.loja_metas`.
 5. Criada a RPC transacional segura `public.salvar_loja_metas_seguro` com `SECURITY DEFINER` e verificação estrita `public.usuario_pertence_loja(p_loja_id)`.
 
-### Fase 2: Camada de Serviços e Contexto (`AuthContext.tsx` e `dashboardService.ts`)
-1. Atualizar a interface e implementação de `adicionarNovaFilial` em [`src/contexts/AuthContext.tsx`](file:///c:/Users/User/Documents/HUBI/src/contexts/AuthContext.tsx) para persistir `endereco_cep`, `endereco_logradouro`, `endereco_numero`, `endereco_complemento`, `endereco_bairro`, `endereco_cidade` e `endereco_estado`.
-2. Atualizar `salvarMetasLoja` em [`src/services/dashboardService.ts`](file:///c:/Users/User/Documents/HUBI/src/services/dashboardService.ts) com verificação de sessão, reconciliação de vínculo auth e fallback via RPC `salvar_loja_metas_seguro`.
+### Fase 2: Camada de Serviços e Contexto (`AuthContext.tsx` e `dashboardService.ts`) ✅ CONCLUÍDA
+1. Atualizada a assinatura e implementação de `adicionarNovaFilial` em [`src/contexts/AuthContext.tsx`](file:///c:/Users/User/Documents/HUBI/src/contexts/AuthContext.tsx) para receber e persistir `endereco_cep`, `endereco_logradouro`, `endereco_numero`, `endereco_complemento`, `endereco_bairro`, `endereco_cidade` e `endereco_estado`, com espelhamento da configuração inicial em `public.loja_shipping_configs`.
+2. Atualizado `salvarMetasLoja` em [`src/services/dashboardService.ts`](file:///c:/Users/User/Documents/HUBI/src/services/dashboardService.ts) com reconciliação da sessão GoTrue, persistência prioritária via RPC segura `salvar_loja_metas_seguro`, fallback com cláusula de tenant no PostgREST e sanitização de erro amigável em `pt-BR`.
 
-### Fase 3: Camada de Interface e Usabilidade (`ModalAdicionarLoja.tsx` e `ConfiguracoesMetas.tsx`)
-1. Evoluir [`src/components/lojas/ModalAdicionarLoja.tsx`](file:///c:/Users/User/Documents/HUBI/src/components/lojas/ModalAdicionarLoja.tsx) com todos os campos de endereço físico, busca automática por CEP via ViaCEP, foco automático no campo Número e validação de obrigatoriedade.
-2. Refatorar [`src/components/configuracoes/ConfiguracoesMetas.tsx`](file:///c:/Users/User/Documents/HUBI/src/components/configuracoes/ConfiguracoesMetas.tsx) para eliminar o "zero travado", permitindo limpar os campos livremente com `Backspace`/`Delete` e aplicando coerção numérica apenas no `onBlur` e no `handleSalvar`.
+### Fase 3: Camada de Interface e Usabilidade (`ModalAdicionarLoja.tsx` e `ConfiguracoesMetas.tsx`) ✅ CONCLUÍDA
+1. Implementada a seção de endereço completo com busca automática por CEP (ViaCEP) com loading visual, autopreenchimento de logradouro, bairro, cidade, UF, foco automático no campo Número e validação no [`src/components/lojas/ModalAdicionarLoja.tsx`](file:///c:/Users/User/Documents/HUBI/src/components/lojas/ModalAdicionarLoja.tsx).
+2. Refatorados todos os inputs de metas em [`src/components/configuracoes/ConfiguracoesMetas.tsx`](file:///c:/Users/User/Documents/HUBI/src/components/configuracoes/ConfiguracoesMetas.tsx) para suportar edição fluida com campo vazio (`""`), foco com auto-seleção e sanitização numérica no `onBlur` e no `handleSalvar`, eliminando o problema do "zero travado".
 
-### Fase 4: Verificação de Qualidade e Build
-1. Executar checagem estática de tipos (`tsc`) e empacotamento de produção (`npm run build`) garantindo zero regressões.
-2. Atualizar documentação técnica do sistema caso aplicável.
+### Fase 4: Verificação de Qualidade e Build ✅ CONCLUÍDA
+1. Executadas checagens estáticas TypeScript (`npx tsc --noEmit`) com 0 erros.
+2. Empacotamento de produção Vite e PWA (`npm run build`) validado com código 0 e sem quebras de dependência.

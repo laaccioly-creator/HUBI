@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   X,
   Store,
@@ -9,7 +9,8 @@ import {
   Loader2,
   CheckCircle2,
   Building2,
-  AlertCircle
+  AlertCircle,
+  Home
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -41,8 +42,20 @@ export const ModalAdicionarLoja: React.FC<ModalAdicionarLojaProps> = ({
   const [nome, setNome] = useState<string>('');
   const [whatsapp, setWhatsapp] = useState<string>('');
   const [numeroDocumento, setNumeroDocumento] = useState<string>('');
+
+  // Campos de Endereço Físico Completo
+  const [cep, setCep] = useState<string>('');
+  const [logradouro, setLogradouro] = useState<string>('');
+  const [numero, setNumero] = useState<string>('');
+  const [complemento, setComplemento] = useState<string>('');
+  const [bairro, setBairro] = useState<string>('');
   const [cidade, setCidade] = useState<string>('');
   const [estado, setEstado] = useState<string>('PE');
+  const [buscandoCep, setBuscandoCep] = useState<boolean>(false);
+  const [avisoCep, setAvisoCep] = useState<string | null>(null);
+
+  const numeroInputRef = useRef<HTMLInputElement>(null);
+
   const [salvando, setSalvando] = useState<boolean>(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -50,11 +63,62 @@ export const ModalAdicionarLoja: React.FC<ModalAdicionarLojaProps> = ({
 
   if (!isOpen) return null;
 
+  const formatarCep = (valor: string) => {
+    const limpo = valor.replace(/\D/g, '').slice(0, 8);
+    if (limpo.length <= 5) return limpo;
+    return `${limpo.slice(0, 5)}-${limpo.slice(5)}`;
+  };
+
+  const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatado = formatarCep(e.target.value);
+    setCep(formatado);
+    const cepLimpo = formatado.replace(/\D/g, '');
+    if (cepLimpo.length === 8) {
+      buscarCep(cepLimpo);
+    }
+  };
+
+  const buscarCep = async (cepParaBuscar: string) => {
+    const cepLimpo = cepParaBuscar.replace(/\D/g, '');
+    if (cepLimpo.length !== 8) return;
+
+    try {
+      setBuscandoCep(true);
+      setAvisoCep(null);
+      const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const data = await res.json();
+
+      if (data.erro) {
+        setAvisoCep('CEP não encontrado nos Correios. Preencha os campos de endereço manualmente.');
+        return;
+      }
+
+      if (data.logradouro) setLogradouro(data.logradouro);
+      if (data.bairro) setBairro(data.bairro);
+      if (data.localidade) setCidade(data.localidade);
+      if (data.uf) setEstado(data.uf.toUpperCase());
+
+      setTimeout(() => {
+        numeroInputRef.current?.focus();
+      }, 50);
+    } catch {
+      setAvisoCep('Falha ao consultar CEP automaticamente. Você pode preencher manualmente.');
+    } finally {
+      setBuscandoCep(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const nomeLimpo = nome.trim();
     if (!nomeLimpo) {
       setErro('Por favor, informe o nome fantasia da nova filial.');
+      return;
+    }
+
+    const cepLimpo = cep.replace(/\D/g, '');
+    if (cepLimpo.length > 0 && cepLimpo.length !== 8) {
+      setErro('O CEP informado deve conter exatamente 8 dígitos.');
       return;
     }
 
@@ -67,7 +131,14 @@ export const ModalAdicionarLoja: React.FC<ModalAdicionarLojaProps> = ({
         whatsapp,
         numero_documento: numeroDocumento,
         cidade: cidade.trim() || undefined,
-        estado: estado || undefined
+        estado: estado || undefined,
+        endereco_cep: cepLimpo || undefined,
+        endereco_logradouro: logradouro.trim() || undefined,
+        endereco_numero: numero.trim() || undefined,
+        endereco_complemento: complemento.trim() || undefined,
+        endereco_bairro: bairro.trim() || undefined,
+        endereco_cidade: cidade.trim() || undefined,
+        endereco_estado: estado || undefined
       });
 
       mostrarAlerta({
@@ -207,36 +278,140 @@ export const ModalAdicionarLoja: React.FC<ModalAdicionarLojaProps> = ({
             />
           </div>
 
-          {/* CIDADE E UF */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2 space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                <span>Cidade</span>
-              </label>
-              <input
-                type="text"
-                value={cidade}
-                onChange={(e) => setCidade(e.target.value)}
-                placeholder="Ex: Recife"
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition"
-              />
+          {/* SEÇÃO ENDEREÇO FÍSICO COMPLETO */}
+          <div className="pt-2 border-t border-slate-200 dark:border-slate-800/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Endereço da Unidade (Para Retirada e Entregas)</span>
+              </span>
+              <span className="text-[10px] text-slate-500 font-medium">Autopreenchimento via CEP</span>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                <span>UF</span>
-              </label>
-              <select
-                value={estado}
-                onChange={(e) => setEstado(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition"
-              >
-                {ESTADOS_BRASIL.map((uf) => (
-                  <option key={uf} value={uf}>
-                    {uf}
-                  </option>
-                ))}
-              </select>
+
+            {/* CEP E LOGRADOURO */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 flex items-center justify-between">
+                  <span>CEP</span>
+                  {buscandoCep && (
+                    <span className="text-emerald-500 flex items-center gap-1 text-[10px]">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>Buscando...</span>
+                    </span>
+                  )}
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={cep}
+                    onChange={handleCepChange}
+                    onBlur={() => {
+                      const limpo = cep.replace(/\D/g, '');
+                      if (limpo.length === 8 && !logradouro) {
+                        buscarCep(limpo);
+                      }
+                    }}
+                    placeholder="00000-000"
+                    maxLength={9}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm font-mono focus:outline-none focus:border-emerald-500 transition"
+                  />
+                </div>
+              </div>
+
+              <div className="sm:col-span-2 space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                  <span>Rua / Logradouro</span>
+                </label>
+                <input
+                  type="text"
+                  value={logradouro}
+                  onChange={(e) => setLogradouro(e.target.value)}
+                  placeholder="Ex: Av. Principal, Rua das Flores"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition"
+                />
+              </div>
+            </div>
+
+            {avisoCep && (
+              <p className="text-[11px] text-amber-500 font-medium">
+                {avisoCep}
+              </p>
+            )}
+
+            {/* NÚMERO E COMPLEMENTO */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                  <span>Número</span>
+                </label>
+                <input
+                  ref={numeroInputRef}
+                  type="text"
+                  value={numero}
+                  onChange={(e) => setNumero(e.target.value)}
+                  placeholder="Ex: 120 ou S/N"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition"
+                />
+              </div>
+
+              <div className="col-span-2 space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                  <span>Complemento (Opcional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={complemento}
+                  onChange={(e) => setComplemento(e.target.value)}
+                  placeholder="Ex: Sala 02, Loja B, Bloco 1"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition"
+                />
+              </div>
+            </div>
+
+            {/* BAIRRO, CIDADE E UF */}
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+              <div className="sm:col-span-2 space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                  <span>Bairro</span>
+                </label>
+                <input
+                  type="text"
+                  value={bairro}
+                  onChange={(e) => setBairro(e.target.value)}
+                  placeholder="Ex: Centro"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition"
+                />
+              </div>
+
+              <div className="sm:col-span-2 space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                  <span>Cidade</span>
+                </label>
+                <input
+                  type="text"
+                  value={cidade}
+                  onChange={(e) => setCidade(e.target.value)}
+                  placeholder="Ex: Recife"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                  <span>UF</span>
+                </label>
+                <select
+                  value={estado}
+                  onChange={(e) => setEstado(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-emerald-500 transition"
+                >
+                  {ESTADOS_BRASIL.map((uf) => (
+                    <option key={uf} value={uf}>
+                      {uf}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 
