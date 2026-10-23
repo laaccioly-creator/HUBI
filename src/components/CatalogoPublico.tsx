@@ -43,6 +43,7 @@ import { ModalPedidosCliente } from './ModalPedidosCliente';
 import { ModalFavoritosCliente } from './ModalFavoritosCliente';
 import { ModalNotificacoesCliente } from './ModalNotificacoesCliente';
 import { ModalCadernetaClienteCatalogo } from './ModalCadernetaClienteCatalogo';
+import { CadernetaService } from '../services/cadernetaService';
 import { ClienteCatalogoService } from '../services/clienteCatalogoService';
 import { formatarResumoDescricao } from './DescricaoFormatadaProduto';
 import { ChatRubiCatalogo } from './ChatRubiCatalogo';
@@ -267,6 +268,7 @@ export const CatalogoPublico: React.FC = () => {
   const [modalFavoritosAberto, setModalFavoritosAberto] = useState<boolean>(false);
   const [modalNotificacoesAberto, setModalNotificacoesAberto] = useState<boolean>(false);
   const [modalCadernetaAberto, setModalCadernetaAberto] = useState<boolean>(false);
+  const [formaPagamentoCatalogoEscolhida, setFormaPagamentoCatalogoEscolhida] = useState<'padrao' | 'fiado' | 'caderneta'>('padrao');
   const [menuUsuarioAberto, setMenuUsuarioAberto] = useState<boolean>(false);
   const menuUsuarioRef = useRef<HTMLDivElement>(null);
 
@@ -1426,13 +1428,21 @@ export const CatalogoPublico: React.FC = () => {
             : null
       );
 
+      const formaPagamentoEfetiva = formaPagamentoCatalogoEscolhida;
+      const ehFiado = formaPagamentoEfetiva === 'fiado';
+      const ehCaderneta = formaPagamentoEfetiva === 'caderneta';
+
       const payloadPedido = {
         loja_id: loja.id,
         cliente_id: (clienteFinalId && isUuidValido(clienteFinalId)) ? clienteFinalId : null,
         origem: 'catalogo_online',
         status: 'pendente',
-        status_pagamento: 'aguardando_pagamento',
-        forma_pagamento_catalogo: 'a_combinar',
+        status_pagamento: (ehFiado || ehCaderneta) ? 'fiado' : 'aguardando_pagamento',
+        forma_pagamento_catalogo: formaPagamentoEfetiva === 'padrao' ? 'a_combinar' : formaPagamentoEfetiva,
+        eh_venda_caderneta: ehCaderneta,
+        ciclo_referencia_caderneta: ehCaderneta ? CadernetaService.obterCicloReferenciaAtual() : null,
+        data_vencimento_fiado: ehFiado ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : null,
+        fiado_quitado: (ehFiado || ehCaderneta) ? false : false,
         tabela_preco_aplicada: avaliacaoCarrinho.tabelaAtiva,
         subtotal,
         subtotal_produtos: subtotal,
@@ -1551,12 +1561,65 @@ export const CatalogoPublico: React.FC = () => {
 
       await supabase.from('itens_pedido').insert(itensFormatados);
 
-      // Gerar cobrança e preferência Mercado Pago se estiver ativo na loja
+      // Tratamento Contábil para Meios a Prazo (Fiado e Caderneta)
+      if (ehFiado && clienteFinalId) {
+        try {
+          const { data: cliAtual } = await supabase
+            .from('clientes')
+            .select('saldo_devedor_fiado')
+            .eq('id', clienteFinalId)
+            .single();
+
+          const saldoAtual = Number(cliAtual?.saldo_devedor_fiado || 0);
+          await supabase
+            .from('clientes')
+            .update({ saldo_devedor_fiado: saldoAtual + total })
+            .eq('id', clienteFinalId);
+
+          await supabase.from('pagamentos_pedido').insert([{
+            loja_id: loja.id,
+            pedido_id: pedidoCriado.id,
+            valor: total,
+            parcelas: 1,
+            valor_taxa: 0,
+            valor_liquido: total,
+            data_pagamento: dataOperacaoIso,
+            eh_pagamento_fiado: true
+          }]);
+        } catch (errFiado) {
+          console.warn('Aviso ao registrar pagamento fiado no catálogo:', errFiado);
+        }
+      } else if (ehCaderneta && clienteFinalId) {
+        try {
+          await CadernetaService.registrarCompraCaderneta({
+            lojaId: loja.id,
+            clienteId: clienteFinalId,
+            pedidoId: pedidoCriado.id,
+            valor: total,
+            numeroPedido: pedidoCriado.numero_pedido
+          });
+
+          await supabase.from('pagamentos_pedido').insert([{
+            loja_id: loja.id,
+            pedido_id: pedidoCriado.id,
+            valor: total,
+            parcelas: 1,
+            valor_taxa: 0,
+            valor_liquido: total,
+            data_pagamento: dataOperacaoIso,
+            eh_pagamento_caderneta: true
+          }]);
+        } catch (errCad) {
+          console.warn('Aviso ao registrar compra na caderneta no catálogo:', errCad);
+        }
+      }
+
+      // Gerar cobrança e preferência Mercado Pago se estiver ativo na loja e não for meio a prazo
       let pixInfoRes: PixDinamicoResponse | null = null;
       let linkPagamentoUrl: string | null = null;
       let linkPreferenceId: string | null = null;
 
-      if (loja.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.ativo) {
+      if (!ehFiado && !ehCaderneta && loja.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.ativo) {
         const emailEfetivo = dadosContato.email?.trim() || clienteSelecionado?.email?.trim() || undefined;
 
         try {
@@ -1631,7 +1694,11 @@ export const CatalogoPublico: React.FC = () => {
           ? '🏷️ Atacado'
           : '🛒 Varejo';
 
-      const textoFormaPagamento = loja.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.ativo
+      const textoFormaPagamento = ehCaderneta
+        ? 'Caderneta de Mercadinho'
+        : ehFiado
+        ? 'Fiado / Compra a Prazo'
+        : loja.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.ativo
         ? 'A combinar / Mercado Pago'
         : 'A combinar com a loja';
 
@@ -1680,8 +1747,9 @@ Fico no aguardo da confirmação! ✨`;
         pixInfo: pixInfoRes?.sucesso ? pixInfoRes : null,
         linkPagamento: linkPagamentoUrl,
         preferenceId: linkPreferenceId,
-        formaPagamentoEscolhida: 'a_combinar'
+        formaPagamentoEscolhida: formaPagamentoEfetiva
       });
+      setFormaPagamentoCatalogoEscolhida('padrao');
     } catch (err: any) {
       console.error('Erro ao enviar pedido:', err);
       const msgErro = err?.message || '';
@@ -1985,25 +2053,24 @@ Fico no aguardo da confirmação! ✨`;
             )}
           </button>
 
-          {/* 5. Carrinho com Badge e Valor Consolidado (Item 1: Contraste corrigido) */}
+          {/* 5. Carrinho com Badge e Rótulo (Contraste Padronizado em Ambos os Temas) */}
           <button
             type="button"
             onClick={() => setDrawerCarrinhoAberto(true)}
-            className="relative px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-900 text-white dark:bg-slate-800/90 dark:hover:bg-slate-750 dark:border-2 dark:border-emerald-400 font-bold text-xs flex items-center gap-1.5 sm:gap-2 shadow-xs transition active:scale-95 cursor-pointer shrink-0"
+            className="relative p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-700 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-white dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs shrink-0"
             title="Ver Carrinho de Compras"
           >
-            <ShoppingBag className="w-4 h-4 text-emerald-400" />
-            {totalItens > 0 ? (
-              <>
-                <span className="bg-emerald-500 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full">
-                  {totalItens}
-                </span>
-                <span className="hidden sm:inline font-extrabold text-white">
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}
-                </span>
-              </>
-            ) : (
-              <span className="hidden sm:inline text-white">Carrinho</span>
+            <ShoppingBag className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <span className="hidden lg:inline text-slate-800 dark:text-slate-100 font-semibold">Carrinho</span>
+            {totalItens > 0 && (
+              <span className="bg-emerald-500 text-slate-950 text-[10px] font-black px-1.5 py-0.5 rounded-full leading-none">
+                {totalItens}
+              </span>
+            )}
+            {totalItens > 0 && (
+              <span className="hidden sm:inline font-bold text-emerald-700 dark:text-emerald-400 ml-0.5">
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}
+              </span>
             )}
           </button>
 
@@ -2914,6 +2981,140 @@ Fico no aguardo da confirmação! ✨`;
                       </div>
                     )}
                   </div>
+
+                  {/* SELETOR DE FORMA DE PAGAMENTO (SE O CLIENTE TIVER FIADO OU CADERNETA HABILITADOS) */}
+                  {(() => {
+                    const limiteDispFiado = Math.max(0, Number(clienteSelecionado?.limite_credito || 0) - Number(clienteSelecionado?.saldo_devedor_fiado || 0));
+                    const elegivelFiado = Boolean(clienteSelecionado && clienteSelecionado.permite_fiado);
+                    const limiteSuficienteFiado = elegivelFiado && limiteDispFiado >= total;
+
+                    const limiteDispCad = Math.max(0, Number(clienteSelecionado?.limite_caderneta || 0) - Number(clienteSelecionado?.saldo_devedor_caderneta || 0));
+                    const elegivelCad = Boolean(loja?.caderneta_ativa && clienteSelecionado && clienteSelecionado.permite_caderneta);
+                    const limiteSuficienteCad = elegivelCad && limiteDispCad >= total;
+
+                    if (!elegivelFiado && !elegivelCad) return null;
+
+                    return (
+                      <div className="pt-2.5 border-t border-slate-200 dark:border-slate-800/80 space-y-2">
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                          <span className="flex items-center gap-1.5">
+                            <CreditCard className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                            <span>Forma de Pagamento</span>
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-normal">Opções para sua conta</span>
+                        </span>
+
+                        <div className="space-y-1.5">
+                          {/* Opção 1: Padrão */}
+                          <label
+                            onClick={() => setFormaPagamentoCatalogoEscolhida('padrao')}
+                            className={`p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition select-none ${
+                              formaPagamentoCatalogoEscolhida === 'padrao'
+                                ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-500 dark:border-emerald-500/60'
+                                : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <input
+                                type="radio"
+                                name="formaPagamentoCatalogo"
+                                value="padrao"
+                                checked={formaPagamentoCatalogoEscolhida === 'padrao'}
+                                onChange={() => setFormaPagamentoCatalogoEscolhida('padrao')}
+                                className="accent-emerald-600 w-4 h-4 cursor-pointer"
+                              />
+                              <div>
+                                <span className="text-xs font-bold text-slate-900 dark:text-slate-100 block">
+                                  Pagar Online / Na Entrega
+                                </span>
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
+                                  Pix, Cartão ou a Combinar com a Loja
+                                </span>
+                              </div>
+                            </div>
+                          </label>
+
+                          {/* Opção 2: Fiado / A Prazo */}
+                          {elegivelFiado && (
+                            <label
+                              onClick={() => {
+                                if (limiteSuficienteFiado) setFormaPagamentoCatalogoEscolhida('fiado');
+                              }}
+                              className={`p-2.5 rounded-xl border flex items-center justify-between transition select-none ${
+                                !limiteSuficienteFiado
+                                  ? 'opacity-60 bg-slate-50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700 cursor-not-allowed'
+                                  : 'cursor-pointer ' + (formaPagamentoCatalogoEscolhida === 'fiado'
+                                      ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-500 dark:border-emerald-500/60'
+                                      : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-slate-300')
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <input
+                                  type="radio"
+                                  name="formaPagamentoCatalogo"
+                                  value="fiado"
+                                  disabled={!limiteSuficienteFiado}
+                                  checked={formaPagamentoCatalogoEscolhida === 'fiado'}
+                                  onChange={() => {
+                                    if (limiteSuficienteFiado) setFormaPagamentoCatalogoEscolhida('fiado');
+                                  }}
+                                  className="accent-emerald-600 w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
+                                />
+                                <div>
+                                  <span className="text-xs font-bold text-slate-900 dark:text-slate-100 block">
+                                    Fiado / Compra a Prazo
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
+                                    Limite Disponível: {formatarMoeda(limiteDispFiado)}
+                                    {!limiteSuficienteFiado && ' (Limite insuficiente)'}
+                                  </span>
+                                </div>
+                              </div>
+                            </label>
+                          )}
+
+                          {/* Opção 3: Caderneta de Mercadinho */}
+                          {elegivelCad && (
+                            <label
+                              onClick={() => {
+                                if (limiteSuficienteCad) setFormaPagamentoCatalogoEscolhida('caderneta');
+                              }}
+                              className={`p-2.5 rounded-xl border flex items-center justify-between transition select-none ${
+                                !limiteSuficienteCad
+                                  ? 'opacity-60 bg-slate-50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700 cursor-not-allowed'
+                                  : 'cursor-pointer ' + (formaPagamentoCatalogoEscolhida === 'caderneta'
+                                      ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-500 dark:border-emerald-500/60'
+                                      : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-slate-300')
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <input
+                                  type="radio"
+                                  name="formaPagamentoCatalogo"
+                                  value="caderneta"
+                                  disabled={!limiteSuficienteCad}
+                                  checked={formaPagamentoCatalogoEscolhida === 'caderneta'}
+                                  onChange={() => {
+                                    if (limiteSuficienteCad) setFormaPagamentoCatalogoEscolhida('caderneta');
+                                  }}
+                                  className="accent-emerald-600 w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
+                                />
+                                <div>
+                                  <span className="text-xs font-bold text-slate-900 dark:text-slate-100 block">
+                                    Caderneta de Mercadinho
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
+                                    Limite Disponível: {formatarMoeda(limiteDispCad)}
+                                    {!limiteSuficienteCad && ' (Limite insuficiente)'}
+                                  </span>
+                                </div>
+                              </div>
+                            </label>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </form>
               )}
             </div>
@@ -3047,7 +3248,21 @@ Fico no aguardo da confirmação! ✨`;
       {/* MODAL DE SUCESSO / ORIENTAÇÕES PÓS-PEDIDO */}
       {pedidoConcluidoModal && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 text-center space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
+          <div className="relative bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 text-center space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
+            {/* Botão Fechar rápido no topo superior direito */}
+            <button
+              type="button"
+              onClick={() => {
+                setPedidoConcluidoModal(null);
+                setPixAprovadoEmTempoReal(false);
+              }}
+              className="absolute top-4 right-4 p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition cursor-pointer"
+              title="Fechar"
+              aria-label="Fechar modal de pedido enviado"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
             <div
               className="w-16 h-16 rounded-full flex items-center justify-center mx-auto shadow-lg"
               style={{ backgroundColor: `${corTema}25`, color: corTema }}
@@ -3090,8 +3305,23 @@ Fico no aguardo da confirmação! ✨`;
               </div>
             )}
 
-            {/* BOTÃO PAGAR COM MERCADO PAGO */}
-            {!pixAprovadoEmTempoReal && pedidoConcluidoModal.linkPagamento && (
+            {/* STATUS DO MEIO A PRAZO */}
+            {(pedidoConcluidoModal.formaPagamentoEscolhida === 'fiado' || pedidoConcluidoModal.formaPagamentoEscolhida === 'caderneta') && (
+              <div className="p-3.5 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 text-center space-y-1">
+                <span className="text-xs font-black text-emerald-400 flex items-center justify-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>{pedidoConcluidoModal.formaPagamentoEscolhida === 'caderneta' ? 'Lançado na Caderneta' : 'Lançado no Fiado'}</span>
+                </span>
+                <p className="text-[11px] text-slate-300">
+                  {pedidoConcluidoModal.formaPagamentoEscolhida === 'caderneta'
+                    ? 'Esta compra foi registrada na sua Caderneta de Mercadinho para acerto no fechamento do ciclo.'
+                    : 'Esta compra foi registrada no seu saldo devedor de Fiado a prazo.'}
+                </p>
+              </div>
+            )}
+
+            {/* BOTÃO PAGAR COM MERCADO PAGO (APENAS SE NÃO FOR FIADO/CADERNETA) */}
+            {!pixAprovadoEmTempoReal && pedidoConcluidoModal.formaPagamentoEscolhida !== 'fiado' && pedidoConcluidoModal.formaPagamentoEscolhida !== 'caderneta' && pedidoConcluidoModal.linkPagamento && (
               <button
                 type="button"
                 onClick={handleAbrirCheckoutMP}
