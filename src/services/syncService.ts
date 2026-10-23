@@ -3,6 +3,12 @@
 import { supabase } from '../lib/supabase';
 import { Produto, Cliente, FormaPagamento } from '../types';
 import {
+  TablesInsert,
+  TipoFormaPagamentoDb,
+  buildFormaPagamentoInsertPayload,
+  toLojaId
+} from '../types/domain-contracts';
+import {
   salvarProdutosOffline,
   carregarProdutosOffline,
   salvarClientesOffline,
@@ -57,18 +63,11 @@ export class SyncService {
         return cadExistente[0].id;
       }
 
-      // 2. Tenta criar com tipo 'outro' e nome 'Caderneta de Mercadinho' para satisfazer CHECK constraint
+      // 2. Tenta criar usando o contrato estrito TablesInsert<'formas_pagamento'> (previne HTTP 400 em tempo de compilação)
+      const payloadCaderneta = buildFormaPagamentoInsertPayload(toLojaId(lojaId), 'caderneta');
       const { data: novaCad, error: erroCad } = await supabase
         .from('formas_pagamento')
-        .insert([{
-          loja_id: lojaId,
-          nome: 'Caderneta de Mercadinho',
-          tipo: 'outro',
-          ativo: true,
-          taxa_percentual: 0,
-          taxa_fixa: 0,
-          maximo_parcelas: 1
-        }])
+        .insert([payloadCaderneta])
         .select('id')
         .single();
 
@@ -76,13 +75,15 @@ export class SyncService {
       if (erroCad) console.warn('[SyncService] Falha ao criar forma caderneta:', erroCad);
     }
 
-    const tiposValidos = ['dinheiro', 'pix', 'cartao_credito', 'cartao_debito', 'fiado', 'outro'];
-    let tipoFinal = tipo;
-    if (!tipoFinal && formaPagamentoId && tiposValidos.includes(formaPagamentoId)) {
+    const tiposValidos: readonly TipoFormaPagamentoDb[] = ['dinheiro', 'pix', 'cartao_credito', 'cartao_debito', 'fiado', 'outro'] as const;
+    const isTipoBancoValido = (v?: string): v is TipoFormaPagamentoDb =>
+      Boolean(v && (tiposValidos as readonly string[]).includes(v));
+
+    let tipoFinal: TipoFormaPagamentoDb = ehCaderneta ? 'outro' : 'dinheiro';
+    if (isTipoBancoValido(tipo)) {
+      tipoFinal = tipo;
+    } else if (isTipoBancoValido(formaPagamentoId)) {
       tipoFinal = formaPagamentoId;
-    }
-    if (!tipoFinal || !tiposValidos.includes(tipoFinal)) {
-      tipoFinal = ehCaderneta ? 'outro' : 'dinheiro';
     }
 
     // Busca uma existente para a loja por tipo
@@ -106,17 +107,19 @@ export class SyncService {
       ? (ehCaderneta ? 'Caderneta de Mercadinho' : 'Outros')
       : 'Dinheiro';
 
+    const novoPayload = {
+      loja_id: lojaId,
+      nome: nomePadrao,
+      tipo: tipoFinal,
+      ativo: true,
+      taxa_percentual: 0,
+      taxa_fixa: 0,
+      maximo_parcelas: 1
+    } satisfies TablesInsert<'formas_pagamento'>;
+
     const { data: criada, error } = await supabase
       .from('formas_pagamento')
-      .insert([{
-        loja_id: lojaId,
-        nome: nomePadrao,
-        tipo: tipoFinal,
-        ativo: true,
-        taxa_percentual: 0,
-        taxa_fixa: 0,
-        maximo_parcelas: 1
-      }])
+      .insert([novoPayload])
       .select('id')
       .single();
 

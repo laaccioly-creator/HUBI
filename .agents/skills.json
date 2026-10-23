@@ -3,6 +3,9 @@
   "description": "Configuração canônica de skills do workspace HUBI",
   "inherits": [
     {
+      "path": "./skills"
+    },
+    {
       "path": "~/.gemini/config/skills",
       "exclude": [
         "mantis-(?!meta-agent).*"

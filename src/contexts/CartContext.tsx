@@ -1,5 +1,11 @@
 import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
 import { Produto, VariacaoProduto, Cliente, TabelaPreco, PedidoEntrega } from '../types';
+import {
+  CartStorageKey,
+  createCartStorageKey,
+  toLojaId,
+  toUsuarioId
+} from '../types/domain-contracts';
 import { audioService } from '../services/audioService';
 import { useAuth } from './AuthContext';
 import {
@@ -101,7 +107,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [pedidoEmEdicao, setPedidoEmEdicao] = useState<any | null>(null);
   const [snapshotPedidoOriginal, setSnapshotPedidoOriginal] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState<boolean>(false);
-  const activeTenantKeyRef = React.useRef<string | null>(null);
+  const activeTenantKeyRef = React.useRef<CartStorageKey | null>(null);
 
   const setTaxaEntrega = (valor: number) => {
     const valLimpo = Number(valor) || 0;
@@ -122,7 +128,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    const tenantKey = `hubi_cart_${loja.id}_${usuario?.id || 'anon'}`;
+    const tenantKey: CartStorageKey = createCartStorageKey(toLojaId(loja.id), toUsuarioId(usuario?.id));
     const legacyKey = `hubi_pos_cart_draft_${loja.id}`;
 
     // Desconecta hidratação temporariamente para evitar salvamento prematuro com dados da loja anterior
@@ -188,7 +194,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Persistência automática do rascunho isolado por tenant
   useEffect(() => {
     if (!isHydrated || !loja?.id) return;
-    const currentTenantKey = `hubi_cart_${loja.id}_${usuario?.id || 'anon'}`;
+    const currentTenantKey: CartStorageKey = createCartStorageKey(toLojaId(loja.id), toUsuarioId(usuario?.id));
     // Evita salvar antes da hidratação do tenant corrente ter finalizado
     if (activeTenantKeyRef.current !== currentTenantKey) return;
 

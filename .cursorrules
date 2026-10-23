@@ -1,0 +1,16 @@
+# 🚀 DIRETRIZES DE ENGENHARIA E ARQUITETURA TYPESCRIPT — SISTEMA HUBI
+# Baseado em Total TypeScript (Matt Pocock) & Governança Multi-Tenant HUBI
+
+## 1. TYPESCRIPT DEFENSIVO (PADRÃO MATT POCOCK)
+- **Zero `any` e Zero `as` desnecessários:** Proibido usar `as any` ou `as unknown as T` para contornar erros de tipo. Utilize inferência de tipos, Type Guards (`val is Tipo`), `satisfies` e `as const` para objetos literais e payloads.
+- **Explicit Return Types nas Fronteiras:** Funções exportadas de nível superior em `src/services/`, `src/lib/` e `src/utils/` devem declarar explicitamente seu tipo de retorno (exceto componentes React que retornam JSX).
+- **Discriminated Unions for State & Rules:** Proibido o uso de múltiplos booleanos interdependentes (`isLoading`, `isError`, `isSuccess`) ou campos opcionais conflitantes em regras comerciais. Utilize sempre Uniões Discriminadas (`modo` ou `status`) com verificação exaustiva via `assertNever`.
+- **Branded Types para Isolamento Multi-Tenant:** Utilize os tipos nominais de `src/types/domain-contracts.ts` (`LojaId`, `UsuarioId`, `ClienteId`, `PedidoId`, `CartStorageKey`) para evitar vazamento de estado entre lojas ou inversão acidental de parâmetros UUID.
+- **Fail Fast & Result Pattern (`Result<T, E>`):** Substitua blocos `try/catch` genéricos que engolem erros por validação antecipada na fronteira com **Zod** (`src/lib/validations/`) e retornos explícitos do tipo `Result<T, DomainError>`.
+
+## 2. CONTRATOS SUPABASE & GOVERNANÇA DE DADOS
+- **Derivação Obrigatória do Schema (`TablesInsert` / `TablesRow`):** Toda inserção ou atualização via Supabase Client deve obedecer aos contratos de `Database['public']['Tables']`. Nunca envie tipos de UI (como `'caderneta'`) diretamente para colunas com `CHECK` constraint restrita no banco (`'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito' | 'fiado' | 'outro'`).
+- **Isolamento RLS Multi-Tenant (`supabase-rls-guard`):** Toda consulta ou mutação no frontend deve incluir explicitamente `.eq('loja_id', loja.id)`. Toda tabela DDL deve ter RLS habilitado com `public.usuario_pertence_loja(loja_id)`.
+- **Governança Anti-JSONB (`anti-jsonb-linter`):** Proibida a criação de colunas `JSONB` para entidades essenciais do negócio (vendas, fretes, pagamentos, caderneta, itens).
+- **Sanitização de PII e Erros (`pii-leak-detector`):** Proibido logar CPF, telefone, coordenadas ou chaves de API. Mensagens de erro para o usuário devem ser sempre sanitizadas e amigáveis em `pt-BR`.
+- **Economia de Tokens (`diff-patch-only`):** Proibido reescrever arquivos inteiros de 300+ linhas; aplique sempre patches cirúrgicos.
