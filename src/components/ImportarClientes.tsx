@@ -177,61 +177,60 @@ export const ImportarClientes: React.FC<ImportarClientesProps> = ({ onVoltar }) 
 
       {/* Card 1: Baixar Planilha Modelo Padrão */}
       <div className="bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-900 border border-emerald-500/30 rounded-3xl p-5 sm:p-6 space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-black uppercase tracking-wider">
-                Layout Oficial de Clientes
-              </span>
-            </div>
-            <h3 className="font-extrabold text-sm sm:text-base text-slate-100">
-              Baixe a Planilha Modelo de Importação de Clientes
-            </h3>
-            <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">
-              Utilize o layout padrão do HUBI com colunas para dados pessoais, telefones, WhatsApp, limites de fiado e endereço para garantir uma importação segura.
-            </p>
+        <div className="space-y-1.5 w-full">
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-black uppercase tracking-wider">
+              Layout Oficial de Clientes
+            </span>
           </div>
+          <h3 className="font-extrabold text-base sm:text-lg text-slate-100">
+            Baixe a Planilha Modelo de Importação de Clientes
+          </h3>
+          <p className="text-xs sm:text-sm text-slate-300/90 leading-relaxed">
+            Utilize o layout padrão do HUBI com colunas para dados pessoais, telefones, WhatsApp, limites de fiado e endereço para garantir uma importação segura.
+          </p>
+        </div>
 
-          <div className="flex items-center gap-2 shrink-0 flex-wrap">
-            <button
-              type="button"
-              onClick={() => setModalGuiaAberto(true)}
-              className="px-4 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-bold text-xs flex items-center gap-2 border border-amber-500/30 transition cursor-pointer"
-              title="Passo a Passo de como extrair contatos do WhatsApp ou Celular"
-            >
-              <HelpCircle className="w-4 h-4" />
-              <span>Como Extrair Contatos? (Guia)</span>
-            </button>
+        {/* Botões de Ação Padronizados */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1">
+          <button
+            type="button"
+            onClick={() => clientImportExportService.downloadModeloSimplificadoXLSX()}
+            className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center justify-center gap-2 border border-emerald-500 shadow-lg shadow-emerald-600/20 transition cursor-pointer active:scale-95"
+            title="Planilha Simplificada (Nome, WhatsApp, Endereço e Observações)"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-100" />
+            <span>Modelo WhatsApp (.XLSX)</span>
+          </button>
 
-            <button
-              type="button"
-              onClick={() => clientImportExportService.downloadModeloSimplificadoXLSX()}
-              className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition cursor-pointer active:scale-95"
-              title="Planilha Simplificada (Nome, WhatsApp, Endereço e Observações)"
-            >
-              <FileSpreadsheet className="w-4 h-4" />
-              <span>Modelo WhatsApp (.XLSX)</span>
-            </button>
+          <button
+            type="button"
+            onClick={() => clientImportExportService.downloadModeloXLSX()}
+            className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold text-xs flex items-center justify-center gap-2 border border-slate-700 transition cursor-pointer active:scale-95"
+            title="Planilha Completa HUBI com Fiado e Dados Pessoais"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+            <span>Modelo Completo (.XLSX)</span>
+          </button>
 
-            <button
-              type="button"
-              onClick={() => clientImportExportService.downloadModeloXLSX()}
-              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-2 border border-slate-700 transition cursor-pointer"
-              title="Planilha Completa HUBI com Fiado e Dados Pessoais"
-            >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-              <span>Modelo Completo (.XLSX)</span>
-            </button>
+          <button
+            type="button"
+            onClick={() => clientImportExportService.downloadModeloCSV()}
+            className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold text-xs flex items-center justify-center gap-2 border border-slate-700 transition cursor-pointer active:scale-95"
+          >
+            <FileText className="w-4 h-4 text-slate-400" />
+            <span>Modelo (.CSV)</span>
+          </button>
 
-            <button
-              type="button"
-              onClick={() => clientImportExportService.downloadModeloCSV()}
-              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-2 border border-slate-700 transition cursor-pointer"
-            >
-              <FileText className="w-4 h-4 text-slate-400" />
-              <span>Modelo (.CSV)</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setModalGuiaAberto(true)}
+            className="px-4 py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-amber-300 font-bold text-xs flex items-center justify-center gap-2 border border-amber-500/40 transition cursor-pointer active:scale-95"
+            title="Passo a Passo de como extrair contatos do WhatsApp ou Celular"
+          >
+            <HelpCircle className="w-4 h-4 text-amber-400" />
+            <span>Como Extrair Contatos? (Guia)</span>
+          </button>
         </div>
 
         {/* Dica de Ordem e Integridade */}

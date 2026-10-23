@@ -122,6 +122,9 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         textoCancelar: 'Continuar editando',
         onConfirmar: () => {
           setTemAlteracoesNaoSalvas(false);
+          try {
+            window.dispatchEvent(new CustomEvent('hubi_descartar_alteracoes_pendentes'));
+          } catch {}
           onProsseguir();
         }
       });

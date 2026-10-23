@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   X,
   CreditCard,
@@ -11,7 +11,8 @@ import {
   Plus,
   Trash2,
   Truck,
-  Store
+  Store,
+  BookOpen
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,6 +22,7 @@ import { PrintService } from '../services/printService';
 import { SyncService } from '../services/syncService';
 import { audioService } from '../services/audioService';
 import { caixaService } from '../services/caixaService';
+import { CadernetaService } from '../services/cadernetaService';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
 
 interface ModalReceberPagamentoProps {
@@ -64,10 +66,11 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
     { id: `fp_dinheiro_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Dinheiro', tipo: 'dinheiro', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
     { id: `fp_pix_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Pix (Imediato)', tipo: 'pix', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
     { id: `fp_debito_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Cartão de Débito', tipo: 'cartao_debito', taxa_percentual: 1.5, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
-    { id: `fp_credito_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Cartão de Crédito', tipo: 'cartao_credito', taxa_percentual: 3.2, taxa_fixa: 0, maximo_parcelas: 12, ativo: true, exibir_catalogo: true }
+    { id: `fp_credito_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Cartão de Crédito', tipo: 'cartao_credito', taxa_percentual: 3.2, taxa_fixa: 0, maximo_parcelas: 12, ativo: true, exibir_catalogo: true },
+    { id: `fp_caderneta_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Caderneta', tipo: 'caderneta', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: false }
   ];
 
-  // Carregar formas de pagamento cadastradas da loja (excluindo Fiado)
+  // Carregar formas de pagamento cadastradas da loja
   useEffect(() => {
     if (!loja?.id || !isOpen) return;
     const buscarFormas = async () => {
@@ -82,6 +85,10 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
         let lista = FORMAS_PADRAO;
         if (!error && data && data.length > 0) {
           lista = data;
+          if (loja?.caderneta_ativa && !lista.some(f => f.tipo === 'caderneta')) {
+            const cadPadrao = FORMAS_PADRAO.find(f => f.tipo === 'caderneta');
+            if (cadPadrao) lista = [...lista, cadPadrao];
+          }
         }
         lista = lista.filter(f => f.tipo !== 'fiado');
         setFormasPagamento(lista);
@@ -92,7 +99,7 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
     };
 
     buscarFormas();
-  }, [loja?.id, isOpen]);
+  }, [loja?.id, loja?.caderneta_ativa, isOpen]);
 
   // Inicializar linhas de pagamento quando o modal abrir para um pedido
   useEffect(() => {
@@ -155,7 +162,29 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
   );
   const diferencaPagamento = Number((saldoDevedorAtual - totalLinhasPagamento).toFixed(2));
 
-  const formasDisponiveis = (formasPagamento && formasPagamento.length > 0 ? formasPagamento : FORMAS_PADRAO).filter(f => f.tipo !== 'fiado');
+  const limiteDisponivelCaderneta = useMemo(() => {
+    if (!pedido.cliente?.permite_caderneta) return 0;
+    const limite = Number(pedido.cliente.limite_caderneta || 0);
+    const saldoDevedor = Number(pedido.cliente.saldo_devedor_caderneta || 0);
+    return Math.max(0, limite - saldoDevedor);
+  }, [pedido.cliente]);
+
+  const clienteAptoCaderneta = useMemo(() => {
+    return Boolean(
+      loja?.caderneta_ativa &&
+      pedido.cliente?.id &&
+      pedido.cliente.permite_caderneta === true &&
+      limiteDisponivelCaderneta > 0
+    );
+  }, [loja?.caderneta_ativa, pedido.cliente, limiteDisponivelCaderneta]);
+
+  const formasDisponiveis = useMemo(() => {
+    const base = (formasPagamento && formasPagamento.length > 0 ? formasPagamento : FORMAS_PADRAO).filter(f => f.tipo !== 'fiado');
+    return base.filter(f => {
+      if (f.tipo === 'caderneta') return clienteAptoCaderneta;
+      return true;
+    });
+  }, [formasPagamento, clienteAptoCaderneta]);
 
   const handleAlterarFormaLinha = (linhaId: string, fp: FormaPagamento) => {
     setLinhasPagamento(prev => prev.map(l => {
@@ -245,6 +274,24 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
       // 1. Inserir pagamentos em pagamentos_pedido para cada linha com valor > 0
       const linhasAtivas = linhasPagamento.filter(l => Number(l.valor) > 0);
 
+      // Validação do limite de Caderneta
+      const totalCaderneta = linhasAtivas
+        .filter(l => l.forma_tipo === 'caderneta')
+        .reduce((acc, l) => acc + Number(l.valor || 0), 0);
+
+      if (totalCaderneta > 0) {
+        if (!pedido.cliente?.permite_caderneta) {
+          setErroMsg('O cliente vinculado a este pedido não possui permissão ativa para compra na Caderneta.');
+          setProcessando(false);
+          return;
+        }
+        if (totalCaderneta > limiteDisponivelCaderneta + 0.009) {
+          setErroMsg(`O total na Caderneta (R$ ${totalCaderneta.toFixed(2)}) ultrapassa o limite disponível de R$ ${limiteDisponivelCaderneta.toFixed(2)}.`);
+          setProcessando(false);
+          return;
+        }
+      }
+
       // Se este for o primeiro pagamento financeiro e o valor já pago era 0, remove registros provisórios não efetivados
       if (pedido.pagamentos && pedido.pagamentos.length > 0 && valorJaPago === 0) {
         await supabase.from('pagamentos_pedido').delete().eq('pedido_id', pedido.id);
@@ -261,7 +308,7 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
         const taxaValor = Number(((linha.valor * taxaPerc) / 100).toFixed(2));
         const valorLiquido = Number((linha.valor - taxaValor).toFixed(2));
 
-        const { error: erroPag } = await supabase.from('pagamentos_pedido').insert([
+        const { data: pagInserido, error: erroPag } = await supabase.from('pagamentos_pedido').insert([
           {
             loja_id: loja.id,
             pedido_id: pedido.id,
@@ -271,11 +318,30 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
             valor_taxa: taxaValor,
             valor_liquido: valorLiquido,
             data_pagamento: dataIso,
-            eh_pagamento_fiado: false
+            eh_pagamento_fiado: false,
+            eh_pagamento_caderneta: linha.forma_tipo === 'caderneta'
           }
-        ]);
+        ]).select('id').single();
 
         if (erroPag) throw erroPag;
+
+        // Se for Caderneta, lança no livro razão contábil
+        if (linha.forma_tipo === 'caderneta' && pedido.cliente_id && loja?.id) {
+          try {
+            await CadernetaService.registrarCompraCaderneta({
+              lojaId: loja.id,
+              clienteId: pedido.cliente_id,
+              pedidoId: pedido.id,
+              pagamentoPedidoId: pagInserido?.id,
+              valor: linha.valor,
+              usuarioId: usuario?.id,
+              numeroPedido: pedido.numero_pedido
+            });
+          } catch (errCad) {
+            console.error('Erro ao registrar lançamento de caderneta:', errCad);
+            throw new Error('Falha ao registrar compra na caderneta do cliente.');
+          }
+        }
       }
 
       // 2. Atualizar status e valores do pedido
@@ -326,8 +392,17 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
 
       if (erroUpd) throw erroUpd;
 
-      // 3. Atualizar saldo devedor do cliente e devolver limite de crédito
-      if (pedido.cliente_id && totalLinhasPagamento > 0) {
+      // 3. Atualizar saldo devedor do cliente se for quitação de venda fiado (apenas numerário real, sem abater em pagamento por fiado ou caderneta)
+      const totalAbatimentoFiado = linhasAtivas
+        .filter(l => l.forma_tipo !== 'fiado' && l.forma_tipo !== 'caderneta')
+        .reduce((acc, l) => acc + Number(l.valor || 0), 0);
+
+      const ehVendaOriginalmenteFiado = Boolean(
+        (pedido as any).eh_venda_fiado ||
+        (pedido.pagamentos && pedido.pagamentos.some((p: any) => p.eh_pagamento_fiado))
+      );
+
+      if (pedido.cliente_id && totalAbatimentoFiado > 0 && ehVendaOriginalmenteFiado) {
         try {
           const { data: cliData } = await supabase
             .from('clientes')
@@ -337,8 +412,8 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
 
           if (cliData) {
             const debitoCli = Number(cliData.saldo_devedor_fiado || 0);
-            const novoDebitoCli = Math.max(0, debitoCli - totalLinhasPagamento);
-            const novoLimite = Number(cliData.limite_credito || 0) + totalLinhasPagamento;
+            const novoDebitoCli = Math.max(0, debitoCli - totalAbatimentoFiado);
+            const novoLimite = Number(cliData.limite_credito || 0) + totalAbatimentoFiado;
             await supabase
               .from('clientes')
               .update({
@@ -352,13 +427,14 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
         }
       }
 
-      // 4. Registrar na sessão de caixa ativa se houver
-      if (loja?.id && linhasAtivas.length > 0) {
+      // 4. Registrar na sessão de caixa ativa se houver (exclui caderneta e fiado)
+      const pagamentosCaixa = linhasAtivas.filter(l => l.forma_tipo !== 'fiado' && l.forma_tipo !== 'caderneta' && Number(l.valor) > 0);
+      if (loja?.id && pagamentosCaixa.length > 0) {
         try {
           await caixaService.registrarVendaPedido({
             lojaId: loja.id,
             pedido: pedUpd || pedido,
-            pagamentos: linhasAtivas.map(l => ({
+            pagamentos: pagamentosCaixa.map(l => ({
               forma_nome: l.forma_nome,
               forma_tipo: l.forma_tipo,
               valor: l.valor
@@ -553,7 +629,8 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
                             {fp.tipo === 'pix' && <Zap className="w-3.5 h-3.5 text-cyan-400 shrink-0" />}
                             {fp.tipo === 'cartao_debito' && <CreditCard className="w-3.5 h-3.5 text-blue-400 shrink-0" />}
                             {fp.tipo === 'cartao_credito' && <CreditCard className="w-3.5 h-3.5 text-purple-400 shrink-0" />}
-                            {fp.tipo !== 'dinheiro' && fp.tipo !== 'pix' && fp.tipo !== 'cartao_debito' && fp.tipo !== 'cartao_credito' && (
+                            {fp.tipo === 'caderneta' && <BookOpen className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
+                            {fp.tipo !== 'dinheiro' && fp.tipo !== 'pix' && fp.tipo !== 'cartao_debito' && fp.tipo !== 'cartao_credito' && fp.tipo !== 'caderneta' && (
                               <CreditCard className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                             )}
                             <span className="truncate">{fp.nome}</span>
@@ -626,6 +703,32 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
                             </option>
                           ))}
                         </select>
+                      </div>
+                    )}
+
+                    {/* Caderneta de Mercadinho: Informações de Limite */}
+                    {linha.forma_tipo === 'caderneta' && (
+                      <div className="p-2.5 rounded-xl border border-emerald-500/30 bg-emerald-950/30 text-emerald-200 space-y-1.5 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-emerald-400 flex items-center gap-1.5">
+                            <BookOpen className="w-3.5 h-3.5" />
+                            <span>Caderneta de Mercadinho:</span>
+                          </span>
+                          <span className="font-semibold text-slate-200 truncate max-w-[200px]">
+                            {pedido.cliente?.nome || 'Nenhum selecionado'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-[11px] text-slate-300">
+                          <span>Limite Disponível na Caderneta:</span>
+                          <span className="font-bold text-emerald-400">
+                            R$ {limiteDisponivelCaderneta.toFixed(2)}
+                          </span>
+                        </div>
+                        {linha.valor > limiteDisponivelCaderneta && (
+                          <p className="text-[11px] text-rose-400 font-bold">
+                            ⚠️ Valor informado ultrapassa o limite disponível de R$ {limiteDisponivelCaderneta.toFixed(2)}.
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>

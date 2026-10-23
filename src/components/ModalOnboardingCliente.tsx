@@ -107,14 +107,14 @@ export const ModalOnboardingCliente: React.FC<ModalOnboardingClienteProps> = ({
     if (!isOpen || !onClose) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        // Bloqueia fechamento por Escape durante cadastro ativo para não perder dados digitados
-        if (emFluxoCadastroAtivo) return;
+        // Bloqueia fechamento por Escape durante cadastro ativo ou se bloqueio for obrigatório
+        if (bloqueioObrigatorio || emFluxoCadastroAtivo) return;
         onClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose, emFluxoCadastroAtivo]);
+  }, [isOpen, onClose, emFluxoCadastroAtivo, bloqueioObrigatorio]);
 
   if (!isOpen) return null;
 

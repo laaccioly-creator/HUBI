@@ -400,12 +400,19 @@ export const ProdutoCadastro: React.FC = () => {
 
   const CHAVE_RASCUNHO = `hubi_rascunho_novo_produto_${loja?.id || 'padrao'}`;
 
-  // Recupera rascunho salvo do formulário ao retornar para a página
+  // Recupera rascunho salvo do formulário exclusivamente ao retornar de cadastros auxiliares (categorias/fornecedores/unidades)
   const rascunhoSalvo = useMemo(() => {
     if (ehEdicao) return null;
     try {
-      const salvo = sessionStorage.getItem(`hubi_rascunho_novo_produto_${loja?.id || 'padrao'}`);
-      if (salvo) return JSON.parse(salvo);
+      const vindoDeAuxiliares = sessionStorage.getItem('hubi_origem_cadastro_produto');
+      if (vindoDeAuxiliares) {
+        sessionStorage.removeItem('hubi_origem_cadastro_produto');
+        const salvo = sessionStorage.getItem(`hubi_rascunho_novo_produto_${loja?.id || 'padrao'}`);
+        if (salvo) return JSON.parse(salvo);
+      } else {
+        // Se entrou de forma direta para cadastrar um novo produto, limpa qualquer rascunho órfão residual
+        sessionStorage.removeItem(`hubi_rascunho_novo_produto_${loja?.id || 'padrao'}`);
+      }
     } catch {}
     return null;
   }, [ehEdicao, loja?.id]);
@@ -635,6 +642,73 @@ export const ProdutoCadastro: React.FC = () => {
       setTemAlteracoesNaoSalvas(false);
     };
   }, [isDirty, setTemAlteracoesNaoSalvas]);
+
+  // Limpeza completa do formulário e descarte de rascunho
+  const limparFormularioCompleto = useCallback(() => {
+    try {
+      sessionStorage.removeItem(CHAVE_RASCUNHO);
+      sessionStorage.removeItem('hubi_origem_cadastro_produto');
+    } catch {}
+
+    setNome('');
+    setCodigoInterno('');
+    setCodigoBarras('');
+    setCategoriaId('');
+    setFornecedorId('');
+    setDescricao('');
+    setTipoUnidade('un');
+    setTipoItem('produto');
+    setAtivo(true);
+    setFotosUrls([]);
+    setFotoPrincipal('');
+    setNovaFotoUrl('');
+    setMostrarUrlInput(false);
+    setFazendoUploadFoto(false);
+    setUploadStatusMsg('');
+    setPesoKg('');
+    setAlturaCm('');
+    setLarguraCm('');
+    setComprimentoCm('');
+    setDetectandoDimensoes(false);
+    setMelhorandoDescricaoIA(false);
+    setPrecoCusto('0.00');
+    setPrecoVendaVarejo('');
+    setPrecoVendaAtacado('');
+    setTipoMinimoAtacado('quantidade');
+    setQtdMinimaAtacado('6');
+    setValorMinimoAtacado('300.00');
+    setPrecoVendaAutoatacado('');
+    setTipoMinimoAutoatacado('quantidade');
+    setQtdMinimaAutoatacado('24');
+    setValorMinimoAutoatacado('1000.00');
+    setPrecoPromocional('');
+    setPromocaoAtiva(false);
+    setQuantidadeEstoque('0');
+    setEstoqueMinimoAlerta('5');
+    setDataValidade('');
+    setExibirCatalogo(true);
+    setDestaque(false);
+    setTemVariacoes(false);
+    setNomeTipoVariacao('');
+    setEtapaVariacao(1);
+    setOpcoesVariacao([]);
+    setNovaOpcaoNome('');
+    setDadosMercado(null);
+    setSucessoIAMsg(null);
+    setOpcoesDuvidaIA([]);
+    setTemAlteracoesNaoSalvas(false);
+  }, [CHAVE_RASCUNHO, setTemAlteracoesNaoSalvas]);
+
+  // Listener para evento global de descarte de alterações
+  useEffect(() => {
+    const handleDescarte = () => {
+      limparFormularioCompleto();
+    };
+    window.addEventListener('hubi_descartar_alteracoes_pendentes', handleDescarte);
+    return () => {
+      window.removeEventListener('hubi_descartar_alteracoes_pendentes', handleDescarte);
+    };
+  }, [limparFormularioCompleto]);
 
   // Salva o rascunho em sessionStorage para que, se o usuário for para Cadastros & Tabelas, volte com tudo preenchido
   const salvarRascunhoFormulario = () => {
@@ -1597,6 +1671,7 @@ export const ProdutoCadastro: React.FC = () => {
           subtitulo={ehEdicao ? 'Atualize as informações do item' : 'Cadastro de produto'}
           fallbackVoltar="/products"
           onVoltar={() => verificarSaidaComConfirmacao(() => {
+            limparFormularioCompleto();
             if (typeof window !== 'undefined' && window.history && window.history.length > 1) {
               navigate(-1);
             } else {
@@ -1612,6 +1687,7 @@ export const ProdutoCadastro: React.FC = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => verificarSaidaComConfirmacao(() => {
+                limparFormularioCompleto();
                 if (typeof window !== 'undefined' && window.history && window.history.length > 1) {
                   navigate(-1);
                 } else {

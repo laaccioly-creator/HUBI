@@ -657,9 +657,15 @@ export const CatalogoPublico: React.FC = () => {
 
     async function verificarSessaoOAuth() {
       if (!loja?.id || clienteSelecionado?.id) return;
-      if (logoutManualRef.current) return;
+      if (logoutManualRef.current) {
+        setModalOnboardingMotivo('geral');
+        setModalOnboardingAberto(true);
+        return;
+      }
       try {
         if (sessionStorage.getItem(`hubi_catalogo_logout_manual_${slugKey}`) === 'true') {
+          setModalOnboardingMotivo('geral');
+          setModalOnboardingAberto(true);
           return;
         }
       } catch {
@@ -670,9 +676,16 @@ export const CatalogoPublico: React.FC = () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user && ativo) {
           await sincronizarUsuarioOAuth(session.user);
+        } else if (ativo && !clienteSelecionado?.id) {
+          setModalOnboardingMotivo('geral');
+          setModalOnboardingAberto(true);
         }
       } catch (err) {
         console.warn('Aviso ao sincronizar sessão OAuth no catálogo:', err);
+        if (ativo && !clienteSelecionado?.id) {
+          setModalOnboardingMotivo('geral');
+          setModalOnboardingAberto(true);
+        }
       }
     }
 
@@ -698,6 +711,14 @@ export const CatalogoPublico: React.FC = () => {
       authSub.subscription.unsubscribe();
     };
   }, [loja?.id, clienteSelecionado?.id]);
+
+  // Garante disparo imediato de onboarding se o visitante abrir o catálogo anônimo
+  useEffect(() => {
+    if (!carregando && loja?.id && !clienteSelecionado?.id) {
+      setModalOnboardingMotivo('geral');
+      setModalOnboardingAberto(true);
+    }
+  }, [carregando, loja?.id, clienteSelecionado?.id]);
 
   const handleSalvarContato = (novosDados: DadosContatoCliente) => {
     setDadosContato(novosDados);
@@ -1201,6 +1222,12 @@ export const CatalogoPublico: React.FC = () => {
   };
 
   const adicionarAoCarrinho = (produto: Produto, variacao?: VariacaoProduto | null, quantidade: number = 1) => {
+    if (!clienteSelecionado?.id) {
+      setModalOnboardingMotivo('carrinho');
+      setModalOnboardingAberto(true);
+      return;
+    }
+
     const key = variacao ? `${produto.id}-${variacao.id}` : `${produto.id}`;
     
     setCarrinho(prev => {
@@ -3450,15 +3477,44 @@ Fico no aguardo da confirmação! ✨`;
       {/* NOVO MODAL DE ONBOARDING E AUTENTICAÇÃO DO CLIENTE */}
       <ModalOnboardingCliente
         isOpen={modalOnboardingAberto}
-        onClose={() => setModalOnboardingAberto(false)}
+        onClose={clienteSelecionado?.id ? () => setModalOnboardingAberto(false) : undefined}
         lojaId={loja?.id || ''}
         nomeLoja={loja?.nome_fantasia || 'HUBI'}
         corTema={corTema}
         motivoAbertura={modalOnboardingMotivo}
+        bloqueioObrigatorio={!clienteSelecionado?.id}
         onSucesso={(cliente) => {
           handleSelecionarCliente(cliente);
+          setModalOnboardingAberto(false);
         }}
       />
+
+      {/* OVERLAY DE BLOQUEIO DA VITRINE QUANDO NÃO AUTENTICADO */}
+      {!clienteSelecionado?.id && !carregando && !modalOnboardingAberto && (
+        <div className="fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center">
+          <div className="bg-slate-900 border border-emerald-500/40 rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-4 shadow-2xl animate-in zoom-in-95">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto">
+              <ShoppingBag className="w-7 h-7" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-white">Identifique-se para Comprar</h3>
+              <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">
+                Para consultar os preços, montar sua sacola e aproveitar formas de pagamento personalizadas, entre ou faça seu cadastro na loja.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setModalOnboardingMotivo('geral');
+                setModalOnboardingAberto(true);
+              }}
+              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm shadow-lg shadow-emerald-600/30 transition cursor-pointer active:scale-95"
+            >
+              Acessar Minha Conta / Cadastrar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* MODAL DE HISTÓRICO DE PEDIDOS */}
       <ModalPedidosCliente
