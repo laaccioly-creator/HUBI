@@ -89,7 +89,7 @@ export const ClientesFiado: React.FC = () => {
           valor_pago,
           pagamentos:pagamentos_pedido(
             eh_pagamento_fiado,
-            forma_pagamento:formas_pagamento(tipo, prazo_dias)
+            forma_pagamento:formas_pagamento(*)
           )
         `)
         .eq('loja_id', loja.id)

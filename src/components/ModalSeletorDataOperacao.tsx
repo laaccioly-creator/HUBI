@@ -25,9 +25,6 @@ export const ModalSeletorDataOperacao: React.FC = () => {
     podeAlterarData
   } = useDataOperacao();
 
-  // Se o usuário não tiver permissão ou modal não estiver aberto, não renderiza
-  if (!podeAlterarData || !modalAberto) return null;
-
   const [dataSelecionada, setDataSelecionada] = useState<string>(() => {
     if (dataSimulada) return dataSimulada;
     const d = new Date();
@@ -56,6 +53,9 @@ export const ModalSeletorDataOperacao: React.FC = () => {
       setHoraSelecionada(horaSimulada || '');
     }
   }, [modalAberto, dataSimulada, horaSimulada]);
+
+  // Se o usuário não tiver permissão ou modal não estiver aberto, não renderiza
+  if (!podeAlterarData || !modalAberto) return null;
 
   const aplicarPredefinicao = (diasAtras: number) => {
     const d = new Date();

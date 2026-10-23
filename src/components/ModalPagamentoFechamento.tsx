@@ -261,6 +261,27 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
     }
   }, [pedido?.id, isOpen, concluirAoQuitar]);
 
+  const clientePedidoMemo = pedidoLocal?.cliente || pedido?.cliente;
+  const clienteAptoFiado = useMemo(() => {
+    return Boolean(
+      clientePedidoMemo?.id &&
+      clientePedidoMemo.permite_fiado === true &&
+      Number(clientePedidoMemo.limite_credito || 0) > 0
+    );
+  }, [clientePedidoMemo]);
+
+  const formasDisponiveis: FormaPagamento[] = useMemo(() => {
+    const lista = formasPagamento.length > 0 ? formasPagamento : FORMAS_PADRAO;
+    return lista.filter((fp: FormaPagamento) => {
+      if (!fp.ativo) return false;
+      if (fp.tipo === 'fiado') {
+        const linhaJaUsaFiado = linhasPagamento.some(l => l.forma_tipo === 'fiado' || l.forma_pagamento_id === fp.id);
+        return clienteAptoFiado || linhaJaUsaFiado;
+      }
+      return true;
+    });
+  }, [formasPagamento, clienteAptoFiado, linhasPagamento]);
+
   if (!isOpen || !pedido) return null;
 
   const pedAtivo = pedidoLocal || pedido;
@@ -300,26 +321,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
   const totalLinhasPagamento = linhasPagamento.reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
   const diferencaPagamento = Number((saldoDevedorAtual - totalLinhasPagamento).toFixed(2));
 
-  const clientePedido = pedAtivo?.cliente || pedidoLocal?.cliente || pedido?.cliente;
-  const clienteAptoFiado = useMemo(() => {
-    return Boolean(
-      clientePedido?.id &&
-      clientePedido.permite_fiado === true &&
-      Number(clientePedido.limite_credito || 0) > 0
-    );
-  }, [clientePedido]);
-
-  const formasDisponiveis: FormaPagamento[] = useMemo(() => {
-    const lista = formasPagamento.length > 0 ? formasPagamento : FORMAS_PADRAO;
-    return lista.filter((fp: FormaPagamento) => {
-      if (!fp.ativo) return false;
-      if (fp.tipo === 'fiado') {
-        const linhaJaUsaFiado = linhasPagamento.some(l => l.forma_tipo === 'fiado' || l.forma_pagamento_id === fp.id);
-        return clienteAptoFiado || linhaJaUsaFiado;
-      }
-      return true;
-    });
-  }, [formasPagamento, clienteAptoFiado, linhasPagamento]);
+  const clientePedido = pedAtivo?.cliente || clientePedidoMemo;
 
   const handleAdicionarLinha = () => {
     const somaAtual = linhasPagamento.reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
