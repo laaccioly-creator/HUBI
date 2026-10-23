@@ -940,26 +940,17 @@ export const ClientesFiado: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => setClienteExtratoCaderneta(cliente)}
-                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl transition cursor-pointer text-xs font-black font-mono shadow-xs active:scale-98 ${
+                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl transition cursor-pointer text-xs font-black font-mono shadow-xs active:scale-95 ${
                                   isDark
-                                    ? 'bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-400'
-                                    : 'bg-amber-100 hover:bg-amber-200 border-2 border-amber-300 text-amber-900'
+                                    ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-amber-400'
+                                    : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-amber-700'
                                 }`}
                                 title="Abrir Extrato e Pagamento da Caderneta"
                               >
                                 <span>{formatarMoeda(cliente.saldo_devedor_caderneta || 0)}</span>
                               </button>
-                            ) : cliente.permite_caderneta ? (
-                              <button
-                                type="button"
-                                onClick={() => setClienteExtratoCaderneta(cliente)}
-                                className={`text-[11px] font-bold underline cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-black'}`}
-                                title="Ver limite e extrato da caderneta"
-                              >
-                                Disp: {formatarMoeda(cliente.limite_caderneta || 0)}
-                              </button>
                             ) : (
-                              <span className={`font-mono text-[11px] font-bold ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>-</span>
+                              <span className={`font-mono text-xs font-bold ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>-</span>
                             )}
                           </td>
                         )}
