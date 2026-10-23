@@ -9,18 +9,27 @@ import {
   LogOut,
   CreditCard,
   QrCode,
-  ShieldCheck
+  ShieldCheck,
+  X
 } from 'lucide-react';
 import { useAssinaturaStatus } from '../../hooks/useAssinaturaStatus';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 
-export const TelaBloqueioAssinatura: React.FC = () => {
+interface TelaBloqueioAssinaturaProps {
+  aberturaManual?: boolean;
+  onCloseManual?: () => void;
+}
+
+export const TelaBloqueioAssinatura: React.FC<TelaBloqueioAssinaturaProps> = ({
+  aberturaManual = false,
+  onCloseManual
+}) => {
   const { isDark } = useTheme();
   const { loja, lojasDisponiveis, selecionarLoja, desconectarPdv } = useAuth();
   const { estaBloqueada, iniciarCheckoutAssinatura, carregandoCheckout, erroCheckout } = useAssinaturaStatus();
 
-  if (!estaBloqueada) return null;
+  if (!estaBloqueada && !aberturaManual) return null;
 
   // Lojas alternativas do conglomerado que não estão bloqueadas
   const outrasLojasAtivas = lojasDisponiveis.filter(
@@ -34,24 +43,43 @@ export const TelaBloqueioAssinatura: React.FC = () => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md overflow-y-auto animate-in fade-in duration-300">
       <div
-        className={`w-full max-w-2xl rounded-3xl border shadow-2xl overflow-hidden my-auto ${
+        className={`w-full max-w-2xl rounded-3xl border shadow-2xl overflow-hidden my-auto relative ${
           isDark ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
         }`}
       >
-        {/* CABEÇALHO DO BLOQUEIO */}
-        <div className="bg-gradient-to-r from-rose-600 via-amber-600 to-emerald-600 p-6 sm:p-8 text-white text-center relative">
+        {/* BOTÃO FECHAR SE ABERTO MANUALMENTE */}
+        {aberturaManual && onCloseManual && (
+          <button
+            type="button"
+            onClick={onCloseManual}
+            className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white transition cursor-pointer"
+            title="Fechar"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
+
+        {/* CABEÇALHO DO BLOQUEIO OU ASSINATURA */}
+        <div className={`p-6 sm:p-8 text-white text-center relative ${
+          aberturaManual
+            ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700'
+            : 'bg-gradient-to-r from-rose-600 via-amber-600 to-emerald-600'
+        }`}>
           <div className="w-16 h-16 mx-auto rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center mb-3 shadow-lg border border-white/30">
-            <Lock className="w-8 h-8 text-white" />
+            {aberturaManual ? <Sparkles className="w-8 h-8 text-white" /> : <Lock className="w-8 h-8 text-white" />}
           </div>
           <span className="inline-block px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-black/30 backdrop-blur-xs mb-2">
-            Período Expirado
+            {aberturaManual ? 'Oferta Especial' : 'Período Expirado'}
           </span>
           <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
-            Assinatura da Loja Pausada
+            {aberturaManual ? 'Garanta sua Assinatura HUBI Pro' : 'Assinatura da Loja Pausada'}
           </h2>
           <p className="text-white/90 text-sm mt-1 max-w-md mx-auto">
-            O período de operação da unidade <strong>{loja?.nome_fantasia}</strong> terminou.
-            Ative o plano anual para desbloquear o PDV e os relatórios imediatamente.
+            {aberturaManual ? (
+              <>Tenha acesso ilimitado para a unidade <strong>{loja?.nome_fantasia}</strong> por apenas R$ 49,90/mês.</>
+            ) : (
+              <>O período de operação da unidade <strong>{loja?.nome_fantasia}</strong> terminou. Ative o plano anual para desbloquear o PDV e os relatórios imediatamente.</>
+            )}
           </p>
         </div>
 

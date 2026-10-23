@@ -46,6 +46,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [lojasDisponiveis, setLojasDisponiveis] = useState<Loja[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
 
+  // Helper para resolver e auto-curar nomes genéricos ('Proprietário', 'Operador') para o nome real do usuário
+  const resolverNomeRealUsuario = async (
+    authUserId: string | null | undefined,
+    authEmail: string | null | undefined,
+    nomeAtual?: string | null
+  ): Promise<string> => {
+    const ehGenerico = !nomeAtual || ['proprietario', 'proprietário', 'operador', 'administrador', 'admin', 'user', 'owner'].includes(nomeAtual.trim().toLowerCase());
+    if (!ehGenerico && nomeAtual) return nomeAtual.trim();
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const metaName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name;
+      if (metaName && metaName.trim()) {
+        return metaName.trim();
+      }
+    } catch {
+      // fallback
+    }
+
+    try {
+      if (authUserId) {
+        const { data: outrosUsers } = await supabase
+          .from('usuarios_loja')
+          .select('nome_completo')
+          .eq('usuario_auth_id', authUserId)
+          .not('nome_completo', 'ilike', '%Propriet%')
+          .not('nome_completo', 'ilike', '%Operador%')
+          .order('criado_em', { ascending: false })
+          .limit(1);
+        if (outrosUsers && outrosUsers[0]?.nome_completo) {
+          return outrosUsers[0].nome_completo.trim();
+        }
+      }
+      if (authEmail) {
+        const { data: outrosUsersEmail } = await supabase
+          .from('usuarios_loja')
+          .select('nome_completo')
+          .ilike('email', authEmail.trim())
+          .not('nome_completo', 'ilike', '%Propriet%')
+          .not('nome_completo', 'ilike', '%Operador%')
+          .order('criado_em', { ascending: false })
+          .limit(1);
+        if (outrosUsersEmail && outrosUsersEmail[0]?.nome_completo) {
+          return outrosUsersEmail[0].nome_completo.trim();
+        }
+      }
+    } catch {
+      // fallback
+    }
+
+    return nomeAtual?.trim() || 'Proprietário';
+  };
+
   // Carregar lojas e identificar se há uma loja ativa salva ou selecionada
   const carregarLoja = async () => {
     try {
@@ -193,6 +246,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
 
           if (usuarioAtivo) {
+            const nomeReal = await resolverNomeRealUsuario(authUser?.id, authUser?.email, usuarioAtivo.nome_completo);
+            if (nomeReal && nomeReal !== usuarioAtivo.nome_completo) {
+              usuarioAtivo = { ...usuarioAtivo, nome_completo: nomeReal };
+              supabase.from('usuarios_loja').update({ nome_completo: nomeReal }).eq('id', usuarioAtivo.id).then();
+            }
             setUsuario(usuarioAtivo);
             localStorage.setItem(STORAGE_KEY_USUARIO_ID, usuarioAtivo.id);
           }
@@ -303,15 +361,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.warn('Aviso ao sincronizar usuario_auth_id na seleção de loja:', syncErr);
           }
         }
+        const nomeReal = await resolverNomeRealUsuario(authUserId, session?.user?.email, u.nome_completo);
+        if (nomeReal && nomeReal !== u.nome_completo) {
+          u = { ...u, nome_completo: nomeReal };
+          supabase.from('usuarios_loja').update({ nome_completo: nomeReal }).eq('id', u.id).then();
+        }
         setUsuario(u);
         localStorage.setItem(STORAGE_KEY_USUARIO_ID, u.id);
       } else {
+        const nomeProprietario = await resolverNomeRealUsuario(authUserId, session?.user?.email, 'Proprietário');
         const { data: novoUser } = await supabase
           .from('usuarios_loja')
           .insert([{
             loja_id: lojaBuscada.id,
             usuario_auth_id: authUserId,
-            nome_completo: 'Proprietário',
+            nome_completo: nomeProprietario,
             email: lojaBuscada.email,
             perfil: 'owner',
             pode_uso_celular_pessoal: true,
@@ -780,10 +844,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Criar perfil de Owner para o usuário na nova filial
     if (authUserId) {
+      const nomeProprietario = await resolverNomeRealUsuario(authUserId, authEmail, usuario?.nome_completo);
       await supabase.from('usuarios_loja').insert([{
         loja_id: novaLoja.id,
         usuario_auth_id: authUserId,
-        nome_completo: usuario?.nome_completo || 'Proprietário',
+        nome_completo: nomeProprietario,
         email: authEmail,
         perfil: 'owner',
         pode_uso_celular_pessoal: true,

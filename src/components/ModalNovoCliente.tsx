@@ -214,6 +214,14 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
   const [diaVencimentoCaderneta, setDiaVencimentoCaderneta] = useState<number>(Number(loja?.dia_vencimento_padrao_caderneta || 10));
   const [tabelaPreco, setTabelaPreco] = useState<TabelaPreco>('varejo');
 
+  const permiteAtacado = (loja as any)?.permite_atacado !== false &&
+    (loja as any)?.tipos_venda?.atacado !== false &&
+    (loja as any)?.configuracoes_extras?.tipos_venda_ativos?.atacado !== false;
+
+  const permiteAutoatacado = (loja as any)?.permite_distribuidor !== false &&
+    (loja as any)?.tipos_venda?.distribuidor !== false &&
+    (loja as any)?.configuracoes_extras?.tipos_venda_ativos?.distribuidor !== false;
+
   // Endereço
   const [cep, setCep] = useState('');
   const [rua, setRua] = useState('');
@@ -1053,8 +1061,8 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                   }`}
                 >
                   <option value="varejo">Varejo (Preço Normal)</option>
-                  <option value="atacado">Atacado</option>
-                  <option value="autoatacado">Autoatacado</option>
+                  {permiteAtacado && <option value="atacado">Atacado</option>}
+                  {permiteAutoatacado && <option value="autoatacado">Autoatacado</option>}
                 </select>
               </div>
 

@@ -116,6 +116,8 @@ export interface PrazosTaxasMaquininha {
 
 export interface OpcoesPagamentoDetalhes {
   permitir_fiado?: boolean;
+  caderneta_ativa?: boolean;
+  dia_vencimento_padrao_caderneta?: number;
   pix_ativo?: boolean;
   pix_chave?: string;
   pix_orientacoes?: string;

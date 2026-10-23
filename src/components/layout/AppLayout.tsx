@@ -46,9 +46,9 @@ import { DesktopAppPrompt, DesktopInstallButton } from '../DesktopAppPrompt';
 import { MobileMenuDrawer } from './MobileMenuDrawer';
 import { ModalSeletorDataOperacao } from '../ModalSeletorDataOperacao';
 import { ModalAdicionarLoja } from '../lojas/ModalAdicionarLoja';
-import { BannerAssinaturaTop } from '../assinatura/BannerAssinaturaTop';
 import { BannerDataOperacao } from '../BannerDataOperacao';
 import { TelaBloqueioAssinatura } from '../assinatura/TelaBloqueioAssinatura';
+import { useAssinaturaStatus } from '../../hooks/useAssinaturaStatus';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { logger } from '../../services/loggerService';
 import { UsuarioLoja } from '../../types';
@@ -59,6 +59,9 @@ export const AppLayout: React.FC = () => {
   const searchParams = new URLSearchParams(location.search);
   const origemVendas = searchParams.get('origem') === 'sales';
   const { loja, usuario, carregando, desconectarPdv, selecionarUsuario, lojasDisponiveis, selecionarLoja } = useAuth();
+  const { status: statusAssinatura, diasRestantesTrial } = useAssinaturaStatus();
+  const ehTrial = statusAssinatura === 'TRIAL_ATIVO' || (typeof diasRestantesTrial === 'number' && diasRestantesTrial > 0);
+  const [modalAssinaturaManualAberto, setModalAssinaturaManualAberto] = useState<boolean>(false);
   const permissions = usePermissions();
   const { verificarSaidaComConfirmacao } = useFeedbackModal();
   const { tema, setTema } = useTheme();
@@ -416,9 +419,6 @@ export const AppLayout: React.FC = () => {
 
   return (
     <div className={`flex flex-col h-screen w-screen overflow-hidden ${isDark ? 'bg-slate-950 text-slate-100' : (isDashboardRoute || isPosRoute) ? 'bg-slate-100 text-[#0F172A]' : 'bg-[#F8FAFC] text-[#0F172A]'}`}>
-      {/* BANNER CONTEXTUAL DE TRIAL E RENOVAÇÃO ANUAL */}
-      <BannerAssinaturaTop />
-
       {/* BANNER GLOBAL DE DATA OPERACIONAL SIMULADA */}
       <BannerDataOperacao />
 
@@ -471,24 +471,44 @@ export const AppLayout: React.FC = () => {
       {/* TOP HEADER DESKTOP (BARRA SUPERIOR EM 2 FILEIRAS DE 6 BOTÕES) */}
       <header className={`hidden md:block border-b z-40 relative shrink-0 shadow-xs ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-[#E2E8F0]'}`}>
         <div className="px-3 md:px-5 py-2 flex items-center justify-between gap-4">
-          {/* IDENTIFICAÇÃO DA LOJA */}
-          <div className="flex items-center gap-3 shrink-0 w-44 lg:w-52">
+          {/* IDENTIFICAÇÃO DA LOJA E INFORMATIVO DE TRIAL FIXO */}
+          <div className="flex items-center gap-3 shrink-0 min-w-44 lg:min-w-56 max-w-[260px]">
             <button
               type="button"
               onClick={(e) => handleNavegacaoMenu(permissions.podeAcessarDashboard ? '/dashboard' : '/pos', e)}
-              className="flex items-center gap-2.5 group text-left cursor-pointer"
+              className="flex items-center gap-2.5 group text-left cursor-pointer min-w-0"
             >
               <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-black text-white shadow-lg shadow-emerald-500/20 text-sm shrink-0 group-hover:scale-105 transition">
                 {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
               </div>
               <div className="hidden sm:block min-w-0">
-                <h1 className={`font-bold text-xs lg:text-sm truncate max-w-[110px] md:max-w-[130px] lg:max-w-[150px] leading-tight group-hover:text-emerald-500 transition ${isDark ? 'text-slate-100' : 'text-[#0F172A]'}`}>
+                <h1 className={`font-bold text-xs lg:text-sm truncate max-w-[130px] lg:max-w-[160px] leading-tight group-hover:text-emerald-500 transition ${isDark ? 'text-slate-100' : 'text-[#0F172A]'}`}>
                   {loja?.nome_fantasia || 'HUBI PDV'}
                 </h1>
-                <div className="flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span className="text-[9px] text-emerald-500 font-semibold uppercase tracking-wider">Conectado</span>
-                </div>
+                {ehTrial ? (
+                  <div className="flex flex-col mt-0.5" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-bold text-amber-500 whitespace-nowrap">
+                        Restam {diasRestantesTrial} {diasRestantesTrial === 1 ? 'dia' : 'dias'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setModalAssinaturaManualAberto(true)}
+                        className="px-2 py-0.5 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[9px] uppercase tracking-wider transition shadow-xs cursor-pointer active:scale-95"
+                      >
+                        Assinar
+                      </button>
+                    </div>
+                    <span className="text-[9px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                      Garanta por apenas R$ 49,90/mês
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span className="text-[9px] text-emerald-500 font-semibold uppercase tracking-wider">Conectado</span>
+                  </div>
+                )}
               </div>
             </button>
           </div>
@@ -884,8 +904,11 @@ export const AppLayout: React.FC = () => {
         onClose={() => setModalAdicionarLojaAberto(false)}
       />
 
-      {/* OVERLAY DE BLOQUEIO OPERACIONAL SELETIVO POR LOJA */}
-      <TelaBloqueioAssinatura />
+      {/* OVERLAY DE BLOQUEIO OPERACIONAL SELETIVO POR LOJA E MODAL DE ASSINATURA MANUAL */}
+      <TelaBloqueioAssinatura
+        aberturaManual={modalAssinaturaManualAberto}
+        onCloseManual={() => setModalAssinaturaManualAberto(false)}
+      />
     </div>
   );
 };

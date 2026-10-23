@@ -87,7 +87,7 @@ export const FORMA_ENTREGA_RETIRADA_PADRAO: PedidoEntrega = {
 };
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { loja } = useAuth();
+  const { loja, usuario } = useAuth();
   const [itens, setItens] = useState<CartItem[]>([]);
   const [clienteSelecionado, setClienteSelecionadoState] = useState<Cliente | null>(null);
   const [tabelaPrecoGlobal, setTabelaPrecoGlobalState] = useState<TabelaPreco>('varejo');
@@ -101,6 +101,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [pedidoEmEdicao, setPedidoEmEdicao] = useState<any | null>(null);
   const [snapshotPedidoOriginal, setSnapshotPedidoOriginal] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState<boolean>(false);
+  const activeTenantKeyRef = React.useRef<string | null>(null);
 
   const setTaxaEntrega = (valor: number) => {
     const valLimpo = Number(valor) || 0;
@@ -109,50 +110,95 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   const setValorFrete = setTaxaEntrega;
 
-  // Re-hidratação do rascunho do carrinho do PDV ao iniciar ou trocar de loja
+  // Re-hidratação com estrito isolamento multi-tenant por Loja e Usuário
   useEffect(() => {
-    if (!loja?.id) return;
-    const draftKey = `hubi_pos_cart_draft_${loja.id}`;
+    if (!loja?.id) {
+      setItens([]);
+      setClienteSelecionadoState(null);
+      setPedidoEmEdicao(null);
+      setSnapshotPedidoOriginal(null);
+      setIsHydrated(false);
+      activeTenantKeyRef.current = null;
+      return;
+    }
+
+    const tenantKey = `hubi_cart_${loja.id}_${usuario?.id || 'anon'}`;
+    const legacyKey = `hubi_pos_cart_draft_${loja.id}`;
+
+    // Desconecta hidratação temporariamente para evitar salvamento prematuro com dados da loja anterior
+    setIsHydrated(false);
+
     try {
-      const raw = localStorage.getItem(draftKey);
+      const raw = localStorage.getItem(tenantKey) || localStorage.getItem(legacyKey);
       if (raw) {
         const draft = JSON.parse(raw);
-        if (draft && Array.isArray(draft.itens) && draft.itens.length > 0) {
-          setItens(draft.itens);
-          if (draft.clienteSelecionado) setClienteSelecionadoState(draft.clienteSelecionado);
-          if (draft.tabelaPrecoGlobal) setTabelaPrecoGlobalState(draft.tabelaPrecoGlobal);
-          if (typeof draft.desconto === 'number') setDescontoState(draft.desconto);
-          if (typeof draft.descontoPercentual === 'number') setDescontoPercentualState(draft.descontoPercentual);
-          if (draft.tipoDesconto) setTipoDesconto(draft.tipoDesconto);
-          const taxaRecuperada = typeof draft.taxaEntrega === 'number'
-            ? draft.taxaEntrega
-            : (typeof draft.valor_frete === 'number' ? draft.valor_frete : (typeof draft.pedidoEntrega?.valor_frete === 'number' ? draft.pedidoEntrega.valor_frete : null));
-          if (typeof taxaRecuperada === 'number') {
-            setTaxaEntregaState(taxaRecuperada);
-          }
-          if (draft.pedidoEntrega) setPedidoEntrega(draft.pedidoEntrega);
-          if (draft.enderecoEntrega) setEnderecoEntrega(draft.enderecoEntrega);
-          if (draft.dadosEndereco) setDadosEndereco(draft.dadosEndereco);
-          if (draft.pedidoEmEdicao) setPedidoEmEdicao(draft.pedidoEmEdicao);
-          if (draft.snapshotPedidoOriginal) setSnapshotPedidoOriginal(draft.snapshotPedidoOriginal);
-        }
+        // Validação estrita: apenas itens pertencentes à loja atual
+        const itensValidados = Array.isArray(draft?.itens)
+          ? draft.itens.filter((item: CartItem) => !item.produto?.loja_id || item.produto.loja_id === loja.id)
+          : [];
+
+        // Validação estrita: se pedido em edição pertencer a outra loja, descartar
+        const pedidoValido = draft?.pedidoEmEdicao && draft.pedidoEmEdicao.loja_id && draft.pedidoEmEdicao.loja_id !== loja.id
+          ? null
+          : draft?.pedidoEmEdicao || null;
+
+        setItens(itensValidados);
+        setClienteSelecionadoState(draft?.clienteSelecionado || null);
+        setTabelaPrecoGlobalState(draft?.tabelaPrecoGlobal || 'varejo');
+        setDescontoState(typeof draft?.desconto === 'number' ? draft.desconto : 0);
+        setDescontoPercentualState(typeof draft?.descontoPercentual === 'number' ? draft.descontoPercentual : 0);
+        setTipoDesconto(draft?.tipoDesconto || 'valor');
+
+        const taxaRecuperada = typeof draft?.taxaEntrega === 'number'
+          ? draft.taxaEntrega
+          : (typeof draft?.valor_frete === 'number' ? draft.valor_frete : (typeof draft?.pedidoEntrega?.valor_frete === 'number' ? draft.pedidoEntrega.valor_frete : null));
+        setTaxaEntregaState(typeof taxaRecuperada === 'number' ? taxaRecuperada : 0);
+
+        setPedidoEntrega(draft?.pedidoEntrega || FORMA_ENTREGA_RETIRADA_PADRAO);
+        setEnderecoEntrega(draft?.enderecoEntrega || null);
+        setDadosEndereco(draft?.dadosEndereco || null);
+        setPedidoEmEdicao(pedidoValido);
+        setSnapshotPedidoOriginal(pedidoValido ? draft?.snapshotPedidoOriginal || null : null);
+      } else {
+        // Sem draft para este tenant específico: limpa o carrinho em memória com segurança
+        setItens([]);
+        setClienteSelecionadoState(null);
+        setTabelaPrecoGlobalState('varejo');
+        setDescontoState(0);
+        setDescontoPercentualState(0);
+        setTipoDesconto('valor');
+        setTaxaEntregaState(0);
+        setPedidoEntrega(FORMA_ENTREGA_RETIRADA_PADRAO);
+        setEnderecoEntrega(null);
+        setDadosEndereco(null);
+        setPedidoEmEdicao(null);
+        setSnapshotPedidoOriginal(null);
       }
     } catch (err) {
       console.warn('[CartContext] Erro ao recuperar rascunho do carrinho:', err);
+      setItens([]);
+      setClienteSelecionadoState(null);
+      setPedidoEmEdicao(null);
     } finally {
+      activeTenantKeyRef.current = tenantKey;
       setIsHydrated(true);
     }
-  }, [loja?.id]);
+  }, [loja?.id, usuario?.id]);
 
-  // Persistência automática do rascunho em andamento para resistir a reloads, trocas de aba ou atualizações do PWA
+  // Persistência automática do rascunho isolado por tenant
   useEffect(() => {
     if (!isHydrated || !loja?.id) return;
-    const draftKey = `hubi_pos_cart_draft_${loja.id}`;
+    const currentTenantKey = `hubi_cart_${loja.id}_${usuario?.id || 'anon'}`;
+    // Evita salvar antes da hidratação do tenant corrente ter finalizado
+    if (activeTenantKeyRef.current !== currentTenantKey) return;
+
     if (itens.length === 0 && !pedidoEmEdicao && !clienteSelecionado) {
-      localStorage.removeItem(draftKey);
+      localStorage.removeItem(currentTenantKey);
       return;
     }
+
     const draft = {
+      loja_id: loja.id,
       itens,
       clienteSelecionado,
       tabelaPrecoGlobal,
@@ -169,13 +215,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updatedAt: Date.now()
     };
     try {
-      localStorage.setItem(draftKey, JSON.stringify(draft));
+      localStorage.setItem(currentTenantKey, JSON.stringify(draft));
     } catch (err) {
       console.warn('[CartContext] Falha ao salvar rascunho do carrinho:', err);
     }
   }, [
     isHydrated,
     loja?.id,
+    usuario?.id,
     itens,
     clienteSelecionado,
     tabelaPrecoGlobal,

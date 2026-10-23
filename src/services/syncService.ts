@@ -42,9 +42,51 @@ export class SyncService {
       if (data && data.length > 0) return data[0].id;
     }
 
+    const ehCaderneta = tipo === 'caderneta' || formaPagamentoId === 'caderneta' || (formaPagamentoId && formaPagamentoId.toLowerCase().includes('caderneta'));
+
+    if (ehCaderneta) {
+      // 1. Busca forma de pagamento existente para caderneta
+      const { data: cadExistente } = await supabase
+        .from('formas_pagamento')
+        .select('id')
+        .eq('loja_id', lojaId)
+        .or('tipo.eq.caderneta,and(tipo.eq.outro,nome.ilike.%Caderneta%)')
+        .limit(1);
+
+      if (cadExistente && cadExistente.length > 0) {
+        return cadExistente[0].id;
+      }
+
+      // 2. Tenta criar com tipo 'outro' e nome 'Caderneta de Mercadinho' para satisfazer CHECK constraint
+      const { data: novaCad, error: erroCad } = await supabase
+        .from('formas_pagamento')
+        .insert([{
+          loja_id: lojaId,
+          nome: 'Caderneta de Mercadinho',
+          tipo: 'outro',
+          ativo: true,
+          taxa_percentual: 0,
+          taxa_fixa: 0,
+          maximo_parcelas: 1
+        }])
+        .select('id')
+        .single();
+
+      if (novaCad && novaCad.id) return novaCad.id;
+      if (erroCad) console.warn('[SyncService] Falha ao criar forma caderneta:', erroCad);
+    }
+
+    const tiposValidos = ['dinheiro', 'pix', 'cartao_credito', 'cartao_debito', 'fiado', 'outro'];
+    let tipoFinal = tipo;
+    if (!tipoFinal && formaPagamentoId && tiposValidos.includes(formaPagamentoId)) {
+      tipoFinal = formaPagamentoId;
+    }
+    if (!tipoFinal || !tiposValidos.includes(tipoFinal)) {
+      tipoFinal = ehCaderneta ? 'outro' : 'dinheiro';
+    }
+
     // Busca uma existente para a loja por tipo
-    const query = supabase.from('formas_pagamento').select('id').eq('loja_id', lojaId);
-    if (tipo) query.eq('tipo', tipo);
+    const query = supabase.from('formas_pagamento').select('id').eq('loja_id', lojaId).eq('tipo', tipoFinal);
     const { data: existentes } = await query.limit(1);
 
     if (existentes && existentes.length > 0) {
@@ -52,12 +94,24 @@ export class SyncService {
     }
 
     // Cria nova forma de pagamento para obter UUID real
+    const nomePadrao = tipoFinal === 'pix'
+      ? 'Pix'
+      : tipoFinal === 'cartao_credito'
+      ? 'Cartão de Crédito'
+      : tipoFinal === 'cartao_debito'
+      ? 'Cartão de Débito'
+      : tipoFinal === 'fiado'
+      ? 'Fiado / A Prazo'
+      : tipoFinal === 'outro'
+      ? (ehCaderneta ? 'Caderneta de Mercadinho' : 'Outros')
+      : 'Dinheiro';
+
     const { data: criada, error } = await supabase
       .from('formas_pagamento')
       .insert([{
         loja_id: lojaId,
-        nome: tipo === 'pix' ? 'Pix' : tipo === 'cartao_credito' ? 'Cartão de Crédito' : tipo === 'cartao_debito' ? 'Cartão de Débito' : tipo === 'fiado' ? 'Fiado / A Prazo' : 'Dinheiro',
-        tipo: tipo || 'dinheiro',
+        nome: nomePadrao,
+        tipo: tipoFinal,
         ativo: true,
         taxa_percentual: 0,
         taxa_fixa: 0,
@@ -68,6 +122,18 @@ export class SyncService {
 
     if (criada && criada.id) return criada.id;
     if (error) console.error('Erro ao resolver forma de pagamento:', error);
+
+    // Fallback de segurança máxima: retornar qualquer forma de pagamento ativa da loja
+    const { data: fallbackQualquer } = await supabase
+      .from('formas_pagamento')
+      .select('id')
+      .eq('loja_id', lojaId)
+      .limit(1);
+
+    if (fallbackQualquer && fallbackQualquer.length > 0) {
+      return fallbackQualquer[0].id;
+    }
+
     throw new Error('Não foi possível resolver uma forma de pagamento válida no banco de dados.');
   }
 

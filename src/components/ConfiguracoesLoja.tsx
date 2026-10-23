@@ -380,13 +380,13 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
 
   // Regras de Precificação Unificadas
   const [descontoAtacado, setDescontoAtacado] = useState<string>('20');
-  const [tipoMinimoAtacado, setTipoMinimoAtacado] = useState<'valor' | 'quantidade'>('valor');
+  const [tipoMinimoAtacado, setTipoMinimoAtacado] = useState<'valor' | 'quantidade_total' | 'minimo_sku'>('valor');
   const [valorMinimoAtacado, setValorMinimoAtacado] = useState<string>('1500.00');
   const [qtdTotalMinimaAtacado, setQtdTotalMinimaAtacado] = useState<string>('50');
   const [qtdMinimaSkuAtacado, setQtdMinimaSkuAtacado] = useState<string>('6');
 
   const [descontoAutoatacado, setDescontoAutoatacado] = useState<string>('25');
-  const [tipoMinimoDistribuidor, setTipoMinimoDistribuidor] = useState<'valor' | 'quantidade'>('valor');
+  const [tipoMinimoDistribuidor, setTipoMinimoDistribuidor] = useState<'valor' | 'quantidade_total' | 'minimo_sku'>('valor');
   const [valorMinimoAutoatacado, setValorMinimoAutoatacado] = useState<string>('3000.00');
   const [qtdTotalMinimaAutoatacado, setQtdTotalMinimaAutoatacado] = useState<string>('100');
   const [qtdMinimaSkuAutoatacado, setQtdMinimaSkuAutoatacado] = useState<string>('6');
@@ -414,13 +414,13 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         const regrasSalvas = localStorage.getItem(keyStorage);
 
         let initDescAtacado = '20';
-        let initTipoMinimoAtacado: 'valor' | 'quantidade' = 'valor';
+        let initTipoMinimoAtacado: 'valor' | 'quantidade_total' | 'minimo_sku' = 'valor';
         let initValorMinimoAtacado = '1500.00';
         let initQtdTotalMinimaAtacado = '50';
         let initQtdMinimaSkuAtacado = '6';
 
         let initDescAuto = '25';
-        let initTipoMinimoDistribuidor: 'valor' | 'quantidade' = 'valor';
+        let initTipoMinimoDistribuidor: 'valor' | 'quantidade_total' | 'minimo_sku' = 'valor';
         let initValorMinimoAutoatacado = '3000.00';
         let initQtdTotalMinimaAutoatacado = '100';
         let initQtdMinimaSkuAutoatacado = '6';
@@ -429,37 +429,39 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           try {
             const parsed = JSON.parse(regrasSalvas);
             if (parsed.descontoAtacado !== undefined) initDescAtacado = String(parsed.descontoAtacado);
-            if (parsed.valorMinimoAtacado && Number(parsed.valorMinimoAtacado) > 0) {
+            if (parsed.tipoMinimoAtacado === 'minimo_sku' || (!parsed.tipoMinimoAtacado && Number(parsed.qtdMinimaSkuAtacado) > 0 && !parsed.qtdTotalMinimaAtacado && !parsed.valorMinimoAtacado)) {
+              initTipoMinimoAtacado = 'minimo_sku';
+              initQtdMinimaSkuAtacado = String(parsed.qtdMinimaSkuAtacado || '6');
+              initValorMinimoAtacado = '';
+              initQtdTotalMinimaAtacado = '';
+            } else if (parsed.tipoMinimoAtacado === 'quantidade_total' || parsed.tipoMinimoAtacado === 'quantidade' || Number(parsed.qtdTotalMinimaAtacado) > 0) {
+              initTipoMinimoAtacado = 'quantidade_total';
+              initQtdTotalMinimaAtacado = String(parsed.qtdTotalMinimaAtacado || '50');
+              initValorMinimoAtacado = '';
+              initQtdMinimaSkuAtacado = '';
+            } else {
               initTipoMinimoAtacado = 'valor';
-              initValorMinimoAtacado = String(parsed.valorMinimoAtacado);
+              initValorMinimoAtacado = String(parsed.valorMinimoAtacado ?? '1500.00');
               initQtdTotalMinimaAtacado = '';
               initQtdMinimaSkuAtacado = '';
-            } else if (parsed.qtdTotalMinimaAtacado && Number(parsed.qtdTotalMinimaAtacado) > 0) {
-              initTipoMinimoAtacado = 'quantidade';
-              initValorMinimoAtacado = '';
-              initQtdTotalMinimaAtacado = String(parsed.qtdTotalMinimaAtacado);
-              initQtdMinimaSkuAtacado = String(parsed.qtdMinimaSkuAtacado || '6');
-            } else {
-              initValorMinimoAtacado = String(parsed.valorMinimoAtacado ?? '1500.00');
-              initQtdTotalMinimaAtacado = String(parsed.qtdTotalMinimaAtacado ?? '50');
-              initQtdMinimaSkuAtacado = String(parsed.qtdMinimaSkuAtacado ?? '6');
             }
 
             if (parsed.descontoAutoatacado !== undefined) initDescAuto = String(parsed.descontoAutoatacado);
-            if (parsed.valorMinimoAutoatacado && Number(parsed.valorMinimoAutoatacado) > 0) {
+            if (parsed.tipoMinimoDistribuidor === 'minimo_sku' || (!parsed.tipoMinimoDistribuidor && Number(parsed.qtdMinimaSkuAutoatacado) > 0 && !parsed.qtdTotalMinimaAutoatacado && !parsed.valorMinimoAutoatacado)) {
+              initTipoMinimoDistribuidor = 'minimo_sku';
+              initQtdMinimaSkuAutoatacado = String(parsed.qtdMinimaSkuAutoatacado || '6');
+              initValorMinimoAutoatacado = '';
+              initQtdTotalMinimaAutoatacado = '';
+            } else if (parsed.tipoMinimoDistribuidor === 'quantidade_total' || parsed.tipoMinimoDistribuidor === 'quantidade' || Number(parsed.qtdTotalMinimaAutoatacado) > 0) {
+              initTipoMinimoDistribuidor = 'quantidade_total';
+              initQtdTotalMinimaAutoatacado = String(parsed.qtdTotalMinimaAutoatacado || '100');
+              initValorMinimoAutoatacado = '';
+              initQtdMinimaSkuAutoatacado = '';
+            } else {
               initTipoMinimoDistribuidor = 'valor';
-              initValorMinimoAutoatacado = String(parsed.valorMinimoAutoatacado);
+              initValorMinimoAutoatacado = String(parsed.valorMinimoAutoatacado ?? '3000.00');
               initQtdTotalMinimaAutoatacado = '';
               initQtdMinimaSkuAutoatacado = '';
-            } else if (parsed.qtdTotalMinimaAutoatacado && Number(parsed.qtdTotalMinimaAutoatacado) > 0) {
-              initTipoMinimoDistribuidor = 'quantidade';
-              initValorMinimoAutoatacado = '';
-              initQtdTotalMinimaAutoatacado = String(parsed.qtdTotalMinimaAutoatacado);
-              initQtdMinimaSkuAutoatacado = String(parsed.qtdMinimaSkuAutoatacado || '6');
-            } else {
-              initValorMinimoAutoatacado = String(parsed.valorMinimoAutoatacado ?? '3000.00');
-              initQtdTotalMinimaAutoatacado = String(parsed.qtdTotalMinimaAutoatacado ?? '100');
-              initQtdMinimaSkuAutoatacado = String(parsed.qtdMinimaSkuAutoatacado ?? '6');
             }
           } catch (e) {
             // Ignora erro de parse
@@ -472,11 +474,17 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
             initTipoMinimoAtacado = 'valor';
             initValorMinimoAtacado = String((data as any).valor_minimo_padrao_atacado);
             initQtdTotalMinimaAtacado = '';
-          } else if ((data as any).qtd_minima_padrao_atacado !== undefined && (data as any).qtd_minima_padrao_atacado !== null && Number((data as any).qtd_minima_padrao_atacado) > 0) {
-            initTipoMinimoAtacado = 'quantidade';
+            initQtdMinimaSkuAtacado = '';
+          } else if ((data as any).qtd_minima_sku_padrao_atacado !== undefined && Number((data as any).qtd_minima_sku_padrao_atacado) > 0 && !(data as any).qtd_minima_padrao_atacado) {
+            initTipoMinimoAtacado = 'minimo_sku';
+            initQtdMinimaSkuAtacado = String((data as any).qtd_minima_sku_padrao_atacado);
             initValorMinimoAtacado = '';
+            initQtdTotalMinimaAtacado = '';
+          } else if ((data as any).qtd_minima_padrao_atacado !== undefined && Number((data as any).qtd_minima_padrao_atacado) > 0) {
+            initTipoMinimoAtacado = 'quantidade_total';
             initQtdTotalMinimaAtacado = String((data as any).qtd_minima_padrao_atacado);
-            initQtdMinimaSkuAtacado = String((data as any).qtd_minima_sku_padrao_atacado || '6');
+            initValorMinimoAtacado = '';
+            initQtdMinimaSkuAtacado = '';
           }
 
           if ((data as any).desconto_padrao_autoatacado_percentual !== undefined && (data as any).desconto_padrao_autoatacado_percentual !== null) {
@@ -486,11 +494,17 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
             initTipoMinimoDistribuidor = 'valor';
             initValorMinimoAutoatacado = String((data as any).valor_minimo_padrao_autoatacado);
             initQtdTotalMinimaAutoatacado = '';
-          } else if ((data as any).qtd_minima_padrao_autoatacado !== undefined && (data as any).qtd_minima_padrao_autoatacado !== null && Number((data as any).qtd_minima_padrao_autoatacado) > 0) {
-            initTipoMinimoDistribuidor = 'quantidade';
+            initQtdMinimaSkuAutoatacado = '';
+          } else if ((data as any).qtd_minima_sku_padrao_autoatacado !== undefined && Number((data as any).qtd_minima_sku_padrao_autoatacado) > 0 && !(data as any).qtd_minima_padrao_autoatacado) {
+            initTipoMinimoDistribuidor = 'minimo_sku';
+            initQtdMinimaSkuAutoatacado = String((data as any).qtd_minima_sku_padrao_autoatacado);
             initValorMinimoAutoatacado = '';
+            initQtdTotalMinimaAutoatacado = '';
+          } else if ((data as any).qtd_minima_padrao_autoatacado !== undefined && Number((data as any).qtd_minima_padrao_autoatacado) > 0) {
+            initTipoMinimoDistribuidor = 'quantidade_total';
             initQtdTotalMinimaAutoatacado = String((data as any).qtd_minima_padrao_autoatacado);
-            initQtdMinimaSkuAutoatacado = String((data as any).qtd_minima_sku_padrao_autoatacado || '6');
+            initValorMinimoAutoatacado = '';
+            initQtdMinimaSkuAutoatacado = '';
           }
         }
 
@@ -570,6 +584,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       const resComColuna = await supabase
         .from('lojas')
         .update({
+          permite_atacado: Boolean(tipoVendaAtacado),
+          permite_distribuidor: Boolean(tipoVendaDistribuidor),
           tipos_venda: payloadTiposVenda,
           configuracoes_extras: novasExtras
         })
@@ -580,6 +596,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           const resFallback = await supabase
             .from('lojas')
             .update({
+              permite_atacado: Boolean(tipoVendaAtacado),
+              permite_distribuidor: Boolean(tipoVendaDistribuidor),
               configuracoes_extras: novasExtras
             })
             .eq('id', loja.id);
@@ -589,16 +607,16 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         }
       }
 
-      // Processar regras de precificação
+      // Processar regras de precificação com exclusão mútua estrita
       const descAtacadoNum = Number(descontoAtacado) || 0;
       const valAtacadoNum = tipoMinimoAtacado === 'valor' ? (Number(valorMinimoAtacado) || 0) : 0;
-      const qtdTotAtacadoNum = tipoMinimoAtacado === 'quantidade' ? (Number(qtdTotalMinimaAtacado) || 0) : 0;
-      const qtdSkuAtacadoNum = tipoMinimoAtacado === 'quantidade' ? (Number(qtdMinimaSkuAtacado) || 1) : 0;
+      const qtdTotAtacadoNum = tipoMinimoAtacado === 'quantidade_total' ? (Number(qtdTotalMinimaAtacado) || 0) : 0;
+      const qtdSkuAtacadoNum = tipoMinimoAtacado === 'minimo_sku' ? (Number(qtdMinimaSkuAtacado) || 0) : 0;
 
       const descAutoNum = Number(descontoAutoatacado) || 0;
       const valAutoNum = tipoMinimoDistribuidor === 'valor' ? (Number(valorMinimoAutoatacado) || 0) : 0;
-      const qtdTotAutoNum = tipoMinimoDistribuidor === 'quantidade' ? (Number(qtdTotalMinimaAutoatacado) || 0) : 0;
-      const qtdSkuAutoNum = tipoMinimoDistribuidor === 'quantidade' ? (Number(qtdMinimaSkuAutoatacado) || 1) : 0;
+      const qtdTotAutoNum = tipoMinimoDistribuidor === 'quantidade_total' ? (Number(qtdTotalMinimaAutoatacado) || 0) : 0;
+      const qtdSkuAutoNum = tipoMinimoDistribuidor === 'minimo_sku' ? (Number(qtdMinimaSkuAutoatacado) || 0) : 0;
 
       // 1. Salvar no localStorage para uso instantâneo pelo pricingEngine
       const keyStorage = `hubi_regras_precificacao_${loja.id}`;
@@ -749,9 +767,9 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const [creditoDescricao, setCreditoDescricao] = useState<string>('');
   const [outrosAtivo, setOutrosAtivo] = useState<boolean>(false);
   const [outrosDescricao, setOutrosDescricao] = useState<string>('');
-  const [permitirFiado, setPermitirFiado] = useState<boolean>(true);
-  const [cadernetaAtiva, setCadernetaAtiva] = useState<boolean>(false);
-  const [diaVencimentoPadraoCaderneta, setDiaVencimentoPadraoCaderneta] = useState<number>(10);
+  const [permitirFiado, setPermitirFiado] = useState<boolean>(loja?.configuracoes_extras?.pagamentos?.permitir_fiado ?? true);
+  const [cadernetaAtiva, setCadernetaAtiva] = useState<boolean>(Boolean(loja?.caderneta_ativa ?? loja?.configuracoes_extras?.pagamentos?.caderneta_ativa));
+  const [diaVencimentoPadraoCaderneta, setDiaVencimentoPadraoCaderneta] = useState<number>(Number(loja?.dia_vencimento_padrao_caderneta || loja?.configuracoes_extras?.pagamentos?.dia_vencimento_padrao_caderneta || 10));
 
   // Prazos e Taxas Maquininha
   const [maqCreditoAtivo, setMaqCreditoAtivo] = useState<boolean>(true);
@@ -952,8 +970,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       setOutrosAtivo(pagManuais.outros_ativo ?? false);
       setOutrosDescricao(pagManuais.outros_orientacoes || '');
       setPermitirFiado(pagManuais.permitir_fiado ?? true);
-      setCadernetaAtiva(Boolean(loja.caderneta_ativa));
-      setDiaVencimentoPadraoCaderneta(Number(loja.dia_vencimento_padrao_caderneta || 10));
+      setCadernetaAtiva(Boolean(loja.caderneta_ativa ?? pagManuais.caderneta_ativa));
+      setDiaVencimentoPadraoCaderneta(Number(loja.dia_vencimento_padrao_caderneta || pagManuais.dia_vencimento_padrao_caderneta || 10));
 
       // Maquininhas Prazos
       setMaqCreditoAtivo(prazosMaq.credito_ativo ?? true);
@@ -1129,8 +1147,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           outrosAtivo: pagManuais.outros_ativo ?? false,
           outrosDescricao: pagManuais.outros_orientacoes || '',
           permitirFiado: pagManuais.permitir_fiado ?? true,
-          cadernetaAtiva: Boolean(loja.caderneta_ativa),
-          diaVencimentoPadraoCaderneta: Number(loja.dia_vencimento_padrao_caderneta || 10),
+          cadernetaAtiva: Boolean(loja.caderneta_ativa ?? pagManuais.caderneta_ativa),
+          diaVencimentoPadraoCaderneta: Number(loja.dia_vencimento_padrao_caderneta || pagManuais.dia_vencimento_padrao_caderneta || 10),
           maqCreditoAtivo: prazosMaq.credito_ativo ?? true,
           maqCreditoDias: prazosMaq.credito_dias ?? 30,
           maqCreditoTaxa: prazosMaq.credito_taxa_percentual ?? 2.99,
@@ -1270,6 +1288,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         },
         pagamentos: {
           permitir_fiado: permitirFiado,
+          caderneta_ativa: Boolean(cadernetaAtiva),
+          dia_vencimento_padrao_caderneta: Number(diaVencimentoPadraoCaderneta || 10),
           pix_ativo: pixAtivo,
           pix_chave: pixChave,
           pix_orientacoes: pixOrientacoes,
@@ -2587,11 +2607,12 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
 
                       <div
                         onClick={() => {
-                          setTipoMinimoAtacado('quantidade');
+                          setTipoMinimoAtacado('quantidade_total');
                           setValorMinimoAtacado('');
+                          setQtdMinimaSkuAtacado('');
                         }}
                         className={`p-2.5 rounded-xl border transition cursor-pointer space-y-1.5 ${
-                          tipoMinimoAtacado === 'quantidade'
+                          tipoMinimoAtacado === 'quantidade_total'
                             ? isDark
                               ? 'bg-[#08131A] border-emerald-500'
                               : 'bg-emerald-50/40 border-emerald-500'
@@ -2604,48 +2625,77 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                           <input
                             type="radio"
                             name="tipo_minimo_atacado_mob"
-                            checked={tipoMinimoAtacado === 'quantidade'}
+                            checked={tipoMinimoAtacado === 'quantidade_total'}
                             onChange={() => {
-                              setTipoMinimoAtacado('quantidade');
+                              setTipoMinimoAtacado('quantidade_total');
                               setValorMinimoAtacado('');
+                              setQtdMinimaSkuAtacado('');
                             }}
                             className="text-emerald-500 focus:ring-emerald-500"
                           />
-                          <span>Por Quantidade de Peças</span>
+                          <span>2. Por Qtd Global de Peças</span>
                         </label>
-                        <div className="grid grid-cols-2 gap-2 pt-0.5">
-                          <div>
-                            <label className="text-[10px] font-bold block mb-0.5 text-slate-500">Qtd Total:</label>
-                            <input
-                              type="number"
-                              min="1"
-                              disabled={tipoMinimoAtacado !== 'quantidade'}
-                              placeholder="50"
-                              value={qtdTotalMinimaAtacado}
-                              onChange={(e) => setQtdTotalMinimaAtacado(e.target.value)}
-                              className={`w-full rounded-xl px-2 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
-                                isDark
-                                  ? 'bg-[#000000] border-slate-700 text-white focus:border-emerald-500'
-                                  : 'bg-white border-slate-300 text-black focus:border-emerald-500'
-                              }`}
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-bold block mb-0.5 text-slate-500">Mín por SKU:</label>
-                            <input
-                              type="number"
-                              min="1"
-                              disabled={tipoMinimoAtacado !== 'quantidade'}
-                              placeholder="6"
-                              value={qtdMinimaSkuAtacado}
-                              onChange={(e) => setQtdMinimaSkuAtacado(e.target.value)}
-                              className={`w-full rounded-xl px-2 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
-                                isDark
-                                  ? 'bg-[#000000] border-slate-700 text-white focus:border-emerald-500'
-                                  : 'bg-white border-slate-300 text-black focus:border-emerald-500'
-                              }`}
-                            />
-                          </div>
+                        <div className="pt-0.5">
+                          <input
+                            type="number"
+                            min="1"
+                            disabled={tipoMinimoAtacado !== 'quantidade_total'}
+                            placeholder="50 peças somadas"
+                            value={qtdTotalMinimaAtacado}
+                            onChange={(e) => setQtdTotalMinimaAtacado(e.target.value)}
+                            className={`w-full rounded-xl px-2 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
+                              isDark
+                                ? 'bg-[#000000] border-slate-700 text-white focus:border-emerald-500'
+                                : 'bg-white border-slate-300 text-black focus:border-emerald-500'
+                            }`}
+                          />
+                        </div>
+                      </div>
+
+                      <div
+                        onClick={() => {
+                          setTipoMinimoAtacado('minimo_sku');
+                          setValorMinimoAtacado('');
+                          setQtdTotalMinimaAtacado('');
+                        }}
+                        className={`p-2.5 rounded-xl border transition cursor-pointer space-y-1.5 ${
+                          tipoMinimoAtacado === 'minimo_sku'
+                            ? isDark
+                              ? 'bg-[#08131A] border-emerald-500'
+                              : 'bg-emerald-50/40 border-emerald-500'
+                            : isDark
+                            ? 'bg-[#000000] border-slate-800 opacity-60'
+                            : 'bg-white border-slate-200 opacity-60'
+                        }`}
+                      >
+                        <label className="text-xs font-black flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="tipo_minimo_atacado_mob"
+                            checked={tipoMinimoAtacado === 'minimo_sku'}
+                            onChange={() => {
+                              setTipoMinimoAtacado('minimo_sku');
+                              setValorMinimoAtacado('');
+                              setQtdTotalMinimaAtacado('');
+                            }}
+                            className="text-emerald-500 focus:ring-emerald-500"
+                          />
+                          <span>3. Por Mínimo por SKU (Atacarejo)</span>
+                        </label>
+                        <div className="pt-0.5">
+                          <input
+                            type="number"
+                            min="1"
+                            disabled={tipoMinimoAtacado !== 'minimo_sku'}
+                            placeholder="6 un de cada produto"
+                            value={qtdMinimaSkuAtacado}
+                            onChange={(e) => setQtdMinimaSkuAtacado(e.target.value)}
+                            className={`w-full rounded-xl px-2 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
+                              isDark
+                                ? 'bg-[#000000] border-slate-700 text-white focus:border-emerald-500'
+                                : 'bg-white border-slate-300 text-black focus:border-emerald-500'
+                            }`}
+                          />
                         </div>
                       </div>
                     </div>
@@ -2755,11 +2805,12 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
 
                       <div
                         onClick={() => {
-                          setTipoMinimoDistribuidor('quantidade');
+                          setTipoMinimoDistribuidor('quantidade_total');
                           setValorMinimoAutoatacado('');
+                          setQtdMinimaSkuAutoatacado('');
                         }}
                         className={`p-2.5 rounded-xl border transition cursor-pointer space-y-1.5 ${
-                          tipoMinimoDistribuidor === 'quantidade'
+                          tipoMinimoDistribuidor === 'quantidade_total'
                             ? isDark
                               ? 'bg-[#08131A] border-indigo-500'
                               : 'bg-indigo-50/40 border-indigo-500'
@@ -2772,48 +2823,77 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                           <input
                             type="radio"
                             name="tipo_minimo_distribuidor_mob"
-                            checked={tipoMinimoDistribuidor === 'quantidade'}
+                            checked={tipoMinimoDistribuidor === 'quantidade_total'}
                             onChange={() => {
-                              setTipoMinimoDistribuidor('quantidade');
+                              setTipoMinimoDistribuidor('quantidade_total');
                               setValorMinimoAutoatacado('');
+                              setQtdMinimaSkuAutoatacado('');
                             }}
                             className="text-indigo-500 focus:ring-indigo-500"
                           />
-                          <span>Por Quantidade de Peças</span>
+                          <span>2. Por Qtd Global de Peças</span>
                         </label>
-                        <div className="grid grid-cols-2 gap-2 pt-0.5">
-                          <div>
-                            <label className="text-[10px] font-bold block mb-0.5 text-slate-500">Qtd Total:</label>
-                            <input
-                              type="number"
-                              min="1"
-                              disabled={tipoMinimoDistribuidor !== 'quantidade'}
-                              placeholder="100"
-                              value={qtdTotalMinimaAutoatacado}
-                              onChange={(e) => setQtdTotalMinimaAutoatacado(e.target.value)}
-                              className={`w-full rounded-xl px-2 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
-                                isDark
-                                  ? 'bg-[#000000] border-slate-700 text-white focus:border-indigo-500'
-                                  : 'bg-white border-slate-300 text-black focus:border-indigo-500'
-                              }`}
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-bold block mb-0.5 text-slate-500">Mín por SKU:</label>
-                            <input
-                              type="number"
-                              min="1"
-                              disabled={tipoMinimoDistribuidor !== 'quantidade'}
-                              placeholder="6"
-                              value={qtdMinimaSkuAutoatacado}
-                              onChange={(e) => setQtdMinimaSkuAutoatacado(e.target.value)}
-                              className={`w-full rounded-xl px-2 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
-                                isDark
-                                  ? 'bg-[#000000] border-slate-700 text-white focus:border-indigo-500'
-                                  : 'bg-white border-slate-300 text-black focus:border-indigo-500'
-                              }`}
-                            />
-                          </div>
+                        <div className="pt-0.5">
+                          <input
+                            type="number"
+                            min="1"
+                            disabled={tipoMinimoDistribuidor !== 'quantidade_total'}
+                            placeholder="100 peças somadas"
+                            value={qtdTotalMinimaAutoatacado}
+                            onChange={(e) => setQtdTotalMinimaAutoatacado(e.target.value)}
+                            className={`w-full rounded-xl px-2 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
+                              isDark
+                                ? 'bg-[#000000] border-slate-700 text-white focus:border-indigo-500'
+                                : 'bg-white border-slate-300 text-black focus:border-indigo-500'
+                            }`}
+                          />
+                        </div>
+                      </div>
+
+                      <div
+                        onClick={() => {
+                          setTipoMinimoDistribuidor('minimo_sku');
+                          setValorMinimoAutoatacado('');
+                          setQtdTotalMinimaAutoatacado('');
+                        }}
+                        className={`p-2.5 rounded-xl border transition cursor-pointer space-y-1.5 ${
+                          tipoMinimoDistribuidor === 'minimo_sku'
+                            ? isDark
+                              ? 'bg-[#08131A] border-indigo-500'
+                              : 'bg-indigo-50/40 border-indigo-500'
+                            : isDark
+                            ? 'bg-[#000000] border-slate-800 opacity-60'
+                            : 'bg-white border-slate-200 opacity-60'
+                        }`}
+                      >
+                        <label className="text-xs font-black flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="tipo_minimo_distribuidor_mob"
+                            checked={tipoMinimoDistribuidor === 'minimo_sku'}
+                            onChange={() => {
+                              setTipoMinimoDistribuidor('minimo_sku');
+                              setValorMinimoAutoatacado('');
+                              setQtdTotalMinimaAutoatacado('');
+                            }}
+                            className="text-indigo-500 focus:ring-indigo-500"
+                          />
+                          <span>3. Por Mínimo por SKU (Lotes fechados)</span>
+                        </label>
+                        <div className="pt-0.5">
+                          <input
+                            type="number"
+                            min="1"
+                            disabled={tipoMinimoDistribuidor !== 'minimo_sku'}
+                            placeholder="12 un de cada produto"
+                            value={qtdMinimaSkuAutoatacado}
+                            onChange={(e) => setQtdMinimaSkuAutoatacado(e.target.value)}
+                            className={`w-full rounded-xl px-2 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
+                              isDark
+                                ? 'bg-[#000000] border-slate-700 text-white focus:border-indigo-500'
+                                : 'bg-white border-slate-300 text-black focus:border-indigo-500'
+                            }`}
+                          />
                         </div>
                       </div>
                     </div>
@@ -3145,38 +3225,6 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   Configure quais modalidades comerciais e tabelas de preço estão ativas na loja e no PDV.
                 </p>
               </div>
-              <div className="flex items-center gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setSubTela('menu')}
-                  className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 ${
-                    isDark
-                      ? 'bg-[#000000] hover:bg-slate-800 text-white border border-slate-700'
-                      : 'bg-white hover:bg-slate-100 text-black border-2 border-slate-300'
-                  }`}
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Voltar
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSalvarTiposVenda}
-                  disabled={salvandoTiposVenda || (!tipoVendaVarejo && !tipoVendaAtacado && !tipoVendaDistribuidor)}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50"
-                >
-                  {salvandoTiposVenda ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Salvando...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4" />
-                      <span>Salvar Alterações</span>
-                    </>
-                  )}
-                </button>
-              </div>
             </div>
 
             {carregandoTiposVenda && (
@@ -3288,7 +3336,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       </div>
                     </div>
 
-                    {/* OPÇÃO 1: VALOR */}
+                    {/* OPÇÃO 1: POR VALOR TOTAL MÍNIMO */}
                     <div
                       onClick={() => {
                         setTipoMinimoAtacado('valor');
@@ -3319,7 +3367,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                           }}
                           className="text-emerald-500 focus:ring-emerald-500"
                         />
-                        <span>Por Valor Mínimo (R$)</span>
+                        <span>1. Por Valor Mínimo Total (R$)</span>
                       </label>
                       <div className="relative pt-0.5">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">R$</span>
@@ -3343,14 +3391,15 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       </div>
                     </div>
 
-                    {/* OPÇÃO 2: QUANTIDADE */}
+                    {/* OPÇÃO 2: POR QUANTIDADE GLOBAL DE PEÇAS */}
                     <div
                       onClick={() => {
-                        setTipoMinimoAtacado('quantidade');
+                        setTipoMinimoAtacado('quantidade_total');
                         setValorMinimoAtacado('');
+                        setQtdMinimaSkuAtacado('');
                       }}
                       className={`p-3 rounded-xl border transition cursor-pointer space-y-1.5 ${
-                        tipoMinimoAtacado === 'quantidade'
+                        tipoMinimoAtacado === 'quantidade_total'
                           ? isDark
                             ? 'bg-[#08131A] border-emerald-500 shadow-2xs'
                             : 'bg-emerald-50/40 border-emerald-500 shadow-2xs'
@@ -3365,48 +3414,80 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                         <input
                           type="radio"
                           name="tipo_minimo_atacado_desk"
-                          checked={tipoMinimoAtacado === 'quantidade'}
+                          checked={tipoMinimoAtacado === 'quantidade_total'}
                           onChange={() => {
-                            setTipoMinimoAtacado('quantidade');
+                            setTipoMinimoAtacado('quantidade_total');
                             setValorMinimoAtacado('');
+                            setQtdMinimaSkuAtacado('');
                           }}
                           className="text-emerald-500 focus:ring-emerald-500"
                         />
-                        <span>Por Quantidade de Peças</span>
+                        <span>2. Por Quantidade Global de Peças</span>
                       </label>
-                      <div className="grid grid-cols-2 gap-2 pt-0.5">
-                        <div>
-                          <label className={`text-[10px] font-bold block mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Qtd Total:</label>
-                          <input
-                            type="number"
-                            min="1"
-                            disabled={tipoMinimoAtacado !== 'quantidade'}
-                            placeholder="50"
-                            value={qtdTotalMinimaAtacado}
-                            onChange={(e) => setQtdTotalMinimaAtacado(e.target.value)}
-                            className={`w-full rounded-xl px-2.5 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
-                              isDark
-                                ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500'
-                                : 'bg-white border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-500'
-                            }`}
-                          />
-                        </div>
-                        <div>
-                          <label className={`text-[10px] font-bold block mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Mín por SKU:</label>
-                          <input
-                            type="number"
-                            min="1"
-                            disabled={tipoMinimoAtacado !== 'quantidade'}
-                            placeholder="6"
-                            value={qtdMinimaSkuAtacado}
-                            onChange={(e) => setQtdMinimaSkuAtacado(e.target.value)}
-                            className={`w-full rounded-xl px-2.5 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
-                              isDark
-                                ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500'
-                                : 'bg-white border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-500'
-                            }`}
-                          />
-                        </div>
+                      <div className="pt-0.5">
+                        <input
+                          type="number"
+                          min="1"
+                          disabled={tipoMinimoAtacado !== 'quantidade_total'}
+                          placeholder="Ex: 50 peças somadas no pedido"
+                          value={qtdTotalMinimaAtacado}
+                          onChange={(e) => setQtdTotalMinimaAtacado(e.target.value)}
+                          className={`w-full rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
+                            isDark
+                              ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500'
+                              : 'bg-white border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-500'
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* OPÇÃO 3: POR MÍNIMO POR PRODUTO/SKU (ATACAREJO) */}
+                    <div
+                      onClick={() => {
+                        setTipoMinimoAtacado('minimo_sku');
+                        setValorMinimoAtacado('');
+                        setQtdTotalMinimaAtacado('');
+                      }}
+                      className={`p-3 rounded-xl border transition cursor-pointer space-y-1.5 ${
+                        tipoMinimoAtacado === 'minimo_sku'
+                          ? isDark
+                            ? 'bg-[#08131A] border-emerald-500 shadow-2xs'
+                            : 'bg-emerald-50/40 border-emerald-500 shadow-2xs'
+                          : isDark
+                          ? 'bg-[#000000] border-slate-800 opacity-60'
+                          : 'bg-white border-slate-200 opacity-60'
+                      }`}
+                    >
+                      <label className={`text-xs font-black flex items-center gap-2 cursor-pointer ${
+                        isDark ? 'text-white' : 'text-black'
+                      }`}>
+                        <input
+                          type="radio"
+                          name="tipo_minimo_atacado_desk"
+                          checked={tipoMinimoAtacado === 'minimo_sku'}
+                          onChange={() => {
+                            setTipoMinimoAtacado('minimo_sku');
+                            setValorMinimoAtacado('');
+                            setQtdTotalMinimaAtacado('');
+                          }}
+                          className="text-emerald-500 focus:ring-emerald-500"
+                        />
+                        <span>3. Por Mínimo por SKU (Atacarejo direto)</span>
+                      </label>
+                      <div className="pt-0.5">
+                        <input
+                          type="number"
+                          min="1"
+                          disabled={tipoMinimoAtacado !== 'minimo_sku'}
+                          placeholder="Ex: 6 un de cada produto"
+                          value={qtdMinimaSkuAtacado}
+                          onChange={(e) => setQtdMinimaSkuAtacado(e.target.value)}
+                          className={`w-full rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
+                            isDark
+                              ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500'
+                              : 'bg-white border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-500'
+                          }`}
+                        />
                       </div>
                     </div>
                   </div>
@@ -3472,7 +3553,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       </div>
                     </div>
 
-                    {/* OPÇÃO 1: VALOR */}
+                    {/* OPÇÃO 1: POR VALOR TOTAL MÍNIMO */}
                     <div
                       onClick={() => {
                         setTipoMinimoDistribuidor('valor');
@@ -3503,7 +3584,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                           }}
                           className="text-indigo-500 focus:ring-indigo-500"
                         />
-                        <span>Por Valor Mínimo (R$)</span>
+                        <span>1. Por Valor Mínimo Total (R$)</span>
                       </label>
                       <div className="relative pt-0.5">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">R$</span>
@@ -3527,14 +3608,15 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       </div>
                     </div>
 
-                    {/* OPÇÃO 2: QUANTIDADE */}
+                    {/* OPÇÃO 2: POR QUANTIDADE GLOBAL DE PEÇAS */}
                     <div
                       onClick={() => {
-                        setTipoMinimoDistribuidor('quantidade');
+                        setTipoMinimoDistribuidor('quantidade_total');
                         setValorMinimoAutoatacado('');
+                        setQtdMinimaSkuAutoatacado('');
                       }}
                       className={`p-3 rounded-xl border transition cursor-pointer space-y-1.5 ${
-                        tipoMinimoDistribuidor === 'quantidade'
+                        tipoMinimoDistribuidor === 'quantidade_total'
                           ? isDark
                             ? 'bg-[#08131A] border-indigo-500 shadow-2xs'
                             : 'bg-indigo-50/40 border-indigo-500 shadow-2xs'
@@ -3549,48 +3631,80 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                         <input
                           type="radio"
                           name="tipo_minimo_distribuidor_desk"
-                          checked={tipoMinimoDistribuidor === 'quantidade'}
+                          checked={tipoMinimoDistribuidor === 'quantidade_total'}
                           onChange={() => {
-                            setTipoMinimoDistribuidor('quantidade');
+                            setTipoMinimoDistribuidor('quantidade_total');
                             setValorMinimoAutoatacado('');
+                            setQtdMinimaSkuAutoatacado('');
                           }}
                           className="text-indigo-500 focus:ring-indigo-500"
                         />
-                        <span>Por Quantidade de Peças</span>
+                        <span>2. Por Quantidade Global de Peças</span>
                       </label>
-                      <div className="grid grid-cols-2 gap-2 pt-0.5">
-                        <div>
-                          <label className={`text-[10px] font-bold block mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Qtd Total:</label>
-                          <input
-                            type="number"
-                            min="1"
-                            disabled={tipoMinimoDistribuidor !== 'quantidade'}
-                            placeholder="100"
-                            value={qtdTotalMinimaAutoatacado}
-                            onChange={(e) => setQtdTotalMinimaAutoatacado(e.target.value)}
-                            className={`w-full rounded-xl px-2.5 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
-                              isDark
-                                ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-indigo-500'
-                                : 'bg-white border-slate-300 text-black placeholder:text-slate-400 focus:border-indigo-500'
-                            }`}
-                          />
-                        </div>
-                        <div>
-                          <label className={`text-[10px] font-bold block mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Mín por SKU:</label>
-                          <input
-                            type="number"
-                            min="1"
-                            disabled={tipoMinimoDistribuidor !== 'quantidade'}
-                            placeholder="6"
-                            value={qtdMinimaSkuAutoatacado}
-                            onChange={(e) => setQtdMinimaSkuAutoatacado(e.target.value)}
-                            className={`w-full rounded-xl px-2.5 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
-                              isDark
-                                ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-indigo-500'
-                                : 'bg-white border-slate-300 text-black placeholder:text-slate-400 focus:border-indigo-500'
-                            }`}
-                          />
-                        </div>
+                      <div className="pt-0.5">
+                        <input
+                          type="number"
+                          min="1"
+                          disabled={tipoMinimoDistribuidor !== 'quantidade_total'}
+                          placeholder="Ex: 100 peças somadas no pedido"
+                          value={qtdTotalMinimaAutoatacado}
+                          onChange={(e) => setQtdTotalMinimaAutoatacado(e.target.value)}
+                          className={`w-full rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
+                            isDark
+                              ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-indigo-500'
+                              : 'bg-white border-slate-300 text-black placeholder:text-slate-400 focus:border-indigo-500'
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* OPÇÃO 3: POR MÍNIMO POR PRODUTO/SKU (ATACAREJO) */}
+                    <div
+                      onClick={() => {
+                        setTipoMinimoDistribuidor('minimo_sku');
+                        setValorMinimoAutoatacado('');
+                        setQtdTotalMinimaAutoatacado('');
+                      }}
+                      className={`p-3 rounded-xl border transition cursor-pointer space-y-1.5 ${
+                        tipoMinimoDistribuidor === 'minimo_sku'
+                          ? isDark
+                            ? 'bg-[#08131A] border-indigo-500 shadow-2xs'
+                            : 'bg-indigo-50/40 border-indigo-500 shadow-2xs'
+                          : isDark
+                          ? 'bg-[#000000] border-slate-800 opacity-60'
+                          : 'bg-white border-slate-200 opacity-60'
+                      }`}
+                    >
+                      <label className={`text-xs font-black flex items-center gap-2 cursor-pointer ${
+                        isDark ? 'text-white' : 'text-black'
+                      }`}>
+                        <input
+                          type="radio"
+                          name="tipo_minimo_distribuidor_desk"
+                          checked={tipoMinimoDistribuidor === 'minimo_sku'}
+                          onChange={() => {
+                            setTipoMinimoDistribuidor('minimo_sku');
+                            setValorMinimoAutoatacado('');
+                            setQtdTotalMinimaAutoatacado('');
+                          }}
+                          className="text-indigo-500 focus:ring-indigo-500"
+                        />
+                        <span>3. Por Mínimo por SKU (Lotes fechados)</span>
+                      </label>
+                      <div className="pt-0.5">
+                        <input
+                          type="number"
+                          min="1"
+                          disabled={tipoMinimoDistribuidor !== 'minimo_sku'}
+                          placeholder="Ex: 12 un de cada produto"
+                          value={qtdMinimaSkuAutoatacado}
+                          onChange={(e) => setQtdMinimaSkuAutoatacado(e.target.value)}
+                          className={`w-full rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
+                            isDark
+                              ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-indigo-500'
+                              : 'bg-white border-slate-300 text-black placeholder:text-slate-400 focus:border-indigo-500'
+                          }`}
+                        />
                       </div>
                     </div>
                   </div>

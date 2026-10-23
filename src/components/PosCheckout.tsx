@@ -1215,6 +1215,8 @@ export const PosCheckout: React.FC = () => {
       return;
     }
 
+    let pedidoCriadoId: string | null = null;
+
     try {
       setSalvandoPendente(true);
       const dataIso = obterDataOperacaoISO();
@@ -1360,6 +1362,23 @@ export const PosCheckout: React.FC = () => {
         observacoes: item.observacoes || null
       }));
 
+      // 1. Pré-resolução estrita e atômica dos pagamentos antes de criar ou alterar pedidos
+      const pagamentosResolvidos = (linhasParaSalvar?.length || 0) > 0
+        ? await Promise.all(linhasParaSalvar.map(async (l) => {
+            const fpRealId = await SyncService.resolverFormaPagamentoId(loja.id, l.forma_pagamento_id, l.forma_tipo);
+            return {
+              loja_id: loja.id,
+              forma_pagamento_id: fpRealId,
+              valor: Number(l.valor),
+              parcelas: l.parcelas || 1,
+              valor_taxa: 0,
+              valor_liquido: Number(l.valor),
+              data_pagamento: dataIso,
+              eh_pagamento_fiado: l.forma_tipo === 'fiado'
+            };
+          }))
+        : [];
+
       let pedidoIdFinal = '';
 
       if (pedidoEmEdicao?.id) {
@@ -1387,6 +1406,7 @@ export const PosCheckout: React.FC = () => {
 
         if (erroPedido || !pedidoCriado) throw erroPedido;
         pedidoIdFinal = pedidoCriado.id;
+        pedidoCriadoId = pedidoCriado.id;
 
         const itensComId = itensFormatados.map(it => ({ ...it, pedido_id: pedidoCriado.id }));
         const { error: erroItens } = await supabase.from('itens_pedido').insert(itensComId);
@@ -1409,23 +1429,11 @@ export const PosCheckout: React.FC = () => {
       }
 
       // Registra pagamentos previstos na tabela pagamentos_pedido
-      if (pedidoIdFinal && (linhasParaSalvar?.length || 0) > 0) {
+      if (pedidoIdFinal && pagamentosResolvidos.length > 0) {
         await supabase.from('pagamentos_pedido').delete().eq('pedido_id', pedidoIdFinal);
-        const pagamentosParaInserir = await Promise.all(linhasParaSalvar.map(async (l) => {
-          const fpRealId = await SyncService.resolverFormaPagamentoId(loja.id, l.forma_pagamento_id, l.forma_tipo);
-          return {
-            loja_id: loja.id,
-            pedido_id: pedidoIdFinal,
-            forma_pagamento_id: fpRealId,
-            valor: Number(l.valor),
-            parcelas: l.parcelas || 1,
-            valor_taxa: 0,
-            valor_liquido: Number(l.valor),
-            data_pagamento: dataIso,
-            eh_pagamento_fiado: l.forma_tipo === 'fiado'
-          };
-        }));
-        await supabase.from('pagamentos_pedido').insert(pagamentosParaInserir);
+        const pagamentosComPedido = pagamentosResolvidos.map(p => ({ ...p, pedido_id: pedidoIdFinal }));
+        const { error: erroPag } = await supabase.from('pagamentos_pedido').insert(pagamentosComPedido);
+        if (erroPag) throw erroPag;
 
         // Registra também na tabela relacional pedidos_pagamentos_previstos
         try {
@@ -1466,6 +1474,17 @@ export const PosCheckout: React.FC = () => {
       mostrarSucesso('Pedido salvo com sucesso', 'Sucesso!', aoConfirmarSucesso);
     } catch (err: any) {
       console.error('Erro ao salvar pedido com forma de pagamento:', err);
+      // Rollback compensatório para impedir pedidos órfãos sem itens ou pagamentos
+      if (pedidoCriadoId) {
+        try {
+          await supabase.from('itens_pedido').delete().eq('pedido_id', pedidoCriadoId);
+          await supabase.from('pagamentos_pedido').delete().eq('pedido_id', pedidoCriadoId);
+          await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedidoCriadoId);
+          await supabase.from('pedidos').delete().eq('id', pedidoCriadoId);
+        } catch (rollbackErr) {
+          console.warn('Erro no rollback compensatório de pedido órfão:', rollbackErr);
+        }
+      }
       mostrarErro(`Erro ao salvar pedido: ${err.message || 'Tente novamente.'}`);
     } finally {
       setSalvandoPendente(false);
@@ -3354,13 +3373,13 @@ export const PosCheckout: React.FC = () => {
 
                     {/* Caderneta de Mercadinho: Informações do Cliente, Limite e Dia de Vencimento */}
                     {linha.forma_tipo === 'caderneta' && (
-                      <div className="p-2.5 bg-amber-500/10 dark:bg-amber-950/30 border border-amber-500/30 rounded-xl space-y-2 text-xs text-amber-900 dark:text-amber-200">
+                      <div className="p-2.5 rounded-xl border space-y-1.5 text-xs bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-500/30 text-slate-800 dark:text-slate-100">
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                             <FileText className="w-3.5 h-3.5" />
                             <span>Caderneta Mensal:</span>
                           </span>
-                          <span className="text-slate-800 dark:text-slate-200 font-semibold truncate max-w-[200px]">
+                          <span className="text-slate-800 dark:text-slate-200 font-bold truncate max-w-[200px]">
                             {clienteSelecionado ? clienteSelecionado.nome : 'Nenhum selecionado'}
                           </span>
                         </div>
@@ -3368,7 +3387,7 @@ export const PosCheckout: React.FC = () => {
                           <div className="space-y-1 text-[11px] text-slate-600 dark:text-slate-400">
                             <div className="flex justify-between">
                               <span>Saldo Devedor Atual:</span>
-                              <span className="font-bold text-slate-800 dark:text-slate-200">
+                              <span className="font-semibold text-slate-700 dark:text-slate-300">
                                 {formatarMoeda(Number(clienteSelecionado.saldo_devedor_caderneta || 0))}
                               </span>
                             </div>
@@ -3378,9 +3397,9 @@ export const PosCheckout: React.FC = () => {
                                 {formatarMoeda(Math.max(0, Number(clienteSelecionado.limite_caderneta || 0) - Number(clienteSelecionado.saldo_devedor_caderneta || 0)))}
                               </span>
                             </div>
-                            <div className="flex justify-between">
+                            <div className="flex justify-between text-[10px]">
                               <span>Ciclo de Acerto / Vencimento:</span>
-                              <span className="font-bold text-amber-700 dark:text-amber-300">
+                              <span className="font-medium text-slate-600 dark:text-slate-300">
                                 Todo dia {clienteSelecionado.dia_vencimento_caderneta || loja?.dia_vencimento_padrao_caderneta || 10}
                               </span>
                             </div>

@@ -1096,11 +1096,11 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                   {linha.forma_tipo === 'caderneta' && (
                     <div className={`p-2.5 rounded-xl border space-y-1.5 text-xs ${
                       isDark
-                        ? 'bg-emerald-950/30 border-emerald-500/30 text-emerald-200'
-                        : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                        ? 'bg-emerald-950/20 border-emerald-500/30 text-slate-100'
+                        : 'bg-emerald-50/50 border-emerald-500/30 text-slate-800'
                     }`}>
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                        <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                           <BookOpen className="w-3.5 h-3.5" />
                           <span>Caderneta de Mercadinho:</span>
                         </span>
