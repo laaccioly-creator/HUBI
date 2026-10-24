@@ -61,7 +61,8 @@ import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { MobileHeader } from './layout/MobileHeader';
 import { getCategoriaPeso } from './PosCheckout';
 import { audioService } from '../services/audioService';
-import { formatarMoeda } from '../utils/formatters';
+import { formatarMoeda, ehProdutoFracionado, formatarQuantidadeUnidade } from '../utils/formatters';
+import { ModalInputPesoFracionado } from './ui/ModalInputPesoFracionado';
 import { podeEditarPedido } from '../utils/statusPedidoUtils';
 
 interface PosCheckoutMobileProps {
@@ -176,6 +177,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   const [modoVisualizacao, setModoVisualizacao] = useState<'grade' | 'lista'>('grade'); // Grade (tela001) vs Lista (tela007)
   const [buscaAberta, setBuscaAberta] = useState<boolean>(false); // Tela 004
   const [termoBusca, setTermoBusca] = useState<string>('');
+  const [itemPesagemModal, setItemPesagemModal] = useState<{ produto: Produto; variacao?: VariacaoProduto | null; quantidadeAtual?: number; cartId?: string } | null>(null);
   const [categoriaAtiva, setCategoriaAtiva] = useState<string>('tudo');
   const [apenasEmEstoque, setApenasEmEstoque] = useState<boolean>(() => {
     try {
@@ -313,6 +315,8 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   const handleClicarProduto = (produto: Produto) => {
     if (produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0) {
       onAbrirVariacoesModal(produto);
+    } else if (ehProdutoFracionado(produto)) {
+      setItemPesagemModal({ produto, quantidadeAtual: multiplicadorQtd > 1 ? multiplicadorQtd : 1 });
     } else {
       adicionarItem(produto, null, multiplicadorQtd);
       if (multiplicadorQtd > 1) {
@@ -1221,8 +1225,15 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                       >
                         <Minus className="w-3 h-3" />
                       </button>
-                      <span className={`w-5 text-center text-xs font-black ${isDark ? 'text-white' : 'text-black'}`}>
-                        {it.quantidade}
+                      <span
+                        onClick={() => {
+                          if (ehProdutoFracionado(it.produto)) {
+                            setItemPesagemModal({ produto: it.produto, variacao: it.variacao, quantidadeAtual: it.quantidade, cartId: it.id });
+                          }
+                        }}
+                        className={`px-1 text-center text-xs font-black ${ehProdutoFracionado(it.produto) ? 'cursor-pointer underline decoration-dotted text-emerald-500' : isDark ? 'text-white' : 'text-black'}`}
+                      >
+                        {formatarQuantidadeUnidade(it.quantidade, it.produto.unidade_medida || it.produto.tipo_unidade)}
                       </span>
                       <button
                         type="button"
@@ -2156,7 +2167,25 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
         onFechar={() => setMenuDrawerAberto(false)}
         pedidosConfirmadosCount={pedidosConfirmadosCount}
       />
+{itemPesagemModal && (
+        <ModalInputPesoFracionado
+          aberto={Boolean(itemPesagemModal)}
+          onFechar={() => setItemPesagemModal(null)}
+          produtoNome={itemPesagemModal.produto.nome}
+          unidadeMedida={itemPesagemModal.produto.unidade_medida || itemPesagemModal.produto.tipo_unidade || 'KG'}
+          precoPorKg={Number(itemPesagemModal.variacao ? itemPesagemModal.variacao.preco_venda_varejo : itemPesagemModal.produto.preco_venda_varejo) || 0}
+          quantidadeAtual={itemPesagemModal.quantidadeAtual || 1}
+          temaDark={isDark}
+          onConfirmar={(pesoKg: number) => {
+            if (itemPesagemModal.cartId) {
+              atualizarQuantidade(itemPesagemModal.cartId, pesoKg);
+            } else {
+              adicionarItem(itemPesagemModal.produto, itemPesagemModal.variacao, pesoKg);
+            }
+            setItemPesagemModal(null);
+          }}
+        />
+      )}
     </div>
   );
 };
-export default PosCheckoutMobile;

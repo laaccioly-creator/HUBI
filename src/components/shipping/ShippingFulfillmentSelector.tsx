@@ -652,7 +652,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         origem_cep: configLoja?.origem_cep || cepOrigemBase,
         uber_ativo: temUber,
         melhor_envio_ativo: temMelhorEnvio,
-        frete_proprio_ativo: false
+        frete_proprio_ativo: temFreteProprio
       };
 
       const cepOrigemFinal = runtimeConfig.origem_cep || cepOrigemBase;
@@ -1274,7 +1274,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     <div className={`space-y-4 ${className}`}>
       {/* 1. CARD DE ENDEREÇO DE ENTREGA (Exibido apenas quando há endereço válido ou durante carregamento) */}
       {carregandoEnderecos && !enderecoSelecionado ? (
-        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center gap-2 text-slate-500 text-xs">
+        <div className={`p-4 rounded-2xl flex items-center justify-center gap-2 text-xs border ${ehDark ? 'bg-slate-800/80 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
           <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
           <span>Carregando dados de endereço...</span>
         </div>
@@ -1362,7 +1362,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
               className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                 modalidade === 'retirada'
                   ? ehDark
-                    ? 'bg-emerald-950/30 border-2 border-emerald-500 text-white shadow-sm shadow-emerald-950/40'
+                    ? 'bg-slate-800/90 border-2 border-emerald-500 text-white shadow-md shadow-emerald-950/50'
                     : 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
                   : ehDark
                     ? 'bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/60 text-slate-200'
@@ -2191,7 +2191,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                         onClick={handleSelecionarFreteACombinar}
                         className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                           modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar')
-                            ? 'bg-emerald-950/30 border-2 border-emerald-500 text-white shadow-sm shadow-emerald-950/40'
+                            ? 'bg-slate-800/90 border-2 border-emerald-500 text-white shadow-md shadow-emerald-950/50'
                             : 'bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/60 text-slate-200'
                         }`}
                       >
@@ -2266,10 +2266,10 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                         className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                           modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar')
                             ? ehDark
-                              ? 'bg-emerald-950/30 border-2 border-emerald-500 text-white shadow-sm shadow-emerald-950/40'
+                              ? 'bg-slate-800/90 border-2 border-emerald-500 text-white shadow-md shadow-emerald-950/50'
                               : 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
                             : ehDark
-                              ? 'bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/60 text-slate-200'
+                              ? 'bg-slate-900/80 hover:bg-slate-800/80 border border-slate-700/70 text-slate-200'
                               : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 shadow-xs'
                         }`}
                       >
@@ -2512,7 +2512,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                             className={`p-3.5 rounded-2xl border transition cursor-pointer ${
                               selecionada
                                 ? ehDark
-                                  ? 'bg-emerald-950/40 border-2 border-emerald-500 text-white shadow-md shadow-emerald-950/40'
+                                  ? 'bg-slate-800/90 border-2 border-emerald-500 text-white shadow-md shadow-emerald-950/50'
                                   : 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
                                 : ehDark
                                   ? 'bg-black hover:bg-slate-950 border border-slate-800 text-white'

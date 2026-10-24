@@ -59,7 +59,8 @@ import { ShippingFulfillmentSelector } from './shipping/ShippingFulfillmentSelec
 import { ModalAtualizarEnderecoCliente } from './shipping/ModalAtualizarEnderecoCliente';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import { ShippingSelectionResult, LojaShippingConfig } from '../types/shipping';
-import { extrairObservacaoLimpa, formatarMoeda, formatarValorBRL } from '../utils/formatters';
+import { extrairObservacaoLimpa, formatarMoeda, formatarValorBRL, ehProdutoFracionado, formatarQuantidadeUnidade } from '../utils/formatters';
+import { ModalInputPesoFracionado } from './ui/ModalInputPesoFracionado';
 import { caixaService } from '../services/caixaService';
 import { SyncService } from '../services/syncService';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
@@ -368,6 +369,7 @@ export const PosCheckout: React.FC = () => {
   const [mensagemCupom, setMensagemCupom] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
 
   const [produtoModalVariacao, setProdutoModalVariacao] = useState<Produto | null>(null);
+  const [itemPesagemModal, setItemPesagemModal] = useState<{ produto: Produto; variacao?: VariacaoProduto | null; quantidadeAtual?: number; cartId?: string } | null>(null);
   const [modalFechamento, setModalFechamento] = useState<boolean>(false);
   const [formaPagamentoEscolhida, setFormaPagamentoEscolhida] = useState<FormaPagamento | null>(null);
   const [valorRecebidoDinheiro, setValorRecebidoDinheiro] = useState<string>('');
@@ -2237,6 +2239,8 @@ export const PosCheckout: React.FC = () => {
                       }
                       if (produto?.tem_variacoes && produto?.variacoes && (produto.variacoes?.length || 0) > 0) {
                         setProdutoModalVariacao(produto);
+                      } else if (ehProdutoFracionado(produto)) {
+                        setItemPesagemModal({ produto, quantidadeAtual: 1 });
                       } else {
                         adicionarItem(produto);
                       }
@@ -2719,7 +2723,7 @@ export const PosCheckout: React.FC = () => {
                             {item.variacao.valor_variacao_1} {item.variacao.valor_variacao_2 || ''}
                           </span>
                         )}
-                        <span>R$ {Number(item.precoUnitario || 0).toFixed(2)} / un</span>
+                        <span>R$ {Number(item.precoUnitario || 0).toFixed(2)} / {ehProdutoFracionado(item.produto) ? 'kg' : 'un'}</span>
                       </div>
                     </div>
 
@@ -2734,7 +2738,17 @@ export const PosCheckout: React.FC = () => {
                         >
                           <Minus className="w-3.5 h-3.5" />
                         </button>
-                        <span className={`px-2 text-xs font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{item.quantidade}</span>
+                        <span
+                          onClick={() => {
+                            if (ehProdutoFracionado(item.produto)) {
+                              setItemPesagemModal({ produto: item.produto, variacao: item.variacao, quantidadeAtual: item.quantidade, cartId: item.id });
+                            }
+                          }}
+                          title={ehProdutoFracionado(item.produto) ? "Clique para ajustar peso exato" : undefined}
+                          className={`px-2 text-xs font-bold ${ehProdutoFracionado(item.produto) ? 'cursor-pointer hover:text-emerald-400 underline decoration-dotted' : ''} ${isDark ? 'text-slate-100' : 'text-slate-900'}`}
+                        >
+                          {formatarQuantidadeUnidade(item.quantidade, item.produto.unidade_medida || item.produto.tipo_unidade)}
+                        </span>
                         <button
                           onClick={() => !isEdicaoTravada && atualizarQuantidade(item.id, item.quantidade + 1)}
                           disabled={isEdicaoTravada}
@@ -2947,6 +2961,27 @@ export const PosCheckout: React.FC = () => {
         </div>
       </div>
       </div>
+
+      {/* MODAL PESAGEM FRACIONADA (KG / GRAMAS / R$) */}
+      {itemPesagemModal && (
+        <ModalInputPesoFracionado
+          aberto={Boolean(itemPesagemModal)}
+          onFechar={() => setItemPesagemModal(null)}
+          produtoNome={itemPesagemModal.produto.nome}
+          unidadeMedida={itemPesagemModal.produto.unidade_medida || itemPesagemModal.produto.tipo_unidade || 'KG'}
+          precoPorKg={Number(itemPesagemModal.variacao ? itemPesagemModal.variacao.preco_venda_varejo : itemPesagemModal.produto.preco_venda_varejo) || 0}
+          quantidadeAtual={itemPesagemModal.quantidadeAtual || 1}
+          temaDark={isDark}
+          onConfirmar={(pesoKg: number) => {
+            if (itemPesagemModal.cartId) {
+              atualizarQuantidade(itemPesagemModal.cartId, pesoKg);
+            } else {
+              adicionarItem(itemPesagemModal.produto, itemPesagemModal.variacao, pesoKg);
+            }
+            setItemPesagemModal(null);
+          }}
+        />
+      )}
 
       {/* MODAL VARIAÇÕES */}
       {produtoModalVariacao && (

@@ -472,7 +472,7 @@ export const AppLayout: React.FC = () => {
       <header className={`hidden md:block border-b z-40 relative shrink-0 shadow-xs ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-[#E2E8F0]'}`}>
         <div className="px-3 md:px-5 py-2 flex items-center justify-between gap-4">
           {/* IDENTIFICAÇÃO DA LOJA E INFORMATIVO DE TRIAL FIXO */}
-          <div className="flex items-center gap-3 shrink-0 min-w-44 lg:min-w-56 max-w-[260px]">
+          <div className="flex items-center gap-3 shrink-0 min-w-52 lg:min-w-64 max-w-[310px]">
             <button
               type="button"
               onClick={(e) => handleNavegacaoMenu(permissions.podeAcessarDashboard ? '/dashboard' : '/pos', e)}
@@ -488,18 +488,18 @@ export const AppLayout: React.FC = () => {
                 {ehTrial ? (
                   <div className="flex flex-col mt-0.5" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-bold text-amber-500 whitespace-nowrap">
+                      <span className="text-xs lg:text-[13px] font-extrabold text-amber-500 whitespace-nowrap tracking-tight">
                         Restam {diasRestantesTrial} {diasRestantesTrial === 1 ? 'dia' : 'dias'}
                       </span>
                       <button
                         type="button"
                         onClick={() => setModalAssinaturaManualAberto(true)}
-                        className="px-2 py-0.5 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[9px] uppercase tracking-wider transition shadow-xs cursor-pointer active:scale-95"
+                        className="px-2.5 py-0.5 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[10px] lg:text-[11px] uppercase tracking-wider transition shadow-xs cursor-pointer active:scale-95"
                       >
                         Assinar
                       </button>
                     </div>
-                    <span className="text-[9px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                    <span className="text-[10px] lg:text-[11px] font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap mt-0.5">
                       Garanta por apenas R$ 49,90/mês
                     </span>
                   </div>

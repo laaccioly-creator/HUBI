@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import {
   Truck,
   MapPin,
-  Store,
+  Store, Bike,
   HelpCircle,
   Save,
   Check,
+  CheckCircle2,
   Loader2,
   Key,
   ShieldCheck,
@@ -101,6 +102,13 @@ export const ShippingSettingsScreen: React.FC = () => {
   const [uberClientId, setUberClientId] = useState<string>('');
   const [uberClientSecret, setUberClientSecret] = useState<string>('');
 
+  // Frete Próprio da Loja
+  const [freteProprioAtivo, setFreteProprioAtivo] = useState<boolean>(false);
+  const [freteProprioNome, setFreteProprioNome] = useState<string>('Entrega Própria da Loja');
+  const [freteProprioTipoCobranca, setFreteProprioTipoCobranca] = useState<'fixo' | 'manual' | 'gratis'>('fixo');
+  const [freteProprioValorPadrao, setFreteProprioValorPadrao] = useState<string>('0.00');
+  const [freteProprioPrazoEstimado, setFreteProprioPrazoEstimado] = useState<string>('Mesmo dia ou até 24h');
+
   // 3. Melhor Envio
   const [melhorEnvioAtivo, setMelhorEnvioAtivo] = useState<boolean>(false);
   const [melhorEnvioSandboxMode, setMelhorEnvioSandboxMode] = useState<boolean>(true);
@@ -156,6 +164,12 @@ export const ShippingSettingsScreen: React.FC = () => {
           setUberCustomerId(config.uber_customer_id || '');
           setUberClientId(config.uber_client_id || '');
           setUberClientSecret(config.uber_client_secret || '');
+
+          setFreteProprioAtivo(Boolean((config as any).frete_proprio_ativo));
+          setFreteProprioNome((config as any).frete_proprio_nome || 'Entrega Própria da Loja');
+          setFreteProprioTipoCobranca((config as any).frete_proprio_tipo_cobranca || 'fixo');
+          if ((config as any).frete_proprio_valor_padrao != null) setFreteProprioValorPadrao(String((config as any).frete_proprio_valor_padrao));
+          setFreteProprioPrazoEstimado((config as any).frete_proprio_prazo_estimado || 'Mesmo dia ou até 24h');
 
           setMelhorEnvioAtivo(Boolean(config.melhor_envio_ativo));
           setMelhorEnvioSandboxMode(Boolean(config.melhor_envio_sandbox_mode));
@@ -398,6 +412,11 @@ export const ShippingSettingsScreen: React.FC = () => {
         uber_client_id: uberClientId.trim() || null,
         uber_client_secret: uberClientSecret.trim() || null,
 
+        frete_proprio_ativo: freteProprioAtivo,
+        frete_proprio_nome: freteProprioNome.trim() || 'Entrega Própria da Loja',
+        frete_proprio_tipo_cobranca: freteProprioTipoCobranca,
+        frete_proprio_valor_padrao: freteProprioTipoCobranca === 'gratis' ? 0 : (freteProprioValorPadrao.trim() ? parseFloat(freteProprioValorPadrao.replace(',', '.')) : 0),
+        frete_proprio_prazo_estimado: freteProprioPrazoEstimado.trim() || 'A combinar',
         melhor_envio_ativo: melhorEnvioAtivo,
         melhor_envio_sandbox_mode: melhorEnvioSandboxMode,
         melhor_envio_token: melhorEnvioToken.trim() || null,
@@ -930,6 +949,105 @@ export const ShippingSettingsScreen: React.FC = () => {
           </div>
         </div>
 
+        {/* BLOCO: Frete Próprio (Entrega da Loja) */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <Bike className="w-5 h-5 text-emerald-500" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  Frete Próprio (Entrega da Loja)
+                  <span className="text-[10px] uppercase font-black bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/40">
+                    Motoboy Local
+                  </span>
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Ideal para motoboy particular, entregador da equipe ou delivery no mesmo bairro.
+                </p>
+              </div>
+            </div>
+
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={freteProprioAtivo}
+                onChange={(e) => setFreteProprioAtivo(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-500"></div>
+            </label>
+          </div>
+
+          {freteProprioAtivo && (
+            <div className="pt-2 space-y-4 animate-in fade-in duration-200">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Nome da Opção no Catálogo
+                  </label>
+                  <input
+                    type="text"
+                    value={freteProprioNome}
+                    onChange={(e) => setFreteProprioNome(e.target.value)}
+                    placeholder="Ex: Entrega Própria da Loja"
+                    className="w-full px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Cobrança
+                  </label>
+                  <select
+                    value={freteProprioTipoCobranca}
+                    onChange={(e) => setFreteProprioTipoCobranca(e.target.value as any)}
+                    className="w-full px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
+                  >
+                    <option value="fixo">Taxa Fixa (R$)</option>
+                    <option value="gratis">Frete Grátis (R$ 0,00)</option>
+                    <option value="manual">A Combinar com Entregador</option>
+                  </select>
+                </div>
+
+                {freteProprioTipoCobranca === 'fixo' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Valor Padrão (R$)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">R$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={freteProprioValorPadrao}
+                        onChange={(e) => setFreteProprioValorPadrao(e.target.value)}
+                        placeholder="10.00"
+                        className="w-full pl-8 pr-3 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Prazo Estimado de Entrega
+                </label>
+                <input
+                  type="text"
+                  value={freteProprioPrazoEstimado}
+                  onChange={(e) => setFreteProprioPrazoEstimado(e.target.value)}
+                  placeholder="Ex: Entrega hoje até 18h ou em até 2 horas"
+                  className="w-full px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* BLOCO 4: Retirada na Loja */}
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
           <div className="flex items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -1251,17 +1369,12 @@ export const ShippingSettingsScreen: React.FC = () => {
             </div>
           )}
 
-          {/* Atalho complementar para formas de envio próprias */}
+          {/* Centralização Logística */}
           <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-            <span>Para cadastrar taxas fixas por bairro ou modalidades de balcão:</span>
-            <button
-              type="button"
-              onClick={() => navigate('/cadastros?tab=formas_envio')}
-              className="text-emerald-400 hover:text-emerald-300 font-bold inline-flex items-center gap-1 cursor-pointer"
-            >
-              <span>Gerenciar Formas da Loja</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
+            <span className="flex items-center gap-1.5 text-slate-300">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              Toda a gestão logística de frete próprio, transportadoras e motoboys está centralizada nesta tela.
+            </span>
           </div>
         </div>
 

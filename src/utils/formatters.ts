@@ -132,3 +132,78 @@ export const extrairObservacaoLimpa = (obs?: string | null): string => {
   return limpa;
 };
 
+/**
+ * Identifica se um produto ou item opera sob regime de peso ou fração (KG, G, L, etc.)
+ */
+export const ehProdutoFracionado = (produto?: {
+  tipo_unidade?: string | null;
+  unidade_medida?: string | null;
+  permite_fracionado?: boolean | null;
+  venda_por_peso?: boolean | null;
+} | null): boolean => {
+  if (!produto) return false;
+  if (produto.venda_por_peso === true || produto.permite_fracionado === true) {
+    return true;
+  }
+  const un = (produto.unidade_medida || produto.tipo_unidade || '').trim().toLowerCase();
+  return ['kg', 'g', 'l', 'ml', 'm', 'cm'].includes(un);
+};
+
+/**
+ * Normaliza e obtém a sigla da unidade de medida do produto para exibição
+ */
+export const obterSiglaUnidade = (produto?: {
+  tipo_unidade?: string | null;
+  unidade_medida?: string | null;
+} | null): string => {
+  if (!produto) return 'un';
+  const sigla = (produto.unidade_medida || produto.tipo_unidade || 'un').trim().toLowerCase();
+  return sigla || 'un';
+};
+
+/**
+ * Formata a quantidade para apresentação na UI ou cupom.
+ * Itens pesáveis/fracionados recebem 3 casas decimais (ex: 1,250 kg).
+ * Itens unitários recebem formatação inteira ou até 3 casas caso haja fração.
+ */
+export const formatarQuantidadeUnidade = (
+  quantidade: number | string | null | undefined,
+  unidade?: string | null
+): string => {
+  const num = Number(quantidade) || 0;
+  const un = (unidade || 'un').trim().toLowerCase();
+
+  const ehPeso = ['kg', 'g', 'l', 'ml', 'm', 'cm'].includes(un) || num % 1 !== 0;
+
+  if (ehPeso) {
+    const formatado = num.toLocaleString('pt-BR', {
+      minimumFractionDigits: 3,
+      maximumFractionDigits: 3
+    });
+    return `${formatado} ${un}`;
+  }
+
+  return `${num} ${un}`;
+};
+
+/**
+ * Formata a linha de cálculo comercial:
+ * Ex fracionado: "1,250 kg x R$ 6,40/kg = R$ 8,00"
+ * Ex unitário:   "2 un x R$ 10,00/un = R$ 20,00"
+ */
+export const formatarLinhaCalculoItem = (
+  quantidade: number,
+  precoUnitario: number,
+  unidade?: string | null
+): string => {
+  const un = (unidade || 'un').trim().toLowerCase();
+  const subtotal = Number((quantidade * precoUnitario).toFixed(2));
+  const ehFrac = ['kg', 'g', 'l', 'ml', 'm', 'cm'].includes(un) || quantidade % 1 !== 0;
+
+  const qtdTexto = ehFrac
+    ? `${quantidade.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} ${un}`
+    : `${quantidade} ${un}`;
+
+  return `${qtdTexto} x ${formatarMoeda(precoUnitario)}/${un} = ${formatarMoeda(subtotal)}`;
+};
+

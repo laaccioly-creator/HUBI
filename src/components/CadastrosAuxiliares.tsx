@@ -94,6 +94,10 @@ export const CadastrosAuxiliares: React.FC = () => {
   useEffect(() => {
     const tabParam = searchParams.get('tab');
     const tabsValidas: AbaCadastro[] = ['categorias', 'unidades', 'fornecedores', 'pagamentos', 'precificacao', 'formas_envio', 'apps_corrida', 'transportadoras'];
+    if (tabParam === 'formas_envio') {
+      navigate('/configuracoes/frete');
+      return;
+    }
     if (tabParam && tabsValidas.includes(tabParam as AbaCadastro)) {
       setModalSecaoAberta(tabParam as AbaCadastro);
       setAbaAtiva(tabParam as AbaCadastro);
@@ -1586,6 +1590,10 @@ export const CadastrosAuxiliares: React.FC = () => {
                 key={item.id}
                 type="button"
                 onClick={() => {
+                  if (item.id === 'formas_envio') {
+                    navigate('/configuracoes/frete');
+                    return;
+                  }
                   setBusca('');
                   setAbaAtiva(item.id);
                   setModalSecaoAberta(item.id);
@@ -1661,6 +1669,10 @@ export const CadastrosAuxiliares: React.FC = () => {
                   key={item.id}
                   type="button"
                   onClick={() => {
+                    if (item.id === 'formas_envio') {
+                      navigate('/configuracoes/frete');
+                      return;
+                    }
                     setBusca('');
                     setAbaAtiva(item.id);
                     setModalSecaoAberta(item.id);

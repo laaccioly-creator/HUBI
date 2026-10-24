@@ -464,6 +464,9 @@ export interface Produto {
   fotos_urls: string[];
   tipo_unidade: TipoUnidade;
   unidade_medida?: string | null;
+  permite_fracionado?: boolean;
+  venda_por_peso?: boolean;
+  codigo_balanca?: number | null;
   preco_custo: number;
   preco_venda_varejo: number;
   preco_venda_atacado?: number | null;
@@ -747,6 +750,9 @@ export interface ItemPedido {
   preco_custo_unitario: number;
   preco_venda_unitario: number;
   preco_unitario?: number;
+  unidade_medida?: string | null;
+  peso_solicitado_kg?: number | null;
+  peso_real_kg?: number | null;
   quantidade: number;
   subtotal: number;
   codigo_barras?: string | null;

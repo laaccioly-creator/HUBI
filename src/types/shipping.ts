@@ -77,8 +77,10 @@ export interface LojaShippingConfig {
   frete_gratis_ativo: boolean;
   frete_gratis_valor_minimo: number;
   frete_proprio_ativo?: boolean;
-  frete_proprio_tipo_cobranca?: 'fixo' | 'manual' | 'gratis';
+  frete_proprio_nome?: string;
+  frete_proprio_tipo_cobranca?: 'fixo' | 'manual' | 'gratis' | 'bairro';
   frete_proprio_valor_padrao?: number;
+  frete_proprio_prazo_estimado?: string;
   embalagem_padrao_peso_kg?: number;
   embalagem_padrao_altura_cm?: number;
   embalagem_padrao_largura_cm?: number;

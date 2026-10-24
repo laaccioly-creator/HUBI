@@ -302,4 +302,82 @@ export class CadernetaService {
       return [];
     }
   }
+  /**
+   * Aplica ajuste de pesagem na separação do pedido de catálogo online.
+   * Debita a diferença se o peso real for maior ou credita se for menor.
+   */
+  public static async ajustarPesagemSeparacao(params: {
+    lojaId: string;
+    clienteId: string;
+    pedidoId: string;
+    numeroPedido?: number;
+    nomeProduto: string;
+    pesoOriginalKg: number;
+    pesoRealKg: number;
+    diferencaValor: number; // Positivo = cliente deve pagar mais; Negativo = lojista estorna
+    usuarioId?: string;
+  }): Promise<{ sucesso: boolean; mensagem?: string; saldoNovo?: number }> {
+    const { lojaId, clienteId, pedidoId, numeroPedido, nomeProduto, pesoOriginalKg, pesoRealKg, diferencaValor, usuarioId } = params;
+    if (Math.abs(diferencaValor) < 0.01) {
+      return { sucesso: true, mensagem: 'Sem diferença de valor na pesagem.' };
+    }
+    try {
+      const { data: cliente, error: cliErr } = await supabase
+        .from('clientes')
+        .select('*')
+        .eq('loja_id', lojaId)
+        .eq('id', clienteId)
+        .single();
+
+      if (cliErr || !cliente) {
+        return { sucesso: false, mensagem: 'Cliente não encontrado para ajuste de caderneta.' };
+      }
+
+      const saldoAnterior = Number(cliente.saldo_devedor_caderneta || 0);
+      const saldoPosterior = Number((saldoAnterior + diferencaValor).toFixed(2));
+      const cicloRef = this.obterCicloReferenciaAtual();
+      const diaVencimento = Number(cliente.dia_vencimento_caderneta || 10);
+      const dataVencimentoCiclo = this.calcularProximoVencimento(diaVencimento);
+
+      const descricaoAjuste = diferencaValor > 0
+        ? `Ajuste de Balança (+${(pesoRealKg - pesoOriginalKg).toFixed(3)}kg) - ${nomeProduto} (Pedido #${numeroPedido || ''})`
+        : `Ajuste de Balança (${(pesoRealKg - pesoOriginalKg).toFixed(3)}kg) - ${nomeProduto} (Pedido #${numeroPedido || ''})`;
+
+      const { error: lancErr } = await supabase
+        .from('caderneta_lancamentos')
+        .insert({
+          loja_id: lojaId,
+          cliente_id: clienteId,
+          pedido_id: pedidoId,
+          usuario_id: usuarioId || null,
+          tipo_lancamento: diferencaValor > 0 ? 'ajuste_debito' : 'ajuste_credito',
+          valor: Math.abs(diferencaValor),
+          saldo_anterior: saldoAnterior,
+          saldo_posterior: Math.max(0, saldoPosterior),
+          ciclo_referencia: cicloRef,
+          data_vencimento_ciclo: dataVencimentoCiclo,
+          descricao: descricaoAjuste,
+          observacoes: `Peso solicitado: ${pesoOriginalKg.toFixed(3)}kg | Peso aferido na balança: ${pesoRealKg.toFixed(3)}kg`
+        });
+
+      if (lancErr) {
+        console.error('[CadernetaService] Erro ao gravar lançamento de ajuste de pesagem:', lancErr);
+        return { sucesso: false, mensagem: 'Falha ao registrar ajuste na caderneta.' };
+      }
+
+      await supabase
+        .from('clientes')
+        .update({
+          saldo_devedor_caderneta: Math.max(0, saldoPosterior),
+          total_compras_caderneta: diferencaValor > 0 ? Number(((cliente.total_compras_caderneta || 0) + diferencaValor).toFixed(2)) : cliente.total_compras_caderneta
+        })
+        .eq('loja_id', lojaId)
+        .eq('id', clienteId);
+
+      return { sucesso: true, saldoNovo: Math.max(0, saldoPosterior) };
+    } catch (e: any) {
+      return { sucesso: false, mensagem: e?.message || 'Erro inesperado ao ajustar caderneta.' };
+    }
+  }
+
 }

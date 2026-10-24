@@ -1800,7 +1800,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
     { id: 'catalogo', label: 'Catálogo Online', icon: Globe },
     { id: 'recibo', label: 'Meu Recibo', icon: Receipt },
     { id: 'pedidos-vendas', label: 'Pedidos e Vendas', icon: Percent },
-    { id: 'entrega', label: 'Opções de Entrega', icon: Truck },
+    { id: 'entrega', label: 'Opções de Frete e Entrega', icon: Truck },
     { id: 'exportar', label: 'Exportar Relatórios', icon: Download },
     { id: 'parceiros', label: 'Integrar com Parceiros', icon: Share2 }
   ];
@@ -1843,7 +1843,16 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
             });
           }}
           acoesDireita={
-            subTela === 'whatsapp-ia' ? (
+            subTela === 'tipos-venda' ? (
+              <button
+                type="button"
+                onClick={handleSalvarTiposVenda}
+                disabled={salvandoTiposVenda || (!tipoVendaVarejo && !tipoVendaAtacado && !tipoVendaDistribuidor)}
+                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50"
+              >
+                {salvandoTiposVenda ? 'Salvando...' : 'Salvar'}
+              </button>
+            ) : subTela === 'whatsapp-ia' ? (
               <button
                 type="button"
                 onClick={() => whatsappIaRef.current?.salvar()}
@@ -1879,6 +1888,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       navigate('/catalog-config');
                     } else if (item.id === 'produtos') {
                       navigate('/auxiliares');
+                    } else if (item.id === 'entrega') {
+                      navigate('/configuracoes/frete');
                     } else {
                       setSubTela(item.id as SubTelaConfig);
                     }
@@ -2901,33 +2912,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 </div>
               </div>
 
-              <div className="pt-2 space-y-2">
-                <button
-                  type="button"
-                  onClick={handleSalvarTiposVenda}
-                  disabled={salvandoTiposVenda || (!tipoVendaVarejo && !tipoVendaAtacado && !tipoVendaDistribuidor)}
-                  className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition cursor-pointer disabled:opacity-50"
-                >
-                  {salvandoTiposVenda ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Salvando no Supabase...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4" />
-                      <span>Salvar Tipos de Venda</span>
-                    </>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSubTela('menu')}
-                  className="w-full py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl text-xs transition"
-                >
-                  Voltar ao Menu
-                </button>
-              </div>
+
             </div>
           )}
 
@@ -3008,7 +2993,26 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           </div>
         </div>
 
-        {subTela === 'whatsapp-ia' ? (
+        {subTela === 'tipos-venda' ? (
+          <button
+            type="button"
+            onClick={handleSalvarTiposVenda}
+            disabled={salvandoTiposVenda || (!tipoVendaVarejo && !tipoVendaAtacado && !tipoVendaDistribuidor)}
+            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50 animate-in fade-in"
+          >
+            {salvandoTiposVenda ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Salvando...</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                <span>Salvar</span>
+              </>
+            )}
+          </button>
+        ) : subTela === 'whatsapp-ia' ? (
           <button
             type="button"
             onClick={() => whatsappIaRef.current?.salvar()}
@@ -3272,7 +3276,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     <div className="w-11 h-6 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                   </label>
                 </div>
-                <p className={`text-xs leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                <p className={`text-sm leading-relaxed font-medium min-h-[64px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                   Modalidade essencial para vendas unitárias no PDV e visualização de preços regulares no Catálogo Online.
                 </p>
               </div>
@@ -3308,7 +3312,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   </label>
                 </div>
 
-                <p className={`text-xs leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                <p className={`text-sm leading-relaxed font-medium min-h-[64px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                   Permite aplicar automaticamente o preço de atacado quando o carrinho atingir a quantidade mínima de itens ou valor configurado.
                 </p>
 
@@ -3441,12 +3445,13 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       </div>
                     </div>
 
-                    {/* OPÇÃO 3: POR MÍNIMO POR PRODUTO/SKU (ATACAREJO) */}
+                    {/* OPÇÃO 3: POR MÍNIMO POR PRODUTO (ATACAREJO DIRETO) */}
                     <div
                       onClick={() => {
                         setTipoMinimoAtacado('minimo_sku');
                         setValorMinimoAtacado('');
                         setQtdTotalMinimaAtacado('');
+                        if (!qtdMinimaSkuAtacado) setQtdMinimaSkuAtacado('1');
                       }}
                       className={`p-3 rounded-xl border transition cursor-pointer space-y-1.5 ${
                         tipoMinimoAtacado === 'minimo_sku'
@@ -3458,37 +3463,31 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                           : 'bg-white border-slate-200 opacity-60'
                       }`}
                     >
-                      <label className={`text-xs font-black flex items-center gap-2 cursor-pointer ${
+                      <label className={`text-xs font-black flex items-center justify-between cursor-pointer ${
                         isDark ? 'text-white' : 'text-black'
                       }`}>
-                        <input
-                          type="radio"
-                          name="tipo_minimo_atacado_desk"
-                          checked={tipoMinimoAtacado === 'minimo_sku'}
-                          onChange={() => {
-                            setTipoMinimoAtacado('minimo_sku');
-                            setValorMinimoAtacado('');
-                            setQtdTotalMinimaAtacado('');
-                          }}
-                          className="text-emerald-500 focus:ring-emerald-500"
-                        />
-                        <span>3. Por Mínimo por SKU (Atacarejo direto)</span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="tipo_minimo_atacado_desk"
+                            checked={tipoMinimoAtacado === 'minimo_sku'}
+                            onChange={() => {
+                              setTipoMinimoAtacado('minimo_sku');
+                              setValorMinimoAtacado('');
+                              setQtdTotalMinimaAtacado('');
+                              if (!qtdMinimaSkuAtacado) setQtdMinimaSkuAtacado('1');
+                            }}
+                            className="text-emerald-500 focus:ring-emerald-500"
+                          />
+                          <span>3. Mínimo por Produto (Atacarejo direto)</span>
+                        </div>
+                        <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                          {tipoMinimoAtacado === 'minimo_sku' ? 'Ativo' : 'Inativo'}
+                        </span>
                       </label>
-                      <div className="pt-0.5">
-                        <input
-                          type="number"
-                          min="1"
-                          disabled={tipoMinimoAtacado !== 'minimo_sku'}
-                          placeholder="Ex: 6 un de cada produto"
-                          value={qtdMinimaSkuAtacado}
-                          onChange={(e) => setQtdMinimaSkuAtacado(e.target.value)}
-                          className={`w-full rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
-                            isDark
-                              ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500'
-                              : 'bg-white border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-500'
-                          }`}
-                        />
-                      </div>
+                      <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        A quantidade mínima é definida individualmente em cada produto cadastrado.
+                      </p>
                     </div>
                   </div>
                 )}
@@ -3525,7 +3524,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   </label>
                 </div>
 
-                <p className={`text-xs leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                <p className={`text-sm leading-relaxed font-medium min-h-[64px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                   Modalidade voltada para caixas fechadas, revendedores e grandes fardos com preço diferenciado por lote.
                 </p>
 
@@ -3658,12 +3657,13 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       </div>
                     </div>
 
-                    {/* OPÇÃO 3: POR MÍNIMO POR PRODUTO/SKU (ATACAREJO) */}
+                    {/* OPÇÃO 3: POR MÍNIMO POR PRODUTO (LOTES FECHADOS) */}
                     <div
                       onClick={() => {
                         setTipoMinimoDistribuidor('minimo_sku');
                         setValorMinimoAutoatacado('');
                         setQtdTotalMinimaAutoatacado('');
+                        if (!qtdMinimaSkuAutoatacado) setQtdMinimaSkuAutoatacado('1');
                       }}
                       className={`p-3 rounded-xl border transition cursor-pointer space-y-1.5 ${
                         tipoMinimoDistribuidor === 'minimo_sku'
@@ -3675,37 +3675,31 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                           : 'bg-white border-slate-200 opacity-60'
                       }`}
                     >
-                      <label className={`text-xs font-black flex items-center gap-2 cursor-pointer ${
+                      <label className={`text-xs font-black flex items-center justify-between cursor-pointer ${
                         isDark ? 'text-white' : 'text-black'
                       }`}>
-                        <input
-                          type="radio"
-                          name="tipo_minimo_distribuidor_desk"
-                          checked={tipoMinimoDistribuidor === 'minimo_sku'}
-                          onChange={() => {
-                            setTipoMinimoDistribuidor('minimo_sku');
-                            setValorMinimoAutoatacado('');
-                            setQtdTotalMinimaAutoatacado('');
-                          }}
-                          className="text-indigo-500 focus:ring-indigo-500"
-                        />
-                        <span>3. Por Mínimo por SKU (Lotes fechados)</span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="tipo_minimo_distribuidor_desk"
+                            checked={tipoMinimoDistribuidor === 'minimo_sku'}
+                            onChange={() => {
+                              setTipoMinimoDistribuidor('minimo_sku');
+                              setValorMinimoAutoatacado('');
+                              setQtdTotalMinimaAutoatacado('');
+                              if (!qtdMinimaSkuAutoatacado) setQtdMinimaSkuAutoatacado('1');
+                            }}
+                            className="text-indigo-500 focus:ring-indigo-500"
+                          />
+                          <span>3. Mínimo por Produto (Lotes fechados)</span>
+                        </div>
+                        <span className="text-[10px] font-bold text-indigo-500 bg-indigo-500/10 px-2 py-0.5 rounded-full">
+                          {tipoMinimoDistribuidor === 'minimo_sku' ? 'Ativo' : 'Inativo'}
+                        </span>
                       </label>
-                      <div className="pt-0.5">
-                        <input
-                          type="number"
-                          min="1"
-                          disabled={tipoMinimoDistribuidor !== 'minimo_sku'}
-                          placeholder="Ex: 12 un de cada produto"
-                          value={qtdMinimaSkuAutoatacado}
-                          onChange={(e) => setQtdMinimaSkuAutoatacado(e.target.value)}
-                          className={`w-full rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
-                            isDark
-                              ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-indigo-500'
-                              : 'bg-white border-slate-300 text-black placeholder:text-slate-400 focus:border-indigo-500'
-                          }`}
-                        />
-                      </div>
+                      <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        A quantidade mínima é definida individualmente em cada produto cadastrado.
+                      </p>
                     </div>
                   </div>
                 )}
@@ -3727,48 +3721,6 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 <li><strong className={isDark ? 'text-white' : 'text-black'}>2 ou mais modalidades ativas:</strong> O operador do PDV visualiza apenas os botões das modalidades habilitadas e os termômetros calculam o próximo nível aplicável.</li>
                 <li><strong className={isDark ? 'text-white' : 'text-black'}>Regras de Precificação Unificadas:</strong> Configure percentuais de desconto e regras de ativação diretamente nos cards de Atacado e Distribuidor desta tela.</li>
               </ul>
-            </div>
-
-            {/* Rodapé com Ação de Salvar */}
-            <div className={`pt-4 border-t flex items-center justify-between ${
-              isDark ? 'border-slate-800' : 'border-slate-200'
-            }`}>
-              <span className={`text-[11px] font-medium ${
-                isDark ? 'text-slate-400' : 'text-slate-600'
-              }`}>
-                As alterações gravadas são refletidas imediatamente no PDV Desktop, PDV Mobile e no Catálogo.
-              </span>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSubTela('menu')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                    isDark
-                      ? 'bg-[#000000] hover:bg-slate-800 text-white border border-slate-700'
-                      : 'bg-white hover:bg-slate-100 text-black border-2 border-slate-300'
-                  }`}
-                >
-                  Voltar ao Menu
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSalvarTiposVenda}
-                  disabled={salvandoTiposVenda || (!tipoVendaVarejo && !tipoVendaAtacado && !tipoVendaDistribuidor)}
-                  className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50"
-                >
-                  {salvandoTiposVenda ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Salvando no Supabase...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4" />
-                      <span>Salvar Tipos de Venda</span>
-                    </>
-                  )}
-                </button>
-              </div>
             </div>
           </div>
         )}

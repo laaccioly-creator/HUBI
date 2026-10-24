@@ -15,7 +15,7 @@ import {
   Loader2,
   Key,
   Check,
-  X,
+  X, Scale,
   AlertCircle,
   Package,
   Truck,
@@ -434,6 +434,8 @@ export const ProdutoCadastro: React.FC = () => {
   const [fornecedorId, setFornecedorId] = useState<string>(() => rascunhoSalvo?.fornecedorId || '');
   const [descricao, setDescricao] = useState<string>(() => rascunhoSalvo?.descricao || '');
   const [tipoUnidade, setTipoUnidade] = useState<string>(() => rascunhoSalvo?.tipoUnidade || 'un');
+  const [vendaPorPeso, setVendaPorPeso] = useState<boolean>(() => Boolean((rascunhoSalvo as any)?.vendaPorPeso || false));
+  const [codigoBalanca, setCodigoBalanca] = useState<string>(() => (rascunhoSalvo as any)?.codigoBalanca || '');
 
   // Dimensões e Peso para Frete (Preenchido Automaticamente por IA / Regex)
   const [pesoKg, setPesoKg] = useState<string>(() => rascunhoSalvo?.pesoKg || '');
@@ -944,6 +946,8 @@ export const ProdutoCadastro: React.FC = () => {
           setFornecedorId(prod.fornecedor_id || '');
           setDescricao(prod.descricao || '');
           setTipoUnidade(prod.tipo_unidade || 'un');
+          setVendaPorPeso(Boolean(prod.venda_por_peso || prod.permite_fracionado || ['kg', 'g', 'l', 'ml', 'm'].includes((prod.tipo_unidade || '').toLowerCase())));
+          setCodigoBalanca(prod.codigo_balanca != null ? String(prod.codigo_balanca) : '');
           setTipoItem((prod.tipo_item as any) || 'produto');
 
           setPrecoCusto(prod.preco_custo ? Number(prod.preco_custo).toFixed(2) : '0.00');
@@ -1532,6 +1536,10 @@ export const ProdutoCadastro: React.FC = () => {
         fornecedor_id: fornecedorId || null,
         descricao,
         tipo_unidade: tipoUnidade,
+        unidade_medida: tipoUnidade.toUpperCase(),
+        venda_por_peso: vendaPorPeso,
+        permite_fracionado: vendaPorPeso,
+        codigo_balanca: codigoBalanca ? parseInt(codigoBalanca, 10) : null,
         tipo_item: tipoItem,
         fotos_urls: todasFotos.slice(0, 7),
         preco_custo: Number(precoCusto) || 0,
@@ -2124,7 +2132,13 @@ export const ProdutoCadastro: React.FC = () => {
                 </div>
                 <select
                   value={tipoUnidade}
-                  onChange={(e) => setTipoUnidade(e.target.value)}
+                  onChange={(e) => {
+                    const novaUn = e.target.value;
+                    setTipoUnidade(novaUn);
+                    if (['kg', 'g', 'l', 'ml', 'm'].includes(novaUn.toLowerCase())) {
+                      setVendaPorPeso(true);
+                    }
+                  }}
                   className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
                 >
                   {unidadesLista.map(u => (
@@ -2133,6 +2147,54 @@ export const ProdutoCadastro: React.FC = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* Configuração de Balança e Fracionamento */}
+              <div className="sm:col-span-2 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Scale className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <div>
+                      <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                        Venda por Peso / Fracionado (Balança Comercial)
+                      </span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                        Permite pesar no PDV (kg/gramas) e ler etiquetas de balança iniciando com 2
+                      </span>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={vendaPorPeso}
+                      onChange={(e) => setVendaPorPeso(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-500"></div>
+                  </label>
+                </div>
+
+                {vendaPorPeso && (
+                  <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div className="flex-1">
+                      <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                        Código do Produto na Balança (PLU de 4 a 6 dígitos):
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="999999"
+                        placeholder="Ex: 104"
+                        value={codigoBalanca}
+                        onChange={(e) => setCodigoBalanca(e.target.value)}
+                        className="w-full bg-white dark:bg-[#000000] border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 sm:max-w-xs leading-tight">
+                      Ao ler o código impresso pela balança (ex: 2001040008005), o PDV identifica este produto e o peso/preço automaticamente.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* LINHA 2: Código Interno (Sugerido após Categoria) e Código de Barras */}

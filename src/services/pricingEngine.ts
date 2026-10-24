@@ -1,5 +1,18 @@
 import { Loja, Produto, VariacaoProduto, TabelaPreco, RegrasPrecificacaoLoja } from '../types';
 
+/**
+ * Determina quais modalidades de venda estão ativas para a loja
+ */
+export const obterTiposVendaAtivos = (loja?: Loja | null): { varejo: boolean; atacado: boolean; distribuidor: boolean } => {
+  if (!loja) return { varejo: true, atacado: false, distribuidor: false };
+  const raw = loja.tipos_venda || (loja as any).configuracoes_extras?.tipos_venda_ativos || {};
+  return {
+    varejo: raw.varejo !== false,
+    atacado: raw.atacado === true || (loja as any).permite_atacado === true,
+    distribuidor: raw.distribuidor === true || (loja as any).permite_distribuidor === true
+  };
+};
+
 export const REGRAS_PADRAO_INICIAIS: RegrasPrecificacaoLoja = {
   descontoAtacado: 20,
   valorMinimoAtacado: 1500,
@@ -18,11 +31,7 @@ export const REGRAS_PADRAO_INICIAIS: RegrasPrecificacaoLoja = {
 export const obterRegrasPrecificacao = (loja?: Loja | null): RegrasPrecificacaoLoja => {
   if (!loja?.id) return { ...REGRAS_PADRAO_INICIAIS };
 
-  const tiposVenda = loja.tipos_venda || loja.configuracoes_extras?.tipos_venda_ativos || {
-    varejo: true,
-    atacado: true,
-    distribuidor: true
-  };
+  const tiposVenda = obterTiposVendaAtivos(loja);
 
   const keyStorage = `hubi_regras_precificacao_${loja.id}`;
   const regrasSalvas = localStorage.getItem(keyStorage);
@@ -206,25 +215,27 @@ export const avaliarNivelCarrinho = (
   const exigeSkuAuto = Number(regras.qtdMinimaSkuAutoatacado || 0) > 0;
 
   for (const item of itens) {
-    if (exigeSkuAtacado && item.quantidade < (regras.qtdMinimaSkuAtacado || 1)) {
+    const minSkuAtacado = Number(item.produto.qtd_minima_atacado) > 0 ? Number(item.produto.qtd_minima_atacado) : (regras.qtdMinimaSkuAtacado || 6);
+    if (exigeSkuAtacado && item.quantidade < minSkuAtacado) {
       skusAbaixoMinimoAtacado.push({
         id: item.id,
         nome: item.produto.nome,
         variacaoNome: item.variacao ? `${item.variacao.valor_variacao_1}${item.variacao.valor_variacao_2 ? ` - ${item.variacao.valor_variacao_2}` : ''}` : undefined,
         quantidadeAtual: item.quantidade,
-        quantidadeMinimaExigida: regras.qtdMinimaSkuAtacado,
-        faltamUnidades: Math.max(0, regras.qtdMinimaSkuAtacado - item.quantidade)
+        quantidadeMinimaExigida: minSkuAtacado,
+        faltamUnidades: Math.max(0, minSkuAtacado - item.quantidade)
       });
     }
 
-    if (exigeSkuAuto && item.quantidade < (regras.qtdMinimaSkuAutoatacado || 1)) {
+    const minSkuAuto = Number(item.produto.qtd_minima_autoatacado) > 0 ? Number(item.produto.qtd_minima_autoatacado) : (regras.qtdMinimaSkuAutoatacado || 12);
+    if (exigeSkuAuto && item.quantidade < minSkuAuto) {
       skusAbaixoMinimoAuto.push({
         id: item.id,
         nome: item.produto.nome,
         variacaoNome: item.variacao ? `${item.variacao.valor_variacao_1}${item.variacao.valor_variacao_2 ? ` - ${item.variacao.valor_variacao_2}` : ''}` : undefined,
         quantidadeAtual: item.quantidade,
-        quantidadeMinimaExigida: regras.qtdMinimaSkuAutoatacado,
-        faltamUnidades: Math.max(0, regras.qtdMinimaSkuAutoatacado - item.quantidade)
+        quantidadeMinimaExigida: minSkuAuto,
+        faltamUnidades: Math.max(0, minSkuAuto - item.quantidade)
       });
     }
   }

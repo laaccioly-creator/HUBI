@@ -2740,11 +2740,17 @@ Fico no aguardo da confirmação! ✨`;
 
             {/* TERMÔMETROS ULTRA-COMPACTOS (ATACADO & FRETE GRÁTIS) */}
             {carrinho.length > 0 && (() => {
+              const atacadoAtivoNaLoja = Boolean(
+                regrasAtivas?.tiposVendaAtivos?.atacado ||
+                regrasAtivas?.tiposVendaAtivos?.distribuidor
+              );
               const temRegraAtacado = Boolean(
-                (loja?.qtd_minima_padrao_atacado && Number(loja.qtd_minima_padrao_atacado) > 0) ||
-                (loja?.valor_minimo_padrao_atacado && Number(loja.valor_minimo_padrao_atacado) > 0) ||
-                avaliacaoCarrinho.proximoNivel ||
-                avaliacaoCarrinho.tabelaAtiva !== 'varejo'
+                atacadoAtivoNaLoja && (
+                  (loja?.qtd_minima_padrao_atacado && Number(loja.qtd_minima_padrao_atacado) > 0) ||
+                  (loja?.valor_minimo_padrao_atacado && Number(loja.valor_minimo_padrao_atacado) > 0) ||
+                  avaliacaoCarrinho.proximoNivel ||
+                  avaliacaoCarrinho.tabelaAtiva !== 'varejo'
+                )
               );
 
               const freteGratisAtivo = Boolean(configShippingLoja?.frete_gratis_ativo ?? loja?.frete_gratis_ativo ?? cartContext?.freteGratisAtivo);

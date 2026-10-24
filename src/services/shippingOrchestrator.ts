@@ -500,7 +500,7 @@ export class ShippingOrchestrator {
         prazo_estimado_texto: 'A combinar com o entregador',
         icone_tipo: 'loja',
         permite_edicao_valor: ehManual,
-        tipo_cobranca: tipoCobranca
+        tipo_cobranca: (tipoCobranca === 'bairro' ? 'fixo' : tipoCobranca) as 'fixo' | 'manual' | 'gratis'
       });
     }
 
