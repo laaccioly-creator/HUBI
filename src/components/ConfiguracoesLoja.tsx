@@ -2668,6 +2668,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                           setTipoMinimoAtacado('minimo_sku');
                           setValorMinimoAtacado('');
                           setQtdTotalMinimaAtacado('');
+                          if (!qtdMinimaSkuAtacado) setQtdMinimaSkuAtacado('1');
                         }}
                         className={`p-2.5 rounded-xl border transition cursor-pointer space-y-1.5 ${
                           tipoMinimoAtacado === 'minimo_sku'
@@ -2679,35 +2680,29 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                             : 'bg-white border-slate-200 opacity-60'
                         }`}
                       >
-                        <label className="text-xs font-black flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="tipo_minimo_atacado_mob"
-                            checked={tipoMinimoAtacado === 'minimo_sku'}
-                            onChange={() => {
-                              setTipoMinimoAtacado('minimo_sku');
-                              setValorMinimoAtacado('');
-                              setQtdTotalMinimaAtacado('');
-                            }}
-                            className="text-emerald-500 focus:ring-emerald-500"
-                          />
-                          <span>3. Por Mínimo por SKU (Atacarejo)</span>
+                        <label className="text-xs font-black flex items-center justify-between cursor-pointer">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="tipo_minimo_atacado_mob"
+                              checked={tipoMinimoAtacado === 'minimo_sku'}
+                              onChange={() => {
+                                setTipoMinimoAtacado('minimo_sku');
+                                setValorMinimoAtacado('');
+                                setQtdTotalMinimaAtacado('');
+                                if (!qtdMinimaSkuAtacado) setQtdMinimaSkuAtacado('1');
+                              }}
+                              className="text-emerald-500 focus:ring-emerald-500"
+                            />
+                            <span>3. Mínimo por Produto (Atacarejo direto)</span>
+                          </div>
+                          <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                            {tipoMinimoAtacado === 'minimo_sku' ? 'Ativo' : 'Inativo'}
+                          </span>
                         </label>
-                        <div className="pt-0.5">
-                          <input
-                            type="number"
-                            min="1"
-                            disabled={tipoMinimoAtacado !== 'minimo_sku'}
-                            placeholder="6 un de cada produto"
-                            value={qtdMinimaSkuAtacado}
-                            onChange={(e) => setQtdMinimaSkuAtacado(e.target.value)}
-                            className={`w-full rounded-xl px-2 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
-                              isDark
-                                ? 'bg-[#000000] border-slate-700 text-white focus:border-emerald-500'
-                                : 'bg-white border-slate-300 text-black focus:border-emerald-500'
-                            }`}
-                          />
-                        </div>
+                        <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          A quantidade mínima é definida individualmente em cada produto cadastrado.
+                        </p>
                       </div>
                     </div>
                   )}
@@ -2737,6 +2732,10 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                     </label>
                   </div>
+
+                  <p className={`text-xs leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Permite aplicar automaticamente o preço de distribuidor quando o carrinho atingir a quantidade mínima de itens ou valor configurado.
+                  </p>
 
                   {tipoVendaDistribuidor && (
                     <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-3">
@@ -2866,6 +2865,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                           setTipoMinimoDistribuidor('minimo_sku');
                           setValorMinimoAutoatacado('');
                           setQtdTotalMinimaAutoatacado('');
+                          if (!qtdMinimaSkuAutoatacado) setQtdMinimaSkuAutoatacado('1');
                         }}
                         className={`p-2.5 rounded-xl border transition cursor-pointer space-y-1.5 ${
                           tipoMinimoDistribuidor === 'minimo_sku'
@@ -2877,35 +2877,29 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                             : 'bg-white border-slate-200 opacity-60'
                         }`}
                       >
-                        <label className="text-xs font-black flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="tipo_minimo_distribuidor_mob"
-                            checked={tipoMinimoDistribuidor === 'minimo_sku'}
-                            onChange={() => {
-                              setTipoMinimoDistribuidor('minimo_sku');
-                              setValorMinimoAutoatacado('');
-                              setQtdTotalMinimaAutoatacado('');
-                            }}
-                            className="text-indigo-500 focus:ring-indigo-500"
-                          />
-                          <span>3. Por Mínimo por SKU (Lotes fechados)</span>
+                        <label className="text-xs font-black flex items-center justify-between cursor-pointer">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="tipo_minimo_distribuidor_mob"
+                              checked={tipoMinimoDistribuidor === 'minimo_sku'}
+                              onChange={() => {
+                                setTipoMinimoDistribuidor('minimo_sku');
+                                setValorMinimoAutoatacado('');
+                                setQtdTotalMinimaAutoatacado('');
+                                if (!qtdMinimaSkuAutoatacado) setQtdMinimaSkuAutoatacado('1');
+                              }}
+                              className="text-indigo-500 focus:ring-indigo-500"
+                            />
+                            <span>3. Mínimo por Produto (Lotes fechados)</span>
+                          </div>
+                          <span className="text-[10px] font-bold text-indigo-500 bg-indigo-500/10 px-2 py-0.5 rounded-full">
+                            {tipoMinimoDistribuidor === 'minimo_sku' ? 'Ativo' : 'Inativo'}
+                          </span>
                         </label>
-                        <div className="pt-0.5">
-                          <input
-                            type="number"
-                            min="1"
-                            disabled={tipoMinimoDistribuidor !== 'minimo_sku'}
-                            placeholder="12 un de cada produto"
-                            value={qtdMinimaSkuAutoatacado}
-                            onChange={(e) => setQtdMinimaSkuAutoatacado(e.target.value)}
-                            className={`w-full rounded-xl px-2 py-1 text-xs font-bold focus:outline-none transition border disabled:opacity-40 ${
-                              isDark
-                                ? 'bg-[#000000] border-slate-700 text-white focus:border-indigo-500'
-                                : 'bg-white border-slate-300 text-black focus:border-indigo-500'
-                            }`}
-                          />
-                        </div>
+                        <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          A quantidade mínima de lote é definida individualmente em cada produto cadastrado.
+                        </p>
                       </div>
                     </div>
                   )}
@@ -3069,6 +3063,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     navigate('/catalog-config');
                   } else if (item.id === 'produtos') {
                     navigate('/auxiliares');
+                  } else if (item.id === 'entrega') {
+                    navigate('/configuracoes/frete');
                   } else {
                     setSubTela(item.id as SubTelaConfig);
                   }
@@ -3525,7 +3521,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 </div>
 
                 <p className={`text-sm leading-relaxed font-medium min-h-[64px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                  Modalidade voltada para caixas fechadas, revendedores e grandes fardos com preço diferenciado por lote.
+                  Permite aplicar automaticamente o preço de distribuidor quando o carrinho atingir a quantidade mínima de itens ou valor configurado.
                 </p>
 
                 {tipoVendaDistribuidor && (
@@ -4967,48 +4963,6 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   className="rounded text-emerald-500 w-5 h-5 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 cursor-pointer accent-emerald-500"
                 />
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* SUB-TELA: OPÇÕES DE ENTREGA & RETIRADA */}
-        {/* ========================================================================= */}
-        {subTela === 'entrega' && (
-          <div className={`rounded-3xl p-6 shadow-sm space-y-6 animate-in fade-in ${
-            isDark
-              ? 'bg-[#000000] border border-slate-700 text-white'
-              : 'bg-white border-2 border-slate-300 text-black'
-          }`}>
-            <div>
-              <h2 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Opções de Entrega & Retirada</h2>
-              <p className={`text-xs mt-0.5 font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Configure entregas via motoboy e retirada no balcão</p>
-            </div>
-
-            {/* Banner Módulo Avançado de Frete & Logística */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-slate-50 to-indigo-50 dark:from-emerald-950/50 dark:via-slate-950 dark:to-indigo-950/50 border border-emerald-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
-                  <Truck className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm text-slate-900 dark:text-slate-100">Gestão Avançada de Frete & Logística</span>
-                    <span className="text-[10px] uppercase font-black bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/40">Novo</span>
-                  </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                    Configure integrações com <strong>Uber Direct</strong> (motoboy flash), <strong>Melhor Envio</strong> (Correios/Jadlog) e regras de cotação em tempo real.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => navigate('/configuracoes/frete')}
-                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all shrink-0 cursor-pointer"
-              >
-                <span>Configurar Frete Avançado</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
             </div>
           </div>
         )}

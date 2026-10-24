@@ -1279,7 +1279,7 @@ export const ShippingSettingsScreen: React.FC = () => {
                   </span>
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-300 font-medium mt-0.5">
-                  Cadastre empresas parceiras com link direto de rastreio usando <code className="text-emerald-300 font-mono text-xs bg-emerald-950/60 border border-emerald-500/30 px-1.5 py-0.5 rounded">{'{{codigo}}'}</code>
+                  Cadastre empresas parceiras com link direto de rastreio.
                 </p>
               </div>
             </div>
@@ -1368,14 +1368,6 @@ export const ShippingSettingsScreen: React.FC = () => {
               ))}
             </div>
           )}
-
-          {/* Centralização Logística */}
-          <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-            <span className="flex items-center gap-1.5 text-slate-300">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              Toda a gestão logística de frete próprio, transportadoras e motoboys está centralizada nesta tela.
-            </span>
-          </div>
         </div>
 
 

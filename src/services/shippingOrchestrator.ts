@@ -486,18 +486,20 @@ export class ShippingOrchestrator {
       const valorFreteProprio = (tipoCobranca === 'gratis' || ehManual) 
         ? 0 
         : Number(config.frete_proprio_valor_padrao || 0);
+      const nomeFreteProprio = (config as any).frete_proprio_nome || 'Entrega Própria da Loja';
+      const prazoFreteProprio = (config as any).frete_proprio_prazo_estimado || 'Entrega hoje (30 a 60 min)';
 
       opcoesTotais.push({
         id: 'opcao_frete_proprio',
         provedor: 'frete_proprio',
-        transportadora_nome: 'Frete Próprio',
+        transportadora_nome: nomeFreteProprio,
         servico_codigo: tipoCobranca,
-        servico_nome: ehManual ? 'Frete Próprio (Valor Manual)' : (tipoCobranca === 'gratis' ? 'Frete Próprio (Grátis)' : 'Frete Próprio (Fixo)'),
+        servico_nome: ehManual ? 'Valor Manual' : (tipoCobranca === 'gratis' || valorFreteProprio === 0 ? 'Frete Grátis' : 'Taxa Fixa'),
         valor_frete: valorFreteProprio,
         valor_original: valorFreteProprio,
         valor_subsidio: 0,
-        is_frete_gratis: tipoCobranca === 'gratis',
-        prazo_estimado_texto: 'A combinar com o entregador',
+        is_frete_gratis: tipoCobranca === 'gratis' || valorFreteProprio === 0,
+        prazo_estimado_texto: prazoFreteProprio,
         icone_tipo: 'loja',
         permite_edicao_valor: ehManual,
         tipo_cobranca: (tipoCobranca === 'bairro' ? 'fixo' : tipoCobranca) as 'fixo' | 'manual' | 'gratis'
@@ -1311,11 +1313,14 @@ export class ShippingOrchestrator {
     if (!lojaId) return [];
 
     try {
-      const { data, error } = await supabase
-        .from('formas_entrega')
-        .select('*')
-        .eq('loja_id', lojaId)
-        .order('criado_em', { ascending: true });
+      const [{ data, error }, config] = await Promise.all([
+        supabase
+          .from('formas_entrega')
+          .select('*')
+          .eq('loja_id', lojaId)
+          .order('criado_em', { ascending: true }),
+        this.buscarConfigLoja(lojaId)
+      ]);
 
       if (error) {
         console.warn('[ShippingOrchestrator] Erro ao listar formas de entrega:', error);
@@ -1323,7 +1328,37 @@ export class ShippingOrchestrator {
       }
 
       if (data && data.length > 0) {
-        return data as FormaEntrega[];
+        const nomeOficialProprio = (config as any)?.frete_proprio_nome || 'Entrega Própria da Loja';
+        const prazoOficialProprio = (config as any)?.frete_proprio_prazo_estimado || 'Entrega hoje (30 a 60 min)';
+        const taxaOficialPropria = config?.frete_proprio_tipo_cobranca === 'gratis'
+          ? 0
+          : Number(config?.frete_proprio_valor_padrao || 0);
+
+        return (data as FormaEntrega[]).map(forma => {
+          const ehProprio = ['frota_propria', 'proprio', 'motoboy'].includes(forma.tipo) || (forma.nome || '').toLowerCase().includes('frete italia');
+          if (ehProprio) {
+            if ((forma.nome || '').toLowerCase().includes('frete italia')) {
+              // Sanitiza silenciosamente o registro legado no banco caso o usuário tenha permissão
+              supabase
+                .from('formas_entrega')
+                .update({
+                  nome: nomeOficialProprio,
+                  valor_taxa: taxaOficialPropria
+                })
+                .eq('id', forma.id)
+                .eq('loja_id', lojaId)
+                .then(() => {});
+            }
+            return {
+              ...forma,
+              nome: nomeOficialProprio,
+              valor_taxa: taxaOficialPropria,
+              tempo_estimado: prazoOficialProprio,
+              ativo: config ? Boolean(config.frete_proprio_ativo) : forma.ativo
+            };
+          }
+          return forma;
+        });
       }
 
       // Seed das opções padrão se não houver registros

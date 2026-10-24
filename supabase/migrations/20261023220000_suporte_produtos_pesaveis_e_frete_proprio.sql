@@ -9,16 +9,21 @@ ALTER TABLE public.produtos
   ADD COLUMN IF NOT EXISTS venda_por_peso BOOLEAN NOT NULL DEFAULT FALSE,
   ADD COLUMN IF NOT EXISTS codigo_balanca INTEGER NULL;
 
--- Atualizar registros existentes baseados na unidade
+-- Atualizar registros existentes priorizando tipo_unidade fracionado quando unidade_medida estiver no default 'UN'
 UPDATE public.produtos
 SET
-  unidade_medida = UPPER(COALESCE(NULLIF(TRIM(unidade_medida), ''), tipo_unidade, 'UN')),
+  unidade_medida = CASE
+    WHEN LOWER(TRIM(COALESCE(tipo_unidade, ''))) IN ('kg', 'g', 'l', 'ml', 'm', 'cm') THEN UPPER(TRIM(tipo_unidade))
+    ELSE UPPER(COALESCE(NULLIF(TRIM(unidade_medida), ''), NULLIF(TRIM(tipo_unidade), ''), 'UN'))
+  END,
   permite_fracionado = CASE 
-    WHEN LOWER(COALESCE(unidade_medida, tipo_unidade, 'un')) IN ('kg', 'g', 'l', 'ml', 'm', 'cm') THEN TRUE 
+    WHEN LOWER(TRIM(COALESCE(tipo_unidade, ''))) IN ('kg', 'g', 'l', 'ml', 'm', 'cm')
+      OR LOWER(TRIM(COALESCE(unidade_medida, ''))) IN ('kg', 'g', 'l', 'ml', 'm', 'cm') THEN TRUE 
     ELSE permite_fracionado 
   END,
   venda_por_peso = CASE 
-    WHEN LOWER(COALESCE(unidade_medida, tipo_unidade, 'un')) IN ('kg', 'g') THEN TRUE 
+    WHEN LOWER(TRIM(COALESCE(tipo_unidade, ''))) IN ('kg', 'g')
+      OR LOWER(TRIM(COALESCE(unidade_medida, ''))) IN ('kg', 'g') THEN TRUE 
     ELSE venda_por_peso 
   END;
 
@@ -89,6 +94,26 @@ ALTER TABLE public.loja_shipping_configs
   ADD COLUMN IF NOT EXISTS frete_proprio_tipo_cobranca VARCHAR(20) NOT NULL DEFAULT 'fixo',
   ADD COLUMN IF NOT EXISTS frete_proprio_valor_padrao NUMERIC(10,2) NOT NULL DEFAULT 0.00,
   ADD COLUMN IF NOT EXISTS frete_proprio_prazo_estimado VARCHAR(80) NOT NULL DEFAULT 'Entrega hoje (30 a 60 min)';
+
+-- 4. SANITIZAÇÃO DE REGISTROS LEGADOS DE FRETE PRÓPRIO ("Frete Italia") EM FORMAS_ENTREGA
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'formas_entrega'
+  ) THEN
+    UPDATE public.formas_entrega fe
+    SET
+      nome = COALESCE(NULLIF(TRIM(cfg.frete_proprio_nome), ''), 'Entrega Própria da Loja'),
+      valor_taxa = COALESCE(cfg.frete_proprio_valor_padrao, fe.valor_taxa, 0),
+      atualizado_em = NOW()
+    FROM public.loja_shipping_configs cfg
+    WHERE fe.loja_id = cfg.loja_id
+      AND (fe.nome ILIKE '%Frete Italia%' OR fe.tipo IN ('frota_propria', 'proprio'));
+
+    ALTER TABLE public.formas_entrega ENABLE ROW LEVEL SECURITY;
+  END IF;
+END $$;
 
 -- Garantir RLS ativo em todas as tabelas afetadas
 ALTER TABLE public.produtos ENABLE ROW LEVEL SECURITY;

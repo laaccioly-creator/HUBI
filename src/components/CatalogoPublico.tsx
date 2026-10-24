@@ -50,7 +50,8 @@ import { ChatRubiCatalogo } from './ChatRubiCatalogo';
 import { getCategoriaPeso } from './PosCheckout';
 import { obterDataOperacaoISO, obterDataOperacaoISOParaLoja, definirDataOperacao } from '../utils/dataOperacao';
 import { isUuidValido } from '../services/syncService';
-import { formatarMoeda } from '../utils/formatters';
+import { formatarMoeda, ehProdutoFracionado, formatarQuantidadeUnidade, obterSiglaUnidade, formatarLinhaCalculoItem } from '../utils/formatters';
+import { ModalInputPesoFracionado } from './ui/ModalInputPesoFracionado';
 
 interface ItemCarrinhoPublico {
   id: string;
@@ -1221,10 +1222,29 @@ export const CatalogoPublico: React.FC = () => {
     setMensagemCupom(null);
   };
 
-  const adicionarAoCarrinho = (produto: Produto, variacao?: VariacaoProduto | null, quantidade: number = 1) => {
+  const [itemPesagemCatalogo, setItemPesagemCatalogo] = useState<{
+    produto: Produto;
+    variacao?: VariacaoProduto | null;
+    quantidadeAtual: number;
+    indexCarrinho?: number;
+  } | null>(null);
+
+  const adicionarAoCarrinho = (produto: Produto, variacao?: VariacaoProduto | null, quantidade: number = 1, pesoConfirmado: boolean = false) => {
     if (!clienteSelecionado?.id) {
       setModalOnboardingMotivo('carrinho');
       setModalOnboardingAberto(true);
+      return;
+    }
+
+    if (ehProdutoFracionado(produto) && !pesoConfirmado) {
+      const keyExistente = variacao ? `${produto.id}-${variacao.id}` : `${produto.id}`;
+      const idxExistente = carrinho.findIndex(i => i.id === keyExistente);
+      setItemPesagemCatalogo({
+        produto,
+        variacao,
+        quantidadeAtual: idxExistente >= 0 ? carrinho[idxExistente].quantidade : 1,
+        indexCarrinho: idxExistente >= 0 ? idxExistente : undefined
+      });
       return;
     }
 
@@ -1236,7 +1256,7 @@ export const CatalogoPublico: React.FC = () => {
         const cp = [...prev];
         cp[idx] = {
           ...cp[idx],
-          quantidade: cp[idx].quantidade + quantidade
+          quantidade: Number((cp[idx].quantidade + quantidade).toFixed(3))
         };
         return cp;
       } else {
@@ -1246,7 +1266,7 @@ export const CatalogoPublico: React.FC = () => {
             id: key,
             produto,
             variacao,
-            quantidade
+            quantidade: Number(quantidade.toFixed(3))
           }
         ];
       }
@@ -2881,7 +2901,7 @@ Fico no aguardo da confirmação! ✨`;
                               {item.variacao.valor_variacao_1} {item.variacao.valor_variacao_2 ? `- ${item.variacao.valor_variacao_2}` : ''}
                             </span>
                           )}
-                          <div className="flex items-baseline gap-1.5 mt-0.5">
+                          <div className="flex items-baseline gap-1.5 mt-0.5 flex-wrap">
                             {precoUnitarioAtivo < precoVarejoItem && (
                               <span className="text-[10px] text-slate-500 line-through">
                                 R$ {(precoVarejoItem * item.quantidade).toFixed(2)}
@@ -2891,7 +2911,9 @@ Fico no aguardo da confirmação! ✨`;
                               R$ {subtotalItem.toFixed(2)}
                             </span>
                             <span className="text-[10px] text-slate-400">
-                              (R$ {precoUnitarioAtivo.toFixed(2)}/un)
+                              {ehProdutoFracionado(item.produto)
+                                ? `(${formatarLinhaCalculoItem(item.quantidade, precoUnitarioAtivo, obterSiglaUnidade(item.produto))})`
+                                : `(R$ ${precoUnitarioAtivo.toFixed(2)}/${obterSiglaUnidade(item.produto)})`}
                             </span>
                           </div>
                         </div>
@@ -2907,11 +2929,42 @@ Fico no aguardo da confirmação! ✨`;
                           </button>
 
                           <div className="flex items-center border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-lg overflow-hidden">
-                            <button onClick={() => atualizarQtdCarrinho(idx, item.quantidade - 1)} className="p-1 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const passo = ehProdutoFracionado(item.produto) ? 0.1 : 1;
+                                atualizarQtdCarrinho(idx, Number((item.quantidade - passo).toFixed(3)));
+                              }}
+                              className="p-1 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer"
+                            >
                               <Minus className="w-3.5 h-3.5" />
                             </button>
-                            <span className="px-2 text-xs font-bold text-slate-900 dark:text-slate-100 min-w-[20px] text-center">{item.quantidade}</span>
-                            <button onClick={() => atualizarQtdCarrinho(idx, item.quantidade + 1)} className="p-1 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer">
+                            <span
+                              onClick={() => {
+                                if (ehProdutoFracionado(item.produto)) {
+                                  setItemPesagemCatalogo({
+                                    produto: item.produto,
+                                    variacao: item.variacao,
+                                    quantidadeAtual: item.quantidade,
+                                    indexCarrinho: idx
+                                  });
+                                }
+                              }}
+                              title={ehProdutoFracionado(item.produto) ? "Clique para informar o peso (kg)" : undefined}
+                              className={`px-2 text-xs font-bold text-slate-900 dark:text-slate-100 min-w-[20px] text-center ${
+                                ehProdutoFracionado(item.produto) ? 'cursor-pointer hover:text-emerald-400 underline decoration-dotted' : ''
+                              }`}
+                            >
+                              {formatarQuantidadeUnidade(item.quantidade, obterSiglaUnidade(item.produto))}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const passo = ehProdutoFracionado(item.produto) ? 0.1 : 1;
+                                atualizarQtdCarrinho(idx, Number((item.quantidade + passo).toFixed(3)));
+                              }}
+                              className="p-1 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer"
+                            >
                               <Plus className="w-3.5 h-3.5" />
                             </button>
                           </div>
@@ -3774,6 +3827,32 @@ Fico no aguardo da confirmação! ✨`;
             </div>
           </div>
         </div>
+      )}
+
+      {/* MODAL PESAGEM FRACIONADA NO CATÁLOGO ONLINE */}
+      {itemPesagemCatalogo && (
+        <ModalInputPesoFracionado
+          aberto={Boolean(itemPesagemCatalogo)}
+          onFechar={() => setItemPesagemCatalogo(null)}
+          produtoNome={itemPesagemCatalogo.produto.nome}
+          unidadeMedida={obterSiglaUnidade(itemPesagemCatalogo.produto).toUpperCase()}
+          precoPorKg={calcularPrecoUnitarioPorTabela(
+            itemPesagemCatalogo.produto,
+            itemPesagemCatalogo.variacao,
+            avaliacaoCarrinho.tabelaAtiva,
+            avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? regrasAtivas.descontoAutoatacado : regrasAtivas.descontoAtacado
+          )}
+          quantidadeAtual={itemPesagemCatalogo.quantidadeAtual || 1}
+          temaDark={true}
+          onConfirmar={(pesoKg: number) => {
+            if (typeof itemPesagemCatalogo.indexCarrinho === 'number') {
+              atualizarQtdCarrinho(itemPesagemCatalogo.indexCarrinho, pesoKg);
+            } else {
+              adicionarAoCarrinho(itemPesagemCatalogo.produto, itemPesagemCatalogo.variacao, pesoKg, true);
+            }
+            setItemPesagemCatalogo(null);
+          }}
+        />
       )}
     </div>
   );

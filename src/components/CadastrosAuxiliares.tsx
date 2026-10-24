@@ -1546,13 +1546,6 @@ export const CadastrosAuxiliares: React.FC = () => {
       descricao: 'PIX, dinheiro, cartões, maquininhas e taxas'
     },
     {
-      id: 'formas_envio' as const,
-      label: 'Formas de Envio',
-      icon: Truck,
-      badge: `${formasEntrega.length} ${formasEntrega.length === 1 ? 'forma' : 'formas'}`,
-      descricao: 'Meios de entrega da loja, motoboy, retirada e regras'
-    },
-    {
       id: 'apps_corrida' as const,
       label: 'Apps de Corrida',
       icon: Navigation,
@@ -1590,10 +1583,6 @@ export const CadastrosAuxiliares: React.FC = () => {
                 key={item.id}
                 type="button"
                 onClick={() => {
-                  if (item.id === 'formas_envio') {
-                    navigate('/configuracoes/frete');
-                    return;
-                  }
                   setBusca('');
                   setAbaAtiva(item.id);
                   setModalSecaoAberta(item.id);
@@ -1663,16 +1652,12 @@ export const CadastrosAuxiliares: React.FC = () => {
 
           {/* BOTÕES DE CADASTROS (GRADE HARMONIOSA DE 4 COLUNAS: 8 OPÇÕES) */}
           <div className="pt-6 sm:pt-8 max-w-6xl mx-auto w-full animate-in fade-in duration-200">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {itensMenuCadastros.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => {
-                    if (item.id === 'formas_envio') {
-                      navigate('/configuracoes/frete');
-                      return;
-                    }
                     setBusca('');
                     setAbaAtiva(item.id);
                     setModalSecaoAberta(item.id);

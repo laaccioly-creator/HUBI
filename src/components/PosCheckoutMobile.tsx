@@ -61,7 +61,7 @@ import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { MobileHeader } from './layout/MobileHeader';
 import { getCategoriaPeso } from './PosCheckout';
 import { audioService } from '../services/audioService';
-import { formatarMoeda, ehProdutoFracionado, formatarQuantidadeUnidade } from '../utils/formatters';
+import { formatarMoeda, ehProdutoFracionado, formatarQuantidadeUnidade, obterSiglaUnidade, formatarLinhaCalculoItem } from '../utils/formatters';
 import { ModalInputPesoFracionado } from './ui/ModalInputPesoFracionado';
 import { podeEditarPedido } from '../utils/statusPedidoUtils';
 
@@ -1189,6 +1189,11 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                       Var: {it.variacao.valor_variacao_1}
                     </span>
                   )}
+                  {ehProdutoFracionado(it.produto) && (
+                    <span className={`text-[10px] block truncate ${isDark ? 'text-slate-400' : 'text-slate-600 font-medium'}`}>
+                      {formatarLinhaCalculoItem(it.quantidade, Number(it.precoUnitario || 0), obterSiglaUnidade(it.produto))}
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2.5 shrink-0">
@@ -1204,7 +1209,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                       }`}
                       title="Quantidade bloqueada para pedidos já confirmados"
                     >
-                      {it.quantidade} un
+                      {formatarQuantidadeUnidade(it.quantidade, obterSiglaUnidade(it.produto))}
                     </div>
                   ) : (
                     <div className={`flex items-center gap-1 p-1 rounded-xl shrink-0 ${
@@ -1213,8 +1218,10 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                       <button
                         type="button"
                         onClick={() => {
-                          if (it.quantidade > 1) {
-                            atualizarQuantidade(it.id, it.quantidade - 1);
+                          const passo = ehProdutoFracionado(it.produto) ? 0.1 : 1;
+                          const novaQtd = Number((it.quantidade - passo).toFixed(3));
+                          if (novaQtd > 0) {
+                            atualizarQuantidade(it.id, novaQtd);
                           } else {
                             removerItem(it.id);
                           }
@@ -1233,11 +1240,14 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                         }}
                         className={`px-1 text-center text-xs font-black ${ehProdutoFracionado(it.produto) ? 'cursor-pointer underline decoration-dotted text-emerald-500' : isDark ? 'text-white' : 'text-black'}`}
                       >
-                        {formatarQuantidadeUnidade(it.quantidade, it.produto.unidade_medida || it.produto.tipo_unidade)}
+                        {formatarQuantidadeUnidade(it.quantidade, obterSiglaUnidade(it.produto))}
                       </span>
                       <button
                         type="button"
-                        onClick={() => atualizarQuantidade(it.id, it.quantidade + 1)}
+                        onClick={() => {
+                          const passo = ehProdutoFracionado(it.produto) ? 0.1 : 1;
+                          atualizarQuantidade(it.id, Number((it.quantidade + passo).toFixed(3)));
+                        }}
                         className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold transition cursor-pointer active:scale-95 border ${
                           isDark ? 'bg-[#000000] border-slate-600 text-white hover:bg-slate-800' : 'bg-white border-slate-300 text-black hover:bg-slate-100'
                         }`}
@@ -2172,7 +2182,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           aberto={Boolean(itemPesagemModal)}
           onFechar={() => setItemPesagemModal(null)}
           produtoNome={itemPesagemModal.produto.nome}
-          unidadeMedida={itemPesagemModal.produto.unidade_medida || itemPesagemModal.produto.tipo_unidade || 'KG'}
+          unidadeMedida={obterSiglaUnidade(itemPesagemModal.produto).toUpperCase()}
           precoPorKg={Number(itemPesagemModal.variacao ? itemPesagemModal.variacao.preco_venda_varejo : itemPesagemModal.produto.preco_venda_varejo) || 0}
           quantidadeAtual={itemPesagemModal.quantidadeAtual || 1}
           temaDark={isDark}

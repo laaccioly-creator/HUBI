@@ -571,6 +571,35 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     configLoja?.retirada_loja_ativa !== false && 
     configLoja?.retirada_balcao_ativa !== false
   );
+  const temMetodoOficialAtivo = Boolean(permiteRetirada || temFreteProprio || temUber || temMelhorEnvio || transportadorasCadastradas.length > 0);
+
+  const opcoesCotacaoExibidas = useMemo<OpcaoFreteCotada[]>(() => {
+    if (cotacoes.length > 0) return cotacoes;
+    if (temFreteProprio && configLoja) {
+      const tipoCobranca = configLoja.frete_proprio_tipo_cobranca || 'fixo';
+      const ehManual = tipoCobranca === 'manual';
+      const valorBase = (tipoCobranca === 'gratis' || ehManual) ? 0 : Number(configLoja.frete_proprio_valor_padrao || 0);
+      const freteGratisPorMinimo = Boolean(configLoja.frete_gratis_ativo && Number(configLoja.frete_gratis_valor_minimo) > 0 && subtotal >= Number(configLoja.frete_gratis_valor_minimo));
+      const isGratis = tipoCobranca === 'gratis' || valorBase === 0 || freteGratisPorMinimo;
+      const valorFinal = isGratis ? 0 : valorBase;
+      return [{
+        id: 'opcao_frete_proprio',
+        provedor: 'frete_proprio',
+        transportadora_nome: (configLoja as any).frete_proprio_nome || 'Entrega Própria da Loja',
+        servico_codigo: tipoCobranca,
+        servico_nome: isGratis ? 'Frete Grátis' : (ehManual ? 'Valor Manual' : 'Taxa Fixa'),
+        valor_frete: valorFinal,
+        valor_original: valorBase,
+        valor_subsidio: freteGratisPorMinimo ? valorBase : 0,
+        is_frete_gratis: isGratis,
+        prazo_estimado_texto: (configLoja as any).frete_proprio_prazo_estimado || 'Entrega hoje (30 a 60 min)',
+        icone_tipo: 'loja',
+        permite_edicao_valor: ehManual,
+        tipo_cobranca: (tipoCobranca === 'bairro' ? 'fixo' : tipoCobranca) as 'fixo' | 'manual' | 'gratis'
+      }];
+    }
+    return [];
+  }, [cotacoes, temFreteProprio, configLoja, subtotal]);
 
   const limiteDeclaracaoConteudo = Number(configLoja?.limite_declaracao_conteudo ?? 1000);
   const excedeLimiteSemNfe = !ehCatalogo && subtotal > limiteDeclaracaoConteudo && !possuiNfe;
@@ -589,6 +618,11 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   // Se nenhuma integração estiver configurada, abre e permanece exclusivamente em 'manual'.
   useEffect(() => {
     if (!configLoja) return;
+    if (ehCatalogo) {
+      setViaEntrega('cotar');
+      inicializouAbaViaEntregaRef.current = true;
+      return;
+    }
     if (excedeLimiteSemNfe) {
       setViaEntrega('manual');
       inicializouAbaViaEntregaRef.current = true;
@@ -604,11 +638,11 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     } else if (!temIntegracaoAutomatica) {
       setViaEntrega('manual');
     }
-  }, [configLoja, temIntegracaoAutomatica, excedeLimiteSemNfe]);
+  }, [configLoja, temIntegracaoAutomatica, excedeLimiteSemNfe, ehCatalogo]);
 
-  // 3. Executar Cotação Automática (Uber Direct e Melhor Envio)
+  // 3. Executar Cotação Automática (Uber Direct, Melhor Envio e Frete Próprio)
   const executarCotacao = useCallback(async (endAlvo: ClienteEndereco, forcar = false) => {
-    if (excedeLimiteSemNfe || (!temUber && !temMelhorEnvio)) {
+    if (excedeLimiteSemNfe || (!temUber && !temMelhorEnvio && !temFreteProprio)) {
       setCotacoes([]);
       return;
     }
@@ -1237,16 +1271,19 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     }
   }, [enderecoSelecionado, onSolicitarAtualizarEndereco, obterPacoteAtual]);
 
-  // No modo catálogo: se não houver integrações ativas ou cotações, pré-seleciona "Frete a Combinar"
+  // No modo catálogo: se houver opções oficiais, pré-seleciona a primeira opção quando modalidade === 'entrega';
+  // somente usa "Frete a Combinar" se a loja não possuir NENHUM método oficial ativo.
   useEffect(() => {
-    if (ehCatalogo && modalidade === 'entrega' && enderecoSelecionado && !cotacaoEscolhida && !cotando) {
-      if (!temUber && !temMelhorEnvio) {
-        handleSelecionarFreteACombinar();
-      } else if (cotacoes.length === 0 && !carregandoConfig) {
+    if (ehCatalogo && modalidade === 'entrega' && enderecoSelecionado && !cotacaoEscolhida && !cotando && !carregandoConfig) {
+      if (opcoesCotacaoExibidas.length > 0) {
+        const opPadrao = opcoesCotacaoExibidas[0];
+        setCotacaoEscolhida(opPadrao);
+        emitirSelecao(opPadrao, enderecoSelecionado);
+      } else if (!temMetodoOficialAtivo) {
         handleSelecionarFreteACombinar();
       }
     }
-  }, [ehCatalogo, modalidade, enderecoSelecionado, cotacaoEscolhida, cotando, temUber, temMelhorEnvio, cotacoes.length, carregandoConfig, handleSelecionarFreteACombinar]);
+  }, [ehCatalogo, modalidade, enderecoSelecionado, cotacaoEscolhida, cotando, opcoesCotacaoExibidas, temMetodoOficialAtivo, carregandoConfig, handleSelecionarFreteACombinar, emitirSelecao]);
 
   // Dados da Loja para Retirada
   const dadosLojaFormatados = {
@@ -2103,46 +2140,55 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                       )}
                     </>
                   )}
-                  {!carregandoConfig && !temUber && !temMelhorEnvio ? (
+                  {carregandoConfig ? (
+                    <div className={`p-4 rounded-2xl border flex items-center justify-center gap-2 text-xs ${
+                      ehDark ? 'bg-slate-900/60 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'
+                    }`}>
+                      <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+                      <span>Carregando opções de entrega da loja...</span>
+                    </div>
+                  ) : !temUber && !temMelhorEnvio && !temFreteProprio ? (
                     ehCatalogo ? (
-                      /* Card Amigável: Frete a Combinar no Catálogo (Loja sem integração ativa) */
-                      <div
-                        onClick={handleSelecionarFreteACombinar}
-                        className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
-                          modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar')
-                            ? 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
-                            : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800'
-                        }`}
-                      >
-                        <div className="flex items-start gap-3 min-w-0">
-                          <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200 mt-0.5">
-                            <Truck className="w-5 h-5 text-emerald-600" />
-                          </div>
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-slate-900">Frete a combinar</span>
-                              <span className="text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">
-                                A Combinar
-                              </span>
-                            </div>
-                            <p className="text-xs text-slate-600 leading-relaxed">
-                              Frete a combinar: Nossa equipe entrará em contato via WhatsApp ou telefone para calcular a melhor opção de envio após a confirmação do seu pedido.
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-extrabold text-xs text-emerald-600">R$ 0,00</span>
-                          <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                      !temMetodoOficialAtivo ? (
+                        /* Card Amigável: Frete a Combinar no Catálogo (Apenas se a loja não tiver nenhum método ativo) */
+                        <div
+                          onClick={handleSelecionarFreteACombinar}
+                          className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
                             modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar')
-                              ? 'bg-emerald-600 text-white shadow-sm'
-                              : 'border-2 border-slate-300'
-                          }`}>
-                            {modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar') && (
-                              <Check className="w-3.5 h-3.5 stroke-[3]" />
-                            )}
+                              ? 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
+                              : 'bg-slate-50 hover:bg-slate-100/70 border border-slate-200 text-slate-800'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200 mt-0.5">
+                              <Truck className="w-5 h-5 text-emerald-600" />
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-slate-900">Frete a combinar</span>
+                                <span className="text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded border border-emerald-200">
+                                  A Combinar
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-600 leading-relaxed">
+                                Frete a combinar: Nossa equipe entrará em contato via WhatsApp ou telefone para calcular a melhor opção de envio após a confirmação do seu pedido.
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="font-extrabold text-xs text-emerald-600">R$ 0,00</span>
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                              modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar')
+                                ? 'bg-emerald-600 text-white shadow-sm'
+                                : 'border-2 border-slate-300'
+                            }`}>
+                              {modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar') && (
+                                <Check className="w-3.5 h-3.5 stroke-[3]" />
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      ) : null
                     ) : (
                       /* Alerta Amigável de Ausência de Integração Ativa */
                       <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200 text-amber-900 space-y-3">
@@ -2180,50 +2226,52 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                         </div>
                       </div>
                     )
-                  ) : cotando ? (
+                  ) : cotando && opcoesCotacaoExibidas.length === 0 ? (
                     <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col items-center justify-center gap-2 text-slate-500 text-xs">
                       <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
                       <span>Calculando opções de frete via API em tempo real...</span>
                     </div>
-                  ) : erroCotacaoMsg ? (
+                  ) : erroCotacaoMsg && opcoesCotacaoExibidas.length === 0 ? (
                     ehCatalogo ? (
-                      <div
-                        onClick={handleSelecionarFreteACombinar}
-                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
-                          modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar')
-                            ? 'bg-slate-800/90 border-2 border-emerald-500 text-white shadow-md shadow-emerald-950/50'
-                            : 'bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/60 text-slate-200'
-                        }`}
-                      >
-                        <div className="flex items-start gap-3 min-w-0">
-                          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20 mt-0.5">
-                            <Truck className="w-5 h-5 text-emerald-400" />
-                          </div>
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-slate-100">Frete a combinar</span>
-                              <span className="text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                                A Combinar
-                              </span>
-                            </div>
-                            <p className="text-xs text-slate-400 leading-relaxed">
-                              Nossa equipe entrará em contato via WhatsApp ou telefone para calcular a melhor opção de envio após a confirmação do seu pedido.
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-extrabold text-xs text-emerald-400">R$ 0,00</span>
-                          <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                      !temMetodoOficialAtivo ? (
+                        <div
+                          onClick={handleSelecionarFreteACombinar}
+                          className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                             modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar')
-                              ? 'bg-emerald-500 text-slate-950 shadow-sm'
-                              : 'border-2 border-slate-500'
-                          }`}>
-                            {modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar') && (
-                              <Check className="w-3.5 h-3.5 stroke-[3]" />
-                            )}
+                              ? 'bg-slate-800/90 border-2 border-emerald-500 text-white shadow-md shadow-emerald-950/50'
+                              : 'bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/60 text-slate-200'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20 mt-0.5">
+                              <Truck className="w-5 h-5 text-emerald-400" />
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-slate-100">Frete a combinar</span>
+                                <span className="text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                                  A Combinar
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-400 leading-relaxed">
+                                Nossa equipe entrará em contato via WhatsApp ou telefone para calcular a melhor opção de envio após a confirmação do seu pedido.
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="font-extrabold text-xs text-emerald-400">R$ 0,00</span>
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                              modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar')
+                                ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                                : 'border-2 border-slate-500'
+                            }`}>
+                              {modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar') && (
+                                <Check className="w-3.5 h-3.5 stroke-[3]" />
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      ) : null
                     ) : (
                       <div className={`p-4 rounded-2xl border space-y-3 ${
                         ehDark ? 'bg-black border-amber-900/60 text-amber-200' : 'bg-amber-50 border-amber-200 text-amber-900'
@@ -2258,50 +2306,52 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                         </div>
                       </div>
                     )
-                  ) : cotacoes.length === 0 ? (
+                  ) : opcoesCotacaoExibidas.length === 0 ? (
                     ehCatalogo ? (
-                      /* Card Amigável: Frete a Combinar no Catálogo (sem cotações retornadas) */
-                      <div
-                        onClick={handleSelecionarFreteACombinar}
-                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
-                          modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar')
-                            ? ehDark
-                              ? 'bg-slate-800/90 border-2 border-emerald-500 text-white shadow-md shadow-emerald-950/50'
-                              : 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
-                            : ehDark
-                              ? 'bg-slate-900/80 hover:bg-slate-800/80 border border-slate-700/70 text-slate-200'
-                              : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 shadow-xs'
-                        }`}
-                      >
-                        <div className="flex items-start gap-3 min-w-0">
-                          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20 mt-0.5">
-                            <Truck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                          </div>
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className={`text-xs font-bold ${ehDark ? 'text-slate-100' : 'text-slate-900'}`}>Frete a combinar</span>
-                              <span className="text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                                A Combinar
-                              </span>
-                            </div>
-                            <p className={`text-xs leading-relaxed ${ehDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                              Nossa equipe entrará em contato via WhatsApp ou telefone para calcular a melhor opção de envio após a confirmação do seu pedido.
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-extrabold text-xs text-emerald-600 dark:text-emerald-400">R$ 0,00</span>
-                          <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                      !temMetodoOficialAtivo ? (
+                        /* Card Amigável: Frete a Combinar no Catálogo (sem cotações retornadas e sem métodos ativos) */
+                        <div
+                          onClick={handleSelecionarFreteACombinar}
+                          className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                             modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar')
-                              ? 'bg-emerald-500 text-slate-950 shadow-sm'
-                              : ehDark ? 'border-2 border-slate-500' : 'border-2 border-slate-300'
-                          }`}>
-                            {modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar') && (
-                              <Check className="w-3.5 h-3.5 stroke-[3]" />
-                            )}
+                              ? ehDark
+                                ? 'bg-slate-800/90 border-2 border-emerald-500 text-white shadow-md shadow-emerald-950/50'
+                                : 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
+                              : ehDark
+                                ? 'bg-slate-900/80 hover:bg-slate-800/80 border border-slate-700/70 text-slate-200'
+                                : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 shadow-xs'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20 mt-0.5">
+                              <Truck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs font-bold ${ehDark ? 'text-slate-100' : 'text-slate-900'}`}>Frete a combinar</span>
+                                <span className="text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                                  A Combinar
+                                </span>
+                              </div>
+                              <p className={`text-xs leading-relaxed ${ehDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                                Nossa equipe entrará em contato via WhatsApp ou telefone para calcular a melhor opção de envio após a confirmação do seu pedido.
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="font-extrabold text-xs text-emerald-600 dark:text-emerald-400">R$ 0,00</span>
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                              modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar')
+                                ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                                : ehDark ? 'border-2 border-slate-500' : 'border-2 border-slate-300'
+                            }`}>
+                              {modalidade === 'entrega' && (cotacaoEscolhida?.id === 'frete_a_combinar' || opcaoSelecionadaId === 'frete_a_combinar') && (
+                                <Check className="w-3.5 h-3.5 stroke-[3]" />
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      ) : null
                     ) : (
                       <div className={`p-4 rounded-2xl border text-center space-y-2.5 ${
                         ehDark
@@ -2336,7 +2386,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                   ) : (
                     /* Lista de Cotações Automáticas */
                     <div className="space-y-2">
-                      {subtotal > limiteDeclaracaoConteudo && cotacoes.some(c => c.provedor === 'melhor_envio') && (
+                      {subtotal > limiteDeclaracaoConteudo && opcoesCotacaoExibidas.some(c => c.provedor === 'melhor_envio') && (
                         <div className={`p-3 rounded-xl border flex items-start gap-2.5 text-xs ${
                           ehDark ? 'bg-amber-950/20 border-amber-500/40 text-amber-200' : 'bg-amber-50 border-amber-300 text-amber-900'
                         }`}>
@@ -2349,8 +2399,14 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                           </div>
                         </div>
                       )}
-                      {cotacoes.map((opcao) => {
-                        const selecionada = modalidade === 'entrega' && viaEntrega === 'cotar' && cotacaoEscolhida?.id === opcao.id;
+                      {opcoesCotacaoExibidas.map((opcao) => {
+                        const selecionada = modalidade === 'entrega' && (ehCatalogo || viaEntrega === 'cotar') && (
+                          cotacaoEscolhida?.id === opcao.id ||
+                          (!cotacaoEscolhida && (
+                            opcaoSelecionadaId === opcao.id ||
+                            (opcao.provedor === 'frete_proprio' && (opcaoSelecionadaId === 'frete_proprio' || opcaoSelecionadaId === 'entrega_shipping'))
+                          ))
+                        );
                         const desabilitada = Boolean(opcao.desabilitada);
 
                         return (
@@ -2485,8 +2541,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
               )
             )}
 
-              {/* VIA B: INFORMAR FRETE MANUALMENTE (FORMAS RELACIONAIS CADASTRADAS) */}
-              {viaEntrega === 'manual' && (
+              {/* VIA B: INFORMAR FRETE MANUALMENTE (FORMAS RELACIONAIS CADASTRADAS - APENAS PAINEL DO LOJISTA) */}
+              {!ehCatalogo && viaEntrega === 'manual' && (
                 <div className="space-y-2.5">
                   {formasEntrega.filter(f => f.tipo !== 'retirada' && ['correios', 'app_entrega', 'transportadora', 'proprio', 'frota_propria', 'motoboy'].includes(f.tipo)).length === 0 ? (
                     <div className={`p-4 rounded-2xl border text-center space-y-1.5 ${

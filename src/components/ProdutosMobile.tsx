@@ -1078,7 +1078,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       descricao: p.descricao || '',
       codigoBarras: p.codigo_barras || '',
       tipoUnidade: p.tipo_unidade || 'un',
-      unidadeMedida: (p as any).unidade_medida || p.tipo_unidade || 'un',
+      unidadeMedida: (p.tipo_unidade && p.tipo_unidade !== 'un' ? p.tipo_unidade : (p as any).unidade_medida) || 'un',
       tipoItem: (p.tipo_item as any) || 'produto',
       destaque: Boolean(p.destaque),
       exibirCatalogo: p.exibir_catalogo !== false,

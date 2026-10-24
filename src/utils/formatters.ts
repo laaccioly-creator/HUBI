@@ -145,8 +145,10 @@ export const ehProdutoFracionado = (produto?: {
   if (produto.venda_por_peso === true || produto.permite_fracionado === true) {
     return true;
   }
-  const un = (produto.unidade_medida || produto.tipo_unidade || '').trim().toLowerCase();
-  return ['kg', 'g', 'l', 'ml', 'm', 'cm'].includes(un);
+  const unidadesFracionadas = ['kg', 'g', 'l', 'ml', 'm', 'cm', 'quilo', 'quilos', 'grama', 'gramas'];
+  const tipoUn = (produto.tipo_unidade || '').trim().toLowerCase();
+  const unMedida = (produto.unidade_medida || '').trim().toLowerCase();
+  return unidadesFracionadas.includes(tipoUn) || unidadesFracionadas.includes(unMedida);
 };
 
 /**
@@ -155,10 +157,16 @@ export const ehProdutoFracionado = (produto?: {
 export const obterSiglaUnidade = (produto?: {
   tipo_unidade?: string | null;
   unidade_medida?: string | null;
+  permite_fracionado?: boolean | null;
+  venda_por_peso?: boolean | null;
 } | null): string => {
   if (!produto) return 'un';
-  const sigla = (produto.unidade_medida || produto.tipo_unidade || 'un').trim().toLowerCase();
-  return sigla || 'un';
+  const tipoUn = (produto.tipo_unidade || '').trim().toLowerCase();
+  const unMedida = (produto.unidade_medida || '').trim().toLowerCase();
+  if (tipoUn && tipoUn !== 'un') return tipoUn;
+  if (unMedida && unMedida !== 'un') return unMedida;
+  if (produto.venda_por_peso === true || produto.permite_fracionado === true) return 'kg';
+  return tipoUn || unMedida || 'un';
 };
 
 /**
