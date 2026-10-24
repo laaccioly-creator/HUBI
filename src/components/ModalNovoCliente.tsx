@@ -237,7 +237,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
   const [salvando, setSalvando] = useState(false);
   const [erroMsg, setErroMsg] = useState<string | null>(null);
 
-  const { confirmar, setTemAlteracoesNaoSalvas } = useFeedbackModal();
+  const { confirmar, mostrarAviso, setTemAlteracoesNaoSalvas } = useFeedbackModal();
   const [snapshotInicial, setSnapshotInicial] = useState<string>('');
 
   // Sincronizar dados para Edição ou Criação
@@ -614,6 +614,26 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
     }
 
     // Definir número principal para WhatsApp
+    // Definir número principal para WhatsApp (normalizado apenas dígitos) e validar unicidade
+    const tel1Digitos = telefone1.replace(/\D/g, '');
+    const tel2Digitos = telefone2.replace(/\D/g, '');
+    const celularChave = (telefone1IsWhatsapp && tel1Digitos) ? tel1Digitos : (telefone2IsWhatsapp && tel2Digitos) ? tel2Digitos : tel1Digitos;
+    if (celularChave.length >= 8) {
+      const { data: clientesLoja } = await supabase.from('clientes').select('id, nome, telefone, whatsapp').eq('loja_id', loja.id);
+      const clienteDuplicado = (clientesLoja || []).find((c: any) => {
+        if (clienteEditar?.id && c.id === clienteEditar.id) return false;
+        const cTel = String(c.telefone || '').replace(/\D/g, '');
+        const cWhats = String(c.whatsapp || '').replace(/\D/g, '');
+        return (cTel.length >= 8 && (cTel === celularChave || cTel === tel1Digitos)) || (cWhats.length >= 8 && (cWhats === celularChave || cWhats === tel1Digitos));
+      });
+      if (clienteDuplicado) {
+        const msgDuplicidade = `O número de celular informado já está cadastrado para o cliente "${clienteDuplicado.nome}". Como o celular é a chave única de identificação do cliente, edite o registro existente em vez de incluir um novo.`;
+        setErroMsg(msgDuplicidade);
+        mostrarAviso(msgDuplicidade, 'Celular Já Cadastrado');
+        setSalvando(false);
+        return;
+      }
+    }
     let whatsappPrincipal = '';
     if (telefone1IsWhatsapp && telefone1.trim()) {
       whatsappPrincipal = telefone1.replace(/\D/g, '');
@@ -761,7 +781,14 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
       }
     } catch (err: any) {
       console.error('Erro ao salvar cliente:', err);
-      setErroMsg(err.message || 'Erro inesperado ao salvar cliente.');
+      const rawMsg = String(err?.message || '');
+      if (err?.code === '23505' || rawMsg.includes('idx_clientes_loja_telefone_unico') || rawMsg.includes('duplicate key')) {
+        const msgAmigavel = 'Este número de celular/WhatsApp já está vinculado a outro cliente nesta loja. Por favor, edite o cadastro existente em vez de criar um novo.';
+        setErroMsg(msgAmigavel);
+        mostrarAviso(msgAmigavel, 'Celular Já Cadastrado');
+      } else {
+        setErroMsg(err.message || 'Erro inesperado ao salvar cliente.');
+      }
     } finally {
       setSalvando(false);
     }

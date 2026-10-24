@@ -309,12 +309,12 @@ export interface Loja {
   valor_minimo_pedido: number;
   tipo_plano: string;
   desconto_padrao_atacado_percentual?: number | null;
-  tipo_minimo_padrao_atacado?: 'quantidade' | 'valor' | 'hibrido' | null;
+  tipo_minimo_padrao_atacado?: 'quantidade' | 'valor' | 'hibrido' | 'minimo_sku' | string | null;
   qtd_minima_padrao_atacado?: number | null;
   qtd_minima_sku_padrao_atacado?: number | null;
   valor_minimo_padrao_atacado?: number | null;
   desconto_padrao_autoatacado_percentual?: number | null;
-  tipo_minimo_padrao_autoatacado?: 'quantidade' | 'valor' | 'hibrido' | null;
+  tipo_minimo_padrao_autoatacado?: 'quantidade' | 'valor' | 'hibrido' | 'minimo_sku' | string | null;
   qtd_minima_padrao_autoatacado?: number | null;
   qtd_minima_sku_padrao_autoatacado?: number | null;
   valor_minimo_padrao_autoatacado?: number | null;
@@ -355,11 +355,13 @@ export interface RegrasPrecificacaoLoja {
   valorMinimoAtacado: number;
   qtdTotalMinimaAtacado: number;
   qtdMinimaSkuAtacado: number;
+  tipoMinimoAtacado?: 'valor' | 'quantidade_total' | 'minimo_sku' | string;
 
   descontoAutoatacado: number;
   valorMinimoAutoatacado: number;
   qtdTotalMinimaAutoatacado: number;
   qtdMinimaSkuAutoatacado: number;
+  tipoMinimoDistribuidor?: 'valor' | 'quantidade_total' | 'minimo_sku' | string;
 
   tiposVendaAtivos?: {
     varejo?: boolean;
@@ -470,11 +472,11 @@ export interface Produto {
   preco_custo: number;
   preco_venda_varejo: number;
   preco_venda_atacado?: number | null;
-  tipo_minimo_atacado?: 'quantidade' | 'valor' | null;
+  tipo_minimo_atacado?: 'quantidade' | 'valor' | 'minimo_sku' | string | null;
   qtd_minima_atacado: number;
   valor_minimo_atacado?: number | null;
   preco_venda_autoatacado?: number | null;
-  tipo_minimo_autoatacado?: 'quantidade' | 'valor' | null;
+  tipo_minimo_autoatacado?: 'quantidade' | 'valor' | 'minimo_sku' | string | null;
   qtd_minima_autoatacado: number;
   valor_minimo_autoatacado?: number | null;
   preco_promocional?: number | null;

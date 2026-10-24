@@ -44,11 +44,13 @@ export const obterRegrasPrecificacao = (loja?: Loja | null): RegrasPrecificacaoL
         valorMinimoAtacado: Number(parsed.valorMinimoAtacado ?? REGRAS_PADRAO_INICIAIS.valorMinimoAtacado),
         qtdTotalMinimaAtacado: Number(parsed.qtdTotalMinimaAtacado ?? parsed.qtdMinimaAtacado ?? REGRAS_PADRAO_INICIAIS.qtdTotalMinimaAtacado),
         qtdMinimaSkuAtacado: Number(parsed.qtdMinimaSkuAtacado ?? REGRAS_PADRAO_INICIAIS.qtdMinimaSkuAtacado),
+        tipoMinimoAtacado: parsed.tipoMinimoAtacado || loja.tipo_minimo_padrao_atacado || undefined,
 
         descontoAutoatacado: Number(parsed.descontoAutoatacado ?? REGRAS_PADRAO_INICIAIS.descontoAutoatacado),
         valorMinimoAutoatacado: Number(parsed.valorMinimoAutoatacado ?? REGRAS_PADRAO_INICIAIS.valorMinimoAutoatacado),
         qtdTotalMinimaAutoatacado: Number(parsed.qtdTotalMinimaAutoatacado ?? parsed.qtdMinimaAutoatacado ?? REGRAS_PADRAO_INICIAIS.qtdTotalMinimaAutoatacado),
         qtdMinimaSkuAutoatacado: Number(parsed.qtdMinimaSkuAutoatacado ?? REGRAS_PADRAO_INICIAIS.qtdMinimaSkuAutoatacado),
+        tipoMinimoDistribuidor: parsed.tipoMinimoDistribuidor || parsed.tipoMinimoAutoatacado || loja.tipo_minimo_padrao_autoatacado || undefined,
         tiposVendaAtivos: tiposVenda
       };
     } catch (e) {
@@ -62,11 +64,13 @@ export const obterRegrasPrecificacao = (loja?: Loja | null): RegrasPrecificacaoL
     valorMinimoAtacado: Number(loja.valor_minimo_padrao_atacado ?? REGRAS_PADRAO_INICIAIS.valorMinimoAtacado),
     qtdTotalMinimaAtacado: Number(loja.qtd_minima_padrao_atacado ?? REGRAS_PADRAO_INICIAIS.qtdTotalMinimaAtacado),
     qtdMinimaSkuAtacado: Number(loja.qtd_minima_sku_padrao_atacado ?? REGRAS_PADRAO_INICIAIS.qtdMinimaSkuAtacado),
+    tipoMinimoAtacado: loja.tipo_minimo_padrao_atacado || undefined,
 
     descontoAutoatacado: Number(loja.desconto_padrao_autoatacado_percentual ?? REGRAS_PADRAO_INICIAIS.descontoAutoatacado),
     valorMinimoAutoatacado: Number(loja.valor_minimo_padrao_autoatacado ?? REGRAS_PADRAO_INICIAIS.valorMinimoAutoatacado),
     qtdTotalMinimaAutoatacado: Number(loja.qtd_minima_padrao_autoatacado ?? REGRAS_PADRAO_INICIAIS.qtdTotalMinimaAutoatacado),
     qtdMinimaSkuAutoatacado: Number(loja.qtd_minima_sku_padrao_autoatacado ?? REGRAS_PADRAO_INICIAIS.qtdMinimaSkuAutoatacado),
+    tipoMinimoDistribuidor: loja.tipo_minimo_padrao_autoatacado || undefined,
     tiposVendaAtivos: tiposVenda
   };
 };
@@ -113,9 +117,54 @@ export const calcularPrecoUnitarioPorTabela = (
   produto: Produto,
   variacao?: VariacaoProduto | null,
   tabela: TabelaPreco = 'varejo',
-  descontoFallbackPercent: number = 0
+  descontoFallbackPercent: number = 0,
+  quantidadeItem?: number,
+  regras?: RegrasPrecificacaoLoja
 ): number => {
   const precoVarejo = Number(variacao ? variacao.preco_venda_varejo : produto.preco_venda_varejo) || 0;
+
+  if (quantidadeItem !== undefined && tabela !== 'promocional') {
+    const atacadoAtivo = regras ? regras.tiposVendaAtivos?.atacado !== false : true;
+    const distribuidorAtivo = regras ? regras.tiposVendaAtivos?.distribuidor !== false : false;
+    const exigeSkuAtacado = regras
+      ? (regras.tipoMinimoAtacado === 'minimo_sku' || Number(regras.qtdMinimaSkuAtacado || 0) > 0)
+      : (produto.tipo_minimo_atacado === 'minimo_sku');
+    const exigeSkuAuto = regras
+      ? (regras.tipoMinimoDistribuidor === 'minimo_sku' || Number(regras.qtdMinimaSkuAutoatacado || 0) > 0)
+      : (produto.tipo_minimo_autoatacado === 'minimo_sku');
+    const minSkuAtacado = Number(produto.qtd_minima_atacado) > 0
+      ? Number(produto.qtd_minima_atacado)
+      : (Number(regras?.qtdMinimaSkuAtacado) > 1 ? Number(regras?.qtdMinimaSkuAtacado) : 6);
+    const minSkuAuto = Number(produto.qtd_minima_autoatacado) > 0
+      ? Number(produto.qtd_minima_autoatacado)
+      : (Number(regras?.qtdMinimaSkuAutoatacado) > 1 ? Number(regras?.qtdMinimaSkuAutoatacado) : 24);
+
+    if (distribuidorAtivo && exigeSkuAuto && quantidadeItem >= minSkuAuto) {
+      tabela = 'autoatacado';
+      descontoFallbackPercent = regras?.descontoAutoatacado ?? descontoFallbackPercent;
+    } else if (atacadoAtivo && exigeSkuAtacado && quantidadeItem >= minSkuAtacado) {
+      if (tabela !== 'autoatacado') {
+        tabela = 'atacado';
+        descontoFallbackPercent = regras?.descontoAtacado ?? descontoFallbackPercent;
+      }
+    } else if (
+      tabela === 'atacado' &&
+      exigeSkuAtacado &&
+      Number(regras?.valorMinimoAtacado || 0) === 0 &&
+      Number(regras?.qtdTotalMinimaAtacado || 0) === 0 &&
+      quantidadeItem < minSkuAtacado
+    ) {
+      tabela = 'varejo';
+    } else if (
+      tabela === 'autoatacado' &&
+      exigeSkuAuto &&
+      Number(regras?.valorMinimoAutoatacado || 0) === 0 &&
+      Number(regras?.qtdTotalMinimaAutoatacado || 0) === 0 &&
+      quantidadeItem < minSkuAuto
+    ) {
+      tabela = (atacadoAtivo && exigeSkuAtacado && quantidadeItem >= minSkuAtacado) ? 'atacado' : 'varejo';
+    }
+  }
 
   if (tabela === 'promocional') {
     const precoPromo = variacao ? variacao.preco_promocional : produto.preco_promocional;
@@ -211,11 +260,11 @@ export const avaliarNivelCarrinho = (
   const skusAbaixoMinimoAtacado: SkuFracionadoInfo[] = [];
   const skusAbaixoMinimoAuto: SkuFracionadoInfo[] = [];
 
-  const exigeSkuAtacado = Number(regras.qtdMinimaSkuAtacado || 0) > 0;
-  const exigeSkuAuto = Number(regras.qtdMinimaSkuAutoatacado || 0) > 0;
+  const exigeSkuAtacado = regras.tipoMinimoAtacado === 'minimo_sku' || Number(regras.qtdMinimaSkuAtacado || 0) > 0;
+  const exigeSkuAuto = regras.tipoMinimoDistribuidor === 'minimo_sku' || Number(regras.qtdMinimaSkuAutoatacado || 0) > 0;
 
   for (const item of itens) {
-    const minSkuAtacado = Number(item.produto.qtd_minima_atacado) > 0 ? Number(item.produto.qtd_minima_atacado) : (regras.qtdMinimaSkuAtacado || 6);
+    const minSkuAtacado = Number(item.produto.qtd_minima_atacado) > 0 ? Number(item.produto.qtd_minima_atacado) : (Number(regras.qtdMinimaSkuAtacado) > 1 ? Number(regras.qtdMinimaSkuAtacado) : 6);
     if (exigeSkuAtacado && item.quantidade < minSkuAtacado) {
       skusAbaixoMinimoAtacado.push({
         id: item.id,
@@ -227,7 +276,7 @@ export const avaliarNivelCarrinho = (
       });
     }
 
-    const minSkuAuto = Number(item.produto.qtd_minima_autoatacado) > 0 ? Number(item.produto.qtd_minima_autoatacado) : (regras.qtdMinimaSkuAutoatacado || 12);
+    const minSkuAuto = Number(item.produto.qtd_minima_autoatacado) > 0 ? Number(item.produto.qtd_minima_autoatacado) : (Number(regras.qtdMinimaSkuAutoatacado) > 1 ? Number(regras.qtdMinimaSkuAutoatacado) : 24);
     if (exigeSkuAuto && item.quantidade < minSkuAuto) {
       skusAbaixoMinimoAuto.push({
         id: item.id,
@@ -246,13 +295,15 @@ export const avaliarNivelCarrinho = (
   // 3. Avaliar Elegibilidade Autoatacado / Distribuidor (Exclusão Mútua: Valor OU Qtd Global OU Mínimo por SKU)
   const atendeValorAuto = Number(regras.valorMinimoAutoatacado || 0) > 0 && totalVarejo >= Number(regras.valorMinimoAutoatacado);
   const atendeQtdTotalAuto = Number(regras.qtdTotalMinimaAutoatacado || 0) > 0 && totalPecas >= Number(regras.qtdTotalMinimaAutoatacado);
-  const atendeSkuAuto = exigeSkuAuto && todosSkusAtendemAuto && itens.length > 0;
+  const algumSkuAtendeAuto = exigeSkuAuto && skusAbaixoMinimoAuto.length < itens.length;
+  const atendeSkuAuto = exigeSkuAuto && (todosSkusAtendemAuto || algumSkuAtendeAuto) && itens.length > 0;
   const elegivelAutoatacado = distribuidorAtivo && (atendeValorAuto || atendeQtdTotalAuto || atendeSkuAuto);
 
   // 4. Avaliar Elegibilidade Atacado (Exclusão Mútua: Valor OU Qtd Global OU Mínimo por SKU)
   const atendeValorAtacado = Number(regras.valorMinimoAtacado || 0) > 0 && totalVarejo >= Number(regras.valorMinimoAtacado);
   const atendeQtdTotalAtacado = Number(regras.qtdTotalMinimaAtacado || 0) > 0 && totalPecas >= Number(regras.qtdTotalMinimaAtacado);
-  const atendeSkuAtacado = exigeSkuAtacado && todosSkusAtendemAtacado && itens.length > 0;
+  const algumSkuAtendeAtacado = exigeSkuAtacado && skusAbaixoMinimoAtacado.length < itens.length;
+  const atendeSkuAtacado = exigeSkuAtacado && (todosSkusAtendemAtacado || algumSkuAtendeAtacado) && itens.length > 0;
   const elegivelAtacado = atacadoAtivo && (atendeValorAtacado || atendeQtdTotalAtacado || atendeSkuAtacado);
 
   // 5. Determinar Tabela Ativa
@@ -282,7 +333,9 @@ export const avaliarNivelCarrinho = (
     faltaPecas = distribuidorAtivo ? Math.max(0, regras.qtdTotalMinimaAutoatacado - totalPecas) : 0;
 
     // Se já atingiu a meta de peças do autoatacado mas tem SKU com < minSkuAuto
-    if (distribuidorAtivo && totalPecas >= regras.qtdTotalMinimaAutoatacado && !todosSkusAtendemAuto) {
+    if (exigeSkuAtacado && !todosSkusAtendemAtacado) {
+      skusFracionados = skusAbaixoMinimoAtacado;
+    } else if (distribuidorAtivo && totalPecas >= regras.qtdTotalMinimaAutoatacado && !todosSkusAtendemAuto) {
       skusFracionados = skusAbaixoMinimoAuto;
     }
   } else {
@@ -296,7 +349,7 @@ export const avaliarNivelCarrinho = (
       faltaPecas = Math.max(0, regras.qtdTotalMinimaAtacado - totalPecas);
 
       // Se já atingiu a meta global de peças do atacado mas tem SKU fracionado (< 6 un)
-      if (totalPecas >= regras.qtdTotalMinimaAtacado && !todosSkusAtendemAtacado) {
+      if ((exigeSkuAtacado || totalPecas >= regras.qtdTotalMinimaAtacado) && !todosSkusAtendemAtacado) {
         skusFracionados = skusAbaixoMinimoAtacado;
       }
     } else if (proximoNivel === 'autoatacado') {
@@ -322,7 +375,7 @@ export const avaliarNivelCarrinho = (
   const descontoFallback = tabelaAtiva === 'autoatacado' ? regras.descontoAutoatacado : tabelaAtiva === 'atacado' ? regras.descontoAtacado : 0;
 
   for (const item of itens) {
-    const precoUnit = calcularPrecoUnitarioPorTabela(item.produto, item.variacao, tabelaAtiva, descontoFallback);
+    const precoUnit = calcularPrecoUnitarioPorTabela(item.produto, item.variacao, tabelaAtiva, descontoFallback, item.quantidade, regras);
     totalFinal += precoUnit * item.quantidade;
   }
 

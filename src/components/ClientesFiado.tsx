@@ -142,7 +142,8 @@ export const ClientesFiado: React.FC = () => {
 
       if (error) throw error;
       if (data) {
-        const clientesReconciliados = data.map((c: Cliente) => {
+        // 1. Reconciliação de saldos reais da caderneta
+        const clientesComSaldo = data.map((c: Cliente) => {
           const saldoBanco = Number(c.saldo_devedor_caderneta || 0);
           const saldoCalculado = Number(mapaSaldosCaderneta[c.id] || 0);
           const saldoReal = Math.max(saldoBanco, saldoCalculado);
@@ -159,7 +160,125 @@ export const ClientesFiado: React.FC = () => {
             saldo_devedor_caderneta: saldoReal
           };
         });
-        setClientes(clientesReconciliados);
+
+        // 2. Higienização e unificação de cadastros duplicados pelo mesmo celular/WhatsApp
+        const gruposPorTelefone = new Map<string, Cliente[]>();
+        const clientesSemTelefone: Cliente[] = [];
+
+        for (const cli of clientesComSaldo) {
+          const telChave = String(cli.whatsapp || cli.telefone || '').replace(/\D/g, '');
+          if (telChave.length >= 8) {
+            const lista = gruposPorTelefone.get(telChave) || [];
+            lista.push(cli);
+            gruposPorTelefone.set(telChave, lista);
+          } else {
+            clientesSemTelefone.push(cli);
+          }
+        }
+
+        const clientesUnificados: Cliente[] = [...clientesSemTelefone];
+
+        for (const [, grupo] of gruposPorTelefone.entries()) {
+          if (grupo.length === 1) {
+            clientesUnificados.push(grupo[0]);
+            continue;
+          }
+
+          // Ordena para escolher o registro principal (prioriza quem tem saldo, permissão, senha_hash ou cadastro mais antigo)
+          const ordenados = [...grupo].sort((a, b) => {
+            const scoreA =
+              (Number(a.saldo_devedor_caderneta || 0) > 0 || Number(a.saldo_devedor_fiado || 0) > 0 ? 100 : 0) +
+              (a.senha_hash ? 50 : 0) +
+              (a.permite_caderneta || a.permite_fiado ? 25 : 0) +
+              (a.endereco_logradouro || a.endereco_principal ? 10 : 0);
+            const scoreB =
+              (Number(b.saldo_devedor_caderneta || 0) > 0 || Number(b.saldo_devedor_fiado || 0) > 0 ? 100 : 0) +
+              (b.senha_hash ? 50 : 0) +
+              (b.permite_caderneta || b.permite_fiado ? 25 : 0) +
+              (b.endereco_logradouro || b.endereco_principal ? 10 : 0);
+            if (scoreB !== scoreA) return scoreB - scoreA;
+            return new Date(a.criado_em || 0).getTime() - new Date(b.criado_em || 0).getTime();
+          });
+
+          const principal = { ...ordenados[0] };
+          const duplicados = ordenados.slice(1);
+          const idsDuplicados = duplicados.map(d => d.id);
+
+          let somaCaderneta = Number(principal.saldo_devedor_caderneta || 0);
+          let somaFiado = Number(principal.saldo_devedor_fiado || 0);
+
+          for (const dup of duplicados) {
+            somaCaderneta += Number(dup.saldo_devedor_caderneta || 0);
+            somaFiado += Number(dup.saldo_devedor_fiado || 0);
+            if (!principal.senha_hash && dup.senha_hash) principal.senha_hash = dup.senha_hash;
+            if (!principal.email && dup.email) principal.email = dup.email;
+            if (!principal.numero_documento && dup.numero_documento) principal.numero_documento = dup.numero_documento;
+            if (!principal.endereco_principal && dup.endereco_principal) principal.endereco_principal = dup.endereco_principal;
+            if (!principal.endereco_cep && dup.endereco_cep) principal.endereco_cep = dup.endereco_cep;
+            if (!principal.endereco_logradouro && dup.endereco_logradouro) principal.endereco_logradouro = dup.endereco_logradouro;
+            if (!principal.endereco_numero && dup.endereco_numero) principal.endereco_numero = dup.endereco_numero;
+            if (!principal.endereco_bairro && dup.endereco_bairro) principal.endereco_bairro = dup.endereco_bairro;
+            if (!principal.endereco_cidade && dup.endereco_cidade) principal.endereco_cidade = dup.endereco_cidade;
+            if (!principal.endereco_estado && dup.endereco_estado) principal.endereco_estado = dup.endereco_estado;
+            if (dup.permite_caderneta) principal.permite_caderneta = true;
+            if (dup.permite_fiado) principal.permite_fiado = true;
+            if (Number(dup.limite_caderneta || 0) > Number(principal.limite_caderneta || 0)) {
+              principal.limite_caderneta = dup.limite_caderneta;
+            }
+            if (Number(dup.limite_credito || 0) > Number(principal.limite_credito || 0)) {
+              principal.limite_credito = dup.limite_credito;
+            }
+          }
+
+          principal.saldo_devedor_caderneta = Number(somaCaderneta.toFixed(2));
+          principal.saldo_devedor_fiado = Number(somaFiado.toFixed(2));
+          clientesUnificados.push(principal);
+
+          // Migra vínculos no banco em background e remove os duplicados
+          (async () => {
+            try {
+              await supabase
+                .from('pedidos')
+                .update({ cliente_id: principal.id })
+                .eq('loja_id', loja.id)
+                .in('cliente_id', idsDuplicados);
+              await supabase
+                .from('caderneta_lancamentos')
+                .update({ cliente_id: principal.id })
+                .eq('loja_id', loja.id)
+                .in('cliente_id', idsDuplicados);
+              await supabase
+                .from('clientes')
+                .update({
+                  saldo_devedor_caderneta: principal.saldo_devedor_caderneta,
+                  saldo_devedor_fiado: principal.saldo_devedor_fiado,
+                  permite_caderneta: principal.permite_caderneta,
+                  permite_fiado: principal.permite_fiado,
+                  limite_caderneta: principal.limite_caderneta,
+                  limite_credito: principal.limite_credito,
+                  email: principal.email || null,
+                  numero_documento: principal.numero_documento || null,
+                  endereco_principal: principal.endereco_principal || null
+                })
+                .eq('loja_id', loja.id)
+                .eq('id', principal.id);
+              await supabase
+                .from('clientes')
+                .delete()
+                .eq('loja_id', loja.id)
+                .in('id', idsDuplicados);
+            } catch (eUnif) {
+              console.warn('Aviso ao unificar clientes duplicados:', eUnif);
+            }
+          })();
+        }
+
+        clientesUnificados.sort((a, b) =>
+          ordemCrescente
+            ? (a.nome || '').localeCompare(b.nome || 'pt-BR')
+            : (b.nome || '').localeCompare(a.nome || 'pt-BR')
+        );
+        setClientes(clientesUnificados);
       }
     } catch (err) {
       console.error('Erro ao carregar clientes:', err);

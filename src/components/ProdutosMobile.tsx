@@ -347,12 +347,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
   // Regras de Precificação ativas da Loja (sincronização Atacado & Distribuidor)
   const regrasPrecificacaoLoja = useMemo(() => {
-    let tipoMinAtacado: 'valor' | 'quantidade' = 'quantidade';
+    let tipoMinAtacado: 'valor' | 'quantidade' | 'minimo_sku' = 'quantidade';
     let valMinAtacado = 0;
     let qtdMinAtacado = 6;
     let descontoAtacado = 20;
 
-    let tipoMinDistribuidor: 'valor' | 'quantidade' = 'quantidade';
+    let tipoMinDistribuidor: 'valor' | 'quantidade' | 'minimo_sku' = 'quantidade';
     let valMinDistribuidor = 0;
     let qtdMinDistribuidor = 24;
     let descontoAutoatacado = 25;
@@ -362,9 +362,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         const raw = localStorage.getItem(`hubi_regras_precificacao_${loja.id}`);
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (parsed.tipoMinimoAtacado === 'valor' || parsed.tipoMinimoAtacado === 'quantidade') {
+          if (parsed.tipoMinimoAtacado === 'valor' || parsed.tipoMinimoAtacado === 'quantidade' || parsed.tipoMinimoAtacado === 'minimo_sku') {
             tipoMinAtacado = parsed.tipoMinimoAtacado;
-          } else if ((loja as any)?.tipo_minimo_padrao_atacado === 'valor' || (loja as any)?.tipo_minimo_padrao_atacado === 'quantidade') {
+          } else if (Number(parsed.qtdMinimaSkuAtacado || 0) > 0 && Number(parsed.valorMinimoAtacado || 0) === 0 && Number(parsed.qtdTotalMinimaAtacado || 0) === 0) {
+            tipoMinAtacado = 'minimo_sku';
+          } else if ((loja as any)?.tipo_minimo_padrao_atacado === 'valor' || (loja as any)?.tipo_minimo_padrao_atacado === 'quantidade' || (loja as any)?.tipo_minimo_padrao_atacado === 'minimo_sku') {
             tipoMinAtacado = (loja as any).tipo_minimo_padrao_atacado;
           }
 
@@ -372,11 +374,13 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           qtdMinAtacado = Number(parsed.qtdTotalMinimaAtacado ?? parsed.qtdMinimaAtacado) || Number((loja as any)?.qtd_minima_padrao_atacado) || 6;
           descontoAtacado = Number(parsed.descontoAtacado) || Number((loja as any)?.desconto_padrao_atacado_percentual) || 20;
 
-          if (parsed.tipoMinimoDistribuidor === 'valor' || parsed.tipoMinimoDistribuidor === 'quantidade') {
+          if (parsed.tipoMinimoDistribuidor === 'valor' || parsed.tipoMinimoDistribuidor === 'quantidade' || parsed.tipoMinimoDistribuidor === 'minimo_sku') {
             tipoMinDistribuidor = parsed.tipoMinimoDistribuidor;
-          } else if (parsed.tipoMinimoAutoatacado === 'valor' || parsed.tipoMinimoAutoatacado === 'quantidade') {
+          } else if (parsed.tipoMinimoAutoatacado === 'valor' || parsed.tipoMinimoAutoatacado === 'quantidade' || parsed.tipoMinimoAutoatacado === 'minimo_sku') {
             tipoMinDistribuidor = parsed.tipoMinimoAutoatacado;
-          } else if ((loja as any)?.tipo_minimo_padrao_autoatacado === 'valor' || (loja as any)?.tipo_minimo_padrao_autoatacado === 'quantidade') {
+          } else if (Number(parsed.qtdMinimaSkuAutoatacado || 0) > 0 && Number(parsed.valorMinimoAutoatacado || 0) === 0 && Number(parsed.qtdTotalMinimaAutoatacado || 0) === 0) {
+            tipoMinDistribuidor = 'minimo_sku';
+          } else if ((loja as any)?.tipo_minimo_padrao_autoatacado === 'valor' || (loja as any)?.tipo_minimo_padrao_autoatacado === 'quantidade' || (loja as any)?.tipo_minimo_padrao_autoatacado === 'minimo_sku') {
             tipoMinDistribuidor = (loja as any).tipo_minimo_padrao_autoatacado;
           }
 
@@ -384,14 +388,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           qtdMinDistribuidor = Number(parsed.qtdTotalMinimaAutoatacado ?? parsed.qtdMinimaAutoatacado) || Number((loja as any)?.qtd_minima_padrao_autoatacado) || 24;
           descontoAutoatacado = Number(parsed.descontoAutoatacado) || Number((loja as any)?.desconto_padrao_autoatacado_percentual) || 25;
         } else {
-          if ((loja as any)?.tipo_minimo_padrao_atacado === 'valor' || (loja as any)?.tipo_minimo_padrao_atacado === 'quantidade') {
+          if ((loja as any)?.tipo_minimo_padrao_atacado === 'valor' || (loja as any)?.tipo_minimo_padrao_atacado === 'quantidade' || (loja as any)?.tipo_minimo_padrao_atacado === 'minimo_sku') {
             tipoMinAtacado = (loja as any).tipo_minimo_padrao_atacado;
           }
           valMinAtacado = Number((loja as any)?.valor_minimo_padrao_atacado) || 300;
           qtdMinAtacado = Number((loja as any)?.qtd_minima_padrao_atacado) || 6;
           descontoAtacado = Number((loja as any)?.desconto_padrao_atacado_percentual) || 20;
 
-          if ((loja as any)?.tipo_minimo_padrao_autoatacado === 'valor' || (loja as any)?.tipo_minimo_padrao_autoatacado === 'quantidade') {
+          if ((loja as any)?.tipo_minimo_padrao_autoatacado === 'valor' || (loja as any)?.tipo_minimo_padrao_autoatacado === 'quantidade' || (loja as any)?.tipo_minimo_padrao_autoatacado === 'minimo_sku') {
             tipoMinDistribuidor = (loja as any).tipo_minimo_padrao_autoatacado;
           }
           valMinDistribuidor = Number((loja as any)?.valor_minimo_padrao_autoatacado) || 1000;
@@ -3483,6 +3487,26 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                             />
                           </div>
                         </div>
+                      ) : regrasPrecificacaoLoja.tipoMinAtacado === 'minimo_sku' ? (
+                        <div>
+                          <label className="text-[10px] font-bold uppercase block mb-1 text-emerald-600 dark:text-emerald-400">Qtd Mínima Atacado (Un) *</label>
+                          <div
+                            className="flex items-center px-3 py-2 rounded-xl border border-emerald-500/60 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition"
+                            style={{ backgroundColor: temaCores.bgInput }}
+                          >
+                            <input
+                              type="number"
+                              min="1"
+                              step="1"
+                              value={formData.qtdMinimaAtacado || ''}
+                              onChange={(e) => setFormData(prev => ({ ...prev, qtdMinimaAtacado: parseInt(e.target.value, 10) || 0 }))}
+                              placeholder="Ex: 6"
+                              className="w-full text-xs sm:text-sm font-bold bg-transparent focus:outline-none"
+                              style={{ color: temaCores.textoInput }}
+                            />
+                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 ml-1">un</span>
+                          </div>
+                        </div>
                       ) : (
                         <div>
                           <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: temaCores.textoSecundario }}>Qtd Mínima (Unidades)</label>
@@ -3541,6 +3565,26 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                               value={regrasPrecificacaoLoja.valMinDistribuidor > 0 ? regrasPrecificacaoLoja.valMinDistribuidor.toFixed(2).replace('.', ',') : '1.000,00'}
                               className="w-full text-xs sm:text-sm font-bold text-slate-400 bg-transparent cursor-not-allowed focus:outline-none"
                             />
+                          </div>
+                        </div>
+                      ) : regrasPrecificacaoLoja.tipoMinDistribuidor === 'minimo_sku' ? (
+                        <div>
+                          <label className="text-[10px] font-bold uppercase block mb-1 text-indigo-600 dark:text-indigo-400">Qtd Mínima Distribuidor (Un) *</label>
+                          <div
+                            className="flex items-center px-3 py-2 rounded-xl border border-indigo-500/60 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 transition"
+                            style={{ backgroundColor: temaCores.bgInput }}
+                          >
+                            <input
+                              type="number"
+                              min="1"
+                              step="1"
+                              value={formData.qtdMinimaAutoatacado || ''}
+                              onChange={(e) => setFormData(prev => ({ ...prev, qtdMinimaAutoatacado: parseInt(e.target.value, 10) || 0 }))}
+                              placeholder="Ex: 24"
+                              className="w-full text-xs sm:text-sm font-bold bg-transparent focus:outline-none"
+                              style={{ color: temaCores.textoInput }}
+                            />
+                            <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 ml-1">un</span>
                           </div>
                         </div>
                       ) : (

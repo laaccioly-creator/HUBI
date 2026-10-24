@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Scale, X, Check, Calculator } from 'lucide-react';
+import { Scale, X, Calculator } from 'lucide-react';
 import { formatarMoeda } from '../../utils/formatters';
 
 interface ModalInputPesoFracionadoProps {
@@ -19,7 +19,6 @@ export const ModalInputPesoFracionado: React.FC<ModalInputPesoFracionadoProps> =
   produtoNome,
   unidadeMedida = 'KG',
   precoPorKg,
-  quantidadeAtual = 0,
   onConfirmar,
   temaDark = true
 }) => {
@@ -30,18 +29,22 @@ export const ModalInputPesoFracionado: React.FC<ModalInputPesoFracionadoProps> =
 
   useEffect(() => {
     if (aberto) {
-      const kg = quantidadeAtual > 0 ? quantidadeAtual : 1;
-      setValorKg(kg.toFixed(3));
-      setValorGramas(Math.round(kg * 1000).toString());
-      setValorReais((kg * precoPorKg).toFixed(2));
+      setValorKg('');
+      setValorGramas('');
+      setValorReais('');
       setModo('kg');
     }
-  }, [aberto, quantidadeAtual, precoPorKg]);
+  }, [aberto]);
 
   if (!aberto) return null;
 
   const handleMudarKg = (val: string) => {
     setValorKg(val);
+    if (!val.trim()) {
+      setValorGramas('');
+      setValorReais('');
+      return;
+    }
     const num = parseFloat(val.replace(',', '.'));
     if (!isNaN(num) && num >= 0) {
       setValorGramas(Math.round(num * 1000).toString());
@@ -51,6 +54,11 @@ export const ModalInputPesoFracionado: React.FC<ModalInputPesoFracionadoProps> =
 
   const handleMudarGramas = (val: string) => {
     setValorGramas(val);
+    if (!val.trim()) {
+      setValorKg('');
+      setValorReais('');
+      return;
+    }
     const num = parseFloat(val.replace(',', '.'));
     if (!isNaN(num) && num >= 0) {
       const kg = num / 1000;
@@ -61,6 +69,11 @@ export const ModalInputPesoFracionado: React.FC<ModalInputPesoFracionadoProps> =
 
   const handleMudarReais = (val: string) => {
     setValorReais(val);
+    if (!val.trim()) {
+      setValorKg('');
+      setValorGramas('');
+      return;
+    }
     const num = parseFloat(val.replace(',', '.'));
     if (!isNaN(num) && num >= 0 && precoPorKg > 0) {
       const kg = num / precoPorKg;
@@ -69,7 +82,8 @@ export const ModalInputPesoFracionado: React.FC<ModalInputPesoFracionadoProps> =
     }
   };
 
-  const pesoFinalKg = Math.max(0.001, parseFloat(valorKg.replace(',', '.')) || 0.001);
+  const pesoDigitado = parseFloat(valorKg.replace(',', '.'));
+  const pesoFinalKg = !isNaN(pesoDigitado) && pesoDigitado > 0 ? pesoDigitado : 0;
   const subtotalCalculado = pesoFinalKg * precoPorKg;
 
   const handleConfirmar = () => {
@@ -235,20 +249,20 @@ export const ModalInputPesoFracionado: React.FC<ModalInputPesoFracionadoProps> =
         </div>
 
         {/* Botão de Ação */}
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2.5">
           <button
             type="button"
             onClick={onFechar}
-            className="flex-1 py-3 rounded-xl border border-slate-700 text-xs font-bold hover:bg-slate-800 transition cursor-pointer"
+            className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer text-center whitespace-nowrap"
           >
             Cancelar
           </button>
           <button
             type="button"
+            disabled={pesoFinalKg <= 0}
             onClick={handleConfirmar}
-            className="flex-2 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20 transition cursor-pointer"
+            className="w-full px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black flex items-center justify-center text-center whitespace-nowrap shadow-lg shadow-emerald-500/20 transition cursor-pointer"
           >
-            <Check className="w-4 h-4 stroke-[3]" />
             Confirmar Peso
           </button>
         </div>

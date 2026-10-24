@@ -11,7 +11,9 @@ import {
   TrendingUp,
   Receipt,
   MessageCircle,
-  Plus
+  Plus,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { Cliente, CadernetaLancamento, FormaPagamento } from '../types';
 import { CadernetaService, ResumoCadernetaCliente } from '../services/cadernetaService';
@@ -42,6 +44,7 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
   const [resumo, setResumo] = useState<ResumoCadernetaCliente | null>(null);
   const [extrato, setExtrato] = useState<CadernetaLancamento[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
+  const [itensExpandidosIds, setItensExpandidosIds] = useState<Record<string, boolean>>({});
 
   // Estados de Pagamento / Abatimento
   const [modalAbatimentoAberto, setModalAbatimentoAberto] = useState<boolean>(false);
@@ -268,62 +271,77 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                   <div className="space-y-2">
                     {extrato.map((lanc) => {
                       const ehCompra = lanc.tipo_lancamento === 'compra';
-                      const ehPagamento = lanc.tipo_lancamento === 'pagamento';
                       const itensCompra: any[] = (lanc.pedido as any)?.itens || [];
+                      const expandido = Boolean(itensExpandidosIds[lanc.id]);
+                      const numeroPedidoExibicao = (lanc.pedido as any)?.numero_pedido
+                        ? `Pedido #${(lanc.pedido as any).numero_pedido}`
+                        : (lanc.descricao?.replace(/^Compra ref\.\s*/i, '') || 'Lançamento');
+                      const dataHoraExibicao = `${new Date(lanc.criado_em || Date.now()).toLocaleDateString('pt-BR')} ${new Date(lanc.criado_em || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
 
                       return (
                         <div
                           key={lanc.id}
-                          className={`p-3.5 rounded-2xl text-xs transition space-y-2 ${
+                          className={`p-3 rounded-2xl text-xs transition space-y-2 ${
                             isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
                           }`}
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <div className="space-y-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${
-                                  ehCompra
-                                    ? isDark ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-100 text-amber-800 border border-amber-300'
-                                    : isDark ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                                }`}>
-                                  {ehCompra ? 'Compra' : ehPagamento ? 'Pagamento' : lanc.tipo_lancamento}
-                                </span>
-                                <span className={`font-black truncate ${isDark ? 'text-white' : 'text-black'}`}>
-                                  {lanc.descricao}
-                                </span>
-                              </div>
-                              <div className={`text-[11px] font-semibold flex items-center gap-2 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                                <span>
-                                  {new Date(lanc.criado_em || Date.now()).toLocaleDateString('pt-BR')} às{' '}
-                                  {new Date(lanc.criado_em || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                                {lanc.forma_pagamento && (
-                                  <>
-                                    <span>•</span>
-                                    <span className={`font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>{lanc.forma_pagamento.nome}</span>
-                                  </>
-                                )}
-                              </div>
+                            <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
+                              <span className={`text-[11px] font-semibold font-mono shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                                {dataHoraExibicao}
+                              </span>
+                              <span className={`font-black truncate ${isDark ? 'text-white' : 'text-black'}`}>
+                                {numeroPedidoExibicao}
+                              </span>
                             </div>
 
-                            <div className="text-right shrink-0">
-                              <span className={`font-black text-sm font-mono block ${
+                            <div className="flex items-center gap-2.5 shrink-0">
+                              <span className={`font-black text-sm font-mono ${
                                 ehCompra ? (isDark ? 'text-amber-400' : 'text-amber-700') : (isDark ? 'text-emerald-400' : 'text-emerald-700')
                               }`}>
                                 {ehCompra ? '+' : '-'} {formatarMoeda(lanc.valor)}
                               </span>
-                              <span className={`text-[10px] font-bold font-mono block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                                Saldo: {formatarMoeda(lanc.saldo_posterior)}
-                              </span>
+
+                              {ehCompra && (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const proximoEstado = !expandido;
+                                    setItensExpandidosIds(prev => ({ ...prev, [lanc.id]: proximoEstado }));
+                                    if (proximoEstado && itensCompra.length === 0 && lanc.pedido_id && loja?.id) {
+                                      const { data: itensBanco } = await supabase
+                                        .from('itens_pedido')
+                                        .select('*')
+                                        .eq('pedido_id', lanc.pedido_id)
+                                        .eq('loja_id', loja.id);
+                                      if (itensBanco && itensBanco.length > 0) {
+                                        setExtrato(prev => prev.map(item =>
+                                          item.id === lanc.id
+                                            ? { ...item, pedido: { ...(item.pedido as any), itens: itensBanco } as any }
+                                            : item
+                                        ));
+                                      }
+                                    }
+                                  }}
+                                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 border transition cursor-pointer ${
+                                    isDark
+                                      ? 'bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-200'
+                                      : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800'
+                                  }`}
+                                >
+                                  <span>Detalhar</span>
+                                  {expandido ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                </button>
+                              )}
                             </div>
                           </div>
 
-                          {itensCompra.length > 0 && (
-                            <div className={`pt-2 border-t space-y-1 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                          {expandido && itensCompra.length > 0 && (
+                            <div className={`pt-2 border-t space-y-1 animate-in fade-in duration-150 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                               {itensCompra.map((item: any, idx: number) => (
                                 <div key={item.id || idx} className={`flex items-center justify-between text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                                   <span className="truncate pr-2 font-medium">
-                                    <strong className="font-bold">{Number(item.quantidade || 1)}x</strong> {item.nome_produto}
+                                    <strong className="font-bold">{Math.round(Number(item.quantidade || 1))}x</strong> {item.nome_produto}
                                     {item.rotulo_variacao ? ` (${item.rotulo_variacao})` : ''}
                                   </span>
                                   <span className="font-mono font-bold shrink-0">

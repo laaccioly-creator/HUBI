@@ -308,10 +308,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const calcularPrecoItemContext = (
     produto: Produto,
     variacao: VariacaoProduto | null | undefined,
-    tabelaAlvo: TabelaPreco
+    tabelaAlvo: TabelaPreco,
+    quantidadeItem?: number
   ): number => {
     const fallbackDesc = tabelaAlvo === 'autoatacado' ? regrasAtivas.descontoAutoatacado : tabelaAlvo === 'atacado' ? regrasAtivas.descontoAtacado : 0;
-    return calcularPrecoUnitarioPorTabela(produto, variacao, tabelaAlvo, fallbackDesc);
+    const regrasParaCalculo = (tabelaPrecoGlobal === 'autoatacado' || tabelaPrecoGlobal === 'atacado' || tabelaPrecoGlobal === 'promocional') ? undefined : regrasAtivas;
+    return calcularPrecoUnitarioPorTabela(produto, variacao, tabelaAlvo, fallbackDesc, quantidadeItem, regrasParaCalculo);
   };
 
   const setClienteSelecionado = (cliente: Cliente | null) => {
@@ -394,7 +396,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const index = prev.findIndex(i => i.id === cartId);
       if (index >= 0) {
         const novaQtd = prev[index].quantidade + quantidade;
-        const preco = calcularPrecoItemContext(produto, variacao, tabelaPrecoCalculada);
+        const preco = calcularPrecoItemContext(produto, variacao, tabelaPrecoCalculada, novaQtd);
         const varId = variacao?.id || null;
         const atualizados = [...prev];
         atualizados[index] = {
@@ -409,7 +411,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         return atualizados;
       } else {
-        const preco = calcularPrecoItemContext(produto, variacao, tabelaPrecoCalculada);
+        const preco = calcularPrecoItemContext(produto, variacao, tabelaPrecoCalculada, quantidade);
         return [
           ...prev,
           {
@@ -469,7 +471,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setItens(prev =>
       prev.map(item => {
         if (item.id === cartId) {
-          const preco = calcularPrecoItemContext(item.produto, item.variacao, tabelaPrecoCalculada);
+          const preco = calcularPrecoItemContext(item.produto, item.variacao, tabelaPrecoCalculada, quantidade);
           return {
             ...item,
             quantidade,
@@ -486,15 +488,25 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Recalcula subtotais de acordo com a tabela calculada em tempo real
   const itensComPrecoDinamico = useMemo(() => {
     return itens.map(item => {
-      const preco = calcularPrecoItemContext(item.produto, item.variacao, tabelaPrecoCalculada);
+      const preco = calcularPrecoItemContext(item.produto, item.variacao, tabelaPrecoCalculada, item.quantidade);
+      const minSkuAtacado = Number(item.produto.qtd_minima_atacado) > 0 ? Number(item.produto.qtd_minima_atacado) : 6;
+      const exigeSkuAtacado = regrasAtivas.tipoMinimoAtacado === 'minimo_sku' || Number(regrasAtivas.qtdMinimaSkuAtacado || 0) > 0;
+      const tabelaItemEfetiva: TabelaPreco = (
+        tabelaPrecoCalculada === 'atacado' &&
+        exigeSkuAtacado &&
+        Number(regrasAtivas.valorMinimoAtacado || 0) === 0 &&
+        Number(regrasAtivas.qtdTotalMinimaAtacado || 0) === 0 &&
+        item.quantidade < minSkuAtacado &&
+        tabelaPrecoGlobal !== 'atacado'
+      ) ? 'varejo' : tabelaPrecoCalculada;
       return {
         ...item,
         precoUnitario: preco,
-        tabelaPrecoUtilizada: tabelaPrecoCalculada,
+        tabelaPrecoUtilizada: tabelaItemEfetiva,
         subtotal: preco * item.quantidade
       };
     });
-  }, [itens, tabelaPrecoCalculada, regrasAtivas]);
+  }, [itens, tabelaPrecoCalculada, regrasAtivas, tabelaPrecoGlobal]);
 
   const subtotal = useMemo(() => {
     return itensComPrecoDinamico.reduce((acc, item) => acc + item.subtotal, 0);

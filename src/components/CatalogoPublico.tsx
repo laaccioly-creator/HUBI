@@ -1364,7 +1364,9 @@ export const CatalogoPublico: React.FC = () => {
           i.produto,
           i.variacao,
           avaliacaoCarrinho.tabelaAtiva,
-          avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? regrasAtivas.descontoAutoatacado : regrasAtivas.descontoAtacado
+          avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? regrasAtivas.descontoAutoatacado : regrasAtivas.descontoAtacado,
+          i.quantidade,
+          regrasAtivas
         );
         const subtotalItem = precoUnitario * i.quantidade;
         return `▫️ *${i.quantidade}x* ${i.produto.nome} ${i.variacao ? `(${i.variacao.valor_variacao_1})` : ''} - R$ ${subtotalItem.toFixed(2)}`;
@@ -1751,7 +1753,9 @@ export const CatalogoPublico: React.FC = () => {
           item.produto,
           item.variacao,
           avaliacaoCarrinho.tabelaAtiva,
-          avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? regrasAtivas.descontoAutoatacado : regrasAtivas.descontoAtacado
+          avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? regrasAtivas.descontoAutoatacado : regrasAtivas.descontoAtacado,
+          item.quantidade,
+          regrasAtivas
         );
         return {
           loja_id: loja.id,
@@ -1886,7 +1890,9 @@ export const CatalogoPublico: React.FC = () => {
               c.produto,
               c.variacao,
               avaliacaoCarrinho.tabelaAtiva,
-              avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? regrasAtivas.descontoAutoatacado : regrasAtivas.descontoAtacado
+              avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? regrasAtivas.descontoAutoatacado : regrasAtivas.descontoAtacado,
+              c.quantidade,
+              regrasAtivas
             );
             return {
               titulo: `${c.produto.nome}${c.variacao ? ` - ${c.variacao.valor_variacao_1}` : ''}`,
@@ -1925,7 +1931,9 @@ export const CatalogoPublico: React.FC = () => {
             i.produto,
             i.variacao,
             avaliacaoCarrinho.tabelaAtiva,
-            avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? regrasAtivas.descontoAutoatacado : regrasAtivas.descontoAtacado
+            avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? regrasAtivas.descontoAutoatacado : regrasAtivas.descontoAtacado,
+            i.quantidade,
+            regrasAtivas
           );
           const subtotalItem = precoUnitario * i.quantidade;
           return `▫️ *${i.quantidade}x* ${i.produto.nome} ${i.variacao ? `(${i.variacao.valor_variacao_1})` : ''} - R$ ${subtotalItem.toFixed(2)}`;
@@ -2247,7 +2255,7 @@ Fico no aguardo da confirmação! ✨`;
             )}
           </button>
 
-          {/* 3.1 Botão Minha Conta (Exibido com destaque se o cliente autenticado possuir saldo devedor/compras em aberto ou conta autorizada) */}
+          {/* 3.1 Botão Minha Conta (Padronizado com Vitrine / Pedidos / Favoritos) */}
           {Boolean(
             clienteSelecionado &&
             (
@@ -2261,13 +2269,13 @@ Fico no aguardo da confirmação! ✨`;
             <button
               type="button"
               onClick={() => setModalCadernetaAberto(true)}
-              className="relative p-2 sm:px-3 sm:py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border-2 border-amber-500/60 text-amber-800 dark:text-amber-300 font-black transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs active:scale-95"
+              className="relative p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs shrink-0"
               title="Minha Conta — Extrato e Liquidação"
             >
-              <FileText className="w-4 h-4 text-amber-500" />
-              <span>Minha Conta</span>
+              <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span className="hidden lg:inline">Minha Conta</span>
               {(saldoContaClienteReconciliado > 0 || Number(clienteSelecionado?.saldo_devedor_caderneta || 0) > 0 || Number(clienteSelecionado?.saldo_devedor_fiado || 0) > 0) && (
-                <span className="bg-amber-500 text-slate-950 text-[10px] font-black px-1.5 py-0.5 rounded-full leading-none">
+                <span className="hidden sm:inline font-bold text-slate-700 dark:text-slate-300 ml-0.5">
                   {formatarMoeda(Math.max(saldoContaClienteReconciliado, Number(clienteSelecionado?.saldo_devedor_caderneta || 0), Number(clienteSelecionado?.saldo_devedor_fiado || 0)))}
                 </span>
               )}
@@ -3099,7 +3107,9 @@ Fico no aguardo da confirmação! ✨`;
                     item.produto,
                     item.variacao,
                     avaliacaoCarrinho.tabelaAtiva,
-                    avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? regrasAtivas.descontoAutoatacado : regrasAtivas.descontoAtacado
+                    avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? regrasAtivas.descontoAutoatacado : regrasAtivas.descontoAtacado,
+                    item.quantidade,
+                    regrasAtivas
                   );
                   const subtotalItem = precoUnitarioAtivo * item.quantidade;
                   const itemKey = item.variacao ? `${item.produto.id}-${item.variacao.id}` : `${item.produto.id}`;

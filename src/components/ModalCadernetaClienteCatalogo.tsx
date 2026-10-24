@@ -11,8 +11,9 @@ import {
   QrCode,
   CreditCard,
   Banknote,
-  ShoppingBag,
-  ArrowLeft
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { Cliente, CadernetaLancamento, Loja } from '../types';
 import { CadernetaService, ResumoCadernetaCliente } from '../services/cadernetaService';
@@ -44,6 +45,7 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
   const [resumo, setResumo] = useState<ResumoCadernetaCliente | null>(null);
   const [extrato, setExtrato] = useState<CadernetaLancamento[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
+  const [itensExpandidosIds, setItensExpandidosIds] = useState<Record<string, boolean>>({});
 
   // Estado da etapa de pagamento/liquidação
   const [modoPagamento, setModoPagamento] = useState<boolean>(false);
@@ -562,7 +564,7 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
                   <div className="flex items-center justify-between">
                     <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                       <Clock className="w-3.5 h-3.5" />
-                      <span>Extrato de Compras do Ciclo ({extrato.length})</span>
+                      <span>Extrato de Compras ({extrato.length})</span>
                     </h3>
                   </div>
 
@@ -574,67 +576,77 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
                     <div className="space-y-2">
                       {extrato.map((lanc) => {
                         const ehCompra = lanc.tipo_lancamento === 'compra';
-                        const ehPagamento = lanc.tipo_lancamento === 'pagamento';
                         const itensCompra = ((lanc.pedido as any)?.itens || []) as any[];
+                        const expandido = Boolean(itensExpandidosIds[lanc.id]);
+                        const numeroPedidoExibicao = (lanc.pedido as any)?.numero_pedido
+                          ? `Pedido #${(lanc.pedido as any).numero_pedido}`
+                          : (lanc.descricao?.replace(/^Compra ref\.\s*/i, '') || 'Lançamento');
+                        const dataHoraExibicao = `${new Date(lanc.criado_em || Date.now()).toLocaleDateString('pt-BR')} ${new Date(lanc.criado_em || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
 
                         return (
                           <div
                             key={lanc.id}
-                            className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 space-y-2 text-xs"
+                            className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 space-y-2 text-xs"
                           >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="space-y-0.5">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
-                                    ehCompra
-                                      ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30'
-                                      : 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-                                  }`}>
-                                    {ehCompra ? 'Compra' : ehPagamento ? 'Pagamento' : lanc.tipo_lancamento}
-                                  </span>
-                                  <span className="font-bold text-slate-900 dark:text-slate-100">{lanc.descricao}</span>
-                                </div>
-                                <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                                  <span>
-                                    {new Date(lanc.criado_em || Date.now()).toLocaleDateString('pt-BR')} às{' '}
-                                    {new Date(lanc.criado_em || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                  </span>
-                                  {lanc.forma_pagamento && (
-                                    <>
-                                      <span>•</span>
-                                      <span className="font-semibold text-slate-700 dark:text-slate-300">{lanc.forma_pagamento.nome}</span>
-                                    </>
-                                  )}
-                                </div>
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
+                                <span className="text-[11px] font-semibold font-mono text-slate-500 dark:text-slate-400 shrink-0">
+                                  {dataHoraExibicao}
+                                </span>
+                                <span className="font-black text-slate-900 dark:text-slate-100 truncate">
+                                  {numeroPedidoExibicao}
+                                </span>
                               </div>
 
-                              <div className="text-right shrink-0">
-                                <span className={`font-black text-sm block ${
+                              <div className="flex items-center gap-2.5 shrink-0">
+                                <span className={`font-black text-sm font-mono ${
                                   ehCompra ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
                                 }`}>
                                   {ehCompra ? '+' : '-'} {formatarMoeda(lanc.valor)}
                                 </span>
-                                <span className="text-[10px] font-bold text-slate-400 block">
-                                  Saldo: {formatarMoeda(lanc.saldo_posterior)}
-                                </span>
+
+                                {ehCompra && (
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      const proximoEstado = !expandido;
+                                      setItensExpandidosIds(prev => ({ ...prev, [lanc.id]: proximoEstado }));
+                                      if (proximoEstado && itensCompra.length === 0 && lanc.pedido_id && loja?.id) {
+                                        const { data: itensBanco } = await supabase
+                                          .from('itens_pedido')
+                                          .select('*')
+                                          .eq('pedido_id', lanc.pedido_id)
+                                          .eq('loja_id', loja.id);
+                                        if (itensBanco && itensBanco.length > 0) {
+                                          setExtrato(prev => prev.map(item =>
+                                            item.id === lanc.id
+                                              ? { ...item, pedido: { ...(item.pedido as any), itens: itensBanco } as any }
+                                              : item
+                                          ));
+                                        }
+                                      }
+                                    }}
+                                    className="px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition cursor-pointer"
+                                  >
+                                    <span>Detalhar</span>
+                                    {expandido ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                  </button>
+                                )}
                               </div>
                             </div>
 
-                            {/* Detalhamento de Itens da Compra */}
-                            {ehCompra && itensCompra.length > 0 && (
-                              <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800/80 space-y-1">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                                  <ShoppingBag className="w-3 h-3 text-emerald-500" />
-                                  <span>Itens da Compra:</span>
-                                </span>
-                                <div className="grid grid-cols-1 gap-1 pl-1">
+                            {/* Detalhamento Condicional de Itens da Compra */}
+                            {ehCompra && expandido && itensCompra.length > 0 && (
+                              <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800/80 space-y-1 animate-in fade-in duration-150">
+                                <div className="grid grid-cols-1 gap-1">
                                   {itensCompra.map((it: any, idx: number) => (
                                     <div key={it.id || idx} className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-300">
                                       <span className="truncate pr-2">
                                         <strong className="font-black">{Math.round(Number(it.quantidade || 1))}x</strong> {it.nome_produto || 'Produto'}
+                                        {it.rotulo_variacao ? ` (${it.rotulo_variacao})` : ''}
                                       </span>
-                                      <span className="font-bold shrink-0">
-                                        {formatarMoeda(Number(it.subtotal || Number(it.preco_unitario || 0) * Number(it.quantidade || 1)))}
+                                      <span className="font-mono font-bold shrink-0">
+                                        {formatarMoeda(Number(it.subtotal || Number(it.preco_venda_unitario || it.preco_unitario || 0) * Number(it.quantidade || 1)))}
                                       </span>
                                     </div>
                                   ))}

@@ -497,11 +497,11 @@ export const ProdutoCadastro: React.FC = () => {
   // Regras de Precificação (Descontos padrão da loja)
   const [regrasPrecificacao, setRegrasPrecificacao] = useState<{
     descontoAtacado: number;
-    tipoMinimoAtacado: 'quantidade' | 'valor' | 'hibrido';
+    tipoMinimoAtacado: 'quantidade' | 'valor' | 'hibrido' | 'minimo_sku' | string;
     qtdMinimaAtacado: number;
     valorMinimoAtacado: number;
     descontoAutoatacado: number;
-    tipoMinimoAutoatacado: 'quantidade' | 'valor' | 'hibrido';
+    tipoMinimoAutoatacado: 'quantidade' | 'valor' | 'hibrido' | 'minimo_sku' | string;
     qtdMinimaAutoatacado: number;
     valorMinimoAutoatacado: number;
   }>({
@@ -868,14 +868,16 @@ export const ProdutoCadastro: React.FC = () => {
       if (regrasSalvas) {
         try {
           const parsed = JSON.parse(regrasSalvas);
+          const tipoAtac = parsed.tipoMinimoAtacado || (Number(parsed.qtdMinimaSkuAtacado || 0) > 0 && Number(parsed.valorMinimoAtacado || 0) === 0 && Number(parsed.qtdTotalMinimaAtacado || 0) === 0 ? 'minimo_sku' : (loja.tipo_minimo_padrao_atacado || 'hibrido'));
+          const tipoAuto = parsed.tipoMinimoDistribuidor || parsed.tipoMinimoAutoatacado || (Number(parsed.qtdMinimaSkuAutoatacado || 0) > 0 && Number(parsed.valorMinimoAutoatacado || 0) === 0 && Number(parsed.qtdTotalMinimaAutoatacado || 0) === 0 ? 'minimo_sku' : (loja.tipo_minimo_padrao_autoatacado || 'hibrido'));
           setRegrasPrecificacao({
             descontoAtacado: Number(parsed.descontoAtacado) || 20,
-            tipoMinimoAtacado: parsed.tipoMinimoAtacado || 'hibrido',
+            tipoMinimoAtacado: tipoAtac,
             qtdMinimaAtacado: Number(parsed.qtdTotalMinimaAtacado ?? parsed.qtdMinimaAtacado) || 6,
             valorMinimoAtacado: Number(parsed.valorMinimoAtacado) || 300,
 
             descontoAutoatacado: Number(parsed.descontoAutoatacado) || 25,
-            tipoMinimoAutoatacado: parsed.tipoMinimoAutoatacado || 'hibrido',
+            tipoMinimoAutoatacado: tipoAuto,
             qtdMinimaAutoatacado: Number(parsed.qtdTotalMinimaAutoatacado ?? parsed.qtdMinimaAutoatacado) || 24,
             valorMinimoAutoatacado: Number(parsed.valorMinimoAutoatacado) || 1000
           });
@@ -1545,13 +1547,13 @@ export const ProdutoCadastro: React.FC = () => {
         preco_custo: Number(precoCusto) || 0,
         preco_venda_varejo: Number(precoVendaVarejo),
         preco_venda_atacado: precoVendaAtacado ? Number(precoVendaAtacado) : null,
-        tipo_minimo_atacado: tipoMinimoAtacado,
-        qtd_minima_atacado: tipoMinimoAtacado === 'quantidade' ? (Number(qtdMinimaAtacado) || 6) : 0,
-        valor_minimo_atacado: tipoMinimoAtacado === 'valor' ? (Number(valorMinimoAtacado) || 0) : null,
+        tipo_minimo_atacado: regrasPrecificacao.tipoMinimoAtacado === 'minimo_sku' ? 'minimo_sku' : tipoMinimoAtacado,
+        qtd_minima_atacado: (regrasPrecificacao.tipoMinimoAtacado === 'minimo_sku' || tipoMinimoAtacado === 'quantidade') ? (Number(qtdMinimaAtacado) || 6) : 0,
+        valor_minimo_atacado: tipoMinimoAtacado === 'valor' && regrasPrecificacao.tipoMinimoAtacado !== 'minimo_sku' ? (Number(valorMinimoAtacado) || 0) : null,
         preco_venda_autoatacado: precoVendaAutoatacado ? Number(precoVendaAutoatacado) : null,
-        tipo_minimo_autoatacado: tipoMinimoAutoatacado,
-        qtd_minima_autoatacado: tipoMinimoAutoatacado === 'quantidade' ? (Number(qtdMinimaAutoatacado) || 24) : 0,
-        valor_minimo_autoatacado: tipoMinimoAutoatacado === 'valor' ? (Number(valorMinimoAutoatacado) || 0) : null,
+        tipo_minimo_autoatacado: regrasPrecificacao.tipoMinimoAutoatacado === 'minimo_sku' ? 'minimo_sku' : tipoMinimoAutoatacado,
+        qtd_minima_autoatacado: (regrasPrecificacao.tipoMinimoAutoatacado === 'minimo_sku' || tipoMinimoAutoatacado === 'quantidade') ? (Number(qtdMinimaAutoatacado) || 24) : 0,
+        valor_minimo_autoatacado: tipoMinimoAutoatacado === 'valor' && regrasPrecificacao.tipoMinimoAutoatacado !== 'minimo_sku' ? (Number(valorMinimoAutoatacado) || 0) : null,
         preco_promocional: (promocaoAtiva && precoPromocional) ? Number(precoPromocional) : null,
         promocao_ativa: Boolean(promocaoAtiva && precoPromocional && Number(precoPromocional) > 0),
         quantidade_estoque: tipoItem === 'servico' ? 0 : estoqueFinal,
@@ -2347,7 +2349,25 @@ export const ProdutoCadastro: React.FC = () => {
                   placeholder="0,00"
                   className="py-2"
                 />
-                <span className="text-xs text-slate-500 dark:text-slate-400 block">Conforme regra da loja</span>
+                {regrasPrecificacao.tipoMinimoAtacado === 'minimo_sku' ? (
+                  <div className="pt-2 space-y-1">
+                    <label className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 block">
+                      Qtd. Mínima para Atacado (Un) *
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={qtdMinimaAtacado}
+                      onChange={(e) => setQtdMinimaAtacado(e.target.value)}
+                      placeholder="Ex: 6"
+                      className="w-full px-3 py-1.5 text-sm font-bold rounded-xl border border-emerald-500/60 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                    />
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Atacarejo direto ao atingir esta qtd</span>
+                  </div>
+                ) : (
+                  <span className="text-xs text-slate-500 dark:text-slate-400 block">Conforme regra da loja</span>
+                )}
               </div>
 
               <div className="space-y-1">
@@ -2366,7 +2386,25 @@ export const ProdutoCadastro: React.FC = () => {
                   placeholder="0,00"
                   className="py-2"
                 />
-                <span className="text-xs text-slate-500 dark:text-slate-400 block">Conforme regra da loja</span>
+                {regrasPrecificacao.tipoMinimoAutoatacado === 'minimo_sku' ? (
+                  <div className="pt-2 space-y-1">
+                    <label className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 block">
+                      Qtd. Mínima Distribuidor (Un) *
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={qtdMinimaAutoatacado}
+                      onChange={(e) => setQtdMinimaAutoatacado(e.target.value)}
+                      placeholder="Ex: 24"
+                      className="w-full px-3 py-1.5 text-sm font-bold rounded-xl border border-indigo-500/60 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                    />
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Mínimo deste item para distribuidor</span>
+                  </div>
+                ) : (
+                  <span className="text-xs text-slate-500 dark:text-slate-400 block">Conforme regra da loja</span>
+                )}
               </div>
             </div>
 
