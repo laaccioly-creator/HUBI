@@ -62,10 +62,17 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
 
       setResumo(resumoData);
       setExtrato(extratoData);
-      if (fps && fps.length > 0) {
-        setFormasPagamento(fps as FormaPagamento[]);
-        setFormaPagamentoId(fps[0].id);
-      }
+      const fpsFiltradas = ((fps as FormaPagamento[]) || []).filter(
+        f => f.tipo !== 'fiado' && f.tipo !== 'caderneta' && !f.nome?.toLowerCase().includes('caderneta')
+      );
+      const listaFinal: FormaPagamento[] = fpsFiltradas.length > 0 ? fpsFiltradas : [
+        { id: 'pix', loja_id: loja.id, nome: 'Pix', tipo: 'pix', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
+        { id: 'dinheiro', loja_id: loja.id, nome: 'Dinheiro', tipo: 'dinheiro', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
+        { id: 'cartao_debito', loja_id: loja.id, nome: 'Cartão de Débito', tipo: 'cartao_debito', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
+        { id: 'cartao_credito', loja_id: loja.id, nome: 'Cartão de Crédito', tipo: 'cartao_credito', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 12, ativo: true, exibir_catalogo: true }
+      ];
+      setFormasPagamento(listaFinal);
+      setFormaPagamentoId(listaFinal[0].id);
     } catch (err) {
       console.error('Erro ao carregar dados da caderneta:', err);
     } finally {
@@ -129,30 +136,34 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
-      <div className={`w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh] border ${
-        isDark ? 'bg-slate-900 border-slate-700/80 text-white' : 'bg-white border-slate-300 text-black'
+    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
+      <div className={`w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh] ${
+        isDark ? 'bg-[#08131A] border-2 border-slate-400 text-slate-100' : 'bg-slate-100 border-2 border-slate-300 text-black'
       }`}>
         {/* Cabeçalho */}
-        <div className={`p-4 sm:p-5 border-b flex items-center justify-between shrink-0 ${
-          isDark ? 'border-slate-800 bg-slate-900/90' : 'border-slate-200 bg-slate-50'
+        <div className={`p-4 sm:px-6 border-b flex items-center justify-between shrink-0 ${
+          isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-300 bg-slate-100'
         }`}>
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-2xl bg-amber-500/20 text-amber-500 flex items-center justify-center border border-amber-500/30">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center border ${
+              isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-emerald-50 text-emerald-600 border-emerald-200'
+            }`}>
               <FileText className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="font-black text-sm sm:text-base leading-tight">Caderneta de Mercadinho</h2>
-              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                Cliente: <strong className={isDark ? 'text-slate-200' : 'text-slate-900'}>{cliente.nome}</strong>
+              <h2 className={`font-black text-sm sm:text-base leading-tight ${isDark ? 'text-white' : 'text-black'}`}>
+                Extrato da Caderneta
+              </h2>
+              <p className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                Cliente: <strong className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>{cliente.nome}</strong>
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className={`p-2 rounded-xl transition cursor-pointer ${
-              isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-white' : 'hover:bg-slate-200 text-slate-500'
+            className={`p-1.5 rounded-xl border transition cursor-pointer ${
+              isDark ? 'bg-[#000000] border-slate-700 text-white hover:bg-slate-900' : 'bg-white border-2 border-slate-300 text-black hover:bg-slate-50'
             }`}
           >
             <X className="w-5 h-5" />
@@ -160,56 +171,56 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
         </div>
 
         {/* Corpo com Indicadores e Extrato */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar">
           {carregando ? (
-            <div className="py-16 flex flex-col items-center justify-center gap-2 text-slate-500">
-              <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
-              <span className="text-xs font-semibold">Carregando extrato da caderneta...</span>
+            <div className="py-16 flex flex-col items-center justify-center gap-2">
+              <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+              <span className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Carregando extrato da caderneta...</span>
             </div>
           ) : (
             <>
               {/* Cards de Resumo */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                <div className={`p-3 rounded-2xl border ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                  <span className="text-[10px] font-bold text-slate-400 block uppercase">Limite Total</span>
-                  <span className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100">
+                <div className={`p-3 rounded-2xl ${isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'}`}>
+                  <span className={`text-[10px] font-bold block uppercase ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Limite Total</span>
+                  <span className="text-sm sm:text-base font-black font-mono">
                     {formatarMoeda(resumo?.limiteTotal || 0)}
                   </span>
                 </div>
 
-                <div className={`p-3 rounded-2xl border ${
+                <div className={`p-3 rounded-2xl ${
                   (resumo?.saldoDevedor || 0) > 0
-                    ? isDark ? 'bg-amber-950/20 border-amber-500/40 text-amber-400' : 'bg-amber-50 border-amber-300 text-amber-900'
-                    : isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+                    ? isDark ? 'bg-[#000000] border border-amber-500/60 text-amber-400' : 'bg-amber-50 border-2 border-amber-400 text-amber-900'
+                    : isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
                 }`}>
-                  <span className="text-[10px] font-bold block uppercase opacity-80">Saldo Devedor</span>
-                  <span className="text-sm sm:text-base font-black">
+                  <span className="text-[10px] font-bold block uppercase opacity-85">Saldo Devedor</span>
+                  <span className="text-sm sm:text-base font-black font-mono">
                     {formatarMoeda(resumo?.saldoDevedor || 0)}
                   </span>
                 </div>
 
-                <div className={`p-3 rounded-2xl border ${isDark ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-400' : 'bg-emerald-50 border-emerald-200 text-emerald-900'}`}>
-                  <span className="text-[10px] font-bold block uppercase opacity-80">Disponível</span>
-                  <span className="text-sm sm:text-base font-black">
+                <div className={`p-3 rounded-2xl ${isDark ? 'bg-[#000000] border border-emerald-500/50 text-emerald-400' : 'bg-emerald-50 border-2 border-emerald-300 text-emerald-900'}`}>
+                  <span className="text-[10px] font-bold block uppercase opacity-85">Disponível</span>
+                  <span className="text-sm sm:text-base font-black font-mono">
                     {formatarMoeda(resumo?.limiteDisponivel || 0)}
                   </span>
                 </div>
 
-                <div className={`p-3 rounded-2xl border ${
+                <div className={`p-3 rounded-2xl ${
                   resumo?.estaVencido
-                    ? isDark ? 'bg-rose-950/30 border-rose-500/40 text-rose-400' : 'bg-rose-50 border-rose-300 text-rose-900'
-                    : isDark ? 'bg-slate-950 border-slate-800 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-900'
+                    ? isDark ? 'bg-[#000000] border border-rose-500/60 text-rose-400' : 'bg-rose-50 border-2 border-rose-400 text-rose-900'
+                    : isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
                 }`}>
-                  <span className="text-[10px] font-bold block uppercase opacity-80">Vencimento</span>
+                  <span className={`text-[10px] font-bold block uppercase ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Vencimento</span>
                   <span className="text-xs sm:text-sm font-black block truncate">
                     {resumo?.proximoVencimento ? new Date(resumo.proximoVencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '--'}
                   </span>
-                  <span className="text-[9px] font-bold opacity-70">Todo dia {resumo?.diaVencimento}</span>
+                  <span className={`text-[10px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Todo dia {resumo?.diaVencimento}</span>
                 </div>
               </div>
 
               {/* Botões de Ação do Lojista */}
-              <div className="flex items-center gap-2 pt-1">
+              <div className="flex items-center gap-2.5 pt-1">
                 <button
                   type="button"
                   disabled={(resumo?.saldoDevedor || 0) <= 0}
@@ -217,7 +228,7 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                     setValorAbatimento(resumo?.saldoDevedor || 0);
                     setModalAbatimentoAberto(true);
                   }}
-                  className="flex-1 py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-md active:scale-98 disabled:opacity-40"
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 font-black text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm shadow-emerald-600/20 active:scale-98 disabled:opacity-40"
                 >
                   <DollarSign className="w-4 h-4" />
                   <span>Registrar Pagamento / Abatimento</span>
@@ -227,7 +238,11 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                   <button
                     type="button"
                     onClick={handleEnviarWhatsApp}
-                    className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-md active:scale-98"
+                    className={`py-2.5 px-4 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm active:scale-98 ${
+                      isDark
+                        ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-emerald-400'
+                        : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-emerald-700'
+                    }`}
                     title="Enviar Extrato no WhatsApp"
                   >
                     <MessageCircle className="w-4 h-4" />
@@ -237,63 +252,87 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
               </div>
 
               {/* Extrato de Linha do Tempo */}
-              <div className="space-y-2 pt-2">
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>Histórico da Conta Corrente ({extrato.length} lançamentos)</span>
+              <div className="space-y-2.5 pt-2">
+                <h3 className={`text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                  <Clock className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Histórico da Conta Corrente ({extrato.length} {extrato.length === 1 ? 'lançamento' : 'lançamentos'})</span>
                 </h3>
 
                 {extrato.length === 0 ? (
-                  <div className={`p-8 text-center rounded-2xl border text-xs font-semibold ${
-                    isDark ? 'bg-slate-950 border-slate-800 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-500'
+                  <div className={`p-8 text-center rounded-2xl text-xs font-bold ${
+                    isDark ? 'bg-[#000000] border border-slate-700 text-slate-400' : 'bg-white border-2 border-slate-300 text-slate-600'
                   }`}>
                     Nenhuma movimentação registrada na caderneta deste cliente.
                   </div>
                 ) : (
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     {extrato.map((lanc) => {
                       const ehCompra = lanc.tipo_lancamento === 'compra';
                       const ehPagamento = lanc.tipo_lancamento === 'pagamento';
+                      const itensCompra: any[] = (lanc.pedido as any)?.itens || [];
 
                       return (
                         <div
                           key={lanc.id}
-                          className={`p-3 rounded-2xl border flex items-center justify-between text-xs transition ${
-                            isDark ? 'bg-slate-950 border-slate-800/80 hover:border-slate-700' : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                          className={`p-3.5 rounded-2xl text-xs transition space-y-2 ${
+                            isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
                           }`}
                         >
-                          <div className="space-y-0.5">
-                            <div className="flex items-center gap-2">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
-                                ehCompra
-                                  ? 'bg-rose-500/20 text-rose-500 border border-rose-500/30'
-                                  : 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/30'
-                              }`}>
-                                {ehCompra ? 'Compra' : ehPagamento ? 'Pagamento' : lanc.tipo_lancamento}
-                              </span>
-                              <span className="font-bold text-slate-800 dark:text-slate-200">{lanc.descricao}</span>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="space-y-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                                  ehCompra
+                                    ? isDark ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-100 text-amber-800 border border-amber-300'
+                                    : isDark ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                }`}>
+                                  {ehCompra ? 'Compra' : ehPagamento ? 'Pagamento' : lanc.tipo_lancamento}
+                                </span>
+                                <span className={`font-black truncate ${isDark ? 'text-white' : 'text-black'}`}>
+                                  {lanc.descricao}
+                                </span>
+                              </div>
+                              <div className={`text-[11px] font-semibold flex items-center gap-2 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                                <span>
+                                  {new Date(lanc.criado_em || Date.now()).toLocaleDateString('pt-BR')} às{' '}
+                                  {new Date(lanc.criado_em || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                                {lanc.forma_pagamento && (
+                                  <>
+                                    <span>•</span>
+                                    <span className={`font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>{lanc.forma_pagamento.nome}</span>
+                                  </>
+                                )}
+                              </div>
                             </div>
-                            <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                              <span>{new Date(lanc.criado_em || Date.now()).toLocaleDateString('pt-BR')} às {new Date(lanc.criado_em || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-                              {lanc.forma_pagamento && (
-                                <>
-                                  <span>•</span>
-                                  <span className="font-semibold text-slate-700 dark:text-slate-300">{lanc.forma_pagamento.nome}</span>
-                                </>
-                              )}
+
+                            <div className="text-right shrink-0">
+                              <span className={`font-black text-sm font-mono block ${
+                                ehCompra ? (isDark ? 'text-amber-400' : 'text-amber-700') : (isDark ? 'text-emerald-400' : 'text-emerald-700')
+                              }`}>
+                                {ehCompra ? '+' : '-'} {formatarMoeda(lanc.valor)}
+                              </span>
+                              <span className={`text-[10px] font-bold font-mono block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                                Saldo: {formatarMoeda(lanc.saldo_posterior)}
+                              </span>
                             </div>
                           </div>
 
-                          <div className="text-right">
-                            <span className={`font-black text-sm block ${
-                              ehCompra ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
-                            }`}>
-                              {ehCompra ? '+' : '-'} {formatarMoeda(lanc.valor)}
-                            </span>
-                            <span className="text-[10px] font-bold text-slate-400 block">
-                              Saldo: {formatarMoeda(lanc.saldo_posterior)}
-                            </span>
-                          </div>
+                          {itensCompra.length > 0 && (
+                            <div className={`pt-2 border-t space-y-1 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                              {itensCompra.map((item: any, idx: number) => (
+                                <div key={item.id || idx} className={`flex items-center justify-between text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                                  <span className="truncate pr-2 font-medium">
+                                    <strong className="font-bold">{Number(item.quantidade || 1)}x</strong> {item.nome_produto}
+                                    {item.rotulo_variacao ? ` (${item.rotulo_variacao})` : ''}
+                                  </span>
+                                  <span className="font-mono font-bold shrink-0">
+                                    {formatarMoeda(Number(item.subtotal || (Number(item.preco_venda_unitario || 0) * Number(item.quantidade || 1))))}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -306,16 +345,18 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
 
         {/* Submodal de Abatimento / Pagamento */}
         {modalAbatimentoAberto && (
-          <div className="fixed inset-0 z-60 bg-black/85 flex items-center justify-center p-4 animate-in fade-in">
-            <div className={`w-full max-w-md rounded-3xl p-5 border shadow-2xl space-y-4 ${
-              isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-black'
+          <div className="fixed inset-0 z-60 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+            <div className={`w-full max-w-md rounded-3xl p-5 shadow-2xl space-y-4 ${
+              isDark ? 'bg-[#08131A] border-2 border-slate-400 text-white' : 'bg-white border-2 border-slate-300 text-black'
             }`}>
               <div className="flex items-center justify-between">
                 <h3 className="font-black text-sm">Registrar Pagamento na Caderneta</h3>
                 <button
                   type="button"
                   onClick={() => setModalAbatimentoAberto(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-white"
+                  className={`p-1.5 rounded-xl border transition cursor-pointer ${
+                    isDark ? 'bg-[#000000] border-slate-700 text-white hover:bg-slate-900' : 'bg-slate-100 border-slate-300 text-black hover:bg-slate-200'
+                  }`}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -324,10 +365,10 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
               <form onSubmit={handleConfirmarAbatimento} className="space-y-3.5">
                 <div className="space-y-1">
                   <label className="text-xs font-bold block">Valor a Abater (R$)</label>
-                  <div className={`flex items-center gap-1.5 border-2 rounded-xl px-3 py-2.5 focus-within:border-amber-500 ${
-                    isDark ? 'bg-slate-950 border-slate-700' : 'bg-slate-50 border-slate-300'
+                  <div className={`flex items-center gap-1.5 rounded-xl px-3 py-2.5 focus-within:border-emerald-500 ${
+                    isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
                   }`}>
-                    <span className="text-xs font-bold text-amber-500">R$</span>
+                    <span className="text-xs font-bold text-emerald-500">R$</span>
                     <MoneyInput
                       autoFocus
                       value={valorAbatimento}
@@ -336,12 +377,12 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                       className={`w-full bg-transparent text-sm font-bold focus:outline-none ${isDark ? 'text-white' : 'text-black'}`}
                     />
                   </div>
-                  <div className="flex justify-between text-[11px] text-slate-400 pt-0.5">
+                  <div className={`flex justify-between text-[11px] font-semibold pt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                     <span>Saldo Devedor Total:</span>
                     <button
                       type="button"
                       onClick={() => setValorAbatimento(resumo?.saldoDevedor || 0)}
-                      className="font-bold text-amber-500 hover:underline"
+                      className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
                     >
                       Quitar Tudo ({formatarMoeda(resumo?.saldoDevedor || 0)})
                     </button>
@@ -353,8 +394,8 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                   <select
                     value={formaPagamentoId}
                     onChange={(e) => setFormaPagamentoId(e.target.value)}
-                    className={`w-full rounded-xl px-3 py-2.5 text-xs font-bold border-2 focus:outline-none ${
-                      isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-black'
+                    className={`w-full rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none cursor-pointer ${
+                      isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
                     }`}
                   >
                     {formasPagamento.map(fp => (
@@ -369,14 +410,16 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                   <button
                     type="button"
                     onClick={() => setModalAbatimentoAberto(false)}
-                    className="px-4 py-2 rounded-xl text-xs font-bold transition hover:bg-slate-800"
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                      isDark ? 'bg-[#000000] border border-slate-700 text-white hover:bg-slate-900' : 'bg-slate-100 border-2 border-slate-300 text-black hover:bg-slate-200'
+                    }`}
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={salvandoAbatimento || valorAbatimento <= 0}
-                    className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black transition cursor-pointer disabled:opacity-50"
+                    className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition cursor-pointer disabled:opacity-50 shadow-sm shadow-emerald-600/20"
                   >
                     {salvandoAbatimento ? 'Salvando...' : 'Confirmar Abatimento'}
                   </button>

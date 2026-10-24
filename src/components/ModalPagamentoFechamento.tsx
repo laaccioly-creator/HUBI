@@ -208,14 +208,20 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
 
         let lista = FORMAS_PADRAO;
         if (!error && data && data.length > 0) {
-          lista = data;
+          lista = data.map((fp: any) =>
+            (fp.tipo === 'caderneta' || fp.nome?.toLowerCase().includes('caderneta'))
+              ? { ...fp, tipo: 'caderneta' }
+              : fp
+          );
+          const cadernetaAtivaLoja = Boolean(loja?.caderneta_ativa ?? loja?.configuracoes_extras?.pagamentos?.caderneta_ativa);
+          const fiadoAtivoLoja = !cadernetaAtivaLoja && Boolean(loja?.configuracoes_extras?.pagamentos?.permitir_fiado ?? true);
           // Assegura que Fiado esteja na lista se a loja permitir
-          if (!lista.some(f => f.tipo === 'fiado')) {
+          if (fiadoAtivoLoja && !lista.some(f => f.tipo === 'fiado')) {
             const fiadoPadrao = FORMAS_PADRAO.find(f => f.tipo === 'fiado');
             if (fiadoPadrao) lista = [...lista, fiadoPadrao];
           }
           // Assegura que Caderneta esteja na lista se a loja tiver caderneta ativa
-          if (loja?.caderneta_ativa && !lista.some(f => f.tipo === 'caderneta')) {
+          if (cadernetaAtivaLoja && !lista.some(f => f.tipo === 'caderneta')) {
             const cadernetaPadrao = FORMAS_PADRAO.find(f => f.tipo === 'caderneta');
             if (cadernetaPadrao) lista = [...lista, cadernetaPadrao];
           }
@@ -1094,38 +1100,46 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
 
                   {/* Caderneta: Informações do Cliente e Limite Disponível */}
                   {linha.forma_tipo === 'caderneta' && (
-                    <div className={`p-2.5 rounded-xl border space-y-1.5 text-xs ${
+                    <div className={`p-3.5 rounded-2xl border space-y-2 text-xs ${
                       isDark
-                        ? 'bg-emerald-950/20 border-emerald-500/30 text-slate-100'
-                        : 'bg-emerald-50/50 border-emerald-500/30 text-slate-800'
+                        ? 'bg-slate-950 border-slate-800 text-slate-100'
+                        : 'bg-slate-50 border-slate-200 text-slate-800'
                     }`}>
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                          <BookOpen className="w-3.5 h-3.5" />
-                          <span>Caderneta de Mercadinho:</span>
+                      <div className={`flex items-center justify-between ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
+                        <span className="font-medium flex items-center gap-1.5">
+                          <BookOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span>Caderneta Mensal:</span>
                         </span>
                         <span className={`font-semibold truncate max-w-[200px] ${
-                          isDark ? 'text-slate-200' : 'text-slate-800'
+                          isDark ? 'text-slate-100' : 'text-slate-900'
                         }`}>
                           {clientePedidoMemo?.nome || pedido.cliente?.nome || 'Nenhum selecionado'}
                         </span>
                       </div>
-                      <div className={`flex justify-between text-[11px] ${
-                        isDark ? 'text-slate-400' : 'text-slate-600'
+                      <div className={`flex justify-between items-center ${
+                        isDark ? 'text-slate-300' : 'text-slate-800'
                       }`}>
-                        <span>Limite Disponível na Caderneta:</span>
-                        <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                        <span className="font-medium">Saldo Devedor Atual:</span>
+                        <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                          {formatarMoeda(Number(clientePedidoMemo?.saldo_devedor_caderneta || (pedido.cliente as any)?.saldo_devedor_caderneta || 0))}
+                        </span>
+                      </div>
+                      <div className={`flex justify-between items-center ${
+                        isDark ? 'text-slate-300' : 'text-slate-800'
+                      }`}>
+                        <span className="font-medium">Limite Disponível na Caderneta:</span>
+                        <span className="font-semibold text-emerald-600 dark:text-emerald-400">
                           {formatarMoeda(limiteDisponivelCaderneta)}
                         </span>
                       </div>
-                      {clientePedidoMemo?.dia_vencimento_caderneta && (
-                        <div className={`flex justify-between text-[10px] ${
-                          isDark ? 'text-slate-400' : 'text-slate-500'
-                        }`}>
-                          <span>Vencimento do Ciclo:</span>
-                          <span>Dia {clientePedidoMemo.dia_vencimento_caderneta} de cada mês</span>
-                        </div>
-                      )}
+                      <div className={`flex justify-between items-center ${
+                        isDark ? 'text-slate-300' : 'text-slate-800'
+                      }`}>
+                        <span className="font-medium">Ciclo de Acerto / Vencimento:</span>
+                        <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                          Todo dia {clientePedidoMemo?.dia_vencimento_caderneta || loja?.dia_vencimento_padrao_caderneta || 10}
+                        </span>
+                      </div>
                       {linha.valor > limiteDisponivelCaderneta && (
                         <p className="text-[11px] text-rose-600 dark:text-rose-400 font-bold">
                           ⚠️ Valor informado excede o limite disponível de {formatarMoeda(limiteDisponivelCaderneta)}.

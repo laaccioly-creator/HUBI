@@ -121,18 +121,27 @@ export class VendaService {
       ? pedidoEntrega.forma_entrega_id
       : null;
 
-    // Cálculo dos totais de fiado e status de pagamento
-    const linhasAtivas = linhasPagamento.filter(l => Number(l.valor) > 0);
+    // Cálculo dos totais de fiado, caderneta e status de pagamento
+    const linhasAtivas = linhasPagamento
+      .filter(l => Number(l.valor) > 0)
+      .map(l => (l.forma_tipo === 'caderneta' || l.forma_nome?.toLowerCase().includes('caderneta'))
+        ? { ...l, forma_tipo: 'caderneta' }
+        : l
+      );
     const valorFiadoTotal = linhasAtivas
       .filter(l => l.forma_tipo === 'fiado')
       .reduce((sum, l) => sum + Number(l.valor), 0);
+    const valorCadernetaTotal = linhasAtivas
+      .filter(l => l.forma_tipo === 'caderneta')
+      .reduce((sum, l) => sum + Number(l.valor), 0);
+    const valorAPrazoTotal = Number((valorFiadoTotal + valorCadernetaTotal).toFixed(2));
 
-    const valorPago = Number((total - valorFiadoTotal).toFixed(2));
-    const saldoDevedor = Number(valorFiadoTotal.toFixed(2));
-    const fiadoQuitado = valorFiadoTotal <= 0;
-    const statusPagamento: StatusPagamento = valorFiadoTotal === 0
+    const valorPago = Number((total - valorAPrazoTotal).toFixed(2));
+    const saldoDevedor = Number(valorAPrazoTotal.toFixed(2));
+    const fiadoQuitado = valorAPrazoTotal <= 0;
+    const statusPagamento: StatusPagamento = valorAPrazoTotal === 0
       ? 'pago'
-      : (valorPago > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
+      : (valorPago > 0 ? 'parcialmente_pago' : 'fiado');
 
     const ehEntrega = pedidoEntrega?.tipo_atendimento === 'entrega' || taxaEntrega > 0;
     let statusFinal: StatusPedido = 'concluido';
@@ -207,6 +216,8 @@ export class VendaService {
       valor_pago: valorPago,
       saldo_devedor: saldoDevedor,
       fiado_quitado: fiadoQuitado,
+      eh_venda_caderneta: valorCadernetaTotal > 0,
+      ciclo_referencia_caderneta: valorCadernetaTotal > 0 ? `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}` : null,
       data_vencimento_fiado: dataVencimentoFiado || (valorFiadoTotal > 0 ? (pedidoEmEdicao?.data_vencimento_fiado || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]) : null),
       observacoes: observacoes || null,
       data_venda: pedidoEmEdicao?.data_venda || dataIsoFinal,
@@ -475,10 +486,6 @@ export class VendaService {
       }
 
       // Lançamento e débito na Caderneta de Mercadinho
-      const valorCadernetaTotal = linhasAtivas
-        .filter(l => l.forma_tipo === 'caderneta')
-        .reduce((sum, l) => sum + Number(l.valor || 0), 0);
-
       if (valorCadernetaTotal > 0) {
         const taskCaderneta = (async () => {
           try {
@@ -488,6 +495,7 @@ export class VendaService {
               clienteId: clienteSelecionado.id,
               pedidoId,
               valor: valorCadernetaTotal,
+              usuarioId: vendedorIdSanitizado || undefined,
               numeroPedido: pedidoGravado.numero_pedido
             });
           } catch (errCad: any) {

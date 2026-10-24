@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { X, Package, Clock, ExternalLink, Loader2, AlertCircle, ShoppingBag, CheckCircle, Truck, Receipt } from 'lucide-react';
 import { Pedido, Loja } from '../types';
 import { ClienteCatalogoService } from '../services/clienteCatalogoService';
-import { ModalReciboPedido } from './ModalReciboPedido';
+import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
+import { supabase } from '../lib/supabase';
 
 interface ModalPedidosClienteProps {
   isOpen: boolean;
@@ -224,7 +225,25 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setPedidoReciboModal(ped)}
+                      onClick={async () => {
+                        if (ped.itens && ped.itens.length > 0) {
+                          setPedidoReciboModal(ped);
+                          return;
+                        }
+                        try {
+                          const [resItens, resPags] = await Promise.all([
+                            supabase.from('itens_pedido').select('*').eq('pedido_id', ped.id).eq('loja_id', lojaId),
+                            supabase.from('pagamentos_pedido').select('*, forma_pagamento:formas_pagamento(*)').eq('pedido_id', ped.id).eq('loja_id', lojaId)
+                          ]);
+                          setPedidoReciboModal({
+                            ...ped,
+                            itens: (resItens.data as any[]) || ped.itens || [],
+                            pagamentos: (resPags.data as any[]) || ped.pagamentos || []
+                          });
+                        } catch {
+                          setPedidoReciboModal(ped);
+                        }
+                      }}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white font-bold text-xs border border-slate-200 dark:border-slate-700 transition cursor-pointer active:scale-95 shadow-sm"
                       title="Visualizar Recibo do Pedido"
                     >
@@ -249,13 +268,12 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
         </div>
       </div>
 
-      {/* Modal de Recibo do Pedido */}
-      <ModalReciboPedido
+      {/* Modal de Recibo Oficial do Pedido */}
+      <ReciboPedidoModal
         isOpen={!!pedidoReciboModal}
         onClose={() => setPedidoReciboModal(null)}
         pedido={pedidoReciboModal}
         loja={loja}
-        lojaId={lojaId}
       />
     </div>
   );

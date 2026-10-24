@@ -38,6 +38,7 @@ import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 import { formatarMoeda } from '../utils/formatters';
 import { ModalExtratoCadernetaCliente } from './ModalExtratoCadernetaCliente';
 import { ModalImportarClientes } from './ModalImportarClientes';
+import { CadernetaService } from '../services/cadernetaService';
 
 export const ClientesFiado: React.FC = () => {
   const { loja } = useAuth();
@@ -130,14 +131,36 @@ export const ClientesFiado: React.FC = () => {
     if (!loja?.id) return;
     try {
       setCarregando(true);
-      const { data, error } = await supabase
-        .from('clientes')
-        .select('*')
-        .eq('loja_id', loja.id)
-        .order('nome', { ascending: ordemCrescente });
+      const [{ data, error }, mapaSaldosCaderneta] = await Promise.all([
+        supabase
+          .from('clientes')
+          .select('*')
+          .eq('loja_id', loja.id)
+          .order('nome', { ascending: ordemCrescente }),
+        CadernetaService.calcularSaldosReaisCadernetaPorLoja(loja.id)
+      ]);
 
       if (error) throw error;
-      if (data) setClientes(data);
+      if (data) {
+        const clientesReconciliados = data.map((c: Cliente) => {
+          const saldoBanco = Number(c.saldo_devedor_caderneta || 0);
+          const saldoCalculado = Number(mapaSaldosCaderneta[c.id] || 0);
+          const saldoReal = Math.max(saldoBanco, saldoCalculado);
+          if (Math.abs(saldoReal - saldoBanco) > 0.01) {
+            supabase
+              .from('clientes')
+              .update({ saldo_devedor_caderneta: saldoReal })
+              .eq('loja_id', loja.id)
+              .eq('id', c.id)
+              .then(() => {});
+          }
+          return {
+            ...c,
+            saldo_devedor_caderneta: saldoReal
+          };
+        });
+        setClientes(clientesReconciliados);
+      }
     } catch (err) {
       console.error('Erro ao carregar clientes:', err);
     } finally {
@@ -310,14 +333,17 @@ export const ClientesFiado: React.FC = () => {
     return { totalFiadoVencido: vencido, totalFiadoAVencer: aVencer };
   }, [clientes, vencidosPorCliente]);
 
+  const cadernetaAtivaLoja = Boolean(loja?.caderneta_ativa ?? loja?.configuracoes_extras?.pagamentos?.caderneta_ativa);
   const totalClientesComFiado = clientes.filter(c => Number(c.saldo_devedor_fiado || 0) > 0).length;
   const totalClientesVencidos = clientes.filter(c => Number(c.saldo_devedor_fiado || 0) > 0 && ((vencidosPorCliente[c.id] || 0) > 0 || vencidosClienteIds.has(c.id))).length;
   const totalClientesCaderneta = clientes.filter(c => Boolean(c.permite_caderneta) || Number(c.saldo_devedor_caderneta || 0) > 0).length;
+  const totalClientesComDebitoCaderneta = clientes.filter(c => Number(c.saldo_devedor_caderneta || 0) > 0).length;
   const totalSaldoDevedorCaderneta = clientes.reduce((acc, c) => acc + Number(c.saldo_devedor_caderneta || 0), 0);
 
   // Filtragem de clientes pela busca e pelos cards/botão (TODOS / FIADO / VENCIDO / CADERNETA)
   const clientesFiltrados = clientes.filter(c => {
     const saldo = Number(c.saldo_devedor_fiado || 0);
+    const saldoCad = Number(c.saldo_devedor_caderneta || 0);
     const vencidoCli = Math.min(saldo, vencidosPorCliente[c.id] || 0);
     const aVencerCli = Math.max(0, saldo - vencidoCli);
 
@@ -327,10 +353,10 @@ export const ClientesFiado: React.FC = () => {
     if (filtroStatus === 'vencido' && vencidoCli <= 0) {
       return false;
     }
-    if (filtroStatus === 'caderneta' && !c.permite_caderneta && Number(c.saldo_devedor_caderneta || 0) <= 0) {
+    if (filtroStatus === 'caderneta' && !c.permite_caderneta && saldoCad <= 0) {
       return false;
     }
-    if (filtroApenasFiado && saldo <= 0) {
+    if (filtroApenasFiado && (cadernetaAtivaLoja ? saldoCad <= 0 : saldo <= 0)) {
       return false;
     }
     const termo = busca.toLowerCase().trim();
@@ -766,7 +792,7 @@ export const ClientesFiado: React.FC = () => {
               <span>+ Cliente</span>
             </button>
 
-            {/* Botão (FIADO) do lado do botão + Cliente */}
+            {/* Botão Contextual (FIADO ou CADERNETA) do lado do botão + Cliente */}
             <button
               type="button"
               onClick={() => setFiltroApenasFiado(prev => !prev)}
@@ -777,15 +803,15 @@ export const ClientesFiado: React.FC = () => {
                     ? 'bg-[#000000] hover:bg-slate-900 border-amber-500/40 text-amber-400 hover:text-amber-300'
                     : 'bg-white hover:bg-amber-50 border-2 border-amber-300 text-amber-800 hover:text-amber-900'
               }`}
-              title="Listar apenas clientes que possuem fiado em aberto"
+              title={cadernetaAtivaLoja ? 'Listar apenas clientes que possuem caderneta em aberto' : 'Listar apenas clientes que possuem fiado em aberto'}
             >
               <Filter className="w-4 h-4" />
-              <span>(FIADO)</span>
-              {totalClientesComFiado > 0 && (
+              <span>{cadernetaAtivaLoja ? '(CADERNETA)' : '(FIADO)'}</span>
+              {(cadernetaAtivaLoja ? totalClientesComDebitoCaderneta : totalClientesComFiado) > 0 && (
                 <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                   filtroApenasFiado ? 'bg-slate-950 text-amber-400' : 'bg-amber-500/20 text-amber-300'
                 }`}>
-                  {totalClientesComFiado}
+                  {cadernetaAtivaLoja ? totalClientesComDebitoCaderneta : totalClientesComFiado}
                 </span>
               )}
             </button>
@@ -814,8 +840,9 @@ export const ClientesFiado: React.FC = () => {
                   </th>
                   <th className="py-3.5 px-4">Celular/WhatsApp</th>
                   <th className="py-3.5 px-4 hidden md:table-cell">E-mail</th>
-                  <th className="py-3.5 px-4">Valor Fiado</th>
-                  {Boolean(loja?.caderneta_ativa) && <th className="py-3.5 px-4">Caderneta</th>}
+                  <th className="py-3.5 px-4">
+                    {cadernetaAtivaLoja ? 'Valor Caderneta' : 'Valor Fiado'}
+                  </th>
                   <th className="py-3.5 px-4 text-right">Ações</th>
                 </tr>
               </thead>
@@ -850,6 +877,7 @@ export const ClientesFiado: React.FC = () => {
                 ) : (
                   clientesFiltrados.map((cliente) => {
                     const emDebito = Number(cliente.saldo_devedor_fiado || 0) > 0;
+                    const emDebitoCaderneta = Number(cliente.saldo_devedor_caderneta || 0) > 0;
                     const phoneWhatsapp =
                       cliente.whatsapp ||
                       (cliente.telefone_is_whatsapp ? cliente.telefone : cliente.telefone);
@@ -873,7 +901,9 @@ export const ClientesFiado: React.FC = () => {
                             <div className="min-w-0">
                               <span
                                 onClick={() => {
-                                  if (emDebito) {
+                                  if (cadernetaAtivaLoja && (emDebitoCaderneta || cliente.permite_caderneta)) {
+                                    setClienteExtratoCaderneta(cliente);
+                                  } else if (!cadernetaAtivaLoja && emDebito) {
                                     setClienteHistoricoFiado(cliente);
                                   } else if (window.innerWidth < 1024) {
                                     setClientePerfilMobile(cliente);
@@ -883,7 +913,7 @@ export const ClientesFiado: React.FC = () => {
                                   }
                                 }}
                                 className={`font-black block truncate text-xs sm:text-sm cursor-pointer transition ${isDark ? 'text-white group-hover:text-emerald-400' : 'text-black group-hover:text-emerald-700'}`}
-                                title={emDebito ? "Clique para ver histórico de compras fiado e receber" : "Clique para ver perfil do cliente"}
+                                title={cadernetaAtivaLoja ? "Clique para abrir extrato da caderneta ou perfil" : emDebito ? "Clique para ver histórico de compras fiado e receber" : "Clique para ver perfil do cliente"}
                               >
                                 {cliente.nome}
                               </span>
@@ -913,9 +943,33 @@ export const ClientesFiado: React.FC = () => {
                           {cliente.email || '-'}
                         </td>
 
-                        {/* Coluna 4: Valor Fiado */}
+                        {/* Coluna 4 Única Contextual: VALOR CADERNETA ou VALOR FIADO */}
                         <td className="py-3 px-4 font-bold">
-                          {emDebito ? (
+                          {cadernetaAtivaLoja ? (
+                            emDebitoCaderneta ? (
+                              <button
+                                type="button"
+                                onClick={() => setClienteExtratoCaderneta(cliente)}
+                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl transition cursor-pointer text-xs font-black font-mono shadow-xs active:scale-95 ${
+                                  isDark
+                                    ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-amber-400'
+                                    : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-amber-700'
+                                }`}
+                                title="Abrir Extrato e Pagamento da Caderneta"
+                              >
+                                <span>{formatarMoeda(cliente.saldo_devedor_caderneta || 0)}</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setClienteExtratoCaderneta(cliente)}
+                                className={`font-mono font-bold cursor-pointer hover:underline ${isDark ? 'text-slate-500 hover:text-slate-300' : 'text-slate-400 hover:text-slate-700'}`}
+                                title="Ver Extrato da Caderneta"
+                              >
+                                R$ 0,00
+                              </button>
+                            )
+                          ) : emDebito ? (
                             <button
                               type="button"
                               onClick={() => setClienteHistoricoFiado(cliente)}
@@ -933,33 +987,11 @@ export const ClientesFiado: React.FC = () => {
                           )}
                         </td>
 
-                        {/* Coluna Caderneta */}
-                        {Boolean(loja?.caderneta_ativa) && (
-                          <td className="py-3 px-4 font-bold">
-                            {Number(cliente.saldo_devedor_caderneta || 0) > 0 ? (
-                              <button
-                                type="button"
-                                onClick={() => setClienteExtratoCaderneta(cliente)}
-                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl transition cursor-pointer text-xs font-black font-mono shadow-xs active:scale-95 ${
-                                  isDark
-                                    ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-amber-400'
-                                    : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-amber-700'
-                                }`}
-                                title="Abrir Extrato e Pagamento da Caderneta"
-                              >
-                                <span>{formatarMoeda(cliente.saldo_devedor_caderneta || 0)}</span>
-                              </button>
-                            ) : (
-                              <span className={`font-mono text-xs font-bold ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>-</span>
-                            )}
-                          </td>
-                        )}
-
-                        {/* Coluna 5: Ações (Ver Fiado / Ver Endereço / Alterar / Excluir) */}
+                        {/* Coluna 5: Ações (Ver Caderneta/Fiado / Ver Endereço / Alterar / Excluir) */}
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
-                            {/* Botão Ver Caderneta se habilitado ou houver débito */}
-                            {(Boolean(cliente.permite_caderneta) || Number(cliente.saldo_devedor_caderneta || 0) > 0) && (
+                            {/* Botão Ver Caderneta se a modalidade for Caderneta */}
+                            {cadernetaAtivaLoja && (Boolean(cliente.permite_caderneta) || emDebitoCaderneta) && (
                               <button
                                 type="button"
                                 onClick={() => setClienteExtratoCaderneta(cliente)}
@@ -970,8 +1002,8 @@ export const ClientesFiado: React.FC = () => {
                               </button>
                             )}
 
-                            {/* Botão Ver Fiado se houver débito */}
-                            {emDebito && (
+                            {/* Botão Ver Fiado se a modalidade for Fiado e houver débito */}
+                            {!cadernetaAtivaLoja && emDebito && (
                               <button
                                 type="button"
                                 onClick={() => setClienteHistoricoFiado(cliente)}

@@ -767,8 +767,12 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const [creditoDescricao, setCreditoDescricao] = useState<string>('');
   const [outrosAtivo, setOutrosAtivo] = useState<boolean>(false);
   const [outrosDescricao, setOutrosDescricao] = useState<string>('');
-  const [permitirFiado, setPermitirFiado] = useState<boolean>(loja?.configuracoes_extras?.pagamentos?.permitir_fiado ?? true);
   const [cadernetaAtiva, setCadernetaAtiva] = useState<boolean>(Boolean(loja?.caderneta_ativa ?? loja?.configuracoes_extras?.pagamentos?.caderneta_ativa));
+  const [permitirFiado, setPermitirFiado] = useState<boolean>(
+    Boolean(loja?.caderneta_ativa ?? loja?.configuracoes_extras?.pagamentos?.caderneta_ativa)
+      ? false
+      : (loja?.configuracoes_extras?.pagamentos?.permitir_fiado ?? true)
+  );
   const [diaVencimentoPadraoCaderneta, setDiaVencimentoPadraoCaderneta] = useState<number>(Number(loja?.dia_vencimento_padrao_caderneta || loja?.configuracoes_extras?.pagamentos?.dia_vencimento_padrao_caderneta || 10));
 
   // Prazos e Taxas Maquininha
@@ -1146,7 +1150,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           creditoDescricao: pagManuais.credito_orientacoes || '',
           outrosAtivo: pagManuais.outros_ativo ?? false,
           outrosDescricao: pagManuais.outros_orientacoes || '',
-          permitirFiado: pagManuais.permitir_fiado ?? true,
+          permitirFiado: Boolean(loja.caderneta_ativa ?? pagManuais.caderneta_ativa) ? false : (pagManuais.permitir_fiado ?? true),
           cadernetaAtiva: Boolean(loja.caderneta_ativa ?? pagManuais.caderneta_ativa),
           diaVencimentoPadraoCaderneta: Number(loja.dia_vencimento_padrao_caderneta || pagManuais.dia_vencimento_padrao_caderneta || 10),
           maqCreditoAtivo: prazosMaq.credito_ativo ?? true,
@@ -1287,7 +1291,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           descricao_retirada: descricaoRetirada
         },
         pagamentos: {
-          permitir_fiado: permitirFiado,
+          permitir_fiado: cadernetaAtiva ? false : permitirFiado,
           caderneta_ativa: Boolean(cadernetaAtiva),
           dia_vencimento_padrao_caderneta: Number(diaVencimentoPadraoCaderneta || 10),
           pix_ativo: pixAtivo,
@@ -2408,7 +2412,11 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     <input
                       type="checkbox"
                       checked={permitirFiado}
-                      onChange={(e) => setPermitirFiado(e.target.checked)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setPermitirFiado(checked);
+                        if (checked) setCadernetaAtiva(false);
+                      }}
                       className="rounded text-emerald-600 focus:ring-emerald-500"
                     />
                   </label>
@@ -2421,7 +2429,11 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                       <input
                         type="checkbox"
                         checked={cadernetaAtiva}
-                        onChange={(e) => setCadernetaAtiva(e.target.checked)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setCadernetaAtiva(checked);
+                          if (checked) setPermitirFiado(false);
+                        }}
                         className="rounded text-amber-600 focus:ring-amber-500"
                       />
                     </label>
@@ -4537,7 +4549,11 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   <input
                     type="checkbox"
                     checked={permitirFiado}
-                    onChange={(e) => setPermitirFiado(e.target.checked)}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setPermitirFiado(checked);
+                      if (checked) setCadernetaAtiva(false);
+                    }}
                     className="sr-only peer"
                   />
                   <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
@@ -4558,7 +4574,11 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                     <input
                       type="checkbox"
                       checked={cadernetaAtiva}
-                      onChange={(e) => setCadernetaAtiva(e.target.checked)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setCadernetaAtiva(checked);
+                        if (checked) setPermitirFiado(false);
+                      }}
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>

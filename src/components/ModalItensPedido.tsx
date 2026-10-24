@@ -53,7 +53,7 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
   if (!isOpen || !pedido) return null;
 
   const itens = pedido.itens || pedido.itens_pedido || [];
-  const totalQuantidade = itens.reduce((acc, item) => acc + Number(item.quantidade), 0);
+  const totalQuantidade = itens.length > 0 ? Math.max(1, Math.round(itens.reduce((acc, item) => acc + Math.round(Number(item.quantidade || 1)), 0))) : 0;
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">

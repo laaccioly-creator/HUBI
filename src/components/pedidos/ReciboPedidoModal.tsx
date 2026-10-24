@@ -171,7 +171,10 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
   };
 
   const calcularTotalItens = (ped: Pedido) => {
-    return (ped.itens || []).reduce((acc: number, item: any) => acc + Number(item.quantidade || 1), 0);
+    const itens = ped.itens || ped.itens_pedido || [];
+    if (itens.length === 0) return 0;
+    const soma = itens.reduce((acc: number, item: any) => acc + Math.round(Number(item.quantidade || 1)), 0);
+    return Math.max(1, Math.round(soma));
   };
 
   const subtotalProdutos = Number((pedido as any).subtotal_produtos || pedido.subtotal || pedido.valor_total || 0);

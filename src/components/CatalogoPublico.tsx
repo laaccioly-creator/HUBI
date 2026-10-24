@@ -269,9 +269,51 @@ export const CatalogoPublico: React.FC = () => {
   const [modalFavoritosAberto, setModalFavoritosAberto] = useState<boolean>(false);
   const [modalNotificacoesAberto, setModalNotificacoesAberto] = useState<boolean>(false);
   const [modalCadernetaAberto, setModalCadernetaAberto] = useState<boolean>(false);
-  const [formaPagamentoCatalogoEscolhida, setFormaPagamentoCatalogoEscolhida] = useState<'padrao' | 'fiado' | 'caderneta'>('padrao');
+  const [modalPagamentoCheckoutAberto, setModalPagamentoCheckoutAberto] = useState<boolean>(false);
+  const [formaPagamentoCatalogoEscolhida, setFormaPagamentoCatalogoEscolhida] = useState<string>('');
+  const [pixCopiadoCheckout, setPixCopiadoCheckout] = useState<boolean>(false);
+  const [saldoContaClienteReconciliado, setSaldoContaClienteReconciliado] = useState<number>(0);
   const [menuUsuarioAberto, setMenuUsuarioAberto] = useState<boolean>(false);
   const menuUsuarioRef = useRef<HTMLDivElement>(null);
+
+  const atualizarDadosContaCliente = async () => {
+    if (!loja?.id || !clienteSelecionado?.id) {
+      setSaldoContaClienteReconciliado(0);
+      return;
+    }
+    try {
+      const [resCli, resumoCad] = await Promise.all([
+        supabase
+          .from('clientes')
+          .select('*')
+          .eq('id', clienteSelecionado.id)
+          .eq('loja_id', loja.id)
+          .maybeSingle(),
+        CadernetaService.obterResumoCliente(loja.id, clienteSelecionado.id)
+      ]);
+      if (resCli.data) {
+        setClienteSelecionado(resCli.data as Cliente);
+        try {
+          sessionStorage.setItem(`hubi_cliente_catalogo_${slugKey}`, JSON.stringify(resCli.data));
+        } catch {
+          // ignore
+        }
+      }
+      const saldoCad = Number(resumoCad?.saldoDevedor || resCli.data?.saldo_devedor_caderneta || 0);
+      const saldoFiado = Number(resCli.data?.saldo_devedor_fiado || clienteSelecionado?.saldo_devedor_fiado || 0);
+      setSaldoContaClienteReconciliado(Math.max(saldoCad, saldoFiado));
+    } catch {
+      // fallback silencioso
+    }
+  };
+
+  useEffect(() => {
+    if (loja?.id && clienteSelecionado?.id) {
+      atualizarDadosContaCliente();
+    } else {
+      setSaldoContaClienteReconciliado(0);
+    }
+  }, [loja?.id, clienteSelecionado?.id]);
 
   useEffect(() => {
     if (!menuUsuarioAberto) return;
@@ -1348,6 +1390,103 @@ export const CatalogoPublico: React.FC = () => {
     setModalShippingAberto(true);
   };
 
+  const opcoesPagamentoCatalogoAtivas = useMemo(() => {
+    const pagConfig = (loja?.configuracoes_extras as any)?.pagamentos || {};
+    const pagDigitais = (loja?.configuracoes_extras as any)?.pagamentos_digitais || {};
+    const cadernetaAtivaLoja = Boolean(loja?.caderneta_ativa ?? pagConfig?.caderneta_ativa);
+    const fiadoAtivoLoja = !cadernetaAtivaLoja && Boolean(pagConfig?.permitir_fiado ?? true);
+
+    const lista: {
+      id: string;
+      nome: string;
+      descricao: string;
+      tipo: 'pix' | 'dinheiro' | 'cartao_debito' | 'cartao_credito' | 'mercado_pago' | 'caderneta' | 'fiado';
+      desabilitado?: boolean;
+      motivoDesabilitado?: string;
+    }[] = [];
+
+    if (pagConfig.pix_ativo ?? true) {
+      const chave = pagConfig.pix_chave || (loja as any)?.chave_pix || '';
+      lista.push({
+        id: 'pix',
+        tipo: 'pix',
+        nome: 'Pix Manual',
+        descricao: chave ? `Chave Pix: ${chave}` : 'Transferência instantânea via Pix'
+      });
+    }
+
+    if (pagDigitais?.mercado_pago?.ativo) {
+      lista.push({
+        id: 'mercado_pago',
+        tipo: 'mercado_pago',
+        nome: 'Pagamento Online (Mercado Pago)',
+        descricao: 'Pix automático ou Cartão via checkout online'
+      });
+    }
+
+    if (pagConfig.dinheiro_ativo ?? true) {
+      lista.push({
+        id: 'dinheiro',
+        tipo: 'dinheiro',
+        nome: 'Dinheiro na Entrega / Balcão',
+        descricao: 'Pagamento em espécie ao receber ou retirar'
+      });
+    }
+
+    if (pagConfig.debito_ativo ?? true) {
+      lista.push({
+        id: 'cartao_debito',
+        tipo: 'cartao_debito',
+        nome: 'Cartão de Débito (Maquininha)',
+        descricao: 'Pagamento na maquininha na entrega ou balcão'
+      });
+    }
+
+    if (pagConfig.credito_ativo ?? true) {
+      lista.push({
+        id: 'cartao_credito',
+        tipo: 'cartao_credito',
+        nome: 'Cartão de Crédito (Maquininha)',
+        descricao: 'Pagamento na maquininha na entrega ou balcão'
+      });
+    }
+
+    // Exclusividade mútua entre Caderneta de Mercadinho e Fiado / Venda a Prazo
+    if (cadernetaAtivaLoja) {
+      const limiteCad = Number(clienteSelecionado?.limite_caderneta || 0);
+      const saldoCad = Math.max(Number(clienteSelecionado?.saldo_devedor_caderneta || 0), saldoContaClienteReconciliado);
+      const dispCad = Math.max(0, Number((limiteCad - saldoCad).toFixed(2)));
+      if (clienteSelecionado?.permite_caderneta && limiteCad > 0) {
+        const semLimite = dispCad < total;
+        lista.push({
+          id: 'caderneta',
+          tipo: 'caderneta',
+          nome: 'Caderneta de Mercadinho',
+          descricao: `Limite Disponível: ${formatarMoeda(dispCad)}${semLimite ? ' (Saldo insuficiente para este pedido)' : ''}`,
+          desabilitado: semLimite,
+          motivoDesabilitado: semLimite ? 'Limite disponível insuficiente' : undefined
+        });
+      }
+    } else if (fiadoAtivoLoja) {
+      const limiteFiado = Number(clienteSelecionado?.limite_credito || 0);
+      const saldoFiado = Number(clienteSelecionado?.saldo_devedor_fiado || 0);
+      const dispFiado = Math.max(0, Number((limiteFiado - saldoFiado).toFixed(2)));
+      if (clienteSelecionado?.permite_fiado && limiteFiado > 0) {
+        const semLimite = dispFiado < total;
+        lista.push({
+          id: 'fiado',
+          tipo: 'fiado',
+          nome: 'Fiado / Venda a Prazo',
+          descricao: `Limite Disponível: ${formatarMoeda(dispFiado)}${semLimite ? ' (Saldo insuficiente para este pedido)' : ''}`,
+          desabilitado: semLimite,
+          motivoDesabilitado: semLimite ? 'Limite disponível insuficiente' : undefined
+        });
+      }
+    }
+
+    return lista;
+  }, [loja, clienteSelecionado, saldoContaClienteReconciliado, total]);
+
   const handleFinalizarPedido = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!loja?.id || carrinho.length === 0) return;
@@ -1376,6 +1515,30 @@ export const CatalogoPublico: React.FC = () => {
     if (!pedidoEntrega) {
       alert('Por favor, selecione a Forma de Entrega (Retirada ou Entrega) no carrinho antes de finalizar seu pedido.');
       setModalShippingAberto(true);
+      return;
+    }
+
+    // Seleciona primeira opção válida se ainda não houver seleção válida
+    const opcaoValidaAtual = opcoesPagamentoCatalogoAtivas.find(
+      (op) => op.id === formaPagamentoCatalogoEscolhida && !op.desabilitado
+    );
+    if (!opcaoValidaAtual) {
+      const primeiraHabilitada = opcoesPagamentoCatalogoAtivas.find((op) => !op.desabilitado);
+      setFormaPagamentoCatalogoEscolhida(primeiraHabilitada?.id || '');
+    }
+
+    // Abre obrigatoriamente a etapa/modal de escolha de forma de pagamento antes de enviar o pedido
+    setModalPagamentoCheckoutAberto(true);
+  };
+
+  const confirmarEnvioPedidoCatalogo = async () => {
+    if (!loja?.id || carrinho.length === 0) return;
+
+    const opcaoEscolhidaObj = opcoesPagamentoCatalogoAtivas.find(
+      (op) => op.id === formaPagamentoCatalogoEscolhida && !op.desabilitado
+    );
+    if (!opcaoEscolhidaObj) {
+      alert('Por favor, escolha uma forma de pagamento disponível para concluir seu pedido.');
       return;
     }
 
@@ -1633,6 +1796,7 @@ export const CatalogoPublico: React.FC = () => {
             data_pagamento: dataOperacaoIso,
             eh_pagamento_fiado: true
           }]);
+          await atualizarDadosContaCliente();
         } catch (errFiado) {
           console.warn('Aviso ao registrar pagamento fiado no catálogo:', errFiado);
         }
@@ -1656,8 +1820,42 @@ export const CatalogoPublico: React.FC = () => {
             data_pagamento: dataOperacaoIso,
             eh_pagamento_caderneta: true
           }]);
+          await atualizarDadosContaCliente();
         } catch (errCad) {
           console.warn('Aviso ao registrar compra na caderneta no catálogo:', errCad);
+        }
+      } else {
+        try {
+          const { data: formasBanco } = await supabase
+            .from('formas_pagamento')
+            .select('id, nome, tipo')
+            .eq('loja_id', loja.id)
+            .eq('ativo', true);
+
+          const formaCorrespondente = (formasBanco || []).find((f: any) => {
+            const t = (f.tipo || '').toLowerCase();
+            const n = (f.nome || '').toLowerCase();
+            if (formaPagamentoEfetiva === 'pix') return t === 'pix' || n.includes('pix');
+            if (formaPagamentoEfetiva === 'dinheiro') return t === 'dinheiro' || n.includes('dinheiro');
+            if (formaPagamentoEfetiva === 'cartao_debito') return t === 'cartao_debito' || n.includes('débito') || n.includes('debito');
+            if (formaPagamentoEfetiva === 'cartao_credito') return t === 'cartao_credito' || n.includes('crédito') || n.includes('credito');
+            return false;
+          });
+
+          if (formaCorrespondente?.id) {
+            await supabase.from('pagamentos_pedido').insert([{
+              loja_id: loja.id,
+              pedido_id: pedidoCriado.id,
+              forma_pagamento_id: formaCorrespondente.id,
+              valor: total,
+              parcelas: 1,
+              valor_taxa: 0,
+              valor_liquido: total,
+              data_pagamento: dataOperacaoIso
+            }]);
+          }
+        } catch (errPagCat) {
+          console.warn('Aviso ao vincular forma de pagamento do catálogo:', errPagCat);
         }
       }
 
@@ -1666,7 +1864,7 @@ export const CatalogoPublico: React.FC = () => {
       let linkPagamentoUrl: string | null = null;
       let linkPreferenceId: string | null = null;
 
-      if (!ehFiado && !ehCaderneta && loja.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.ativo) {
+      if (!ehFiado && !ehCaderneta && formaPagamentoEfetiva === 'mercado_pago' && loja.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.ativo) {
         const emailEfetivo = dadosContato.email?.trim() || clienteSelecionado?.email?.trim() || undefined;
 
         try {
@@ -1741,13 +1939,13 @@ export const CatalogoPublico: React.FC = () => {
           ? '🏷️ Atacado'
           : '🛒 Varejo';
 
-      const textoFormaPagamento = ehCaderneta
-        ? 'Caderneta de Mercadinho'
-        : ehFiado
-        ? 'Fiado / Compra a Prazo'
-        : loja.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.ativo
-        ? 'A combinar / Mercado Pago'
-        : 'A combinar com a loja';
+      const textoFormaPagamento = opcaoEscolhidaObj?.nome || (
+        ehCaderneta
+          ? 'Caderneta de Mercadinho'
+          : ehFiado
+          ? 'Fiado / Compra a Prazo'
+          : 'A combinar com a loja'
+      );
 
       const entregaTextoMsg = pedidoEntrega?.tipo_atendimento === 'retirada'
         ? 'Retirada na Loja'
@@ -1778,6 +1976,7 @@ Fico no aguardo da confirmação! ✨`;
       const urlWhats = `https://api.whatsapp.com/send?phone=55${lojaPhone}&text=${encodeURIComponent(msgWhatsApp)}`;
 
       setCarrinho([]);
+      setModalPagamentoCheckoutAberto(false);
       setDrawerCarrinhoAberto(false);
       setPixAprovadoEmTempoReal(false);
       try {
@@ -1796,7 +1995,7 @@ Fico no aguardo da confirmação! ✨`;
         preferenceId: linkPreferenceId,
         formaPagamentoEscolhida: formaPagamentoEfetiva
       });
-      setFormaPagamentoCatalogoEscolhida('padrao');
+      setFormaPagamentoCatalogoEscolhida('');
     } catch (err: any) {
       console.error('Erro ao enviar pedido:', err);
       const msgErro = err?.message || '';
@@ -2048,19 +2247,28 @@ Fico no aguardo da confirmação! ✨`;
             )}
           </button>
 
-          {/* 3.1 Caderneta de Mercadinho (Exibida se a loja tem ativa e cliente tem permissão ou débito) */}
-          {Boolean(loja?.caderneta_ativa && clienteSelecionado && (clienteSelecionado.permite_caderneta || Number(clienteSelecionado.saldo_devedor_caderneta || 0) > 0)) && (
+          {/* 3.1 Botão Minha Conta (Exibido com destaque se o cliente autenticado possuir saldo devedor/compras em aberto ou conta autorizada) */}
+          {Boolean(
+            clienteSelecionado &&
+            (
+              saldoContaClienteReconciliado > 0 ||
+              Number(clienteSelecionado.saldo_devedor_caderneta || 0) > 0 ||
+              Number(clienteSelecionado.saldo_devedor_fiado || 0) > 0 ||
+              (loja?.caderneta_ativa && clienteSelecionado.permite_caderneta) ||
+              (!loja?.caderneta_ativa && clienteSelecionado.permite_fiado)
+            )
+          ) && (
             <button
               type="button"
               onClick={() => setModalCadernetaAberto(true)}
-              className="relative p-2 sm:px-2.5 sm:py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 text-amber-700 dark:text-amber-300 font-bold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs active:scale-95"
-              title="Minha Caderneta e Extrato"
+              className="relative p-2 sm:px-3 sm:py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border-2 border-amber-500/60 text-amber-800 dark:text-amber-300 font-black transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs active:scale-95"
+              title="Minha Conta — Extrato e Liquidação"
             >
               <FileText className="w-4 h-4 text-amber-500" />
-              <span className="hidden lg:inline">Caderneta</span>
-              {Number(clienteSelecionado?.saldo_devedor_caderneta || 0) > 0 && (
-                <span className="bg-amber-500 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full leading-none">
-                  !
+              <span>Minha Conta</span>
+              {(saldoContaClienteReconciliado > 0 || Number(clienteSelecionado?.saldo_devedor_caderneta || 0) > 0 || Number(clienteSelecionado?.saldo_devedor_fiado || 0) > 0) && (
+                <span className="bg-amber-500 text-slate-950 text-[10px] font-black px-1.5 py-0.5 rounded-full leading-none">
+                  {formatarMoeda(Math.max(saldoContaClienteReconciliado, Number(clienteSelecionado?.saldo_devedor_caderneta || 0), Number(clienteSelecionado?.saldo_devedor_fiado || 0)))}
                 </span>
               )}
             </button>
@@ -2100,7 +2308,7 @@ Fico no aguardo da confirmação! ✨`;
             )}
           </button>
 
-          {/* 5. Carrinho com Badge e Rótulo (Contraste Padronizado em Ambos os Temas) */}
+          {/* 5. Carrinho (Apenas ícone, texto Carrinho e valor total formatado em moeda) */}
           <button
             type="button"
             onClick={() => setDrawerCarrinhoAberto(true)}
@@ -2109,11 +2317,6 @@ Fico no aguardo da confirmação! ✨`;
           >
             <ShoppingBag className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             <span className="hidden lg:inline text-slate-800 dark:text-slate-100 font-semibold">Carrinho</span>
-            {totalItens > 0 && (
-              <span className="bg-emerald-500 text-slate-950 text-[10px] font-black px-1.5 py-0.5 rounded-full leading-none">
-                {totalItens}
-              </span>
-            )}
             {totalItens > 0 && (
               <span className="hidden sm:inline font-bold text-emerald-700 dark:text-emerald-400 ml-0.5">
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total)}
@@ -2144,6 +2347,17 @@ Fico no aguardo da confirmação! ✨`;
                     <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{clienteSelecionado.nome}</p>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{clienteSelecionado.telefone || clienteSelecionado.whatsapp}</p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuUsuarioAberto(false);
+                      setModalCadernetaAberto(true);
+                    }}
+                    className="w-full px-3.5 py-2 text-left text-xs text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer font-semibold"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Minha Conta</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
@@ -3067,140 +3281,6 @@ Fico no aguardo da confirmação! ✨`;
                       </div>
                     )}
                   </div>
-
-                  {/* SELETOR DE FORMA DE PAGAMENTO (SE O CLIENTE TIVER FIADO OU CADERNETA HABILITADOS) */}
-                  {(() => {
-                    const limiteDispFiado = Math.max(0, Number(clienteSelecionado?.limite_credito || 0) - Number(clienteSelecionado?.saldo_devedor_fiado || 0));
-                    const elegivelFiado = Boolean(clienteSelecionado && clienteSelecionado.permite_fiado);
-                    const limiteSuficienteFiado = elegivelFiado && limiteDispFiado >= total;
-
-                    const limiteDispCad = Math.max(0, Number(clienteSelecionado?.limite_caderneta || 0) - Number(clienteSelecionado?.saldo_devedor_caderneta || 0));
-                    const elegivelCad = Boolean(loja?.caderneta_ativa && clienteSelecionado && clienteSelecionado.permite_caderneta);
-                    const limiteSuficienteCad = elegivelCad && limiteDispCad >= total;
-
-                    if (!elegivelFiado && !elegivelCad) return null;
-
-                    return (
-                      <div className="pt-2.5 border-t border-slate-200 dark:border-slate-800/80 space-y-2">
-                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                          <span className="flex items-center gap-1.5">
-                            <CreditCard className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                            <span>Forma de Pagamento</span>
-                          </span>
-                          <span className="text-[10px] text-slate-500 font-normal">Opções para sua conta</span>
-                        </span>
-
-                        <div className="space-y-1.5">
-                          {/* Opção 1: Padrão */}
-                          <label
-                            onClick={() => setFormaPagamentoCatalogoEscolhida('padrao')}
-                            className={`p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition select-none ${
-                              formaPagamentoCatalogoEscolhida === 'padrao'
-                                ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-500 dark:border-emerald-500/60'
-                                : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-slate-300'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <input
-                                type="radio"
-                                name="formaPagamentoCatalogo"
-                                value="padrao"
-                                checked={formaPagamentoCatalogoEscolhida === 'padrao'}
-                                onChange={() => setFormaPagamentoCatalogoEscolhida('padrao')}
-                                className="accent-emerald-600 w-4 h-4 cursor-pointer"
-                              />
-                              <div>
-                                <span className="text-xs font-bold text-slate-900 dark:text-slate-100 block">
-                                  Pagar Online / Na Entrega
-                                </span>
-                                <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
-                                  Pix, Cartão ou a Combinar com a Loja
-                                </span>
-                              </div>
-                            </div>
-                          </label>
-
-                          {/* Opção 2: Fiado / A Prazo */}
-                          {elegivelFiado && (
-                            <label
-                              onClick={() => {
-                                if (limiteSuficienteFiado) setFormaPagamentoCatalogoEscolhida('fiado');
-                              }}
-                              className={`p-2.5 rounded-xl border flex items-center justify-between transition select-none ${
-                                !limiteSuficienteFiado
-                                  ? 'opacity-60 bg-slate-50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700 cursor-not-allowed'
-                                  : 'cursor-pointer ' + (formaPagamentoCatalogoEscolhida === 'fiado'
-                                      ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-500 dark:border-emerald-500/60'
-                                      : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-slate-300')
-                              }`}
-                            >
-                              <div className="flex items-center gap-2.5">
-                                <input
-                                  type="radio"
-                                  name="formaPagamentoCatalogo"
-                                  value="fiado"
-                                  disabled={!limiteSuficienteFiado}
-                                  checked={formaPagamentoCatalogoEscolhida === 'fiado'}
-                                  onChange={() => {
-                                    if (limiteSuficienteFiado) setFormaPagamentoCatalogoEscolhida('fiado');
-                                  }}
-                                  className="accent-emerald-600 w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
-                                />
-                                <div>
-                                  <span className="text-xs font-bold text-slate-900 dark:text-slate-100 block">
-                                    Fiado / Compra a Prazo
-                                  </span>
-                                  <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
-                                    Limite Disponível: {formatarMoeda(limiteDispFiado)}
-                                    {!limiteSuficienteFiado && ' (Limite insuficiente)'}
-                                  </span>
-                                </div>
-                              </div>
-                            </label>
-                          )}
-
-                          {/* Opção 3: Caderneta de Mercadinho */}
-                          {elegivelCad && (
-                            <label
-                              onClick={() => {
-                                if (limiteSuficienteCad) setFormaPagamentoCatalogoEscolhida('caderneta');
-                              }}
-                              className={`p-2.5 rounded-xl border flex items-center justify-between transition select-none ${
-                                !limiteSuficienteCad
-                                  ? 'opacity-60 bg-slate-50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700 cursor-not-allowed'
-                                  : 'cursor-pointer ' + (formaPagamentoCatalogoEscolhida === 'caderneta'
-                                      ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-500 dark:border-emerald-500/60'
-                                      : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-slate-300')
-                              }`}
-                            >
-                              <div className="flex items-center gap-2.5">
-                                <input
-                                  type="radio"
-                                  name="formaPagamentoCatalogo"
-                                  value="caderneta"
-                                  disabled={!limiteSuficienteCad}
-                                  checked={formaPagamentoCatalogoEscolhida === 'caderneta'}
-                                  onChange={() => {
-                                    if (limiteSuficienteCad) setFormaPagamentoCatalogoEscolhida('caderneta');
-                                  }}
-                                  className="accent-emerald-600 w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
-                                />
-                                <div>
-                                  <span className="text-xs font-bold text-slate-900 dark:text-slate-100 block">
-                                    Caderneta de Mercadinho
-                                  </span>
-                                  <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
-                                    Limite Disponível: {formatarMoeda(limiteDispCad)}
-                                    {!limiteSuficienteCad && ' (Limite insuficiente)'}
-                                  </span>
-                                </div>
-                              </div>
-                            </label>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })()}
                 </form>
               )}
             </div>
@@ -3327,6 +3407,207 @@ Fico no aguardo da confirmação! ✨`;
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE ESCOLHA OBRIGATÓRIA DE FORMA DE PAGAMENTO NO CHECKOUT */}
+      {modalPagamentoCheckoutAberto && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !enviandoPedido) {
+              setModalPagamentoCheckoutAberto(false);
+            }
+          }}
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[60] animate-in fade-in"
+        >
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh] text-slate-900 dark:text-white animate-in zoom-in-95 duration-150">
+            {/* Cabeçalho */}
+            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/90 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm sm:text-base leading-tight">
+                    Escolha a Forma de Pagamento
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Selecione como deseja pagar seu pedido antes de enviar
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={enviandoPedido}
+                onClick={() => setModalPagamentoCheckoutAberto(false)}
+                className="p-2 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Corpo: Resumo e Opções Ativas */}
+            <div className="p-4 sm:p-5 overflow-y-auto space-y-4">
+              <div className="p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
+                    Total a Pagar
+                  </span>
+                  <span className="text-xs text-slate-600 dark:text-slate-300">
+                    Produtos ({formatarMoeda(subtotal)}) + Entrega ({formatarMoeda(valorFreteEfetivo)})
+                  </span>
+                </div>
+                <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">
+                  {formatarMoeda(total)}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
+                  Opções de Pagamento Disponíveis
+                </span>
+
+                {opcoesPagamentoCatalogoAtivas.length === 0 ? (
+                  <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 text-xs text-amber-600 dark:text-amber-300 font-semibold">
+                    Nenhuma forma de pagamento ativa foi encontrada nas configurações desta loja.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {opcoesPagamentoCatalogoAtivas.map((op) => {
+                      const selecionado = formaPagamentoCatalogoEscolhida === op.id;
+                      const desabilitado = Boolean(op.desabilitado);
+                      return (
+                        <button
+                          key={op.id}
+                          type="button"
+                          disabled={desabilitado}
+                          onClick={() => {
+                            if (!desabilitado) setFormaPagamentoCatalogoEscolhida(op.id);
+                          }}
+                          className={`w-full p-3.5 rounded-2xl border text-left transition flex items-start justify-between gap-3 ${
+                            desabilitado
+                              ? 'opacity-50 bg-slate-100 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 cursor-not-allowed'
+                              : selecionado
+                              ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 ring-1 ring-emerald-500 cursor-pointer'
+                              : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-slate-300 dark:hover:border-slate-700 cursor-pointer'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                              selecionado
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                            }`}>
+                              {op.tipo === 'pix' ? (
+                                <QrCode className="w-4 h-4" />
+                              ) : op.tipo === 'dinheiro' ? (
+                                <Banknote className="w-4 h-4" />
+                              ) : op.tipo === 'caderneta' || op.tipo === 'fiado' ? (
+                                <FileText className="w-4 h-4" />
+                              ) : (
+                                <CreditCard className="w-4 h-4" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white block">
+                                {op.nome}
+                              </span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                                {op.descricao}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-1 ${
+                            selecionado
+                              ? 'border-emerald-600 bg-emerald-600 text-white'
+                              : 'border-slate-300 dark:border-slate-600'
+                          }`}>
+                            {selecionado && <Check className="w-3 h-3" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Exibição da chave Pix e instruções caso Pix Manual esteja selecionado */}
+              {formaPagamentoCatalogoEscolhida === 'pix' && (() => {
+                const pagConfig = (loja?.configuracoes_extras as any)?.pagamentos || {};
+                const chavePix = pagConfig.pix_chave || (loja as any)?.chave_pix || '';
+                const orientacoesPix = pagConfig.pix_orientacoes || '';
+                if (!chavePix && !orientacoesPix) return null;
+                return (
+                  <div className="p-3.5 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 space-y-2">
+                    {chavePix && (
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 block">
+                            Chave Pix da Loja
+                          </span>
+                          <span className="text-xs font-mono font-bold text-slate-900 dark:text-white break-all">
+                            {chavePix}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(chavePix);
+                              setPixCopiadoCheckout(true);
+                              setTimeout(() => setPixCopiadoCheckout(false), 2500);
+                            } catch {
+                              // ignore
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
+                        >
+                          {pixCopiadoCheckout ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                          <span>{pixCopiadoCheckout ? 'Copiada!' : 'Copiar Chave'}</span>
+                        </button>
+                      </div>
+                    )}
+                    {orientacoesPix && (
+                      <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                        {orientacoesPix}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Rodapé com Ações */}
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/90 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                disabled={enviandoPedido}
+                onClick={() => setModalPagamentoCheckoutAberto(false)}
+                className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition cursor-pointer"
+              >
+                Voltar ao Carrinho
+              </button>
+              <button
+                type="button"
+                disabled={enviandoPedido || !formaPagamentoCatalogoEscolhida}
+                onClick={confirmarEnvioPedidoCatalogo}
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-md shadow-emerald-600/20 transition cursor-pointer active:scale-95"
+              >
+                {enviandoPedido ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Enviando Pedido...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Confirmar e Enviar Pedido</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -3630,13 +3911,14 @@ Fico no aguardo da confirmação! ✨`;
         }}
       />
 
-      {/* MODAL DA CADERNETA DO CLIENTE NO CATÁLOGO */}
+      {/* MODAL DA CADERNETA / MINHA CONTA DO CLIENTE NO CATÁLOGO */}
       {modalCadernetaAberto && (
         <ModalCadernetaClienteCatalogo
           isOpen={modalCadernetaAberto}
           onClose={() => setModalCadernetaAberto(false)}
           cliente={clienteSelecionado}
           loja={loja}
+          onAtualizado={atualizarDadosContaCliente}
         />
       )}
 

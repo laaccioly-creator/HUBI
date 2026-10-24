@@ -2327,7 +2327,7 @@ export const PedidosLista: React.FC = () => {
 
   const calcularTotalItens = (pedido: Pedido) => {
     const itens = pedido.itens || pedido.itens_pedido || [];
-    return itens.reduce((acc, i) => acc + Number(i.quantidade || 1), 0);
+    return itens.length > 0 ? Math.max(1, Math.round(itens.reduce((acc, i) => acc + Math.round(Number(i.quantidade || 1)), 0))) : 0;
   };
 
   const calcularLucroEstimado = (pedido: Pedido) => {

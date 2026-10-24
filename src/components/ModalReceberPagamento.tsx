@@ -708,19 +708,25 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
 
                     {/* Caderneta de Mercadinho: Informações de Limite */}
                     {linha.forma_tipo === 'caderneta' && (
-                      <div className="p-2.5 rounded-xl border border-emerald-500/30 bg-emerald-950/30 text-emerald-200 space-y-1.5 text-xs">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-emerald-400 flex items-center gap-1.5">
-                            <BookOpen className="w-3.5 h-3.5" />
-                            <span>Caderneta de Mercadinho:</span>
+                      <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 space-y-2 text-xs">
+                        <div className="flex items-center justify-between text-slate-400">
+                          <span className="flex items-center gap-1.5">
+                            <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Caderneta Mensal:</span>
                           </span>
                           <span className="font-semibold text-slate-200 truncate max-w-[200px]">
                             {pedido.cliente?.nome || 'Nenhum selecionado'}
                           </span>
                         </div>
-                        <div className="flex justify-between text-[11px] text-slate-300">
+                        <div className="flex justify-between text-slate-400">
+                          <span>Saldo Devedor Atual:</span>
+                          <span className="font-semibold text-slate-200">
+                            R$ {Number((pedido.cliente as any)?.saldo_devedor_caderneta || 0).toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-slate-400">
                           <span>Limite Disponível na Caderneta:</span>
-                          <span className="font-bold text-emerald-400">
+                          <span className="font-semibold text-emerald-400">
                             R$ {limiteDisponivelCaderneta.toFixed(2)}
                           </span>
                         </div>

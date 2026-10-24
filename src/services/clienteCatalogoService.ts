@@ -370,14 +370,26 @@ export const ClienteCatalogoService = {
     try {
       const { data, error } = await supabase
         .from('pedidos')
-        .select('*')
+        .select('*, cliente:clientes(*), forma_entrega:formas_entrega(*), pedido_entrega:pedido_entregas(*), itens:itens_pedido(*), pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*))')
         .eq('loja_id', lojaId)
         .eq('cliente_id', clienteId)
         .order('criado_em', { ascending: false })
         .limit(30);
 
-      if (error) throw error;
-      return (data as Pedido[]) || [];
+      if (!error && data) {
+        return data as Pedido[];
+      }
+
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('pedidos')
+        .select('*, itens:itens_pedido(*), pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*))')
+        .eq('loja_id', lojaId)
+        .eq('cliente_id', clienteId)
+        .order('criado_em', { ascending: false })
+        .limit(30);
+
+      if (fallbackError) throw fallbackError;
+      return (fallbackData as Pedido[]) || [];
     } catch (err) {
       console.warn('Erro ao carregar pedidos do cliente:', err);
       return [];

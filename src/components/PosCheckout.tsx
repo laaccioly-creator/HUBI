@@ -451,12 +451,19 @@ export const PosCheckout: React.FC = () => {
     return permite && (limite - saldo) > 0;
   }, [loja?.caderneta_ativa, clienteSelecionado]);
 
-  // Filtra as formas de pagamento disponíveis: Fiado e Caderneta respeitam habilitação e saldo
+  // Filtra as formas de pagamento disponíveis: Fiado e Caderneta respeitam habilitação, exclusividade mútua e saldo
   const formasPagamentoDisponiveis = useMemo(() => {
-    const listaFPs = ((formasPagamento?.length || 0) > 0) ? formasPagamento : FORMAS_PADRAO;
+    const listaFPs = (((formasPagamento?.length || 0) > 0) ? formasPagamento : FORMAS_PADRAO).map(fp =>
+      (fp.tipo === 'caderneta' || fp.nome?.toLowerCase().includes('caderneta'))
+        ? { ...fp, tipo: 'caderneta' as const }
+        : fp
+    );
     const base = [...listaFPs];
+    const cadernetaAtivaLoja = Boolean(loja?.caderneta_ativa ?? loja?.configuracoes_extras?.pagamentos?.caderneta_ativa);
+    const fiadoAtivoLoja = !cadernetaAtivaLoja && Boolean(loja?.configuracoes_extras?.pagamentos?.permitir_fiado ?? true);
+
     // Se a loja tem caderneta ativa e não veio na lista do banco, injeta opção padrão de caderneta
-    if (loja?.caderneta_ativa && !base.some(f => f.tipo === 'caderneta')) {
+    if (cadernetaAtivaLoja && !base.some(f => f.tipo === 'caderneta')) {
       base.push({
         id: `fp_caderneta_${loja?.id || 'default'}`,
         loja_id: loja?.id || '',
@@ -473,14 +480,14 @@ export const PosCheckout: React.FC = () => {
     return base.filter(fp => {
       if (!fp.ativo) return false;
       if (fp.tipo === 'fiado') {
-        return permissions.podeAtivarFiado && clienteAptoFiado;
+        return fiadoAtivoLoja && permissions.podeAtivarFiado && clienteAptoFiado;
       }
       if (fp.tipo === 'caderneta') {
-        return Boolean(loja?.caderneta_ativa) && clienteAptoCaderneta;
+        return cadernetaAtivaLoja && clienteAptoCaderneta;
       }
       return true;
     });
-  }, [formasPagamento, permissions.podeAtivarFiado, clienteAptoFiado, clienteAptoCaderneta, loja?.caderneta_ativa, loja?.id]);
+  }, [formasPagamento, permissions.podeAtivarFiado, clienteAptoFiado, clienteAptoCaderneta, loja?.caderneta_ativa, loja?.configuracoes_extras?.pagamentos, loja?.id]);
 
   // Sanitiza linhas de pagamento caso o cliente selecionado mude ou não possua limite fiado/caderneta
   useEffect(() => {
@@ -1786,13 +1793,19 @@ export const PosCheckout: React.FC = () => {
               : 0;
 
             const diferencaFiado = valorFiadoTotal - valorFiadoAnterior;
-            if (diferencaFiado !== 0) {
+            const valorCadernetaTotal = linhasAtivas
+              .filter(l => l.forma_tipo === 'caderneta' || l.forma_nome?.toLowerCase().includes('caderneta'))
+              .reduce((sum, l) => sum + Number(l.valor || 0), 0);
+
+            if (diferencaFiado !== 0 || valorCadernetaTotal > 0) {
               const novoLimite = Math.max(0, (clienteSelecionado.limite_credito || 0) - diferencaFiado);
               const novoSaldo = Math.max(0, (clienteSelecionado.saldo_devedor_fiado || 0) + diferencaFiado);
+              const novoSaldoCaderneta = Number(((clienteSelecionado.saldo_devedor_caderneta || 0) + valorCadernetaTotal).toFixed(2));
               const clienteAtualizado: Cliente = {
                 ...clienteSelecionado,
                 limite_credito: novoLimite,
-                saldo_devedor_fiado: novoSaldo
+                saldo_devedor_fiado: novoSaldo,
+                saldo_devedor_caderneta: novoSaldoCaderneta
               };
               setClienteSelecionado(clienteAtualizado);
               setClientes(prev => prev.map(c => c.id === clienteSelecionado.id ? clienteAtualizado : c));
@@ -2345,11 +2358,6 @@ export const PosCheckout: React.FC = () => {
           <div className="flex items-center justify-between">
             <h2 className={`font-bold text-sm flex items-center gap-2 ${isDark ? 'text-slate-100' : 'text-[#0F172A]'}`}>
               <span>Carrinho de Venda</span>
-              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                isDark ? 'bg-emerald-500/20 text-emerald-300' : 'bg-[#ECFDF5] text-[#047857] border border-[#A7F3D0]'
-              }`}>
-                {totalItens} un
-              </span>
             </h2>
 
             {((itens?.length || 0) > 0) && !isEdicaoTravada && (
@@ -3424,33 +3432,35 @@ export const PosCheckout: React.FC = () => {
 
                     {/* Caderneta de Mercadinho: Informações do Cliente, Limite e Dia de Vencimento */}
                     {linha.forma_tipo === 'caderneta' && (
-                      <div className="p-2.5 rounded-xl border space-y-1.5 text-xs bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-500/30 text-slate-800 dark:text-slate-100">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                            <FileText className="w-3.5 h-3.5" />
+                      <div className={`p-3.5 rounded-2xl space-y-2 text-xs ${
+                        isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+                      }`}>
+                        <div className={`flex items-center justify-between ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
+                          <span className="font-semibold flex items-center gap-1.5">
+                            <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                             <span>Caderneta Mensal:</span>
                           </span>
-                          <span className="text-slate-800 dark:text-slate-200 font-bold truncate max-w-[200px]">
+                          <span className={`font-bold truncate max-w-[200px] ${isDark ? 'text-slate-100' : 'text-black'}`}>
                             {clienteSelecionado ? clienteSelecionado.nome : 'Nenhum selecionado'}
                           </span>
                         </div>
                         {clienteSelecionado && (
-                          <div className="space-y-1 text-[11px] text-slate-600 dark:text-slate-400">
-                            <div className="flex justify-between">
-                              <span>Saldo Devedor Atual:</span>
-                              <span className="font-semibold text-slate-700 dark:text-slate-300">
+                          <div className="space-y-2">
+                            <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
+                              <span className="font-semibold">Saldo Devedor Atual:</span>
+                              <span className={`font-bold ${isDark ? 'text-slate-100' : 'text-black'}`}>
                                 {formatarMoeda(Number(clienteSelecionado.saldo_devedor_caderneta || 0))}
                               </span>
                             </div>
-                            <div className="flex justify-between">
-                              <span>Limite Disponível na Caderneta:</span>
-                              <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                            <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
+                              <span className="font-semibold">Limite Disponível na Caderneta:</span>
+                              <span className={`font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
                                 {formatarMoeda(Math.max(0, Number(clienteSelecionado.limite_caderneta || 0) - Number(clienteSelecionado.saldo_devedor_caderneta || 0)))}
                               </span>
                             </div>
-                            <div className="flex justify-between text-[10px]">
-                              <span>Ciclo de Acerto / Vencimento:</span>
-                              <span className="font-medium text-slate-600 dark:text-slate-300">
+                            <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
+                              <span className="font-semibold">Ciclo de Acerto / Vencimento:</span>
+                              <span className={`font-bold ${isDark ? 'text-slate-100' : 'text-black'}`}>
                                 Todo dia {clienteSelecionado.dia_vencimento_caderneta || loja?.dia_vencimento_padrao_caderneta || 10}
                               </span>
                             </div>

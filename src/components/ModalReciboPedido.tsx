@@ -133,7 +133,10 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
   };
 
   const calcularTotalItens = (ped: Pedido) => {
-    return ped.itens?.reduce((acc, i) => acc + Number(i.quantidade || 1), 0) || 0;
+    const itens = ped.itens || ped.itens_pedido || [];
+    if (itens.length === 0) return 0;
+    const soma = itens.reduce((acc, i) => acc + Math.round(Number(i.quantidade || 1)), 0);
+    return Math.max(1, Math.round(soma));
   };
 
   const enderecoLojaFormatado = [
