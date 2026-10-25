@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -91,54 +91,74 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
     carregarDadosCarteira(pagina);
   }, [carregarDadosCarteira, pagina]);
 
+  const carregarDadosRef = useRef(carregarDadosCarteira);
+  const aoAtualizarLojaRef = useRef(aoAtualizarLoja);
+  const autoAtivoRef = useRef(autoAtivo);
+
+  useEffect(() => {
+    carregarDadosRef.current = carregarDadosCarteira;
+    aoAtualizarLojaRef.current = aoAtualizarLoja;
+    autoAtivoRef.current = autoAtivo;
+  }, [carregarDadosCarteira, aoAtualizarLoja, autoAtivo]);
+
   // Assinatura Realtime para manter saldo e extrato sincronizados em tempo real
   useEffect(() => {
     if (!loja?.id) return;
 
-    const canal = supabase
-      .channel(`carteira_whatsapp_loja_${loja.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'loja_whatsapp_transacoes',
-          filter: `loja_id=eq.${loja.id}`,
-        },
-        () => {
-          carregarDadosCarteira(1);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'lojas',
-          filter: `id=eq.${loja.id}`,
-        },
-        (payload: { new: Record<string, unknown> }) => {
-          const novo = payload.new as {
-            whatsapp_saldo?: number;
-            whatsapp_auto_ativo?: boolean;
-          };
-          if (typeof novo.whatsapp_saldo === 'number') {
-            setSaldo(Number(novo.whatsapp_saldo));
-            aoAtualizarLoja?.({
-              whatsapp_saldo: Number(novo.whatsapp_saldo),
-              whatsapp_auto_ativo: Boolean(
-                novo.whatsapp_auto_ativo ?? autoAtivo
-              ),
-            });
+    const sufixoUnico = Math.random().toString(36).substring(2, 9);
+    const nomeCanal = `carteira_whatsapp_loja_${loja.id}_${sufixoUnico}`;
+    let canal: ReturnType<typeof supabase.channel> | null = null;
+
+    try {
+      canal = supabase
+        .channel(nomeCanal)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'loja_whatsapp_transacoes',
+            filter: `loja_id=eq.${loja.id}`,
+          },
+          () => {
+            carregarDadosRef.current(1);
           }
-        }
-      )
-      .subscribe();
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'lojas',
+            filter: `id=eq.${loja.id}`,
+          },
+          (payload: { new: Record<string, unknown> }) => {
+            const novo = payload.new as {
+              whatsapp_saldo?: number;
+              whatsapp_auto_ativo?: boolean;
+            };
+            if (typeof novo.whatsapp_saldo === 'number') {
+              setSaldo(Number(novo.whatsapp_saldo));
+              aoAtualizarLojaRef.current?.({
+                whatsapp_saldo: Number(novo.whatsapp_saldo),
+                whatsapp_auto_ativo: Boolean(
+                  novo.whatsapp_auto_ativo ?? autoAtivoRef.current
+                ),
+              });
+            }
+          }
+        )
+        .subscribe();
+    } catch {
+      // Evita falha de renderização caso o canal Realtime já esteja inscrito
+    }
 
     return () => {
-      supabase.removeChannel(canal);
+      if (canal) {
+        supabase.removeChannel(canal).catch(() => {});
+      }
     };
-  }, [loja?.id, carregarDadosCarteira, aoAtualizarLoja, autoAtivo]);
+  }, [loja?.id]);
 
   const handleToggleAutomacao = async () => {
     const novoEstado = !autoAtivo;

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Check,
   CheckCircle2,
@@ -59,41 +59,56 @@ export const ModalRecargaWhatsapp: React.FC<ModalRecargaWhatsappProps> = ({
     }
   }, [aberto]);
 
+  const aoConcluirRecargaRef = useRef(aoConcluirRecarga);
+  useEffect(() => {
+    aoConcluirRecargaRef.current = aoConcluirRecarga;
+  }, [aoConcluirRecarga]);
+
   // Escuta via Supabase Realtime a confirmação da recarga na tabela loja_whatsapp_transacoes e lojas
   useEffect(() => {
     if (!aberto || !dadosPix?.transacaoId || pagamentoConfirmado) return;
 
-    const canal = supabase
-      .channel(`recarga_wpp_${dadosPix.transacaoId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'loja_whatsapp_transacoes',
-          filter: `id=eq.${dadosPix.transacaoId}`,
-        },
-        (payload: { new: Record<string, unknown> }) => {
-          const novoRegistro = payload.new as {
-            status_pagamento?: string;
-            saldo_posterior?: number;
-          };
-          if (novoRegistro.status_pagamento === 'concluido') {
-            setPagamentoConfirmado(true);
-            const novoSaldo = Number(
-              novoRegistro.saldo_posterior ??
-                Number(loja.whatsapp_saldo ?? 0) + dadosPix.valor
-            );
-            aoConcluirRecarga?.(novoSaldo);
+    const sufixoUnico = Math.random().toString(36).substring(2, 9);
+    const nomeCanal = `recarga_wpp_${dadosPix.transacaoId}_${sufixoUnico}`;
+    let canal: ReturnType<typeof supabase.channel> | null = null;
+
+    try {
+      canal = supabase
+        .channel(nomeCanal)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'loja_whatsapp_transacoes',
+            filter: `id=eq.${dadosPix.transacaoId}`,
+          },
+          (payload: { new: Record<string, unknown> }) => {
+            const novoRegistro = payload.new as {
+              status_pagamento?: string;
+              saldo_posterior?: number;
+            };
+            if (novoRegistro.status_pagamento === 'concluido') {
+              setPagamentoConfirmado(true);
+              const novoSaldo = Number(
+                novoRegistro.saldo_posterior ??
+                  Number(loja.whatsapp_saldo ?? 0) + dadosPix.valor
+              );
+              aoConcluirRecargaRef.current?.(novoSaldo);
+            }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
+    } catch {
+      // Ignora erro caso o canal já esteja ativo
+    }
 
     return () => {
-      supabase.removeChannel(canal);
+      if (canal) {
+        supabase.removeChannel(canal).catch(() => {});
+      }
     };
-  }, [aberto, dadosPix, pagamentoConfirmado, loja.whatsapp_saldo, aoConcluirRecarga]);
+  }, [aberto, dadosPix?.transacaoId, dadosPix?.valor, pagamentoConfirmado, loja.whatsapp_saldo]);
 
   if (!aberto) return null;
 
