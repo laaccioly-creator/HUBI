@@ -29,7 +29,9 @@ import {
   Calendar,
   LayoutDashboard,
   Building2,
-  Plus
+  Plus,
+  AlertTriangle,
+  Wallet
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme, ModoTema } from '../../contexts/ThemeContext';
@@ -52,16 +54,19 @@ import { useAssinaturaStatus } from '../../hooks/useAssinaturaStatus';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { logger } from '../../services/loggerService';
 import { UsuarioLoja } from '../../types';
+import { ModalRecargaWhatsapp } from '../configuracoes/ModalRecargaWhatsapp';
+import { formatarMoeda as formatCurrency } from '../../utils/formatters';
 
 export const AppLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
   const origemVendas = searchParams.get('origem') === 'sales';
-  const { loja, usuario, carregando, desconectarPdv, selecionarUsuario, lojasDisponiveis, selecionarLoja } = useAuth();
+  const { loja, usuario, carregando, desconectarPdv, selecionarUsuario, lojasDisponiveis, selecionarLoja, recarregarDadosLoja } = useAuth();
   const { status: statusAssinatura, diasRestantesTrial } = useAssinaturaStatus();
   const ehTrial = statusAssinatura === 'TRIAL_ATIVO' || (typeof diasRestantesTrial === 'number' && diasRestantesTrial > 0);
   const [modalAssinaturaManualAberto, setModalAssinaturaManualAberto] = useState<boolean>(false);
+  const [modalRecargaWhatsappAberto, setModalRecargaWhatsappAberto] = useState<boolean>(false);
   const permissions = usePermissions();
   const { verificarSaidaComConfirmacao } = useFeedbackModal();
   const { tema, setTema } = useTheme();
@@ -795,6 +800,31 @@ export const AppLayout: React.FC = () => {
         pedidosConfirmadosCount={pedidosConfirmadosCount}
       />
 
+      {/* BANNER DISCRETO DE ALERTA DE SALDO BAIXO DA CARTEIRA WHATSAPP */}
+      {Boolean(loja?.whatsapp_auto_ativo) &&
+        Number(loja?.whatsapp_saldo ?? 2.0) <= Number(loja?.whatsapp_alerta_saldo_baixo ?? 5.0) && (
+          <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 flex flex-col sm:flex-row items-center justify-between gap-2 z-30">
+            <div className="flex items-center gap-2 text-xs text-amber-300 font-medium text-center sm:text-left">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>
+                Seu saldo de envios automáticos de WhatsApp está acabando (
+                <strong className="font-black text-amber-200">
+                  {formatCurrency(Number(loja?.whatsapp_saldo ?? 0))}
+                </strong>
+                ). Recarregue para manter os envios no automático.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setModalRecargaWhatsappAberto(true)}
+              className="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5 shrink-0 transition-colors shadow-sm"
+            >
+              <Wallet className="w-3.5 h-3.5" />
+              Recarregar (Pix)
+            </button>
+          </div>
+        )}
+
       {/* ÁREA DE CONTEÚDO PRINCIPAL (BACKGROUND UNIFICADO #F8FAFC NO LIGHT / #020617 NO DARK) */}
       <main className={`flex-1 overflow-y-auto ${isDark ? 'bg-slate-950 text-slate-100' : (isDashboardRoute || isPosRoute) ? 'bg-slate-100 text-slate-900' : 'bg-slate-50 text-slate-900'} ${isDashboardRoute ? 'pb-16 md:pb-0' : 'pb-0'}`}>
         <ErrorBoundary origem="AppLayoutConteudo">
@@ -918,7 +948,20 @@ export const AppLayout: React.FC = () => {
       {/* OVERLAY DE BLOQUEIO OPERACIONAL SELETIVO POR LOJA E MODAL DE ASSINATURA MANUAL */}
       <TelaBloqueioAssinatura
         aberturaManual={modalAssinaturaManualAberto}
-        onCloseManual={() => setModalAssinaturaManualAberto(false)}
+        onCloseManual={() => setModalAssinaturaManualAberto(false)} />
+      {loja && (
+        <ModalRecargaWhatsapp
+          aberto={modalRecargaWhatsappAberto}
+          aoFechar={() => setModalRecargaWhatsappAberto(false)}
+          loja={loja}
+          usuarioId={usuario?.id || null}
+          aoConcluirRecarga={() => {
+            recarregarDadosLoja?.();
+          }}
+        />
+      )}
+      <div className="hidden"
+
       />
     </div>
   );

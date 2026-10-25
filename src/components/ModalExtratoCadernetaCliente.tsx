@@ -20,6 +20,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { supabase } from '../lib/supabase';
 import { ModalPagamentoCadernetaUnificado } from './caderneta/ModalPagamentoCadernetaUnificado';
+import { whatsappWalletService } from '../services/whatsappWalletService';
 
 interface ModalExtratoCadernetaClienteProps {
   isOpen: boolean;
@@ -92,6 +93,23 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
         return;
       }
       mostrarSucesso(`Recebimento de ${formatarMoeda(lanc.valor)} confirmado! Saldo abatido e limite liberado.`);
+      const foneCli = cliente.whatsapp || cliente.telefone;
+      if (foneCli) {
+        const msgComprovante =
+          `Olá, *${cliente.nome}*! ✅\n` +
+          `Confirmamos o recebimento de *${formatarMoeda(lanc.valor)}* na sua Caderneta na loja *${loja.nome_fantasia || 'HUBI'}*.\n` +
+          `Seu limite já foi atualizado. Obrigado!`;
+        whatsappWalletService
+          .dispararNotificacaoHibrida({
+            lojaId: loja.id,
+            telefoneDestino: foneCli,
+            mensagem: msgComprovante,
+            eventoGatilho: 'comprovante_caderneta',
+            clienteId: cliente.id,
+            usuarioId: usuario?.id || null,
+          })
+          .catch(() => {});
+      }
       await carregarDados();
       onAtualizado?.();
     } catch (err: any) {
@@ -123,9 +141,9 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
     }
   };
 
-  const handleEnviarWhatsApp = () => {
+  const handleEnviarWhatsApp = async () => {
     const fone = cliente.whatsapp || cliente.telefone;
-    if (!fone || !resumo) return;
+    if (!fone || !resumo || !loja?.id) return;
 
     const texto = `Olá, *${cliente.nome}*! 👋\n\n` +
       `Aqui está o resumo da sua *Caderneta no ${loja?.nome_fantasia || 'Mercadinho'}*:\n` +
@@ -135,8 +153,22 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
       `🗓️ *Próximo Vencimento:* ${new Date(resumo.proximoVencimento + 'T12:00:00').toLocaleDateString('pt-BR')}\n\n` +
       `Agradecemos pela preferência! ✨`;
 
-    const url = `https://wa.me/55${fone.replace(/\D/g, '')}?text=${encodeURIComponent(texto)}`;
-    window.open(url, '_blank');
+    const resHibrido = await whatsappWalletService.dispararNotificacaoHibrida({
+      lojaId: loja.id,
+      telefoneDestino: fone,
+      mensagem: texto,
+      eventoGatilho: 'cobranca_caderneta',
+      clienteId: cliente.id,
+      usuarioId: usuario?.id || null,
+    });
+
+    if (resHibrido.modoEnvio === 'auto_janela_24h' || resHibrido.modoEnvio === 'auto_tarifado') {
+      mostrarSucesso('✓ Resumo da Caderneta enviado automaticamente no WhatsApp do cliente!');
+      return;
+    }
+
+    const url = resHibrido.manualUrl || `https://wa.me/55${fone.replace(/\D/g, '')}?text=${encodeURIComponent(texto)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   return (

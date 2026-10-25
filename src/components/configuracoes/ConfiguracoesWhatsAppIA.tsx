@@ -33,6 +33,7 @@ import {
   testarConexaoMeta
 } from '../../services/whatsappIaService';
 import { ConsumoWhatsApp, WhatsAppConfigForm } from '../../types/whatsapp';
+import { CardCarteiraWhatsapp } from './CardCarteiraWhatsapp';
 
 export interface ConfiguracoesWhatsAppIAProps {
   lojaId?: string;
@@ -48,7 +49,7 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
   onSalvandoChange
 }) => {
   const { isDark } = useTheme();
-  const { loja, recarregarDadosLoja } = useAuth();
+  const { loja, usuario, recarregarDadosLoja } = useAuth();
   const permissions = usePermissions();
   const { mostrarSucesso, mostrarErro } = useFeedbackModal();
 
@@ -268,6 +269,17 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
           <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
           <span>{mensagemSucesso}</span>
         </div>
+      )}
+
+      {/* 0. CARTEIRA PRÉ-PAGA (WALLET) & MOTOR HÍBRIDO DE NOTIFICAÇÕES WHATSAPP */}
+      {loja && (
+        <CardCarteiraWhatsapp
+          loja={loja}
+          usuarioId={usuario?.id || null}
+          aoAtualizarLoja={() => {
+            recarregarDadosLoja?.();
+          }}
+        />
       )}
 
       {/* 1. CARD: STATUS GERAL & CONTROLE DE CONSUMO */}

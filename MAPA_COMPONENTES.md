@@ -254,7 +254,11 @@
 | **loggerService** | `src/services/loggerService.ts` | Singleton de observabilidade com fila assíncrona não-bloqueante e sanitizador de PII (LGPD). |
 | **gdmCatalogService** | `src/services/gdmCatalogService.ts` | Governança GDM: exportação canônica e clonagem de catálogos mestre entre filiais de uma organização. |
 | **mercadoLivreService** | `src/services/mercadoLivreService.ts` | Conexão OAuth com refresh preventivo de sessão, gestão de anúncios, vínculo de grades e download de etiquetas. |
-| **configuracoesPlataformaService** | `src/services/configuracoesPlataformaService.ts` | Singleton de governança com cache em memória para parâmetros de trial, valores base e Super Admin. |
+| **configuracoesPlataformaService** | `src/services/configuracoesPlataformaService.ts` | Singleton de governança com cache em memória para parâmetros de trial, valores base, tarifas da Carteira WhatsApp e Super Admin. |
+| **whatsappWalletService** | `src/services/whatsappWalletService.ts` | Motor híbrido de notificações WhatsApp (Janela 24h gratuita, Disparo Tarifado Cloud API e Fallback Manual Gratuito), extrato e recarga Pix da carteira pré-paga. |
+| **CardCarteiraWhatsapp** | `src/components/configuracoes/CardCarteiraWhatsapp.tsx` | Painel de gestão da Carteira Pré-Paga de WhatsApp: switch de automação, saldo em tempo real, estimativa de disparos e histórico auditável paginado. |
+| **ModalRecargaWhatsapp** | `src/components/configuracoes/ModalRecargaWhatsapp.tsx` | Modal de recarga instantânea de créditos WhatsApp via Pix Mercado Pago com QR Code dinâmico e atualização automática via Supabase Realtime. |
+| **ModalPagamentoCadernetaUnificado** | `src/components/caderneta/ModalPagamentoCadernetaUnificado.tsx` | Modal unificado para quitação total ou parcial de Caderneta de Mercadinho no Catálogo Online (com upload de comprovante) e no PDV/Admin. |
 
 ### Inteligência Artificial e Família TypeSafe AI / Jev
 | Serviço | Arquivo | Responsabilidade |

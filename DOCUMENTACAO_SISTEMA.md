@@ -1397,3 +1397,27 @@ A monetização do HUBI adota arquitetura de licença anual autônoma por unidad
 > Este documento reflete com exatidão a implementação presente na base de código. Ao criar novos módulos, telas ou funcionalidades, **é obrigatório** seguir a modelagem relacional pura (sem colunas JSON genéricas para dados de negócio), manter o padrão de nomenclatura em `pt-BR`, preservar a segurança multitenant com validação de `loja_id` e respeitar a governança da suíte Google Mantis.
 
 
+
+### 5.19 Carteira Pré-Paga (Wallet) e Motor Híbrido de Notificações WhatsApp (`whatsappWalletService.ts`)
+1. **Modelagem Relacional e Colunas de Governança (`supabase/migrations/20261025_carteira_whatsapp_e_motor_hibrido.sql`):**
+   - **Tabela `public.lojas`:**
+     - `whatsapp_auto_ativo BOOLEAN NOT NULL DEFAULT FALSE`: Habilita/desabilita o envio automático de notificações via API oficial.
+     - `whatsapp_saldo NUMERIC(12,2) NOT NULL DEFAULT 2.00`: Saldo financeiro pré-pago da loja (inicia com R$ 2,00 de bônus de degustação).
+     - `whatsapp_bonus_expira_em TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '7 days')`: Validade do bônus inicial restrita aos 7 primeiros dias de trial da loja.
+     - `whatsapp_alerta_saldo_baixo NUMERIC(10,2) NOT NULL DEFAULT 5.00`: Limite para disparo de alerta visual de saldo acabando no topo do painel.
+   - **Tabela Singleton `public.configuracoes_plataforma`:**
+     - `custo_disparo_whatsapp NUMERIC(10,2) NOT NULL DEFAULT 0.15`: Tarifa cobrada da carteira do lojista por disparo de template ativo fora da janela de 24h.
+     - `valor_minimo_recarga_whatsapp NUMERIC(10,2) NOT NULL DEFAULT 10.00`: Valor mínimo permitido para depósito/recarga via Pix.
+     - `credito_bonus_trial_whatsapp NUMERIC(10,2) NOT NULL DEFAULT 2.00`: Valor de cortesia concedido na criação da loja.
+   - **Tabela `public.clientes`:**
+     - `whatsapp_ultima_interacao_cliente_em TIMESTAMPTZ NULL`: Atualizado automaticamente para `NOW()` pela Edge Function `whatsapp-webhook` sempre que o cliente envia uma mensagem para a loja (habilita a janela gratuita de 24h da Meta).
+   - **Nova Tabela `public.loja_whatsapp_transacoes` (Ledger Auditável da Carteira com RLS estrito via `public.usuario_pertence_loja(loja_id)`):**
+     - Colunas tipadas: `id` (`UUID PK`), `loja_id` (`UUID FK`), `usuario_id` (`UUID NULL FK`), `pedido_id` (`UUID NULL FK`), `cliente_id` (`UUID NULL FK`), `tipo` (`VARCHAR(25)` — `'bonus_inicial'`, `'recarga_pix'`, `'consumo_disparo'`, `'expiracao_bonus'`, `'estorno'`), `evento_gatilho` (`VARCHAR(40)`), `valor` (`NUMERIC(12,2)`), `saldo_anterior` (`NUMERIC(12,2)`), `saldo_posterior` (`NUMERIC(12,2)`), `mp_payment_id` (`TEXT UNIQUE NULL`), `status_pagamento` (`VARCHAR(20)` — `'pendente'`, `'concluido'`, `'cancelado'`), `descricao` (`TEXT`), `criado_em` (`TIMESTAMPTZ`).
+2. **Árvore de Decisão do Motor Híbrido (`whatsappWalletService.ts` & Edge Function `whatsapp-outbound-dispatch`):**
+   - **Passo 1 — Expiração do Bônus de 7 Dias:** Caso a loja não possua recarga paga (`tipo = 'recarga_pix' AND status_pagamento = 'concluido'`) e `NOW() > loja.whatsapp_bonus_expira_em`, zera o saldo residual de bônus via RPC `debitar_saldo_whatsapp_atomico` (`tipo = 'expiracao_bonus'`).
+   - **Passo 2 — Rota 1 (Janela de 24h Aberta — Custo Zero):** Se `clientes.whatsapp_ultima_interacao_cliente_em` ocorreu há menos de 24 horas, dispara a mensagem em segundo plano via Meta Cloud API como mensagem de sessão livre sem debitar saldo (`modoEnvio: 'auto_janela_24h'`).
+   - **Passo 3 — Rota 2 (Fora da Janela de 24h com Automação Ativa e Saldo Disponível — Disparo Tarifado):** Se `loja.whatsapp_auto_ativo === true` e `loja.whatsapp_saldo >= custo_disparo_whatsapp`, dispara via Meta Cloud API e executa débito atômico (`SELECT ... FOR UPDATE`) via RPC `debitar_saldo_whatsapp_atomico` (`modoEnvio: 'auto_tarifado'`).
+   - **Passo 4 — Rota 3 (Fallback Manual Gratuito):** Se `whatsapp_auto_ativo === false` ou saldo insuficiente, retorna `modoEnvio: 'manual_link'` com a URL pré-formatada `https://api.whatsapp.com/send?phone=...&text=...` para abertura manual gratuita pelo operador.
+3. **Recarga Instantânea via Pix Mercado Pago:**
+   - **Edge Function `hubi-criar-recarga-whatsapp-mp`:** Valida `valor_recarga >= valor_minimo_recarga_whatsapp`, registra transação pendente em `loja_whatsapp_transacoes` e gera Pix dinâmico na API oficial do Mercado Pago com `external_reference = "whatsapp_wallet:${loja_id}:${transacao_id}"`.
+   - **Edge Function `hubi-webhook-mp`:** Detecta notificações com prefixo `whatsapp_wallet:` e, quando `status === 'approved'`, invoca a RPC idempotente `creditar_recarga_whatsapp_atomico`, somando o valor em `lojas.whatsapp_saldo`, ativando `whatsapp_auto_ativo = true` e notificando o front-end via Supabase Realtime.

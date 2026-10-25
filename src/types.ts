@@ -240,8 +240,47 @@ export interface ConfiguracoesPlataformaHubi {
   max_parcelas_cartao: number;
   parcelas_sem_juros: number;
   email_super_admin: string;
+  custo_disparo_whatsapp: number;
+  valor_minimo_recarga_whatsapp: number;
+  credito_bonus_trial_whatsapp: number;
   atualizado_em?: string;
   atualizado_por?: string | null;
+}
+
+export type TipoTransacaoWhatsappWallet =
+  | 'bonus_inicial'
+  | 'recarga_pix'
+  | 'consumo_disparo'
+  | 'expiracao_bonus'
+  | 'estorno';
+
+export type EventoGatilhoWhatsapp =
+  | 'recibo_venda'
+  | 'status_pedido'
+  | 'rastreio_despacho'
+  | 'cobranca_caderneta'
+  | 'comprovante_caderneta'
+  | 'cobranca_fiado'
+  | 'recarga_carteira_pix'
+  | 'expiracao_trial_7d';
+
+export type StatusPagamentoWhatsappWallet = 'pendente' | 'concluido' | 'cancelado';
+
+export interface LojaWhatsappTransacao {
+  id: string;
+  loja_id: string;
+  usuario_id?: string | null;
+  pedido_id?: string | null;
+  cliente_id?: string | null;
+  tipo: TipoTransacaoWhatsappWallet;
+  evento_gatilho?: EventoGatilhoWhatsapp | string | null;
+  valor: number;
+  saldo_anterior: number;
+  saldo_posterior: number;
+  mp_payment_id?: string | null;
+  status_pagamento: StatusPagamentoWhatsappWallet;
+  descricao: string;
+  criado_em: string;
 }
 
 export interface Organizacao {
@@ -340,6 +379,10 @@ export interface Loja {
   meta_verify_token?: string | null;
   prompt_personalizado?: string | null;
   mensagem_pausa_humano?: string | null;
+  whatsapp_auto_ativo?: boolean;
+  whatsapp_saldo?: number;
+  whatsapp_bonus_expira_em?: string | null;
+  whatsapp_alerta_saldo_baixo?: number;
   tipos_venda?: {
     varejo?: boolean;
     atacado?: boolean;
@@ -577,6 +620,7 @@ export interface Cliente {
   observacoes?: string | null;
   senha_hash?: string | null;
   auth_uid?: string | null;
+  whatsapp_ultima_interacao_cliente_em?: string | null;
   criado_em?: string;
 }
 

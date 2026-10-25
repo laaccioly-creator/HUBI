@@ -1,5 +1,5 @@
-import React, { useRef } from 'react';
-import { X, Store, Printer, Share2, Download } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { X, Store, Printer, Share2, Download, CheckCircle2, MessageCircle } from 'lucide-react';
 import { Pedido } from '../../types';
 import { obterDadosPagamentoRecibo, formatarDataRecibo, PrintService } from '../../services/printService';
 import { ReceiptPdfService } from '../../services/receiptPdfService';
@@ -8,6 +8,7 @@ import { extrairObservacaoLimpa, formatarMoeda } from '../../utils/formatters';
 import { detectarServicoPorCodigo } from '../../utils/correiosValidator';
 import { formatarNomeTransportadora } from '../../utils/shippingDisplay';
 import { useTheme } from '../../contexts/ThemeContext';
+import { ResultadoDisparoHibrido, whatsappWalletService } from '../../services/whatsappWalletService';
 
 export interface ReciboPedidoModalProps {
   isOpen: boolean;
@@ -33,6 +34,60 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
   const { tema } = useTheme();
   const isDark = tema === 'dark';
   const reciboRef = useRef<HTMLDivElement>(null);
+  const ultimoPedidoDisparadoRef = useRef<string | null>(null);
+  const [resultadoHibrido, setResultadoHibrido] = useState<ResultadoDisparoHibrido | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || !pedido || !loja?.id) {
+      if (!isOpen) {
+        setResultadoHibrido(null);
+      }
+      return;
+    }
+
+    const telefoneCliente = String(
+      pedido.cliente?.whatsapp ||
+        pedido.cliente?.telefone ||
+        (pedido as { telefone_cliente?: string }).telefone_cliente ||
+        ''
+    ).trim();
+
+    if (!telefoneCliente) {
+      setResultadoHibrido(null);
+      return;
+    }
+
+    if (ultimoPedidoDisparadoRef.current === pedido.id) {
+      return;
+    }
+    ultimoPedidoDisparadoRef.current = pedido.id;
+
+    const mensagemRecibo = PrintService.generateWhatsAppMessage(pedido, loja);
+    whatsappWalletService
+      .dispararNotificacaoHibrida({
+        lojaId: String(loja.id),
+        telefoneDestino: telefoneCliente,
+        mensagem: mensagemRecibo,
+        eventoGatilho: 'recibo_venda',
+        pedidoId: pedido.id,
+        clienteId: pedido.cliente_id || pedido.cliente?.id || null,
+      })
+      .then((res) => {
+        setResultadoHibrido(res);
+      })
+      .catch(() => {
+        setResultadoHibrido({
+          sucesso: true,
+          modoEnvio: 'manual_link',
+          custoAplicado: 0,
+          saldoAtual: Number(loja?.whatsapp_saldo ?? 0),
+          manualUrl: whatsappWalletService.construirLinkManualWhatsApp(
+            telefoneCliente,
+            mensagemRecibo
+          ),
+        });
+      });
+  }, [isOpen, pedido, loja]);
 
   if (!isOpen || !pedido) return null;
 
@@ -402,6 +457,42 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
             )}
           </div>
         </div>
+
+        {/* STATUS DO MOTOR HÍBRIDO DE WHATSAPP (ENVIO AUTOMÁTICO OU FALLBACK MANUAL DESTACADO) */}
+        {resultadoHibrido && (
+          <div
+            className={`px-3 py-2 border-t shrink-0 ${
+              isDark ? 'border-slate-800 bg-slate-900/90' : 'border-slate-200 bg-slate-50'
+            }`}
+          >
+            {resultadoHibrido.modoEnvio === 'auto_janela_24h' ||
+            resultadoHibrido.modoEnvio === 'auto_tarifado' ? (
+              <div className="flex items-center justify-center gap-2 py-1.5 px-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-black">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>✓ Recibo enviado automaticamente no WhatsApp</span>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  if (resultadoHibrido.manualUrl) {
+                    window.open(resultadoHibrido.manualUrl, '_blank', 'noopener,noreferrer');
+                  } else if (onCompartilharWhatsApp) {
+                    onCompartilharWhatsApp(pedido);
+                  } else {
+                    const tel = pedido.cliente?.whatsapp || pedido.cliente?.telefone || '';
+                    const msg = PrintService.generateWhatsAppMessage(pedido, loja);
+                    PrintService.openWhatsApp(tel, msg);
+                  }
+                }}
+                className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer active:scale-95"
+              >
+                <MessageCircle className="w-4 h-4 shrink-0" />
+                <span>[ Enviar Recibo no WhatsApp ]</span>
+              </button>
+            )}
+          </div>
+        )}
 
         {/* BOTÕES DE AÇÃO NO RODAPÉ DO MODAL (EXATAMENTE 4 BOTÕES HORIZONTAIS COMPACTOS ALINHADOS) */}
         <div className={`p-2.5 sm:p-3 border-t flex flex-row items-center justify-between gap-1.5 sm:gap-2 shrink-0 ${

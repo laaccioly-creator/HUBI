@@ -296,7 +296,21 @@ async function processarEventoWhatsApp(payload: any) {
     return;
   }
 
-  // 2. Buscar ou Criar a Conversa no banco
+  // 2. Buscar ou Criar a Conversa no banco e atualizar janela receptiva de 24h em public.clientes
+  const agoraInboundIso = new Date().toISOString();
+  try {
+    const foneUltimos8 = normalizarTelefone(fromCliente).slice(-8);
+    if (foneUltimos8.length >= 8) {
+      await supabaseAdmin
+        .from("clientes")
+        .update({ whatsapp_ultima_interacao_cliente_em: agoraInboundIso })
+        .eq("loja_id", loja.id)
+        .or(`telefone.ilike.%${foneUltimos8}%,whatsapp.ilike.%${foneUltimos8}%`);
+    }
+  } catch (errJanela) {
+    console.warn("[WhatsAppWebhook] Aviso ao atualizar whatsapp_ultima_interacao_cliente_em:", errJanela);
+  }
+
   let isNovaConversa = false;
   let conversa: any = null;
 

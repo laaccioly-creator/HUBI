@@ -86,6 +86,79 @@ serve(async (req: Request) => {
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
+    const externalRefStr = String(payment.external_reference || "");
+
+    // 1.5. Fluxo de Recarga de Carteira Pré-Paga WhatsApp (external_reference = "whatsapp_wallet:${loja_id}:${transacao_id}")
+    if (externalRefStr.startsWith("whatsapp_wallet:") || payment.metadata?.tipo_cobranca === "whatsapp_wallet") {
+      const partes = externalRefStr.split(":");
+      const walletLojaId = partes[1] || String(payment.metadata?.loja_id || "");
+      const walletTransacaoId = partes[2] || (payment.metadata?.transacao_id ? String(payment.metadata.transacao_id) : null);
+      const valorRecarga = Number(payment.transaction_amount || 0);
+      const mpPaymentIdStr = String(payment.id);
+
+      if (!walletLojaId) {
+        return new Response(
+          JSON.stringify({ received: true, warning: "wallet_loja_id_missing" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (statusPagamento === "approved") {
+        // Executa a RPC atômica com trava de idempotência por mp_payment_id, crédito em lojas.whatsapp_saldo e ativação de whatsapp_auto_ativo = TRUE
+        const { data: resultadoRpc, error: erroRpc } = await supabaseAdmin.rpc("creditar_recarga_whatsapp_atomico", {
+          p_loja_id: walletLojaId,
+          p_valor_recarga: valorRecarga,
+          p_mp_payment_id: mpPaymentIdStr,
+          p_transacao_id: walletTransacaoId,
+        });
+
+        if (erroRpc) {
+          console.error("[hubi-webhook-mp] Erro ao creditar recarga WhatsApp:", erroRpc.message);
+          return new Response(
+            JSON.stringify({ error: "Falha ao creditar recarga na carteira WhatsApp." }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const linhaRpc = Array.isArray(resultadoRpc) ? resultadoRpc[0] : resultadoRpc;
+        return new Response(
+          JSON.stringify({
+            received: true,
+            type: "whatsapp_wallet",
+            status: statusPagamento,
+            loja_id: walletLojaId,
+            transacao_id: linhaRpc?.transacao_id || walletTransacaoId,
+            saldo_posterior: linhaRpc?.saldo_posterior,
+            ja_processado: Boolean(linhaRpc?.ja_processado),
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (statusPagamento === "rejected" || statusPagamento === "cancelled") {
+        if (walletTransacaoId) {
+          await supabaseAdmin
+            .from("loja_whatsapp_transacoes")
+            .update({
+              status_pagamento: "cancelado",
+              mp_payment_id: mpPaymentIdStr,
+            })
+            .eq("id", walletTransacaoId)
+            .eq("loja_id", walletLojaId)
+            .neq("status_pagamento", "concluido");
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          received: true,
+          type: "whatsapp_wallet",
+          status: statusPagamento,
+          loja_id: walletLojaId,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // 2. Se o pagamento foi aprovado, renova ou ativa a anuidade da loja com trava de idempotência
     if (statusPagamento === "approved") {

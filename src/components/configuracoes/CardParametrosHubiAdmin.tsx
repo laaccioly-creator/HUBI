@@ -41,6 +41,9 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
   const [maxParcelas, setMaxParcelas] = useState<number>(12);
   const [parcelasSemJuros, setParcelasSemJuros] = useState<number>(12);
   const [emailSuperAdmin, setEmailSuperAdmin] = useState<string>('laaccioly@hotmail.com');
+  const [custoDisparoWhatsapp, setCustoDisparoWhatsapp] = useState<number>(0.15);
+  const [valorMinimoRecargaWhatsapp, setValorMinimoRecargaWhatsapp] = useState<number>(10.00);
+  const [creditoBonusTrialWhatsapp, setCreditoBonusTrialWhatsapp] = useState<number>(2.00);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<string | null>(null);
 
   // Calcula valor total anual dinâmico (12x mensal anual)
@@ -59,6 +62,9 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
       setMaxParcelas(params.max_parcelas_cartao);
       setParcelasSemJuros(params.parcelas_sem_juros);
       setEmailSuperAdmin(params.email_super_admin);
+      setCustoDisparoWhatsapp(Number(params.custo_disparo_whatsapp ?? 0.15));
+      setValorMinimoRecargaWhatsapp(Number(params.valor_minimo_recarga_whatsapp ?? 10.00));
+      setCreditoBonusTrialWhatsapp(Number(params.credito_bonus_trial_whatsapp ?? 2.00));
       setUltimaAtualizacao(params.atualizado_em || null);
     } catch (err: any) {
       console.error('[CardParametrosHubiAdmin] Falha ao carregar parâmetros:', err);
@@ -85,6 +91,9 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
         max_parcelas_cartao: maxParcelas,
         parcelas_sem_juros: parcelasSemJuros,
         email_super_admin: emailSuperAdmin,
+        custo_disparo_whatsapp: custoDisparoWhatsapp,
+        valor_minimo_recarga_whatsapp: valorMinimoRecargaWhatsapp,
+        credito_bonus_trial_whatsapp: creditoBonusTrialWhatsapp,
       });
 
       setUltimaAtualizacao(atualizado.atualizado_em || null);
@@ -324,6 +333,78 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
                 onChange={(e) => setAceitaDebito(e.target.checked)}
                 className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
               />
+            </div>
+          </div>
+        </div>
+
+        {/* Bloco 4: Carteira Pré-Paga & Motor Híbrido WhatsApp */}
+        <div>
+          <h4 className={`text-xs font-black uppercase tracking-wider mb-2 flex items-center gap-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+            <Settings2 className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Carteira Pré-Paga & Tarifação WhatsApp Cloud API</span>
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1 shadow-2xs">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                Tarifa por Disparo Ativo (R$)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-2 text-xs text-slate-400 font-bold">R$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  value={custoDisparoWhatsapp}
+                  onChange={(e) => setCustoDisparoWhatsapp(parseFloat(e.target.value) || 0)}
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 font-bold outline-hidden focus:border-emerald-500"
+                />
+              </div>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                Valor debitado da carteira por template enviado fora da janela de 24h.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1 shadow-2xs">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                Recarga Mínima via Pix (R$)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-2 text-xs text-slate-400 font-bold">R$</span>
+                <input
+                  type="number"
+                  step="1.00"
+                  min="1"
+                  required
+                  value={valorMinimoRecargaWhatsapp}
+                  onChange={(e) => setValorMinimoRecargaWhatsapp(parseFloat(e.target.value) || 10)}
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 font-bold outline-hidden focus:border-emerald-500"
+                />
+              </div>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                Depósito mínimo exigido para recarregar créditos na carteira.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1 shadow-2xs">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                Bônus Inicial Trial (R$)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-2 text-xs text-slate-400 font-bold">R$</span>
+                <input
+                  type="number"
+                  step="0.50"
+                  min="0"
+                  required
+                  value={creditoBonusTrialWhatsapp}
+                  onChange={(e) => setCreditoBonusTrialWhatsapp(parseFloat(e.target.value) || 0)}
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-slate-100 font-bold outline-hidden focus:border-emerald-500"
+                />
+              </div>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                Cortesia inicial (válida nos 7 primeiros dias de degustação).
+              </p>
             </div>
           </div>
         </div>

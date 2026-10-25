@@ -18,6 +18,7 @@ import { Cliente, Pedido, FormaPagamento, TipoPagamento, StatusPagamento } from 
 import { caixaService } from '../services/caixaService';
 import { SyncService } from '../services/syncService';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
+import { whatsappWalletService } from '../services/whatsappWalletService';
 
 export interface ModalReceberFiadoProps {
   isOpen: boolean;
@@ -362,13 +363,27 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
 
       mostrarSucesso(`Recebimento de R$ ${valorRecebido.toFixed(2)} confirmado! Limite de crédito do cliente restabelecido${novoLimiteCredito > 0 ? ` para R$ ${novoLimiteCredito.toFixed(2)}` : ''}.`);
 
-      // 5. Opção de comprovante via WhatsApp
+      // 5. Motor Híbrido de Comprovante via WhatsApp (Automático + Fallback Manual Gratuito)
       if (cliente) {
         const phone = cliente.whatsapp || cliente.telefone;
         if (phone) {
           const msg = `🧾 *COMPROVANTE DE PAGAMENTO DE FIADO - ${loja.nome_fantasia}*\n\nOlá, *${cliente.nome}*!\nConfirmamos o recebimento de *R$ ${valorRecebido.toFixed(2)}* referente ao pagamento de fiado.\n\n💳 *Limite de Crédito Disponível:* R$ ${novoLimiteCredito.toFixed(2)}\n💰 *Saldo Devedor Restante:* R$ ${novoSaldoDevedorFiado.toFixed(2)}\n\nAgradecemos pela pontualidade! ✨`;
-          const phoneFormatado = phone.replace(/\D/g, '');
-          window.open(`https://api.whatsapp.com/send?phone=55${phoneFormatado}&text=${encodeURIComponent(msg)}`, '_blank');
+          const resHibrido = await whatsappWalletService.dispararNotificacaoHibrida({
+            lojaId: loja.id,
+            telefoneDestino: phone,
+            mensagem: msg,
+            eventoGatilho: 'comprovante_caderneta',
+            pedidoId: pedido?.id || null,
+            clienteId: cliente.id,
+            usuarioId: usuario?.id || null,
+          });
+
+          if (resHibrido.modoEnvio === 'manual_link') {
+            const urlManual =
+              resHibrido.manualUrl ||
+              `https://api.whatsapp.com/send?phone=55${phone.replace(/\D/g, '')}&text=${encodeURIComponent(msg)}`;
+            window.open(urlManual, '_blank', 'noopener,noreferrer');
+          }
         }
       }
 

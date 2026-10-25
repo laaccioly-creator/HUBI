@@ -16,6 +16,9 @@ export const CONFIG_PLATAFORMA_PADRAO: ConfiguracoesPlataformaHubi = {
   max_parcelas_cartao: 12,
   parcelas_sem_juros: 12,
   email_super_admin: 'laaccioly@hotmail.com',
+  custo_disparo_whatsapp: 0.15,
+  valor_minimo_recarga_whatsapp: 10.00,
+  credito_bonus_trial_whatsapp: 2.00,
 };
 
 export const configuracoesPlataformaService = {
@@ -50,6 +53,9 @@ export const configuracoesPlataformaService = {
         max_parcelas_cartao: Number(data.max_parcelas_cartao) || 12,
         parcelas_sem_juros: Number(data.parcelas_sem_juros) || 12,
         email_super_admin: data.email_super_admin || 'laaccioly@hotmail.com',
+        custo_disparo_whatsapp: Number(data.custo_disparo_whatsapp ?? 0.15),
+        valor_minimo_recarga_whatsapp: Number(data.valor_minimo_recarga_whatsapp ?? 10.00),
+        credito_bonus_trial_whatsapp: Number(data.credito_bonus_trial_whatsapp ?? 2.00),
         atualizado_em: data.atualizado_em,
         atualizado_por: data.atualizado_por,
       };
@@ -96,6 +102,9 @@ export const configuracoesPlataformaService = {
       max_parcelas_cartao: Number(data.max_parcelas_cartao),
       parcelas_sem_juros: Number(data.parcelas_sem_juros),
       email_super_admin: data.email_super_admin,
+      custo_disparo_whatsapp: Number(data.custo_disparo_whatsapp ?? 0.15),
+      valor_minimo_recarga_whatsapp: Number(data.valor_minimo_recarga_whatsapp ?? 10.00),
+      credito_bonus_trial_whatsapp: Number(data.credito_bonus_trial_whatsapp ?? 2.00),
       atualizado_em: data.atualizado_em,
       atualizado_por: data.atualizado_por,
     };

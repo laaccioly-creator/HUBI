@@ -16,6 +16,7 @@ import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
 import { validarRastreioCorreios } from '../../utils/correiosValidator';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { ResultadoDisparoHibrido, whatsappWalletService } from '../../services/whatsappWalletService';
 
 export type ModalidadeDespachoManual = 'correios' | 'app_entrega' | 'transportadora' | 'frota_propria';
 
@@ -151,9 +152,13 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
   // Estado de envio
   const [despachando, setDespachando] = useState<boolean>(false);
   const [erroMsg, setErroMsg] = useState<string | null>(null);
+  const [resultadoDisparoWpp, setResultadoDisparoWpp] = useState<ResultadoDisparoHibrido | null>(null);
 
   // Busca entrega atualizada no banco se necessário
   useEffect(() => {
+    if (!isOpen) {
+      setResultadoDisparoWpp(null);
+    }
     setEntregaInterna(entrega);
     if (isOpen && pedido?.id && (!entrega || !entrega.codigo_rastreio)) {
       ShippingOrchestrator.buscarPedidoEntrega(pedido.id)
@@ -411,6 +416,47 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
 
       await ShippingOrchestrator.despacharEntregaManual(pedido.id, dadosDespacho);
       onDespachado();
+
+      const telefoneCliente = String(
+        pedido.cliente?.whatsapp ||
+          pedido.cliente?.telefone ||
+          (pedido as { telefone_cliente?: string }).telefone_cliente ||
+          ''
+      ).trim();
+
+      if (loja?.id && telefoneCliente) {
+        const numPed = pedido.numero_pedido || pedido.id.slice(0, 6);
+        const codRastreioOuCorrida =
+          dadosDespacho.codigoRastreio || dadosDespacho.codigoCorrida || '';
+        const detalheEnvio =
+          dadosDespacho.nomeTransportadora ||
+          dadosDespacho.nomeApp ||
+          dadosDespacho.entregadorNome ||
+          'Entrega';
+        const mensagemDespacho = `Olá${
+          pedido.cliente?.nome ? `, *${pedido.cliente.nome}*` : ''
+        }! 📦\nSeu pedido *#${numPed}* na loja *${
+          loja.nome_fantasia || 'HUBI'
+        }* acabou de ser despachado via *${detalheEnvio}*!${
+          codRastreioOuCorrida ? `\n🔎 Código de Rastreio/Corrida: *${codRastreioOuCorrida}*` : ''
+        }${dadosDespacho.linkRastreio ? `\n🔗 Acompanhe: ${dadosDespacho.linkRastreio}` : ''}`;
+
+        const resHibrido = await whatsappWalletService.dispararNotificacaoHibrida({
+          lojaId: loja.id,
+          telefoneDestino: telefoneCliente,
+          mensagem: mensagemDespacho,
+          eventoGatilho: 'rastreio_despacho',
+          pedidoId: pedido.id,
+          clienteId: pedido.cliente_id || pedido.cliente?.id || null,
+          usuarioId: usuario?.id || null,
+        });
+
+        if (resHibrido.modoEnvio === 'manual_link') {
+          setResultadoDisparoWpp(resHibrido);
+          return;
+        }
+      }
+
       onClose();
     } catch (err: unknown) {
       console.error('[ModalDespacharPedido] Erro ao despachar:', err);
@@ -819,6 +865,36 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
           <div className="p-3 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{erroMsg}</span>
+          </div>
+        )}
+
+        {resultadoDisparoWpp && resultadoDisparoWpp.modoEnvio === 'manual_link' && (
+          <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>Despacho gravado com sucesso! Notifique o cliente gratuitamente pelo WhatsApp:</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (resultadoDisparoWpp.manualUrl) {
+                    window.open(resultadoDisparoWpp.manualUrl, '_blank', 'noopener,noreferrer');
+                  }
+                  onClose();
+                }}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition cursor-pointer"
+              >
+                <span>[ Notificar Cliente via WhatsApp ]</span>
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold"
+              >
+                Fechar
+              </button>
+            </div>
           </div>
         )}
 

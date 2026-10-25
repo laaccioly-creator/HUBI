@@ -58,6 +58,7 @@ import { mercadoLivreService } from '../services/mercadoLivreService';
 import { Pedido, StatusPedido, StatusPagamento, TabelaPreco, ItemPedido, Produto, Cliente, UsuarioLoja } from '../types';
 import { PedidoEntrega, Transportadora } from '../types/shipping';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
+import { whatsappWalletService } from '../services/whatsappWalletService';
 import { extrairObservacaoLimpa, formatarMoeda } from '../utils/formatters';
 import { validarRastreioCorreios, detectarServicoPorCodigo } from '../utils/correiosValidator';
 import { formatarNomeTransportadora } from '../utils/shippingDisplay';
@@ -324,6 +325,7 @@ export const PedidosLista: React.FC = () => {
   const [despachandoMensagem, setDespachandoMensagem] = useState<string>('Solicitando motorista Uber Direct... Por favor, aguarde.');
   const [pedidoParaDespacho, setPedidoParaDespacho] = useState<Pedido | null>(null);
   const [modalContingenciaAberto, setModalContingenciaAberto] = useState<boolean>(false);
+  const [avisoNotificacaoManualWpp, setAvisoNotificacaoManualWpp] = useState<{ pedidoNumero: string | number; manualUrl: string } | null>(null);
   const [executandoContingencia, setExecutandoContingencia] = useState<boolean>(false);
   const [entregaPedido, setEntregaPedido] = useState<PedidoEntrega | null>(null);
 
@@ -1207,6 +1209,45 @@ export const PedidosLista: React.FC = () => {
             : p
         )
       );
+
+      // Motor Híbrido de Notificação WhatsApp na mudança de status do pedido
+      if (loja?.id && pedAlvo) {
+        const foneCli = String(
+          pedAlvo.cliente?.whatsapp ||
+            pedAlvo.cliente?.telefone ||
+            (pedAlvo as { telefone_cliente?: string }).telefone_cliente ||
+            ''
+        ).trim();
+        if (foneCli) {
+          const rotuloStatus = ROTULOS_STATUS_PEDIDO[novoStatus] || novoStatus;
+          const numPed = pedAlvo.numero_pedido || pedidoId.slice(0, 6);
+          const msgStatus = `Olá${
+            pedAlvo.cliente?.nome ? `, *${pedAlvo.cliente.nome}*` : ''
+          }! 🛍️\nO status do seu pedido *#${numPed}* na loja *${
+            loja.nome_fantasia || 'HUBI'
+          }* foi atualizado para: *${rotuloStatus}*.`;
+
+          whatsappWalletService
+            .dispararNotificacaoHibrida({
+              lojaId: loja.id,
+              telefoneDestino: foneCli,
+              mensagem: msgStatus,
+              eventoGatilho: 'status_pedido',
+              pedidoId,
+              clienteId: pedAlvo.cliente_id || pedAlvo.cliente?.id || null,
+              usuarioId: usuario?.id || null,
+            })
+            .then((resHibrido) => {
+              if (resHibrido.modoEnvio === 'manual_link' && resHibrido.manualUrl) {
+                setAvisoNotificacaoManualWpp({
+                  pedidoNumero: numPed,
+                  manualUrl: resHibrido.manualUrl,
+                });
+              }
+            })
+            .catch(() => {});
+        }
+      }
 
       if (pedidoSelecionado && pedidoSelecionado.id === pedidoId) {
         if (novoStatus === 'concluido') {
@@ -2379,6 +2420,37 @@ export const PedidosLista: React.FC = () => {
 
   return (
     <>
+      {avisoNotificacaoManualWpp && (
+        <div className="fixed bottom-16 md:bottom-6 right-4 z-[60] max-w-sm rounded-2xl bg-slate-900 border border-emerald-500/40 p-3.5 shadow-2xl flex items-center justify-between gap-3 animate-fade-in">
+          <div className="text-xs text-slate-200">
+            <div className="font-black text-emerald-400">
+              Status do Pedido #{avisoNotificacaoManualWpp.pedidoNumero} atualizado
+            </div>
+            <div className="text-[11px] text-slate-400">
+              Envie o aviso gratuito para o WhatsApp do cliente:
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                window.open(avisoNotificacaoManualWpp.manualUrl, '_blank', 'noopener,noreferrer');
+                setAvisoNotificacaoManualWpp(null);
+              }}
+              className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[11px] uppercase tracking-wider whitespace-nowrap shadow-md"
+            >
+              [ Notificar Cliente via WhatsApp ]
+            </button>
+            <button
+              type="button"
+              onClick={() => setAvisoNotificacaoManualWpp(null)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
       {/* VISÃO MOBILE DE PEDIDOS (CONFORME TELA001 A TELA010 DISPONIBILIZADAS) */}
       <div className={`md:hidden h-full flex flex-col overflow-hidden ${isDark ? 'bg-[#08131A] text-slate-100' : 'bg-slate-100 text-black'}`}>
         <PedidosListaMobile
