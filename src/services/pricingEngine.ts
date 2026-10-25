@@ -17,12 +17,12 @@ export const REGRAS_PADRAO_INICIAIS: RegrasPrecificacaoLoja = {
   descontoAtacado: 20,
   valorMinimoAtacado: 1500,
   qtdTotalMinimaAtacado: 50,
-  qtdMinimaSkuAtacado: 6,
+  qtdMinimaSkuAtacado: 0,
 
   descontoAutoatacado: 25,
   valorMinimoAutoatacado: 3000,
   qtdTotalMinimaAutoatacado: 100,
-  qtdMinimaSkuAutoatacado: 6
+  qtdMinimaSkuAutoatacado: 0
 };
 
 /**
@@ -132,17 +132,13 @@ export const calcularPrecoUnitarioPorTabela = (
     const exigeSkuAuto = regras
       ? (regras.tipoMinimoDistribuidor === 'minimo_sku' || Number(regras.qtdMinimaSkuAutoatacado || 0) > 0)
       : (produto.tipo_minimo_autoatacado === 'minimo_sku');
-    const minSkuAtacado = Number(produto.qtd_minima_atacado) > 0
-      ? Number(produto.qtd_minima_atacado)
-      : (Number(regras?.qtdMinimaSkuAtacado) > 1 ? Number(regras?.qtdMinimaSkuAtacado) : 6);
-    const minSkuAuto = Number(produto.qtd_minima_autoatacado) > 0
-      ? Number(produto.qtd_minima_autoatacado)
-      : (Number(regras?.qtdMinimaSkuAutoatacado) > 1 ? Number(regras?.qtdMinimaSkuAutoatacado) : 24);
+    const minSkuAtacado = (produto.tipo_minimo_atacado === 'minimo_sku' && Number(produto.qtd_minima_atacado) > 0) ? Number(produto.qtd_minima_atacado) : 0;
+    const minSkuAuto = (produto.tipo_minimo_autoatacado === 'minimo_sku' && Number(produto.qtd_minima_autoatacado) > 0) ? Number(produto.qtd_minima_autoatacado) : 0;
 
-    if (distribuidorAtivo && exigeSkuAuto && quantidadeItem >= minSkuAuto) {
+    if (distribuidorAtivo && exigeSkuAuto && minSkuAuto > 0 && quantidadeItem >= minSkuAuto) {
       tabela = 'autoatacado';
       descontoFallbackPercent = regras?.descontoAutoatacado ?? descontoFallbackPercent;
-    } else if (atacadoAtivo && exigeSkuAtacado && quantidadeItem >= minSkuAtacado) {
+    } else if (atacadoAtivo && exigeSkuAtacado && minSkuAtacado > 0 && quantidadeItem >= minSkuAtacado) {
       if (tabela !== 'autoatacado') {
         tabela = 'atacado';
         descontoFallbackPercent = regras?.descontoAtacado ?? descontoFallbackPercent;
@@ -152,7 +148,7 @@ export const calcularPrecoUnitarioPorTabela = (
       exigeSkuAtacado &&
       Number(regras?.valorMinimoAtacado || 0) === 0 &&
       Number(regras?.qtdTotalMinimaAtacado || 0) === 0 &&
-      quantidadeItem < minSkuAtacado
+      (minSkuAtacado <= 0 || quantidadeItem < minSkuAtacado)
     ) {
       tabela = 'varejo';
     } else if (
@@ -160,9 +156,9 @@ export const calcularPrecoUnitarioPorTabela = (
       exigeSkuAuto &&
       Number(regras?.valorMinimoAutoatacado || 0) === 0 &&
       Number(regras?.qtdTotalMinimaAutoatacado || 0) === 0 &&
-      quantidadeItem < minSkuAuto
+      (minSkuAuto <= 0 || quantidadeItem < minSkuAuto)
     ) {
-      tabela = (atacadoAtivo && exigeSkuAtacado && quantidadeItem >= minSkuAtacado) ? 'atacado' : 'varejo';
+      tabela = (atacadoAtivo && exigeSkuAtacado && minSkuAtacado > 0 && quantidadeItem >= minSkuAtacado) ? 'atacado' : 'varejo';
     }
   }
 
@@ -222,9 +218,11 @@ export const avaliarNivelCarrinho = (
 ): ResultadoAvaliacaoCarrinho => {
   const atacadoAtivo = regras.tiposVendaAtivos?.atacado !== false;
   const distribuidorAtivo = regras.tiposVendaAtivos?.distribuidor !== false;
+  const atacadoTemMetaGlobal = atacadoAtivo && regras.tipoMinimoAtacado !== 'minimo_sku' && (Number(regras.valorMinimoAtacado || 0) > 0 || Number(regras.qtdTotalMinimaAtacado || 0) > 0);
+  const autoTemMetaGlobal = distribuidorAtivo && regras.tipoMinimoDistribuidor !== 'minimo_sku' && (Number(regras.valorMinimoAutoatacado || 0) > 0 || Number(regras.qtdTotalMinimaAutoatacado || 0) > 0);
 
   if (!itens || itens.length === 0) {
-    const proximoNivelInicial = atacadoAtivo ? 'atacado' : (distribuidorAtivo ? 'autoatacado' : null);
+    const proximoNivelInicial = atacadoTemMetaGlobal ? 'atacado' : (autoTemMetaGlobal ? 'autoatacado' : null);
     const metaValorInicial = proximoNivelInicial === 'atacado' ? regras.valorMinimoAtacado : proximoNivelInicial === 'autoatacado' ? regras.valorMinimoAutoatacado : 0;
     const metaPecasInicial = proximoNivelInicial === 'atacado' ? regras.qtdTotalMinimaAtacado : proximoNivelInicial === 'autoatacado' ? regras.qtdTotalMinimaAutoatacado : 0;
 
@@ -264,8 +262,8 @@ export const avaliarNivelCarrinho = (
   const exigeSkuAuto = regras.tipoMinimoDistribuidor === 'minimo_sku' || Number(regras.qtdMinimaSkuAutoatacado || 0) > 0;
 
   for (const item of itens) {
-    const minSkuAtacado = Number(item.produto.qtd_minima_atacado) > 0 ? Number(item.produto.qtd_minima_atacado) : (Number(regras.qtdMinimaSkuAtacado) > 1 ? Number(regras.qtdMinimaSkuAtacado) : 6);
-    if (exigeSkuAtacado && item.quantidade < minSkuAtacado) {
+    const minSkuAtacado = (item.produto.tipo_minimo_atacado === 'minimo_sku' && Number(item.produto.qtd_minima_atacado) > 0) ? Number(item.produto.qtd_minima_atacado) : 0;
+    if (exigeSkuAtacado && minSkuAtacado > 0 && item.quantidade < minSkuAtacado) {
       skusAbaixoMinimoAtacado.push({
         id: item.id,
         nome: item.produto.nome,
@@ -276,8 +274,8 @@ export const avaliarNivelCarrinho = (
       });
     }
 
-    const minSkuAuto = Number(item.produto.qtd_minima_autoatacado) > 0 ? Number(item.produto.qtd_minima_autoatacado) : (Number(regras.qtdMinimaSkuAutoatacado) > 1 ? Number(regras.qtdMinimaSkuAutoatacado) : 24);
-    if (exigeSkuAuto && item.quantidade < minSkuAuto) {
+    const minSkuAuto = (item.produto.tipo_minimo_autoatacado === 'minimo_sku' && Number(item.produto.qtd_minima_autoatacado) > 0) ? Number(item.produto.qtd_minima_autoatacado) : 0;
+    if (exigeSkuAuto && minSkuAuto > 0 && item.quantidade < minSkuAuto) {
       skusAbaixoMinimoAuto.push({
         id: item.id,
         nome: item.produto.nome,
@@ -295,15 +293,15 @@ export const avaliarNivelCarrinho = (
   // 3. Avaliar Elegibilidade Autoatacado / Distribuidor (Exclusão Mútua: Valor OU Qtd Global OU Mínimo por SKU)
   const atendeValorAuto = Number(regras.valorMinimoAutoatacado || 0) > 0 && totalVarejo >= Number(regras.valorMinimoAutoatacado);
   const atendeQtdTotalAuto = Number(regras.qtdTotalMinimaAutoatacado || 0) > 0 && totalPecas >= Number(regras.qtdTotalMinimaAutoatacado);
-  const algumSkuAtendeAuto = exigeSkuAuto && skusAbaixoMinimoAuto.length < itens.length;
-  const atendeSkuAuto = exigeSkuAuto && (todosSkusAtendemAuto || algumSkuAtendeAuto) && itens.length > 0;
+  const algumSkuAtendeAuto = exigeSkuAuto && itens.some(it => it.produto.tipo_minimo_autoatacado === 'minimo_sku' && Number(it.produto.qtd_minima_autoatacado) > 0 && it.quantidade >= Number(it.produto.qtd_minima_autoatacado));
+  const atendeSkuAuto = exigeSkuAuto && algumSkuAtendeAuto;
   const elegivelAutoatacado = distribuidorAtivo && (atendeValorAuto || atendeQtdTotalAuto || atendeSkuAuto);
 
   // 4. Avaliar Elegibilidade Atacado (Exclusão Mútua: Valor OU Qtd Global OU Mínimo por SKU)
   const atendeValorAtacado = Number(regras.valorMinimoAtacado || 0) > 0 && totalVarejo >= Number(regras.valorMinimoAtacado);
   const atendeQtdTotalAtacado = Number(regras.qtdTotalMinimaAtacado || 0) > 0 && totalPecas >= Number(regras.qtdTotalMinimaAtacado);
-  const algumSkuAtendeAtacado = exigeSkuAtacado && skusAbaixoMinimoAtacado.length < itens.length;
-  const atendeSkuAtacado = exigeSkuAtacado && (todosSkusAtendemAtacado || algumSkuAtendeAtacado) && itens.length > 0;
+  const algumSkuAtendeAtacado = exigeSkuAtacado && itens.some(it => it.produto.tipo_minimo_atacado === 'minimo_sku' && Number(it.produto.qtd_minima_atacado) > 0 && it.quantidade >= Number(it.produto.qtd_minima_atacado));
+  const atendeSkuAtacado = exigeSkuAtacado && algumSkuAtendeAtacado;
   const elegivelAtacado = atacadoAtivo && (atendeValorAtacado || atendeQtdTotalAtacado || atendeSkuAtacado);
 
   // 5. Determinar Tabela Ativa
@@ -326,7 +324,7 @@ export const avaliarNivelCarrinho = (
   } else if (elegivelAtacado) {
     tabelaAtiva = 'atacado';
     criterioAtendido = (atendeValorAtacado && (atendeQtdTotalAtacado || atendeSkuAtacado)) ? 'ambos' : atendeValorAtacado ? 'valor' : 'quantidade';
-    proximoNivel = distribuidorAtivo ? 'autoatacado' : null;
+    proximoNivel = autoTemMetaGlobal ? 'autoatacado' : null;
     metaValor = distribuidorAtivo ? regras.valorMinimoAutoatacado : 0;
     metaPecas = distribuidorAtivo ? regras.qtdTotalMinimaAutoatacado : 0;
     faltaValor = distribuidorAtivo ? Math.max(0, regras.valorMinimoAutoatacado - totalVarejo) : 0;
@@ -341,7 +339,7 @@ export const avaliarNivelCarrinho = (
   } else {
     tabelaAtiva = 'varejo';
     criterioAtendido = 'nenhum';
-    proximoNivel = atacadoAtivo ? 'atacado' : (distribuidorAtivo ? 'autoatacado' : null);
+    proximoNivel = atacadoTemMetaGlobal ? 'atacado' : (autoTemMetaGlobal ? 'autoatacado' : null);
     if (proximoNivel === 'atacado') {
       metaValor = regras.valorMinimoAtacado;
       metaPecas = regras.qtdTotalMinimaAtacado;

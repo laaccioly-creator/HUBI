@@ -415,9 +415,11 @@ export const ReciboPublico: React.FC = () => {
           </div>
 
           {/* Status do Pagamento */}
-          {pagInfo.ehFiado && Number(pedido.saldo_devedor) > 0 && (
+          {(pagInfo.ehCaderneta || pagInfo.ehFiado) && Number(pedido.saldo_devedor) > 0 && (
             <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-center space-y-0.5">
-              <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
+              <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider block">
+                {pagInfo.ehCaderneta ? 'Saldo Caderneta' : 'Saldo a Pagar (Fiado)'}
+              </span>
               <span className="text-sm font-black text-red-600">{formatarMoeda(Number(pedido.saldo_devedor))}</span>
               {obterInfoVencimentoFiado(pedido).temVencimento && (
                 <span className="text-[11px] font-bold text-red-700 block pt-0.5">
@@ -427,13 +429,23 @@ export const ReciboPublico: React.FC = () => {
             </div>
           )}
 
-          <div className={`mt-2.5 p-2.5 rounded-lg border text-xs ${pagInfo.foiPago ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+          <div className={`mt-2.5 p-2.5 rounded-lg border text-xs ${pagInfo.ehCaderneta ? 'bg-purple-50 border-purple-200' : pagInfo.foiPago ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
             <div className="flex justify-between items-center pb-1.5 border-b border-dashed border-slate-200">
               <span className="font-bold text-[10px] text-slate-700 uppercase">Status Pagamento:</span>
-              <span className={`font-black text-[10px] px-1.5 py-0.5 rounded ${pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
+              <span className={`font-black text-[10px] px-1.5 py-0.5 rounded ${pagInfo.ehCaderneta ? 'bg-purple-100 text-purple-800' : pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                {pagInfo.ehCaderneta ? 'CADERNETA' : pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
               </span>
             </div>
+            {pagInfo.ehCaderneta && (
+              <div className="p-1.5 mt-1.5 rounded bg-purple-100/60 border border-purple-200 text-purple-900 text-xs font-bold text-center">
+                {pagInfo.mensagemCaderneta || (() => {
+                  const infoVenc = obterInfoVencimentoFiado(pedido);
+                  const partes = (infoVenc.formatada || '').split('/');
+                  const textoDiaMes = (partes[0] && partes[1]) ? `${partes[0]}/${partes[1]}` : infoVenc.formatada;
+                  return `Anotado na caderneta para pagamento no dia ${textoDiaMes}`;
+                })()}
+              </div>
+            )}
             {pagInfo.foiPago && pagInfo.pagamentosDetalhados.length > 0 && (
               <div className="space-y-1.5 pt-1.5 text-slate-800">
                 {pagInfo.pagamentosDetalhados.map((pag, idx) => (

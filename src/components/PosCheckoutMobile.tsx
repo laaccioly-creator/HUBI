@@ -64,6 +64,7 @@ import { audioService } from '../services/audioService';
 import { formatarMoeda, ehProdutoFracionado, formatarQuantidadeUnidade, obterSiglaUnidade, formatarLinhaCalculoItem } from '../utils/formatters';
 import { ModalInputPesoFracionado } from './ui/ModalInputPesoFracionado';
 import { podeEditarPedido } from '../utils/statusPedidoUtils';
+import { obterRegrasPrecificacao } from '../services/pricingEngine';
 
 interface PosCheckoutMobileProps {
   produtos: Produto[];
@@ -1087,6 +1088,11 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           if (qtdAtivos <= 1) return null;
           if (!avaliacaoCarrinho.proximoNivel && avaliacaoCarrinho.tabelaAtiva === 'varejo') return null;
 
+          const regrasPrecificacao = obterRegrasPrecificacao(loja);
+          const regraAtacarejoDireto = (regrasPrecificacao.tipoMinimoAtacado === 'minimo_sku' || (!regrasPrecificacao.valorMinimoAtacado && !regrasPrecificacao.qtdTotalMinimaAtacado)) &&
+            (regrasPrecificacao.tipoMinimoDistribuidor === 'minimo_sku' || (!regrasPrecificacao.valorMinimoAutoatacado && !regrasPrecificacao.qtdTotalMinimaAutoatacado) || !regrasPrecificacao.tiposVendaAtivos?.distribuidor);
+          if (regraAtacarejoDireto) return null;
+
           const tabelaOrganica = avaliacaoCarrinho.tabelaAtiva;
           const atingiuDistribuidor = tabelaOrganica === 'autoatacado';
           const proximaTabelaNome = avaliacaoCarrinho.proximoNivel === 'autoatacado' ? 'Distribuidor' : 'Atacado';
@@ -1189,11 +1195,31 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                       Var: {it.variacao.valor_variacao_1}
                     </span>
                   )}
-                  {ehProdutoFracionado(it.produto) && (
-                    <span className={`text-[10px] block truncate ${isDark ? 'text-slate-400' : 'text-slate-600 font-medium'}`}>
-                      {formatarLinhaCalculoItem(it.quantidade, Number(it.precoUnitario || 0), obterSiglaUnidade(it.produto))}
-                    </span>
-                  )}
+                  {(() => {
+                    const minAtacado = (it.produto.tipo_minimo_atacado === 'minimo_sku' && Number(it.produto.qtd_minima_atacado) > 0) ? Number(it.produto.qtd_minima_atacado) : 0;
+                    const minDistribuidor = (it.produto.tipo_minimo_autoatacado === 'minimo_sku' && Number(it.produto.qtd_minima_autoatacado) > 0) ? Number(it.produto.qtd_minima_autoatacado) : 0;
+                    const msgVolume = minDistribuidor > 0 && (it.quantidade >= minAtacado || minAtacado === 0)
+                      ? `Mínimo ${minDistribuidor} para distribuidor`
+                      : minAtacado > 0
+                      ? `Mínimo ${minAtacado} para atacado`
+                      : null;
+
+                    if (msgVolume) {
+                      return (
+                        <span className="text-[10px] block truncate text-amber-500 dark:text-amber-400 font-medium">
+                          {msgVolume}
+                        </span>
+                      );
+                    }
+                    if (ehProdutoFracionado(it.produto)) {
+                      return (
+                        <span className={`text-[10px] block truncate ${isDark ? 'text-slate-400' : 'text-slate-600 font-medium'}`}>
+                          {formatarLinhaCalculoItem(it.quantidade, Number(it.precoUnitario || 0), obterSiglaUnidade(it.produto))}
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
 
                 <div className="flex items-center gap-2.5 shrink-0">

@@ -40,6 +40,7 @@ export interface SalvarOperadorParams {
   podeVerPrecoCusto?: boolean;
   podeExportarRelatorios?: boolean;
   podeEditarVendasPassadas?: boolean;
+  podeTrocarLoja?: boolean;
   telaInicial?: string;
 }
 
@@ -116,6 +117,7 @@ export const usuarioService = {
       nome_completo: nomeLimpo,
       email: emailLimpo,
       perfil: params.perfil,
+      pode_trocar_loja: ehOwner ? true : (ehAdmin ? Boolean(params.podeTrocarLoja) : false),
       pode_uso_celular_pessoal: ehAdmin ? true : (params.podeUsoCelularPessoal ?? true),
       pode_ver_transacoes_outros: ehAdmin ? true : (params.podeVerTransacoesOutros ?? false),
       pode_dar_desconto: ehAdmin ? true : (params.podeDarDesconto ?? false),

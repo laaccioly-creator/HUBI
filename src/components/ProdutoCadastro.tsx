@@ -451,12 +451,20 @@ export const ProdutoCadastro: React.FC = () => {
 
   const [precoVendaAtacado, setPrecoVendaAtacado] = useState<string>(() => rascunhoSalvo?.precoVendaAtacado || '');
   const [tipoMinimoAtacado, setTipoMinimoAtacado] = useState<'quantidade' | 'valor'>(() => rascunhoSalvo?.tipoMinimoAtacado || 'quantidade');
-  const [qtdMinimaAtacado, setQtdMinimaAtacado] = useState<string>(() => rascunhoSalvo?.qtdMinimaAtacado || '6');
+  const [qtdMinimaAtacado, setQtdMinimaAtacado] = useState<string>(() => {
+    const val = rascunhoSalvo?.qtdMinimaAtacado;
+    return val && val !== '6' && Number(val) > 0 ? String(val) : '';
+  });
+  const [atacadoMinimoAtivo, setAtacadoMinimoAtivo] = useState<boolean>(() => Boolean(rascunhoSalvo?.atacadoMinimoAtivo));
   const [valorMinimoAtacado, setValorMinimoAtacado] = useState<string>(() => rascunhoSalvo?.valorMinimoAtacado || '300.00');
 
   const [precoVendaAutoatacado, setPrecoVendaAutoatacado] = useState<string>(() => rascunhoSalvo?.precoVendaAutoatacado || '');
   const [tipoMinimoAutoatacado, setTipoMinimoAutoatacado] = useState<'quantidade' | 'valor'>(() => rascunhoSalvo?.tipoMinimoAutoatacado || 'quantidade');
-  const [qtdMinimaAutoatacado, setQtdMinimaAutoatacado] = useState<string>(() => rascunhoSalvo?.qtdMinimaAutoatacado || '24');
+  const [qtdMinimaAutoatacado, setQtdMinimaAutoatacado] = useState<string>(() => {
+    const val = rascunhoSalvo?.qtdMinimaAutoatacado;
+    return val && val !== '24' && Number(val) > 0 ? String(val) : '';
+  });
+  const [distribuidorMinimoAtivo, setDistribuidorMinimoAtivo] = useState<boolean>(() => Boolean(rascunhoSalvo?.distribuidorMinimoAtivo));
   const [valorMinimoAutoatacado, setValorMinimoAutoatacado] = useState<string>(() => rascunhoSalvo?.valorMinimoAutoatacado || '1000.00');
 
   const [precoPromocional, setPrecoPromocional] = useState<string>(() => rascunhoSalvo?.precoPromocional || '');
@@ -531,11 +539,11 @@ export const ProdutoCadastro: React.FC = () => {
       precoVendaVarejo: dados.precoVendaVarejo ? Number(dados.precoVendaVarejo).toFixed(2) : '',
       precoVendaAtacado: dados.precoVendaAtacado ? Number(dados.precoVendaAtacado).toFixed(2) : '',
       tipoMinimoAtacado: dados.tipoMinimoAtacado || 'quantidade',
-      qtdMinimaAtacado: dados.qtdMinimaAtacado ? String(dados.qtdMinimaAtacado) : '6',
+      qtdMinimaAtacado: dados.qtdMinimaAtacado && Number(dados.qtdMinimaAtacado) > 0 ? String(dados.qtdMinimaAtacado) : '',
       valorMinimoAtacado: dados.valorMinimoAtacado ? String(dados.valorMinimoAtacado) : '300.00',
       precoVendaAutoatacado: dados.precoVendaAutoatacado ? Number(dados.precoVendaAutoatacado).toFixed(2) : '',
       tipoMinimoAutoatacado: dados.tipoMinimoAutoatacado || 'quantidade',
-      qtdMinimaAutoatacado: dados.qtdMinimaAutoatacado ? String(dados.qtdMinimaAutoatacado) : '24',
+      qtdMinimaAutoatacado: dados.qtdMinimaAutoatacado && Number(dados.qtdMinimaAutoatacado) > 0 ? String(dados.qtdMinimaAutoatacado) : '',
       valorMinimoAutoatacado: dados.valorMinimoAutoatacado ? String(dados.valorMinimoAutoatacado) : '1000.00',
       precoPromocional: dados.precoPromocional ? Number(dados.precoPromocional).toFixed(2) : '',
       promocaoAtiva: Boolean(dados.promocaoAtiva),
@@ -677,11 +685,13 @@ export const ProdutoCadastro: React.FC = () => {
     setPrecoVendaVarejo('');
     setPrecoVendaAtacado('');
     setTipoMinimoAtacado('quantidade');
-    setQtdMinimaAtacado('6');
+    setQtdMinimaAtacado('');
+    setAtacadoMinimoAtivo(false);
     setValorMinimoAtacado('300.00');
     setPrecoVendaAutoatacado('');
     setTipoMinimoAutoatacado('quantidade');
-    setQtdMinimaAutoatacado('24');
+    setQtdMinimaAutoatacado('');
+    setDistribuidorMinimoAtivo(false);
     setValorMinimoAutoatacado('1000.00');
     setPrecoPromocional('');
     setPromocaoAtiva(false);
@@ -862,6 +872,24 @@ export const ProdutoCadastro: React.FC = () => {
         // Fallback já inicializado com UNIDADES_PADRAO
       }
 
+      // Limpeza única de valores padrão legados (6 / 24) no banco da loja
+      try {
+        const flagReset = `hubi_reset_default_6_atacarejo_v1_${loja.id}`;
+        if (!localStorage.getItem(flagReset)) {
+          localStorage.setItem(flagReset, 'true');
+          await supabase
+            .from('produtos')
+            .update({ qtd_minima_atacado: 0, tipo_minimo_atacado: 'quantidade' })
+            .eq('loja_id', loja.id)
+            .eq('qtd_minima_atacado', 6);
+          await supabase
+            .from('produtos')
+            .update({ qtd_minima_autoatacado: 0, tipo_minimo_autoatacado: 'quantidade' })
+            .eq('loja_id', loja.id)
+            .eq('qtd_minima_autoatacado', 24);
+        }
+      } catch (eReset) {}
+
       // Carregar regras de precificação
       const keyStorage = `hubi_regras_precificacao_${loja.id}`;
       const regrasSalvas = localStorage.getItem(keyStorage);
@@ -917,12 +945,10 @@ export const ProdutoCadastro: React.FC = () => {
 
       setPrecoVendaAtacado(atacadoCalc);
       setTipoMinimoAtacado(regrasPrecificacao.tipoMinimoAtacado === 'valor' ? 'valor' : 'quantidade');
-      setQtdMinimaAtacado(String(regrasPrecificacao.qtdMinimaAtacado || 6));
       setValorMinimoAtacado(String(regrasPrecificacao.valorMinimoAtacado || 300));
 
       setPrecoVendaAutoatacado(autoCalc);
       setTipoMinimoAutoatacado(regrasPrecificacao.tipoMinimoAutoatacado === 'valor' ? 'valor' : 'quantidade');
-      setQtdMinimaAutoatacado(String(regrasPrecificacao.qtdMinimaAutoatacado || 24));
       setValorMinimoAutoatacado(String(regrasPrecificacao.valorMinimoAutoatacado || 1000));
     }
   };
@@ -957,12 +983,21 @@ export const ProdutoCadastro: React.FC = () => {
           
           setPrecoVendaAtacado(prod.preco_venda_atacado ? Number(prod.preco_venda_atacado).toFixed(2) : '');
           setTipoMinimoAtacado(prod.tipo_minimo_atacado || 'quantidade');
-          setQtdMinimaAtacado(prod.qtd_minima_atacado ? String(prod.qtd_minima_atacado) : '6');
+          const flagResetJaFeito = loja?.id ? Boolean(localStorage.getItem(`hubi_reset_default_6_atacarejo_v1_${loja.id}`)) : false;
+          const qtdAtacValida = prod.tipo_minimo_atacado === 'minimo_sku' && Number(prod.qtd_minima_atacado) > 0 && (flagResetJaFeito || Number(prod.qtd_minima_atacado) !== 6)
+            ? String(prod.qtd_minima_atacado)
+            : '';
+          setQtdMinimaAtacado(qtdAtacValida);
+          setAtacadoMinimoAtivo(Boolean(qtdAtacValida));
           setValorMinimoAtacado(prod.valor_minimo_atacado ? String(prod.valor_minimo_atacado) : '300.00');
 
           setPrecoVendaAutoatacado(prod.preco_venda_autoatacado ? Number(prod.preco_venda_autoatacado).toFixed(2) : '');
           setTipoMinimoAutoatacado(prod.tipo_minimo_autoatacado || 'quantidade');
-          setQtdMinimaAutoatacado(prod.qtd_minima_autoatacado ? String(prod.qtd_minima_autoatacado) : '24');
+          const qtdAutoValida = prod.tipo_minimo_autoatacado === 'minimo_sku' && Number(prod.qtd_minima_autoatacado) > 0 && (flagResetJaFeito || Number(prod.qtd_minima_autoatacado) !== 24)
+            ? String(prod.qtd_minima_autoatacado)
+            : '';
+          setQtdMinimaAutoatacado(qtdAutoValida);
+          setDistribuidorMinimoAtivo(Boolean(qtdAutoValida));
           setValorMinimoAutoatacado(prod.valor_minimo_autoatacado ? String(prod.valor_minimo_autoatacado) : '1000.00');
 
           setPrecoPromocional(prod.preco_promocional ? Number(prod.preco_promocional).toFixed(2) : '');
@@ -1011,11 +1046,11 @@ export const ProdutoCadastro: React.FC = () => {
             precoVendaVarejo: prod.preco_venda_varejo ? Number(prod.preco_venda_varejo).toFixed(2) : '',
             precoVendaAtacado: prod.preco_venda_atacado ? Number(prod.preco_venda_atacado).toFixed(2) : '',
             tipoMinimoAtacado: prod.tipo_minimo_atacado || 'quantidade',
-            qtdMinimaAtacado: prod.qtd_minima_atacado ? String(prod.qtd_minima_atacado) : '6',
+            qtdMinimaAtacado: qtdAtacValida,
             valorMinimoAtacado: prod.valor_minimo_atacado ? String(prod.valor_minimo_atacado) : '300.00',
             precoVendaAutoatacado: prod.preco_venda_autoatacado ? Number(prod.preco_venda_autoatacado).toFixed(2) : '',
             tipoMinimoAutoatacado: prod.tipo_minimo_autoatacado || 'quantidade',
-            qtdMinimaAutoatacado: prod.qtd_minima_autoatacado ? String(prod.qtd_minima_autoatacado) : '24',
+            qtdMinimaAutoatacado: qtdAutoValida,
             valorMinimoAutoatacado: prod.valor_minimo_autoatacado ? String(prod.valor_minimo_autoatacado) : '1000.00',
             precoPromocional: prod.preco_promocional ? Number(prod.preco_promocional).toFixed(2) : '',
             promocaoAtiva: Boolean(prod.promocao_ativa),
@@ -1547,12 +1582,12 @@ export const ProdutoCadastro: React.FC = () => {
         preco_custo: Number(precoCusto) || 0,
         preco_venda_varejo: Number(precoVendaVarejo),
         preco_venda_atacado: precoVendaAtacado ? Number(precoVendaAtacado) : null,
-        tipo_minimo_atacado: regrasPrecificacao.tipoMinimoAtacado === 'minimo_sku' ? 'minimo_sku' : tipoMinimoAtacado,
-        qtd_minima_atacado: (regrasPrecificacao.tipoMinimoAtacado === 'minimo_sku' || tipoMinimoAtacado === 'quantidade') ? (Number(qtdMinimaAtacado) || 6) : 0,
+        tipo_minimo_atacado: (regrasPrecificacao.tipoMinimoAtacado === 'minimo_sku' && atacadoMinimoAtivo && Number(qtdMinimaAtacado) > 0) ? 'minimo_sku' : tipoMinimoAtacado,
+        qtd_minima_atacado: (regrasPrecificacao.tipoMinimoAtacado === 'minimo_sku' && atacadoMinimoAtivo && Number(qtdMinimaAtacado) > 0) ? Number(qtdMinimaAtacado) : 0,
         valor_minimo_atacado: tipoMinimoAtacado === 'valor' && regrasPrecificacao.tipoMinimoAtacado !== 'minimo_sku' ? (Number(valorMinimoAtacado) || 0) : null,
         preco_venda_autoatacado: precoVendaAutoatacado ? Number(precoVendaAutoatacado) : null,
-        tipo_minimo_autoatacado: regrasPrecificacao.tipoMinimoAutoatacado === 'minimo_sku' ? 'minimo_sku' : tipoMinimoAutoatacado,
-        qtd_minima_autoatacado: (regrasPrecificacao.tipoMinimoAutoatacado === 'minimo_sku' || tipoMinimoAutoatacado === 'quantidade') ? (Number(qtdMinimaAutoatacado) || 24) : 0,
+        tipo_minimo_autoatacado: (regrasPrecificacao.tipoMinimoAutoatacado === 'minimo_sku' && distribuidorMinimoAtivo && Number(qtdMinimaAutoatacado) > 0) ? 'minimo_sku' : tipoMinimoAutoatacado,
+        qtd_minima_autoatacado: (regrasPrecificacao.tipoMinimoAutoatacado === 'minimo_sku' && distribuidorMinimoAtivo && Number(qtdMinimaAutoatacado) > 0) ? Number(qtdMinimaAutoatacado) : 0,
         valor_minimo_autoatacado: tipoMinimoAutoatacado === 'valor' && regrasPrecificacao.tipoMinimoAutoatacado !== 'minimo_sku' ? (Number(valorMinimoAutoatacado) || 0) : null,
         preco_promocional: (promocaoAtiva && precoPromocional) ? Number(precoPromocional) : null,
         promocao_ativa: Boolean(promocaoAtiva && precoPromocional && Number(precoPromocional) > 0),
@@ -2349,25 +2384,7 @@ export const ProdutoCadastro: React.FC = () => {
                   placeholder="0,00"
                   className="py-2"
                 />
-                {regrasPrecificacao.tipoMinimoAtacado === 'minimo_sku' ? (
-                  <div className="pt-2 space-y-1">
-                    <label className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 block">
-                      Qtd. Mínima para Atacado (Un) *
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={qtdMinimaAtacado}
-                      onChange={(e) => setQtdMinimaAtacado(e.target.value)}
-                      placeholder="Ex: 6"
-                      className="w-full px-3 py-1.5 text-sm font-bold rounded-xl border border-emerald-500/60 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-                    />
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Atacarejo direto ao atingir esta qtd</span>
-                  </div>
-                ) : (
-                  <span className="text-xs text-slate-500 dark:text-slate-400 block">Conforme regra da loja</span>
-                )}
+                <span className="text-xs text-slate-500 dark:text-slate-400 block">Conforme regra da loja</span>
               </div>
 
               <div className="space-y-1">
@@ -2386,76 +2403,169 @@ export const ProdutoCadastro: React.FC = () => {
                   placeholder="0,00"
                   className="py-2"
                 />
-                {regrasPrecificacao.tipoMinimoAutoatacado === 'minimo_sku' ? (
-                  <div className="pt-2 space-y-1">
-                    <label className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 block">
-                      Qtd. Mínima Distribuidor (Un) *
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={qtdMinimaAutoatacado}
-                      onChange={(e) => setQtdMinimaAutoatacado(e.target.value)}
-                      placeholder="Ex: 24"
-                      className="w-full px-3 py-1.5 text-sm font-bold rounded-xl border border-indigo-500/60 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
-                    />
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Mínimo deste item para distribuidor</span>
-                  </div>
-                ) : (
-                  <span className="text-xs text-slate-500 dark:text-slate-400 block">Conforme regra da loja</span>
-                )}
+                <span className="text-xs text-slate-500 dark:text-slate-400 block">Conforme regra da loja</span>
               </div>
             </div>
 
-            {/* Linha de Preço Promocional */}
-            <div className="pt-3 border-t border-slate-200 dark:border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={promocaoAtiva}
-                    onChange={(e) => {
-                      const ativo = e.target.checked;
-                      setPromocaoAtiva(ativo);
-                      if (!ativo) setPrecoPromocional('');
-                    }}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-600"></div>
-                </label>
-                <div>
-                  <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
-                    Ativar Preço Promocional
-                  </span>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
-                    Exibe o preço de varejo riscado no PDV e catálogo vitrine
-                  </span>
-                </div>
-              </div>
+            {/* Linha Horizontal de Chaves: Ativar Preço Promocional | Ativar Atacado | Ativar Distribuidor */}
+            {(() => {
+              const tiposVendaLoja = loja?.tipos_venda || (loja as any)?.configuracoes_extras?.tipos_venda_ativos || {};
+              const atacadoLojaAtivo = tiposVendaLoja.atacado === true || (loja as any)?.permite_atacado === true;
+              const distribuidorLojaAtivo = tiposVendaLoja.distribuidor === true || (loja as any)?.permite_distribuidor === true;
+              const exibirSwitchAtacado = atacadoLojaAtivo && (regrasPrecificacao.tipoMinimoAtacado === 'minimo_sku' || loja?.tipo_minimo_padrao_atacado === 'minimo_sku');
+              const exibirSwitchDistribuidor = distribuidorLojaAtivo && (regrasPrecificacao.tipoMinimoAutoatacado === 'minimo_sku' || loja?.tipo_minimo_padrao_autoatacado === 'minimo_sku');
 
-              {promocaoAtiva && (
-                <div className="w-full sm:w-64 space-y-1 animate-in fade-in">
-                  <label className="text-xs font-semibold text-amber-600 dark:text-amber-400 flex items-center justify-between">
-                    <span>Preço Promocional (R$) *</span>
-                    {precoVendaVarejo && Number(precoPromocional) > 0 && (
-                      <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/40 px-1.5 py-0.2 rounded-lg font-bold">
-                        {Math.round(((Number(precoVendaVarejo) - Number(precoPromocional)) / Number(precoVendaVarejo)) * 100)}% OFF
-                      </span>
+              return (
+                <div className="pt-4 border-t border-slate-200 dark:border-slate-800/80 grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
+                  {/* 1. Ativar Preço Promocional */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={promocaoAtiva}
+                          onChange={(e) => {
+                            const ativo = e.target.checked;
+                            setPromocaoAtiva(ativo);
+                            if (!ativo) setPrecoPromocional('');
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-600"></div>
+                      </label>
+                      <div>
+                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
+                          Ativar Preço Promocional
+                        </span>
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                          Exibe o preço de varejo riscado no PDV e catálogo vitrine
+                        </span>
+                      </div>
+                    </div>
+
+                    {promocaoAtiva && (
+                      <div className="w-full space-y-1 animate-in fade-in">
+                        <label className="text-xs font-semibold text-amber-600 dark:text-amber-400 flex items-center justify-between">
+                          <span>Preço Promocional (R$) *</span>
+                          {precoVendaVarejo && Number(precoPromocional) > 0 && (
+                            <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/40 px-1.5 py-0.2 rounded-lg font-bold">
+                              {Math.round(((Number(precoVendaVarejo) - Number(precoPromocional)) / Number(precoVendaVarejo)) * 100)}% OFF
+                            </span>
+                          )}
+                        </label>
+                        <MoneyInput
+                          value={precoPromocional}
+                          onChange={(val) => setPrecoPromocional(val > 0 ? val.toFixed(2) : '')}
+                          placeholder="0,00"
+                          className="py-2 border-2 border-amber-500/70 dark:border-amber-500/50 text-amber-600 dark:text-amber-400 font-bold"
+                        />
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                          Substitui o preço de varejo nas vendas enquanto ativo
+                        </span>
+                      </div>
                     )}
-                  </label>
-                  <MoneyInput
-                    value={precoPromocional}
-                    onChange={(val) => setPrecoPromocional(val > 0 ? val.toFixed(2) : '')}
-                    placeholder="0,00"
-                    className="py-2 border-2 border-amber-500/70 dark:border-amber-500/50 text-amber-600 dark:text-amber-400 font-bold"
-                  />
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
-                    Substitui o preço de varejo nas vendas enquanto ativo
-                  </span>
+                  </div>
+
+                  {/* 2. Ativar Atacado */}
+                  {exibirSwitchAtacado && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={atacadoMinimoAtivo}
+                            onChange={(e) => {
+                              const ativo = e.target.checked;
+                              setAtacadoMinimoAtivo(ativo);
+                              if (!ativo) setQtdMinimaAtacado('');
+                            }}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-600"></div>
+                        </label>
+                        <div>
+                          <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
+                            Ativar Atacado
+                          </span>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                            Aplica preço de atacado por quantidade mínima deste produto
+                          </span>
+                        </div>
+                      </div>
+
+                      {atacadoMinimoAtivo && (
+                        <div className="w-full space-y-1 animate-in fade-in">
+                          <label className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 block">
+                            Quantidade Mínima para Atacado (Un) *
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={qtdMinimaAtacado}
+                            onChange={(e) => setQtdMinimaAtacado(e.target.value)}
+                            placeholder="Informe a quantidade mínima"
+                            className="w-full px-3 py-2 text-sm font-bold rounded-xl border-2 border-emerald-500/70 dark:border-emerald-500/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                          />
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                            Atacarejo direto ao atingir esta quantidade no carrinho
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 3. Ativar Distribuidor */}
+                  {exibirSwitchDistribuidor && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={distribuidorMinimoAtivo}
+                            onChange={(e) => {
+                              const ativo = e.target.checked;
+                              setDistribuidorMinimoAtivo(ativo);
+                              if (!ativo) setQtdMinimaAutoatacado('');
+                            }}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                        </label>
+                        <div>
+                          <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
+                            Ativar Distribuidor
+                          </span>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                            Aplica preço de distribuidor por quantidade mínima deste produto
+                          </span>
+                        </div>
+                      </div>
+
+                      {distribuidorMinimoAtivo && (
+                        <div className="w-full space-y-1 animate-in fade-in">
+                          <label className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 block">
+                            Quantidade Mínima para Distribuidor (Un) *
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={qtdMinimaAutoatacado}
+                            onChange={(e) => setQtdMinimaAutoatacado(e.target.value)}
+                            placeholder="Informe a quantidade mínima"
+                            className="w-full px-3 py-2 text-sm font-bold rounded-xl border-2 border-indigo-500/70 dark:border-indigo-500/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                          />
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                            Preço de distribuidor ao atingir esta quantidade no carrinho
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              );
+            })()}
           </div>
 
           {/* SEÇÃO 4: ESTOQUE & VALIDADE */}

@@ -18,8 +18,10 @@ import {
   TrendingUp,
   UserCheck,
   Power,
-  DollarSign
+  DollarSign,
+  Building2
 } from 'lucide-react';
+import { usePermissions } from '../hooks/usePermissions';
 import { supabase } from '../lib/supabase';
 import { UsuarioLoja, PerfilUsuario } from '../types';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
@@ -65,6 +67,8 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
   const [podeEstoque, setPodeEstoque] = useState<boolean>(false);
   const [podeFiado, setPodeFiado] = useState<boolean>(false);
   const [podeCaixa, setPodeCaixa] = useState<boolean>(false);
+  const [podeTrocarLoja, setPodeTrocarLoja] = useState<boolean>(false);
+  const permissions = usePermissions();
 
   const { confirmar } = useFeedbackModal();
   const ehOwner = usuarioEdicao?.perfil === 'owner';
@@ -89,7 +93,8 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       podeProdutos: usuarioEdicao ? (isAdmin ? true : (usuarioEdicao.pode_cadastrar_alterar_produtos ?? false)) : false,
       podeEstoque: usuarioEdicao ? (isAdmin ? true : (usuarioEdicao.pode_gerenciar_estoque ?? false)) : false,
       podeFiado: usuarioEdicao ? (isAdmin ? true : (usuarioEdicao.pode_ativar_fiado ?? false)) : false,
-      podeCaixa: usuarioEdicao ? (isAdmin ? true : (usuarioEdicao.pode_abrir_fechar_caixa ?? false)) : false
+      podeCaixa: usuarioEdicao ? (isAdmin ? true : (usuarioEdicao.pode_abrir_fechar_caixa ?? false)) : false,
+      podeTrocarLoja: usuarioEdicao ? (isAdmin ? Boolean(usuarioEdicao.pode_trocar_loja) : false) : false
     });
   }, [usuarioEdicao, isOpen]);
 
@@ -108,7 +113,8 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       podeProdutos,
       podeEstoque,
       podeFiado,
-      podeCaixa
+      podeCaixa,
+      podeTrocarLoja
     });
   }, [
     nome,
@@ -124,7 +130,8 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
     podeProdutos,
     podeEstoque,
     podeFiado,
-    podeCaixa
+    podeCaixa,
+    podeTrocarLoja
   ]);
 
   const temAlteracoesForm = snapshotAtual !== snapshotInicial;
@@ -173,6 +180,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
         setPodeFiado(isAdmin ? true : (usuarioEdicao.pode_ativar_fiado ?? false));
         setPodeCaixa(isAdmin ? true : (usuarioEdicao.pode_abrir_fechar_caixa ?? false));
       }
+      setPodeTrocarLoja(Boolean(usuarioEdicao.pode_trocar_loja));
       const ehGestor = p === 'owner' || p === 'admin' || p === 'gerente';
       setTelaInicial(usuarioEdicao.tela_inicial || (ehGestor ? 'dashboard' : 'pos'));
     } else {
@@ -191,6 +199,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       setPodeEstoque(false);
       setPodeFiado(false);
       setPodeCaixa(false);
+      setPodeTrocarLoja(false);
     }
     setErro(null);
   }, [usuarioEdicao, isOpen]);
@@ -306,6 +315,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
         podeGerenciarEstoque: ehOwner ? true : (ehAdmin ? true : podeEstoque),
         podeAtivarFiado: ehOwner ? true : (ehAdmin ? true : podeFiado),
         podeAbrirFecharCaixa: ehOwner ? true : (ehAdmin ? true : podeCaixa),
+        podeTrocarLoja: ehOwner ? true : (ehAdmin ? podeTrocarLoja : false),
         podeVerPrecoCusto: ehOwner || ehAdmin,
         podeExportarRelatorios: ehOwner || ehAdmin,
         podeEditarVendasPassadas: ehOwner || ehAdmin,
@@ -692,6 +702,36 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
                   <div className={`w-9 h-5 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 ${isDark ? 'bg-slate-700' : 'bg-slate-300'} ${ehOwner ? 'opacity-80 cursor-not-allowed' : ''}`}></div>
                 </label>
               </div>
+
+              {/* 1.1 Permitir navegar/trocar entre lojas (apenas para Admin, editável apenas pelo Owner) */}
+              {(ehAdmin && !ehOwner) && (
+                <div className={`flex items-start justify-between gap-3 p-3.5 rounded-2xl transition border ${isDark ? 'bg-[#000000] border-slate-800 hover:border-slate-700' : 'bg-slate-50 border-2 border-slate-200 hover:border-slate-300'}`}>
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-blue-500" />
+                      <span className={`text-xs font-black ${isDark ? 'text-white' : 'text-black'}`}>Permitir navegar/trocar entre lojas</span>
+                    </div>
+                    <p className={`text-[11px] leading-tight ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      Permite que este administrador visualize o menu de lojas e alterne entre outras filiais da conta.
+                    </p>
+                    {!permissions.ehOwner && (
+                      <span className="text-[10px] text-amber-500 font-semibold block pt-0.5">
+                        * Apenas o Proprietário da conta pode alterar esta permissão.
+                      </span>
+                    )}
+                  </div>
+                  <label className={`relative inline-flex items-center shrink-0 mt-0.5 ${!permissions.ehOwner ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`} title={!permissions.ehOwner ? 'Apenas o proprietário pode alterar esta permissão' : ''}>
+                    <input
+                      type="checkbox"
+                      checked={podeTrocarLoja}
+                      onChange={(e) => setPodeTrocarLoja(e.target.checked)}
+                      disabled={!permissions.ehOwner}
+                      className="sr-only peer"
+                    />
+                    <div className={`w-9 h-5 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600 ${isDark ? 'bg-slate-700' : 'bg-slate-300'}`}></div>
+                  </label>
+                </div>
+              )}
 
               {/* 2. Permitir uso em celular pessoal */}
               <div className={`flex items-start justify-between gap-3 p-3.5 rounded-2xl transition border ${isDark ? 'bg-[#000000] border-slate-800 hover:border-slate-700' : 'bg-slate-50 border-2 border-slate-200 hover:border-slate-300'}`}>

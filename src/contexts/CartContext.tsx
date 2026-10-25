@@ -489,7 +489,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const itensComPrecoDinamico = useMemo(() => {
     return itens.map(item => {
       const preco = calcularPrecoItemContext(item.produto, item.variacao, tabelaPrecoCalculada, item.quantidade);
-      const minSkuAtacado = Number(item.produto.qtd_minima_atacado) > 0 ? Number(item.produto.qtd_minima_atacado) : 6;
+      const minSkuAtacado = Number(item.produto.qtd_minima_atacado) || 0;
       const exigeSkuAtacado = regrasAtivas.tipoMinimoAtacado === 'minimo_sku' || Number(regrasAtivas.qtdMinimaSkuAtacado || 0) > 0;
       const tabelaItemEfetiva: TabelaPreco = (
         tabelaPrecoCalculada === 'atacado' &&

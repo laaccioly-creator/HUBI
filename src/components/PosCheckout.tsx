@@ -2713,7 +2713,13 @@ export const PosCheckout: React.FC = () => {
             </div>
           ) : (
             itens.map((item) => {
-              const skuFracionado = avaliacaoCarrinho.skusFracionados.find(s => s.id === item.id);
+              const minAtacado = (item.produto.tipo_minimo_atacado === 'minimo_sku' && Number(item.produto.qtd_minima_atacado) > 0) ? Number(item.produto.qtd_minima_atacado) : 0;
+              const minDistribuidor = (item.produto.tipo_minimo_autoatacado === 'minimo_sku' && Number(item.produto.qtd_minima_autoatacado) > 0) ? Number(item.produto.qtd_minima_autoatacado) : 0;
+              const msgVolume = minDistribuidor > 0 && (item.quantidade >= minAtacado || minAtacado === 0)
+                ? `Mínimo ${minDistribuidor} para distribuidor`
+                : minAtacado > 0
+                ? `Mínimo ${minAtacado} para atacado`
+                : null;
 
               return (
                 <div
@@ -2731,11 +2737,15 @@ export const PosCheckout: React.FC = () => {
                             {item.variacao.valor_variacao_1} {item.variacao.valor_variacao_2 || ''}
                           </span>
                         )}
-                        <span>
-                          {ehProdutoFracionado(item.produto)
-                            ? formatarLinhaCalculoItem(item.quantidade, Number(item.precoUnitario || 0), obterSiglaUnidade(item.produto))
-                            : `R$ ${Number(item.precoUnitario || 0).toFixed(2)} / ${obterSiglaUnidade(item.produto)}`}
-                        </span>
+                        {msgVolume ? (
+                          <span className="text-amber-500 dark:text-amber-400 font-medium">
+                            {msgVolume}
+                          </span>
+                        ) : ehProdutoFracionado(item.produto) ? (
+                          <span>
+                            {formatarLinhaCalculoItem(item.quantidade, Number(item.precoUnitario || 0), obterSiglaUnidade(item.produto))}
+                          </span>
+                        ) : null}
                       </div>
                     </div>
 
@@ -2790,21 +2800,6 @@ export const PosCheckout: React.FC = () => {
                       )}
                     </div>
                   </div>
-
-                  {skuFracionado && (
-                    <div className="p-1.5 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center justify-between text-[10px] text-amber-300">
-                      <span>Mín. {skuFracionado.quantidadeMinimaExigida} un (faltam {skuFracionado.faltamUnidades})</span>
-                      {!isEdicaoTravada && (
-                        <button
-                          type="button"
-                          onClick={() => atualizarQuantidade(item.id, item.quantidade + skuFracionado.faltamUnidades)}
-                          className="px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500 text-amber-200 hover:text-slate-950 font-bold"
-                        >
-                          +{skuFracionado.faltamUnidades}
-                        </button>
-                      )}
-                    </div>
-                  )}
                 </div>
               );
             })

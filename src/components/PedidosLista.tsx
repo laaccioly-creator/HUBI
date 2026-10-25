@@ -711,6 +711,16 @@ export const PedidosLista: React.FC = () => {
   }, [ehDespachoCorreios, codigoRastreioDespacho, servicoCorreiosDespacho]);
 
   const resolverStatusPagamento = (pedido: Pedido): StatusPagamento => {
+    const temCaderneta = Boolean(
+      (pedido as any).eh_venda_caderneta ||
+      (pedido as any).eh_pagamento_caderneta ||
+      (pedido.pagamentos || []).some(
+        (p: any) => p.eh_pagamento_caderneta || p.forma_pagamento?.tipo === 'caderneta' || p.tipo === 'caderneta' || (p.forma_pagamento?.nome || '').toLowerCase().includes('caderneta')
+      )
+    );
+    if (temCaderneta && !pedido.fiado_quitado) {
+      return 'caderneta';
+    }
     const temFiado = (pedido.pagamentos || []).some(
       (p: any) => p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado'
     );
@@ -3141,7 +3151,7 @@ export const PedidosLista: React.FC = () => {
                         );
                         const jaDespachado = isUber ? isUberDespachado : Boolean(linkRastreio || codigoRastreio || despachadoEm || pedidoSelecionado.status === 'enviado');
 
-                        if (pedidoSelecionado.status === 'cancelado' || pedidoSelecionado.status === 'concluido' || !(resolverStatusPagamento(pedidoSelecionado) === 'pago' || resolverStatusPagamento(pedidoSelecionado) === 'fiado') || jaDespachado) {
+                        if (pedidoSelecionado.status === 'cancelado' || pedidoSelecionado.status === 'concluido' || !(resolverStatusPagamento(pedidoSelecionado) === 'pago' || resolverStatusPagamento(pedidoSelecionado) === 'fiado' || resolverStatusPagamento(pedidoSelecionado) === 'caderneta') || jaDespachado) {
                           return null;
                         }
 
@@ -3310,7 +3320,7 @@ export const PedidosLista: React.FC = () => {
                   </span>
                 </div>
 
-                {resolverStatusPagamento(pedidoSelecionado) === 'fiado' && (() => {
+                {(resolverStatusPagamento(pedidoSelecionado) === 'fiado' || resolverStatusPagamento(pedidoSelecionado) === 'caderneta') && (() => {
                   const infoVenc = obterInfoVencimentoFiado(pedidoSelecionado);
                   return (
                     <div className={`flex items-center justify-between text-xs p-2.5 rounded-xl mt-2 ${isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
@@ -3333,7 +3343,7 @@ export const PedidosLista: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      if (resolverStatusPagamento(pedidoSelecionado) === 'fiado') {
+                      if (resolverStatusPagamento(pedidoSelecionado) === 'fiado' || resolverStatusPagamento(pedidoSelecionado) === 'caderneta') {
                         setPedidoReceberFiadoModal(pedidoSelecionado);
                       } else {
                         setPedidoReceberModal(pedidoSelecionado);
@@ -3342,7 +3352,7 @@ export const PedidosLista: React.FC = () => {
                     className={`w-full mt-2 px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
                   >
                     <DollarSign className="w-4 h-4" />
-                    <span>{resolverStatusPagamento(pedidoSelecionado) === 'fiado' ? 'Receber Fiado' : 'Receber Pagamento'}</span>
+                    <span>{resolverStatusPagamento(pedidoSelecionado) === 'caderneta' ? 'Receber Caderneta' : resolverStatusPagamento(pedidoSelecionado) === 'fiado' ? 'Receber Fiado' : 'Receber Pagamento'}</span>
                   </button>
                 )}
               </div>
@@ -3755,6 +3765,7 @@ export const PedidosLista: React.FC = () => {
                             const formatarStatusPagamentoTexto = (status: string) => {
                               switch (status) {
                                 case 'pago': return 'Pago';
+                                case 'caderneta': return 'Caderneta';
                                 case 'fiado': return 'Fiado';
                                 case 'parcialmente_pago': return 'Parcial';
                                 case 'aguardando_pagamento': return 'Aguardando pgto';
@@ -3770,7 +3781,7 @@ export const PedidosLista: React.FC = () => {
                         </td>
 
                         <td className="py-2.5 px-2 whitespace-nowrap text-center">
-                          {statusPag === 'fiado' ? (() => {
+                          {(statusPag === 'fiado' || statusPag === 'caderneta') ? (() => {
                             const infoVenc = obterInfoVencimentoFiado(pedido);
                             return (
                               <span className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>

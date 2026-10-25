@@ -481,9 +481,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     precoPromocional: '',
     precoCusto: '',
     precoAtacado: '',
-    qtdMinimaAtacado: 6,
+    qtdMinimaAtacado: 0,
     precoAutoatacado: '',
-    qtdMinimaAutoatacado: 24,
+    qtdMinimaAutoatacado: 0,
     categoriaId: '',
     descricao: '',
     codigoBarras: '',
@@ -1075,9 +1075,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       precoPromocional: p.preco_promocional ? String(p.preco_promocional) : '',
       precoCusto: p.preco_custo !== undefined && p.preco_custo !== null ? String(p.preco_custo) : '',
       precoAtacado: p.preco_venda_atacado ? String(p.preco_venda_atacado) : '',
-      qtdMinimaAtacado: Number(p.qtd_minima_atacado || 6),
+      qtdMinimaAtacado: Number(p.qtd_minima_atacado) > 0 && Number(p.qtd_minima_atacado) !== 6 ? Number(p.qtd_minima_atacado) : 0,
       precoAutoatacado: p.preco_venda_autoatacado ? String(p.preco_venda_autoatacado) : '',
-      qtdMinimaAutoatacado: Number(p.qtd_minima_autoatacado || 24),
+      qtdMinimaAutoatacado: Number(p.qtd_minima_autoatacado) > 0 && Number(p.qtd_minima_autoatacado) !== 24 ? Number(p.qtd_minima_autoatacado) : 0,
       categoriaId: p.categoria_id || '',
       descricao: p.descricao || '',
       codigoBarras: p.codigo_barras || '',
@@ -1126,16 +1126,16 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       const precoCustoNum = formData.precoCusto ? parseFloat(formData.precoCusto.replace(',', '.')) : 0;
       const precoAtacadoNum = formData.precoAtacado ? parseFloat(formData.precoAtacado.replace(',', '.')) : null;
       const precoAutoatacadoNum = formData.precoAutoatacado ? parseFloat(formData.precoAutoatacado.replace(',', '.')) : null;
-      const qtdMinAtacadoNum = regrasPrecificacaoLoja.tipoMinAtacado === 'quantidade'
-        ? (regrasPrecificacaoLoja.qtdMinAtacado || 6)
-        : (Number(formData.qtdMinimaAtacado) || 6);
+      const qtdMinAtacadoNum = regrasPrecificacaoLoja.tipoMinAtacado === 'minimo_sku'
+        ? (Number(formData.qtdMinimaAtacado) || 0)
+        : (regrasPrecificacaoLoja.tipoMinAtacado === 'quantidade' ? (regrasPrecificacaoLoja.qtdMinAtacado || 0) : 0);
       const valMinAtacadoNum = regrasPrecificacaoLoja.tipoMinAtacado === 'valor'
         ? (regrasPrecificacaoLoja.valMinAtacado || 300)
         : null;
 
-      const qtdMinAutoatacadoNum = regrasPrecificacaoLoja.tipoMinDistribuidor === 'quantidade'
-        ? (regrasPrecificacaoLoja.qtdMinDistribuidor || 24)
-        : (Number(formData.qtdMinimaAutoatacado) || 24);
+      const qtdMinAutoatacadoNum = regrasPrecificacaoLoja.tipoMinDistribuidor === 'minimo_sku'
+        ? (Number(formData.qtdMinimaAutoatacado) || 0)
+        : (regrasPrecificacaoLoja.tipoMinDistribuidor === 'quantidade' ? (regrasPrecificacaoLoja.qtdMinDistribuidor || 0) : 0);
       const valMinAutoatacadoNum = regrasPrecificacaoLoja.tipoMinDistribuidor === 'valor'
         ? (regrasPrecificacaoLoja.valMinDistribuidor || 1000)
         : null;

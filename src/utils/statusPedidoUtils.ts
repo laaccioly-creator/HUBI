@@ -458,36 +458,80 @@ export function podeEditarDescontoPedido(status?: string, statusPagamento?: stri
 }
 
 /**
- * Obtém a data de vencimento formatada e indicador de vencimento de um pedido com fiado.
+ * Calcula a data de vencimento da caderneta com base no dia fixo do ciclo.
+ * Exemplo: se o dia fixo for 10 e a compra for em 24/10/2026, vence em 10/11/2026.
+ * Se a compra for em 05/10/2026, vence em 10/10/2026.
  */
-export function obterInfoVencimentoFiado(pedido: any): {
+export function calcularVencimentoCaderneta(dataCompra: string | Date, diaFixo: number = 10): string {
+  const d = new Date(dataCompra);
+  if (isNaN(d.getTime())) return obterDataOperacaoYMD();
+
+  const ano = d.getFullYear();
+  const mes = d.getMonth();
+  const diaCompra = d.getDate();
+
+  let anoVenc = ano;
+  let mesVenc = mes;
+
+  if (diaCompra >= diaFixo) {
+    mesVenc += 1;
+    if (mesVenc > 11) {
+      mesVenc = 0;
+      anoVenc += 1;
+    }
+  }
+
+  const ultimoDiaMesVenc = new Date(anoVenc, mesVenc + 1, 0).getDate();
+  const diaEfetivo = Math.min(diaFixo, ultimoDiaMesVenc);
+
+  const mesStr = String(mesVenc + 1).padStart(2, '0');
+  const diaStr = String(diaEfetivo).padStart(2, '0');
+  return `${anoVenc}-${mesStr}-${diaStr}`;
+}
+
+/**
+ * Obtém a data de vencimento formatada e indicador de vencimento de um pedido com fiado ou caderneta.
+ */
+export function obterInfoVencimentoFiado(pedido: any, loja?: any): {
   dataIso: string | null;
   formatada: string;
   estaVencido: boolean;
   temVencimento: boolean;
 } {
+  const ehCaderneta = Boolean(
+    pedido?.eh_venda_caderneta ||
+    pedido?.eh_pagamento_caderneta ||
+    (pedido?.pagamentos || []).some((p: any) => p.eh_pagamento_caderneta || p.forma_pagamento?.tipo === 'caderneta' || p.tipo === 'caderneta')
+  );
+
   let dataVenc: string | null = pedido?.data_vencimento_fiado || null;
 
-  if (!dataVenc && pedido?.metadados) {
-    try {
-      const meta = typeof pedido.metadados === 'string' ? JSON.parse(pedido.metadados) : pedido.metadados;
-      dataVenc = meta?.data_vencimento_fiado || null;
-    } catch (e) {}
-  }
-
-  // Se não houver data explícita, calcular com base no prazo da forma fiado ou 30 dias a partir da venda
-  if (!dataVenc && (pedido?.data_venda || pedido?.criado_em)) {
-    let diasPrazo = 30;
-    const pagFiado = (pedido?.pagamentos || []).find((p: any) => p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado');
-    if (pagFiado?.forma_pagamento?.prazo_dias) {
-      diasPrazo = Number(pagFiado.forma_pagamento.prazo_dias) || 30;
+  if (ehCaderneta) {
+    const diaFixo = Number(pedido?.cliente?.dia_vencimento_caderneta || loja?.dia_vencimento_padrao_caderneta || 10);
+    const dataRef = pedido?.data_venda || pedido?.criado_em || new Date().toISOString();
+    dataVenc = calcularVencimentoCaderneta(dataRef, diaFixo);
+  } else {
+    if (!dataVenc && pedido?.metadados) {
+      try {
+        const meta = typeof pedido.metadados === 'string' ? JSON.parse(pedido.metadados) : pedido.metadados;
+        dataVenc = meta?.data_vencimento_fiado || null;
+      } catch (e) {}
     }
-    const dataRef = new Date(pedido.data_venda || pedido.criado_em);
-    dataRef.setDate(dataRef.getDate() + diasPrazo);
-    const ano = dataRef.getFullYear();
-    const mes = String(dataRef.getMonth() + 1).padStart(2, '0');
-    const dia = String(dataRef.getDate()).padStart(2, '0');
-    dataVenc = `${ano}-${mes}-${dia}`;
+
+    // Se não houver data explícita, calcular com base no prazo da forma fiado ou 30 dias a partir da venda
+    if (!dataVenc && (pedido?.data_venda || pedido?.criado_em)) {
+      let diasPrazo = 30;
+      const pagFiado = (pedido?.pagamentos || []).find((p: any) => p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado');
+      if (pagFiado?.forma_pagamento?.prazo_dias) {
+        diasPrazo = Number(pagFiado.forma_pagamento.prazo_dias) || 30;
+      }
+      const dataRef = new Date(pedido.data_venda || pedido.criado_em);
+      dataRef.setDate(dataRef.getDate() + diasPrazo);
+      const ano = dataRef.getFullYear();
+      const mes = String(dataRef.getMonth() + 1).padStart(2, '0');
+      const dia = String(dataRef.getDate()).padStart(2, '0');
+      dataVenc = `${ano}-${mes}-${dia}`;
+    }
   }
 
   const hoje = obterDataOperacaoYMD();

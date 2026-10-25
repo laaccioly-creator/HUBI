@@ -33,7 +33,7 @@ export type StatusPedido =
   | 'concluido'
   | 'vencido'
   | 'cancelado';
-export type StatusPagamento = 'aguardando_pagamento' | 'pago' | 'parcialmente_pago' | 'fiado';
+export type StatusPagamento = 'aguardando_pagamento' | 'pago' | 'parcialmente_pago' | 'fiado' | 'caderneta';
 export type TipoTransacao = 'ENTRADA' | 'SAIDA';
 export type StatusTransacao = 'pendente' | 'pago' | 'atrasado' | 'cancelado';
 export type FrequenciaRecorrencia = 'semanal' | 'mensal' | 'trimestral' | 'anual';
@@ -403,6 +403,7 @@ export interface UsuarioLoja {
   email: string;
   whatsapp_atendimento?: string | null;
   perfil: PerfilUsuario;
+  pode_trocar_loja?: boolean;
   pode_uso_celular_pessoal?: boolean;
   pode_ver_transacoes_outros?: boolean;
   pode_dar_desconto?: boolean;

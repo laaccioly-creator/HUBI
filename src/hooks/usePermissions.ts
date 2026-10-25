@@ -6,6 +6,7 @@ export interface PermissionsState {
   ehAdmin: boolean;
   ehGerente: boolean;
   ehVendedorOuComum: boolean;
+  podeTrocarLoja: boolean;
 
   // Permissões granulares
   podeUsoCelularPessoal: boolean;
@@ -50,6 +51,7 @@ export const usePermissions = (): PermissionsState => {
   const ehAdmin = ehOwner || perfil === 'admin';
   const ehGerente = ehAdmin || perfil === 'gerente';
   const ehVendedorOuComum = !ehAdmin && !ehGerente;
+  const podeTrocarLoja = ehOwner || (perfil === 'admin' && Boolean(usuario?.pode_trocar_loja));
 
   // Permissões Granulares
   const podeUsoCelularPessoal = ehAdmin || (usuario?.pode_uso_celular_pessoal ?? true);
@@ -94,6 +96,7 @@ export const usePermissions = (): PermissionsState => {
     ehAdmin,
     ehGerente,
     ehVendedorOuComum,
+    podeTrocarLoja,
     podeUsoCelularPessoal,
     podeVerTransacoesOutros,
     podeDarDesconto,

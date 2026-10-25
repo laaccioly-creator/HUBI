@@ -2986,7 +2986,11 @@ Fico no aguardo da confirmação! ✨`;
                 regrasAtivas?.tiposVendaAtivos?.atacado ||
                 regrasAtivas?.tiposVendaAtivos?.distribuidor
               );
+              const regraAtacarejoDireto = (regrasAtivas?.tipoMinimoAtacado === 'minimo_sku' || (!regrasAtivas?.valorMinimoAtacado && !regrasAtivas?.qtdTotalMinimaAtacado)) &&
+                (regrasAtivas?.tipoMinimoDistribuidor === 'minimo_sku' || (!regrasAtivas?.valorMinimoAutoatacado && !regrasAtivas?.qtdTotalMinimaAutoatacado) || !regrasAtivas?.tiposVendaAtivos?.distribuidor);
+
               const temRegraAtacado = Boolean(
+                !regraAtacarejoDireto &&
                 atacadoAtivoNaLoja && (
                   (loja?.qtd_minima_padrao_atacado && Number(loja.qtd_minima_padrao_atacado) > 0) ||
                   (loja?.valor_minimo_padrao_atacado && Number(loja.valor_minimo_padrao_atacado) > 0) ||
@@ -3112,8 +3116,13 @@ Fico no aguardo da confirmação! ✨`;
                     regrasAtivas
                   );
                   const subtotalItem = precoUnitarioAtivo * item.quantidade;
-                  const itemKey = item.variacao ? `${item.produto.id}-${item.variacao.id}` : `${item.produto.id}`;
-                  const skuFracionado = avaliacaoCarrinho.skusFracionados.find(s => s.id === itemKey);
+                  const minAtacado = (item.produto.tipo_minimo_atacado === 'minimo_sku' && Number(item.produto.qtd_minima_atacado) > 0) ? Number(item.produto.qtd_minima_atacado) : 0;
+                  const minDistribuidor = (item.produto.tipo_minimo_autoatacado === 'minimo_sku' && Number(item.produto.qtd_minima_autoatacado) > 0) ? Number(item.produto.qtd_minima_autoatacado) : 0;
+                  const msgVolume = minDistribuidor > 0 && (item.quantidade >= minAtacado || minAtacado === 0)
+                    ? `Mínimo ${minDistribuidor} para distribuidor`
+                    : minAtacado > 0
+                    ? `Mínimo ${minAtacado} para atacado`
+                    : null;
 
                   return (
                     <div key={idx} className="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2 shadow-2xs">
@@ -3134,11 +3143,15 @@ Fico no aguardo da confirmação! ✨`;
                             <span className="text-xs font-bold text-emerald-400">
                               R$ {subtotalItem.toFixed(2)}
                             </span>
-                            <span className="text-[10px] text-slate-400">
-                              {ehProdutoFracionado(item.produto)
-                                ? `(${formatarLinhaCalculoItem(item.quantidade, precoUnitarioAtivo, obterSiglaUnidade(item.produto))})`
-                                : `(R$ ${precoUnitarioAtivo.toFixed(2)}/${obterSiglaUnidade(item.produto)})`}
-                            </span>
+                            {msgVolume ? (
+                              <span className="text-[10px] text-amber-500 dark:text-amber-400 font-medium">
+                                • {msgVolume}
+                              </span>
+                            ) : ehProdutoFracionado(item.produto) ? (
+                              <span className="text-[10px] text-slate-400">
+                                ({formatarLinhaCalculoItem(item.quantidade, precoUnitarioAtivo, obterSiglaUnidade(item.produto))})
+                              </span>
+                            ) : null}
                           </div>
                         </div>
 
@@ -3194,25 +3207,6 @@ Fico no aguardo da confirmação! ✨`;
                           </div>
                         </div>
                       </div>
-
-                      {/* ALERTA DE SKU FRACIONADO */}
-                      {skuFracionado && (
-                        <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between gap-2 text-[10px] text-amber-300">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                            <span className="truncate">
-                              Aumente este item para <b>{skuFracionado.quantidadeMinimaExigida} un</b> para liberar {avaliacaoCarrinho.proximoNivel === 'autoatacado' ? 'distribuidor' : 'atacado'}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => atualizarQtdCarrinho(idx, item.quantidade + skuFracionado.faltamUnidades)}
-                            className="px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500 text-amber-200 hover:text-slate-950 font-black text-[10px] transition shrink-0 cursor-pointer shadow"
-                          >
-                            +{skuFracionado.faltamUnidades} un
-                          </button>
-                        </div>
-                      )}
                     </div>
                   );
                 })

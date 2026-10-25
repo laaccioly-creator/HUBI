@@ -52,14 +52,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     authEmail: string | null | undefined,
     nomeAtual?: string | null
   ): Promise<string> => {
+    const salvoLocal = localStorage.getItem('hubi_user_real_name')?.trim();
     const ehGenerico = !nomeAtual || ['proprietario', 'proprietário', 'operador', 'administrador', 'admin', 'user', 'owner'].includes(nomeAtual.trim().toLowerCase());
-    if (!ehGenerico && nomeAtual) return nomeAtual.trim();
+    if (!ehGenerico && nomeAtual) {
+      localStorage.setItem('hubi_user_real_name', nomeAtual.trim());
+      return nomeAtual.trim();
+    }
+    if (salvoLocal && !['proprietario', 'proprietário', 'operador', 'administrador', 'admin', 'user', 'owner'].includes(salvoLocal.toLowerCase())) {
+      return salvoLocal;
+    }
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const metaName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name;
       if (metaName && metaName.trim()) {
-        return metaName.trim();
+        const limpo = metaName.trim();
+        localStorage.setItem('hubi_user_real_name', limpo);
+        return limpo;
       }
     } catch {
       // fallback
@@ -76,7 +85,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .order('criado_em', { ascending: false })
           .limit(1);
         if (outrosUsers && outrosUsers[0]?.nome_completo) {
-          return outrosUsers[0].nome_completo.trim();
+          const limpo = outrosUsers[0].nome_completo.trim();
+          localStorage.setItem('hubi_user_real_name', limpo);
+          return limpo;
         }
       }
       if (authEmail) {
@@ -89,14 +100,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .order('criado_em', { ascending: false })
           .limit(1);
         if (outrosUsersEmail && outrosUsersEmail[0]?.nome_completo) {
-          return outrosUsersEmail[0].nome_completo.trim();
+          const limpo = outrosUsersEmail[0].nome_completo.trim();
+          localStorage.setItem('hubi_user_real_name', limpo);
+          return limpo;
         }
       }
     } catch {
       // fallback
     }
 
-    return nomeAtual?.trim() || 'Proprietário';
+    return salvoLocal || nomeAtual?.trim() || 'Usuário';
   };
 
   // Carregar lojas e identificar se há uma loja ativa salva ou selecionada

@@ -266,6 +266,16 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   };
 
   const resolverStatusPagamento = (pedido: Pedido): StatusPagamento => {
+    const temCaderneta = Boolean(
+      (pedido as any).eh_venda_caderneta ||
+      (pedido as any).eh_pagamento_caderneta ||
+      (pedido.pagamentos || []).some(
+        (p: any) => p.eh_pagamento_caderneta || p.forma_pagamento?.tipo === 'caderneta' || p.tipo === 'caderneta' || (p.forma_pagamento?.nome || '').toLowerCase().includes('caderneta')
+      )
+    );
+    if (temCaderneta && !pedido.fiado_quitado) {
+      return 'caderneta';
+    }
     const temFiado = (pedido.pagamentos || []).some(
       (p: any) => p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado'
     );
@@ -281,7 +291,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
   const handleAcionarDespacho = (ped: Pedido) => {
     const statusPag = resolverStatusPagamento(ped);
-    const estaPagoOuFiado = statusPag === 'pago' || statusPag === 'fiado';
+    const estaPagoOuFiado = statusPag === 'pago' || statusPag === 'fiado' || statusPag === 'caderneta';
     if (!estaPagoOuFiado) {
       mostrarToast('Este pedido possui pagamento pendente. Efetue o recebimento antes de despachar.', 'aviso');
       onAbrirReceberPagamento(ped);
@@ -1012,6 +1022,15 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               const nomeFormaRaw = pagInfo.pagamentosDetalhados?.[0]?.forma;
               const formaLimpa = extrairFormaLimpa(nomeFormaRaw);
 
+              if (pagInfo.ehCaderneta) {
+                return (
+                  <div className="px-3 py-1.5 rounded-xl border border-purple-200 bg-purple-50 text-purple-700 flex items-center gap-1.5 text-xs font-bold">
+                    <DollarSign className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Caderneta</span>
+                  </div>
+                );
+              }
+
               if (ehFiado) {
                 return (
                   <div className="px-3 py-1.5 rounded-xl border border-purple-200 bg-purple-50 text-purple-700 flex items-center gap-1.5 text-xs font-bold">
@@ -1657,7 +1676,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 const linkEtiqueta = String((pe as any)?.link_etiqueta || (pedidoSelecionado as any)?.link_etiqueta || (pe as any)?.etiqueta_url || (pedidoSelecionado as any)?.etiqueta_url || '').trim();
 
                 const statusPag = resolverStatusPagamento(pedidoSelecionado);
-                const estaPagoOuFiado = statusPag === 'pago' || statusPag === 'fiado';
+                const estaPagoOuFiado = statusPag === 'pago' || statusPag === 'fiado' || statusPag === 'caderneta';
                 const saldoDevedor = Number(pedidoSelecionado.saldo_devedor ?? (Number(pedidoSelecionado.valor_total || 0) - Number(pedidoSelecionado.valor_pago || 0)));
                 const precisaReceber = pedidoSelecionado.status !== 'cancelado' && (statusPag === 'aguardando_pagamento' || statusPag === 'parcialmente_pago' || saldoDevedor > 0.009);
 

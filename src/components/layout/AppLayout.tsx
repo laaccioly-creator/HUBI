@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ShoppingBag,
@@ -72,6 +72,15 @@ export const AppLayout: React.FC = () => {
   const [userMenuOpen, setUserMenuOpen] = useState<boolean>(false);
   const [modalAdicionarLojaAberto, setModalAdicionarLojaAberto] = useState<boolean>(false);
   const [listaUsuariosLoja, setListaUsuariosLoja] = useState<UsuarioLoja[]>([]);
+
+  const nomeExibicaoUsuario = useMemo(() => {
+    const nomeBruto = (usuario?.nome_completo || '').trim();
+    const salvoReal = (localStorage.getItem('hubi_user_real_name') || '').trim();
+    const ehGenerico = !nomeBruto || ['proprietario', 'proprietário', 'operador', 'administrador', 'admin', 'user', 'owner'].includes(nomeBruto.toLowerCase());
+    if (ehGenerico && salvoReal) return salvoReal;
+    if (!ehGenerico) return nomeBruto;
+    return salvoReal || nomeBruto || 'Operador';
+  }, [usuario?.nome_completo]);
 
   const maisMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -290,7 +299,7 @@ export const AppLayout: React.FC = () => {
         <div className="space-y-2 max-w-sm">
           <h2 className="text-xl font-black text-slate-100">Acesso Mobile Não Autorizado</h2>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Olá, <strong className="text-slate-200">{usuario?.nome_completo || 'Operador'}</strong>. Seu usuário não possui permissão para acessar o sistema através de celular pessoal.
+            Olá, <strong className="text-slate-200">{nomeExibicaoUsuario}</strong>. Seu usuário não possui permissão para acessar o sistema através de celular pessoal.
           </p>
           <p className="text-xs text-slate-500">
             Utilize um computador autorizado da loja ou contate o administrador para solicitar a liberação do acesso móvel.
@@ -603,10 +612,10 @@ export const AppLayout: React.FC = () => {
                     ? 'bg-emerald-600/30 text-white border-emerald-500/40'
                     : 'bg-slate-200 text-slate-900 border-slate-300'
                 }`}>
-                  {usuario?.nome_completo ? usuario.nome_completo.slice(0, 1).toUpperCase() : 'U'}
+                  {nomeExibicaoUsuario.slice(0, 1).toUpperCase()}
                 </div>
                 <span className={`text-xs font-semibold max-w-[100px] truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  {usuario?.nome_completo || 'Operador'}
+                  {nomeExibicaoUsuario}
                 </span>
                 <ChevronDown className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-slate-800'}`} />
               </button>
@@ -616,7 +625,7 @@ export const AppLayout: React.FC = () => {
                   isDark ? 'bg-slate-900 border-slate-800 shadow-2xl' : 'bg-white border-[#E2E8F0] shadow-xl'
                 }`}>
                   <div className={`px-3 py-2 mb-1 rounded-xl border ${isDark ? 'border-slate-800 bg-slate-950/50' : 'border-[#E2E8F0] bg-[#F8FAFC]'}`}>
-                    <p className={`text-xs font-bold truncate ${isDark ? 'text-slate-100' : 'text-[#0F172A]'}`}>{usuario?.nome_completo || 'Operador'}</p>
+                    <p className={`text-xs font-bold truncate ${isDark ? 'text-slate-100' : 'text-[#0F172A]'}`}>{nomeExibicaoUsuario}</p>
                     <p className="text-[10px] text-emerald-600 uppercase font-bold tracking-wider">{usuario?.perfil || 'Comum'}</p>
                   </div>
 
@@ -709,23 +718,25 @@ export const AppLayout: React.FC = () => {
                     <ExternalLink className={`w-3 h-3 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
                   </Link>
 
-                  {permissions.ehAdmin && (
+                  {permissions.podeTrocarLoja && (
                     <div className="pt-2 pb-1 border-t border-slate-700/50">
                       <div className="flex items-center justify-between px-3 mb-1">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                           Minhas Lojas
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setUserMenuOpen(false);
-                            setModalAdicionarLojaAberto(true);
-                          }}
-                          className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 hover:text-emerald-300 transition"
-                        >
-                          <Plus className="w-3 h-3" />
-                          <span>Nova</span>
-                        </button>
+                        {permissions.ehOwner && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setUserMenuOpen(false);
+                              setModalAdicionarLojaAberto(true);
+                            }}
+                            className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 hover:text-emerald-300 transition"
+                          >
+                            <Plus className="w-3 h-3" />
+                            <span>Nova</span>
+                          </button>
+                        )}
                       </div>
 
                       <div className="max-h-36 overflow-y-auto space-y-0.5 custom-scrollbar">

@@ -56,6 +56,24 @@ export const formatarVendedorRecibo = (pedido: Pedido): { label: string; valor: 
   };
 };
 
+export const ehPedidoCaderneta = (pedido?: Pedido | null): boolean => {
+  if (!pedido) return false;
+  if ((pedido as any).eh_venda_caderneta || (pedido as any).eh_pagamento_caderneta) return true;
+  if (Array.isArray(pedido.pagamentos) && pedido.pagamentos.length > 0) {
+    const temPagamentoCaderneta = pedido.pagamentos.some(p => 
+      p.eh_pagamento_caderneta === true || 
+      p.forma_pagamento?.tipo === 'caderneta' ||
+      p.forma_pagamento?.nome?.toLowerCase().includes('caderneta') ||
+      (p as any).tipo === 'caderneta' ||
+      (p as any).forma_tipo === 'caderneta'
+    );
+    if (temPagamentoCaderneta) return true;
+  }
+  const formaStr = String((pedido as any).forma_pagamento || (pedido as any).tipo_pagamento || '').toLowerCase();
+  if (formaStr.includes('caderneta')) return true;
+  return false;
+};
+
 export const ehPedidoFiado = (pedido: Pedido): boolean => {
   if (!pedido) return false;
   if (Array.isArray(pedido.pagamentos) && pedido.pagamentos.length > 0) {
@@ -75,6 +93,9 @@ export const formatarTituloModalidadePagamento = (forma?: string, tipo?: string,
   const fLower = (forma || '').toLowerCase();
   const tLower = (tipo || '').toLowerCase();
 
+  if (tLower === 'caderneta' || fLower.includes('caderneta')) {
+    return 'Caderneta';
+  }
   if (ehFiado || tLower === 'fiado' || fLower.includes('fiado')) {
     return 'Fiado';
   }
@@ -104,7 +125,9 @@ export const formatarTituloModalidadePagamento = (forma?: string, tipo?: string,
 export interface InfoPagamentoRecibo {
   foiPago: boolean;
   ehFiado: boolean;
+  ehCaderneta: boolean;
   statusTexto: string;
+  mensagemCaderneta?: string;
   totalPago: number;
   pagamentosDetalhados: Array<{
     forma: string;
@@ -116,9 +139,24 @@ export interface InfoPagamentoRecibo {
 }
 
 export const obterDadosPagamentoRecibo = (pedido: Pedido): InfoPagamentoRecibo => {
-  const ehFiado = ehPedidoFiado(pedido);
+  const ehCaderneta = ehPedidoCaderneta(pedido);
+  const ehFiado = !ehCaderneta && ehPedidoFiado(pedido);
 
-  const statusPag = pedido.status_pagamento 
+  let mensagemCaderneta: string | undefined;
+  if (ehCaderneta) {
+    const infoVenc = obterInfoVencimentoFiado(pedido);
+    let textoDiaMes = '';
+    if (infoVenc.formatada && infoVenc.formatada.includes('/')) {
+      const partes = infoVenc.formatada.split('/');
+      textoDiaMes = `${partes[0]}/${partes[1]}`;
+    } else {
+      textoDiaMes = infoVenc.formatada;
+    }
+    mensagemCaderneta = `Anotado na caderneta para pagamento no dia ${textoDiaMes}`;
+  }
+
+  const statusPag = (ehCaderneta && !pedido.fiado_quitado) ? 'caderneta'
+    : pedido.status_pagamento 
     || (Number(pedido.saldo_devedor) <= 0 && Number(pedido.valor_pago) > 0 ? 'pago' 
     : pedido.status === 'concluido' && (!ehFiado || Number(pedido.saldo_devedor) <= 0) ? 'pago' 
     : 'aguardando_pagamento');
@@ -192,7 +230,9 @@ export const obterDadosPagamentoRecibo = (pedido: Pedido): InfoPagamentoRecibo =
   return {
     foiPago,
     ehFiado,
-    statusTexto: foiPago ? 'PAGO' : 'AGUARDANDO PAGAMENTO',
+    ehCaderneta,
+    statusTexto: ehCaderneta ? 'CADERNETA' : foiPago ? 'PAGO' : 'AGUARDANDO PAGAMENTO',
+    mensagemCaderneta,
     totalPago,
     pagamentosDetalhados: itensPag
   };
@@ -620,9 +660,9 @@ export class PrintService {
             <span style="font-size: ${isA4 ? '18px' : '15px'}; font-weight: 900; color: #0f172a;">R$ ${Number(pedido.valor_total || 0).toFixed(2)}</span>
           </div>
 
-          ${(pagamentoInfo.ehFiado && Number(pedido.saldo_devedor || 0) > 0) ? `
+          ${((pagamentoInfo.ehCaderneta || pagamentoInfo.ehFiado) && Number(pedido.saldo_devedor || 0) > 0) ? `
             <div style="text-align: right; margin-bottom: 2px; font-size: ${isA4 ? '13px' : '11px'}; font-weight: 600; color: #b45309;">
-              Saldo a Pagar (Fiado): R$ ${Number(pedido.saldo_devedor).toFixed(2)}
+              ${pagamentoInfo.ehCaderneta ? 'Saldo Caderneta' : 'Saldo a Pagar (Fiado)'}: R$ ${Number(pedido.saldo_devedor).toFixed(2)}
             </div>
             ${obterInfoVencimentoFiado(pedido).temVencimento ? `
               <div style="text-align: right; margin-bottom: 6px; font-size: ${isA4 ? '12px' : '10px'}; font-weight: 700; color: #dc2626;">
@@ -635,19 +675,25 @@ export class PrintService {
           <div style="
             margin-top: 10px;
             padding: 8px 10px;
-            background-color: ${pagamentoInfo.foiPago ? '#f0fdf4' : '#fffbeb'};
-            border: 1px solid ${pagamentoInfo.foiPago ? '#bbf7d0' : '#fef3c7'};
+            background-color: ${pagamentoInfo.ehCaderneta ? '#faf5ff' : pagamentoInfo.foiPago ? '#f0fdf4' : '#fffbeb'};
+            border: 1px solid ${pagamentoInfo.ehCaderneta ? '#e9d5ff' : pagamentoInfo.foiPago ? '#bbf7d0' : '#fef3c7'};
             border-radius: 6px;
             font-size: ${isA4 ? '12px' : '10px'};
           ">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px dashed ${pagamentoInfo.foiPago ? '#86efac' : '#fde68a'}; padding-bottom: 4px;">
-              <span style="font-weight: 700; color: ${pagamentoInfo.foiPago ? '#166534' : '#92400e'}; text-transform: uppercase; letter-spacing: 0.5px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px dashed ${pagamentoInfo.ehCaderneta ? '#d8b4fe' : pagamentoInfo.foiPago ? '#86efac' : '#fde68a'}; padding-bottom: 4px;">
+              <span style="font-weight: 700; color: ${pagamentoInfo.ehCaderneta ? '#6b21a8' : pagamentoInfo.foiPago ? '#166534' : '#92400e'}; text-transform: uppercase; letter-spacing: 0.5px;">
                 Status Pagamento:
               </span>
-              <span style="font-weight: 800; color: ${pagamentoInfo.foiPago ? '#15803d' : '#b45309'}; background: ${pagamentoInfo.foiPago ? '#dcfce7' : '#fef3c7'}; padding: 1px 6px; border-radius: 4px; font-size: ${isA4 ? '11px' : '9px'};">
-                ${pagamentoInfo.foiPago ? '✓ PAGO' : '⏳ AGUARDANDO PAGAMENTO'}
+              <span style="font-weight: 800; color: ${pagamentoInfo.ehCaderneta ? '#6b21a8' : pagamentoInfo.foiPago ? '#15803d' : '#b45309'}; background: ${pagamentoInfo.ehCaderneta ? '#f3e8ff' : pagamentoInfo.foiPago ? '#dcfce7' : '#fef3c7'}; padding: 1px 6px; border-radius: 4px; font-size: ${isA4 ? '11px' : '9px'};">
+                ${pagamentoInfo.ehCaderneta ? 'CADERNETA' : pagamentoInfo.foiPago ? '✓ PAGO' : '⏳ AGUARDANDO PAGAMENTO'}
               </span>
             </div>
+
+            ${pagamentoInfo.ehCaderneta && pagamentoInfo.mensagemCaderneta ? `
+              <div style="margin-top: 4px; padding: 4px 6px; background-color: #f3e8ff; border: 1px solid #d8b4fe; border-radius: 4px; font-weight: 700; color: #6b21a8; font-size: ${isA4 ? '11px' : '9px'}; text-align: center;">
+                ${pagamentoInfo.mensagemCaderneta}
+              </div>
+            ` : ''}
 
             ${pagamentoInfo.foiPago ? `
               <div style="margin-top: 4px;">
@@ -983,23 +1029,48 @@ export class PrintService {
 
     const pagamentoInfo = obterDadosPagamentoRecibo(pedido);
 
-    if (pagamentoInfo.ehFiado && Number(pedido.saldo_devedor) > 0) {
-      text += `SALDO A PAGAR (FIADO): R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n`;
-    }
-
-    text += divider;
-    if (pagamentoInfo.foiPago) {
-      text += '\x1B\x45\x01'; // Bold ON
-      text += 'PAGAMENTO: [PAGO]\n';
-      text += '\x1B\x45\x00'; // Bold OFF
-      for (const pag of pagamentoInfo.pagamentosDetalhados) {
-        const gw = pag.origemGateway ? ` (${pag.origemGateway})` : '';
-        const parc = pag.parcelas ? ` [${pag.parcelas}x]` : '';
-        text += `> ${pag.forma}${parc}${gw}: R$ ${pag.valor.toFixed(2)}\n`;
+    if (pagamentoInfo.ehCaderneta) {
+      if (Number(pedido.saldo_devedor) > 0) {
+        text += `SALDO CADERNETA: R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n`;
       }
-      text += `Total Pago: R$ ${pagamentoInfo.totalPago.toFixed(2)}\n`;
+      text += divider;
+      text += '\x1B\x45\x01'; // Bold ON
+      text += 'STATUS PAGAMENTO: [CADERNETA]\n';
+      text += '\x1B\x45\x00'; // Bold OFF
+      if (pagamentoInfo.mensagemCaderneta) {
+        text += `${pagamentoInfo.mensagemCaderneta}\n`;
+      }
+    } else if (pagamentoInfo.ehFiado && Number(pedido.saldo_devedor) > 0) {
+      text += `SALDO A PAGAR (FIADO): R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n`;
+      text += divider;
+      if (pagamentoInfo.foiPago) {
+        text += '\x1B\x45\x01'; // Bold ON
+        text += 'PAGAMENTO: [PAGO]\n';
+        text += '\x1B\x45\x00'; // Bold OFF
+        for (const pag of pagamentoInfo.pagamentosDetalhados) {
+          const gw = pag.origemGateway ? ` (${pag.origemGateway})` : '';
+          const parc = pag.parcelas ? ` [${pag.parcelas}x]` : '';
+          text += `> ${pag.forma}${parc}${gw}: R$ ${pag.valor.toFixed(2)}\n`;
+        }
+        text += `Total Pago: R$ ${pagamentoInfo.totalPago.toFixed(2)}\n`;
+      } else {
+        text += 'PAGAMENTO: [AGUARDANDO PAGAMENTO]\n';
+      }
     } else {
-      text += 'PAGAMENTO: [AGUARDANDO PAGAMENTO]\n';
+      text += divider;
+      if (pagamentoInfo.foiPago) {
+        text += '\x1B\x45\x01'; // Bold ON
+        text += 'PAGAMENTO: [PAGO]\n';
+        text += '\x1B\x45\x00'; // Bold OFF
+        for (const pag of pagamentoInfo.pagamentosDetalhados) {
+          const gw = pag.origemGateway ? ` (${pag.origemGateway})` : '';
+          const parc = pag.parcelas ? ` [${pag.parcelas}x]` : '';
+          text += `> ${pag.forma}${parc}${gw}: R$ ${pag.valor.toFixed(2)}\n`;
+        }
+        text += `Total Pago: R$ ${pagamentoInfo.totalPago.toFixed(2)}\n`;
+      } else {
+        text += 'PAGAMENTO: [AGUARDANDO PAGAMENTO]\n';
+      }
     }
 
     text += divider;
@@ -1027,7 +1098,10 @@ export class PrintService {
     ).join('\n');
 
     let pagStr = '';
-    if (pagamentoInfo.foiPago) {
+    if (pagamentoInfo.ehCaderneta) {
+      pagStr = `\nSTATUS DO PAGAMENTO: CADERNETA\n` +
+        (pagamentoInfo.mensagemCaderneta ? `${pagamentoInfo.mensagemCaderneta}\n` : '');
+    } else if (pagamentoInfo.foiPago) {
       pagStr = `\nSTATUS DO PAGAMENTO: PAGO\n` +
         pagamentoInfo.pagamentosDetalhados.map(p =>
           `Forma: ${p.forma}${p.parcelas ? ` (${p.parcelas}x)` : ''}${p.origemGateway ? ` (Origem: ${p.origemGateway})` : ''} - Valor Pago: R$ ${p.valor.toFixed(2)}`
@@ -1051,7 +1125,7 @@ export class PrintService {
       (Number(pedido.valor_desconto) > 0 ? `Desconto: - R$ ${Number(pedido.valor_desconto).toFixed(2)}\n` : '') +
       (Number(pedido.valor_frete) > 0 ? `Taxa Entrega: + R$ ${Number(pedido.valor_frete).toFixed(2)}\n` : '') +
       `Total: R$ ${Number(pedido.valor_total).toFixed(2)}\n` +
-      (pagamentoInfo.ehFiado && Number(pedido.saldo_devedor) > 0 ? `Saldo a Pagar (Fiado): R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n${obterInfoVencimentoFiado(pedido).temVencimento ? `Data de Vencimento: ${obterInfoVencimentoFiado(pedido).formatada}\n` : ''}` : '') +
+      (pagamentoInfo.ehCaderneta && Number(pedido.saldo_devedor) > 0 ? `Saldo Caderneta: R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n${obterInfoVencimentoFiado(pedido).temVencimento ? `Data de Vencimento: ${obterInfoVencimentoFiado(pedido).formatada}\n` : ''}` : (pagamentoInfo.ehFiado && Number(pedido.saldo_devedor) > 0 ? `Saldo a Pagar (Fiado): R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n${obterInfoVencimentoFiado(pedido).temVencimento ? `Data de Vencimento: ${obterInfoVencimentoFiado(pedido).formatada}\n` : ''}` : '')) +
       pagStr +
       `--------------------------------------------------\n` +
       `${dataFormatada}\n\n` +
