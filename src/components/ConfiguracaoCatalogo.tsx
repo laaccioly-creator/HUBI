@@ -72,6 +72,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
 
   const [aceitaPedidosOnline, setAceitaPedidosOnline] = useState<boolean>(true);
   const [resumoWhatsapp, setResumoWhatsapp] = useState<boolean>(true);
+  const [exigirPesagemPreviaPagamento, setExigirPesagemPreviaPagamento] = useState<boolean>(false);
   const [instrucoesPosPedido, setInstrucoesPosPedido] = useState<string>(
     'Em breve entraremos em contato para confirmar os detalhes da sua compra.\nAgradecemos pela preferência!'
   );
@@ -111,6 +112,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
       setCorPersonalizada(cor);
       setAceitaPedidosOnline(pedOnline);
       setResumoWhatsapp(zap);
+      setExigirPesagemPreviaPagamento(Boolean(loja.exigir_pesagem_previa_pagamento));
       setInstrucoesPosPedido(instr);
       setModoExibicao(modo);
       setExibirBanner(exBan);
@@ -124,6 +126,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
           corPrimaria: cor,
           aceitaPedidosOnline: pedOnline,
           resumoWhatsapp: zap,
+          exigirPesagemPreviaPagamento: Boolean(loja.exigir_pesagem_previa_pagamento),
           instrucoesPosPedido: instr,
           modoExibicao: modo,
           exibirBanner: exBan,
@@ -213,6 +216,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
           cor_primaria: corPrimaria,
           aceita_pedidos_online: aceitaPedidosOnline,
           resumo_whatsapp: resumoWhatsapp,
+          exigir_pesagem_previa_pagamento: exigirPesagemPreviaPagamento,
           instrucoes_pos_pedido: instrucoesPosPedido,
           url_banner: bannerUrl,
           configuracoes_extras: novasExtras
@@ -283,6 +287,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
       corPrimaria,
       aceitaPedidosOnline,
       resumoWhatsapp,
+      exigirPesagemPreviaPagamento,
       instrucoesPosPedido,
       modoExibicao,
       exibirBanner,
@@ -797,6 +802,28 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                     type="checkbox"
                     checked={aceitaPedidosOnline}
                     onChange={(e) => setAceitaPedidosOnline(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className={`w-11 h-6 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 ${
+                    isDark ? 'bg-slate-800 after:border-slate-700' : 'bg-slate-300 after:border-slate-400'
+                  }`}></div>
+                </label>
+              </div>
+
+              {/* Switch Exigir Pesagem Prévia */}
+              <div className={`flex items-start justify-between gap-4 pb-4 border-b ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                <div className="space-y-0.5">
+                  <span className={`font-bold text-xs block ${isDark ? 'text-white' : 'text-black'}`}>Exigir pesagem prévia para itens vendidos por quilo</span>
+                  <p className={`text-[11px] leading-tight ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                    Quando ativado, pedidos no catálogo com produtos vendidos por quilo (kg) terão o pagamento bloqueado inicialmente e só serão liberados após o lojista informar o peso real aferido na balança. Quando desativado, o pagamento é liberado imediatamente com o valor estimado.
+                  </p>
+                </div>
+
+                <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                  <input
+                    type="checkbox"
+                    checked={exigirPesagemPreviaPagamento}
+                    onChange={(e) => setExigirPesagemPreviaPagamento(e.target.checked)}
                     className="sr-only peer"
                   />
                   <div className={`w-11 h-6 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 ${

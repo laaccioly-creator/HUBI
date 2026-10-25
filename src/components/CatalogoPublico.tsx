@@ -28,7 +28,7 @@ import {
   avaliarNivelCarrinho,
   calcularPrecoUnitarioPorTabela
 } from '../services/pricingEngine';
-import { LayoutGrid, List, Smartphone, Info, Copy, QrCode, ExternalLink, Ticket, Check, Loader2, User, Phone, MapPin, UserCheck, Edit2, Banknote, CreditCard, Eye, Store, Bell, Star, Clock, Package, LogOut, ArrowRight, Sun, Moon, FileText } from 'lucide-react';
+import { LayoutGrid, List, Scale, Smartphone, Info, Copy, QrCode, ExternalLink, Ticket, Check, Loader2, User, Phone, MapPin, UserCheck, Edit2, Banknote, CreditCard, Eye, Store, Bell, Star, Clock, Package, LogOut, ArrowRight, Sun, Moon, FileText } from 'lucide-react';
 import { paymentGatewayService, PixDinamicoResponse } from '../services/paymentGatewayService';
 import { CupomService } from '../services/cupomService';
 import { audioService } from '../services/audioService';
@@ -43,6 +43,7 @@ import { ModalPedidosCliente } from './ModalPedidosCliente';
 import { ModalFavoritosCliente } from './ModalFavoritosCliente';
 import { ModalNotificacoesCliente } from './ModalNotificacoesCliente';
 import { ModalCadernetaClienteCatalogo } from './ModalCadernetaClienteCatalogo';
+import { ModalPagamentoPedidoPesado } from './catalogo/ModalPagamentoPedidoPesado';
 import { CadernetaService } from '../services/cadernetaService';
 import { ClienteCatalogoService } from '../services/clienteCatalogoService';
 import { formatarResumoDescricao } from './DescricaoFormatadaProduto';
@@ -270,6 +271,8 @@ export const CatalogoPublico: React.FC = () => {
   const [modalNotificacoesAberto, setModalNotificacoesAberto] = useState<boolean>(false);
   const [modalCadernetaAberto, setModalCadernetaAberto] = useState<boolean>(false);
   const [modalPagamentoCheckoutAberto, setModalPagamentoCheckoutAberto] = useState<boolean>(false);
+  const [modalPagamentoPedidoPesadoAberto, setModalPagamentoPedidoPesadoAberto] = useState<boolean>(false);
+  const [pedidoParaPagamento, setPedidoParaPagamento] = useState<any | null>(null);
   const [formaPagamentoCatalogoEscolhida, setFormaPagamentoCatalogoEscolhida] = useState<string>('');
   const [pixCopiadoCheckout, setPixCopiadoCheckout] = useState<boolean>(false);
   const [saldoContaClienteReconciliado, setSaldoContaClienteReconciliado] = useState<number>(0);
@@ -1017,6 +1020,44 @@ export const CatalogoPublico: React.FC = () => {
     carregarCatalogo();
   }, [slug]);
 
+  // Tratamento de Deep Link para Pagamento de Pedido Pesado (?pagar_pedido={pedido_id})
+  useEffect(() => {
+    const pagarPedidoId = searchParams.get('pagar_pedido');
+    if (!pagarPedidoId || !loja?.id) return;
+
+    const carregarPedidoParaPagamento = async () => {
+      try {
+        const { data, error } = await supabase.rpc('obter_pedido_para_pagamento_catalogo', {
+          p_pedido_id: pagarPedidoId,
+          p_slug_catalogo: slug || loja.slug_catalogo || loja.id
+        });
+
+        if (error || !data?.sucesso || !data?.pedido) {
+          console.warn('[CatalogoPublico] Pedido para pagamento não localizado:', error || data?.mensagem);
+          return;
+        }
+
+        const ped = data.pedido;
+        if (ped.status_pagamento === 'pago') {
+          alert(`O pedido #${ped.numero_pedido} já se encontra quitado e pago!`);
+          return;
+        }
+
+        if (ped.status_pagamento === 'aguardando_pesagem') {
+          alert(`O pedido #${ped.numero_pedido} ainda está aguardando conferência e pesagem na balança pelo estabelecimento. Assim que os pesos forem aferidos, o pagamento será liberado!`);
+          return;
+        }
+
+        setPedidoParaPagamento(ped);
+        setModalPagamentoPedidoPesadoAberto(true);
+      } catch (err) {
+        console.error('[CatalogoPublico] Erro ao carregar pedido para pagamento:', err);
+      }
+    };
+
+    carregarPedidoParaPagamento();
+  }, [searchParams, loja?.id, slug]);
+
   // 1. Tratar Retorno do Mercado Pago (Redirecionamento pós-checkout)
   useEffect(() => {
     if (!loja?.id) return;
@@ -1167,6 +1208,18 @@ export const CatalogoPublico: React.FC = () => {
 
   // Carregar e Avaliar Regras de Precificação em Tempo Real
   const regrasAtivas = useMemo(() => obterRegrasPrecificacao(loja), [loja]);
+
+  const temItemPorQuiloNoCarrinho = useMemo(() => {
+    return carrinho.some(item => {
+      const p = item.produto;
+      const v = item.variacao;
+      const un = (p?.unidade_medida || p?.tipo_unidade || (p as any)?.unidade || '').toLowerCase();
+      const vendaPorPeso = Boolean((p as any)?.venda_por_peso || (p as any)?.pesavel || (v as any)?.venda_por_peso);
+      return un === 'kg' || vendaPorPeso;
+    });
+  }, [carrinho]);
+
+  const exigePesagemPrevia = Boolean(loja?.exigir_pesagem_previa_pagamento && temItemPorQuiloNoCarrinho);
 
   const avaliacaoCarrinho = useMemo(() => {
     return avaliarNivelCarrinho(carrinho, regrasAtivas);
@@ -1529,19 +1582,31 @@ export const CatalogoPublico: React.FC = () => {
       setFormaPagamentoCatalogoEscolhida(primeiraHabilitada?.id || '');
     }
 
+    // Se a loja exige pesagem prévia para itens vendidos por quilo e o carrinho contém item por quilo,
+    // o checkout pula a seleção de pagamento imediato e envia para pesagem / separação
+    if (exigePesagemPrevia) {
+      confirmarEnvioPedidoCatalogo({ ehPesagemPrevia: true });
+      return;
+    }
+
     // Abre obrigatoriamente a etapa/modal de escolha de forma de pagamento antes de enviar o pedido
     setModalPagamentoCheckoutAberto(true);
   };
 
-  const confirmarEnvioPedidoCatalogo = async () => {
+  const confirmarEnvioPedidoCatalogo = async (options?: { ehPesagemPrevia?: boolean }) => {
     if (!loja?.id || carrinho.length === 0) return;
 
-    const opcaoEscolhidaObj = opcoesPagamentoCatalogoAtivas.find(
-      (op) => op.id === formaPagamentoCatalogoEscolhida && !op.desabilitado
-    );
-    if (!opcaoEscolhidaObj) {
-      alert('Por favor, escolha uma forma de pagamento disponível para concluir seu pedido.');
-      return;
+    const ehPesagemPrevia = Boolean(options?.ehPesagemPrevia || exigePesagemPrevia);
+
+    let opcaoEscolhidaObj = null;
+    if (!ehPesagemPrevia) {
+      opcaoEscolhidaObj = opcoesPagamentoCatalogoAtivas.find(
+        (op) => op.id === formaPagamentoCatalogoEscolhida && !op.desabilitado
+      );
+      if (!opcaoEscolhidaObj) {
+        alert('Por favor, escolha uma forma de pagamento disponível para concluir seu pedido.');
+        return;
+      }
     }
 
     try {
@@ -1640,7 +1705,7 @@ export const CatalogoPublico: React.FC = () => {
             : null
       );
 
-      const formaPagamentoEfetiva = formaPagamentoCatalogoEscolhida;
+      const formaPagamentoEfetiva = ehPesagemPrevia ? 'aguardando_pesagem' : formaPagamentoCatalogoEscolhida;
       const ehFiado = formaPagamentoEfetiva === 'fiado';
       const ehCaderneta = formaPagamentoEfetiva === 'caderneta';
 
@@ -1649,8 +1714,8 @@ export const CatalogoPublico: React.FC = () => {
         cliente_id: (clienteFinalId && isUuidValido(clienteFinalId)) ? clienteFinalId : null,
         origem: 'catalogo_online',
         status: 'pendente',
-        status_pagamento: (ehFiado || ehCaderneta) ? 'fiado' : 'aguardando_pagamento',
-        forma_pagamento_catalogo: formaPagamentoEfetiva === 'padrao' ? 'a_combinar' : formaPagamentoEfetiva,
+        status_pagamento: ehPesagemPrevia ? 'aguardando_pesagem' : (ehFiado || ehCaderneta) ? 'fiado' : 'aguardando_pagamento',
+        forma_pagamento_catalogo: ehPesagemPrevia ? 'aguardando_pesagem' : formaPagamentoEfetiva === 'padrao' ? 'a_combinar' : formaPagamentoEfetiva,
         eh_venda_caderneta: ehCaderneta,
         ciclo_referencia_caderneta: ehCaderneta ? CadernetaService.obterCicloReferenciaAtual() : null,
         data_vencimento_fiado: ehCaderneta
@@ -1772,6 +1837,7 @@ export const CatalogoPublico: React.FC = () => {
           preco_custo_unitario: item.variacao?.preco_custo || item.produto.preco_custo || 0,
           preco_venda_unitario: precoUnitario,
           quantidade: item.quantidade,
+          quantidade_solicitada: item.quantidade,
           subtotal: precoUnitario * item.quantidade,
           criado_em: dataOperacaoIso
         };
@@ -1951,13 +2017,18 @@ export const CatalogoPublico: React.FC = () => {
           ? '🏷️ Atacado'
           : '🛒 Varejo';
 
-      const textoFormaPagamento = opcaoEscolhidaObj?.nome || (
-        ehCaderneta
-          ? 'Caderneta de Mercadinho'
-          : ehFiado
-          ? 'Fiado / Compra a Prazo'
-          : 'A combinar com a loja'
-      );
+      const textoFormaPagamento = ehPesagemPrevia
+        ? '⚖️ Aguardando Pesagem na Balança (estimativa)'
+        : (opcaoEscolhidaObj?.nome || (
+            ehCaderneta
+              ? 'Caderneta de Mercadinho'
+              : ehFiado
+              ? 'Fiado / Compra a Prazo'
+              : 'A combinar com a loja'
+          ));
+      const avisoPesagemMsg = ehPesagemPrevia
+        ? '\n⚠️ *Atenção:* Este pedido contém itens vendidos por quilo e o valor acima é uma estimativa. O valor exato será confirmado após a pesagem na balança pelo estabelecimento.\n'
+        : '';
 
       const entregaTextoMsg = pedidoEntrega?.tipo_atendimento === 'retirada'
         ? 'Retirada na Loja'
@@ -1976,7 +2047,7 @@ ${itensMsg}
 ${avaliacaoCarrinho.economiaTotal > 0 ? `💰 *Economia Obtida:* R$ ${avaliacaoCarrinho.economiaTotal.toFixed(2)}\n` : ''}💰 *Subtotal:* R$ ${subtotal.toFixed(2)}
 🛵 *Entrega:* ${entregaTextoMsg}
 💳 *Pagamento:* ${textoFormaPagamento}
-💵 *TOTAL A PAGAR:* R$ ${total.toFixed(2)}
+💵 *TOTAL ESTIMADO:* R$ ${total.toFixed(2)}${avisoPesagemMsg}
 ━━━━━━━━━━━━━━━━━━━━
 👤 *Nome:* ${nomeCliente}
 📱 *WhatsApp:* ${whatsappCliente}
@@ -3394,6 +3465,18 @@ Fico no aguardo da confirmação! ✨`;
                   </div>
                 </div>
 
+                {exigePesagemPrevia && (
+                  <div className="p-3.5 mb-2 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-left space-y-1.5">
+                    <div className="flex items-center gap-2 text-amber-500 font-bold text-xs">
+                      <Scale className="w-4 h-4 shrink-0" />
+                      <span>Itens por Quilo / Pesagem na Balança</span>
+                    </div>
+                    <p className="text-[11px] text-amber-500/90 leading-relaxed">
+                      ⚠️ Atenção: O valor exibido é apenas uma estimativa. Como seu pedido contém produtos vendidos por quilo, a cobrança exata será liberada após a conferência e pesagem na balança pelo estabelecimento.
+                    </p>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                   <button
                     type="button"
@@ -3407,16 +3490,40 @@ Fico no aguardo da confirmação! ✨`;
                     type="button"
                     onClick={handleFinalizarPedido}
                     disabled={enviandoPedido}
-                    className="w-full py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer active:scale-98 order-1 sm:order-2"
+                    className={`w-full py-3.5 px-4 rounded-2xl ${
+                      exigePesagemPrevia ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-600/20' : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/20'
+                    } text-white font-black text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer active:scale-98 order-1 sm:order-2`}
                   >
-                    <Share2 className="w-4 h-4 shrink-0" />
-                    <span>{enviandoPedido ? 'Enviando...' : aceitaPedidos ? 'Finalizar Pedido' : 'Enviar Consulta'}</span>
+                    {exigePesagemPrevia ? (
+                      <>
+                        <Scale className="w-4 h-4 shrink-0" />
+                        <span>{enviandoPedido ? 'Enviando...' : 'Enviar Pedido para Separação / Pesagem'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Share2 className="w-4 h-4 shrink-0" />
+                        <span>{enviandoPedido ? 'Enviando...' : aceitaPedidos ? 'Finalizar Pedido' : 'Enviar Consulta'}</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
             )}
           </div>
         </div>
+      )}
+
+      {/* MODAL DE PAGAMENTO PARA PEDIDO PESADO NA BALANÇA */}
+      {modalPagamentoPedidoPesadoAberto && pedidoParaPagamento && loja && (
+        <ModalPagamentoPedidoPesado
+          isOpen={modalPagamentoPedidoPesadoAberto}
+          onClose={() => setModalPagamentoPedidoPesadoAberto(false)}
+          loja={loja}
+          pedido={pedidoParaPagamento}
+          onPagamentoConcluido={() => {
+            // Callback após pagamento
+          }}
+        />
       )}
 
       {/* MODAL DE ESCOLHA OBRIGATÓRIA DE FORMA DE PAGAMENTO NO CHECKOUT */}
@@ -3600,7 +3707,7 @@ Fico no aguardo da confirmação! ✨`;
               <button
                 type="button"
                 disabled={enviandoPedido || !formaPagamentoCatalogoEscolhida}
-                onClick={confirmarEnvioPedidoCatalogo}
+                onClick={() => confirmarEnvioPedidoCatalogo()}
                 className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-md shadow-emerald-600/20 transition cursor-pointer active:scale-95"
               >
                 {enviandoPedido ? (

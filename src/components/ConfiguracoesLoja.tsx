@@ -275,6 +275,7 @@ const gerarSnapshotConfig = (dados: any) => {
     maqDebitoAtivo: Boolean(dados.maqDebitoAtivo),
     maqDebitoDias: Number(dados.maqDebitoDias ?? 1),
     maqDebitoTaxa: Number(dados.maqDebitoTaxa ?? 1.49),
+    exigirPesagemPreviaPagamento: Boolean(dados.exigirPesagemPreviaPagamento),
     usarTaxaVenda: Boolean(dados.usarTaxaVenda),
     nomeTaxaVenda: (dados.nomeTaxaVenda || 'Taxa de Serviço').trim(),
     valorTaxaVenda: Number(dados.valorTaxaVenda ?? 10),
@@ -786,6 +787,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const [maqDebitoTaxa, setMaqDebitoTaxa] = useState<number>(1.49);
 
   // 5. PEDIDOS, VENDAS E TAXAS
+  const [exigirPesagemPreviaPagamento, setExigirPesagemPreviaPagamento] = useState<boolean>(false);
   const [usarTaxaVenda, setUsarTaxaVenda] = useState<boolean>(false);
   const [nomeTaxaVenda, setNomeTaxaVenda] = useState<string>('Taxa de Serviço');
   const [valorTaxaVenda, setValorTaxaVenda] = useState<number>(10);
@@ -990,6 +992,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       setMaqDebitoTaxa(Number(prazosMaq.debito_taxa_percentual ?? 1.49));
 
       // Taxas
+      setExigirPesagemPreviaPagamento(Boolean(loja.exigir_pesagem_previa_pagamento));
       setUsarTaxaVenda(taxas.usar_taxa_pdv ?? false);
       setNomeTaxaVenda(taxas.nome_taxa_pdv || 'Taxa de Serviço');
       setValorTaxaVenda(Number(taxas.valor_taxa_pdv ?? 10));
@@ -1408,6 +1411,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           gemini_api_key: geminiApiKey.trim(),
           serpapi_key: serpApiKey.trim() || null,
           retirada_loja_ativa: Boolean(trabalhoComRetirada),
+          exigir_pesagem_previa_pagamento: Boolean(exigirPesagemPreviaPagamento),
           frete_gratis_ativo: Boolean(freteGratisAtivo),
           frete_gratis_valor_minimo: typeof freteGratisValorMinimo === 'number'
             ? freteGratisValorMinimo
@@ -1454,6 +1458,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               gemini_api_key: geminiApiKey.trim(),
           serpapi_key: serpApiKey.trim() || null,
               retirada_loja_ativa: Boolean(trabalhoComRetirada),
+              exigir_pesagem_previa_pagamento: Boolean(exigirPesagemPreviaPagamento),
               frete_gratis_ativo: Boolean(freteGratisAtivo),
               frete_gratis_valor_minimo: typeof freteGratisValorMinimo === 'number'
                 ? freteGratisValorMinimo
@@ -1724,6 +1729,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       maqDebitoAtivo,
       maqDebitoDias,
       maqDebitoTaxa,
+      exigirPesagemPreviaPagamento,
       usarTaxaVenda,
       nomeTaxaVenda,
       valorTaxaVenda,
@@ -1825,6 +1831,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
     maqDebitoAtivo,
     maqDebitoDias,
     maqDebitoTaxa,
+    exigirPesagemPreviaPagamento,
     usarTaxaVenda,
     nomeTaxaVenda,
     valorTaxaVenda,
@@ -4841,6 +4848,29 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 <span className="text-xs text-slate-700 dark:text-slate-400 font-medium">Ative ou crie novas etapas do fluxo operacional</span>
               </div>
               <ChevronRight className="w-5 h-5 text-slate-400" />
+            </div>
+
+            {/* EXIGIR PESAGEM PRÉVIA PARA PRODUTOS EM KG */}
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2 shadow-xs">
+              <div className="flex items-center justify-between gap-4">
+                <div className="pr-2">
+                  <span className="font-bold text-sm text-slate-900 dark:text-slate-100 block">
+                    Exigir pesagem prévia para itens vendidos por quilo
+                  </span>
+                  <span className="text-xs text-slate-700 dark:text-slate-400 font-medium leading-relaxed block mt-0.5">
+                    Quando ativado, pedidos no catálogo com produtos vendidos por quilo (kg) terão o pagamento bloqueado inicialmente e só serão liberados após o lojista informar o peso real aferido na balança. Quando desativado, o pagamento é liberado imediatamente com o valor estimado.
+                  </span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={exigirPesagemPreviaPagamento}
+                    onChange={(e) => setExigirPesagemPreviaPagamento(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                </label>
+              </div>
             </div>
 
             {/* TAXA DE VENDA PDV */}

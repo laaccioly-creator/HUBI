@@ -126,6 +126,7 @@ export interface InfoPagamentoRecibo {
   foiPago: boolean;
   ehFiado: boolean;
   ehCaderneta: boolean;
+  ehAguardandoPesagem?: boolean;
   statusTexto: string;
   mensagemCaderneta?: string;
   totalPago: number;
@@ -227,11 +228,20 @@ export const obterDadosPagamentoRecibo = (pedido: Pedido): InfoPagamentoRecibo =
     });
   }
 
+  const ehAguardandoPesagem = pedido.status_pagamento === 'aguardando_pesagem';
+
   return {
     foiPago,
     ehFiado,
     ehCaderneta,
-    statusTexto: ehCaderneta ? 'CADERNETA' : foiPago ? 'PAGO' : 'AGUARDANDO PAGAMENTO',
+    ehAguardandoPesagem,
+    statusTexto: ehAguardandoPesagem
+      ? 'AGUARDANDO PESAGEM / SEPARAÇÃO'
+      : ehCaderneta
+        ? 'CADERNETA'
+        : foiPago
+          ? 'PAGO'
+          : 'AGUARDANDO PAGAMENTO',
     mensagemCaderneta,
     totalPago,
     pagamentosDetalhados: itensPag
@@ -488,17 +498,30 @@ export class PrintService {
 
       console.log(`🖨️ [HUBI PrintService] Formatando ${itens.length} itens do pedido #${pedido.numero_pedido}...`);
 
-      const itensHtml = itens.length > 0 ? itens.map(item => `
+      const itensHtml = itens.length > 0 ? itens.map(item => {
+        const qtdSol = Number((item as any).quantidade_solicitada ?? (item as any).peso_solicitado_kg ?? 0);
+        const qtdReal = Number(item.quantidade || 1);
+        const unidade = ((item as any).unidade_medida || (item as any).tipo_unidade || (item as any).produto?.unidade_medida || 'un').toLowerCase();
+        const ehKg = unidade === 'kg';
+        const teveVariacaoPeso = ehKg && qtdSol > 0 && Math.abs(qtdSol - qtdReal) > 0.001;
+
+        return `
         <tr style="border-bottom: 1px solid #f1f5f9;">
           <td style="padding: 6px 0; font-size: ${isA4 ? '13px' : '11px'}; color: #1e293b; text-align: left; vertical-align: top;">
-            <strong>${Number(item.quantidade || 1)}x</strong> ${item.nome_produto || 'Item'}
+            <strong>${ehKg ? `${qtdReal.toFixed(3)}kg` : `${qtdReal}x`}</strong> ${item.nome_produto || 'Item'}
             ${item.rotulo_variacao ? ` / ${item.rotulo_variacao}` : ''}
+            ${teveVariacaoPeso ? `
+              <div style="font-size: ${isA4 ? '11px' : '9px'}; color: #b45309; font-weight: 600; margin-top: 1px;">
+                (Pedido: ${qtdSol.toFixed(3)} kg | Pesado: ${qtdReal.toFixed(3)} kg)
+              </div>
+            ` : ''}
           </td>
           <td style="padding: 6px 0; text-align: right; font-size: ${isA4 ? '13px' : '11px'}; font-weight: 600; color: #1e293b; white-space: nowrap; vertical-align: top;">
             R$ ${Number(item.subtotal || item.preco_venda_unitario || 0).toFixed(2)}
           </td>
         </tr>
-      `).join('') : `
+      `;
+      }).join('') : `
         <tr>
           <td colspan="2" style="padding: 8px 0; text-align: center; font-size: 11px; color: #64748b;">
             (Itens não detalhados)
@@ -675,19 +698,25 @@ export class PrintService {
           <div style="
             margin-top: 10px;
             padding: 8px 10px;
-            background-color: ${pagamentoInfo.ehCaderneta ? '#faf5ff' : pagamentoInfo.foiPago ? '#f0fdf4' : '#fffbeb'};
-            border: 1px solid ${pagamentoInfo.ehCaderneta ? '#e9d5ff' : pagamentoInfo.foiPago ? '#bbf7d0' : '#fef3c7'};
+            background-color: ${pagamentoInfo.ehCaderneta ? '#faf5ff' : pagamentoInfo.ehAguardandoPesagem ? '#fffbeb' : pagamentoInfo.foiPago ? '#f0fdf4' : '#fffbeb'};
+            border: 1px solid ${pagamentoInfo.ehCaderneta ? '#e9d5ff' : pagamentoInfo.ehAguardandoPesagem ? '#fde68a' : pagamentoInfo.foiPago ? '#bbf7d0' : '#fef3c7'};
             border-radius: 6px;
             font-size: ${isA4 ? '12px' : '10px'};
           ">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px dashed ${pagamentoInfo.ehCaderneta ? '#d8b4fe' : pagamentoInfo.foiPago ? '#86efac' : '#fde68a'}; padding-bottom: 4px;">
-              <span style="font-weight: 700; color: ${pagamentoInfo.ehCaderneta ? '#6b21a8' : pagamentoInfo.foiPago ? '#166534' : '#92400e'}; text-transform: uppercase; letter-spacing: 0.5px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px dashed ${pagamentoInfo.ehCaderneta ? '#d8b4fe' : pagamentoInfo.ehAguardandoPesagem ? '#fde68a' : pagamentoInfo.foiPago ? '#86efac' : '#fde68a'}; padding-bottom: 4px;">
+              <span style="font-weight: 700; color: ${pagamentoInfo.ehCaderneta ? '#6b21a8' : pagamentoInfo.ehAguardandoPesagem ? '#92400e' : pagamentoInfo.foiPago ? '#166534' : '#92400e'}; text-transform: uppercase; letter-spacing: 0.5px;">
                 Status Pagamento:
               </span>
-              <span style="font-weight: 800; color: ${pagamentoInfo.ehCaderneta ? '#6b21a8' : pagamentoInfo.foiPago ? '#15803d' : '#b45309'}; background: ${pagamentoInfo.ehCaderneta ? '#f3e8ff' : pagamentoInfo.foiPago ? '#dcfce7' : '#fef3c7'}; padding: 1px 6px; border-radius: 4px; font-size: ${isA4 ? '11px' : '9px'};">
-                ${pagamentoInfo.ehCaderneta ? 'CADERNETA' : pagamentoInfo.foiPago ? '✓ PAGO' : '⏳ AGUARDANDO PAGAMENTO'}
+              <span style="font-weight: 800; color: ${pagamentoInfo.ehCaderneta ? '#6b21a8' : pagamentoInfo.ehAguardandoPesagem ? '#b45309' : pagamentoInfo.foiPago ? '#15803d' : '#b45309'}; background: ${pagamentoInfo.ehCaderneta ? '#f3e8ff' : pagamentoInfo.ehAguardandoPesagem ? '#fef3c7' : pagamentoInfo.foiPago ? '#dcfce7' : '#fef3c7'}; padding: 1px 6px; border-radius: 4px; font-size: ${isA4 ? '11px' : '9px'};">
+                ${pagamentoInfo.ehCaderneta ? 'CADERNETA' : pagamentoInfo.ehAguardandoPesagem ? '⚖️ AGUARDANDO PESAGEM' : pagamentoInfo.foiPago ? '✓ PAGO' : '⏳ AGUARDANDO PAGAMENTO'}
               </span>
             </div>
+
+            ${pagamentoInfo.ehAguardandoPesagem ? `
+              <div style="margin-top: 4px; padding: 4px 6px; background-color: #fef3c7; border: 1px solid #fde68a; border-radius: 4px; font-weight: 700; color: #92400e; font-size: ${isA4 ? '11px' : '9px'}; text-align: center;">
+                ⚠️ AVISO: Valor estimado sujeito a pequena variação após conferência e pesagem na balança.
+              </div>
+            ` : ''}
 
             ${pagamentoInfo.ehCaderneta && pagamentoInfo.mensagemCaderneta ? `
               <div style="margin-top: 4px; padding: 4px 6px; background-color: #f3e8ff; border: 1px solid #d8b4fe; border-radius: 4px; font-weight: 700; color: #6b21a8; font-size: ${isA4 ? '11px' : '9px'}; text-align: center;">
@@ -714,11 +743,11 @@ export class PrintService {
                   <span>R$ ${pagamentoInfo.totalPago.toFixed(2)}</span>
                 </div>
               </div>
-            ` : `
+            ` : !pagamentoInfo.ehAguardandoPesagem ? `
               <div style="color: #92400e; font-size: ${isA4 ? '11px' : '9px'}; margin-top: 2px;">
                 Aguardando quitação pelo cliente ou confirmação de pagamento.
               </div>
-            `}
+            ` : ''}
           </div>
         </div>
       `;
@@ -1058,7 +1087,12 @@ export class PrintService {
       }
     } else {
       text += divider;
-      if (pagamentoInfo.foiPago) {
+      if (pagamentoInfo.ehAguardandoPesagem) {
+        text += '\x1B\x45\x01'; // Bold ON
+        text += 'STATUS: [AGUARDANDO PESAGEM]\n';
+        text += '\x1B\x45\x00'; // Bold OFF
+        text += '(Valor estimado sujeito a afericao)\n';
+      } else if (pagamentoInfo.foiPago) {
         text += '\x1B\x45\x01'; // Bold ON
         text += 'PAGAMENTO: [PAGO]\n';
         text += '\x1B\x45\x00'; // Bold OFF
@@ -1098,7 +1132,10 @@ export class PrintService {
     ).join('\n');
 
     let pagStr = '';
-    if (pagamentoInfo.ehCaderneta) {
+    if (pagamentoInfo.ehAguardandoPesagem) {
+      pagStr = `\nSTATUS DO PAGAMENTO: AGUARDANDO PESAGEM / SEPARAÇÃO\n` +
+        `⚠️ Aviso: O pedido contém itens por quilo e seu valor é estimado, sujeito a pequena variação após pesagem.\n`;
+    } else if (pagamentoInfo.ehCaderneta) {
       pagStr = `\nSTATUS DO PAGAMENTO: CADERNETA\n` +
         (pagamentoInfo.mensagemCaderneta ? `${pagamentoInfo.mensagemCaderneta}\n` : '');
     } else if (pagamentoInfo.foiPago) {
@@ -1151,8 +1188,11 @@ export class PrintService {
     const idRecibo = pedido.id || pedido.numero_pedido;
     const urlReciboOficial = idRecibo ? `${baseUrl}/recibo/${idRecibo}` : '';
     const nomeLoja = loja.nome_fantasia || 'HUBI';
+    const avisoPesagem = pedido.status_pagamento === 'aguardando_pesagem'
+      ? '\n⚖️ Seu pedido contém itens por quilo e está em pesagem/separação. Avisaremos assim que os valores exatos forem confirmados!\n'
+      : '';
 
-    return `🧾 RECIBO #${pedido.numero_pedido} - ${nomeLoja}
+    return `🧾 RECIBO #${pedido.numero_pedido} - ${nomeLoja}${avisoPesagem}
 
 Acesse seu Recibo Oficial:
 ${urlReciboOficial}

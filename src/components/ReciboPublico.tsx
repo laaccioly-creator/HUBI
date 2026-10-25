@@ -371,16 +371,30 @@ export const ReciboPublico: React.FC = () => {
 
           {/* Tabela de Itens */}
           <div className="space-y-1.5 border-b border-slate-200 border-dashed pb-2">
-            {itens.map((item, idx) => (
-              <div key={idx} className="flex justify-between items-start text-xs text-slate-800">
-                <span>
-                  <strong className="text-slate-950">{Number(item.quantidade)}x</strong> {item.nome_produto} {item.rotulo_variacao ? ` / ${item.rotulo_variacao}` : ''}
-                </span>
-                <span className="font-bold text-slate-900 whitespace-nowrap pl-3">
-                  R$ {Number(item.subtotal || item.preco_venda_unitario || 0).toFixed(2)}
-                </span>
-              </div>
-            ))}
+            {itens.map((item, idx) => {
+              const qtdSol = Number((item as any).quantidade_solicitada ?? (item as any).peso_solicitado_kg ?? 0);
+              const qtdReal = Number(item.quantidade ?? 0);
+              const unidade = ((item as any).unidade_medida || (item as any).tipo_unidade || (item as any).produto?.unidade_medida || 'un').toLowerCase();
+              const teveVariacaoPeso = unidade === 'kg' && qtdSol > 0 && Math.abs(qtdSol - qtdReal) > 0.001;
+
+              return (
+                <div key={idx} className="flex justify-between items-start text-xs text-slate-800">
+                  <div className="flex flex-col min-w-0">
+                    <div>
+                      <strong className="text-slate-950">{unidade === 'kg' ? `${qtdReal.toFixed(3)}kg` : `${Number(item.quantidade)}x`}</strong> {item.nome_produto} {item.rotulo_variacao ? ` / ${item.rotulo_variacao}` : ''}
+                    </div>
+                    {teveVariacaoPeso && (
+                      <span className="text-[10px] text-amber-700 font-mono font-medium block">
+                        (Pedido: {qtdSol.toFixed(3)} kg | Pesado: {qtdReal.toFixed(3)} kg)
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-bold text-slate-900 whitespace-nowrap pl-3">
+                    R$ {Number(item.subtotal || item.preco_venda_unitario || 0).toFixed(2)}
+                  </span>
+                </div>
+              );
+            })}
           </div>
 
           {/* Fechamento Financeiro */}
@@ -433,9 +447,14 @@ export const ReciboPublico: React.FC = () => {
             <div className="flex justify-between items-center pb-1.5 border-b border-dashed border-slate-200">
               <span className="font-bold text-[10px] text-slate-700 uppercase">Status Pagamento:</span>
               <span className={`font-black text-[10px] px-1.5 py-0.5 rounded ${pagInfo.ehCaderneta ? 'bg-purple-100 text-purple-800' : pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                {pagInfo.ehCaderneta ? 'CADERNETA' : pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
+                {pedido.status_pagamento === 'aguardando_pesagem' ? 'AGUARDANDO PESAGEM / SEPARAÇÃO' : pagInfo.ehCaderneta ? 'CADERNETA' : pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
               </span>
             </div>
+            {pedido.status_pagamento === 'aguardando_pesagem' && (
+              <div className="p-2 mt-2 rounded bg-amber-500/10 border border-amber-500/30 text-amber-800 text-[11px] leading-relaxed">
+                ⚠️ AVISO: Valor estimado sujeito a pequena variação após a pesagem real dos produtos na loja. Aguarde a confirmação e a mensagem da loja para efetuar o pagamento.
+              </div>
+            )}
             {pagInfo.ehCaderneta && (
               <div className="p-1.5 mt-1.5 rounded bg-purple-100/60 border border-purple-200 text-purple-900 text-xs font-bold text-center">
                 {pagInfo.mensagemCaderneta || (() => {

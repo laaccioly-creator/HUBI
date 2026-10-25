@@ -10,6 +10,7 @@ interface OrderReceiptFinancialSummaryProps {
   valorTotal: number;
   pedidoEntrega?: PedidoEntrega | null;
   enderecoLojaOrigem?: string | null;
+  statusPagamento?: string;
   className?: string;
 }
 
@@ -20,6 +21,7 @@ export const OrderReceiptFinancialSummary: React.FC<OrderReceiptFinancialSummary
   valorTotal,
   pedidoEntrega,
   enderecoLojaOrigem,
+  statusPagamento,
   className = ''
 }) => {
   const ehRetirada = pedidoEntrega?.tipo_atendimento === 'retirada' || valorFrete === 0;
@@ -117,6 +119,15 @@ export const OrderReceiptFinancialSummary: React.FC<OrderReceiptFinancialSummary
           </span>
         </div>
       </div>
+
+      {statusPagamento === 'aguardando_pesagem' && (
+        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs leading-relaxed space-y-1">
+          <span className="font-extrabold block">⚠️ AVISO: Valor Estimado Sujeito a Pesagem</span>
+          <p>
+            Valor estimado sujeito a pequena variação após a pesagem real dos produtos na loja. Aguarde a confirmação e a mensagem da loja para efetuar o pagamento.
+          </p>
+        </div>
+      )}
     </div>
   );
 };

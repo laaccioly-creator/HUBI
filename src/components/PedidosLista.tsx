@@ -44,7 +44,8 @@ import {
   AlertTriangle,
   AlertCircle,
   Navigation,
-  ShoppingBag
+  ShoppingBag,
+  Scale
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -69,6 +70,7 @@ import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { ModalNovoCliente } from './ModalNovoCliente';
 import { ModalAlterarStatusPedido, getStatusBadgeElement } from './ModalAlterarStatusPedido';
 import { ModalItensPedido } from './ModalItensPedido';
+import { ModalConferenciaPesagemPedido } from './pedidos/ModalConferenciaPesagemPedido';
 import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 import { ModalPagamentoFechamento } from './ModalPagamentoFechamento';
 import { ModalReceberFiado } from './ModalReceberFiado';
@@ -264,6 +266,7 @@ export const PedidosLista: React.FC = () => {
   const [pedidoRastreioModal, setPedidoRastreioModal] = useState<Pedido | null>(null);
   const [pedidoEscolherEnvio, setPedidoEscolherEnvio] = useState<Pedido | null>(null);
   const [pedidoItensModal, setPedidoItensModal] = useState<Pedido | null>(null);
+  const [pedidoParaPesagem, setPedidoParaPesagem] = useState<Pedido | null>(null);
   const [pedidoReceberModal, setPedidoReceberModal] = useState<Pedido | null>(null);
   const [pedidoReceberFiadoModal, setPedidoReceberFiadoModal] = useState<Pedido | null>(null);
   const [pedidoAlterarStatusModal, setPedidoAlterarStatusModal] = useState<Pedido | null>(null);
@@ -729,6 +732,7 @@ export const PedidosLista: React.FC = () => {
     if (temFiado && !pedido.fiado_quitado) {
       return 'fiado';
     }
+    if (pedido.status_pagamento === 'aguardando_pesagem') return 'aguardando_pesagem';
     if (pedido.status_pagamento === 'pago') return 'pago';
     if (Number(pedido.saldo_devedor) <= 0 && Number(pedido.valor_pago) > 0) return 'pago';
     if (Number(pedido.valor_pago) > 0 && Number(pedido.saldo_devedor) > 0) return 'parcialmente_pago';
@@ -2406,6 +2410,8 @@ export const PedidosLista: React.FC = () => {
 
   const getStatusPagamentoBadge = (status: StatusPagamento) => {
     switch (status) {
+      case 'aguardando_pesagem':
+        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-500 dark:text-amber-400 border border-amber-500/40">⚖️ Aguardando pesagem</span>;
       case 'pago':
         return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">🟢 Pago</span>;
       case 'fiado':
@@ -3836,6 +3842,7 @@ export const PedidosLista: React.FC = () => {
                           {(() => {
                             const formatarStatusPagamentoTexto = (status: string) => {
                               switch (status) {
+                                case 'aguardando_pesagem': return 'Aguardando pesagem';
                                 case 'pago': return 'Pago';
                                 case 'caderneta': return 'Caderneta';
                                 case 'fiado': return 'Fiado';
@@ -3916,7 +3923,17 @@ export const PedidosLista: React.FC = () => {
                                   </button>
                                 )}
 
-                                {(pedido.status === 'aguardando_envio' && !pedido.forma_entrega_id && !pedido.nome_transportadora && Number(pedido.valor_frete || 0) === 0 && ((pedido as any).tipo_entrega === 'envio' || (pedido as any).tipo_atendimento === 'entrega')) ? (
+                                {statusPag === 'aguardando_pesagem' ? (
+                                   <button
+                                     type="button"
+                                     onClick={() => setPedidoParaPesagem(pedido)}
+                                     className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black shadow-xs transition cursor-pointer active:scale-95 bg-amber-500 hover:bg-amber-400 text-slate-950 border border-amber-400"
+                                     title="Aferir peso de balan�a dos itens em kg e liberar pagamento"
+                                   >
+                                     <Scale className="w-3.5 h-3.5" />
+                                     <span>Informar Pesos / Separar</span>
+                                   </button>
+                                 ) : (pedido.status === 'aguardando_envio' && !pedido.forma_entrega_id && !pedido.nome_transportadora && Number(pedido.valor_frete || 0) === 0 && ((pedido as any).tipo_entrega === 'envio' || (pedido as any).tipo_atendimento === 'entrega')) ? (
                                   /* ETAPA 1: Escolher Envio (obrigatório antes do recebimento quando frete a calcular) */
                                   <button
                                     type="button"
@@ -4474,6 +4491,21 @@ export const PedidosLista: React.FC = () => {
         pedido={pedidoItensModal}
         onClose={() => setPedidoItensModal(null)}
         onConsultarProduto={handleConsultarProduto}
+        onAbrirPesagem={(p) => setPedidoParaPesagem(p)}
+      />
+
+      {/* MODAL DE CONFERÊNCIA DE PESAGEM / BALANÇA */}
+      <ModalConferenciaPesagemPedido
+        isOpen={Boolean(pedidoParaPesagem)}
+        pedido={pedidoParaPesagem}
+        loja={loja}
+        usuarioId={usuario?.id}
+        onClose={() => setPedidoParaPesagem(null)}
+        onPesagemConfirmada={(pedidoAtualizado) => {
+          setPedidos((prev) =>
+            prev.map((p) => (p.id === pedidoAtualizado.id ? { ...p, ...pedidoAtualizado } : p))
+          );
+        }}
       />
 
       </div>

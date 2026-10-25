@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, X, Info, ShoppingBag } from 'lucide-react';
+import { Package, X, Info, ShoppingBag, Scale } from 'lucide-react';
 import { Pedido, ItemPedido, Produto } from '../types';
 import { formatarMoeda } from '../utils/formatters';
 import { supabase } from '../lib/supabase';
@@ -10,13 +10,15 @@ interface ModalItensPedidoProps {
   onClose: () => void;
   pedido: Pedido | null;
   onConsultarProduto: (item: ItemPedido) => void;
+  onAbrirPesagem?: (pedido: Pedido) => void;
 }
 
 export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
   isOpen,
   onClose,
   pedido,
-  onConsultarProduto
+  onConsultarProduto,
+  onAbrirPesagem
 }) => {
   const { tema } = useTheme();
   const isDark = tema === 'dark';
@@ -200,6 +202,21 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
             }`}
           >
             Fechar
+          </button>
+          {pedido.status_pagamento === 'aguardando_pesagem' && onAbrirPesagem && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onAbrirPesagem(pedido);
+              }}
+              className="px-4 py-2 rounded-xl text-xs font-black bg-amber-500 hover:bg-amber-400 text-slate-950 border border-amber-400 shadow-sm transition cursor-pointer active:scale-95 inline-flex items-center gap-1.5"
+            >
+              <Scale className="w-3.5 h-3.5" />
+              <span>Informar Pesos / Separar</span>
+            </button>
+          )}
+          <button type="button" className="hidden">
           </button>
         </div>
       </div>

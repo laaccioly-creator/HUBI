@@ -56,6 +56,8 @@
    - [5.16 Gestão de Configurações da Plataforma e Assinaturas (`configuracoesPlataformaService.ts` & `useAssinaturaStatus.ts`)](#516-gestão-de-configurações-da-plataforma-e-assinaturas-configuracoesplataformaservicets--useassinaturastatusts)
    - [5.17 Motor e Ledger da Caderneta de Mercadinho (`cadernetaService.ts`)](#517-motor-e-ledger-da-caderneta-de-mercadinho-cadernetaservicets)
    - [5.18 Higienização Telefônica Brasileira e Parser Multi-Origem (`clientImportExportService.ts`)](#518-higienização-telefônica-brasileira-e-parser-multi-origem-clientimportexportservicets)
+   - [5.19 Carteira Pré-Paga (Wallet) e Motor Híbrido de Notificações WhatsApp (`whatsappWalletService.ts`)](#519-carteira-pré-paga-wallet-e-motor-híbrido-de-notificações-whatsapp-whatsappwalletservicets)
+   - [5.20 Fluxo Parametrizável de Pedidos com Itens por Quilo / Pesagem Posterior](#520-fluxo-parametrizável-de-pedidos-com-itens-por-quilo--pesagem-posterior)
 
 ---
 

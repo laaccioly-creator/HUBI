@@ -43,7 +43,8 @@ import {
   LogOut,
   Printer,
   Truck,
-  ExternalLink
+  ExternalLink,
+  Scale
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -60,6 +61,7 @@ import { ModalRastreioPedido } from './shipping/ModalRastreioPedido';
 import { ModalDespacharPedido } from './shipping/ModalDespacharPedido';
 import { ModalImprimirEtiqueta } from './shipping/ModalImprimirEtiqueta';
 import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
+import { ModalConferenciaPesagemPedido } from './pedidos/ModalConferenciaPesagemPedido';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import {
   ROTULOS_STATUS_PEDIDO,
@@ -176,6 +178,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   const [pedidoRastreioModal, setPedidoRastreioModal] = useState<Pedido | null>(null);
   const [pedidoEtiquetaModal, setPedidoEtiquetaModal] = useState<Pedido | null>(null);
   const [modalDefinirEnvioAberto, setModalDefinirEnvioAberto] = useState<boolean>(false);
+  const [pedidoParaPesagem, setPedidoParaPesagem] = useState<Pedido | null>(null);
   const [modalConfirmarCancelamentoAberto, setModalConfirmarCancelamentoAberto] = useState<boolean>(false);
 
   // Estados de Despacho Logístico e Contingência RBAC
@@ -282,6 +285,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
     if (temFiado && !pedido.fiado_quitado) {
       return 'fiado';
     }
+    if (pedido.status_pagamento === 'aguardando_pesagem') return 'aguardando_pesagem';
     if (pedido.status_pagamento === 'pago') return 'pago';
     if (Number(pedido.saldo_devedor) <= 0 && Number(pedido.valor_pago) > 0) return 'pago';
     if (Number(pedido.valor_pago) > 0 && Number(pedido.saldo_devedor) > 0) return 'parcialmente_pago';
@@ -1040,6 +1044,15 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 );
               }
 
+              if (pedidoSelecionado.status_pagamento === 'aguardando_pesagem') {
+                return (
+                  <div className="px-3 py-1.5 rounded-xl border border-amber-300 bg-amber-500/15 text-amber-700 dark:text-amber-400 flex items-center gap-1.5 text-xs font-bold">
+                    <Scale className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Aguardando Pesagem</span>
+                  </div>
+                );
+              }
+
               return (
                 <div
                   className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 text-xs font-bold ${
@@ -1423,6 +1436,20 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 const saldoDevedor = Number(pedidoSelecionado.saldo_devedor ?? (Number(pedidoSelecionado.valor_total || 0) - Number(pedidoSelecionado.valor_pago || 0)));
                 const ehFiado = statusPag === 'fiado';
                 const temPagamentoPendente = statusPag === 'aguardando_pagamento' || statusPag === 'parcialmente_pago' || saldoDevedor > 0.009;
+
+                // Prioridade 0: Aguardando pesagem de balança
+                if (statusPag === 'aguardando_pesagem') {
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => setPedidoParaPesagem(pedidoSelecionado)}
+                      className="flex-1 h-12 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95 border border-amber-400"
+                    >
+                      <Scale className="w-4 h-4" />
+                      <span>Informar Pesos / Separar</span>
+                    </button>
+                  );
+                }
 
                 // Prioridade 1: Se for fiado com saldo devedor
                 if (ehFiado && saldoDevedor > 0.009) {
@@ -2824,6 +2851,21 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         }}
         onFeedbackSucesso={(msg) => mostrarToast(msg, 'sucesso')}
         onFeedbackErro={(msg) => mostrarToast(msg, 'erro')}
+      />
+
+      {/* MODAL DE CONFERÊNCIA DE PESAGEM / BALANÇA (MOBILE) */}
+      <ModalConferenciaPesagemPedido
+        isOpen={Boolean(pedidoParaPesagem)}
+        pedido={pedidoParaPesagem}
+        loja={loja}
+        usuarioId={usuario?.id}
+        onClose={() => setPedidoParaPesagem(null)}
+        onPesagemConfirmada={(pedidoAtualizado) => {
+          setPedidoSelecionado((prev) =>
+            prev && prev.id === pedidoAtualizado.id ? { ...prev, ...pedidoAtualizado } : prev
+          );
+          if (onRecarregar) onRecarregar();
+        }}
       />
     </div>
   );

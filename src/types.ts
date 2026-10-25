@@ -33,7 +33,7 @@ export type StatusPedido =
   | 'concluido'
   | 'vencido'
   | 'cancelado';
-export type StatusPagamento = 'aguardando_pagamento' | 'pago' | 'parcialmente_pago' | 'fiado' | 'caderneta';
+export type StatusPagamento = 'aguardando_pesagem' | 'aguardando_pagamento' | 'pago' | 'parcialmente_pago' | 'fiado' | 'caderneta';
 export type TipoTransacao = 'ENTRADA' | 'SAIDA';
 export type StatusTransacao = 'pendente' | 'pago' | 'atrasado' | 'cancelado';
 export type FrequenciaRecorrencia = 'semanal' | 'mensal' | 'trimestral' | 'anual';
@@ -262,7 +262,8 @@ export type EventoGatilhoWhatsapp =
   | 'comprovante_caderneta'
   | 'cobranca_fiado'
   | 'recarga_carteira_pix'
-  | 'expiracao_trial_7d';
+  | 'expiracao_trial_7d'
+  | 'liberacao_pagamento_pesagem';
 
 export type StatusPagamentoWhatsappWallet = 'pendente' | 'concluido' | 'cancelado';
 
@@ -383,6 +384,7 @@ export interface Loja {
   whatsapp_saldo?: number;
   whatsapp_bonus_expira_em?: string | null;
   whatsapp_alerta_saldo_baixo?: number;
+  exigir_pesagem_previa_pagamento?: boolean;
   tipos_venda?: {
     varejo?: boolean;
     atacado?: boolean;
@@ -800,6 +802,7 @@ export interface ItemPedido {
   unidade_medida?: string | null;
   peso_solicitado_kg?: number | null;
   peso_real_kg?: number | null;
+  quantidade_solicitada?: number | null;
   quantidade: number;
   subtotal: number;
   codigo_barras?: string | null;

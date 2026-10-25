@@ -313,7 +313,14 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
                   <div key={idx} className="flex justify-between py-0.5 text-slate-800">
                     <div className="flex items-center gap-1.5">
                       <span className="font-bold text-slate-900">{item.quantidade}x</span>
-                      <span className="text-slate-800">{item.nome_produto}{item.rotulo_variacao ? ` / ${item.rotulo_variacao}` : ''}</span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-slate-800 truncate">{item.nome_produto}{item.rotulo_variacao ? ` / ${item.rotulo_variacao}` : ''}</span>
+                        {item.quantidade_solicitada != null && Math.abs(Number(item.quantidade_solicitada) - Number(item.quantidade)) > 0.001 && (item.unidade_medida || '').toLowerCase() === 'kg' && (
+                          <span className="text-[10px] text-amber-700 font-mono font-medium">
+                            (Pedido: {Number(item.quantidade_solicitada).toFixed(3)} kg | Pesado: {Number(item.quantidade).toFixed(3)} kg)
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <span className="font-bold text-slate-900 whitespace-nowrap pl-2">
                       R$ {Number(item.subtotal || item.preco_venda_unitario * item.quantidade || 0).toFixed(2)}
@@ -373,10 +380,15 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
               <div className="mt-3 p-3 rounded-xl border border-slate-200 bg-slate-50 space-y-2 text-xs">
                 <div className="flex justify-between items-center pb-2 border-b border-dashed border-slate-200">
                   <span className="font-bold text-[10px] text-slate-600 uppercase tracking-wider">Status Pagamento:</span>
-                  <span className={`font-black text-[10px] px-2 py-0.5 rounded border ${pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-100 text-amber-800 border-amber-300'}`}>
-                    {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
+                  <span className={`font-black text-[10px] px-2 py-0.5 rounded border ${pedAtual.status_pagamento === 'aguardando_pesagem' ? 'bg-amber-100 text-amber-900 border-amber-300' : pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-100 text-amber-800 border-amber-300'}`}>
+                    {pedAtual.status_pagamento === 'aguardando_pesagem' ? 'AGUARDANDO PESAGEM / SEPARAÇÃO' : pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
                   </span>
                 </div>
+                {pedAtual.status_pagamento === 'aguardando_pesagem' && (
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 text-[11px] leading-relaxed">
+                    ⚠️ AVISO: Valor estimado sujeito a pequena variação após a pesagem real dos produtos na loja. Aguarde a confirmação e a mensagem da loja para efetuar o pagamento.
+                  </div>
+                )}
                 {pagInfo.foiPago && pagInfo.pagamentosDetalhados.length > 0 ? (
                   <div className="space-y-1.5 pt-1 text-slate-700">
                     {pagInfo.pagamentosDetalhados.map((pag, idx) => (

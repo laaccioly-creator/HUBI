@@ -143,6 +143,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
   // TELA005 & SUBTELAS: PEDIDOS
   const [aceitarPedidosOnline, setAceitarPedidosOnline] = useState<boolean>(true);
   const [resumoWhatsapp, setResumoWhatsapp] = useState<boolean>(true);
+  const [exigirPesagemPreviaPagamento, setExigirPesagemPreviaPagamento] = useState<boolean>(false);
   const [orientacoesPosPedido, setOrientacoesPosPedido] = useState<string>(
     'Em breve entraremos em contato para confirmar os detalhes da sua compra.\n\nAgradecemos pela preferência!'
   );
@@ -225,6 +226,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
 
       setAceitarPedidosOnline(loja.aceita_pedidos_online ?? true);
       setResumoWhatsapp(loja.resumo_whatsapp ?? true);
+      setExigirPesagemPreviaPagamento(Boolean(loja.exigir_pesagem_previa_pagamento));
       if (loja.instrucoes_pos_pedido !== undefined && loja.instrucoes_pos_pedido !== null) {
         setOrientacoesPosPedido(loja.instrucoes_pos_pedido);
       }
@@ -367,6 +369,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
           cor_primaria: corPrimaria,
           aceita_pedidos_online: aceitarPedidosOnline,
           resumo_whatsapp: resumoWhatsapp,
+          exigir_pesagem_previa_pagamento: exigirPesagemPreviaPagamento,
           instrucoes_pos_pedido: orientacoesPosPedido,
           url_banner: bannerUrl,
           whatsapp: whatsappLoja.trim(),
@@ -1356,6 +1359,27 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
                 />
                 <div className={`w-12 h-6 rounded-full peer peer-focus:outline-none peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${
                   resumoWhatsapp ? 'bg-emerald-600' : (isDark ? 'bg-slate-800' : 'bg-slate-300')
+                }`}></div>
+              </label>
+            </div>
+
+            {/* Switch: Exigir pesagem prévia para itens vendidos por quilo */}
+            <div className={`p-4 flex items-center justify-between border-t ${isDark ? 'bg-[#000000]/40 border-slate-800' : 'bg-white border-slate-200'}`}>
+              <div className="pr-3">
+                <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>Exigir pesagem prévia para itens vendidos por quilo</span>
+                <p className={`text-xs mt-0.5 leading-snug ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  Quando ativado, pedidos no catálogo com produtos vendidos por quilo (kg) terão o pagamento bloqueado inicialmente e só serão liberados após o lojista informar o peso real aferido na balança. Quando desativado, o pagamento é liberado imediatamente com o valor estimado.
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  checked={exigirPesagemPreviaPagamento}
+                  onChange={(e) => setExigirPesagemPreviaPagamento(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className={`w-12 h-6 rounded-full peer peer-focus:outline-none peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${
+                  exigirPesagemPreviaPagamento ? 'bg-emerald-600' : (isDark ? 'bg-slate-800' : 'bg-slate-300')
                 }`}></div>
               </label>
             </div>

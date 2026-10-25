@@ -208,7 +208,7 @@ export type StatusPedidoDb =
   | 'concluido'
   | 'cancelado';
 
-export type StatusPagamentoDb = 'aguardando_pagamento' | 'pago' | 'parcial' | 'fiado' | 'cancelado';
+export type StatusPagamentoDb = 'aguardando_pesagem' | 'aguardando_pagamento' | 'pago' | 'parcial' | 'fiado' | 'cancelado';
 
 export type TabelaPrecoDb = 'varejo' | 'atacado' | 'autoatacado' | 'promocional';
 

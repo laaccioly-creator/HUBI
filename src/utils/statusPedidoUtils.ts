@@ -572,3 +572,68 @@ export function isPedidoCancelado(pedidoOuStatus?: { status?: string } | string 
   const status = typeof pedidoOuStatus === 'string' ? pedidoOuStatus : pedidoOuStatus.status;
   return status === 'cancelado';
 }
+
+/**
+ * Mapeamento e rótulos oficiais de Status de Pagamento no HUBI
+ */
+export const ROTULOS_STATUS_PAGAMENTO: Record<string, string> = {
+  aguardando_pesagem: 'Aguardando Pesagem',
+  aguardando_pagamento: 'Aguardando Pagamento',
+  pago: 'Pago',
+  parcialmente_pago: 'Parcial',
+  fiado: 'Fiado',
+  caderneta: 'Caderneta',
+  cancelado: 'Cancelado'
+};
+
+export function obterRotuloStatusPagamento(status?: string | null): string {
+  if (!status) return 'Aguardando Pagamento';
+  return ROTULOS_STATUS_PAGAMENTO[status] || status;
+}
+
+export function obterEstiloBadgeStatusPagamento(status?: string | null): {
+  bg: string;
+  text: string;
+  border: string;
+  dot: string;
+} {
+  switch (status) {
+    case 'aguardando_pesagem':
+      return {
+        bg: 'bg-amber-500/20',
+        text: 'text-amber-500 dark:text-amber-300',
+        border: 'border-amber-500/40',
+        dot: 'bg-amber-500'
+      };
+    case 'pago':
+      return {
+        bg: 'bg-emerald-500/15',
+        text: 'text-emerald-500 dark:text-emerald-400',
+        border: 'border-emerald-500/30',
+        dot: 'bg-emerald-500'
+      };
+    case 'fiado':
+    case 'caderneta':
+      return {
+        bg: 'bg-purple-500/15',
+        text: 'text-purple-400 dark:text-purple-300',
+        border: 'border-purple-500/30',
+        dot: 'bg-purple-500'
+      };
+    case 'parcialmente_pago':
+      return {
+        bg: 'bg-amber-500/15',
+        text: 'text-amber-500 dark:text-amber-400',
+        border: 'border-amber-500/30',
+        dot: 'bg-amber-500'
+      };
+    case 'aguardando_pagamento':
+    default:
+      return {
+        bg: 'bg-amber-500/15',
+        text: 'text-amber-400 dark:text-amber-300',
+        border: 'border-amber-500/30',
+        dot: 'bg-amber-500'
+      };
+  }
+}

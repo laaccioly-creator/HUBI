@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, Package, Clock, ExternalLink, Loader2, AlertCircle, ShoppingBag, CheckCircle, Truck, Receipt } from 'lucide-react';
+import { X, Package, Clock, ExternalLink, Loader2, AlertCircle, ShoppingBag, CheckCircle, Truck, Receipt, Scale, CreditCard } from 'lucide-react';
 import { Pedido, Loja } from '../types';
 import { ClienteCatalogoService } from '../services/clienteCatalogoService';
 import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
@@ -85,7 +85,7 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, statusPagamento?: string) => {
     const s = (status || '').toLowerCase();
     if (s === 'concluido' || s === 'entregue') {
       return (
@@ -108,6 +108,14 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
         <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30 flex items-center gap-1">
           <Clock className="w-3 h-3" />
           <span>PREPARANDO</span>
+        </span>
+      );
+    }
+    if (statusPagamento === 'aguardando_pesagem') {
+      return (
+        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30 flex items-center gap-1">
+          <Scale className="w-3 h-3" />
+          <span>AGUARDANDO PESAGEM</span>
         </span>
       );
     }
@@ -209,7 +217,7 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                       • {formatarData(ped.criado_em || ped.data_venda)}
                     </span>
                   </div>
-                  {getStatusBadge(ped.status)}
+                  {getStatusBadge(ped.status, ped.status_pagamento)}
                 </div>
 
                 <div className="flex items-center justify-between pt-1 border-t border-slate-200 dark:border-slate-800/60 text-xs">
@@ -223,6 +231,15 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {ped.status_pagamento === 'aguardando_pagamento' && ped.status !== 'cancelado' && (
+                      <a
+                        href={`/catalog/${loja?.slug_catalogo || ''}?pagar_pedido=${ped.id}`}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition cursor-pointer shadow-sm active:scale-95"
+                      >
+                        <CreditCard className="w-3.5 h-3.5" />
+                        <span>Pagar Agora</span>
+                      </a>
+                    )}
                     <button
                       type="button"
                       onClick={async () => {

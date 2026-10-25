@@ -56,6 +56,7 @@
 | :--- | :--- | :--- |
 | **Central de Pedidos Desktop** | `src/components/PedidosLista.tsx` | Kanban e listagem com filtros de status, busca por cliente, edição de pedidos e drawer de detalhes. |
 | **Central de Pedidos Mobile** | `src/components/PedidosListaMobile.tsx` | Painel de pedidos com cards táteis, abas de status e drawer de ações otimizado para celular. |
+| **Conferência e Pesagem de Pedido (Balança)** | `src/components/pedidos/ModalConferenciaPesagemPedido.tsx` | Painel de digitação ágil de peso na balança para itens por quilo, recálculo em tempo real, baixa de estoque e disparo WhatsApp. |
 | **Modal de Itens do Pedido** | `src/components/ModalItensPedido.tsx` | Visualizador rápido dos produtos, variações, quantidades e preços do pedido. |
 | **Modal de Alteração de Status** | `src/components/ModalAlterarStatusPedido.tsx` | Modal para avançar ou regredir status do pedido com justificativa e persistência de histórico auditado. |
 | **Definição de Envio em Pedido** | `src/components/pedidos/ModalDefinirEnvio.tsx` | Seleção de transportadora e modalidade de entrega para pedidos pendentes. |
@@ -97,6 +98,7 @@
 | **Área do Cliente: Notificações** | `src/components/ModalNotificacoesCliente.tsx` | Central de avisos, promoções e atualizações de entrega da loja para o cliente. |
 | **Área do Cliente: Meus Endereços** | `src/components/ModalEnderecoClienteCatalogo.tsx` | Gerenciamento de múltiplos endereços de entrega pelo próprio cliente final. |
 | **Área do Cliente: Caderneta e Extrato** | `src/components/ModalCadernetaClienteCatalogo.tsx` | Visualização transparente de compras na caderneta, débitos do ciclo mensal, limite disponível e contato com a loja. |
+| **Pagamento de Pedido Pesado na Balança** | `src/components/catalogo/ModalPagamentoPedidoPesado.tsx` | Modal acionado por deep link (`?pagar_pedido=`) para quitação do valor total apurado após pesagem, via Pix, Caderneta ou no ato. |
 | **Busca Inteligente no Catálogo** | `src/components/ModalBuscaClienteCatalogo.tsx` | Modal de busca instantânea com filtros e sugestões semânticas. |
 | **Detalhes do Produto no Catálogo** | `src/components/ModalDetalhesProdutoCatalogo.tsx` | Modal completo com galeria de fotos, grade de variações, preços por volume e botão de sacola. |
 | **Dúvidas de Produto com IA** | `src/components/ModalDuvidaProdutoIA.tsx` | Esclarecimento de dúvidas técnicas sobre o item usando IA sem alucinação. |

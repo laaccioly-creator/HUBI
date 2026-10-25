@@ -15,7 +15,9 @@ import {
   Download,
   Copy,
   CheckCircle2,
-  Loader2
+  Loader2,
+  Scale,
+  CreditCard
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Pedido, Loja, ItemPedido } from '../types';
@@ -25,6 +27,7 @@ import {
   PrintService
 } from '../services/printService';
 import { ReceiptPdfService } from '../services/receiptPdfService';
+import { formatarMoeda } from '../utils/formatters';
 import {
   consolidarHistoricoPedidos,
   formatarDataHoraHistorico
@@ -235,7 +238,10 @@ export const PedidoAndamentoPublico: React.FC = () => {
   let iconeStatus = '📦';
   let tituloStatus = 'Pendente';
 
-  if (ehEntregue) {
+  if (pedido.status_pagamento === 'aguardando_pesagem') {
+    iconeStatus = '⚖️';
+    tituloStatus = 'Aguardando Pesagem / Separação';
+  } else if (ehEntregue) {
     iconeStatus = '✓';
     tituloStatus = statusEfetivo === 'concluido' ? 'Pedido Concluído' : 'Pedido Entregue';
   } else if (ehCancelado) {
@@ -307,6 +313,11 @@ export const PedidoAndamentoPublico: React.FC = () => {
       case 'criacao':
       case 'pendente':
         return 'Pedido Realizado';
+      case 'aguardando_pesagem':
+        return 'Aguardando Pesagem / Separação';
+      case 'pesagem_confirmada':
+      case 'pesagem_concluida':
+        return 'Pesagem Confirmada na Balança';
       case 'confirmado':
         return 'Pedido Confirmado';
       case 'aguardando_envio':
@@ -416,6 +427,31 @@ export const PedidoAndamentoPublico: React.FC = () => {
                   {new Date(pedido.criado_em || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
+
+              {/* Alerta de Pesagem e Botão de Pagamento */}
+              {pedido.status_pagamento === 'aguardando_pesagem' && (
+                <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-left space-y-1.5">
+                  <div className="flex items-center gap-2 text-amber-400 font-bold text-xs">
+                    <Scale className="w-4 h-4 shrink-0" />
+                    <span>Conferência de Peso em Andamento</span>
+                  </div>
+                  <p className="text-[11px] text-amber-300/80 leading-relaxed">
+                    Seu pedido contém itens vendidos por quilo. A loja está pesando os produtos na balança para apurar o valor final exato. Assim que concluído, o botão de pagamento será liberado aqui.
+                  </p>
+                </div>
+              )}
+
+              {pedido.status_pagamento === 'aguardando_pagamento' && (pedido as any).status !== 'cancelado' && (
+                <div className="pt-1">
+                  <Link
+                    to={`/catalog/${loja?.slug_catalogo || ''}?pagar_pedido=${pedido.id}`}
+                    className="w-full py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25 transition cursor-pointer active:scale-95 border border-emerald-500"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    <span>Efetuar Pagamento Agora ({formatarMoeda ? formatarMoeda(valorTotal) : `R$ ${valorTotal.toFixed(2)}`})</span>
+                  </Link>
+                </div>
+              )}
 
               {/* Botão Destacado Oficial da Uber Direct: Acompanhar Motorista no Mapa ao Vivo */}
               {temLinkUberValido && (

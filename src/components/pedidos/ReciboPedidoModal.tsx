@@ -349,17 +349,30 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
               <span className="font-bold text-slate-600 uppercase tracking-wider text-[10px] block">
                 Itens ({calcularTotalItens(pedido)} un)
               </span>
-              {(pedido.itens || []).map((item: any, idx: number) => (
+              {(pedido.itens || []).map((item: any, idx: number) => {
+                const qtdSol = Number(item.quantidade_solicitada ?? item.peso_solicitado_kg ?? 0);
+                const qtdReal = Number(item.quantidade ?? 0);
+                const unidade = (item.unidade_medida || item.produto?.unidade_medida || item.produto?.tipo_unidade || 'un').toLowerCase();
+                const teveVariacaoPeso = unidade === 'kg' && qtdSol > 0 && Math.abs(qtdSol - qtdReal) > 0.001;
+                return (
                 <div key={idx} className="flex justify-between py-0.5 text-slate-800">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-slate-900">{item.quantidade}x</span>
-                    <span className="text-slate-800">{item.nome_produto || item.produto?.nome || 'Produto'}</span>
+                  <div className="flex flex-col min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-slate-900">{item.quantidade}x</span>
+                      <span className="text-slate-800 truncate">{item.nome_produto || item.produto?.nome || 'Produto'}</span>
+                    </div>
+                    {teveVariacaoPeso && (
+                      <span className="text-[10px] text-amber-700 font-mono font-medium pl-5 block">
+                        (Pedido: {qtdSol.toFixed(3)} kg | Pesado: {qtdReal.toFixed(3)} kg)
+                      </span>
+                    )}
                   </div>
                   <span className="font-bold text-slate-900 whitespace-nowrap pl-2">
                     R$ {Number(item.subtotal || (Number(item.preco_venda_unitario || item.preco_unitario || 0) * Number(item.quantidade || 1))).toFixed(2)}
                   </span>
                 </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Fechamento Financeiro */}
@@ -415,10 +428,15 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
             <div className={`mt-3 p-3 rounded-xl border space-y-2 text-xs ${pagInfo.ehCaderneta ? 'border-purple-200 bg-purple-50/50' : 'border-slate-200 bg-slate-50'}`}>
               <div className="flex justify-between items-center pb-2 border-b border-dashed border-slate-200">
                 <span className="font-bold text-[10px] text-slate-600 uppercase tracking-wider">Status Pagamento:</span>
-                <span className={`font-black text-[10px] px-2 py-0.5 rounded border ${pagInfo.ehCaderneta ? 'bg-purple-100 text-purple-800 border-purple-300' : pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-100 text-amber-800 border-amber-300'}`}>
-                  {pagInfo.ehCaderneta ? 'CADERNETA' : pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
+                <span className={`font-black text-[10px] px-2 py-0.5 rounded border ${pedido.status_pagamento === 'aguardando_pesagem' ? 'bg-amber-100 text-amber-900 border-amber-300' : pagInfo.ehCaderneta ? 'bg-purple-100 text-purple-800 border-purple-300' : pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-100 text-amber-800 border-amber-300'}`}>
+                  {pedido.status_pagamento === 'aguardando_pesagem' ? 'AGUARDANDO PESAGEM / SEPARAÇÃO' : pagInfo.ehCaderneta ? 'CADERNETA' : pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
                 </span>
               </div>
+              {pedido.status_pagamento === 'aguardando_pesagem' && (
+                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 text-[11px] leading-relaxed">
+                  ⚠️ AVISO: Valor estimado sujeito a pequena variação após a pesagem real dos produtos na loja. Aguarde a confirmação e a mensagem da loja para efetuar o pagamento.
+                </div>
+              )}
               {pagInfo.ehCaderneta && (
                 <div className="p-2 rounded-lg bg-purple-100/60 border border-purple-200 text-purple-900 text-xs font-bold text-center">
                   {pagInfo.mensagemCaderneta || (() => {
