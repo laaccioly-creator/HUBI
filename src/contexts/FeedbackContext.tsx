@@ -4,6 +4,7 @@ import { ModalAlertaFeedback, TipoFeedback } from '../components/ModalAlertaFeed
 
 interface AlertaOpcoes {
   tipo?: TipoFeedback;
+  variante?: 'padrao' | 'saida_sem_salvar';
   titulo?: string;
   mensagem: string;
   detalhes?: string;
@@ -115,12 +116,19 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const verificarSaidaComConfirmacao = useCallback((onProsseguir: () => void) => {
     if (temAlteracoesNaoSalvas) {
-      confirmar({
+      mostrarAlerta({
+        tipo: 'aviso',
+        variante: 'saida_sem_salvar',
         titulo: 'Alterações Não Salvas',
         mensagem: 'Você fez alterações que ainda não foram salvas. Se sair agora, as alterações serão perdidas.',
-        textoConfirmar: 'Sair sem salvar',
-        textoCancelar: 'Continuar editando',
+        textoBotaoConfirmar: 'Continuar editando',
+        mostrarBotaoCancelar: true,
+        textoBotaoCancelar: 'Sair sem salvar',
         onConfirmar: () => {
+          fecharModal();
+        },
+        onCancelar: () => {
+          fecharModal();
           setTemAlteracoesNaoSalvas(false);
           try {
             window.dispatchEvent(new CustomEvent('hubi_descartar_alteracoes_pendentes'));
@@ -131,7 +139,7 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } else {
       onProsseguir();
     }
-  }, [temAlteracoesNaoSalvas, confirmar]);
+  }, [temAlteracoesNaoSalvas, mostrarAlerta, fecharModal]);
 
   // Interceptação global de window.alert para garantir que nenhuma mensagem nativa do navegador seja exibida
   useEffect(() => {
@@ -243,6 +251,7 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           aberto={aberto}
           onClose={fecharModal}
           tipo={modalConfig.tipo}
+          variante={modalConfig.variante}
           titulo={modalConfig.titulo}
           mensagem={modalConfig.mensagem}
           detalhes={modalConfig.detalhes}

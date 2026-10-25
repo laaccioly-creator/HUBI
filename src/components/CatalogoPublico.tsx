@@ -3466,12 +3466,12 @@ Fico no aguardo da confirmação! ✨`;
                 </div>
 
                 {exigePesagemPrevia && (
-                  <div className="p-3.5 mb-2 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-left space-y-1.5">
-                    <div className="flex items-center gap-2 text-amber-500 font-bold text-xs">
+                  <div className="p-3.5 mb-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-2xl text-left space-y-1.5 text-slate-700 dark:text-slate-300">
+                    <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
                       <Scale className="w-4 h-4 shrink-0" />
                       <span>Itens por Quilo / Pesagem na Balança</span>
                     </div>
-                    <p className="text-[11px] text-amber-500/90 leading-relaxed">
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
                       ⚠️ Atenção: O valor exibido é apenas uma estimativa. Como seu pedido contém produtos vendidos por quilo, a cobrança exata será liberada após a conferência e pesagem na balança pelo estabelecimento.
                     </p>
                   </div>
@@ -3481,7 +3481,7 @@ Fico no aguardo da confirmação! ✨`;
                   <button
                     type="button"
                     onClick={() => setDrawerCarrinhoAberto(false)}
-                    className="w-full py-3.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer active:scale-98 order-2 sm:order-1"
+                    className="w-full py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer active:scale-98 order-2 sm:order-1"
                   >
                     <span>Continuar Comprando</span>
                   </button>
@@ -3490,9 +3490,7 @@ Fico no aguardo da confirmação! ✨`;
                     type="button"
                     onClick={handleFinalizarPedido}
                     disabled={enviandoPedido}
-                    className={`w-full py-3.5 px-4 rounded-2xl ${
-                      exigePesagemPrevia ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-600/20' : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/20'
-                    } text-white font-black text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer active:scale-98 order-1 sm:order-2`}
+                    className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm shadow-sm flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer active:scale-98 order-1 sm:order-2"
                   >
                     {exigePesagemPrevia ? (
                       <>
@@ -3817,10 +3815,10 @@ Fico no aguardo da confirmação! ✨`;
             <div className="space-y-2 pt-2">
               <Link
                 to={`/order-tracking/${pedidoConcluidoModal.numeroPedido}`}
-                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer border border-slate-200 dark:border-slate-700"
+                className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer shadow-sm"
                 target="_blank"
               >
-                <ShoppingBag className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
+                <ShoppingBag className="w-4 h-4 text-white" />
                 <span>Acompanhar Pedido #{pedidoConcluidoModal.numeroPedido}</span>
               </Link>
 
@@ -3829,7 +3827,7 @@ Fico no aguardo da confirmação! ✨`;
                   href={pedidoConcluidoModal.whatsAppUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+                  className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium text-xs flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
                 >
                   <Share2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <span>Enviar Resumo no WhatsApp da Loja</span>
@@ -3842,7 +3840,7 @@ Fico no aguardo da confirmação! ✨`;
                   setPedidoConcluidoModal(null);
                   setPixAprovadoEmTempoReal(false);
                 }}
-                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
+                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium text-xs border border-slate-200 dark:border-slate-700 transition cursor-pointer"
               >
                 Voltar ao Catálogo
               </button>

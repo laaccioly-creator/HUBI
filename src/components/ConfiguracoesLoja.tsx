@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
   Store,
@@ -314,7 +314,7 @@ interface ConfiguracoesLojaProps {
 
 export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaInicial }) => {
   const { isDark } = useTheme();
-  const { loja, setLoja, recarregarDadosLoja } = useAuth();
+  const { loja, setLoja, recarregarDadosLoja, usuario } = useAuth();
   const permissions = usePermissions();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -333,6 +333,23 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const [mensagemToast, setMensagemToast] = useState<string>('');
   const [copiadoTexto, setCopiadoTexto] = useState<string>('');
   const [snapshotInicial, setSnapshotInicial] = useState<string>('');
+  const houveInteracaoFisicaRef = useRef<boolean>(false);
+  const [houveInteracaoFisica, setHouveInteracaoFisica] = useState<boolean>(false);
+
+  const marcarInteracaoFisica = useCallback(() => {
+    houveInteracaoFisicaRef.current = true;
+    setHouveInteracaoFisica(true);
+  }, []);
+
+  const limparInteracaoFisica = useCallback(() => {
+    houveInteracaoFisicaRef.current = false;
+    setHouveInteracaoFisica(false);
+  }, []);
+
+  useEffect(() => {
+    limparInteracaoFisica();
+  }, [subTela, limparInteracaoFisica]);
+
   const salvouRecenteRef = useRef<boolean>(false);
   const whatsappIaRef = useRef<{ salvar: () => Promise<void> } | null>(null);
   const [salvandoWhatsAppIA, setSalvandoWhatsAppIA] = useState<boolean>(false);
@@ -668,6 +685,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
 
       salvouRecenteRef.current = true;
       await recarregarDadosLoja();
+      limparInteracaoFisica();
       setSnapshotInicial(snapshotAtual);
       setTemAlteracoesNaoSalvas(false);
 
@@ -1567,6 +1585,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         configuracoes_extras: novasExtras
       });
       salvouRecenteRef.current = true;
+      limparInteracaoFisica();
       setSnapshotInicial(
         gerarSnapshotConfig({
           ...JSON.parse(snapshotAtual),
@@ -1864,11 +1883,23 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   ]);
 
   const isDirty = Boolean(
+    houveInteracaoFisica &&
     subTela !== 'menu' &&
     !['metas', 'whatsapp-ia', 'exportar', 'importar-exportar', 'importar-exportar-produtos'].includes(subTela) &&
     snapshotInicial &&
     snapshotAtual !== snapshotInicial
   );
+
+  useEffect(() => {
+    const handleDescartar = () => {
+      limparInteracaoFisica();
+      setSnapshotInicial(snapshotAtual);
+    };
+    window.addEventListener('hubi_descartar_alteracoes_pendentes', handleDescartar);
+    return () => {
+      window.removeEventListener('hubi_descartar_alteracoes_pendentes', handleDescartar);
+    };
+  }, [snapshotAtual, limparInteracaoFisica]);
 
   useEffect(() => {
     setTemAlteracoesNaoSalvas(isDirty);
@@ -1897,7 +1928,11 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   ];
 
   return (
-    <div className="h-full w-full overflow-hidden select-none">
+    <div
+      className="h-full w-full overflow-hidden select-none"
+      onInput={marcarInteracaoFisica}
+      onChange={marcarInteracaoFisica}
+    >
       {/* 1. VISÃO MOBILE EXCLUSIVA (TEMA CLARO & ESCURO VENDER PDV) */}
       <div className={`block md:hidden h-full flex flex-col overflow-y-auto font-sans ${
         isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-black'
@@ -3295,7 +3330,10 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
             {/* CARD EXCLUSIVO DE PARÂMETROS GLOBAIS (SUPER ADMIN) */}
             {permissions.ehSuperAdmin && (
               <div className="pt-2">
-                <CardParametrosHubiAdmin emailLogado={loja?.email || 'laaccioly@hotmail.com'} />
+                <CardParametrosHubiAdmin
+                  emailLogado={usuario?.email || loja?.email || 'laaccioly@hotmail.com'}
+                  lojaId={loja?.id}
+                />
               </div>
             )}
           </div>

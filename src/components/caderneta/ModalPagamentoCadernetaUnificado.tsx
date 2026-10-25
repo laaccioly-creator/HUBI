@@ -535,9 +535,24 @@ export const ModalPagamentoCadernetaUnificado: React.FC<ModalPagamentoCadernetaU
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Campo de Valor */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold block">Valor a Pagar / Abater (R$)</label>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs font-bold">
+                <label>Valor a Pagar (R$)</label>
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold">
+                  <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>
+                    Saldo Devedor Atual: <strong className={isDark ? 'text-slate-200' : 'text-slate-900'}>{formatarMoeda(saldoDevedor)}</strong>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setValorPagamento(Number(saldoDevedor.toFixed(2)))}
+                    className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                  >
+                    (Quitar Tudo)
+                  </button>
+                </div>
+              </div>
+
               <div
-                className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2.5 focus-within:border-emerald-500 ${
+                className={`flex items-center gap-1.5 rounded-xl px-3.5 h-11 focus-within:border-emerald-500 ${
                   isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
                 }`}
               >
@@ -551,18 +566,6 @@ export const ModalPagamentoCadernetaUnificado: React.FC<ModalPagamentoCadernetaU
                     isDark ? 'text-white' : 'text-slate-900'
                   }`}
                 />
-              </div>
-              <div className="flex justify-between text-[11px] font-semibold pt-0.5">
-                <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>
-                  Saldo Devedor Atual: <strong>{formatarMoeda(saldoDevedor)}</strong>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setValorPagamento(Number(saldoDevedor.toFixed(2)))}
-                  className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
-                >
-                  Quitar Tudo ({formatarMoeda(saldoDevedor)})
-                </button>
               </div>
             </div>
 
@@ -671,8 +674,14 @@ export const ModalPagamentoCadernetaUnificado: React.FC<ModalPagamentoCadernetaU
                 )}
 
                 {/* Aviso de Segurança: Pendente de Conferência */}
-                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-[11px] font-semibold flex items-start gap-2">
-                  <Clock className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                <div
+                  className={`p-3 rounded-xl border text-[11px] font-medium flex items-start gap-2 ${
+                    isDark
+                      ? 'bg-slate-800 border-slate-700 text-slate-300'
+                      : 'bg-slate-50 border-slate-200 text-slate-700'
+                  }`}
+                >
+                  <Clock className="w-4 h-4 shrink-0 mt-0.5 text-emerald-500" />
                   <span>
                     Por segurança, pagamentos manuais ficam com status <strong>"Pendente de Conferência"</strong>. A baixa da dívida e a liberação do seu limite serão efetivadas assim que o lojista confirmar o recebimento.
                   </span>

@@ -153,34 +153,33 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
               <FileText className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="font-black text-sm sm:text-base leading-tight">Minha Conta</h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Extrato do ciclo em aberto • <strong className="text-slate-900 dark:text-slate-200">{loja?.nome_fantasia || 'Mercadinho'}</strong>
+              <div className="flex items-center gap-2">
+                <h2 className="font-bold text-sm sm:text-base leading-tight text-slate-900 dark:text-white">
+                  {cliente.nome}
+                </h2>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                  resumo?.estaVencido
+                    ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
+                    : saldoAtual > 0
+                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                    : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                }`}>
+                  {resumo?.estaVencido ? 'Vencida' : saldoAtual > 0 ? 'Em Aberto' : 'Em Dia'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Caderneta Digital • <strong className="text-slate-700 dark:text-slate-200">{loja?.nome_fantasia || 'Mercadinho'}</strong>
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {!carregando && saldoAtual > 0 && (
-              <button
-                type="button"
-                onClick={() => {
-                  setPagamentoSucesso(null);
-                  setModoPagamento(true);
-                }}
-                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition cursor-pointer active:scale-95"
-              >
-                <DollarSign className="w-3.5 h-3.5" />
-                <span>Pagar / Liquidar Conta</span>
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-2 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition cursor-pointer"
+            title="Fechar"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Corpo com Indicadores, Liquidação e Extrato */}
@@ -201,41 +200,39 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
 
               {/* Cards de Resumo */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                <div className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
-                  <span className="text-[10px] font-bold text-slate-400 block uppercase">Limite Total</span>
+                <div className="p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block uppercase">Limite Total</span>
                   <span className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100">
                     {formatarMoeda(resumo?.limiteTotal || 0)}
                   </span>
                 </div>
 
-                <div className={`p-3 rounded-2xl border ${
-                  saldoAtual > 0
-                    ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-500/40 text-amber-900 dark:text-amber-400'
-                    : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800'
-                }`}>
-                  <span className="text-[10px] font-bold block uppercase opacity-80">Saldo Devedor</span>
-                  <span className="text-sm sm:text-base font-black">
+                <div className="p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block uppercase">Total em Aberto</span>
+                  <span className={`text-sm sm:text-base font-black ${
+                    saldoAtual > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-slate-100'
+                  }`}>
                     {formatarMoeda(saldoAtual)}
                   </span>
                 </div>
 
-                <div className="p-3 rounded-2xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-400">
-                  <span className="text-[10px] font-bold block uppercase opacity-80">Disponível</span>
-                  <span className="text-sm sm:text-base font-black">
+                <div className="p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block uppercase">Limite Disponível</span>
+                  <span className="text-sm sm:text-base font-black text-emerald-600 dark:text-emerald-400">
                     {formatarMoeda(resumo?.limiteDisponivel || 0)}
                   </span>
                 </div>
 
                 <div className={`p-3 rounded-2xl border ${
                   resumo?.estaVencido
-                    ? 'bg-rose-50 dark:bg-rose-950/30 border-rose-300 dark:border-rose-500/40 text-rose-900 dark:text-rose-400'
-                    : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-200'
+                    ? 'bg-rose-50/60 dark:bg-rose-950/20 border-rose-300 dark:border-rose-900 text-rose-900 dark:text-rose-400'
+                    : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100'
                 }`}>
                   <span className="text-[10px] font-bold block uppercase opacity-80">Vencimento</span>
                   <span className="text-xs sm:text-sm font-black block truncate">
                     {resumo?.proximoVencimento ? new Date(resumo.proximoVencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '--'}
                   </span>
-                  <span className="text-[9px] font-bold opacity-70">Todo dia {resumo?.diaVencimento || 10}</span>
+                  <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400">Todo dia {resumo?.diaVencimento || 10}</span>
                 </div>
               </div>
 

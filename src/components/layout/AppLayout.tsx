@@ -67,6 +67,7 @@ export const AppLayout: React.FC = () => {
   const ehTrial = statusAssinatura === 'TRIAL_ATIVO' || (typeof diasRestantesTrial === 'number' && diasRestantesTrial > 0);
   const [modalAssinaturaManualAberto, setModalAssinaturaManualAberto] = useState<boolean>(false);
   const [modalRecargaWhatsappAberto, setModalRecargaWhatsappAberto] = useState<boolean>(false);
+  const [bannerSaldoWhatsappDispensado, setBannerSaldoWhatsappDispensado] = useState<boolean>(false);
   const permissions = usePermissions();
   const { verificarSaidaComConfirmacao } = useFeedbackModal();
   const { tema, setTema } = useTheme();
@@ -801,26 +802,53 @@ export const AppLayout: React.FC = () => {
       />
 
       {/* BANNER DISCRETO DE ALERTA DE SALDO BAIXO DA CARTEIRA WHATSAPP */}
-      {Boolean(loja?.whatsapp_auto_ativo) &&
+      {!bannerSaldoWhatsappDispensado &&
+        Boolean(loja?.whatsapp_auto_ativo) &&
         Number(loja?.whatsapp_saldo ?? 2.0) <= Number(loja?.whatsapp_alerta_saldo_baixo ?? 5.0) && (
-          <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 flex flex-col sm:flex-row items-center justify-between gap-2 z-30">
-            <div className="flex items-center gap-2 text-xs text-amber-300 font-medium text-center sm:text-left">
-              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+          <div
+            className={`px-4 py-2 border-b flex items-center justify-between gap-3 z-30 transition-all ${
+              isDark
+                ? 'bg-slate-900 border-slate-800 text-slate-100'
+                : 'bg-slate-100 border-slate-200 text-slate-900'
+            }`}
+          >
+            <div className="flex flex-wrap items-center gap-2 text-xs font-medium">
+              <span className="inline-flex items-center gap-1.5 text-amber-500 dark:text-amber-400 font-bold">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>Aviso de Saldo:</span>
+              </span>
               <span>
-                Seu saldo de envios automáticos de WhatsApp está acabando (
-                <strong className="font-black text-amber-200">
+                Seu saldo para envios automáticos de WhatsApp está baixo (
+                <strong className="font-bold text-amber-600 dark:text-amber-300">
                   {formatCurrency(Number(loja?.whatsapp_saldo ?? 0))}
                 </strong>
-                ). Recarregue para manter os envios no automático.
+                ).
               </span>
+              <button
+                type="button"
+                onClick={() => setModalRecargaWhatsappAberto(true)}
+                className={`ml-1 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition shadow-2xs cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700'
+                    : 'bg-white hover:bg-slate-50 text-slate-800 border border-slate-300'
+                }`}
+              >
+                <Wallet className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Recarregar (Pix)</span>
+              </button>
             </div>
+
             <button
               type="button"
-              onClick={() => setModalRecargaWhatsappAberto(true)}
-              className="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5 shrink-0 transition-colors shadow-sm"
+              onClick={() => setBannerSaldoWhatsappDispensado(true)}
+              className={`p-1 rounded-lg transition cursor-pointer shrink-0 ${
+                isDark
+                  ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200'
+              }`}
+              title="Dispensar aviso por agora"
             >
-              <Wallet className="w-3.5 h-3.5" />
-              Recarregar (Pix)
+              <X className="w-4 h-4" />
             </button>
           </div>
         )}

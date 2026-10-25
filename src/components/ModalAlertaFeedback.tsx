@@ -8,6 +8,7 @@ import {
   Check
 } from 'lucide-react';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
+import { useTheme } from '../contexts/ThemeContext';
 
 export type TipoFeedback = 'sucesso' | 'aviso' | 'erro' | 'info';
 
@@ -15,6 +16,7 @@ export interface ModalAlertaFeedbackProps {
   aberto: boolean;
   onClose: () => void;
   tipo?: TipoFeedback;
+  variante?: 'padrao' | 'saida_sem_salvar';
   titulo?: string;
   mensagem: string;
   detalhes?: string;
@@ -29,6 +31,7 @@ export const ModalAlertaFeedback: React.FC<ModalAlertaFeedbackProps> = ({
   aberto,
   onClose,
   tipo = 'sucesso',
+  variante = 'padrao',
   titulo,
   mensagem,
   detalhes,
@@ -38,6 +41,7 @@ export const ModalAlertaFeedback: React.FC<ModalAlertaFeedbackProps> = ({
   textoBotaoCancelar = 'Cancelar',
   onCancelar
 }) => {
+  const { isDark } = useTheme();
   const handleCancelar = () => {
     if (onCancelar) {
       onCancelar();
@@ -67,7 +71,9 @@ export const ModalAlertaFeedback: React.FC<ModalAlertaFeedbackProps> = ({
           corIcone: 'text-amber-400',
           bgIcone: 'bg-amber-500/20 border-amber-500/30 text-amber-400',
           corBorda: 'border-amber-500/30',
-          corBotao: 'bg-amber-600 hover:bg-amber-500 text-white shadow-amber-500/25',
+          corBotao: variante === 'saida_sem_salvar'
+            ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/25'
+            : 'bg-amber-600 hover:bg-amber-500 text-white shadow-amber-500/25',
           tituloPadrao: 'Atenção'
         };
       case 'erro':
@@ -105,13 +111,17 @@ export const ModalAlertaFeedback: React.FC<ModalAlertaFeedbackProps> = ({
   return (
     <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200 select-none">
       <div
-        className={`w-full max-w-md bg-slate-900 border ${estilo.corBorda} rounded-3xl p-6 shadow-2xl shadow-black/60 flex flex-col items-center text-center space-y-4 animate-in zoom-in-95 duration-200 relative`}
+        className={`w-full max-w-md border ${estilo.corBorda} rounded-3xl p-6 shadow-2xl flex flex-col items-center text-center space-y-4 animate-in zoom-in-95 duration-200 relative ${
+          isDark ? 'bg-slate-900 shadow-black/60 text-white' : 'bg-white shadow-slate-300/60 text-slate-900 border-slate-200'
+        }`}
       >
         {/* Botão de Fechar Superior */}
         <button
           type="button"
           onClick={handleCancelar}
-          className="absolute top-4 right-4 p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+          className={`absolute top-4 right-4 p-1.5 rounded-xl transition cursor-pointer ${
+            isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+          }`}
           title="Fechar"
         >
           <X className="w-5 h-5" />
@@ -128,14 +138,16 @@ export const ModalAlertaFeedback: React.FC<ModalAlertaFeedbackProps> = ({
 
         {/* Textos */}
         <div className="space-y-1.5 px-2">
-          <h3 className="text-lg font-black text-slate-100 tracking-tight">
+          <h3 className={`text-lg font-black tracking-tight ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
             {titulo || estilo.tituloPadrao}
           </h3>
-          <p className="text-sm text-slate-300 leading-relaxed font-medium">
+          <p className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
             {mensagem}
           </p>
           {detalhes && (
-            <p className="text-xs text-slate-400 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 mt-2 font-mono">
+            <p className={`text-xs p-2.5 rounded-xl border mt-2 font-mono ${
+              isDark ? 'text-slate-400 bg-slate-950/60 border-slate-800/80' : 'text-slate-600 bg-slate-50 border-slate-200'
+            }`}>
               {detalhes}
             </p>
           )}
@@ -147,7 +159,11 @@ export const ModalAlertaFeedback: React.FC<ModalAlertaFeedbackProps> = ({
             <button
               type="button"
               onClick={handleCancelar}
-              className="flex-1 py-3 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs border border-slate-700 transition cursor-pointer active:scale-95"
+              className={`flex-1 py-3 px-4 rounded-2xl font-bold text-xs border transition cursor-pointer active:scale-95 ${
+                isDark
+                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-200'
+              }`}
             >
               {textoBotaoCancelar}
             </button>

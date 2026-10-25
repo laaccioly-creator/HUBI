@@ -19,6 +19,10 @@ export const CONFIG_PLATAFORMA_PADRAO: ConfiguracoesPlataformaHubi = {
   custo_disparo_whatsapp: 0.15,
   valor_minimo_recarga_whatsapp: 10.00,
   credito_bonus_trial_whatsapp: 2.00,
+  meta_phone_number_id: null,
+  meta_waba_id: null,
+  meta_access_token: null,
+  meta_verify_token: 'hubi_whatsapp_webhook_token',
 };
 
 export const configuracoesPlataformaService = {
@@ -56,6 +60,10 @@ export const configuracoesPlataformaService = {
         custo_disparo_whatsapp: Number(data.custo_disparo_whatsapp ?? 0.15),
         valor_minimo_recarga_whatsapp: Number(data.valor_minimo_recarga_whatsapp ?? 10.00),
         credito_bonus_trial_whatsapp: Number(data.credito_bonus_trial_whatsapp ?? 2.00),
+        meta_phone_number_id: data.meta_phone_number_id || null,
+        meta_waba_id: data.meta_waba_id || null,
+        meta_access_token: data.meta_access_token || null,
+        meta_verify_token: data.meta_verify_token || 'hubi_whatsapp_webhook_token',
         atualizado_em: data.atualizado_em,
         atualizado_por: data.atualizado_por,
       };

@@ -430,12 +430,12 @@ export const PedidoAndamentoPublico: React.FC = () => {
 
               {/* Alerta de Pesagem e Botão de Pagamento */}
               {pedido.status_pagamento === 'aguardando_pesagem' && (
-                <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-left space-y-1.5">
-                  <div className="flex items-center gap-2 text-amber-400 font-bold text-xs">
+                <div className="p-3.5 bg-slate-800/90 border border-slate-700/80 rounded-2xl text-left space-y-1.5 text-slate-200">
+                  <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
                     <Scale className="w-4 h-4 shrink-0" />
                     <span>Conferência de Peso em Andamento</span>
                   </div>
-                  <p className="text-[11px] text-amber-300/80 leading-relaxed">
+                  <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
                     Seu pedido contém itens vendidos por quilo. A loja está pesando os produtos na balança para apurar o valor final exato. Assim que concluído, o botão de pagamento será liberado aqui.
                   </p>
                 </div>
@@ -560,7 +560,7 @@ export const PedidoAndamentoPublico: React.FC = () => {
             {/* Barra de Ações Rápidas do Recibo */}
             <div className="flex items-center justify-between gap-2 bg-slate-900 border border-slate-800 p-3 rounded-2xl shadow-xl">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                <div className="w-7 h-7 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
                   <CheckCircle2 className="w-4 h-4" />
                 </div>
                 <span className="text-xs font-bold text-slate-200">Recibo do Pedido</span>
@@ -570,10 +570,10 @@ export const PedidoAndamentoPublico: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => PrintService.printReceipt(pedido, loja, '80mm')}
-                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition border border-slate-700 hover:border-slate-600 cursor-pointer shadow-2xs"
                   title="Imprimir"
                 >
-                  <Printer className="w-3.5 h-3.5" />
+                  <Printer className="w-3.5 h-3.5 text-slate-300" />
                   <span className="hidden sm:inline text-[11px]">Imprimir</span>
                 </button>
 
@@ -581,17 +581,17 @@ export const PedidoAndamentoPublico: React.FC = () => {
                   type="button"
                   disabled={baixandoPdf}
                   onClick={handleBaixarPdf}
-                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-semibold flex items-center gap-1 transition cursor-pointer disabled:opacity-50"
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition border border-slate-700 hover:border-slate-600 cursor-pointer disabled:opacity-50 shadow-2xs"
                   title="Baixar PDF"
                 >
-                  {baixandoPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                  {baixandoPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5 text-sky-400" />}
                   <span className="hidden sm:inline text-[11px]">PDF</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleCopiarRecibo}
-                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition border border-slate-700 hover:border-slate-600 cursor-pointer shadow-2xs"
                   title="Copiar texto do recibo"
                 >
                   <Copy className="w-3.5 h-3.5 text-emerald-400" />
@@ -719,16 +719,20 @@ export const PedidoAndamentoPublico: React.FC = () => {
               </div>
 
               {/* Status de Pagamento & Meio */}
-              <div className={`mt-2 p-2.5 rounded-lg border text-xs ${pagInfo.foiPago ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+              <div className="mt-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs">
                 <div className="flex justify-between items-center pb-1 border-b border-dashed border-slate-200">
-                  <span className="font-bold text-[10px] text-slate-700 uppercase">Status Pagamento:</span>
-                  <span className={`font-black text-[10px] px-1.5 py-0.5 rounded ${pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                  <span className="font-bold text-[10px] text-slate-600 uppercase">Status Pagamento:</span>
+                  <span className={`font-black text-[10px] px-2 py-0.5 rounded-full border ${
+                    pagInfo.foiPago
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                      : 'bg-slate-100 text-slate-900 border-slate-300'
+                  }`}>
                     {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center pt-1 text-[11px] text-slate-600">
                   <span>Forma:</span>
-                  <span className="font-bold text-slate-800">
+                  <span className="font-bold text-slate-900">
                     {pagInfo.pagamentosDetalhados?.[0]?.forma || pedido.pagamentos?.[0]?.forma_pagamento?.nome || 'Cartão de Débito'}
                   </span>
                 </div>

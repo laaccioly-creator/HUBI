@@ -243,6 +243,10 @@ export interface ConfiguracoesPlataformaHubi {
   custo_disparo_whatsapp: number;
   valor_minimo_recarga_whatsapp: number;
   credito_bonus_trial_whatsapp: number;
+  meta_phone_number_id?: string | null;
+  meta_waba_id?: string | null;
+  meta_access_token?: string | null;
+  meta_verify_token?: string | null;
   atualizado_em?: string;
   atualizado_por?: string | null;
 }
