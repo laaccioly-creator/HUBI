@@ -60,7 +60,7 @@ export interface ConfiguracaoGeralLoja {
 }
 
 export interface PagamentosDigitaisConfig {
-  provedor_ativo?: 'mercado_pago' | 'pagseguro' | 'google_pay' | 'asaas' | 'stripe' | 'picpay' | 'todos';
+  provedor_ativo?: 'mercado_pago' | 'pagseguro' | 'google_pay' | 'asaas' | 'stripe' | 'picpay' | 'todos' | 'nenhum';
   mercado_pago?: {
     ativo?: boolean;
     ambiente?: 'producao' | 'sandbox';
@@ -848,6 +848,7 @@ export interface CaixaMovimentacao {
 export type TipoCupom = 'desconto_fixo' | 'desconto_percentual' | 'frete_gratis';
 
 export type TipoLancamentoCaderneta = 'compra' | 'pagamento' | 'estorno' | 'ajuste';
+export type StatusConferenciaCaderneta = 'pendente_conferencia' | 'confirmado' | 'recusado';
 
 export interface CadernetaLancamento {
   id: string;
@@ -865,6 +866,11 @@ export interface CadernetaLancamento {
   data_vencimento_ciclo: string;
   descricao: string;
   observacoes?: string | null;
+  status_conferencia?: StatusConferenciaCaderneta | null;
+  comprovante_url?: string | null;
+  metodo_pagamento_solicitado?: string | null;
+  confirmado_em?: string | null;
+  confirmado_por?: string | null;
   criado_em?: string;
   pedido?: Pedido | null;
   forma_pagamento?: FormaPagamento | null;

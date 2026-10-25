@@ -14,6 +14,45 @@ export interface ResumoCadernetaCliente {
 
 export class CadernetaService {
   /**
+   * Identifica se um lançamento de pagamento está pendente de conferência pelo lojista
+   */
+  public static ehLancamentoPendenteConferencia(lanc: Partial<CadernetaLancamento> | any): boolean {
+    if (!lanc) return false;
+    return (
+      lanc.status_conferencia === 'pendente_conferencia' ||
+      String(lanc.descricao || '').includes('[PENDENTE_CONFERENCIA]')
+    );
+  }
+
+  /**
+   * Identifica se um lançamento de pagamento foi recusado na conferência pelo lojista
+   */
+  public static ehLancamentoRecusado(lanc: Partial<CadernetaLancamento> | any): boolean {
+    if (!lanc) return false;
+    return (
+      lanc.status_conferencia === 'recusado' ||
+      String(lanc.descricao || '').includes('[RECUSADO]')
+    );
+  }
+
+  /**
+   * Extrai a URL ou DataURI do comprovante de pagamento anexado ao lançamento
+   */
+  public static extrairComprovanteLancamento(lanc: Partial<CadernetaLancamento> | any): string | null {
+    if (!lanc) return null;
+    if (lanc.comprovante_url && String(lanc.comprovante_url).trim()) {
+      return String(lanc.comprovante_url).trim();
+    }
+    const obs = String(lanc.observacoes || '');
+    const marcador = 'COMPROVANTE_URL:';
+    const idx = obs.indexOf(marcador);
+    if (idx !== -1) {
+      return obs.slice(idx + marcador.length).trim() || null;
+    }
+    return null;
+  }
+
+  /**
    * Calcula a data do próximo vencimento para um cliente baseado no dia fixo acordado
    */
   public static calcularProximoVencimento(diaVencimento: number, dataBase: Date = new Date()): string {
@@ -133,7 +172,7 @@ export class CadernetaService {
           .neq('status', 'cancelado'),
         supabase
           .from('caderneta_lancamentos')
-          .select('cliente_id, pedido_id, tipo_lancamento, valor')
+          .select('cliente_id, pedido_id, tipo_lancamento, valor, descricao, observacoes')
           .eq('loja_id', lojaId),
         supabase
           .from('transacoes_financeiras')
@@ -149,6 +188,9 @@ export class CadernetaService {
       for (const l of lancs) {
         if (!l.cliente_id) continue;
         if (l.pedido_id) pedidosJaNoLedger.add(l.pedido_id);
+        if (this.ehLancamentoPendenteConferencia(l) || this.ehLancamentoRecusado(l)) {
+          continue;
+        }
         const val = Number(l.valor || 0);
         if (l.tipo_lancamento === 'compra') {
           mapaSaldos[l.cliente_id] = Number(((mapaSaldos[l.cliente_id] || 0) + val).toFixed(2));
@@ -239,7 +281,8 @@ export class CadernetaService {
         .from('pedidos')
         .update({
           eh_venda_caderneta: true,
-          ciclo_referencia_caderneta: cicloRef
+          ciclo_referencia_caderneta: cicloRef,
+          data_vencimento_fiado: dataVencimentoCiclo
         })
         .eq('loja_id', lojaId)
         .eq('id', pedidoId);
@@ -410,6 +453,267 @@ export class CadernetaService {
   }
 
   /**
+   * Registra uma solicitação de liquidação enviada pelo cliente no Catálogo Online (métodos manuais/sem webhook).
+   * O saldo devedor e o limite de crédito permanecem travados até a conferência e confirmação pelo lojista.
+   */
+  public static async solicitarLiquidacaoCadernetaCatalogo(params: {
+    lojaId: string;
+    clienteId: string;
+    valorSolicitado: number;
+    formaPagamentoId: string;
+    formaTipo?: string;
+    metodoNome: string;
+    comprovanteUrl?: string | null;
+  }): Promise<{ sucesso: boolean; mensagem?: string }> {
+    const { lojaId, clienteId, valorSolicitado, formaPagamentoId, formaTipo, metodoNome, comprovanteUrl } = params;
+
+    if (valorSolicitado <= 0) {
+      return { sucesso: false, mensagem: 'O valor da solicitação deve ser maior que zero.' };
+    }
+
+    try {
+      const resumoAtual = await this.obterResumoCliente(lojaId, clienteId);
+      const cliente = resumoAtual?.cliente;
+      if (!cliente) {
+        return { sucesso: false, mensagem: 'Cliente não encontrado.' };
+      }
+
+      const saldoAtual = Number(resumoAtual?.saldoDevedor || cliente.saldo_devedor_caderneta || 0);
+      if (saldoAtual <= 0) {
+        return { sucesso: false, mensagem: 'Você não possui saldo devedor pendente.' };
+      }
+
+      const valorEfetivo = Math.min(valorSolicitado, saldoAtual);
+      const cicloRef = this.obterCicloReferenciaAtual();
+      const diaVencimento = Number(cliente.dia_vencimento_caderneta || 10);
+      const dataVencimentoCiclo = this.calcularProximoVencimento(diaVencimento);
+
+      let fpUuid: string | null = null;
+      try {
+        const resolvido = await SyncService.resolverFormaPagamentoId(lojaId, formaPagamentoId, formaTipo || formaPagamentoId);
+        if (isUuidValido(resolvido)) fpUuid = resolvido;
+      } catch {
+        if (isUuidValido(formaPagamentoId)) fpUuid = formaPagamentoId;
+      }
+
+      const descricaoPendente = `[PENDENTE_CONFERENCIA] Solicitação de Pagamento (${metodoNome})`;
+      const obsComprovante = comprovanteUrl ? `COMPROVANTE_URL:${comprovanteUrl}` : `Solicitado pelo cliente no Catálogo Online via ${metodoNome}`;
+
+      const { error: errInsert } = await supabase
+        .from('caderneta_lancamentos')
+        .insert({
+          loja_id: lojaId,
+          cliente_id: clienteId,
+          forma_pagamento_id: fpUuid,
+          tipo_lancamento: 'pagamento',
+          valor: valorEfetivo,
+          saldo_anterior: saldoAtual,
+          saldo_posterior: saldoAtual,
+          ciclo_referencia: cicloRef,
+          data_vencimento_ciclo: dataVencimentoCiclo,
+          descricao: descricaoPendente,
+          observacoes: obsComprovante,
+          status_conferencia: 'pendente_conferencia',
+          comprovante_url: comprovanteUrl || null,
+          metodo_pagamento_solicitado: metodoNome
+        });
+
+      if (errInsert) {
+        // Fallback caso as colunas novas ainda não estejam no cache do PostgREST
+        const { error: errFallback } = await supabase
+          .from('caderneta_lancamentos')
+          .insert({
+            loja_id: lojaId,
+            cliente_id: clienteId,
+            forma_pagamento_id: fpUuid,
+            tipo_lancamento: 'pagamento',
+            valor: valorEfetivo,
+            saldo_anterior: saldoAtual,
+            saldo_posterior: saldoAtual,
+            ciclo_referencia: cicloRef,
+            data_vencimento_ciclo: dataVencimentoCiclo,
+            descricao: descricaoPendente,
+            observacoes: obsComprovante
+          });
+        if (errFallback) {
+          return { sucesso: false, mensagem: 'Não foi possível registrar a solicitação de conferência.' };
+        }
+      }
+
+      return { sucesso: true };
+    } catch (err: any) {
+      console.error('[CadernetaService] Exceção ao solicitar liquidação:', err);
+      return { sucesso: false, mensagem: 'Erro ao registrar solicitação de pagamento.' };
+    }
+  }
+
+  /**
+   * Confirma o recebimento de um pagamento pendente de conferência (ação exclusiva do Lojista).
+   * Efetiva a baixa do saldo devedor, libera o limite de crédito do cliente e registra entrada financeira.
+   */
+  public static async confirmarLiquidacaoPendente(params: {
+    lojaId: string;
+    lancamentoId: string;
+    usuarioId?: string;
+  }): Promise<{ sucesso: boolean; mensagem?: string; saldoRestante?: number }> {
+    const { lojaId, lancamentoId, usuarioId } = params;
+
+    try {
+      const { data: lanc, error: lancErr } = await supabase
+        .from('caderneta_lancamentos')
+        .select('*')
+        .eq('loja_id', lojaId)
+        .eq('id', lancamentoId)
+        .single();
+
+      if (lancErr || !lanc) {
+        return { sucesso: false, mensagem: 'Lançamento pendente não encontrado.' };
+      }
+
+      const resumoAtual = await this.obterResumoCliente(lojaId, lanc.cliente_id);
+      const cliente = resumoAtual?.cliente;
+      if (!cliente) {
+        return { sucesso: false, mensagem: 'Cliente não encontrado.' };
+      }
+
+      const saldoAnterior = Number(resumoAtual?.saldoDevedor || cliente.saldo_devedor_caderneta || 0);
+      const valorEfetivo = Math.min(Number(lanc.valor || 0), Math.max(saldoAnterior, Number(lanc.valor || 0)));
+      const saldoPosterior = Number(Math.max(0, saldoAnterior - valorEfetivo).toFixed(2));
+
+      let usuarioIdValido: string | null = null;
+      if (usuarioId && isUuidValido(usuarioId)) {
+        const { data: op } = await supabase
+          .from('usuarios_loja')
+          .select('id')
+          .eq('id', usuarioId)
+          .maybeSingle();
+        if (op?.id) usuarioIdValido = op.id;
+      }
+
+      const descricaoConfirmada =
+        String(lanc.descricao || '')
+          .replace('[PENDENTE_CONFERENCIA]', '')
+          .trim() || `Abatimento Caderneta Confirmado`;
+
+      // 1. Atualizar lanzamiento para confirmado
+      const { error: errUpd } = await supabase
+        .from('caderneta_lancamentos')
+        .update({
+          descricao: descricaoConfirmada,
+          saldo_anterior: saldoAnterior,
+          saldo_posterior: saldoPosterior,
+          usuario_id: usuarioIdValido,
+          status_conferencia: 'confirmado',
+          confirmado_em: new Date().toISOString(),
+          confirmado_por: usuarioIdValido
+        })
+        .eq('loja_id', lojaId)
+        .eq('id', lancamentoId);
+
+      if (errUpd) {
+        await supabase
+          .from('caderneta_lancamentos')
+          .update({
+            descricao: descricaoConfirmada,
+            saldo_anterior: saldoAnterior,
+            saldo_posterior: saldoPosterior,
+            usuario_id: usuarioIdValido
+          })
+          .eq('loja_id', lojaId)
+          .eq('id', lancamentoId);
+      }
+
+      // 2. Dar baixa no saldo devedor do cliente e liberar limite
+      const updateCliPayload: Record<string, any> = {
+        saldo_devedor_caderneta: saldoPosterior
+      };
+      if (Number(cliente.saldo_devedor_fiado || 0) > 0) {
+        updateCliPayload.saldo_devedor_fiado = Math.max(0, Number((Number(cliente.saldo_devedor_fiado || 0) - valorEfetivo).toFixed(2)));
+      }
+
+      await supabase
+        .from('clientes')
+        .update(updateCliPayload)
+        .eq('loja_id', lojaId)
+        .eq('id', cliente.id);
+
+      // 3. Se quitou tudo, marcar pedidos da caderneta como pagos
+      if (saldoPosterior <= 0.01) {
+        await supabase
+          .from('pedidos')
+          .update({
+            fiado_quitado: true,
+            saldo_devedor: 0,
+            status_pagamento: 'pago'
+          })
+          .eq('loja_id', lojaId)
+          .eq('cliente_id', cliente.id)
+          .eq('eh_venda_caderneta', true);
+      }
+
+      // 4. Registrar transação financeira de entrada
+      await supabase
+        .from('transacoes_financeiras')
+        .insert({
+          loja_id: lojaId,
+          tipo: 'ENTRADA',
+          categoria: 'Recebimento de Caderneta',
+          descricao: `Recebimento Caderneta (Conferido) - Cliente ${cliente.nome}`,
+          valor: valorEfetivo,
+          data_vencimento: new Date().toISOString().split('T')[0],
+          data_pagamento: new Date().toISOString(),
+          status: 'pago'
+        });
+
+      return { sucesso: true, saldoRestante: saldoPosterior };
+    } catch (err: any) {
+      console.error('[CadernetaService] Exceção ao confirmar liquidação pendente:', err);
+      return { sucesso: false, mensagem: 'Erro ao confirmar o recebimento.' };
+    }
+  }
+
+  /**
+   * Recusa uma solicitação de liquidação pendente de conferência, mantendo a dívida inalterada.
+   */
+  public static async recusarLiquidacaoPendente(params: {
+    lojaId: string;
+    lancamentoId: string;
+  }): Promise<{ sucesso: boolean; mensagem?: string }> {
+    const { lojaId, lancamentoId } = params;
+    try {
+      const { data: lanc } = await supabase
+        .from('caderneta_lancamentos')
+        .select('descricao')
+        .eq('loja_id', lojaId)
+        .eq('id', lancamentoId)
+        .maybeSingle();
+
+      const novaDesc = `[RECUSADO] ${String(lanc?.descricao || 'Solicitação de Pagamento').replace('[PENDENTE_CONFERENCIA]', '').trim()}`;
+
+      const { error: errUpd } = await supabase
+        .from('caderneta_lancamentos')
+        .update({
+          descricao: novaDesc,
+          status_conferencia: 'recusado'
+        })
+        .eq('loja_id', lojaId)
+        .eq('id', lancamentoId);
+
+      if (errUpd) {
+        await supabase
+          .from('caderneta_lancamentos')
+          .update({ descricao: novaDesc })
+          .eq('loja_id', lojaId)
+          .eq('id', lancamentoId);
+      }
+
+      return { sucesso: true };
+    } catch (err: any) {
+      return { sucesso: false, mensagem: err?.message || 'Erro ao recusar solicitação.' };
+    }
+  }
+
+  /**
    * Consulta o extrato analítico da caderneta para um cliente, reconciliando compras da tabela pedidos
    */
   public static async listarExtratoCliente(lojaId: string, clienteId: string): Promise<CadernetaLancamento[]> {
@@ -545,7 +849,14 @@ export class CadernetaService {
       const recalculadosAsc = ordenadosAsc.map(item => {
         const saldoAnt = saldoAcumulado;
         const val = Number(item.valor || 0);
-        if (item.tipo_lancamento === 'compra') {
+        const ehPendente = this.ehLancamentoPendenteConferencia(item);
+        const ehRecusado = this.ehLancamentoRecusado(item);
+        const comprovanteExtraido = this.extrairComprovanteLancamento(item);
+
+        if (ehPendente || ehRecusado) {
+          // Pagamentos pendentes de conferência ou recusados NÃO abatem o saldo nem liberam limite
+          saldoAcumulado = saldoAnt;
+        } else if (item.tipo_lancamento === 'compra') {
           saldoAcumulado = Number((saldoAnt + val).toFixed(2));
         } else if (item.tipo_lancamento === 'pagamento' || item.tipo_lancamento === 'estorno') {
           saldoAcumulado = Number(Math.max(0, saldoAnt - val).toFixed(2));
@@ -554,6 +865,8 @@ export class CadernetaService {
         }
         return {
           ...item,
+          status_conferencia: ehPendente ? 'pendente_conferencia' : ehRecusado ? 'recusado' : (item.status_conferencia || 'confirmado'),
+          comprovante_url: comprovanteExtraido,
           saldo_anterior: saldoAnt,
           saldo_posterior: saldoAcumulado
         };

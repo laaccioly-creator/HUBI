@@ -1653,7 +1653,11 @@ export const CatalogoPublico: React.FC = () => {
         forma_pagamento_catalogo: formaPagamentoEfetiva === 'padrao' ? 'a_combinar' : formaPagamentoEfetiva,
         eh_venda_caderneta: ehCaderneta,
         ciclo_referencia_caderneta: ehCaderneta ? CadernetaService.obterCicloReferenciaAtual() : null,
-        data_vencimento_fiado: ehFiado ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : null,
+        data_vencimento_fiado: ehCaderneta
+          ? CadernetaService.calcularProximoVencimento(Number(clienteSelecionado?.dia_vencimento_caderneta || loja?.dia_vencimento_padrao_caderneta || loja?.configuracoes_extras?.pagamentos?.dia_vencimento_padrao_caderneta || 10))
+          : ehFiado
+            ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+            : null,
         fiado_quitado: (ehFiado || ehCaderneta) ? false : false,
         tabela_preco_aplicada: avaliacaoCarrinho.tabelaAtiva,
         subtotal,

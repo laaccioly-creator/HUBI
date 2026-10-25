@@ -247,7 +247,8 @@ export const obterOuBuscarSerpApiKey = async (loja?: Loja | null): Promise<strin
 export const salvarSerpApiKey = async (
   chave: string,
   lojaId?: string,
-  lojaAtual?: Loja | null
+  lojaAtual?: Loja | null,
+  apenasLocalStorage = false
 ): Promise<void> => {
   const chaveLimpa = chave.trim();
   logSerp('Salvando chave SerpApi...', { 
@@ -261,6 +262,8 @@ export const salvarSerpApiKey = async (
   } else {
     localStorage.removeItem(STORAGE_KEY_SERPAPI_KEY);
   }
+
+  if (apenasLocalStorage) return;
 
   // 2. Persistir no Supabase com isolamento multi-tenant
   if (lojaId) {

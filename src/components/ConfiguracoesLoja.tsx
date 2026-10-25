@@ -312,7 +312,7 @@ interface ConfiguracoesLojaProps {
 
 export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaInicial }) => {
   const { isDark } = useTheme();
-  const { loja, recarregarDadosLoja } = useAuth();
+  const { loja, setLoja, recarregarDadosLoja } = useAuth();
   const permissions = usePermissions();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -973,8 +973,10 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       setCreditoDescricao(pagManuais.credito_orientacoes || '');
       setOutrosAtivo(pagManuais.outros_ativo ?? false);
       setOutrosDescricao(pagManuais.outros_orientacoes || '');
-      setPermitirFiado(pagManuais.permitir_fiado ?? true);
-      setCadernetaAtiva(Boolean(loja.caderneta_ativa ?? pagManuais.caderneta_ativa));
+      const cadernetaInicial = Boolean(loja.caderneta_ativa ?? pagManuais.caderneta_ativa);
+      const fiadoInicial = cadernetaInicial ? false : (pagManuais.permitir_fiado ?? true);
+      setPermitirFiado(fiadoInicial);
+      setCadernetaAtiva(cadernetaInicial);
       setDiaVencimentoPadraoCaderneta(Number(loja.dia_vencimento_padrao_caderneta || pagManuais.dia_vencimento_padrao_caderneta || 10));
 
       // Maquininhas Prazos
@@ -1291,19 +1293,19 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           descricao_retirada: descricaoRetirada
         },
         pagamentos: {
-          permitir_fiado: cadernetaAtiva ? false : permitirFiado,
+          permitir_fiado: cadernetaAtiva ? false : Boolean(permitirFiado),
           caderneta_ativa: Boolean(cadernetaAtiva),
           dia_vencimento_padrao_caderneta: Number(diaVencimentoPadraoCaderneta || 10),
-          pix_ativo: pixAtivo,
+          pix_ativo: Boolean(pixAtivo),
           pix_chave: pixChave,
           pix_orientacoes: pixOrientacoes,
-          dinheiro_ativo: dinheiroAtivo,
+          dinheiro_ativo: Boolean(dinheiroAtivo),
           dinheiro_orientacoes: dinheiroDescricao,
-          debito_ativo: debitoAtivo,
+          debito_ativo: Boolean(debitoAtivo),
           debito_orientacoes: debitoDescricao,
-          credito_ativo: creditoAtivo,
+          credito_ativo: Boolean(creditoAtivo),
           credito_orientacoes: creditoDescricao,
-          outros_ativo: outrosAtivo,
+          outros_ativo: Boolean(outrosAtivo),
           outros_orientacoes: outrosDescricao
         },
         pagamentos_digitais: {
@@ -1416,7 +1418,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         .eq('id', loja.id);
 
       if (error) {
-        if (error.code === '42703' || error.message?.includes('tipos_venda')) {
+        if (error.code === '42703' || error.code === 'PGRST204' || error.message?.includes('column') || error.message?.includes('tipos_venda')) {
           const { error: erroFallback } = await supabase
             .from('lojas')
             .update({
@@ -1454,10 +1456,59 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               configuracoes_extras: novasExtras
             })
             .eq('id', loja.id);
-          if (erroFallback) throw erroFallback;
+          if (erroFallback) {
+            const { error: erroMinimo } = await supabase
+              .from('lojas')
+              .update({
+                nome_fantasia: nomeLoja,
+                razao_social: razaoSocial,
+                numero_documento: documento,
+                tipo_documento: documento.replace(/\D/g, '').length > 11 ? 'CNPJ' : 'CPF',
+                telefone,
+                whatsapp,
+                email,
+                instagram,
+                sobre_loja: sobreLoja,
+                url_logo: urlLogo,
+                endereco_logradouro: enderecoLogradouro,
+                endereco_numero: enderecoNumero,
+                endereco_bairro: enderecoBairro,
+                endereco_complemento: enderecoComplemento,
+                endereco_cep: enderecoCep,
+                endereco_cidade: enderecoCidade,
+                endereco_estado: enderecoEstado,
+                configuracoes_extras: novasExtras
+              })
+              .eq('id', loja.id);
+            if (erroMinimo) throw erroMinimo;
+          }
         } else {
           throw error;
         }
+      }
+
+      // Sincronizar status ativo na tabela formas_pagamento da loja
+      try {
+        const fiadoEfetivo = cadernetaAtiva ? false : Boolean(permitirFiado);
+        const mapaAtivosPorTipo: Record<string, boolean> = {
+          pix: Boolean(pixAtivo),
+          dinheiro: Boolean(dinheiroAtivo),
+          cartao_debito: Boolean(debitoAtivo),
+          cartao_credito: Boolean(creditoAtivo),
+          fiado: fiadoEfetivo,
+          caderneta: Boolean(cadernetaAtiva)
+        };
+        await Promise.all(
+          Object.entries(mapaAtivosPorTipo).map(([tipoFp, ativoFp]) =>
+            supabase
+              .from('formas_pagamento')
+              .update({ ativo: ativoFp })
+              .eq('loja_id', loja.id)
+              .eq('tipo', tipoFp)
+          )
+        );
+      } catch (errFpSync) {
+        console.warn('Aviso ao sincronizar formas_pagamento:', errFpSync);
       }
 
       const valorMinimoNum = typeof freteGratisValorMinimo === 'number'
@@ -1480,15 +1531,30 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         .eq('loja_id', loja.id);
 
       if (erroShipping) {
-        console.error('Erro ao atualizar loja_shipping_configs:', erroShipping);
-        alert('Erro ao salvar configurações no Supabase: ' + erroShipping.message);
-        throw erroShipping;
+        console.warn('Aviso ao atualizar loja_shipping_configs:', erroShipping);
       }
 
-      await salvarSerpApiKey(serpApiKey.trim(), loja.id, loja);
+      await salvarSerpApiKey(
+        serpApiKey.trim(),
+        loja.id,
+        { ...loja, configuracoes_extras: novasExtras },
+        true
+      );
       setGoogleSearchConfig(googleSearchApiKey.trim(), googleSearchCx.trim());
+      setLoja({
+        ...loja,
+        caderneta_ativa: Boolean(cadernetaAtiva),
+        dia_vencimento_padrao_caderneta: Number(diaVencimentoPadraoCaderneta || 10),
+        configuracoes_extras: novasExtras
+      });
       salvouRecenteRef.current = true;
-      setSnapshotInicial(snapshotAtual);
+      setSnapshotInicial(
+        gerarSnapshotConfig({
+          ...JSON.parse(snapshotAtual),
+          permitirFiado: cadernetaAtiva ? false : Boolean(permitirFiado),
+          cadernetaAtiva: Boolean(cadernetaAtiva)
+        })
+      );
       setTemAlteracoesNaoSalvas(false);
       await recarregarDadosLoja();
       mostrarToast('Configurações salvas com sucesso!');

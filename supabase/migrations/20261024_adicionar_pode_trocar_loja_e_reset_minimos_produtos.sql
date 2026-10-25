@@ -32,3 +32,18 @@ WHERE qtd_minima_autoatacado = 24
   AND (tipo_minimo_autoatacado IS NULL OR tipo_minimo_autoatacado = 'padrao_loja');
 
 COMMENT ON COLUMN public.usuarios_loja.pode_trocar_loja IS 'Indica se um administrador possui permissão para navegar e trocar entre diferentes lojas da conta';
+
+-- 4. Suporte a conferência de liquidação e comprovantes na tabela caderneta_lancamentos
+ALTER TABLE public.caderneta_lancamentos
+  ADD COLUMN IF NOT EXISTS status_conferencia VARCHAR(30) NOT NULL DEFAULT 'confirmado'
+    CHECK (status_conferencia IN ('pendente_conferencia', 'confirmado', 'recusado')),
+  ADD COLUMN IF NOT EXISTS comprovante_url TEXT NULL,
+  ADD COLUMN IF NOT EXISTS metodo_pagamento_solicitado VARCHAR(60) NULL,
+  ADD COLUMN IF NOT EXISTS confirmado_em TIMESTAMPTZ NULL,
+  ADD COLUMN IF NOT EXISTS confirmado_por UUID NULL REFERENCES public.usuarios_loja(id) ON DELETE SET NULL;
+
+ALTER TABLE public.caderneta_lancamentos ENABLE ROW LEVEL SECURITY;
+
+COMMENT ON COLUMN public.caderneta_lancamentos.status_conferencia IS 'Status da liquidação da caderneta: pendente_conferencia (solicitado manualmente no catálogo), confirmado ou recusado';
+COMMENT ON COLUMN public.caderneta_lancamentos.comprovante_url IS 'URL ou DataURI do comprovante de transferência Pix anexado pelo cliente no catálogo online';
+COMMENT ON COLUMN public.caderneta_lancamentos.metodo_pagamento_solicitado IS 'Nome do método de pagamento utilizado na solicitação de liquidação';

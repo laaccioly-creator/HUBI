@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   FileText,
@@ -6,12 +6,6 @@ import {
   Loader2,
   CheckCircle2,
   DollarSign,
-  Copy,
-  Check,
-  QrCode,
-  CreditCard,
-  Banknote,
-  ArrowLeft,
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
@@ -19,6 +13,7 @@ import { Cliente, CadernetaLancamento, Loja } from '../types';
 import { CadernetaService, ResumoCadernetaCliente } from '../services/cadernetaService';
 import { formatarMoeda } from '../utils/formatters';
 import { supabase } from '../lib/supabase';
+import { ModalPagamentoCadernetaUnificado } from './caderneta/ModalPagamentoCadernetaUnificado';
 
 interface ModalCadernetaClienteCatalogoProps {
   isOpen: boolean;
@@ -26,13 +21,6 @@ interface ModalCadernetaClienteCatalogoProps {
   cliente: Cliente | null;
   loja: Loja | null;
   onAtualizado?: () => void;
-}
-
-interface MetodoPagamentoAtivo {
-  id: string;
-  tipo: 'pix' | 'dinheiro' | 'cartao_debito' | 'cartao_credito' | 'mercado_pago';
-  nome: string;
-  descricao: string;
 }
 
 export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalogoProps> = ({
@@ -47,14 +35,9 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
   const [carregando, setCarregando] = useState<boolean>(true);
   const [itensExpandidosIds, setItensExpandidosIds] = useState<Record<string, boolean>>({});
 
-  // Estado da etapa de pagamento/liquidação
+  // Estado da etapa de pagamento/liquidação unificada
   const [modoPagamento, setModoPagamento] = useState<boolean>(false);
-  const [metodoSelecionado, setMetodoSelecionado] = useState<string>('');
-  const [valorPagamento, setValorPagamento] = useState<string>('');
-  const [processandoPagamento, setProcessandoPagamento] = useState<boolean>(false);
   const [pagamentoSucesso, setPagamentoSucesso] = useState<string | null>(null);
-  const [erroPagamento, setErroPagamento] = useState<string | null>(null);
-  const [pixCopiado, setPixCopiado] = useState<boolean>(false);
 
   const carregarDados = async () => {
     if (!cliente?.id || !loja?.id) return;
@@ -141,7 +124,6 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
         limiteDisponivel: Math.max(0, Number((limiteTotal - saldoCalculado).toFixed(2)))
       });
       setExtrato(extratoCombinado);
-      setValorPagamento(saldoCalculado > 0 ? saldoCalculado.toFixed(2) : '');
     } catch (err) {
       console.error('[ModalCadernetaClienteCatalogo] Erro ao carregar extrato:', err);
     } finally {
@@ -153,166 +135,13 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
     if (isOpen && cliente?.id && loja?.id) {
       setModoPagamento(false);
       setPagamentoSucesso(null);
-      setErroPagamento(null);
       carregarDados();
     }
   }, [isOpen, cliente?.id, loja?.id]);
 
-  // Opções de pagamento ativas na loja (NUNCA inclui caderneta nem fiado)
-  const metodosPagamentoAtivos = useMemo<MetodoPagamentoAtivo[]>(() => {
-    const pagConfig = (loja?.configuracoes_extras as any)?.pagamentos || {};
-    const pagDigitais = (loja?.configuracoes_extras as any)?.pagamentos_digitais || {};
-    const lista: MetodoPagamentoAtivo[] = [];
-
-    if (pagConfig.pix_ativo ?? true) {
-      lista.push({
-        id: 'pix',
-        tipo: 'pix',
-        nome: 'Pix Manual',
-        descricao: pagConfig.pix_chave || (loja as any)?.chave_pix
-          ? `Chave: ${pagConfig.pix_chave || (loja as any)?.chave_pix}`
-          : 'Transferência instantânea via Pix'
-      });
-    }
-
-    if (pagDigitais?.mercado_pago?.ativo) {
-      lista.push({
-        id: 'mercado_pago',
-        tipo: 'mercado_pago',
-        nome: 'Mercado Pago (Online)',
-        descricao: 'Pix ou Cartão via checkout digital'
-      });
-    }
-
-    if (pagConfig.debito_ativo ?? true) {
-      lista.push({
-        id: 'cartao_debito',
-        tipo: 'cartao_debito',
-        nome: 'Cartão de Débito (Maquininha)',
-        descricao: 'Pagamento presencial na maquininha da loja'
-      });
-    }
-
-    if (pagConfig.credito_ativo ?? true) {
-      lista.push({
-        id: 'cartao_credito',
-        tipo: 'cartao_credito',
-        nome: 'Cartão de Crédito (Maquininha)',
-        descricao: 'Pagamento presencial na maquininha da loja'
-      });
-    }
-
-    if (pagConfig.dinheiro_ativo ?? true) {
-      lista.push({
-        id: 'dinheiro',
-        tipo: 'dinheiro',
-        nome: 'Dinheiro',
-        descricao: 'Pagamento em espécie no balcão ou portador'
-      });
-    }
-
-    return lista;
-  }, [loja]);
-
-  useEffect(() => {
-    if (metodosPagamentoAtivos.length > 0 && !metodoSelecionado) {
-      setMetodoSelecionado(metodosPagamentoAtivos[0].id);
-    }
-  }, [metodosPagamentoAtivos, metodoSelecionado]);
-
   if (!isOpen || !cliente) return null;
 
-  const pagConfig = (loja?.configuracoes_extras as any)?.pagamentos || {};
-  const chavePixLoja = pagConfig.pix_chave || (loja as any)?.chave_pix || '';
-  const orientacoesPixLoja = pagConfig.pix_orientacoes || '';
   const saldoAtual = Number(resumo?.saldoDevedor || 0);
-
-  const handleCopiarPix = async () => {
-    if (!chavePixLoja) return;
-    try {
-      await navigator.clipboard.writeText(chavePixLoja);
-      setPixCopiado(true);
-      setTimeout(() => setPixCopiado(false), 2500);
-    } catch {
-      // fallback silencioso
-    }
-  };
-
-  const handleConfirmarLiquidacao = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!loja?.id || !cliente?.id) return;
-
-    const valorNum = Number(String(valorPagamento).replace(',', '.'));
-    if (isNaN(valorNum) || valorNum <= 0) {
-      setErroPagamento('Informe um valor válido maior que zero para liquidar.');
-      return;
-    }
-    if (valorNum > saldoAtual + 0.01) {
-      setErroPagamento('O valor informado não pode ser maior que o saldo devedor atual.');
-      return;
-    }
-
-    const metodoObj = metodosPagamentoAtivos.find((m) => m.id === metodoSelecionado);
-    if (!metodoObj) {
-      setErroPagamento('Selecione uma forma de pagamento ativa.');
-      return;
-    }
-
-    try {
-      setProcessandoPagamento(true);
-      setErroPagamento(null);
-
-      // Busca ID correspondente em formas_pagamento da loja (garantindo que nunca seja caderneta/fiado)
-      const { data: formasBanco } = await supabase
-        .from('formas_pagamento')
-        .select('id, nome, tipo')
-        .eq('loja_id', loja.id)
-        .eq('ativo', true);
-
-      const formaBanco = (formasBanco || []).find((f: any) => {
-        const tipoLower = (f.tipo || '').toLowerCase();
-        const nomeLower = (f.nome || '').toLowerCase();
-        if (tipoLower === 'fiado' || tipoLower === 'caderneta' || nomeLower.includes('caderneta') || nomeLower.includes('fiado')) {
-          return false;
-        }
-        if (metodoObj.tipo === 'pix') return tipoLower === 'pix' || nomeLower.includes('pix');
-        if (metodoObj.tipo === 'dinheiro') return tipoLower === 'dinheiro' || nomeLower.includes('dinheiro');
-        if (metodoObj.tipo === 'cartao_debito') return tipoLower === 'cartao_debito' || nomeLower.includes('débito') || nomeLower.includes('debito');
-        if (metodoObj.tipo === 'cartao_credito') return tipoLower === 'cartao_credito' || nomeLower.includes('crédito') || nomeLower.includes('credito');
-        return false;
-      });
-
-      await CadernetaService.registrarPagamentoCaderneta({
-        lojaId: loja.id,
-        clienteId: cliente.id,
-        valorPago: valorNum,
-        formaPagamentoId: formaBanco?.id || metodoObj.id,
-        formaTipo: metodoObj.tipo,
-        observacoes: `Liquidação pelo Catálogo Online (${metodoObj.nome})`
-      });
-
-      // Também abate saldo_devedor_fiado caso o cliente estivesse com saldo em fiado
-      if (Number(cliente.saldo_devedor_fiado || 0) > 0) {
-        const novoSaldoFiado = Math.max(0, Number((Number(cliente.saldo_devedor_fiado || 0) - valorNum).toFixed(2)));
-        await supabase
-          .from('clientes')
-          .update({ saldo_devedor_fiado: novoSaldoFiado })
-          .eq('id', cliente.id)
-          .eq('loja_id', loja.id);
-      }
-
-      setPagamentoSucesso(
-        `Pagamento de ${formatarMoeda(valorNum)} via ${metodoObj.nome} registrado com sucesso!`
-      );
-      setModoPagamento(false);
-      await carregarDados();
-      onAtualizado?.();
-    } catch (err: any) {
-      setErroPagamento(err?.message || 'Não foi possível registrar o pagamento da conta.');
-    } finally {
-      setProcessandoPagamento(false);
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
@@ -331,13 +160,11 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {!carregando && saldoAtual > 0 && !modoPagamento && (
+            {!carregando && saldoAtual > 0 && (
               <button
                 type="button"
                 onClick={() => {
-                  setErroPagamento(null);
                   setPagamentoSucesso(null);
-                  setValorPagamento(saldoAtual.toFixed(2));
                   setModoPagamento(true);
                 }}
                 className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition cursor-pointer active:scale-95"
@@ -412,254 +239,124 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
                 </div>
               </div>
 
-              {/* Etapa de Liquidação da Conta */}
-              {modoPagamento && saldoAtual > 0 ? (
-                <form
-                  onSubmit={handleConfirmarLiquidacao}
-                  className="p-4 rounded-2xl border-2 border-emerald-500/40 bg-slate-50 dark:bg-slate-950 space-y-4 animate-in fade-in"
-                >
-                  <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
-                    <div>
-                      <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                        Pagar / Liquidar Conta
-                      </h3>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                        Escolha uma das opções de pagamento ativas na loja para quitar seu saldo
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setModoPagamento(false)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition cursor-pointer"
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5" />
-                      <span>Voltar ao Extrato</span>
-                    </button>
+              {/* Linha do Tempo de Compras e Pagamentos */}
+              <div className="space-y-2 pt-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Extrato de Compras ({extrato.length})</span>
+                  </h3>
+                </div>
+
+                {extrato.length === 0 ? (
+                  <div className="p-8 text-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-semibold text-slate-500">
+                    Você não possui compras em aberto na sua conta.
                   </div>
-
-                  {erroPagamento && (
-                    <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-300 dark:border-rose-500/40 text-xs font-bold text-rose-700 dark:text-rose-300">
-                      {erroPagamento}
-                    </div>
-                  )}
-
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 block">
-                      Valor a Pagar (R$)
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        max={saldoAtual}
-                        required
-                        value={valorPagamento}
-                        onChange={(e) => setValorPagamento(e.target.value)}
-                        className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 font-black text-sm text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setValorPagamento(saldoAtual.toFixed(2))}
-                        className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-xs font-black text-slate-800 dark:text-slate-200 transition cursor-pointer"
-                      >
-                        Valor Total ({formatarMoeda(saldoAtual)})
-                      </button>
-                    </div>
-                  </div>
-
+                ) : (
                   <div className="space-y-2">
-                    <label className="text-[11px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 block">
-                      Meio de Pagamento (Opções Ativas da Loja)
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {metodosPagamentoAtivos.map((m) => {
-                        const selecionado = metodoSelecionado === m.id;
-                        return (
-                          <button
-                            key={m.id}
-                            type="button"
-                            onClick={() => setMetodoSelecionado(m.id)}
-                            className={`p-3 rounded-xl border text-left transition flex items-start gap-2.5 cursor-pointer ${
-                              selecionado
-                                ? 'border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500'
-                                : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-700'
-                            }`}
-                          >
-                            <div className="mt-0.5 shrink-0">
-                              {m.tipo === 'pix' ? (
-                                <QrCode className="w-4 h-4 text-emerald-500" />
-                              ) : m.tipo === 'dinheiro' ? (
-                                <Banknote className="w-4 h-4 text-emerald-500" />
-                              ) : (
-                                <CreditCard className="w-4 h-4 text-emerald-500" />
+                    {extrato.map((lanc) => {
+                      const ehCompra = lanc.tipo_lancamento === 'compra';
+                      const ehPendente = CadernetaService.ehLancamentoPendenteConferencia(lanc);
+                      const ehRecusado = CadernetaService.ehLancamentoRecusado(lanc);
+                      const itensCompra = ((lanc.pedido as any)?.itens || []) as any[];
+                      const expandido = Boolean(itensExpandidosIds[lanc.id]);
+                      const numeroPedidoExibicao = (lanc.pedido as any)?.numero_pedido
+                        ? `Pedido #${(lanc.pedido as any).numero_pedido}`
+                        : (lanc.descricao?.replace(/^Compra ref\.\s*/i, '').replace('[PENDENTE_CONFERENCIA]', '').replace('[RECUSADO]', '').trim() || 'Lançamento');
+                      const dataHoraExibicao = `${new Date(lanc.criado_em || Date.now()).toLocaleDateString('pt-BR')} ${new Date(lanc.criado_em || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+
+                      return (
+                        <div
+                          key={lanc.id}
+                          className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 space-y-2 text-xs"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
+                              <span className="text-[11px] font-semibold font-mono text-slate-500 dark:text-slate-400 shrink-0">
+                                {dataHoraExibicao}
+                              </span>
+                              <span className="font-black text-slate-900 dark:text-slate-100 truncate">
+                                {numeroPedidoExibicao}
+                              </span>
+                              {ehPendente && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                                  Pendente de Conferência
+                                </span>
+                              )}
+                              {ehRecusado && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+                                  Recusado
+                                </span>
                               )}
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <span className="text-xs font-black block truncate">{m.nome}</span>
-                              <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate">
-                                {m.descricao}
+
+                            <div className="flex items-center gap-2.5 shrink-0">
+                              <span className={`font-black text-sm font-mono ${
+                                ehRecusado
+                                  ? 'line-through opacity-50'
+                                  : ehPendente
+                                    ? 'text-amber-600 dark:text-amber-400'
+                                    : ehCompra
+                                      ? 'text-rose-600 dark:text-rose-400'
+                                      : 'text-emerald-600 dark:text-emerald-400'
+                              }`}>
+                                {ehCompra ? '+' : '-'} {formatarMoeda(lanc.valor)}
                               </span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
 
-                  {/* Instruções Pix se selecionado */}
-                  {metodoSelecionado === 'pix' && chavePixLoja && (
-                    <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div>
-                          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block">
-                            Chave Pix da Loja
-                          </span>
-                          <span className="text-xs font-mono font-bold text-slate-900 dark:text-white break-all">
-                            {chavePixLoja}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleCopiarPix}
-                          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shrink-0 cursor-pointer"
-                        >
-                          {pixCopiado ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                          <span>{pixCopiado ? 'Copiada!' : 'Copiar Chave'}</span>
-                        </button>
-                      </div>
-                      {orientacoesPixLoja && (
-                        <p className="text-[11px] text-slate-600 dark:text-slate-300">
-                          {orientacoesPixLoja}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="flex justify-end gap-2 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setModoPagamento(false)}
-                      className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition cursor-pointer"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={processandoPagamento}
-                      className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow transition cursor-pointer"
-                    >
-                      {processandoPagamento ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <CheckCircle2 className="w-4 h-4" />
-                      )}
-                      <span>Confirmar Liquidação</span>
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                /* Linha do Tempo de Compras e Pagamentos */
-                <div className="space-y-2 pt-2">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5" />
-                      <span>Extrato de Compras ({extrato.length})</span>
-                    </h3>
-                  </div>
-
-                  {extrato.length === 0 ? (
-                    <div className="p-8 text-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs font-semibold text-slate-500">
-                      Você não possui compras em aberto na sua conta.
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {extrato.map((lanc) => {
-                        const ehCompra = lanc.tipo_lancamento === 'compra';
-                        const itensCompra = ((lanc.pedido as any)?.itens || []) as any[];
-                        const expandido = Boolean(itensExpandidosIds[lanc.id]);
-                        const numeroPedidoExibicao = (lanc.pedido as any)?.numero_pedido
-                          ? `Pedido #${(lanc.pedido as any).numero_pedido}`
-                          : (lanc.descricao?.replace(/^Compra ref\.\s*/i, '') || 'Lançamento');
-                        const dataHoraExibicao = `${new Date(lanc.criado_em || Date.now()).toLocaleDateString('pt-BR')} ${new Date(lanc.criado_em || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
-
-                        return (
-                          <div
-                            key={lanc.id}
-                            className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 space-y-2 text-xs"
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
-                                <span className="text-[11px] font-semibold font-mono text-slate-500 dark:text-slate-400 shrink-0">
-                                  {dataHoraExibicao}
-                                </span>
-                                <span className="font-black text-slate-900 dark:text-slate-100 truncate">
-                                  {numeroPedidoExibicao}
-                                </span>
-                              </div>
-
-                              <div className="flex items-center gap-2.5 shrink-0">
-                                <span className={`font-black text-sm font-mono ${
-                                  ehCompra ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
-                                }`}>
-                                  {ehCompra ? '+' : '-'} {formatarMoeda(lanc.valor)}
-                                </span>
-
-                                {ehCompra && (
-                                  <button
-                                    type="button"
-                                    onClick={async () => {
-                                      const proximoEstado = !expandido;
-                                      setItensExpandidosIds(prev => ({ ...prev, [lanc.id]: proximoEstado }));
-                                      if (proximoEstado && itensCompra.length === 0 && lanc.pedido_id && loja?.id) {
-                                        const { data: itensBanco } = await supabase
-                                          .from('itens_pedido')
-                                          .select('*')
-                                          .eq('pedido_id', lanc.pedido_id)
-                                          .eq('loja_id', loja.id);
-                                        if (itensBanco && itensBanco.length > 0) {
-                                          setExtrato(prev => prev.map(item =>
-                                            item.id === lanc.id
-                                              ? { ...item, pedido: { ...(item.pedido as any), itens: itensBanco } as any }
-                                              : item
-                                          ));
-                                        }
+                              {ehCompra && (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const proximoEstado = !expandido;
+                                    setItensExpandidosIds(prev => ({ ...prev, [lanc.id]: proximoEstado }));
+                                    if (proximoEstado && itensCompra.length === 0 && lanc.pedido_id && loja?.id) {
+                                      const { data: itensBanco } = await supabase
+                                        .from('itens_pedido')
+                                        .select('*')
+                                        .eq('pedido_id', lanc.pedido_id)
+                                        .eq('loja_id', loja.id);
+                                      if (itensBanco && itensBanco.length > 0) {
+                                        setExtrato(prev => prev.map(item =>
+                                          item.id === lanc.id
+                                            ? { ...item, pedido: { ...(item.pedido as any), itens: itensBanco } as any }
+                                            : item
+                                        ));
                                       }
-                                    }}
-                                    className="px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition cursor-pointer"
-                                  >
-                                    <span>Detalhar</span>
-                                    {expandido ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                                  </button>
-                                )}
+                                    }
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition cursor-pointer"
+                                >
+                                  <span>Detalhar</span>
+                                  {expandido ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Detalhamento Condicional de Itens da Compra */}
+                          {ehCompra && expandido && itensCompra.length > 0 && (
+                            <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800/80 space-y-1 animate-in fade-in duration-150">
+                              <div className="grid grid-cols-1 gap-1">
+                                {itensCompra.map((it: any, idx: number) => (
+                                  <div key={it.id || idx} className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-300">
+                                    <span className="truncate pr-2">
+                                      <strong className="font-black">{Math.round(Number(it.quantidade || 1))}x</strong> {it.nome_produto || 'Produto'}
+                                      {it.rotulo_variacao ? ` (${it.rotulo_variacao})` : ''}
+                                    </span>
+                                    <span className="font-mono font-bold shrink-0">
+                                      {formatarMoeda(Number(it.subtotal || Number(it.preco_venda_unitario || it.preco_unitario || 0) * Number(it.quantidade || 1)))}
+                                    </span>
+                                  </div>
+                                ))}
                               </div>
                             </div>
-
-                            {/* Detalhamento Condicional de Itens da Compra */}
-                            {ehCompra && expandido && itensCompra.length > 0 && (
-                              <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800/80 space-y-1 animate-in fade-in duration-150">
-                                <div className="grid grid-cols-1 gap-1">
-                                  {itensCompra.map((it: any, idx: number) => (
-                                    <div key={it.id || idx} className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-300">
-                                      <span className="truncate pr-2">
-                                        <strong className="font-black">{Math.round(Number(it.quantidade || 1))}x</strong> {it.nome_produto || 'Produto'}
-                                        {it.rotulo_variacao ? ` (${it.rotulo_variacao})` : ''}
-                                      </span>
-                                      <span className="font-mono font-bold shrink-0">
-                                        {formatarMoeda(Number(it.subtotal || Number(it.preco_venda_unitario || it.preco_unitario || 0) * Number(it.quantidade || 1)))}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>
@@ -669,13 +366,11 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
           <p className="text-[11px] text-slate-500 dark:text-slate-400 text-center sm:text-left">
             Saldo devedor consolidado: <strong className="text-slate-900 dark:text-white">{formatarMoeda(saldoAtual)}</strong>
           </p>
-          {saldoAtual > 0 && !modoPagamento && (
+          {saldoAtual > 0 && (
             <button
               type="button"
               onClick={() => {
-                setErroPagamento(null);
                 setPagamentoSucesso(null);
-                setValorPagamento(saldoAtual.toFixed(2));
                 setModoPagamento(true);
               }}
               className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow transition cursor-pointer"
@@ -685,6 +380,21 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
             </button>
           )}
         </div>
+
+        {/* Modal Único Reutilizável de Liquidação da Caderneta */}
+        <ModalPagamentoCadernetaUnificado
+          isOpen={modoPagamento}
+          onClose={() => setModoPagamento(false)}
+          loja={loja}
+          cliente={cliente}
+          saldoDevedor={saldoAtual}
+          origem="catalogo"
+          onSucesso={async (msg) => {
+            setPagamentoSucesso(msg);
+            await carregarDados();
+            onAtualizado?.();
+          }}
+        />
       </div>
     </div>
   );

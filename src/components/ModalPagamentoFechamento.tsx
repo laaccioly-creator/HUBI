@@ -206,15 +206,30 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
           .eq('ativo', true)
           .order('nome');
 
-        let lista = FORMAS_PADRAO;
+        const pagCfg = loja?.configuracoes_extras?.pagamentos;
+        const cadernetaAtivaLoja = Boolean(loja?.caderneta_ativa ?? pagCfg?.caderneta_ativa);
+        const fiadoAtivoLoja = !cadernetaAtivaLoja && Boolean(pagCfg?.permitir_fiado ?? true);
+
+        const metodoPermitidoNaLoja = (fp: FormaPagamento) => {
+          const t = (fp.tipo || '').toLowerCase();
+          if (t === 'pix') return pagCfg?.pix_ativo !== false;
+          if (t === 'dinheiro') return pagCfg?.dinheiro_ativo !== false;
+          if (t === 'cartao_debito') return pagCfg?.debito_ativo !== false;
+          if (t === 'cartao_credito') return pagCfg?.credito_ativo !== false;
+          if (t === 'fiado') return fiadoAtivoLoja;
+          if (t === 'caderneta') return cadernetaAtivaLoja;
+          return true;
+        };
+
+        let lista = FORMAS_PADRAO.filter(metodoPermitidoNaLoja);
         if (!error && data && data.length > 0) {
-          lista = data.map((fp: any) =>
-            (fp.tipo === 'caderneta' || fp.nome?.toLowerCase().includes('caderneta'))
-              ? { ...fp, tipo: 'caderneta' }
-              : fp
-          );
-          const cadernetaAtivaLoja = Boolean(loja?.caderneta_ativa ?? loja?.configuracoes_extras?.pagamentos?.caderneta_ativa);
-          const fiadoAtivoLoja = !cadernetaAtivaLoja && Boolean(loja?.configuracoes_extras?.pagamentos?.permitir_fiado ?? true);
+          lista = data
+            .map((fp: any) =>
+              (fp.tipo === 'caderneta' || fp.nome?.toLowerCase().includes('caderneta'))
+                ? { ...fp, tipo: 'caderneta' }
+                : fp
+            )
+            .filter(metodoPermitidoNaLoja);
           // Assegura que Fiado esteja na lista se a loja permitir
           if (fiadoAtivoLoja && !lista.some(f => f.tipo === 'fiado')) {
             const fiadoPadrao = FORMAS_PADRAO.find(f => f.tipo === 'fiado');
@@ -234,7 +249,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
     };
 
     buscarFormas();
-  }, [loja?.id, loja?.caderneta_ativa, isOpen]);
+  }, [loja?.id, loja?.caderneta_ativa, loja?.configuracoes_extras?.pagamentos, isOpen]);
 
   // Carrega dados frescos de crédito e caderneta do cliente
   const [dadosClienteFresco, setDadosClienteFresco] = useState<any>(null);
