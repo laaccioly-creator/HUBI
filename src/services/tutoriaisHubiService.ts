@@ -530,7 +530,7 @@ export const responderDuvidaSuporteIA = async (
   usuario?: UsuarioLoja | null,
   loja?: Loja | null
 ): Promise<string> => {
-  const apiKey = getGeminiApiKey();
+  const apiKey = getGeminiApiKey(loja);
   const nomeUsuario = primeiroNomeUsuario(usuario?.nome_completo);
   const nomeLoja = loja?.nome_fantasia || 'HUBI PDV';
 

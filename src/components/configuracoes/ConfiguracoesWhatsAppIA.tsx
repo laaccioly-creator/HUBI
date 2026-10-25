@@ -193,7 +193,8 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
   const handleTestarGemini = async () => {
     setStatusGemini(null);
     setTestandoGemini(true);
-    const resultado = await testarConexaoGemini(form.gemini_api_key);
+    const chave = loja?.gemini_api_key || form.gemini_api_key;
+    const resultado = await testarConexaoGemini(chave);
     setStatusGemini(resultado);
     setTestandoGemini(false);
   };
@@ -376,55 +377,49 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
         <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-700/30">
           <div className="flex items-center gap-2.5">
             <Sparkles className="w-5 h-5 text-amber-400" />
-            <h2 className="font-semibold text-base md:text-lg">Google Gemini API (BYOK)</h2>
+            <h2 className="font-semibold text-base md:text-lg">Google Gemini API (Centralizada)</h2>
           </div>
-          <a
-            href="https://aistudio.google.com/app/apikey"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 hover:underline"
-          >
-            <span>Obter chave gratuita</span>
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
+          <span className="text-[11px] font-bold text-slate-400">
+            Ponto Único: Configurações &gt; Dados da Loja
+          </span>
         </div>
 
         <p className={`text-xs md:text-sm mt-3 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-          No modelo <strong>BYOK (Bring Your Own Key)</strong>, você insere sua chave de API do Gemini 1.5 Flash. O plano gratuito da Google oferece até 15 requisições por minuto com custo zero para a sua loja.
+          A credencial do <strong>Google Gemini</strong> é centralizada e compartilhada por todas as inteligências do HUBI (Atendimento WhatsApp, Rubi IA, Vitrine Virtual e PDV).
         </p>
 
         <div className="mt-4 space-y-3">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Chave de API do Gemini
-          </label>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            <div className="relative flex-1">
-              <input
-                type={mostrarGeminiKey ? 'text' : 'password'}
-                placeholder="AIzaSy..."
-                value={form.gemini_api_key}
-                onChange={(e) => setForm(prev => ({ ...prev, gemini_api_key: e.target.value }))}
-                disabled={!podeEditar}
-                className={`w-full pl-3 pr-10 py-2.5 text-sm rounded-xl border outline-none font-mono transition-all ${
-                  isDark
-                    ? 'bg-slate-900 border-slate-700 focus:border-emerald-500 text-white'
-                    : 'bg-slate-50 border-slate-300 focus:border-emerald-600 text-slate-900'
-                }`}
-              />
-              <button
-                type="button"
-                onClick={() => setMostrarGeminiKey(!mostrarGeminiKey)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300"
-              >
-                {mostrarGeminiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-amber-400 shrink-0">
+                <Key className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-white">Chave Oficial da Loja</span>
+                  {loja?.gemini_api_key ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                      ✓ Ativa e Centralizada
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                      ⚠️ Não configurada
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400 font-mono mt-0.5">
+                  {loja?.gemini_api_key
+                    ? `${loja.gemini_api_key.slice(0, 6)}••••••••••••${loja.gemini_api_key.slice(-4)}`
+                    : 'Cadastre a chave obrigatória em Configurações > Dados da Loja / IA'}
+                </p>
+              </div>
             </div>
 
             <button
               type="button"
               onClick={handleTestarGemini}
-              disabled={testandoGemini || !form.gemini_api_key}
-              className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs md:text-sm font-medium transition-all ${
+              disabled={testandoGemini || !loja?.gemini_api_key}
+              className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs md:text-sm font-bold transition-all shrink-0 ${
                 isDark
                   ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
                   : 'bg-slate-200 hover:bg-slate-300 text-slate-800'
@@ -438,7 +433,7 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
               ) : (
                 <>
                   <Key className="w-4 h-4 text-emerald-400" />
-                  <span>Testar Chave</span>
+                  <span>Testar Conexão</span>
                 </>
               )}
             </button>

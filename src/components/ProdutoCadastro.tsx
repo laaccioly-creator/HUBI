@@ -339,24 +339,6 @@ export const ProdutoCadastro: React.FC = () => {
   // Modal de Categorias
   const [modalCategorias, setModalCategorias] = useState<boolean>(false);
 
-  // Modal de Configuração de Chave Gemini
-  const [modalKeyGemini, setModalKeyGemini] = useState<boolean>(false);
-  const [tempApiKey, setTempApiKey] = useState<string>(() => getGeminiApiKey(loja));
-  const [salvandoKeyGemini, setSalvandoKeyGemini] = useState<boolean>(false);
-
-  useEffect(() => {
-    const carregarChave = async () => {
-      const k = getGeminiApiKey(loja);
-      if (k) {
-        setTempApiKey(k);
-      } else if (loja?.id) {
-        const buscada = await obterOuBuscarGeminiApiKey(loja);
-        if (buscada) setTempApiKey(buscada);
-      }
-    };
-    carregarChave();
-  }, [loja]);
-
   // Modal / Aba de Modo de Preenchimento Inteligente
   const [modoPreenchimentoIA, setModoPreenchimentoIA] = useState<'foto' | 'descricao' | 'barcode'>('foto');
   const [textoDescricaoIA, setTextoDescricaoIA] = useState<string>('');
@@ -1875,25 +1857,7 @@ export const ProdutoCadastro: React.FC = () => {
                 </span>
               </button>
 
-              {/* 1. Chave Gemini IA */}
-              <button
-                type="button"
-                onClick={async () => {
-                  const k = getGeminiApiKey(loja) || (loja?.id ? await obterOuBuscarGeminiApiKey(loja) : '');
-                  setTempApiKey(k);
-                  setModalKeyGemini(true);
-                }}
-                className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-emerald-500/15 dark:bg-[#000000] dark:hover:bg-emerald-500/20 border border-slate-300 hover:border-emerald-500/70 dark:border-[#1E293B] dark:hover:border-emerald-500/70 text-slate-700 hover:text-emerald-950 dark:text-slate-200 dark:hover:text-white transition-all duration-150 select-none group"
-                title="Configurar Chave Google Gemini AI"
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <Sparkles className="w-4 h-4 text-amber-500 dark:text-amber-400 shrink-0" />
-                  <span className="font-bold truncate">Chave Gemini IA</span>
-                </div>
-                <span className="text-[10px] text-slate-400 font-normal shrink-0">
-                  Configurar
-                </span>
-              </button>
+
 
               {/* 2. Atualizar o Produto com nossa IA (exclusivo para edição) */}
               {ehEdicao && (
@@ -3026,103 +2990,6 @@ export const ProdutoCadastro: React.FC = () => {
           </button>
         </form>
       </div>
-
-      {/* ========================================================================= */}
-      {/* MODAL DE CONFIGURAÇÃO DE CHAVE GOOGLE GEMINI AI                           */}
-      {/* ========================================================================= */}
-      {modalKeyGemini && (
-        <div className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-          <div className="bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] rounded-2xl w-full max-w-md p-6 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#1E293B] pb-3">
-              <div className="flex items-center gap-2.5">
-                <Sparkles className="w-5 h-5 text-amber-500 dark:text-amber-400" />
-                <h3 className="font-semibold text-base text-slate-900 dark:text-slate-100">Chave Google Gemini IA</h3>
-              </div>
-              <button onClick={() => setModalKeyGemini(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-2 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              <p>
-                Para habilitar o reconhecimento multimodal em alta precisão de fotos de produtos, você pode inserir sua chave gratuita do <strong>Google Gemini</strong>.
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Você pode obter sua chave gratuitamente no{' '}
-                <a
-                  href="https://aistudio.google.com/app/apikey"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-emerald-600 dark:text-emerald-400 underline font-bold"
-                >
-                  Google AI Studio
-                </a>.
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Chave da API (Gemini API Key):</label>
-              <input
-                type="password"
-                placeholder="AIzaSy..."
-                value={tempApiKey}
-                onChange={(e) => setTempApiKey(e.target.value)}
-                className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-              />
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setModalKeyGemini(false)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold transition cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={salvandoKeyGemini}
-                onClick={async () => {
-                  try {
-                    setSalvandoKeyGemini(true);
-                    await salvarGeminiApiKey(tempApiKey, loja?.id, loja);
-                    if (loja && setLoja) {
-                      const metaAtual = (loja as any).configuracoes_extras || {};
-                      setLoja({
-                        ...loja,
-                        configuracoes_extras: {
-                          ...metaAtual,
-                          ia: {
-                            ...(metaAtual.ia || {}),
-                            gemini_api_key: tempApiKey.trim()
-                          }
-                        }
-                      });
-                    }
-                    setModalKeyGemini(false);
-                    setSucessoIAMsg(tempApiKey.trim() ? '✨ Chave do Google Gemini sincronizada e salva no banco de dados com sucesso!' : 'Chave removida.');
-                  } catch (e: any) {
-                    console.warn('Erro ao salvar chave do Gemini:', e);
-                    alert('Erro ao salvar no banco. A chave foi mantida neste navegador.');
-                  } finally {
-                    setSalvandoKeyGemini(false);
-                  }
-                }}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold disabled:opacity-50 text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
-              >
-                {salvandoKeyGemini ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Salvando...</span>
-                  </>
-                ) : (
-                  'Salvar Chave'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modal Radar de Preços de Mercado (IA) */}
       {modalRadarAberto && (

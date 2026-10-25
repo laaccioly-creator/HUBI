@@ -187,6 +187,7 @@
 | **Configuração de Recibo** | `src/components/ModalConfigurarRecibo.tsx` | Personalização do cabeçalho, rodapé e logotipo dos cupons impressos. |
 | **Confirmação de Exclusão** | `src/components/ModalConfirmacaoExclusao.tsx` | Modal com trava de segurança para deleções irreversíveis de registros. |
 | **Diálogo de Alerta / Feedback** | `src/components/ModalAlertaFeedback.tsx` | Modal acessível de feedback para mensagens de sucesso, alerta ou erro operacional. |
+| **Tutorial Chave Gemini AI** | `src/components/configuracoes/ModalComoObterGeminiApiKey.tsx` | Modal educativo ilustrado em 4 passos com links diretos e botão de colar para obtenção de API Key gratuita no Google AI Studio. |
 | **Modal Nova Filial (Conglomerado)** | `src/components/lojas/ModalAdicionarLoja.tsx` | Cadastro de nova unidade/filial com degustação gratuita, formulário de endereço completo (CEP, logradouro, número, complemento, bairro, cidade, UF), autopreenchimento assíncrono via ViaCEP e foco automático. |
 | **Parâmetros Globais HUBI (Admin)** | `src/components/configuracoes/CardParametrosHubiAdmin.tsx` | Painel exclusivo do Super Admin (`laaccioly@hotmail.com`) para controle de dias de trial, valores base e modo manutenção. |
 | **Conexão Mercado Livre** | `src/components/CardConexaoMercadoLivre.tsx` | Card de integração OAuth 2.0 com Mercado Livre, status em tempo real, dados do vendedor e ações de vínculo. |

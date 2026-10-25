@@ -554,22 +554,6 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const [abaModalIA, setAbaModalIA] = useState<'foto' | 'texto' | 'codigo'>('foto');
   const [promptTextoIA, setPromptTextoIA] = useState<string>('');
   const [promptCodigoIA, setPromptCodigoIA] = useState<string>('');
-  const [modalKeyGemini, setModalKeyGemini] = useState<boolean>(false);
-  const [tempApiKey, setTempApiKey] = useState<string>(() => getGeminiApiKey(loja));
-  const [salvandoKeyGemini, setSalvandoKeyGemini] = useState<boolean>(false);
-
-  useEffect(() => {
-    const carregarChaveGemini = async () => {
-      const k = getGeminiApiKey(loja);
-      if (k) {
-        setTempApiKey(k);
-      } else if (loja?.id) {
-        const buscada = await obterOuBuscarGeminiApiKey(loja);
-        if (buscada) setTempApiKey(buscada);
-      }
-    };
-    carregarChaveGemini();
-  }, [loja]);
 
   // Carregar unidades de medida da loja (ou padrao) com isolamento RLS
   useEffect(() => {
@@ -1503,9 +1487,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       chave = await obterOuBuscarGeminiApiKey(loja);
     }
     if (!chave) {
-      setTempApiKey('');
-      setModalKeyGemini(true);
-      setMensagemFeedback({ texto: 'Configure sua Chave do Google Gemini para usar a IA.', tipo: 'erro' });
+      setMensagemFeedback({ texto: 'A Chave do Google Gemini não está configurada. Acesse Configurações > Dados da Loja.', tipo: 'erro' });
       return;
     }
     setGerandoDescricaoIA(true);
@@ -1594,9 +1576,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       chave = await obterOuBuscarGeminiApiKey(loja);
     }
     if (!chave) {
-      setTempApiKey('');
-      setModalKeyGemini(true);
-      setMensagemFeedback({ texto: 'Configure sua Chave do Google Gemini para usar a IA.', tipo: 'erro' });
+      setMensagemFeedback({ texto: 'A Chave do Google Gemini não está configurada. Acesse Configurações > Dados da Loja.', tipo: 'erro' });
       return;
     }
     try {
@@ -3077,23 +3057,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
               {/* Lado Direito: Pílulas de Ação no Padrão do Desktop */}
               <div className="flex flex-col justify-between flex-1 gap-1.5 min-w-0">
-                {/* 1. Chave Gemini IA */}
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const k = getGeminiApiKey(loja) || (loja?.id ? await obterOuBuscarGeminiApiKey(loja) : '');
-                    setTempApiKey(k);
-                    setModalKeyGemini(true);
-                  }}
-                  className="h-9 px-3 rounded-xl text-xs font-medium border flex items-center justify-between transition-all w-full shadow-sm bg-white hover:bg-emerald-500/15 dark:bg-slate-900/90 dark:hover:bg-emerald-500/20 border-slate-200 hover:border-emerald-500/70 dark:border-slate-800 dark:hover:border-emerald-500/70 text-slate-700 hover:text-emerald-950 dark:text-slate-200 dark:hover:text-white cursor-pointer"
-                  title="Configurar Chave Google Gemini AI"
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
-                    <span className="font-semibold truncate">Chave Gemini IA</span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal shrink-0">Configurar</span>
-                </button>
+
 
                 {/* 2. Botão de IA (Atualizar ou Preencher) */}
                 {!isNovo ? (
@@ -4681,19 +4645,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const k = getGeminiApiKey(loja) || (loja?.id ? await obterOuBuscarGeminiApiKey(loja) : '');
-                      setTempApiKey(k);
-                      setModalKeyGemini(true);
-                    }}
-                    className="px-2 py-1 rounded-xl bg-emerald-50 dark:bg-[#0B0F17] text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-[#0D111A] flex items-center gap-1 text-[11px] font-bold transition border border-emerald-200 dark:border-[#1E293B] cursor-pointer"
-                    title="Configurar Chave Gemini"
-                  >
-                    <Key className="w-3.5 h-3.5" />
-                    <span>Chave IA</span>
-                  </button>
+
                   <button
                     type="button"
                     onClick={() => setModalCriarComIAAberto(false)}
@@ -5137,117 +5089,6 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 : mensagemStatusIA || 'Processando informações com Inteligência Artificial...'
             }
           />
-        )}
-
-        {/* MODAL CONFIGURAR CHAVE GEMINI */}
-        {modalKeyGemini && (
-          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-            <div className="bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] rounded-3xl w-full max-w-sm p-5 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 text-slate-900 dark:text-white">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#1E293B] pb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-400 to-indigo-500 flex items-center justify-center text-white">
-                    <Sparkles className="w-4 h-4" />
-                  </div>
-                  <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">Chave Google Gemini IA</h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setModalKeyGemini(false)}
-                  className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-2 text-xs text-slate-600 dark:text-slate-300">
-                <p>
-                  Para habilitar o preenchimento por foto e geração de descrições, insira sua chave gratuita do <strong className="text-slate-900 dark:text-white">Google Gemini</strong>.
-                </p>
-                <div className="p-3 bg-slate-50 dark:bg-[#0B0F17] rounded-xl border border-slate-200 dark:border-[#1E293B] space-y-1.5">
-                  <p className="text-[11px] text-amber-500 font-bold">Como obter sua chave gratuita (1 min):</p>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-300">
-                    1. Acesse o <a
-                      href="https://aistudio.google.com/app/apikey"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-emerald-600 dark:text-emerald-400 underline font-bold"
-                    >
-                      Google AI Studio (clique aqui)
-                    </a>
-                  </p>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-300">2. Faça login com sua conta Google</p>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-300">3. Clique em <strong>"Create API key"</strong> e copie o código</p>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Chave da API (Gemini API Key):</label>
-                <input
-                  type="password"
-                  placeholder="AIzaSy..."
-                  value={tempApiKey}
-                  onChange={(e) => setTempApiKey(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-[#000000] border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <div className="flex gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setModalKeyGemini(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-[#1E293B] hover:bg-slate-50 dark:hover:bg-[#0D111A] text-slate-700 dark:text-slate-300 text-xs font-bold transition cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  disabled={salvandoKeyGemini}
-                  onClick={async () => {
-                    try {
-                      setSalvandoKeyGemini(true);
-                      await salvarGeminiApiKey(tempApiKey, loja?.id, loja);
-                      if (loja && setLoja) {
-                        const metaAtual = (loja as any).configuracoes_extras || {};
-                        setLoja({
-                          ...loja,
-                          configuracoes_extras: {
-                            ...metaAtual,
-                            ia: {
-                              ...(metaAtual.ia || {}),
-                              gemini_api_key: tempApiKey.trim()
-                            }
-                          }
-                        });
-                      }
-                      setModalKeyGemini(false);
-                      setMensagemFeedback({
-                        texto: tempApiKey.trim() ? 'Chave do Gemini sincronizada e salva com sucesso!' : 'Chave removida.',
-                        tipo: 'sucesso'
-                      });
-                    } catch (e: any) {
-                      console.warn('Erro ao persistir chave do Gemini:', e);
-                      setMensagemFeedback({
-                        texto: 'Erro ao salvar no banco. A chave foi mantida neste dispositivo.',
-                        tipo: 'erro'
-                      });
-                    } finally {
-                      setSalvandoKeyGemini(false);
-                    }
-                  }}
-                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5"
-                >
-                  {salvandoKeyGemini ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Salvando...</span>
-                    </>
-                  ) : (
-                    'Salvar Chave'
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
         )}
       </div>
     );

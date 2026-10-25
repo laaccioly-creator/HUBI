@@ -120,7 +120,7 @@ export const extrairDimensoesEPesoTexto = (texto: string): DimensoesEPesoExtraid
   return res;
 };
 
-const STORAGE_KEY_GEMINI_KEY = 'hubi_gemini_api_key';
+
 const STORAGE_KEY_GOOGLE_SEARCH_KEY = 'hubi_google_search_api_key';
 const STORAGE_KEY_GOOGLE_SEARCH_CX = 'hubi_google_search_cx';
 
@@ -129,14 +129,14 @@ export const getGeminiApiKey = (loja?: any): string => {
     loja?.gemini_api_key ||
     loja?.configuracoes_extras?.ia?.gemini_api_key ||
     import.meta.env.VITE_GEMINI_API_KEY ||
-    localStorage.getItem(STORAGE_KEY_GEMINI_KEY) ||
+
     ''
   ).trim();
 
   // Se veio do objeto da loja mas não estava no localStorage do aparelho, sincroniza no storage
-  if (chave && !localStorage.getItem(STORAGE_KEY_GEMINI_KEY)) {
+  if (false) {
     try {
-      localStorage.setItem(STORAGE_KEY_GEMINI_KEY, chave);
+
     } catch {}
   }
 
@@ -162,7 +162,7 @@ export const obterOuBuscarGeminiApiKey = async (loja?: Loja | any | null): Promi
       if (!error && data) {
         if (data.gemini_api_key && typeof data.gemini_api_key === 'string' && data.gemini_api_key.trim()) {
           const limpa = data.gemini_api_key.trim();
-          localStorage.setItem(STORAGE_KEY_GEMINI_KEY, limpa);
+
           return limpa;
         }
 
@@ -179,7 +179,7 @@ export const obterOuBuscarGeminiApiKey = async (loja?: Loja | any | null): Promi
           if (chaveDb && typeof chaveDb === 'string') {
             const limpa = chaveDb.trim();
             if (limpa) {
-              localStorage.setItem(STORAGE_KEY_GEMINI_KEY, limpa);
+    
               return limpa;
             }
           }
@@ -209,9 +209,9 @@ export const salvarGeminiApiKey = async (
 
   // 1. Grava no localStorage para acesso síncrono imediato no dispositivo
   if (limpa) {
-    localStorage.setItem(STORAGE_KEY_GEMINI_KEY, limpa);
+
   } else {
-    localStorage.removeItem(STORAGE_KEY_GEMINI_KEY);
+
   }
 
   // 2. Persiste no banco de dados Supabase
@@ -247,6 +247,7 @@ export const salvarGeminiApiKey = async (
       const { error } = await supabase
         .from('lojas')
         .update({
+          gemini_api_key: limpa,
           configuracoes_extras: novaConfig,
           atualizado_em: new Date().toISOString()
         })

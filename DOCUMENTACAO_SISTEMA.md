@@ -1297,6 +1297,19 @@ O assistente da loja opera sob uma arquitetura de 3 estágios que prioriza veloc
 4. **Estágio 3 — Motor Gerativo (`geminiService.ts`):**
    - Acionado apenas quando a pergunta envolver conselhos criativos abertos, estratégias de marketing ou análise textual aprofundada, recebendo o contexto já sintetizado e seguro.
 
+#### 5.12.1 Centralização e Governança da Chave Gemini (BYOK Seguro)
+Para garantir governança absoluta, segurança operacional e transparência para o lojista:
+1. **Ponto Único e Obrigatório de Configuração (`ConfiguracoesLoja.tsx`):**
+   - Campo obrigatório **"Chave de API do Google Gemini (Obrigatório)"** em *Configurações > Dados da Loja / IA*.
+   - Validação bloqueante: a loja não pode ser salva sem o preenchimento da chave. Caso o lojista tente salvar em branco, a submissão é bloqueada, a aba de Dados da Loja é focalizada e um alerta claro em pt-BR é disparado.
+   - Modal didático ilustrado `ModalComoObterGeminiApiKey.tsx` integrado com botão `[ Como obter a chave ]`, instruindo a criação gratuita de credencial no Google AI Studio em 4 passos.
+2. **Persistência Relacional Pura:**
+   - A credencial é armazenada na coluna relacional `gemini_api_key TEXT NOT NULL` da tabela `public.lojas` e sincronizada com `configuracoes_extras.ia.gemini_api_key`.
+   - Proibição absoluta de armazenamento de segredos e chaves de API em `localStorage` ou variáveis desprotegidas no navegador.
+3. **Erradicação de Modais e Solicitações Secundárias:**
+   - Extintos todos os modais, botões flutuantes e prompts secundários de chave em `ProdutoCadastro.tsx` e `ProdutosMobile.tsx`.
+   - Consumo transparente: a chave cadastrada na loja é injetada automaticamente para geração de títulos, descrições, assistente Rubi e catálogo online sem que operadores ou clientes finais precisem digitar qualquer chave.
+
 ### 5.13 Infraestrutura de Monetização SaaS, Multi-Lojas e Mercado Pago
 A monetização do HUBI adota arquitetura de licença anual autônoma por unidade (`loja_id`), vinculada à camada de organização/conglomerado (`organizacoes`), eliminando qualquer risco de inadimplência cruzada:
 1. **Ciclo de Vida Autônomo por Unidade:**

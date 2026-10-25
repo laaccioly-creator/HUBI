@@ -80,6 +80,7 @@ import { testarConexaoSerpApi, salvarSerpApiKey, obterSerpApiKey } from '../serv
 import { useTheme } from '../contexts/ThemeContext';
 import { CardConexaoMercadoLivre } from './mercadolivre/CardConexaoMercadoLivre';
 import { CardParametrosHubiAdmin } from './configuracoes/CardParametrosHubiAdmin';
+import { ModalComoObterGeminiApiKey } from './configuracoes/ModalComoObterGeminiApiKey';
 
 type SubTelaConfig =
   | 'menu'
@@ -704,6 +705,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const [especialidadeNegocio, setEspecialidadeNegocio] = useState<string>('');
   const [tomVozRubi, setTomVozRubi] = useState<'consultivo' | 'tecnico' | 'amigavel' | 'formal'>('consultivo');
   const [geminiApiKey, setGeminiApiKey] = useState<string>('');
+  const [modalComoObterGeminiApiKeyAberto, setModalComoObterGeminiApiKeyAberto] = useState<boolean>(false);
   const [googleSearchApiKey, setGoogleSearchApiKey] = useState<string>('');
   const [googleSearchCx, setGoogleSearchCx] = useState<string>('');
 
@@ -908,7 +910,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       setEspecialidadeNegocio(perfilNegocio.descricao_especialidade || '');
       setTomVozRubi(perfilNegocio.tom_voz || 'consultivo');
       const iaConfig = extras.ia || {};
-      setGeminiApiKey(iaConfig.gemini_api_key || '');
+      setGeminiApiKey(loja.gemini_api_key || iaConfig.gemini_api_key || '');
       setGoogleSearchApiKey(iaConfig.google_search_api_key || localStorage.getItem('hubi_google_search_api_key') || '');
       setGoogleSearchCx(iaConfig.google_search_cx || localStorage.getItem('hubi_google_search_cx') || '');
       setSerpApiKey(loja.serpapi_key || iaConfig.serpapi_key || localStorage.getItem('hubi_serpapi_key') || '');
@@ -1099,7 +1101,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           segmentoNegocio: perfilNegocio.segmento || 'geral',
           especialidadeNegocio: perfilNegocio.descricao_especialidade || '',
           tomVozRubi: perfilNegocio.tom_voz || 'consultivo',
-          geminiApiKey: iaConfig.gemini_api_key || '',
+          geminiApiKey: loja.gemini_api_key || iaConfig.gemini_api_key || '',
           googleSearchApiKey: iaConfig.google_search_api_key || localStorage.getItem('hubi_google_search_api_key') || '',
           googleSearchCx: iaConfig.google_search_cx || localStorage.getItem('hubi_google_search_cx') || '',
           serpApiKey: loja.serpapi_key || iaConfig.serpapi_key || localStorage.getItem('hubi_serpapi_key') || '',
@@ -1228,6 +1230,15 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
 
   const handleSalvarTodasConfiguracoes = async () => {
     if (!loja?.id) return;
+    if (!geminiApiKey.trim()) {
+      mostrarAviso(
+        'A Chave de API do Google Gemini é obrigatória para salvar as configurações da loja. Por favor, preencha o campo em Dados da Loja / IA.',
+        'Chave do Gemini Obrigatória'
+      );
+      setSubTela('dados-loja');
+      setSalvando(false);
+      return;
+    }
     try {
       setSalvando(true);
       const extrasAtuais = loja.configuracoes_extras || {};
@@ -1394,6 +1405,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           endereco_cep: enderecoCep,
           endereco_cidade: enderecoCidade,
           endereco_estado: enderecoEstado,
+          gemini_api_key: geminiApiKey.trim(),
           serpapi_key: serpApiKey.trim() || null,
           retirada_loja_ativa: Boolean(trabalhoComRetirada),
           frete_gratis_ativo: Boolean(freteGratisAtivo),
@@ -1439,7 +1451,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               endereco_cep: enderecoCep,
               endereco_cidade: enderecoCidade,
               endereco_estado: enderecoEstado,
-              serpapi_key: serpApiKey.trim() || null,
+              gemini_api_key: geminiApiKey.trim(),
+          serpapi_key: serpApiKey.trim() || null,
               retirada_loja_ativa: Boolean(trabalhoComRetirada),
               frete_gratis_ativo: Boolean(freteGratisAtivo),
               frete_gratis_valor_minimo: typeof freteGratisValorMinimo === 'number'
@@ -1477,6 +1490,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 endereco_cep: enderecoCep,
                 endereco_cidade: enderecoCidade,
                 endereco_estado: enderecoEstado,
+                gemini_api_key: geminiApiKey.trim(),
                 configuracoes_extras: novasExtras
               })
               .eq('id', loja.id);
@@ -4058,26 +4072,33 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   </div>
                 </div>
 
-                {/* Chave de API Google Gemini (Opcional) */}
+                {/* Chave de API Google Gemini (Obrigatório) */}
                 <div className="pt-3 border-t border-slate-200 dark:border-slate-800">
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1.5">
                     <label className="text-[11px] font-bold text-slate-900 dark:text-slate-300 flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                      <span>Chave de API do Google Gemini (Opcional - Inteligência Avançada)</span>
+                      <span>Chave de API do Google Gemini (Obrigatório)</span>
+                      <span className="text-rose-500 font-black">*</span>
                     </label>
-                    <span className="text-[10px] text-emerald-800 dark:text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                      Recomendado para Vendedora IA
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setModalComoObterGeminiApiKeyAberto(true)}
+                      className="inline-flex items-center gap-1.5 text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 font-bold transition hover:underline cursor-pointer self-start sm:self-auto"
+                    >
+                      <HelpCircle className="w-3.5 h-3.5" />
+                      <span>[ Como obter a chave ]</span>
+                    </button>
                   </div>
                   <input
                     type="password"
                     value={geminiApiKey}
                     onChange={(e) => setGeminiApiKey(e.target.value)}
                     placeholder="AIzaSy..."
+                    required
                     className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:border-emerald-500 outline-hidden transition font-mono"
                   />
                   <p className="text-[10px] text-slate-800 dark:text-slate-400 mt-1 leading-relaxed">
-                    Insira sua chave gratuita do <strong>Google AI Studio</strong> para que a Rubi tenha poder total de conversação natural, conheça os produtos a fundo e responda aos clientes com empatia e consultoria humana no Catálogo Online. Se não configurada, a Rubi continuará atendendo normalmente através do motor inteligente local.
+                    Credencial oficial e obrigatória do <strong>Google AI Studio</strong>. Ponto único e exclusivo de configuração utilizado de forma transparente por todas as inteligências do HUBI (Rubi IA, Vendedora IA no Catálogo Online, Reconhecimento Multimodal de Produtos e Atendimento no WhatsApp).
                   </p>
                 </div>
               </div>
@@ -5751,6 +5772,13 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           </div>
         </div>
       )}
+
+      {/* MODAL COMO OBTER CHAVE GEMINI AI STUDIO */}
+      <ModalComoObterGeminiApiKey
+        isOpen={modalComoObterGeminiApiKeyAberto}
+        onClose={() => setModalComoObterGeminiApiKeyAberto(false)}
+        onPreencherChave={(chave) => setGeminiApiKey(chave)}
+      />
 
     </div>
   );
