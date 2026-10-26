@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   LayoutDashboard,
   RefreshCw,
@@ -90,6 +90,7 @@ export const DashboardCockpit: React.FC = () => {
   // Estados do Modal de Desdobramento por Loja (Visão Conglomerado)
   const [modalDesdobramentoAberto, setModalDesdobramentoAberto] = useState<boolean>(false);
   const [metricaDesdobramento, setMetricaDesdobramento] = useState<TipoMetricaCockpitDrawer | null>(null);
+  const metricaAtivaRef = useRef<TipoMetricaCockpitDrawer | null>(null);
   const [payloadDrawerEspecifico, setPayloadDrawerEspecifico] = useState<PayloadDashboardExecutivo | null>(null);
   const [lojaDrawerEspecifica, setLojaDrawerEspecifica] = useState<{ id: string; nome: string } | null>(null);
   const [lojaIdAlvoDrawer, setLojaIdAlvoDrawer] = useState<string | null>(null);
@@ -103,6 +104,7 @@ export const DashboardCockpit: React.FC = () => {
     setPayloadDrawerEspecifico(null);
     setLojaDrawerEspecifica(null);
     setLojaIdAlvoDrawer(null);
+    metricaAtivaRef.current = null;
   }, 'cockpit-metric-drawer');
   useRegisterOverlay(modalEntradaAberto, () => {
     setModalEntradaAberto(false);
@@ -214,23 +216,30 @@ export const DashboardCockpit: React.FC = () => {
   // Se estiver na visão "Todas as Lojas", abre o modal intermediário de desdobramento por filial.
   // Se for uma loja individual, abre diretamente a gaveta lateral de auditoria.
   const handleCliqueGauge = (metrica: TipoMetricaCockpitDrawer) => {
+    metricaAtivaRef.current = metrica;
     if (escopoLojaId === 'todas') {
       setMetricaDesdobramento(metrica);
       setModalDesdobramentoAberto(true);
     } else {
       setLojaDrawerEspecifica(null);
       setPayloadDrawerEspecifico(null);
+      setLojaIdAlvoDrawer(null);
       setDrawerMetrica(metrica);
     }
   };
 
   // Handler de seleção de filial específica no modal de desdobramento
-  const handleSelecionarLojaDesdobramento = (lojaId: string, lojaNome: string) => {
-    const metricaAlvo = metricaDesdobramento || drawerMetrica;
+  const handleSelecionarLojaDesdobramento = (
+    lojaId: string,
+    lojaNome: string,
+    metricaOp?: TipoMetricaCockpitDrawer | null
+  ) => {
+    const metricaAlvo = metricaOp || metricaDesdobramento || metricaAtivaRef.current || drawerMetrica;
     setLojaDrawerEspecifica({ id: lojaId, nome: lojaNome });
     setLojaIdAlvoDrawer(lojaId);
     setModalDesdobramentoAberto(false);
     if (metricaAlvo) {
+      metricaAtivaRef.current = metricaAlvo;
       setDrawerMetrica(metricaAlvo);
     }
 
@@ -252,13 +261,14 @@ export const DashboardCockpit: React.FC = () => {
   };
 
   // Handler de ação "Ver Auditoria Geral Consolidada" a partir do modal de desdobramento
-  const handleVerConsolidado = () => {
-    const metricaAlvo = metricaDesdobramento || drawerMetrica;
+  const handleVerConsolidado = (metricaOp?: TipoMetricaCockpitDrawer | null) => {
+    const metricaAlvo = metricaOp || metricaDesdobramento || metricaAtivaRef.current || drawerMetrica;
     setLojaDrawerEspecifica(null);
     setPayloadDrawerEspecifico(null);
     setLojaIdAlvoDrawer(null);
     setModalDesdobramentoAberto(false);
     if (metricaAlvo) {
+      metricaAtivaRef.current = metricaAlvo;
       setDrawerMetrica(metricaAlvo);
     }
   };
@@ -710,6 +720,7 @@ export const DashboardCockpit: React.FC = () => {
           setPayloadDrawerEspecifico(null);
           setLojaDrawerEspecifica(null);
           setLojaIdAlvoDrawer(null);
+          metricaAtivaRef.current = null;
         }}
         tipoMetrica={drawerMetrica}
         payload={payloadDrawerEspecifico || payloadExecutivo}

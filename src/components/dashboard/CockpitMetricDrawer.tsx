@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   X,
   Sparkles,
@@ -114,6 +114,16 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
 
   const { decomposicoes, metricas, metasProporcionais, parecerJev, intervalo } = payload;
 
+  // Quando lojaIdAlvo for informado e houver desdobramento disponível no payload,
+  // utiliza as métricas e metas específicas da filial selecionada enquanto os detalhes aprofundados são carregados
+  const itemLojaDesdobramento = useMemo(() => {
+    if (!lojaIdAlvo || !payload.desdobramentoLojas) return null;
+    return payload.desdobramentoLojas.find(d => d.lojaId === lojaIdAlvo) || null;
+  }, [lojaIdAlvo, payload.desdobramentoLojas]);
+
+  const metricasEfetivas = itemLojaDesdobramento?.metricas || metricas;
+  const metasEfetivas = itemLojaDesdobramento?.metasProporcionais || metasProporcionais;
+
   // Formatação de Moeda
   const formMoeda = (val: number) => formatarMoeda(val);
 
@@ -160,7 +170,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
     },
     saude_estoque: {
       titulo: 'Saúde do Estoque & Ruptura',
-      subtitulo: decomposicoes.saudeEstoque.subtituloTag,
+      subtitulo: decomposicoes?.saudeEstoque?.subtituloTag || 'Auditoria de rupturas e excessos',
       icone: Boxes,
       cor: 'emerald'
     }
@@ -261,17 +271,17 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                       {formMoeda(decomposicoes.faturamento.totalFaturamento)}
                     </div>
                     <span className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-semibold">
-                      Meta: {formMoeda(metasProporcionais.meta_faturamento)}
+                      Meta: {formMoeda(metasEfetivas.meta_faturamento)}
                     </span>
                   </div>
 
                   <div className={`p-4 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] ${cardBorderClass} shadow-xs space-y-1`}>
                     <span className="text-[11px] font-bold text-black dark:text-slate-300 uppercase tracking-wider">Total de Vendas</span>
                     <div className="text-xl sm:text-2xl font-black text-black dark:text-white font-mono">
-                      {metricas.pedidos}
+                      {metricasEfetivas.pedidos}
                     </div>
                     <span className="text-[11px] text-black dark:text-slate-400 font-semibold">
-                      Ticket: {formMoeda(metricas.ticket_medio)}
+                      Ticket: {formMoeda(metricasEfetivas.ticket_medio)}
                     </span>
                   </div>
                 </div>
@@ -474,7 +484,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                   <div className={`p-4 rounded-xl text-center flex flex-col items-center justify-center bg-white dark:bg-[#000000] ${cardBorderClass} shadow-xs space-y-1`}>
                     <span className="text-[11px] font-bold text-black dark:text-slate-300 uppercase tracking-wider">Meta do Período</span>
                     <div className="text-xl sm:text-2xl font-black text-black dark:text-white font-mono">
-                      {formMoeda(metasProporcionais.meta_lucro_liquido)}
+                      {formMoeda(metasEfetivas.meta_lucro_liquido)}
                     </div>
                     <span className="text-[11px] text-black dark:text-slate-400 font-semibold">
                       Proporcional ao período
@@ -598,7 +608,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                   <div className="space-y-0.5">
                     <span className="text-xs font-bold text-black dark:text-slate-300">Itens por Cesta de Compras</span>
                     <p className="text-[11px] text-black dark:text-slate-400 font-medium">
-                      Total de {decomposicoes.ticket.quantidadeItensTotal} unidades vendidas em {metricas.pedidos} pedidos
+                      Total de {decomposicoes.ticket.quantidadeItensTotal} unidades vendidas em {metricasEfetivas.pedidos} pedidos
                     </p>
                   </div>
                   <div className="text-xl font-black font-mono text-emerald-600 dark:text-emerald-400">

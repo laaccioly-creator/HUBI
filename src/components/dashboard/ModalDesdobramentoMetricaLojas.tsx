@@ -40,8 +40,8 @@ export interface ModalDesdobramentoMetricaLojasProps {
   dataInicioCustom?: string;
   dataFimCustom?: string;
   carregandoLojaId?: string | null;
-  onSelecionarLoja: (lojaId: string, lojaNome: string) => void;
-  onVerConsolidado: () => void;
+  onSelecionarLoja: (lojaId: string, lojaNome: string, metrica?: TipoMetricaCockpitDrawer | null) => void;
+  onVerConsolidado: (metrica?: TipoMetricaCockpitDrawer | null) => void;
 }
 
 interface ConfigMetricaVisual {
@@ -439,7 +439,7 @@ export const ModalDesdobramentoMetricaLojas: React.FC<ModalDesdobramentoMetricaL
             {/* Botão de Ação Destacado: Ver Auditoria Geral Consolidada */}
             <button
               type="button"
-              onClick={onVerConsolidado}
+              onClick={() => onVerConsolidado(tipoMetrica)}
               className="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-sm transition cursor-pointer active:scale-98"
               title="Abrir auditoria analítica consolidada de todas as lojas reunidas"
             >
@@ -524,7 +524,7 @@ export const ModalDesdobramentoMetricaLojas: React.FC<ModalDesdobramentoMetricaL
               <div className="pt-2 flex items-center justify-center gap-2.5">
                 <button
                   type="button"
-                  onClick={onVerConsolidado}
+                  onClick={() => onVerConsolidado(tipoMetrica)}
                   className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 transition cursor-pointer shadow-xs active:scale-98"
                 >
                   <BarChart3 className="w-4 h-4" />
@@ -580,7 +580,7 @@ export const ModalDesdobramentoMetricaLojas: React.FC<ModalDesdobramentoMetricaL
                 return (
                   <div
                     key={item.lojaId}
-                    onClick={() => onSelecionarLoja(item.lojaId, item.lojaNome)}
+                    onClick={() => onSelecionarLoja(item.lojaId, item.lojaNome, tipoMetrica)}
                     className={`group relative rounded-3xl p-4 sm:p-5 flex flex-col justify-between transition-all cursor-pointer shadow-sm hover:shadow-xl active:scale-[0.99] ${
                       isDark
                         ? 'bg-[#000000] border-2 border-slate-700 hover:border-emerald-500'
