@@ -1094,23 +1094,31 @@ export const PosCheckout: React.FC = () => {
         data_venda: dataVendaFinal
       };
 
-      const itensFormatados = itens.map(item => ({
-        loja_id: loja.id,
-        produto_id: item.produto.id,
-        variacao_id: (item.variacao_id && SyncService.isUuidValido(item.variacao_id))
-          ? item.variacao_id
-          : (item.variacao?.id && SyncService.isUuidValido(item.variacao.id))
-            ? item.variacao.id
-            : null,
-        tabela_preco_utilizada: item.tabelaPrecoUtilizada,
-        nome_produto: item.produto.nome,
-        rotulo_variacao: item.variacao ? `${item.variacao.valor_variacao_1} ${item.variacao.valor_variacao_2 || ''}`.trim() : null,
-        preco_custo_unitario: item.variacao?.preco_custo || item.produto.preco_custo || 0,
-        preco_venda_unitario: item.precoUnitario,
-        quantidade: item.quantidade,
-        subtotal: item.subtotal,
-        observacoes: item.observacoes || null
-      }));
+      const itensFormatados = itens.map(item => {
+        const tipoUnidade = String(item.produto?.tipo_unidade || item.produto?.unidade_medida || 'un').toLowerCase();
+        const ehKg = tipoUnidade === 'kg';
+        return {
+          loja_id: loja.id,
+          produto_id: item.produto.id,
+          variacao_id: (item.variacao_id && SyncService.isUuidValido(item.variacao_id))
+            ? item.variacao_id
+            : (item.variacao?.id && SyncService.isUuidValido(item.variacao.id))
+              ? item.variacao.id
+              : null,
+          tabela_preco_utilizada: item.tabelaPrecoUtilizada,
+          nome_produto: item.produto.nome,
+          rotulo_variacao: item.variacao ? `${item.variacao.valor_variacao_1} ${item.variacao.valor_variacao_2 || ''}`.trim() : null,
+          preco_custo_unitario: item.variacao?.preco_custo || item.produto.preco_custo || 0,
+          preco_venda_unitario: item.precoUnitario,
+          quantidade: item.quantidade,
+          quantidade_solicitada: item.quantidade,
+          unidade_medida: ehKg ? 'KG' : (item.produto?.unidade_medida ? item.produto.unidade_medida.toUpperCase() : 'UN'),
+          tipo_unidade: tipoUnidade,
+          peso_solicitado_kg: ehKg ? item.quantidade : null,
+          subtotal: item.subtotal,
+          observacoes: item.observacoes || null
+        };
+      });
 
       let pedidoIdFinal = '';
 
@@ -1356,23 +1364,31 @@ export const PosCheckout: React.FC = () => {
         data_venda: dataVendaFinal
       };
 
-      const itensFormatados = itens.map(item => ({
-        loja_id: loja.id,
-        produto_id: item.produto.id,
-        variacao_id: (item.variacao_id && SyncService.isUuidValido(item.variacao_id))
-          ? item.variacao_id
-          : (item.variacao?.id && SyncService.isUuidValido(item.variacao.id))
-            ? item.variacao.id
-            : null,
-        tabela_preco_utilizada: item.tabelaPrecoUtilizada,
-        nome_produto: item.produto.nome,
-        rotulo_variacao: item.variacao ? `${item.variacao.valor_variacao_1} ${item.variacao.valor_variacao_2 || ''}`.trim() : null,
-        preco_custo_unitario: item.variacao?.preco_custo || item.produto.preco_custo || 0,
-        preco_venda_unitario: item.precoUnitario,
-        quantidade: item.quantidade,
-        subtotal: item.subtotal,
-        observacoes: item.observacoes || null
-      }));
+      const itensFormatados = itens.map(item => {
+        const tipoUnidade = String(item.produto?.tipo_unidade || item.produto?.unidade_medida || 'un').toLowerCase();
+        const ehKg = tipoUnidade === 'kg';
+        return {
+          loja_id: loja.id,
+          produto_id: item.produto.id,
+          variacao_id: (item.variacao_id && SyncService.isUuidValido(item.variacao_id))
+            ? item.variacao_id
+            : (item.variacao?.id && SyncService.isUuidValido(item.variacao.id))
+              ? item.variacao.id
+              : null,
+          tabela_preco_utilizada: item.tabelaPrecoUtilizada,
+          nome_produto: item.produto.nome,
+          rotulo_variacao: item.variacao ? `${item.variacao.valor_variacao_1} ${item.variacao.valor_variacao_2 || ''}`.trim() : null,
+          preco_custo_unitario: item.variacao?.preco_custo || item.produto.preco_custo || 0,
+          preco_venda_unitario: item.precoUnitario,
+          quantidade: item.quantidade,
+          quantidade_solicitada: item.quantidade,
+          unidade_medida: ehKg ? 'KG' : (item.produto?.unidade_medida ? item.produto.unidade_medida.toUpperCase() : 'UN'),
+          tipo_unidade: tipoUnidade,
+          peso_solicitado_kg: ehKg ? item.quantidade : null,
+          subtotal: item.subtotal,
+          observacoes: item.observacoes || null
+        };
+      });
 
       // 1. Pré-resolução estrita e atômica dos pagamentos antes de criar ou alterar pedidos
       const pagamentosResolvidos = (linhasParaSalvar?.length || 0) > 0
@@ -1747,23 +1763,31 @@ export const PosCheckout: React.FC = () => {
         data_venda: dataVendaFinal
       };
 
-      const itensFormatados = itens.map(item => ({
-        loja_id: loja.id,
-        produto_id: item.produto.id,
-        variacao_id: (item.variacao_id && SyncService.isUuidValido(item.variacao_id))
-          ? item.variacao_id
-          : (item.variacao?.id && SyncService.isUuidValido(item.variacao.id))
-            ? item.variacao.id
-            : null,
-        tabela_preco_utilizada: item.tabelaPrecoUtilizada,
-        nome_produto: item.produto.nome,
-        rotulo_variacao: item.variacao ? `${item.variacao.valor_variacao_1} ${item.variacao.valor_variacao_2 || ''}`.trim() : null,
-        preco_custo_unitario: item.variacao?.preco_custo || item.produto.preco_custo || 0,
-        preco_venda_unitario: item.precoUnitario,
-        quantidade: item.quantidade,
-        subtotal: item.subtotal,
-        observacoes: item.observacoes || null
-      }));
+      const itensFormatados = itens.map(item => {
+        const tipoUnidade = String(item.produto?.tipo_unidade || item.produto?.unidade_medida || 'un').toLowerCase();
+        const ehKg = tipoUnidade === 'kg';
+        return {
+          loja_id: loja.id,
+          produto_id: item.produto.id,
+          variacao_id: (item.variacao_id && SyncService.isUuidValido(item.variacao_id))
+            ? item.variacao_id
+            : (item.variacao?.id && SyncService.isUuidValido(item.variacao.id))
+              ? item.variacao.id
+              : null,
+          tabela_preco_utilizada: item.tabelaPrecoUtilizada,
+          nome_produto: item.produto.nome,
+          rotulo_variacao: item.variacao ? `${item.variacao.valor_variacao_1} ${item.variacao.valor_variacao_2 || ''}`.trim() : null,
+          preco_custo_unitario: item.variacao?.preco_custo || item.produto.preco_custo || 0,
+          preco_venda_unitario: item.precoUnitario,
+          quantidade: item.quantidade,
+          quantidade_solicitada: item.quantidade,
+          unidade_medida: ehKg ? 'KG' : (item.produto?.unidade_medida ? item.produto.unidade_medida.toUpperCase() : 'UN'),
+          tipo_unidade: tipoUnidade,
+          peso_solicitado_kg: ehKg ? item.quantidade : null,
+          subtotal: item.subtotal,
+          observacoes: item.observacoes || null
+        };
+      });
 
       // Chave de idempotência para evitar registros duplicados em caso de duplo clique ou repetições de rede
       const clientRequestId = pedidoEmEdicao?.id

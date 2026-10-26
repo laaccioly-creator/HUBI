@@ -1826,6 +1826,8 @@ export const CatalogoPublico: React.FC = () => {
           item.quantidade,
           regrasAtivas
         );
+        const tipoUnidade = String(item.produto?.tipo_unidade || item.produto?.unidade_medida || 'un').toLowerCase();
+        const ehKg = tipoUnidade === 'kg';
         return {
           loja_id: loja.id,
           pedido_id: pedidoCriado.id,
@@ -1838,6 +1840,9 @@ export const CatalogoPublico: React.FC = () => {
           preco_venda_unitario: precoUnitario,
           quantidade: item.quantidade,
           quantidade_solicitada: item.quantidade,
+          unidade_medida: ehKg ? 'KG' : (item.produto?.unidade_medida ? item.produto.unidade_medida.toUpperCase() : 'UN'),
+          tipo_unidade: tipoUnidade,
+          peso_solicitado_kg: ehKg ? item.quantidade : null,
           subtotal: precoUnitario * item.quantidade,
           criado_em: dataOperacaoIso
         };
@@ -2250,8 +2255,9 @@ Fico no aguardo da confirmação! ✨`;
             <img src={loja.url_logo} alt={loja.nome_fantasia} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-contain bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-white shrink-0 shadow-xs" />
           ) : (
             <div
-              className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-white shadow text-xs sm:text-base shrink-0 bg-emerald-600 dark:bg-slate-800 border border-emerald-500 dark:border-slate-700"
-              style={{ backgroundColor: corTema || undefined }}
+              className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-white shadow text-xs sm:text-base shrink-0 ${
+                isDark ? 'bg-slate-800 border border-slate-700' : 'bg-emerald-600 border border-emerald-500'
+              }`}
             >
               {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
             </div>

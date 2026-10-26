@@ -139,21 +139,63 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
                     <span className={`font-bold text-xs sm:text-sm block truncate ${isDark ? 'text-white' : 'text-black'}`}>
                       {item.nome_produto}
                     </span>
-                    <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                      <span className={`text-[11px] font-extrabold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
-                        {Number(item.quantidade)}x
-                      </span>
-                      {item.rotulo_variacao && (
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
-                          isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-slate-100 border-slate-300 text-black'
-                        }`}>
-                          {item.rotulo_variacao}
-                        </span>
-                      )}
-                      <span className={`text-[10px] font-mono font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-                        {formatarMoeda(Number(item.preco_venda_unitario))} /un
-                      </span>
-                    </div>
+                    {(() => {
+                      const ehKg = (
+                        (item as any).tipo_unidade ||
+                        item.unidade_medida ||
+                        item.produto?.tipo_unidade ||
+                        item.produto?.unidade_medida ||
+                        ''
+                      ).toLowerCase() === 'kg' || item.peso_solicitado_kg != null;
+
+                      const precoUnit = Number(item.preco_venda_unitario || item.preco_unitario || 0);
+                      const qtdReal = Number(item.quantidade || 0);
+                      const qtdSol = Number(item.quantidade_solicitada ?? item.peso_solicitado_kg ?? qtdReal);
+                      const teveAfericao = ehKg && Math.abs(qtdSol - qtdReal) > 0.001;
+
+                      if (ehKg) {
+                        return (
+                          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                            <span className={`text-[11px] font-extrabold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                              {qtdReal.toFixed(3)} kg
+                            </span>
+                            <span className={`text-[10px] font-mono font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                              a {formatarMoeda(precoUnit)} / kg
+                            </span>
+                            {teveAfericao && (
+                              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-mono font-semibold">
+                                (Solicitado: {qtdSol.toFixed(3)} kg)
+                              </span>
+                            )}
+                            {item.rotulo_variacao && (
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                                isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-slate-100 border-slate-300 text-black'
+                              }`}>
+                                {item.rotulo_variacao}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                          <span className={`text-[11px] font-extrabold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                            {Number(item.quantidade)}x
+                          </span>
+                          {item.rotulo_variacao && (
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                              isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-slate-100 border-slate-300 text-black'
+                            }`}>
+                              {item.rotulo_variacao}
+                            </span>
+                          )}
+                          <span className={`text-[10px] font-mono font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+                            {formatarMoeda(precoUnit)} / un
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 

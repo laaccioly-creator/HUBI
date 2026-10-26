@@ -10,9 +10,10 @@ import {
   MessageCircle,
   ChevronDown,
   ChevronUp,
-  Eye
+  Eye,
+  Receipt
 } from 'lucide-react';
-import { Cliente, CadernetaLancamento } from '../types';
+import { Cliente, CadernetaLancamento, Pedido } from '../types';
 import { CadernetaService, ResumoCadernetaCliente } from '../services/cadernetaService';
 import { formatarMoeda } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
@@ -20,6 +21,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { supabase } from '../lib/supabase';
 import { ModalPagamentoCadernetaUnificado } from './caderneta/ModalPagamentoCadernetaUnificado';
+import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
 import { whatsappWalletService } from '../services/whatsappWalletService';
 
 interface ModalExtratoCadernetaClienteProps {
@@ -48,6 +50,7 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
   const [modalAbatimentoAberto, setModalAbatimentoAberto] = useState<boolean>(false);
   const [processandoConferenciaId, setProcessandoConferenciaId] = useState<string | null>(null);
   const [comprovanteVisualizandoUrl, setComprovanteVisualizandoUrl] = useState<string | null>(null);
+  const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
 
   const carregarDados = async () => {
     if (!loja?.id || !cliente?.id) return;
@@ -445,35 +448,76 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                               </span>
 
                               {ehCompra && (
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    const proximoEstado = !expandido;
-                                    setItensExpandidosIds(prev => ({ ...prev, [lanc.id]: proximoEstado }));
-                                    if (proximoEstado && itensCompra.length === 0 && lanc.pedido_id && loja?.id) {
-                                      const { data: itensBanco } = await supabase
-                                        .from('itens_pedido')
-                                        .select('*')
-                                        .eq('pedido_id', lanc.pedido_id)
-                                        .eq('loja_id', loja.id);
-                                      if (itensBanco && itensBanco.length > 0) {
-                                        setExtrato(prev => prev.map(item =>
-                                          item.id === lanc.id
-                                            ? { ...item, pedido: { ...(item.pedido as any), itens: itensBanco } as any }
-                                            : item
-                                        ));
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  {lanc.pedido_id && (
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        if (!loja?.id || !lanc.pedido_id) return;
+                                        let pedAlvo = lanc.pedido;
+                                        if (!pedAlvo || !pedAlvo.itens || pedAlvo.itens.length === 0) {
+                                          try {
+                                            const [resPed, resItens, resPags] = await Promise.all([
+                                              supabase.from('pedidos').select('*').eq('id', lanc.pedido_id).eq('loja_id', loja.id).single(),
+                                              supabase.from('itens_pedido').select('*').eq('pedido_id', lanc.pedido_id).eq('loja_id', loja.id),
+                                              supabase.from('pagamentos_pedido').select('*, forma_pagamento:formas_pagamento(*)').eq('pedido_id', lanc.pedido_id).eq('loja_id', loja.id)
+                                            ]);
+                                            if (resPed.data) {
+                                              pedAlvo = {
+                                                ...resPed.data,
+                                                itens: resItens.data || [],
+                                                pagamentos: resPags.data || []
+                                              } as Pedido;
+                                            }
+                                          } catch (e) {
+                                            console.warn('Erro ao carregar dados do pedido para recibo:', e);
+                                          }
+                                        }
+                                        if (pedAlvo) {
+                                          setPedidoReciboModal(pedAlvo);
+                                        }
+                                      }}
+                                      className={`px-2 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1 border transition cursor-pointer ${
+                                        isDark
+                                          ? 'bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-200 hover:text-white'
+                                          : 'bg-white hover:bg-slate-50 border-slate-300 text-slate-800 hover:text-slate-950 shadow-2xs'
+                                      }`}
+                                      title="Visualizar Recibo Oficial do Pedido"
+                                    >
+                                      <Receipt className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                      <span>Recibo</span>
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      const proximoEstado = !expandido;
+                                      setItensExpandidosIds(prev => ({ ...prev, [lanc.id]: proximoEstado }));
+                                      if (proximoEstado && itensCompra.length === 0 && lanc.pedido_id && loja?.id) {
+                                        const { data: itensBanco } = await supabase
+                                          .from('itens_pedido')
+                                          .select('*')
+                                          .eq('pedido_id', lanc.pedido_id)
+                                          .eq('loja_id', loja.id);
+                                        if (itensBanco && itensBanco.length > 0) {
+                                          setExtrato(prev => prev.map(item =>
+                                            item.id === lanc.id
+                                              ? { ...item, pedido: { ...(item.pedido as any), itens: itensBanco } as any }
+                                              : item
+                                          ));
+                                        }
                                       }
-                                    }
-                                  }}
-                                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 border transition cursor-pointer ${
-                                    isDark
-                                      ? 'bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-200'
-                                      : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800'
-                                  }`}
-                                >
-                                  <span>Detalhar</span>
-                                  {expandido ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                                </button>
+                                    }}
+                                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 border transition cursor-pointer ${
+                                      isDark
+                                        ? 'bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-200'
+                                        : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800'
+                                    }`}
+                                  >
+                                    <span>Detalhar</span>
+                                    {expandido ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                  </button>
+                                </div>
                               )}
                             </div>
                           </div>
@@ -572,6 +616,13 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
             </div>
           </div>
         )}
+        {/* Modal Oficial de Recibo do Pedido Vinculado */}
+        <ReciboPedidoModal
+          isOpen={Boolean(pedidoReciboModal)}
+          pedido={pedidoReciboModal}
+          loja={loja}
+          onClose={() => setPedidoReciboModal(null)}
+        />
       </div>
     </div>
   );

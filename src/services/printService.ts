@@ -698,16 +698,16 @@ export class PrintService {
           <div style="
             margin-top: 10px;
             padding: 8px 10px;
-            background-color: ${pagamentoInfo.ehCaderneta ? '#faf5ff' : pagamentoInfo.ehAguardandoPesagem ? '#fffbeb' : pagamentoInfo.foiPago ? '#f0fdf4' : '#fffbeb'};
-            border: 1px solid ${pagamentoInfo.ehCaderneta ? '#e9d5ff' : pagamentoInfo.ehAguardandoPesagem ? '#fde68a' : pagamentoInfo.foiPago ? '#bbf7d0' : '#fef3c7'};
+            background-color: ${pagamentoInfo.ehCaderneta ? '#f8fafc' : pagamentoInfo.ehAguardandoPesagem ? '#fffbeb' : pagamentoInfo.foiPago ? '#f0fdf4' : '#fffbeb'};
+            border: 1px solid ${pagamentoInfo.ehCaderneta ? '#e2e8f0' : pagamentoInfo.ehAguardandoPesagem ? '#fde68a' : pagamentoInfo.foiPago ? '#bbf7d0' : '#fef3c7'};
             border-radius: 6px;
             font-size: ${isA4 ? '12px' : '10px'};
           ">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px dashed ${pagamentoInfo.ehCaderneta ? '#d8b4fe' : pagamentoInfo.ehAguardandoPesagem ? '#fde68a' : pagamentoInfo.foiPago ? '#86efac' : '#fde68a'}; padding-bottom: 4px;">
-              <span style="font-weight: 700; color: ${pagamentoInfo.ehCaderneta ? '#6b21a8' : pagamentoInfo.ehAguardandoPesagem ? '#92400e' : pagamentoInfo.foiPago ? '#166534' : '#92400e'}; text-transform: uppercase; letter-spacing: 0.5px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; border-bottom: 1px dashed ${pagamentoInfo.ehCaderneta ? '#e2e8f0' : pagamentoInfo.ehAguardandoPesagem ? '#fde68a' : pagamentoInfo.foiPago ? '#86efac' : '#fde68a'}; padding-bottom: 4px;">
+              <span style="font-weight: 700; color: ${pagamentoInfo.ehCaderneta ? '#0f172a' : pagamentoInfo.ehAguardandoPesagem ? '#92400e' : pagamentoInfo.foiPago ? '#166534' : '#92400e'}; text-transform: uppercase; letter-spacing: 0.5px;">
                 Status Pagamento:
               </span>
-              <span style="font-weight: 800; color: ${pagamentoInfo.ehCaderneta ? '#6b21a8' : pagamentoInfo.ehAguardandoPesagem ? '#b45309' : pagamentoInfo.foiPago ? '#15803d' : '#b45309'}; background: ${pagamentoInfo.ehCaderneta ? '#f3e8ff' : pagamentoInfo.ehAguardandoPesagem ? '#fef3c7' : pagamentoInfo.foiPago ? '#dcfce7' : '#fef3c7'}; padding: 1px 6px; border-radius: 4px; font-size: ${isA4 ? '11px' : '9px'};">
+              <span style="font-weight: 800; color: ${pagamentoInfo.ehCaderneta ? '#065f46' : pagamentoInfo.ehAguardandoPesagem ? '#b45309' : pagamentoInfo.foiPago ? '#15803d' : '#b45309'}; background: ${pagamentoInfo.ehCaderneta ? '#ecfdf5' : pagamentoInfo.ehAguardandoPesagem ? '#fef3c7' : pagamentoInfo.foiPago ? '#dcfce7' : '#fef3c7'}; border: 1px solid ${pagamentoInfo.ehCaderneta ? '#a7f3d0' : 'transparent'}; padding: 1px 6px; border-radius: 4px; font-size: ${isA4 ? '11px' : '9px'};">
                 ${pagamentoInfo.ehCaderneta ? 'CADERNETA' : pagamentoInfo.ehAguardandoPesagem ? '⚖️ AGUARDANDO PESAGEM' : pagamentoInfo.foiPago ? '✓ PAGO' : '⏳ AGUARDANDO PAGAMENTO'}
               </span>
             </div>
@@ -719,7 +719,7 @@ export class PrintService {
             ` : ''}
 
             ${pagamentoInfo.ehCaderneta && pagamentoInfo.mensagemCaderneta ? `
-              <div style="margin-top: 4px; padding: 4px 6px; background-color: #f3e8ff; border: 1px solid #d8b4fe; border-radius: 4px; font-weight: 700; color: #6b21a8; font-size: ${isA4 ? '11px' : '9px'}; text-align: center;">
+              <div style="margin-top: 4px; padding: 4px 6px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; font-weight: 500; color: #1e293b; font-size: ${isA4 ? '11px' : '9px'}; text-align: center;">
                 ${pagamentoInfo.mensagemCaderneta}
               </div>
             ` : ''}

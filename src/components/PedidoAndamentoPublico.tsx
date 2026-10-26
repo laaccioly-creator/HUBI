@@ -28,6 +28,7 @@ import {
 } from '../services/printService';
 import { ReceiptPdfService } from '../services/receiptPdfService';
 import { formatarMoeda } from '../utils/formatters';
+import { useTheme } from '../contexts/ThemeContext';
 import {
   consolidarHistoricoPedidos,
   formatarDataHoraHistorico
@@ -35,6 +36,7 @@ import {
 
 export const PedidoAndamentoPublico: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { isDark } = useTheme();
   const [pedido, setPedido] = useState<Pedido | null>(null);
   const [loja, setLoja] = useState<Loja | null>(null);
   const [historico, setHistorico] = useState<any[]>([]);
@@ -383,23 +385,29 @@ export const PedidoAndamentoPublico: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 pb-16 font-sans">
+    <div className={`min-h-screen pb-16 font-sans transition-colors duration-200 ${
+      isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'
+    }`}>
       {/* TOPO COM LOGO DA LOJA */}
-      <div className="bg-slate-900 border-b border-slate-800 py-4 px-4 flex justify-center sticky top-0 z-20 backdrop-blur-md bg-slate-900/90">
+      <div className={`border-b py-4 px-4 flex justify-center sticky top-0 z-20 backdrop-blur-md ${
+        isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white/95 border-slate-200'
+      }`}>
         {logoUrl ? (
           <img src={logoUrl} alt={loja?.nome_fantasia} className="h-10 max-w-[180px] object-contain" />
         ) : (
-          <div className="flex items-center gap-2 font-black text-base text-emerald-400">
+          <div className="flex items-center gap-2 font-black text-base text-emerald-500">
             <Store className="w-5 h-5" />
-            <span>{loja?.nome_fantasia || 'HUBI'}</span>
+            <span className={isDark ? 'text-white' : 'text-slate-900'}>{loja?.nome_fantasia || 'HUBI'}</span>
           </div>
         )}
       </div>
 
       <div className="max-w-5xl mx-auto px-4 pt-6 space-y-6">
-        <div className="flex items-center gap-2 text-slate-400 text-xs">
-          <Package className="w-4 h-4 text-emerald-400" />
-          <span className="font-bold text-slate-200">Andamento do pedido #{pedido.numero_pedido || pedido.id.slice(0, 5)}</span>
+        <div className="flex items-center gap-2 text-xs">
+          <Package className="w-4 h-4 text-emerald-500" />
+          <span className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+            Andamento do pedido #{pedido.numero_pedido || pedido.id.slice(0, 5)}
+          </span>
         </div>
 
         {/* GRID PRINCIPAL: STATUS (ESQUERDA) + RECIBO (DIREITA) */}
@@ -407,7 +415,9 @@ export const PedidoAndamentoPublico: React.FC = () => {
           {/* COLUNA ESQUERDA: STATUS E HISTÓRICO REAL */}
           <div className="md:col-span-6 space-y-6">
             {/* Card Status Atual */}
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 text-center space-y-4 shadow-xl">
+            <div className={`border rounded-3xl p-6 text-center space-y-4 shadow-xl ${
+              isDark ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
+            }`}>
               <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto text-xl font-bold border ${
                 ehEntregue
                   ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
@@ -419,10 +429,10 @@ export const PedidoAndamentoPublico: React.FC = () => {
               </div>
 
               <div>
-                <h3 className="text-xl font-black text-slate-100 capitalize">
+                <h3 className={`text-xl font-black capitalize ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
                   {tituloStatus}
                 </h3>
-                <span className="text-xs text-slate-400">
+                <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                   {new Date(pedido.criado_em || Date.now()).toLocaleDateString('pt-BR')} às{' '}
                   {new Date(pedido.criado_em || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                 </span>
@@ -430,12 +440,20 @@ export const PedidoAndamentoPublico: React.FC = () => {
 
               {/* Alerta de Pesagem e Botão de Pagamento */}
               {pedido.status_pagamento === 'aguardando_pesagem' && (
-                <div className="p-3.5 bg-slate-800/90 border border-slate-700/80 rounded-2xl text-left space-y-1.5 text-slate-200">
-                  <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                <div className={`p-3.5 rounded-2xl text-left space-y-1.5 border ${
+                  isDark
+                    ? 'bg-slate-800/80 border-slate-700 text-slate-200'
+                    : 'bg-emerald-50/70 border-emerald-200 text-slate-800'
+                }`}>
+                  <div className={`flex items-center gap-2 font-bold text-xs ${
+                    isDark ? 'text-emerald-400' : 'text-emerald-900'
+                  }`}>
                     <Scale className="w-4 h-4 shrink-0" />
                     <span>Conferência de Peso em Andamento</span>
                   </div>
-                  <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
+                  <p className={`text-[11px] leading-relaxed font-medium ${
+                    isDark ? 'text-slate-300' : 'text-slate-700'
+                  }`}>
                     Seu pedido contém itens vendidos por quilo. A loja está pesando os produtos na balança para apurar o valor final exato. Assim que concluído, o botão de pagamento será liberado aqui.
                   </p>
                 </div>
@@ -513,12 +531,14 @@ export const PedidoAndamentoPublico: React.FC = () => {
             </div>
 
             {/* Card Contato da Loja */}
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-xl">
-              <div className="flex items-center gap-2 text-slate-200 font-bold text-sm">
-                <Phone className="w-4 h-4 text-emerald-400" />
-                <span>Contato da Loja</span>
+            <div className={`border rounded-3xl p-6 space-y-4 shadow-xl ${
+              isDark ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
+            }`}>
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <Phone className="w-4 h-4 text-emerald-500" />
+                <span className={isDark ? 'text-slate-200' : 'text-slate-900'}>Contato da Loja</span>
               </div>
-              <p className="text-xs text-slate-400">
+              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                 Para cancelar, editar ou falar sobre seu pedido, entre em contato direto com a loja.
               </p>
 
@@ -528,27 +548,27 @@ export const PedidoAndamentoPublico: React.FC = () => {
                     href={`https://wa.me/55${loja.whatsapp.replace(/\D/g, '')}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center gap-2.5 text-emerald-400 hover:underline font-bold"
+                    className="flex items-center gap-2.5 text-emerald-600 dark:text-emerald-400 hover:underline font-bold"
                   >
                     <MessageCircle className="w-4 h-4" />
                     <span>+{loja.whatsapp}</span>
                   </a>
                 )}
 
-                <div className="flex items-center gap-2.5 text-slate-300">
-                  <Instagram className="w-4 h-4 text-pink-400" />
+                <div className={`flex items-center gap-2.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  <Instagram className="w-4 h-4 text-pink-500" />
                   <span>{instagram}</span>
                 </div>
 
                 {loja?.email && (
-                  <div className="flex items-center gap-2.5 text-slate-300">
-                    <Mail className="w-4 h-4 text-sky-400" />
+                  <div className={`flex items-center gap-2.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    <Mail className="w-4 h-4 text-sky-500" />
                     <span>{loja.email}</span>
                   </div>
                 )}
 
-                <div className="flex items-start gap-2.5 text-slate-400">
-                  <MapPin className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                <div className={`flex items-start gap-2.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  <MapPin className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
                   <span>{enderecoLoja}</span>
                 </div>
               </div>
@@ -558,12 +578,16 @@ export const PedidoAndamentoPublico: React.FC = () => {
           {/* COLUNA DIREITA: RECIBO OFICIAL + BOTÃO NOVA COMPRA */}
           <div className="md:col-span-6 space-y-4">
             {/* Barra de Ações Rápidas do Recibo */}
-            <div className="flex items-center justify-between gap-2 bg-slate-900 border border-slate-800 p-3 rounded-2xl shadow-xl">
+            <div className={`flex items-center justify-between gap-2 p-3 rounded-2xl shadow-xl border ${
+              isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+            }`}>
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+                <div className={`w-7 h-7 rounded-xl flex items-center justify-center border ${
+                  isDark ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                }`}>
                   <CheckCircle2 className="w-4 h-4" />
                 </div>
-                <span className="text-xs font-bold text-slate-200">Recibo do Pedido</span>
+                <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>Recibo do Pedido</span>
               </div>
 
               <div className="flex items-center gap-1.5">

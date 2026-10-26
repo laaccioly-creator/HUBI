@@ -231,15 +231,6 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {ped.status_pagamento === 'aguardando_pagamento' && ped.status !== 'cancelado' && (
-                      <a
-                        href={`/catalog/${loja?.slug_catalogo || ''}?pagar_pedido=${ped.id}`}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs transition cursor-pointer shadow-sm active:scale-95"
-                      >
-                        <CreditCard className="w-3.5 h-3.5" />
-                        <span>Pagar Agora</span>
-                      </a>
-                    )}
                     <button
                       type="button"
                       onClick={async () => {

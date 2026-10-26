@@ -425,10 +425,10 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
               </div>
             )}
 
-            <div className={`mt-3 p-3 rounded-xl border space-y-2 text-xs ${pagInfo.ehCaderneta ? 'border-purple-200 bg-purple-50/50' : 'border-slate-200 bg-slate-50'}`}>
+            <div className={`mt-3 p-3 rounded-xl border space-y-2 text-xs ${pagInfo.ehCaderneta ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200 bg-slate-50'}`}>
               <div className="flex justify-between items-center pb-2 border-b border-dashed border-slate-200">
                 <span className="font-bold text-[10px] text-slate-600 uppercase tracking-wider">Status Pagamento:</span>
-                <span className={`font-black text-[10px] px-2 py-0.5 rounded border ${pedido.status_pagamento === 'aguardando_pesagem' ? 'bg-emerald-50 text-emerald-900 border-emerald-200' : pagInfo.ehCaderneta ? 'bg-purple-100 text-purple-800 border-purple-300' : pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-800 border-slate-300'}`}>
+                <span className={`font-black text-[10px] px-2 py-0.5 rounded border ${pedido.status_pagamento === 'aguardando_pesagem' ? 'bg-emerald-50 text-emerald-900 border-emerald-200' : pagInfo.ehCaderneta ? 'bg-emerald-50 text-emerald-900 border-emerald-200' : pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-800 border-slate-300'}`}>
                   {pedido.status_pagamento === 'aguardando_pesagem' ? 'AGUARDANDO PESAGEM / SEPARAÇÃO' : pagInfo.ehCaderneta ? 'CADERNETA' : pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
                 </span>
               </div>
@@ -438,7 +438,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 </div>
               )}
               {pagInfo.ehCaderneta && (
-                <div className="p-2 rounded-lg bg-purple-100/60 border border-purple-200 text-purple-900 text-xs font-bold text-center">
+                <div className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-800 text-xs font-medium text-center">
                   {pagInfo.mensagemCaderneta || (() => {
                     const infoVenc = obterInfoVencimentoFiado(pedido);
                     const partes = (infoVenc.formatada || '').split('/');

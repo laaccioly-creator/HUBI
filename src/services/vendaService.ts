@@ -14,6 +14,8 @@ export interface ItemVendaInput {
     id: string;
     nome: string;
     preco_custo?: number | null;
+    tipo_unidade?: string | null;
+    unidade_medida?: string | null;
   };
   variacao?: {
     id: string;
@@ -26,6 +28,10 @@ export interface ItemVendaInput {
   precoUnitario: number;
   quantidade: number;
   subtotal: number;
+  unidade_medida?: string | null;
+  tipo_unidade?: string | null;
+  quantidade_solicitada?: number | null;
+  peso_solicitado_kg?: number | null;
   observacoes?: string | null;
 }
 
@@ -318,26 +324,34 @@ export class VendaService {
     const pedidoId = pedidoGravado.id;
 
     // 2. Gravar itens na tabela public.itens_pedido
-    const itensFormatados = itens.map(item => ({
-      loja_id: lojaId,
-      pedido_id: pedidoId,
-      produto_id: item.produto.id,
-      variacao_id: (item.variacao_id && SyncService.isUuidValido(item.variacao_id))
-        ? item.variacao_id
-        : (item.variacao?.id && SyncService.isUuidValido(item.variacao.id))
-          ? item.variacao.id
+    const itensFormatados = itens.map(item => {
+      const tipoUnidade = String(item.tipo_unidade || item.produto?.tipo_unidade || item.produto?.unidade_medida || item.unidade_medida || 'un').toLowerCase();
+      const ehKg = tipoUnidade === 'kg';
+      return {
+        loja_id: lojaId,
+        pedido_id: pedidoId,
+        produto_id: item.produto.id,
+        variacao_id: (item.variacao_id && SyncService.isUuidValido(item.variacao_id))
+          ? item.variacao_id
+          : (item.variacao?.id && SyncService.isUuidValido(item.variacao.id))
+            ? item.variacao.id
+            : null,
+        tabela_preco_utilizada: item.tabelaPrecoUtilizada,
+        nome_produto: item.produto.nome,
+        rotulo_variacao: item.variacao
+          ? `${item.variacao.valor_variacao_1} ${item.variacao.valor_variacao_2 || ''}`.trim()
           : null,
-      tabela_preco_utilizada: item.tabelaPrecoUtilizada,
-      nome_produto: item.produto.nome,
-      rotulo_variacao: item.variacao
-        ? `${item.variacao.valor_variacao_1} ${item.variacao.valor_variacao_2 || ''}`.trim()
-        : null,
-      preco_custo_unitario: item.variacao?.preco_custo || item.produto.preco_custo || 0,
-      preco_venda_unitario: item.precoUnitario,
-      quantidade: item.quantidade,
-      subtotal: item.subtotal,
-      observacoes: item.observacoes || null
-    }));
+        preco_custo_unitario: item.variacao?.preco_custo || item.produto.preco_custo || 0,
+        preco_venda_unitario: item.precoUnitario,
+        quantidade: item.quantidade,
+        quantidade_solicitada: item.quantidade_solicitada ?? item.quantidade,
+        unidade_medida: ehKg ? 'KG' : (item.unidade_medida ? item.unidade_medida.toUpperCase() : (item.produto?.unidade_medida ? item.produto.unidade_medida.toUpperCase() : 'UN')),
+        tipo_unidade: tipoUnidade,
+        peso_solicitado_kg: ehKg ? (item.peso_solicitado_kg ?? item.quantidade) : null,
+        subtotal: item.subtotal,
+        observacoes: item.observacoes || null
+      };
+    });
 
     const { error: erroItens } = await supabase.from('itens_pedido').insert(itensFormatados);
     if (erroItens) {

@@ -57,37 +57,68 @@ export const ModalConferenciaPesagemPedido: React.FC<ModalConferenciaPesagemPedi
     }
 
     const rawItens = (pedido.itens || pedido.itens_pedido || []) as ItemPedido[];
-    const inicializados: ItemPesagemState[] = rawItens.map((it) => {
-      const p = (it as any).produto;
-      const unidade = (it.unidade_medida || p?.unidade_medida || p?.tipo_unidade || 'un').toLowerCase();
-      const ehPesavel = unidade === 'kg' || Boolean(p?.venda_por_peso) || it.peso_solicitado_kg != null;
-      
-      const precoUnit = Number(it.preco_venda_unitario || it.preco_unitario || 0);
-      const qtdSol = Number(it.quantidade_solicitada ?? it.peso_solicitado_kg ?? it.quantidade ?? 1);
-      const pesoAf = Number(it.peso_real_kg ?? it.quantidade ?? qtdSol);
-      const sub = Math.round(pesoAf * precoUnit * 100) / 100;
 
-      return {
-        id: it.id,
-        nome: it.nome_produto || (it as any).nome || 'Produto',
-        rotuloVariacao: it.rotulo_variacao,
-        tipoUnidade: unidade,
-        ehPesavel,
-        precoUnitario: precoUnit,
-        quantidadeSolicitada: qtdSol,
-        pesoAferido: pesoAf,
-        pesoAferidoStr: pesoAf > 0 ? pesoAf.toString() : '',
-        subtotal: sub
-      };
-    });
+    const mapearItens = (produtosMap: Map<string, any>) => {
+      return rawItens.map((it) => {
+        const p = (it as any).produto || (it as any).produtos || produtosMap.get(it.produto_id);
+        const unidade = (
+          (it as any).tipo_unidade ||
+          it.unidade_medida ||
+          p?.tipo_unidade ||
+          p?.unidade_medida ||
+          'un'
+        ).toLowerCase();
 
-    setItensState(inicializados);
+        const ehPesavel =
+          unidade === 'kg' ||
+          Boolean(p?.venda_por_peso) ||
+          p?.tipo_unidade === 'kg' ||
+          (it as any).produtos?.tipo_unidade === 'kg' ||
+          it.peso_solicitado_kg != null;
+
+        const precoUnit = Number(it.preco_venda_unitario || it.preco_unitario || 0);
+        const qtdSol = Number(it.quantidade_solicitada ?? it.peso_solicitado_kg ?? it.quantidade ?? 1);
+        const pesoAf = Number(it.peso_real_kg ?? it.quantidade ?? qtdSol);
+        const sub = Math.round(pesoAf * precoUnit * 100) / 100;
+
+        return {
+          id: it.id,
+          nome: it.nome_produto || (it as any).nome || p?.nome || 'Produto',
+          rotuloVariacao: it.rotulo_variacao,
+          tipoUnidade: ehPesavel ? 'kg' : unidade,
+          ehPesavel,
+          precoUnitario: precoUnit,
+          quantidadeSolicitada: qtdSol,
+          pesoAferido: pesoAf,
+          pesoAferidoStr: pesoAf > 0 ? pesoAf.toString() : '',
+          subtotal: sub
+        };
+      });
+    };
+
+    setItensState(mapearItens(new Map()));
     setErro(null);
+
+    // Resiliência defensiva: busca cadastro de produtos para garantir herança de tipo_unidade mesmo em pedidos legados
+    const idsFaltantes = rawItens.map(it => it.produto_id).filter(Boolean);
+    if (idsFaltantes.length > 0) {
+      supabase
+        .from('produtos')
+        .select('id, nome, tipo_unidade, unidade_medida, venda_por_peso')
+        .in('id', idsFaltantes)
+        .then(({ data }) => {
+          if (data && data.length > 0) {
+            const map = new Map<string, any>();
+            data.forEach((prod) => map.set(prod.id, prod));
+            setItensState(mapearItens(map));
+          }
+        });
+    }
   }, [isOpen, pedido]);
 
   // Filtragem estrita: exibir exclusivamente itens por quilo (kg), mantendo itens em 'un' nos cálculos
   const itensPesaveis = useMemo(() => {
-    return itensState.filter((it) => it.tipoUnidade === 'kg');
+    return itensState.filter((it) => it.tipoUnidade === 'kg' || it.ehPesavel);
   }, [itensState]);
 
   // Totais recalculados instantaneamente
@@ -157,6 +188,8 @@ export const ModalConferenciaPesagemPedido: React.FC<ModalConferenciaPesagemPedi
             .update({
               quantidade: it.pesoAferido,
               peso_real_kg: it.ehPesavel ? it.pesoAferido : null,
+              unidade_medida: it.ehPesavel ? 'KG' : 'UN',
+              tipo_unidade: it.ehPesavel ? 'kg' : it.tipoUnidade,
               subtotal: it.subtotal,
               atualizado_em: dataAtualIso
             })

@@ -804,6 +804,7 @@ export interface ItemPedido {
   preco_venda_unitario: number;
   preco_unitario?: number;
   unidade_medida?: string | null;
+  tipo_unidade?: string | null;
   peso_solicitado_kg?: number | null;
   peso_real_kg?: number | null;
   quantidade_solicitada?: number | null;
