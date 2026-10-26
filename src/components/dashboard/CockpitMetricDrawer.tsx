@@ -108,19 +108,18 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
     };
   }, [isOpen]);
 
+  // Quando lojaIdAlvo for informado e houver desdobramento disponível no payload,
+  // utiliza as métricas e metas específicas da filial selecionada enquanto os detalhes aprofundados são carregados
+  const itemLojaDesdobramento = useMemo(() => {
+    if (!lojaIdAlvo || !payload?.desdobramentoLojas) return null;
+    return payload.desdobramentoLojas.find(d => d.lojaId === lojaIdAlvo) || null;
+  }, [lojaIdAlvo, payload?.desdobramentoLojas]);
+
   if (!isOpen || !tipoMetrica || !payload) {
     return null;
   }
 
   const { decomposicoes, metricas, metasProporcionais, parecerJev, intervalo } = payload;
-
-  // Quando lojaIdAlvo for informado e houver desdobramento disponível no payload,
-  // utiliza as métricas e metas específicas da filial selecionada enquanto os detalhes aprofundados são carregados
-  const itemLojaDesdobramento = useMemo(() => {
-    if (!lojaIdAlvo || !payload.desdobramentoLojas) return null;
-    return payload.desdobramentoLojas.find(d => d.lojaId === lojaIdAlvo) || null;
-  }, [lojaIdAlvo, payload.desdobramentoLojas]);
-
   const metricasEfetivas = itemLojaDesdobramento?.metricas || metricas;
   const metasEfetivas = itemLojaDesdobramento?.metasProporcionais || metasProporcionais;
 
