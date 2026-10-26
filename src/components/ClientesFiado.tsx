@@ -915,24 +915,19 @@ export const ClientesFiado: React.FC = () => {
             <button
               type="button"
               onClick={() => setFiltroApenasFiado(prev => !prev)}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 border ${
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium transition cursor-pointer shrink-0 border ${
                 filtroApenasFiado
-                  ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg shadow-amber-500/20 font-black'
+                  ? isDark
+                    ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 font-bold'
+                    : 'bg-emerald-50 border-emerald-300 text-emerald-700 font-bold'
                   : isDark
-                    ? 'bg-[#000000] hover:bg-slate-900 border-amber-500/40 text-amber-400 hover:text-amber-300'
-                    : 'bg-white hover:bg-amber-50 border-2 border-amber-300 text-amber-800 hover:text-amber-900'
+                    ? 'bg-[#000000] hover:bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
+                    : 'bg-white hover:bg-slate-50 border-slate-300 text-slate-700'
               }`}
               title={cadernetaAtivaLoja ? 'Listar apenas clientes que possuem caderneta em aberto' : 'Listar apenas clientes que possuem fiado em aberto'}
             >
               <Filter className="w-4 h-4" />
-              <span>{cadernetaAtivaLoja ? '(CADERNETA)' : '(FIADO)'}</span>
-              {(cadernetaAtivaLoja ? totalClientesComDebitoCaderneta : totalClientesComFiado) > 0 && (
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                  filtroApenasFiado ? 'bg-slate-950 text-amber-400' : 'bg-amber-500/20 text-amber-300'
-                }`}>
-                  {cadernetaAtivaLoja ? totalClientesComDebitoCaderneta : totalClientesComFiado}
-                </span>
-              )}
+              <span>{cadernetaAtivaLoja ? 'Caderneta' : 'Fiado'} ({cadernetaAtivaLoja ? totalClientesComDebitoCaderneta : totalClientesComFiado})</span>
             </button>
           </div>
         </div>

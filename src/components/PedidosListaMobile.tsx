@@ -1443,10 +1443,10 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     <button
                       type="button"
                       onClick={() => setPedidoParaPesagem(pedidoSelecionado)}
-                      className="flex-1 h-12 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95 border border-amber-400"
+                      className="flex-1 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
                     >
                       <Scale className="w-4 h-4" />
-                      <span>Informar Pesos / Separar</span>
+                      <span>Informar Peso</span>
                     </button>
                   );
                 }

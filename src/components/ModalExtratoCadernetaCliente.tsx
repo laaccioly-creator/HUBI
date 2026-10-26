@@ -349,7 +349,13 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                   type="button"
                   disabled={(resumo?.saldoDevedor || 0) <= 0}
                   onClick={() => setModalAbatimentoAberto(true)}
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 font-black text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm shadow-emerald-600/20 active:scale-98 disabled:opacity-40"
+                  className={`flex-1 py-2.5 px-4 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 transition active:scale-98 ${
+                    (resumo?.saldoDevedor || 0) <= 0
+                      ? isDark
+                        ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-80'
+                        : 'bg-slate-200 text-slate-500 border border-slate-300 cursor-not-allowed opacity-90'
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-600 shadow-sm cursor-pointer'
+                  }`}
                 >
                   <DollarSign className="w-4 h-4" />
                   <span>Registrar Pagamento / Abatimento</span>
@@ -407,10 +413,10 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
-                              <span className={`text-[11px] font-semibold font-mono shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                              <span className={`text-[11px] font-semibold font-mono shrink-0 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
                                 {dataHoraExibicao}
                               </span>
-                              <span className={`font-black truncate ${isDark ? 'text-white' : 'text-black'}`}>
+                              <span className={`font-black truncate ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
                                 {numeroPedidoExibicao}
                               </span>
                               {ehPendente && (
@@ -475,7 +481,7 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                           {expandido && itensCompra.length > 0 && (
                             <div className={`pt-2 border-t space-y-1 animate-in fade-in duration-150 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                               {itensCompra.map((item: any, idx: number) => (
-                                <div key={item.id || idx} className={`flex items-center justify-between text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                                <div key={item.id || idx} className={`flex items-center justify-between text-[11px] ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                                   <span className="truncate pr-2 font-medium">
                                     <strong className="font-bold">{Math.round(Number(item.quantidade || 1))}x</strong> {item.nome_produto}
                                     {item.rotulo_variacao ? ` (${item.rotulo_variacao})` : ''}

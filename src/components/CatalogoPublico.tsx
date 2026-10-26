@@ -2247,11 +2247,11 @@ Fico no aguardo da confirmação! ✨`;
         {/* Identidade da Loja e Mensagem Institucional (Esquerda) */}
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 max-w-[48%] md:max-w-[50%] lg:max-w-[45%]">
           {loja?.url_logo ? (
-            <img src={loja.url_logo} alt={loja.nome_fantasia} className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl object-contain bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shrink-0 shadow-xs" />
+            <img src={loja.url_logo} alt={loja.nome_fantasia} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-contain bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-white shrink-0 shadow-xs" />
           ) : (
             <div
-              className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center font-bold text-white shadow text-xs sm:text-base shrink-0"
-              style={{ backgroundColor: corTema }}
+              className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-white shadow text-xs sm:text-base shrink-0 bg-emerald-600 dark:bg-slate-800 border border-emerald-500 dark:border-slate-700"
+              style={{ backgroundColor: corTema || undefined }}
             >
               {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
             </div>
@@ -2266,7 +2266,7 @@ Fico no aguardo da confirmação! ✨`;
                 {aceitaPedidos ? 'Aberto' : 'Mostruário'}
               </span>
             </div>
-            <p className="text-[10px] sm:text-[11px] text-slate-600 dark:text-white font-medium leading-tight truncate hidden md:block mt-0.5">
+            <p className="text-[10px] sm:text-[11px] text-slate-600 dark:text-slate-300 font-medium leading-tight truncate hidden md:block mt-0.5">
               Bem-vindo ao catálogo da <strong className="font-bold text-slate-950 dark:text-white">{loja?.nome_fantasia || 'Hotamazon'}</strong>. Faça seus pedidos online aqui.
             </p>
           </div>
@@ -2419,8 +2419,8 @@ Fico no aguardo da confirmação! ✨`;
                 <div className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center text-[10px] font-black">
                   {clienteSelecionado.nome.charAt(0).toUpperCase()}
                 </div>
-                <span className="hidden sm:inline max-w-[80px] md:max-w-[110px] truncate">
-                  {clienteSelecionado.nome.split(' ')[0]}
+                <span className="hidden sm:inline max-w-[90px] md:max-w-[120px] truncate text-slate-800 dark:text-slate-200 font-bold">
+                  Olá, {clienteSelecionado.nome.split(' ')[0]}
                 </span>
               </button>
 
@@ -3369,7 +3369,7 @@ Fico no aguardo da confirmação! ✨`;
                 <div className="space-y-2">
                   {/* Linha Subtotal */}
                   <div className="flex items-center justify-between py-1 px-1">
-                    <span className="text-sm font-medium text-slate-600 dark:text-slate-300 text-left">
+                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 text-left">
                       Subtotal:
                     </span>
                     <div className="flex items-center gap-2">
@@ -3397,7 +3397,7 @@ Fico no aguardo da confirmação! ✨`;
 
                   {/* Linha Forma de Entrega */}
                   <div className="flex items-center justify-between py-2 px-2.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 shadow-xs">
-                    <span className="text-sm font-medium text-slate-600 dark:text-slate-300 text-left">
+                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 text-left">
                       Forma de Entrega:
                     </span>
                     <div className="flex items-center gap-2">
@@ -3453,7 +3453,7 @@ Fico no aguardo da confirmação! ✨`;
 
                   {/* Linha Total do Pedido */}
                   <div className="flex items-center justify-between py-1.5 px-1 border-t border-slate-200 dark:border-slate-800 pt-2.5">
-                    <span className="text-sm font-medium text-slate-600 dark:text-slate-300 text-left">
+                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 text-left">
                       Total do Pedido:
                     </span>
                     <div className="flex items-center gap-2">
@@ -3471,7 +3471,7 @@ Fico no aguardo da confirmação! ✨`;
                       <Scale className="w-4 h-4 shrink-0" />
                       <span>Itens por Quilo / Pesagem na Balança</span>
                     </div>
-                    <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                    <p className="text-[12px] text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
                       ⚠️ Atenção: O valor exibido é apenas uma estimativa. Como seu pedido contém produtos vendidos por quilo, a cobrança exata será liberada após a conferência e pesagem na balança pelo estabelecimento.
                     </p>
                   </div>
@@ -3815,7 +3815,7 @@ Fico no aguardo da confirmação! ✨`;
             <div className="space-y-2 pt-2">
               <Link
                 to={`/order-tracking/${pedidoConcluidoModal.numeroPedido}`}
-                className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer shadow-sm"
+                className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer shadow-sm active:scale-98"
                 target="_blank"
               >
                 <ShoppingBag className="w-4 h-4 text-white" />
@@ -3827,7 +3827,7 @@ Fico no aguardo da confirmação! ✨`;
                   href={pedidoConcluidoModal.whatsAppUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium text-xs flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+                  className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-medium text-xs flex items-center justify-center gap-2 border border-slate-300 dark:border-slate-600 transition cursor-pointer shadow-xs active:scale-98"
                 >
                   <Share2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <span>Enviar Resumo no WhatsApp da Loja</span>
@@ -3839,8 +3839,21 @@ Fico no aguardo da confirmação! ✨`;
                 onClick={() => {
                   setPedidoConcluidoModal(null);
                   setPixAprovadoEmTempoReal(false);
+                  setModalPedidosAberto(true);
                 }}
-                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium text-xs border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-medium text-xs flex items-center justify-center gap-2 border border-slate-300 dark:border-slate-600 transition cursor-pointer shadow-xs active:scale-98"
+              >
+                <Package className="w-4 h-4 text-sky-500" />
+                <span>Meus Pedidos</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPedidoConcluidoModal(null);
+                  setPixAprovadoEmTempoReal(false);
+                }}
+                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-300 font-medium text-xs border border-slate-300 dark:border-slate-600 transition cursor-pointer shadow-xs active:scale-98"
               >
                 Voltar ao Catálogo
               </button>

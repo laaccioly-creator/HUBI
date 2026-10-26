@@ -428,12 +428,12 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
             <div className={`mt-3 p-3 rounded-xl border space-y-2 text-xs ${pagInfo.ehCaderneta ? 'border-purple-200 bg-purple-50/50' : 'border-slate-200 bg-slate-50'}`}>
               <div className="flex justify-between items-center pb-2 border-b border-dashed border-slate-200">
                 <span className="font-bold text-[10px] text-slate-600 uppercase tracking-wider">Status Pagamento:</span>
-                <span className={`font-black text-[10px] px-2 py-0.5 rounded border ${pedido.status_pagamento === 'aguardando_pesagem' ? 'bg-amber-100 text-amber-900 border-amber-300' : pagInfo.ehCaderneta ? 'bg-purple-100 text-purple-800 border-purple-300' : pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-100 text-amber-800 border-amber-300'}`}>
+                <span className={`font-black text-[10px] px-2 py-0.5 rounded border ${pedido.status_pagamento === 'aguardando_pesagem' ? 'bg-emerald-50 text-emerald-900 border-emerald-200' : pagInfo.ehCaderneta ? 'bg-purple-100 text-purple-800 border-purple-300' : pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-800 border-slate-300'}`}>
                   {pedido.status_pagamento === 'aguardando_pesagem' ? 'AGUARDANDO PESAGEM / SEPARAÇÃO' : pagInfo.ehCaderneta ? 'CADERNETA' : pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
                 </span>
               </div>
               {pedido.status_pagamento === 'aguardando_pesagem' && (
-                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 text-[11px] leading-relaxed">
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 text-[11px] leading-relaxed">
                   ⚠️ AVISO: Valor estimado sujeito a pequena variação após a pesagem real dos produtos na loja. Aguarde a confirmação e a mensagem da loja para efetuar o pagamento.
                 </div>
               )}
@@ -476,39 +476,17 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
           </div>
         </div>
 
-        {/* STATUS DO MOTOR HÍBRIDO DE WHATSAPP (ENVIO AUTOMÁTICO OU FALLBACK MANUAL DESTACADO) */}
-        {resultadoHibrido && (
+        {/* STATUS DO MOTOR HÍBRIDO DE WHATSAPP (QUANDO DISPARADO AUTOMATICAMENTE) */}
+        {resultadoHibrido && (resultadoHibrido.modoEnvio === 'auto_janela_24h' || resultadoHibrido.modoEnvio === 'auto_tarifado') && (
           <div
             className={`px-3 py-2 border-t shrink-0 ${
               isDark ? 'border-slate-800 bg-slate-900/90' : 'border-slate-200 bg-slate-50'
             }`}
           >
-            {resultadoHibrido.modoEnvio === 'auto_janela_24h' ||
-            resultadoHibrido.modoEnvio === 'auto_tarifado' ? (
-              <div className="flex items-center justify-center gap-2 py-1.5 px-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-black">
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
-                <span>✓ Recibo enviado automaticamente no WhatsApp</span>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  if (resultadoHibrido.manualUrl) {
-                    window.open(resultadoHibrido.manualUrl, '_blank', 'noopener,noreferrer');
-                  } else if (onCompartilharWhatsApp) {
-                    onCompartilharWhatsApp(pedido);
-                  } else {
-                    const tel = pedido.cliente?.whatsapp || pedido.cliente?.telefone || '';
-                    const msg = PrintService.generateWhatsAppMessage(pedido, loja);
-                    PrintService.openWhatsApp(tel, msg);
-                  }
-                }}
-                className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer active:scale-95"
-              >
-                <MessageCircle className="w-4 h-4 shrink-0" />
-                <span>[ Enviar Recibo no WhatsApp ]</span>
-              </button>
-            )}
+            <div className="flex items-center justify-center gap-2 py-1.5 px-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-black">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>✓ Recibo enviado automaticamente no WhatsApp</span>
+            </div>
           </div>
         )}
 

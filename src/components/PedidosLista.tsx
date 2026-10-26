@@ -3927,11 +3927,11 @@ export const PedidosLista: React.FC = () => {
                                    <button
                                      type="button"
                                      onClick={() => setPedidoParaPesagem(pedido)}
-                                     className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black shadow-xs transition cursor-pointer active:scale-95 bg-amber-500 hover:bg-amber-400 text-slate-950 border border-amber-400"
+                                     className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-medium shadow-xs transition cursor-pointer active:scale-95 bg-emerald-600 hover:bg-emerald-700 text-white"
                                      title="Aferir peso de balan�a dos itens em kg e liberar pagamento"
                                    >
                                      <Scale className="w-3.5 h-3.5" />
-                                     <span>Informar Pesos / Separar</span>
+                                     <span>Informar Peso</span>
                                    </button>
                                  ) : (pedido.status === 'aguardando_envio' && !pedido.forma_entrega_id && !pedido.nome_transportadora && Number(pedido.valor_frete || 0) === 0 && ((pedido as any).tipo_entrega === 'envio' || (pedido as any).tipo_atendimento === 'entrega')) ? (
                                   /* ETAPA 1: Escolher Envio (obrigatório antes do recebimento quando frete a calcular) */

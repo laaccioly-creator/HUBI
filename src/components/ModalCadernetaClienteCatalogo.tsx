@@ -202,34 +202,28 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 <div className="p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
                   <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block uppercase">Limite Total</span>
-                  <span className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100">
+                  <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white font-mono">
                     {formatarMoeda(resumo?.limiteTotal || 0)}
                   </span>
                 </div>
 
                 <div className="p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
                   <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block uppercase">Total em Aberto</span>
-                  <span className={`text-sm sm:text-base font-black ${
-                    saldoAtual > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-slate-100'
-                  }`}>
+                  <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white font-mono">
                     {formatarMoeda(saldoAtual)}
                   </span>
                 </div>
 
                 <div className="p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
                   <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block uppercase">Limite Disponível</span>
-                  <span className="text-sm sm:text-base font-black text-emerald-600 dark:text-emerald-400">
+                  <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white font-mono">
                     {formatarMoeda(resumo?.limiteDisponivel || 0)}
                   </span>
                 </div>
 
-                <div className={`p-3 rounded-2xl border ${
-                  resumo?.estaVencido
-                    ? 'bg-rose-50/60 dark:bg-rose-950/20 border-rose-300 dark:border-rose-900 text-rose-900 dark:text-rose-400'
-                    : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100'
-                }`}>
-                  <span className="text-[10px] font-bold block uppercase opacity-80">Vencimento</span>
-                  <span className="text-xs sm:text-sm font-black block truncate">
+                <div className="p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block uppercase">Vencimento</span>
+                  <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white block truncate">
                     {resumo?.proximoVencimento ? new Date(resumo.proximoVencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '--'}
                   </span>
                   <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400">Todo dia {resumo?.diaVencimento || 10}</span>
@@ -265,14 +259,14 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
                       return (
                         <div
                           key={lanc.id}
-                          className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 space-y-2 text-xs"
+                          className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 space-y-2 text-sm"
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
-                              <span className="text-[11px] font-semibold font-mono text-slate-500 dark:text-slate-400 shrink-0">
+                              <span className="text-xs font-semibold font-mono text-slate-600 dark:text-slate-300 shrink-0">
                                 {dataHoraExibicao}
                               </span>
-                              <span className="font-black text-slate-900 dark:text-slate-100 truncate">
+                              <span className="font-black text-sm text-slate-900 dark:text-white truncate">
                                 {numeroPedidoExibicao}
                               </span>
                               {ehPendente && (
@@ -288,7 +282,7 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
                             </div>
 
                             <div className="flex items-center gap-2.5 shrink-0">
-                              <span className={`font-black text-sm font-mono ${
+                              <span className={`font-black text-sm sm:text-base font-mono ${
                                 ehRecusado
                                   ? 'line-through opacity-50'
                                   : ehPendente
@@ -321,7 +315,7 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
                                       }
                                     }
                                   }}
-                                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition cursor-pointer"
+                                  className="px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition cursor-pointer"
                                 >
                                   <span>Detalhar</span>
                                   {expandido ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -332,15 +326,15 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
 
                           {/* Detalhamento Condicional de Itens da Compra */}
                           {ehCompra && expandido && itensCompra.length > 0 && (
-                            <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800/80 space-y-1 animate-in fade-in duration-150">
-                              <div className="grid grid-cols-1 gap-1">
+                            <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800/80 space-y-1.5 animate-in fade-in duration-150">
+                              <div className="grid grid-cols-1 gap-1.5">
                                 {itensCompra.map((it: any, idx: number) => (
-                                  <div key={it.id || idx} className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-300">
+                                  <div key={it.id || idx} className="flex items-center justify-between text-[13px] text-slate-800 dark:text-slate-200">
                                     <span className="truncate pr-2">
-                                      <strong className="font-black">{Math.round(Number(it.quantidade || 1))}x</strong> {it.nome_produto || 'Produto'}
+                                      <strong className="font-black text-slate-900 dark:text-white">{Math.round(Number(it.quantidade || 1))}x</strong> {it.nome_produto || 'Produto'}
                                       {it.rotulo_variacao ? ` (${it.rotulo_variacao})` : ''}
                                     </span>
-                                    <span className="font-mono font-bold shrink-0">
+                                    <span className="font-mono font-bold text-slate-900 dark:text-white shrink-0">
                                       {formatarMoeda(Number(it.subtotal || Number(it.preco_venda_unitario || it.preco_unitario || 0) * Number(it.quantidade || 1)))}
                                     </span>
                                   </div>

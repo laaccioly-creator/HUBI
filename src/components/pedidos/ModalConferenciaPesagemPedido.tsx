@@ -25,6 +25,7 @@ interface ItemPesagemState {
   precoUnitario: number;
   quantidadeSolicitada: number;
   pesoAferido: number;
+  pesoAferidoStr?: string;
   subtotal: number;
 }
 
@@ -75,6 +76,7 @@ export const ModalConferenciaPesagemPedido: React.FC<ModalConferenciaPesagemPedi
         precoUnitario: precoUnit,
         quantidadeSolicitada: qtdSol,
         pesoAferido: pesoAf,
+        pesoAferidoStr: pesoAf > 0 ? pesoAf.toString() : '',
         subtotal: sub
       };
     });
@@ -82,6 +84,11 @@ export const ModalConferenciaPesagemPedido: React.FC<ModalConferenciaPesagemPedi
     setItensState(inicializados);
     setErro(null);
   }, [isOpen, pedido]);
+
+  // Filtragem estrita: exibir exclusivamente itens por quilo (kg), mantendo itens em 'un' nos cálculos
+  const itensPesaveis = useMemo(() => {
+    return itensState.filter((it) => it.tipoUnidade === 'kg');
+  }, [itensState]);
 
   // Totais recalculados instantaneamente
   const { subtotalProdutos, valorFrete, valorDescontos, valorTotalDefinitivo, diferencaTotal } = useMemo(() => {
@@ -119,6 +126,7 @@ export const ModalConferenciaPesagemPedido: React.FC<ModalConferenciaPesagemPedi
         return {
           ...it,
           pesoAferido: pesoValido,
+          pesoAferidoStr: novoValorStr,
           subtotal: sub
         };
       })
@@ -129,7 +137,7 @@ export const ModalConferenciaPesagemPedido: React.FC<ModalConferenciaPesagemPedi
     if (!pedido || !loja?.id) return;
 
     // Validação de segurança: nenhum item pesável pode ter peso <= 0
-    const itemInvalido = itensState.find((it) => it.ehPesavel && it.pesoAferido <= 0);
+    const itemInvalido = itensPesaveis.find((it) => it.pesoAferido <= 0);
     if (itemInvalido) {
       setErro(`O produto "${itemInvalido.nome}" precisa ter um peso maior que zero.`);
       return;
@@ -276,18 +284,13 @@ export const ModalConferenciaPesagemPedido: React.FC<ModalConferenciaPesagemPedi
           }`}
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-500 flex items-center justify-center border border-amber-500/30">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/30">
               <Scale className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-black text-sm sm:text-base">
-                  Aferição de Pesos & Separação
-                </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/15 text-amber-500 border border-amber-500/30">
-                  Pedido #{pedido.numero_pedido}
-                </span>
-              </div>
+              <h3 className="font-black text-sm sm:text-base">
+                Informar Peso do Pedido #{pedido.numero_pedido}
+              </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Informe os pesos reais aferidos na balança para liberar o pagamento definitivo
               </p>
@@ -382,21 +385,19 @@ export const ModalConferenciaPesagemPedido: React.FC<ModalConferenciaPesagemPedi
               </div>
             )}
 
-            {/* LISTA DE ITENS PARA CONFERÊNCIA */}
+            {/* LISTA DE ITENS PARA CONFERÊNCIA (ESTRITAMENTE KG) */}
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3">
               <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                Itens do Pedido ({itensState.length})
+                Itens por Quilo ({itensPesaveis.length})
               </div>
 
-              {itensState.map((item) => (
+              {itensPesaveis.map((item) => (
                 <div
                   key={item.id}
                   className={`p-3.5 sm:p-4 rounded-2xl border transition space-y-2.5 ${
-                    item.ehPesavel
-                      ? 'border-amber-500/40 bg-amber-500/5 dark:bg-amber-500/10'
-                      : isDark
-                      ? 'border-slate-800 bg-[#000000]/40'
-                      : 'border-slate-200 bg-slate-50'
+                    isDark
+                      ? 'border-slate-800 bg-slate-900/60'
+                      : 'border-slate-200 bg-white'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -405,15 +406,9 @@ export const ModalConferenciaPesagemPedido: React.FC<ModalConferenciaPesagemPedi
                         <span className="font-black text-xs sm:text-sm block truncate">
                           {item.nome}
                         </span>
-                        {item.ehPesavel ? (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500/20 text-amber-500 border border-amber-500/30 shrink-0">
-                            ⚖️ Venda por KG
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 shrink-0">
-                            {item.tipoUnidade.toUpperCase()}
-                          </span>
-                        )}
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shrink-0">
+                          KG
+                        </span>
                       </div>
 
                       {item.rotuloVariacao && (
@@ -423,7 +418,7 @@ export const ModalConferenciaPesagemPedido: React.FC<ModalConferenciaPesagemPedi
                       )}
 
                       <span className="text-xs font-mono font-bold text-slate-500 block mt-0.5">
-                        {formatarMoeda(item.precoUnitario)} /{item.tipoUnidade}
+                        {formatarMoeda(item.precoUnitario)} /kg
                       </span>
                     </div>
 
@@ -440,32 +435,28 @@ export const ModalConferenciaPesagemPedido: React.FC<ModalConferenciaPesagemPedi
                   {/* CONTROLE DE PESAGEM / QUANTIDADE */}
                   <div className="pt-2 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between gap-3 flex-wrap">
                     <div className="text-xs text-slate-500">
-                      <span>Pedido pelo cliente: </span>
+                      <span>Qtd. Solicitada: </span>
                       <strong className="text-slate-900 dark:text-slate-100 font-mono">
-                        {item.quantidadeSolicitada.toFixed(3)} {item.tipoUnidade}
+                        {item.quantidadeSolicitada.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg
                       </strong>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                        {item.ehPesavel ? 'Peso Aferido (Balança):' : 'Quantidade:'}
+                        Peso Aferido (Balança):
                       </label>
                       <div className="relative">
                         <input
-                          type="number"
-                          step="0.001"
-                          min="0"
+                          type="text"
+                          inputMode="decimal"
                           disabled={salvando}
-                          value={item.pesoAferido}
+                          value={item.pesoAferidoStr ?? (item.pesoAferido > 0 ? item.pesoAferido.toString() : '')}
                           onChange={(e) => handleAlterarPeso(item.id, e.target.value)}
-                          className={`w-28 p-2 rounded-xl text-right font-mono font-black text-sm border focus:outline-hidden transition ${
-                            item.ehPesavel
-                              ? 'border-amber-500/60 bg-white dark:bg-slate-900 text-amber-500 focus:border-amber-400 ring-1 ring-amber-500/30'
-                              : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900'
-                          }`}
+                          placeholder="0,000"
+                          className="w-28 p-2 rounded-xl text-right font-mono font-black text-sm border focus:outline-hidden transition border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                         />
                         <span className="absolute left-2.5 top-2.5 text-xs text-slate-400 font-bold uppercase pointer-events-none">
-                          {item.tipoUnidade}
+                          KG
                         </span>
                       </div>
                     </div>
@@ -532,7 +523,7 @@ export const ModalConferenciaPesagemPedido: React.FC<ModalConferenciaPesagemPedi
                   type="button"
                   disabled={salvando}
                   onClick={handleConfirmarPesagem}
-                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-emerald-600/25 transition cursor-pointer active:scale-95"
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-medium text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-emerald-600/25 transition cursor-pointer active:scale-95"
                 >
                   {salvando ? (
                     <>

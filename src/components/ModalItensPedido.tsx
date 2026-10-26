@@ -210,10 +210,10 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
                 onClose();
                 onAbrirPesagem(pedido);
               }}
-              className="px-4 py-2 rounded-xl text-xs font-black bg-amber-500 hover:bg-amber-400 text-slate-950 border border-amber-400 shadow-sm transition cursor-pointer active:scale-95 inline-flex items-center gap-1.5"
+              className="px-4 py-2 rounded-xl text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition cursor-pointer active:scale-95 inline-flex items-center gap-1.5"
             >
               <Scale className="w-3.5 h-3.5" />
-              <span>Informar Pesos / Separar</span>
+              <span>Informar Peso</span>
             </button>
           )}
           <button type="button" className="hidden">

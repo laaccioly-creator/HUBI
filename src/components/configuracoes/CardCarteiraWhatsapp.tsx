@@ -20,6 +20,7 @@ import { Loja, LojaWhatsappTransacao } from '../../types';
 import { whatsappWalletService } from '../../services/whatsappWalletService';
 import { formatarMoeda as formatCurrency } from '../../utils/formatters';
 import { ModalRecargaWhatsapp } from './ModalRecargaWhatsapp';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface CardCarteiraWhatsappProps {
   loja: Loja;
@@ -34,6 +35,7 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
   usuarioId,
   aoAtualizarLoja,
 }) => {
+  const { isDark } = useTheme();
   const [saldo, setSaldo] = useState<number>(Number(loja.whatsapp_saldo ?? 2.0));
   const [autoAtivo, setAutoAtivo] = useState<boolean>(
     Boolean(loja.whatsapp_auto_ativo ?? false)
@@ -249,42 +251,48 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
       default:
         return {
           label: 'Disparo Automático',
-          cor: 'bg-slate-800 text-slate-300 border-slate-700',
+          cor: isDark ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-slate-100 text-slate-700 border-slate-200',
           positivo: false,
         };
     }
   };
 
   return (
-    <div className="rounded-2xl bg-slate-900/90 border border-slate-800 p-5 space-y-5 shadow-xl">
+    <div className={`rounded-2xl border p-5 space-y-5 shadow-xl transition-colors ${
+      isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+    }`}>
       {/* Topo: Título + Switch Ativar Envios Automáticos via WhatsApp */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b ${
+        isDark ? 'border-slate-800' : 'border-slate-200'
+      }`}>
         <div className="flex items-start gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+          <div className="w-11 h-11 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-500 dark:text-emerald-400 shrink-0">
             <Wallet size={22} />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-base font-black text-white uppercase tracking-tight">
+              <h3 className={`text-base font-black uppercase tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 Carteira Pré-Paga & Motor Híbrido WhatsApp
               </h3>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                 Cloud API + Fallback Gratuito
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
               Envie recibos de PDV, status de pedidos, rastreio e comprovantes de Caderneta automaticamente em 2º plano.
             </p>
           </div>
         </div>
 
         {/* Switch Ativar Envios Automáticos via WhatsApp */}
-        <div className="flex items-center justify-between sm:justify-end gap-3 bg-slate-950/80 border border-slate-800 px-3.5 py-2.5 rounded-xl shrink-0">
+        <div className={`flex items-center justify-between sm:justify-end gap-3 px-3.5 py-2.5 rounded-xl border shrink-0 ${
+          isDark ? 'bg-slate-800/90 border-slate-700' : 'bg-slate-50 border-slate-200'
+        }`}>
           <div className="text-right">
-            <div className="text-xs font-bold text-white">
+            <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
               Ativar Envios Automáticos via WhatsApp
             </div>
-            <div className="text-[10px] text-slate-400">
+            <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
               {autoAtivo
                 ? 'Ativo (API Oficial + Fallback)'
                 : 'Desativado (Apenas Botão Manual)'}
@@ -297,7 +305,7 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
             disabled={salvandoSwitch}
             onClick={handleToggleAutomacao}
             className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-              autoAtivo ? 'bg-emerald-500' : 'bg-slate-700'
+              autoAtivo ? 'bg-emerald-600' : isDark ? 'bg-slate-700' : 'bg-slate-300'
             } ${salvandoSwitch ? 'opacity-60' : ''}`}
           >
             <span
@@ -310,7 +318,7 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
       </div>
 
       {mensagemFeedback && (
-        <div className="px-3.5 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 font-medium">
+        <div className="px-3.5 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-600 dark:text-emerald-300 font-medium">
           {mensagemFeedback}
         </div>
       )}
@@ -318,24 +326,28 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
       {/* Cards de Métricas da Carteira */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Card 1: Saldo Disponível */}
-        <div className="rounded-2xl bg-slate-950/90 border border-slate-800 p-4 flex flex-col justify-between">
+        <div className={`rounded-2xl border p-4 flex flex-col justify-between ${
+          isDark ? 'bg-slate-800/90 border-slate-700' : 'bg-slate-50 border-slate-200'
+        }`}>
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <span className={`text-[11px] font-bold uppercase tracking-wider ${
+              isDark ? 'text-slate-400' : 'text-slate-600'
+            }`}>
               Saldo Disponível
             </span>
             {saldo <= alertaSaldoBaixo && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-bold">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-300 text-[10px] font-bold">
                 <AlertTriangle size={11} />
                 Saldo Baixo
               </span>
             )}
           </div>
           <div className="my-2">
-            <div className="text-2xl font-black text-emerald-400 tracking-tight">
+            <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">
               {formatCurrency(saldo)}
             </div>
             {infoBonusTrial && (
-              <div className="flex items-center gap-1.5 text-[11px] text-amber-300/90 mt-1">
+              <div className="flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-300/90 mt-1 font-semibold">
                 <Gift size={12} className="shrink-0" />
                 <span>{infoBonusTrial.texto}</span>
               </div>
@@ -344,7 +356,7 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
           <button
             type="button"
             onClick={() => setModalRecargaAberto(true)}
-            className="w-full mt-2 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-md shadow-emerald-950/50"
+            className="w-full mt-2 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer"
           >
             <PlusCircle size={15} />
             Adicionar Créditos (Pix)
@@ -352,59 +364,69 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
         </div>
 
         {/* Card 2: Estimativa de Disparos Restantes */}
-        <div className="rounded-2xl bg-slate-950/90 border border-slate-800 p-4 flex flex-col justify-between">
+        <div className={`rounded-2xl border p-4 flex flex-col justify-between ${
+          isDark ? 'bg-slate-800/90 border-slate-700' : 'bg-slate-50 border-slate-200'
+        }`}>
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <span className={`text-[11px] font-bold uppercase tracking-wider ${
+              isDark ? 'text-slate-400' : 'text-slate-600'
+            }`}>
               Capacidade Estimada
             </span>
-            <MessageSquare size={15} className="text-emerald-400" />
+            <MessageSquare size={15} className="text-emerald-500 dark:text-emerald-400" />
           </div>
           <div className="my-2">
-            <div className="text-2xl font-black text-white">
+            <div className={`text-2xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
               ~{disparosEstimados}{' '}
-              <span className="text-xs font-bold text-slate-400 uppercase">
+              <span className={`text-xs font-bold uppercase ${
+                isDark ? 'text-slate-300' : 'text-slate-700'
+              }`}>
                 disparos ativos
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">
+            <p className={`text-[11px] mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
               Tarifa de{' '}
-              <strong className="text-slate-200">
+              <strong className={isDark ? 'text-slate-200' : 'text-slate-800'}>
                 {formatCurrency(custoDisparo)}
               </strong>{' '}
               por notificação ativa fora da janela de 24h.
             </p>
           </div>
-          <div className="text-[11px] text-emerald-400/90 font-semibold flex items-center gap-1">
+          <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
             <Sparkles size={12} />
             Respostas em até 24h têm custo R$ 0,00!
           </div>
         </div>
 
         {/* Card 3: Como Funciona o Motor Híbrido */}
-        <div className="rounded-2xl bg-slate-950/90 border border-slate-800 p-4 flex flex-col justify-between space-y-2">
+        <div className={`rounded-2xl border p-4 flex flex-col justify-between space-y-2 ${
+          isDark ? 'bg-slate-800/90 border-slate-700' : 'bg-slate-50 border-slate-200'
+        }`}>
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <span className={`text-[11px] font-bold uppercase tracking-wider ${
+              isDark ? 'text-slate-400' : 'text-slate-600'
+            }`}>
               Inteligência de Rotas (3 Níveis)
             </span>
-            <Clock size={15} className="text-sky-400" />
+            <Clock size={15} className="text-sky-500 dark:text-sky-400" />
           </div>
-          <ul className="text-[11px] text-slate-300 space-y-1.5">
+          <ul className={`text-[11px] space-y-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
             <li className="flex items-start gap-1.5">
-              <span className="text-emerald-400 font-black">1.</span>
+              <span className="text-emerald-500 dark:text-emerald-400 font-black">1.</span>
               <span>
-                <strong>Janela 24h Aberta:</strong> Se o cliente interagiu nas últimas 24h, o envio automático sai a <strong>custo zero</strong>.
+                <strong className={isDark ? 'text-white' : 'text-slate-900'}>Janela 24h Aberta:</strong> Se o cliente interagiu nas últimas 24h, o envio automático sai a <strong className={isDark ? 'text-white' : 'text-slate-900'}>custo zero</strong>.
               </span>
             </li>
             <li className="flex items-start gap-1.5">
-              <span className="text-sky-400 font-black">2.</span>
+              <span className="text-sky-500 dark:text-sky-400 font-black">2.</span>
               <span>
-                <strong>Fora da Janela 24h:</strong> Dispara template oficial debitando {formatCurrency(custoDisparo)} do saldo.
+                <strong className={isDark ? 'text-white' : 'text-slate-900'}>Fora da Janela 24h:</strong> Dispara template oficial debitando {formatCurrency(custoDisparo)} do saldo.
               </span>
             </li>
             <li className="flex items-start gap-1.5">
-              <span className="text-amber-400 font-black">3.</span>
+              <span className="text-amber-500 dark:text-amber-400 font-black">3.</span>
               <span>
-                <strong>Fallback Gratuito:</strong> Sem saldo ou desligado, exibe o botão manual do WhatsApp sem travar a operação.
+                <strong className={isDark ? 'text-white' : 'text-slate-900'}>Fallback Gratuito:</strong> Sem saldo ou desligado, exibe o botão manual do WhatsApp sem travar a operação.
               </span>
             </li>
           </ul>
@@ -415,36 +437,48 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
       <div className="space-y-3 pt-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <History size={16} className="text-slate-400" />
-            <h4 className="text-xs font-black uppercase tracking-wider text-slate-300">
+            <History size={16} className={isDark ? 'text-slate-400' : 'text-slate-500'} />
+            <h4 className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
               Extrato Auditável da Carteira ({totalTransacoes})
             </h4>
           </div>
           <button
             type="button"
             onClick={() => carregarDadosCarteira(pagina)}
-            className="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition-colors"
+            className={`text-xs flex items-center gap-1 transition-colors cursor-pointer ${
+              isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900 font-medium'
+            }`}
           >
             <RefreshCw size={13} className={carregando ? 'animate-spin' : ''} />
             Atualizar
           </button>
         </div>
 
-        <div className="rounded-xl border border-slate-800 bg-slate-950/60 overflow-hidden">
+        <div className={`rounded-xl border overflow-hidden ${
+          isDark ? 'border-slate-800 bg-slate-950/60' : 'border-slate-200 bg-slate-50'
+        }`}>
           {carregando ? (
-            <div className="py-8 flex items-center justify-center gap-2 text-xs text-slate-400">
-              <Loader2 size={16} className="animate-spin text-emerald-400" />
+            <div className={`py-8 flex items-center justify-center gap-2 text-xs ${
+              isDark ? 'text-slate-400' : 'text-slate-600'
+            }`}>
+              <Loader2 size={16} className="animate-spin text-emerald-500" />
               Carregando movimentações da carteira...
             </div>
           ) : transacoes.length === 0 ? (
-            <div className="py-6 text-center text-xs text-slate-400">
+            <div className={`py-8 text-center text-xs font-medium ${
+              isDark ? 'text-slate-400' : 'text-slate-500'
+            }`}>
               Nenhuma transação registrada na carteira desta loja até o momento.
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-800 text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-950">
+                  <tr className={`border-b text-[10px] font-black uppercase tracking-wider ${
+                    isDark
+                      ? 'border-slate-800 text-slate-400 bg-slate-950'
+                      : 'border-slate-200 text-slate-700 bg-white'
+                  }`}>
                     <th className="py-2.5 px-3">Data / Hora</th>
                     <th className="py-2.5 px-3">Tipo</th>
                     <th className="py-2.5 px-3">Descrição / Gatilho</th>
@@ -452,15 +486,21 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
                     <th className="py-2.5 px-3 text-right">Saldo Após</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/70 text-xs">
+                <tbody className={`divide-y text-xs ${
+                  isDark ? 'divide-slate-800/70' : 'divide-slate-200'
+                }`}>
                   {transacoes.map((tx) => {
                     const infoTipo = formatarRotuloTipo(tx);
                     return (
                       <tr
                         key={tx.id}
-                        className="hover:bg-slate-900/50 transition-colors"
+                        className={`transition-colors ${
+                          isDark ? 'hover:bg-slate-900/50' : 'hover:bg-white'
+                        }`}
                       >
-                        <td className="py-2.5 px-3 text-slate-400 whitespace-nowrap text-[11px]">
+                        <td className={`py-2.5 px-3 whitespace-nowrap text-[11px] ${
+                          isDark ? 'text-slate-400' : 'text-slate-600'
+                        }`}>
                           {new Date(tx.criado_em).toLocaleString('pt-BR', {
                             day: '2-digit',
                             month: '2-digit',
@@ -481,18 +521,24 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
                             {infoTipo.label}
                           </span>
                         </td>
-                        <td className="py-2.5 px-3 text-slate-300 max-w-xs truncate">
+                        <td className={`py-2.5 px-3 max-w-xs truncate ${
+                          isDark ? 'text-slate-300' : 'text-slate-800 font-medium'
+                        }`}>
                           {tx.descricao || tx.evento_gatilho || 'Movimentação'}
                         </td>
                         <td
                           className={`py-2.5 px-3 text-right font-bold whitespace-nowrap ${
-                            tx.valor >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                            tx.valor >= 0
+                              ? isDark ? 'text-emerald-400' : 'text-emerald-600'
+                              : isDark ? 'text-rose-400' : 'text-rose-600'
                           }`}
                         >
                           {tx.valor >= 0 ? '+' : ''}
                           {formatCurrency(tx.valor)}
                         </td>
-                        <td className="py-2.5 px-3 text-right text-slate-300 font-semibold whitespace-nowrap">
+                        <td className={`py-2.5 px-3 text-right font-semibold whitespace-nowrap ${
+                          isDark ? 'text-slate-300' : 'text-slate-800'
+                        }`}>
                           {formatCurrency(tx.saldo_posterior)}
                         </td>
                       </tr>
@@ -505,7 +551,11 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
 
           {/* Paginação */}
           {totalPaginas > 1 && (
-            <div className="flex items-center justify-between px-3 py-2 border-t border-slate-800 bg-slate-950 text-[11px] text-slate-400">
+            <div className={`flex items-center justify-between px-3 py-2 border-t text-[11px] ${
+              isDark
+                ? 'border-slate-800 bg-slate-950 text-slate-400'
+                : 'border-slate-200 bg-white text-slate-600'
+            }`}>
               <span>
                 Página {pagina} de {totalPaginas}
               </span>
@@ -514,7 +564,9 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
                   type="button"
                   disabled={pagina <= 1}
                   onClick={() => setPagina((p) => Math.max(1, p - 1))}
-                  className="p-1 rounded hover:bg-slate-800 disabled:opacity-40"
+                  className={`p-1 rounded disabled:opacity-40 cursor-pointer ${
+                    isDark ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-600'
+                  }`}
                 >
                   <ChevronLeft size={14} />
                 </button>
@@ -522,7 +574,9 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
                   type="button"
                   disabled={pagina >= totalPaginas}
                   onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
-                  className="p-1 rounded hover:bg-slate-800 disabled:opacity-40"
+                  className={`p-1 rounded disabled:opacity-40 cursor-pointer ${
+                    isDark ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-600'
+                  }`}
                 >
                   <ChevronRight size={14} />
                 </button>

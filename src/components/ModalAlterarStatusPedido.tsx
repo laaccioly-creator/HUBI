@@ -225,13 +225,15 @@ export const ModalAlterarStatusPedido: React.FC<ModalAlterarStatusPedidoProps> =
 
           {/* Verificação da Trava Financeira */}
           {!quitado && (
-            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 space-y-2.5">
+            <div className={`p-4 rounded-xl border space-y-2.5 ${
+              isDark ? 'bg-slate-900 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700'
+            }`}>
               <div className="flex items-start gap-2.5">
-                <AlertCircle className="w-5 h-5 shrink-0 text-amber-500 mt-0.5" />
+                <AlertCircle className="w-5 h-5 shrink-0 text-slate-400 mt-0.5" />
                 <div className="text-xs space-y-1">
-                  <p className="font-bold text-amber-400">Pagamento Pendente</p>
-                  <p className="text-amber-300/90 leading-relaxed">
-                    Este pedido ainda não foi pago. Efetue o recebimento antes de avançar para separação ou envio.
+                  <p className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Pagamento Pendente</p>
+                  <p className={`leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                    Este pedido ainda não foi pago. O recebimento é obrigatório antes da expedição ou entrega final.
                   </p>
                 </div>
               </div>
@@ -242,7 +244,7 @@ export const ModalAlterarStatusPedido: React.FC<ModalAlterarStatusPedidoProps> =
                   onClose();
                   onReceberPagamento(pedido);
                 }}
-                className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm transition cursor-pointer active:scale-95"
+                className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm transition cursor-pointer active:scale-95"
               >
                 <CreditCard className="w-4 h-4 stroke-[2.5]" />
                 <span>Receber Pagamento ({formatarMoeda(saldoDev)})</span>
@@ -259,7 +261,9 @@ export const ModalAlterarStatusPedido: React.FC<ModalAlterarStatusPedidoProps> =
             <div className="space-y-2">
               {opcoesDisponiveis.map((opcao) => {
                 const ehCancelamento = opcao.id === 'cancelado';
-                const requerQuitacao = !ehCancelamento && !quitado;
+                // Transição para Confirmado é permitida sem pagamento prévio para possibilitar separação e pesagem
+                const permiteSemQuitacao = ehCancelamento || opcao.id === 'confirmado';
+                const requerQuitacao = !permiteSemQuitacao && !quitado;
                 const estaDesabilitado = atualizandoStatusRapido || requerQuitacao;
 
                 return (
@@ -291,7 +295,9 @@ export const ModalAlterarStatusPedido: React.FC<ModalAlterarStatusPedidoProps> =
                     </div>
 
                     {requerQuitacao ? (
-                      <span className="text-[11px] font-bold text-amber-500 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-lg">
+                      <span className={`text-[11px] font-medium px-2.5 py-1 rounded-lg border ${
+                        isDark ? 'text-slate-400 bg-slate-800 border-slate-700' : 'text-slate-600 bg-slate-100 border-slate-200'
+                      }`}>
                         Requer Pagamento
                       </span>
                     ) : (

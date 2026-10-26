@@ -197,7 +197,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
   return (
     <div
       className={`p-5 sm:p-6 rounded-2xl border transition-all duration-200 shadow-sm ${
-        isDark ? 'bg-slate-900 border-slate-700/80' : 'bg-white border-slate-200'
+        isDark ? 'bg-slate-900/90 border border-slate-800' : 'bg-white border-slate-200'
       }`}
     >
       {/* Cabeçalho do Card */}
@@ -419,7 +419,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
               isDark ? 'text-slate-300' : 'text-slate-700'
             }`}
           >
-            <CreditCard className="w-3.5 h-3.5 text-blue-500" />
+            <CreditCard className="w-3.5 h-3.5 text-emerald-500" />
             <span>Condições de Pagamento & Gateway</span>
           </h4>
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
@@ -445,8 +445,8 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
                   onChange={(e) => setDescontoPixPercentual(parseFloat(e.target.value) || 0)}
                   className={`w-full pr-7 pl-3 py-2 rounded-xl text-xs font-bold outline-hidden border ${
                     isDark
-                      ? 'bg-slate-950 border-slate-700 text-white focus:border-blue-500'
-                      : 'bg-white border-slate-300 text-slate-900 focus:border-blue-500'
+                      ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
+                      : 'bg-white border-slate-300 text-slate-900 focus:border-emerald-500'
                   }`}
                 />
                 <Percent className="w-3 h-3 text-slate-400 absolute right-3 top-2.5" />
@@ -470,8 +470,8 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
                 onChange={(e) => setMaxParcelas(parseInt(e.target.value) || 12)}
                 className={`w-full py-2 px-3 rounded-xl text-xs font-bold outline-hidden border ${
                   isDark
-                    ? 'bg-slate-950 border-slate-700 text-white focus:border-blue-500'
-                    : 'bg-white border-slate-300 text-slate-900 focus:border-blue-500'
+                    ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
+                    : 'bg-white border-slate-300 text-slate-900 focus:border-emerald-500'
                 }`}
               >
                 {[1, 2, 3, 4, 5, 6, 10, 12, 18, 24].map((n) => (
@@ -499,8 +499,8 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
                 onChange={(e) => setParcelasSemJuros(parseInt(e.target.value) || 12)}
                 className={`w-full py-2 px-3 rounded-xl text-xs font-bold outline-hidden border ${
                   isDark
-                    ? 'bg-slate-950 border-slate-700 text-white focus:border-blue-500'
-                    : 'bg-white border-slate-300 text-slate-900 focus:border-blue-500'
+                    ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
+                    : 'bg-white border-slate-300 text-slate-900 focus:border-emerald-500'
                 }`}
               >
                 {[1, 2, 3, 4, 5, 6, 10, 12].map((n) => (
@@ -530,7 +530,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
                 type="checkbox"
                 checked={aceitaDebito}
                 onChange={(e) => setAceitaDebito(e.target.checked)}
-                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+                className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
               />
             </div>
           </div>
