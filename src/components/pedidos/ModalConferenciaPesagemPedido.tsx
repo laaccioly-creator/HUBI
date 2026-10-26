@@ -345,64 +345,73 @@ export const ModalConferenciaPesagemPedido: React.FC<ModalConferenciaPesagemPedi
 
         {/* FEEDBACK DE SUCESSO PÓS-CONFIRMAÇÃO */}
         {sucessoDisparo ? (
-          <div className="p-6 sm:p-8 space-y-6 text-center overflow-y-auto">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-8 h-8" />
-            </div>
-
-            <div className="space-y-1">
-              <h4 className="text-lg font-black">Pesagem Confirmada com Sucesso!</h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-                O valor definitivo do pedido #{pedido.numero_pedido} foi atualizado para{' '}
-                <strong className="text-emerald-500">{formatarMoeda(valorTotalDefinitivo)}</strong> e o estoque foi baixado com precisão.
-              </p>
-            </div>
-
-            {/* STATUS DO DISPARO WHATSAPP */}
-            <div
-              className={`p-4 rounded-2xl border text-left space-y-3 ${
-                sucessoDisparo.modoEnvio !== 'manual_link'
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
-                  : 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300'
-              }`}
-            >
-              <div className="flex items-center justify-between text-xs font-bold">
-                <span>Notificação WhatsApp</span>
-                <span className="uppercase text-[10px] px-2 py-0.5 rounded-full border">
-                  {sucessoDisparo.modoEnvio !== 'manual_link' ? '⚡ Enviado Automaticamente' : '📲 Envio Manual'}
-                </span>
+          <div className="flex flex-col flex-1 overflow-hidden">
+            <div className="p-6 sm:p-8 space-y-6 text-center overflow-y-auto flex-1">
+              <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 flex items-center justify-center mx-auto">
+                <CheckCircle2 className="w-8 h-8" />
               </div>
 
-              {sucessoDisparo.modoEnvio !== 'manual_link' ? (
-                <p className="text-xs leading-relaxed">
-                  A mensagem com o link de pagamento foi entregue diretamente ao cliente pelo número oficial da sua loja.
+              <div className="space-y-1">
+                <h4 className="text-lg font-black text-slate-900 dark:text-white">Pesagem Confirmada com Sucesso!</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                  O valor definitivo do pedido #{pedido.numero_pedido} foi atualizado para{' '}
+                  <strong className="text-emerald-600 dark:text-emerald-400">{formatarMoeda(valorTotalDefinitivo)}</strong> e o estoque foi baixado com precisão.
                 </p>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-xs leading-relaxed">
-                    Clique no botão abaixo para abrir o WhatsApp e enviar o link de pagamento ao cliente em 1 clique:
-                  </p>
-                  {sucessoDisparo.manualUrl && (
-                    <a
-                      href={sucessoDisparo.manualUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition shadow-md cursor-pointer"
-                    >
-                      <Share2 className="w-4 h-4" />
-                      <span>Enviar Link de Pagamento no WhatsApp</span>
-                      <ExternalLink className="w-3.5 h-3.5 ml-1" />
-                    </a>
-                  )}
+              </div>
+
+              {/* STATUS DO DISPARO WHATSAPP */}
+              <div
+                className={`p-4 rounded-2xl border text-left space-y-3 ${
+                  sucessoDisparo.modoEnvio !== 'manual_link'
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400'
+                    : 'bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200'
+                }`}
+              >
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <span>Notificação WhatsApp</span>
+                  <span
+                    className={`uppercase text-[10px] px-2.5 py-0.5 rounded-full border ${
+                      sucessoDisparo.modoEnvio !== 'manual_link'
+                        ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
+                        : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-300 dark:border-slate-700'
+                    }`}
+                  >
+                    {sucessoDisparo.modoEnvio !== 'manual_link' ? '⚡ Enviado Automaticamente' : '📲 Envio Manual'}
+                  </span>
                 </div>
-              )}
+
+                {sucessoDisparo.modoEnvio !== 'manual_link' ? (
+                  <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                    A mensagem com o link de pagamento foi entregue diretamente ao cliente pelo número oficial da sua loja.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+                      Clique no botão abaixo para abrir o WhatsApp e enviar o link de pagamento ao cliente em 1 clique:
+                    </p>
+                    {sucessoDisparo.manualUrl && (
+                      <a
+                        href={sucessoDisparo.manualUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider transition shadow-md cursor-pointer"
+                      >
+                        <Share2 className="w-4 h-4" />
+                        <span>Enviar Link de Pagamento no WhatsApp</span>
+                        <ExternalLink className="w-3.5 h-3.5 ml-1" />
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="pt-2">
+            {/* RODAPÉ ESTRUTURADO COM BOTÃO SECUNDÁRIO */}
+            <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-end">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-900 font-bold text-xs transition cursor-pointer"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 font-bold text-xs transition cursor-pointer"
               >
                 Concluir e Fechar
               </button>

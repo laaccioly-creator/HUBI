@@ -285,16 +285,16 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
                             </div>
 
                             <div className="flex items-center gap-2.5 shrink-0">
-                              <span className={`font-black text-sm sm:text-base font-mono ${
+                              <span className={`text-sm sm:text-base font-mono ${
                                 ehRecusado
-                                  ? 'line-through opacity-50'
+                                  ? 'line-through opacity-50 font-normal'
                                   : ehPendente
-                                    ? 'text-amber-600 dark:text-amber-400'
+                                    ? 'text-amber-600 dark:text-amber-400 font-bold'
                                     : ehCompra
-                                      ? 'text-rose-600 dark:text-rose-400'
-                                      : 'text-emerald-600 dark:text-emerald-400'
+                                      ? 'text-slate-900 dark:text-slate-100 font-normal'
+                                      : 'text-emerald-600 dark:text-emerald-400 font-bold'
                               }`}>
-                                {ehCompra ? '+' : '-'} {formatarMoeda(lanc.valor)}
+                                {ehCompra ? '' : '- '}{formatarMoeda(lanc.valor)}
                               </span>
 
                               {ehCompra && (

@@ -92,6 +92,7 @@ export const DashboardCockpit: React.FC = () => {
   const [metricaDesdobramento, setMetricaDesdobramento] = useState<TipoMetricaCockpitDrawer | null>(null);
   const [payloadDrawerEspecifico, setPayloadDrawerEspecifico] = useState<PayloadDashboardExecutivo | null>(null);
   const [lojaDrawerEspecifica, setLojaDrawerEspecifica] = useState<{ id: string; nome: string } | null>(null);
+  const [lojaIdAlvoDrawer, setLojaIdAlvoDrawer] = useState<string | null>(null);
   const [carregandoLojaId, setCarregandoLojaId] = useState<string | null>(null);
 
   // Registro na pilha de navegação para tecla ESC e botão Voltar Mobile
@@ -101,6 +102,7 @@ export const DashboardCockpit: React.FC = () => {
     setDrawerMetrica(null);
     setPayloadDrawerEspecifico(null);
     setLojaDrawerEspecifica(null);
+    setLojaIdAlvoDrawer(null);
   }, 'cockpit-metric-drawer');
   useRegisterOverlay(modalEntradaAberto, () => {
     setModalEntradaAberto(false);
@@ -223,33 +225,42 @@ export const DashboardCockpit: React.FC = () => {
   };
 
   // Handler de seleção de filial específica no modal de desdobramento
-  const handleSelecionarLojaDesdobramento = async (lojaId: string, lojaNome: string) => {
-    try {
-      setCarregandoLojaId(lojaId);
-      const res = await dashboardJevService.obterDashboardExecutivo({
-        lojaId,
-        tipoPeriodo,
-        periodoOffset,
-        dataInicioCustom,
-        dataFimCustom
-      });
-      setPayloadDrawerEspecifico(res.payload);
-      setLojaDrawerEspecifica({ id: lojaId, nome: lojaNome });
-      setModalDesdobramentoAberto(false);
-      setDrawerMetrica(metricaDesdobramento);
-    } catch (err) {
-      console.error('[DashboardCockpit] Erro ao carregar auditoria da filial:', err);
-    } finally {
-      setCarregandoLojaId(null);
+  const handleSelecionarLojaDesdobramento = (lojaId: string, lojaNome: string) => {
+    const metricaAlvo = metricaDesdobramento || drawerMetrica;
+    setLojaDrawerEspecifica({ id: lojaId, nome: lojaNome });
+    setLojaIdAlvoDrawer(lojaId);
+    setModalDesdobramentoAberto(false);
+    if (metricaAlvo) {
+      setDrawerMetrica(metricaAlvo);
     }
+
+    // Carrega em background a auditoria analítica aprofundada isolada daquela filial
+    setCarregandoLojaId(lojaId);
+    dashboardJevService.obterDashboardExecutivo({
+      lojaId,
+      tipoPeriodo,
+      periodoOffset,
+      dataInicioCustom,
+      dataFimCustom
+    }).then((res) => {
+      setPayloadDrawerEspecifico(res.payload);
+    }).catch((err) => {
+      console.warn('[DashboardCockpit] Erro ao carregar auditoria da filial em background:', err);
+    }).finally(() => {
+      setCarregandoLojaId(null);
+    });
   };
 
   // Handler de ação "Ver Auditoria Geral Consolidada" a partir do modal de desdobramento
   const handleVerConsolidado = () => {
-    setModalDesdobramentoAberto(false);
+    const metricaAlvo = metricaDesdobramento || drawerMetrica;
     setLojaDrawerEspecifica(null);
     setPayloadDrawerEspecifico(null);
-    setDrawerMetrica(metricaDesdobramento);
+    setLojaIdAlvoDrawer(null);
+    setModalDesdobramentoAberto(false);
+    if (metricaAlvo) {
+      setDrawerMetrica(metricaAlvo);
+    }
   };
 
   // Saudação contextual ao usuário
@@ -698,9 +709,11 @@ export const DashboardCockpit: React.FC = () => {
           setDrawerMetrica(null);
           setPayloadDrawerEspecifico(null);
           setLojaDrawerEspecifica(null);
+          setLojaIdAlvoDrawer(null);
         }}
         tipoMetrica={drawerMetrica}
         payload={payloadDrawerEspecifico || payloadExecutivo}
+        lojaIdAlvo={lojaIdAlvoDrawer}
         nomeLojaContexto={
           lojaDrawerEspecifica?.nome ||
           (escopoLojaId === 'todas'

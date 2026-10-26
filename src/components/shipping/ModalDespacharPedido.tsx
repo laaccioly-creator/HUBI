@@ -8,7 +8,9 @@ import {
   Check,
   AlertCircle,
   CheckCircle2,
-  Loader2
+  Loader2,
+  Share2,
+  ExternalLink
 } from 'lucide-react';
 import { Pedido, Loja } from '../../types';
 import { PedidoEntrega, AppEntrega, Transportadora } from '../../types/shipping';
@@ -153,11 +155,18 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
   const [despachando, setDespachando] = useState<boolean>(false);
   const [erroMsg, setErroMsg] = useState<string | null>(null);
   const [resultadoDisparoWpp, setResultadoDisparoWpp] = useState<ResultadoDisparoHibrido | null>(null);
+  const [confirmacaoSucesso, setConfirmacaoSucesso] = useState<{
+    numPedido: string | number;
+    clienteNome: string;
+    meioEnvio: string;
+    manualUrl?: string | null;
+  } | null>(null);
 
   // Busca entrega atualizada no banco se necessário
   useEffect(() => {
     if (!isOpen) {
       setResultadoDisparoWpp(null);
+      setConfirmacaoSucesso(null);
     }
     setEntregaInterna(entrega);
     if (isOpen && pedido?.id && (!entrega || !entrega.codigo_rastreio)) {
@@ -424,17 +433,19 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
           ''
       ).trim();
 
+      const numPed = pedido.numero_pedido || pedido.id.slice(0, 6);
+      const codRastreioOuCorrida =
+        dadosDespacho.codigoRastreio || dadosDespacho.codigoCorrida || '';
+      const detalheEnvio =
+        dadosDespacho.nomeTransportadora ||
+        dadosDespacho.nomeApp ||
+        dadosDespacho.entregadorNome ||
+        'Entrega';
+      const clienteNomeFinal = pedido.cliente?.nome || (pedido as any)?.cliente_nome || 'Cliente';
+
       if (loja?.id && telefoneCliente) {
-        const numPed = pedido.numero_pedido || pedido.id.slice(0, 6);
-        const codRastreioOuCorrida =
-          dadosDespacho.codigoRastreio || dadosDespacho.codigoCorrida || '';
-        const detalheEnvio =
-          dadosDespacho.nomeTransportadora ||
-          dadosDespacho.nomeApp ||
-          dadosDespacho.entregadorNome ||
-          'Entrega';
         const mensagemDespacho = `Olá${
-          pedido.cliente?.nome ? `, *${pedido.cliente.nome}*` : ''
+          clienteNomeFinal ? `, *${clienteNomeFinal}*` : ''
         }! 📦\nSeu pedido *#${numPed}* na loja *${
           loja.nome_fantasia || 'HUBI'
         }* acabou de ser despachado via *${detalheEnvio}*!${
@@ -451,13 +462,21 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
           usuarioId: usuario?.id || null,
         });
 
-        if (resHibrido.modoEnvio === 'manual_link') {
-          setResultadoDisparoWpp(resHibrido);
-          return;
-        }
+        setConfirmacaoSucesso({
+          numPedido: numPed,
+          clienteNome: clienteNomeFinal,
+          meioEnvio: detalheEnvio,
+          manualUrl: resHibrido?.manualUrl || (telefoneCliente ? `https://wa.me/55${telefoneCliente.replace(/\D/g, '')}?text=${encodeURIComponent(mensagemDespacho)}` : null)
+        });
+        return;
       }
 
-      onClose();
+      setConfirmacaoSucesso({
+        numPedido: numPed,
+        clienteNome: clienteNomeFinal,
+        meioEnvio: detalheEnvio,
+        manualUrl: null
+      });
     } catch (err: unknown) {
       console.error('[ModalDespacharPedido] Erro ao despachar:', err);
       const msg = err instanceof Error ? err.message : 'Erro ao despachar pedido.';
@@ -498,17 +517,83 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
           </button>
         </div>
 
-        {/* Endereço de destino (se houver) */}
-        {pedido.endereco_entrega && (
-          <div className={`p-3 rounded-2xl space-y-0.5 ${
+        {confirmacaoSucesso ? (
+          <div className="space-y-6 text-center py-2 animate-in fade-in">
+            <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 flex items-center justify-center mx-auto">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                Envio Confirmado com Sucesso!
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
+                O despacho do pedido <strong>#{confirmacaoSucesso.numPedido}</strong> foi registrado no sistema e o status atualizado para Em Rota de Entrega.
+              </p>
+            </div>
+
+            {/* Resumo do Envio */}
+            <div className={`p-4 rounded-2xl border text-left space-y-2 ${
+              isDark ? 'bg-[#000000] border-slate-700 text-slate-200' : 'bg-white border-2 border-slate-300 text-slate-800'
+            }`}>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-500 dark:text-slate-400">Cliente:</span>
+                <span className="font-bold text-slate-900 dark:text-white">{confirmacaoSucesso.clienteNome}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-500 dark:text-slate-400">Meio de Envio:</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">{confirmacaoSucesso.meioEnvio}</span>
+              </div>
+            </div>
+
+            {/* Ações */}
+            <div className="space-y-2.5 pt-2">
+              {confirmacaoSucesso.manualUrl ? (
+                <a
+                  href={confirmacaoSucesso.manualUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
+                >
+                  <Share2 className="w-4 h-4" />
+                  <span>Notificar Envio ao Cliente</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              ) : (
+                <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
+                  ⚡ Notificação de rastreio enviada automaticamente via WhatsApp oficial.
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="w-full py-2.5 px-4 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 font-bold text-xs transition cursor-pointer"
+                >
+                  Concluir e Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Endereço de entrega com Nome do Cliente em destaque */}
+        {(pedido.endereco_entrega || (pedido as any)?.cliente_nome || pedido.cliente?.nome) && (
+          <div className={`p-3.5 rounded-2xl space-y-1 ${
             isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
           }`}>
             <span className={`text-[10px] font-semibold uppercase tracking-wider block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-              Destino da Entrega:
+              Entrega:
             </span>
-            <p className={`font-medium text-xs leading-relaxed ${isDark ? 'text-slate-200' : 'text-black'}`}>
-              {pedido.endereco_entrega}
+            <p className={`font-black text-xs ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              {pedido.cliente?.nome || (pedido as any)?.cliente_nome || 'Cliente não identificado'}
             </p>
+            {pedido.endereco_entrega && (
+              <p className={`font-medium text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                {pedido.endereco_entrega}
+              </p>
+            )}
           </div>
         )}
 
@@ -868,36 +953,6 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
           </div>
         )}
 
-        {resultadoDisparoWpp && resultadoDisparoWpp.modoEnvio === 'manual_link' && (
-          <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span>Despacho gravado com sucesso! Notifique o cliente gratuitamente pelo WhatsApp:</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  if (resultadoDisparoWpp.manualUrl) {
-                    window.open(resultadoDisparoWpp.manualUrl, '_blank', 'noopener,noreferrer');
-                  }
-                  onClose();
-                }}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition cursor-pointer"
-              >
-                <span>[ Notificar Cliente via WhatsApp ]</span>
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold"
-              >
-                Fechar
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Rodapé com Ações */}
         <div className={`pt-2 flex items-center justify-end gap-2.5 border-t ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
           <button
@@ -934,6 +989,8 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
             )}
           </button>
         </div>
+          </>
+        )}
       </div>
     </div>
   );

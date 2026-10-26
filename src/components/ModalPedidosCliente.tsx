@@ -3,6 +3,7 @@ import { X, Package, Clock, ExternalLink, Loader2, AlertCircle, ShoppingBag, Che
 import { Pedido, Loja } from '../types';
 import { ClienteCatalogoService } from '../services/clienteCatalogoService';
 import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
+import { ModalPagamentoPedidoPesado } from './catalogo/ModalPagamentoPedidoPesado';
 import { supabase } from '../lib/supabase';
 
 interface ModalPedidosClienteProps {
@@ -13,6 +14,7 @@ interface ModalPedidosClienteProps {
   clienteId: string;
   corTema?: string;
   onExplorarCatalogo?: () => void;
+  onPagarPedido?: (pedido: Pedido) => void;
 }
 
 export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
@@ -22,10 +24,12 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
   loja,
   clienteId,
   corTema = '#10B981',
-  onExplorarCatalogo
+  onExplorarCatalogo,
+  onPagarPedido
 }) => {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
+  const [pedidoPagamentoModal, setPedidoPagamentoModal] = useState<Pedido | null>(null);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -230,7 +234,26 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                     </strong>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Botão Pagar Pedido quando houver saldo pendente ou aguardando pagamento */}
+                    {(ped.status_pagamento === 'aguardando_pagamento' || (ped.status_pagamento !== 'pago' && ped.status !== 'cancelado')) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (onPagarPedido) {
+                            onPagarPedido(ped);
+                          } else {
+                            setPedidoPagamentoModal(ped);
+                          }
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition cursor-pointer active:scale-95"
+                        title="Efetuar pagamento do pedido"
+                      >
+                        <CreditCard className="w-3.5 h-3.5" />
+                        <span>Pagar Pedido</span>
+                      </button>
+                    )}
+
                     <button
                       type="button"
                       onClick={async () => {
@@ -283,6 +306,24 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
         pedido={pedidoReciboModal}
         loja={loja}
       />
+
+      {/* Modal de Pagamento para Pedidos Pendentes */}
+      {pedidoPagamentoModal && loja && (
+        <ModalPagamentoPedidoPesado
+          isOpen={!!pedidoPagamentoModal}
+          onClose={() => setPedidoPagamentoModal(null)}
+          loja={loja}
+          pedido={pedidoPagamentoModal}
+          onPagamentoConcluido={() => {
+            setPedidoPagamentoModal(null);
+            const carregarAposPagar = async () => {
+              const lista = await ClienteCatalogoService.listarPedidosCliente(lojaId, clienteId);
+              setPedidos(lista);
+            };
+            carregarAposPagar();
+          }}
+        />
+      )}
     </div>
   );
 };

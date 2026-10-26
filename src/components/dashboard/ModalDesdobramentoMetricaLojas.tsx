@@ -177,9 +177,6 @@ export const ModalDesdobramentoMetricaLojas: React.FC<ModalDesdobramentoMetricaL
     }
   }, [isOpen, tipoMetrica, desdobramentoLojas, lojasAtivas.length, carregarMetricasFiliais]);
 
-  // Registro na pilha de overlays para tecla ESC e botão Voltar Mobile
-  useRegisterOverlay(isOpen, onClose, 'cockpit-desdobramento-lojas-modal');
-
   // Travar o scroll do body enquanto o modal estiver aberto
   useEffect(() => {
     if (isOpen) {
@@ -191,17 +188,6 @@ export const ModalDesdobramentoMetricaLojas: React.FC<ModalDesdobramentoMetricaL
       document.body.style.overflow = '';
     };
   }, [isOpen]);
-
-  // Tecla Escape como redundância defensiva
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
 
   // Configurações visuais por métrica
   const configMetrica: ConfigMetricaVisual | null = useMemo(() => {

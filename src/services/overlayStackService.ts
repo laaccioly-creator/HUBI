@@ -23,7 +23,15 @@ class OverlayStackService {
       this.stack.splice(idx, 1);
       if (!this.isHandlingPopstate && typeof window !== 'undefined' && window.history) {
         if (window.history.state?.hubiOverlayId === id) {
-          window.history.back();
+          if (this.stack.length === 0) {
+            window.history.back();
+          } else {
+            // Se ainda há overlays na pilha (ex: transição atômica de modal para drawer), alinha o state sem disparar back
+            const topItem = this.getTop();
+            if (topItem) {
+              window.history.replaceState({ hubiOverlayId: topItem.id }, '');
+            }
+          }
         }
       }
     }

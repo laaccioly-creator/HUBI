@@ -46,6 +46,7 @@ export interface CockpitMetricDrawerProps {
   payload: PayloadDashboardExecutivo | null;
   onAbrirEntradaEstoque?: (produto?: ProdutoEstoqueRisco) => void;
   nomeLojaContexto?: string;
+  lojaIdAlvo?: string | null;
 }
 
 export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
@@ -54,7 +55,8 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
   tipoMetrica,
   payload,
   onAbrirEntradaEstoque,
-  nomeLojaContexto
+  nomeLojaContexto,
+  lojaIdAlvo
 }) => {
   const { tema } = useTheme();
   const isDark = tema === 'dark';

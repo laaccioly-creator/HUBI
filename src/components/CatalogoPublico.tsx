@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import {
   ShoppingBag,
@@ -273,6 +273,7 @@ export const CatalogoPublico: React.FC = () => {
   const [modalPagamentoCheckoutAberto, setModalPagamentoCheckoutAberto] = useState<boolean>(false);
   const [modalPagamentoPedidoPesadoAberto, setModalPagamentoPedidoPesadoAberto] = useState<boolean>(false);
   const [pedidoParaPagamento, setPedidoParaPagamento] = useState<any | null>(null);
+  const [pedidoIdPendentePagar, setPedidoIdPendentePagar] = useState<string | null>(null);
   const [formaPagamentoCatalogoEscolhida, setFormaPagamentoCatalogoEscolhida] = useState<string>('');
   const [pixCopiadoCheckout, setPixCopiadoCheckout] = useState<boolean>(false);
   const [saldoContaClienteReconciliado, setSaldoContaClienteReconciliado] = useState<number>(0);
@@ -1020,43 +1021,52 @@ export const CatalogoPublico: React.FC = () => {
     carregarCatalogo();
   }, [slug]);
 
+  // Função reutilizável para carregar o pedido pesado e abrir o modal de pagamento
+  const carregarPedidoParaPagamento = useCallback(async (pagarPedidoId: string) => {
+    if (!pagarPedidoId || !loja?.id) return;
+
+    try {
+      const { data, error } = await supabase.rpc('obter_pedido_para_pagamento_catalogo', {
+        p_pedido_id: pagarPedidoId,
+        p_slug_catalogo: slug || loja.slug_catalogo || loja.id
+      });
+
+      if (error || !data?.sucesso || !data?.pedido) {
+        console.warn('[CatalogoPublico] Pedido para pagamento não localizado:', error || data?.mensagem);
+        return;
+      }
+
+      const ped = data.pedido;
+      if (ped.status_pagamento === 'pago') {
+        alert(`O pedido #${ped.numero_pedido} já se encontra quitado e pago!`);
+        return;
+      }
+
+      if (ped.status_pagamento === 'aguardando_pesagem') {
+        alert(`O pedido #${ped.numero_pedido} ainda está aguardando conferência e pesagem na balança pelo estabelecimento. Assim que os pesos forem aferidos, o pagamento será liberado!`);
+        return;
+      }
+
+      setPedidoParaPagamento(ped);
+      setModalPagamentoPedidoPesadoAberto(true);
+      setPedidoIdPendentePagar(null);
+    } catch (err) {
+      console.error('[CatalogoPublico] Erro ao carregar pedido para pagamento:', err);
+    }
+  }, [loja?.id, loja?.slug_catalogo, slug]);
+
   // Tratamento de Deep Link para Pagamento de Pedido Pesado (?pagar_pedido={pedido_id})
   useEffect(() => {
     const pagarPedidoId = searchParams.get('pagar_pedido');
     if (!pagarPedidoId || !loja?.id) return;
 
-    const carregarPedidoParaPagamento = async () => {
-      try {
-        const { data, error } = await supabase.rpc('obter_pedido_para_pagamento_catalogo', {
-          p_pedido_id: pagarPedidoId,
-          p_slug_catalogo: slug || loja.slug_catalogo || loja.id
-        });
+    setPedidoIdPendentePagar(pagarPedidoId);
 
-        if (error || !data?.sucesso || !data?.pedido) {
-          console.warn('[CatalogoPublico] Pedido para pagamento não localizado:', error || data?.mensagem);
-          return;
-        }
-
-        const ped = data.pedido;
-        if (ped.status_pagamento === 'pago') {
-          alert(`O pedido #${ped.numero_pedido} já se encontra quitado e pago!`);
-          return;
-        }
-
-        if (ped.status_pagamento === 'aguardando_pesagem') {
-          alert(`O pedido #${ped.numero_pedido} ainda está aguardando conferência e pesagem na balança pelo estabelecimento. Assim que os pesos forem aferidos, o pagamento será liberado!`);
-          return;
-        }
-
-        setPedidoParaPagamento(ped);
-        setModalPagamentoPedidoPesadoAberto(true);
-      } catch (err) {
-        console.error('[CatalogoPublico] Erro ao carregar pedido para pagamento:', err);
-      }
-    };
-
-    carregarPedidoParaPagamento();
-  }, [searchParams, loja?.id, slug]);
+    // Se o cliente já estiver autenticado na sessão, abre imediatamente
+    if (clienteSelecionado?.id) {
+      carregarPedidoParaPagamento(pagarPedidoId);
+    }
+  }, [searchParams, loja?.id, clienteSelecionado?.id, carregarPedidoParaPagamento]);
 
   // 1. Tratar Retorno do Mercado Pago (Redirecionamento pós-checkout)
   useEffect(() => {
@@ -3958,6 +3968,10 @@ Fico no aguardo da confirmação! ✨`;
         onSucesso={(cliente) => {
           handleSelecionarCliente(cliente);
           setModalOnboardingAberto(false);
+          const pedPendente = pedidoIdPendentePagar || searchParams.get('pagar_pedido');
+          if (pedPendente) {
+            carregarPedidoParaPagamento(pedPendente);
+          }
         }}
       />
 
@@ -4000,6 +4014,10 @@ Fico no aguardo da confirmação! ✨`;
           setCategoriaSelecionada('todas');
           setBusca('');
           window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+        onPagarPedido={(ped) => {
+          setPedidoParaPagamento(ped);
+          setModalPagamentoPedidoPesadoAberto(true);
         }}
       />
 
@@ -4257,7 +4275,7 @@ Fico no aguardo da confirmação! ✨`;
             avaliacaoCarrinho.tabelaAtiva === 'autoatacado' ? regrasAtivas.descontoAutoatacado : regrasAtivas.descontoAtacado
           )}
           quantidadeAtual={itemPesagemCatalogo.quantidadeAtual || 1}
-          temaDark={true}
+          temaDark={false}
           onConfirmar={(pesoKg: number) => {
             if (typeof itemPesagemCatalogo.indexCarrinho === 'number') {
               atualizarQtdCarrinho(itemPesagemCatalogo.indexCarrinho, pesoKg);
