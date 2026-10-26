@@ -145,7 +145,9 @@ export const DashboardCockpit: React.FC = () => {
     const idAlvo = escopoLojaId === 'todas' ? 'todas' : (escopoLojaId || loja?.id);
     if (!idAlvo) return;
 
-    const listaLojasIds = (lojasDisponiveis || []).map(l => l.id);
+    const listaLojasIds = (lojasDisponiveis && lojasDisponiveis.length > 0)
+      ? lojasDisponiveis.map(l => l.id)
+      : (loja?.id ? [loja.id] : []);
 
     try {
       if (forcar) {
@@ -672,6 +674,15 @@ export const DashboardCockpit: React.FC = () => {
         onClose={() => setModalDesdobramentoAberto(false)}
         tipoMetrica={metricaDesdobramento}
         periodoLabel={labelExibicaoPeriodo}
+        lojas={
+          (lojasDisponiveis && lojasDisponiveis.length > 0)
+            ? lojasDisponiveis
+            : (loja ? [loja] : [])
+        }
+        tipoPeriodo={tipoPeriodo}
+        periodoOffset={periodoOffset}
+        dataInicioCustom={dataInicioCustom}
+        dataFimCustom={dataFimCustom}
         desdobramentoLojas={payloadExecutivo?.desdobramentoLojas || []}
         carregandoLojaId={carregandoLojaId}
         onSelecionarLoja={handleSelecionarLojaDesdobramento}

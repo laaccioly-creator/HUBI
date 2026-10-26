@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   X,
   Building2,
@@ -16,9 +16,15 @@ import {
   Info
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { CockpitGaugeF1 } from './CockpitGaugeF1';
 import { TipoMetricaCockpitDrawer } from './CockpitMetricDrawer';
-import { DesdobramentoLojaItem } from '../../services/dashboardService';
+import {
+  dashboardService,
+  DesdobramentoLojaItem,
+  TipoPeriodoDashboard
+} from '../../services/dashboardService';
+import { Loja } from '../../types';
 import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 import { formatarMoeda } from '../../utils/formatters';
 
@@ -27,7 +33,12 @@ export interface ModalDesdobramentoMetricaLojasProps {
   onClose: () => void;
   tipoMetrica: TipoMetricaCockpitDrawer | null;
   periodoLabel: string;
-  desdobramentoLojas: DesdobramentoLojaItem[];
+  desdobramentoLojas?: DesdobramentoLojaItem[];
+  lojas?: Loja[];
+  tipoPeriodo?: TipoPeriodoDashboard;
+  periodoOffset?: number;
+  dataInicioCustom?: string;
+  dataFimCustom?: string;
   carregandoLojaId?: string | null;
   onSelecionarLoja: (lojaId: string, lojaNome: string) => void;
   onVerConsolidado: () => void;
@@ -48,12 +59,123 @@ export const ModalDesdobramentoMetricaLojas: React.FC<ModalDesdobramentoMetricaL
   tipoMetrica,
   periodoLabel,
   desdobramentoLojas,
+  lojas: lojasProps,
+  tipoPeriodo,
+  periodoOffset,
+  dataInicioCustom,
+  dataFimCustom,
   carregandoLojaId,
   onSelecionarLoja,
   onVerConsolidado
 }) => {
   const { tema } = useTheme();
+  const { loja, lojasDisponiveis } = useAuth();
   const isDark = tema === 'dark';
+
+  // Estados locais de controle de carga e dados das filiais
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [itensDesdobramento, setItensDesdobramento] = useState<DesdobramentoLojaItem[]>(
+    desdobramentoLojas || []
+  );
+
+  // Fonte de lojas soberana e sem restrições de organizacao_id para suportar lojas avulsas e redes
+  const lojasAtivas = useMemo(() => {
+    if (lojasProps && lojasProps.length > 0) return lojasProps;
+    if (lojasDisponiveis && lojasDisponiveis.length > 0) return lojasDisponiveis;
+    if (loja) return [loja];
+    return [];
+  }, [lojasProps, lojasDisponiveis, loja]);
+
+  // Rotina de busca resiliente com Promise.allSettled e isolamento de erros por loja
+  const carregarMetricasFiliais = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      if (lojasAtivas.length === 0) {
+        setItensDesdobramento([]);
+        return;
+      }
+
+      // Se o dashboard pai já forneceu dados completos para todas as lojas, utiliza diretamente
+      if (desdobramentoLojas && desdobramentoLojas.length >= lojasAtivas.length) {
+        setItensDesdobramento(desdobramentoLojas);
+        return;
+      }
+
+      const intervalo = dashboardService.resolverIntervaloPeriodo(
+        tipoPeriodo || 'este_mes',
+        periodoOffset || 0,
+        dataInicioCustom,
+        dataFimCustom
+      );
+
+      const resultadosSettled = await Promise.allSettled(
+        lojasAtivas.map(async (l) => {
+          try {
+            const res = await dashboardService.obterMetricasCockpit(
+              l.id,
+              intervalo.dataInicioIso,
+              intervalo.dataFimIso,
+              intervalo.diasIntervalo
+            );
+            return {
+              lojaId: l.id,
+              lojaNome: l.nome_fantasia || 'Loja',
+              metricas: res.metricas,
+              metasProporcionais: res.metasProporcionais
+            } as DesdobramentoLojaItem;
+          } catch (lojaErr) {
+            console.warn(`[ModalDesdobramentoMetricaLojas] Falha ao consultar filial ${l.id}:`, lojaErr);
+            const metasPadrao = await dashboardService.obterMetasLoja(l.id).catch(() => ({
+              id: 'padrao',
+              loja_id: l.id,
+              ...dashboardService.METAS_PADRAO_LOJA
+            }));
+            return {
+              lojaId: l.id,
+              lojaNome: l.nome_fantasia || 'Loja',
+              metricas: {
+                faturamento: 0,
+                pedidos: 0,
+                ticket_medio: 0,
+                cmv: 0,
+                despesas: 0,
+                lucro_liquido: 0,
+                inadimplencia: 0,
+                giro_estoque: 0,
+                saude_estoque: 0
+              },
+              metasProporcionais: metasPadrao
+            } as DesdobramentoLojaItem;
+          }
+        })
+      );
+
+      const itensFinais: DesdobramentoLojaItem[] = [];
+      resultadosSettled.forEach((r) => {
+        if (r.status === 'fulfilled' && r.value) {
+          itensFinais.push(r.value);
+        }
+      });
+
+      setItensDesdobramento(itensFinais);
+    } catch (errGeral) {
+      console.error('[ModalDesdobramentoMetricaLojas] Erro geral ao buscar métricas das filiais:', errGeral);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [lojasAtivas, desdobramentoLojas, tipoPeriodo, periodoOffset, dataInicioCustom, dataFimCustom]);
+
+  // Disparo controlado na abertura do modal
+  useEffect(() => {
+    if (isOpen && tipoMetrica) {
+      if (desdobramentoLojas && desdobramentoLojas.length > 0 && desdobramentoLojas.length >= lojasAtivas.length) {
+        setItensDesdobramento(desdobramentoLojas);
+        setIsLoading(false);
+      } else {
+        carregarMetricasFiliais();
+      }
+    }
+  }, [isOpen, tipoMetrica, desdobramentoLojas, lojasAtivas.length, carregarMetricasFiliais]);
 
   // Registro na pilha de overlays para tecla ESC e botão Voltar Mobile
   useRegisterOverlay(isOpen, onClose, 'cockpit-desdobramento-lojas-modal');
@@ -151,14 +273,14 @@ export const ModalDesdobramentoMetricaLojas: React.FC<ModalDesdobramentoMetricaL
 
   // Totalizadores consolidados da métrica para o banner informativo
   const resumoConsolidado = useMemo(() => {
-    if (!tipoMetrica || desdobramentoLojas.length === 0) {
+    if (!tipoMetrica || itensDesdobramento.length === 0) {
       return { totalRealizado: 0, totalMeta: 0, textoRealizado: '', textoMeta: '', pctGeral: 0 };
     }
 
     let realizado = 0;
     let meta = 0;
 
-    desdobramentoLojas.forEach(item => {
+    itensDesdobramento.forEach(item => {
       switch (tipoMetrica) {
         case 'faturamento':
           realizado += Number(item.metricas.faturamento || 0);
@@ -191,16 +313,16 @@ export const ModalDesdobramentoMetricaLojas: React.FC<ModalDesdobramentoMetricaL
       }
     });
 
-    if (tipoMetrica === 'inadimplencia' && desdobramentoLojas.length > 0) {
-      realizado = Math.round((realizado / desdobramentoLojas.length) * 100) / 100;
-      meta = Math.round((meta / desdobramentoLojas.length) * 100) / 100;
+    if (tipoMetrica === 'inadimplencia' && itensDesdobramento.length > 0) {
+      realizado = Math.round((realizado / itensDesdobramento.length) * 100) / 100;
+      meta = Math.round((meta / itensDesdobramento.length) * 100) / 100;
     }
 
     if (tipoMetrica === 'ticket') {
-      const somaPedidos = desdobramentoLojas.reduce((acc, it) => acc + Number(it.metricas.pedidos || 0), 0);
+      const somaPedidos = itensDesdobramento.reduce((acc, it) => acc + Number(it.metricas.pedidos || 0), 0);
       realizado = somaPedidos > 0 ? Math.round((realizado / somaPedidos) * 100) / 100 : 0;
-      meta = desdobramentoLojas.length > 0
-        ? Math.round((desdobramentoLojas.reduce((acc, it) => acc + Number(it.metasProporcionais.meta_ticket_medio || 0), 0) / desdobramentoLojas.length) * 100) / 100
+      meta = itensDesdobramento.length > 0
+        ? Math.round((itensDesdobramento.reduce((acc, it) => acc + Number(it.metasProporcionais.meta_ticket_medio || 0), 0) / itensDesdobramento.length) * 100) / 100
         : 0;
     }
 
@@ -220,7 +342,7 @@ export const ModalDesdobramentoMetricaLojas: React.FC<ModalDesdobramentoMetricaL
     }
 
     return { totalRealizado: realizado, totalMeta: meta, textoRealizado, textoMeta, pctGeral };
-  }, [tipoMetrica, desdobramentoLojas, configMetrica]);
+  }, [tipoMetrica, itensDesdobramento, configMetrica]);
 
   if (!isOpen || !tipoMetrica || !configMetrica) {
     return null;
@@ -319,7 +441,10 @@ export const ModalDesdobramentoMetricaLojas: React.FC<ModalDesdobramentoMetricaL
                 </span>
               </div>
               <p className="text-xs text-slate-600 dark:text-slate-400 font-medium mt-0.5">
-                Competência: <strong className="text-slate-900 dark:text-slate-200 font-bold">{periodoLabel}</strong> • Comparativo entre {desdobramentoLojas.length} {desdobramentoLojas.length === 1 ? 'filial' : 'filiais'} da rede
+                Competência: <strong className="text-slate-900 dark:text-slate-200 font-bold">{periodoLabel}</strong>
+                {itensDesdobramento.length > 0 && (
+                  <> • Comparativo entre {itensDesdobramento.length} {itensDesdobramento.length === 1 ? 'filial' : 'filiais'} da rede</>
+                )}
               </p>
             </div>
           </div>
@@ -383,12 +508,12 @@ export const ModalDesdobramentoMetricaLojas: React.FC<ModalDesdobramentoMetricaL
 
             <div className="flex items-center gap-2 self-end sm:self-auto shrink-0 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
               <Building2 className="w-3.5 h-3.5" />
-              <span>{desdobramentoLojas.length} {desdobramentoLojas.length === 1 ? 'Loja Monitorada' : 'Lojas Monitoradas'}</span>
+              <span>{itensDesdobramento.length} {itensDesdobramento.length === 1 ? 'Loja Monitorada' : 'Lojas Monitoradas'}</span>
             </div>
           </div>
 
-          {/* Grid de Velocímetros das Lojas */}
-          {desdobramentoLojas.length === 0 ? (
+          {/* Grid de Velocímetros das Lojas com Estados de Carga e Empty State Amigável */}
+          {isLoading ? (
             <div className="py-16 text-center space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 flex items-center justify-center mx-auto animate-spin">
                 <Loader2 className="w-6 h-6" />
@@ -397,9 +522,40 @@ export const ModalDesdobramentoMetricaLojas: React.FC<ModalDesdobramentoMetricaL
                 Carregando dados das filiais...
               </p>
             </div>
+          ) : itensDesdobramento.length === 0 ? (
+            <div className="py-12 sm:py-16 text-center space-y-4 max-w-md mx-auto animate-in fade-in">
+              <div className="w-16 h-16 rounded-3xl bg-slate-500/10 border border-slate-500/20 text-slate-400 flex items-center justify-center mx-auto">
+                <Building2 className="w-8 h-8" />
+              </div>
+              <div className="space-y-1.5">
+                <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">
+                  Nenhuma filial encontrada para esta organização
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Não foram localizadas filiais adicionais configuradas. Você pode visualizar a auditoria geral consolidada da operação.
+                </p>
+              </div>
+              <div className="pt-2 flex items-center justify-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={onVerConsolidado}
+                  className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 transition cursor-pointer shadow-xs active:scale-98"
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  <span>Ver Auditoria Geral Consolidada</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs transition cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
-              {desdobramentoLojas.map((item) => {
+              {itensDesdobramento.map((item) => {
                 const {
                   valorRealizado,
                   valorMeta,

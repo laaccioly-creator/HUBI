@@ -770,6 +770,7 @@ export async function obterMetricasCockpit(
 
 /**
  * Consulta e decompõe indicadores e metas para uma lista de lojas (Visão Multilojas)
+ * Utiliza Promise.allSettled e isolamento com try/catch por filial para evitar que falhas individuais travem a visualização
  */
 export async function obterDesdobramentoLojas(
   lojas: { id: string; nome_fantasia?: string }[],
@@ -777,18 +778,48 @@ export async function obterDesdobramentoLojas(
   paramFim?: string,
   diasIntervalo?: number
 ): Promise<DesdobramentoLojaItem[]> {
-  const resultados = await Promise.all(
+  if (!lojas || lojas.length === 0) return [];
+
+  const resultadosSettled = await Promise.allSettled(
     lojas.map(async (l) => {
-      const res = await obterMetricasCockpit(l.id, paramInicio, paramFim, diasIntervalo);
-      return {
-        lojaId: l.id,
-        lojaNome: l.nome_fantasia || 'Loja',
-        metricas: res.metricas,
-        metasProporcionais: res.metasProporcionais
-      };
+      try {
+        const res = await obterMetricasCockpit(l.id, paramInicio, paramFim, diasIntervalo);
+        return {
+          lojaId: l.id,
+          lojaNome: l.nome_fantasia || 'Loja',
+          metricas: res.metricas,
+          metasProporcionais: res.metasProporcionais
+        } as DesdobramentoLojaItem;
+      } catch (lojaErr) {
+        console.warn(`[dashboardService] Falha ao obter métricas da loja ${l.id}:`, lojaErr);
+        const metasPadrao = await obterMetasLoja(l.id).catch(() => ({
+          id: 'padrao',
+          loja_id: l.id,
+          ...METAS_PADRAO_LOJA
+        }));
+        return {
+          lojaId: l.id,
+          lojaNome: l.nome_fantasia || 'Loja',
+          metricas: {
+            faturamento: 0,
+            pedidos: 0,
+            ticket_medio: 0,
+            cmv: 0,
+            despesas: 0,
+            lucro_liquido: 0,
+            inadimplencia: 0,
+            giro_estoque: 0,
+            saude_estoque: 0
+          },
+          metasProporcionais: metasPadrao
+        } as DesdobramentoLojaItem;
+      }
     })
   );
-  return resultados;
+
+  return resultadosSettled
+    .filter((r): r is PromiseFulfilledResult<DesdobramentoLojaItem> => r.status === 'fulfilled' && !!r.value)
+    .map(r => r.value);
 }
 
 export const dashboardService = {

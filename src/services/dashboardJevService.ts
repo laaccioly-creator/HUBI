@@ -498,7 +498,19 @@ export const dashboardJevService = {
     const dFim = intervalo.dataFim;
 
     const ehConsolidado = lojaId === 'todas';
-    const listaLojasIds = ehConsolidado ? (params.lojasIdsConglomerado || []) : [lojaId];
+    let listaLojasIds = ehConsolidado ? [...(params.lojasIdsConglomerado || [])] : [lojaId];
+
+    // Fallback defensivo: se estiver no consolidado sem lista de IDs pré-carregada, consulta as lojas diretamente
+    if (ehConsolidado && listaLojasIds.length === 0) {
+      try {
+        const { data: lojasDb } = await supabase.from('lojas').select('id');
+        if (lojasDb && lojasDb.length > 0) {
+          listaLojasIds = lojasDb.map(l => l.id);
+        }
+      } catch (errLojasDb) {
+        console.warn('[dashboardJevService] Falha ao recuperar lojas para visão consolidada:', errLojasDb);
+      }
+    }
 
     let metasLoja: LojaMetas;
     let todosPedidos: any[] = [];
@@ -513,9 +525,9 @@ export const dashboardJevService = {
     if (ehConsolidado && listaLojasIds.length > 0) {
       metasLoja = await dashboardService.obterMetasConsolidadasConglomerado(listaLojasIds);
 
-      // Consultas paralelas isoladas por tenant (.eq('loja_id', id)) para conformidade estrita com RLS
-      const resultadosPorLoja = await Promise.all(
-        listaLojasIds.map(async (id) => {
+      // Consultas paralelas isoladas por tenant (.eq('loja_id', id)) com Promise.allSettled e try/catch por filial
+      const promessasLojas = listaLojasIds.map(async (id) => {
+        try {
           const [pRes, tRes, mRes, prRes, lRes, mLoja] = await Promise.all([
             supabase
               .from('pedidos')
@@ -549,7 +561,11 @@ export const dashboardJevService = {
               .select('id, nome_fantasia, configuracoes_extras')
               .eq('id', id)
               .maybeSingle(),
-            dashboardService.obterMetasLoja(id)
+            dashboardService.obterMetasLoja(id).catch(() => ({
+              id: 'padrao',
+              loja_id: id,
+              ...dashboardService.METAS_PADRAO_LOJA
+            }))
           ]);
 
           return {
@@ -562,8 +578,29 @@ export const dashboardJevService = {
             usarTaxaPdv: Boolean((lRes?.data as any)?.configuracoes_extras?.taxas_venda?.usar_taxa_pdv),
             metas: mLoja
           };
-        })
-      );
+        } catch (lojaErr) {
+          console.warn(`[dashboardJevService] Falha ao carregar dados isolados da filial ${id}:`, lojaErr);
+          return {
+            lojaId: id,
+            nome_fantasia: 'Loja',
+            pedidos: [],
+            transacoes: [],
+            movimentacoes: [],
+            produtos: [],
+            usarTaxaPdv: false,
+            metas: {
+              id: 'padrao',
+              loja_id: id,
+              ...dashboardService.METAS_PADRAO_LOJA
+            }
+          };
+        }
+      });
+
+      const resultadosSettled = await Promise.allSettled(promessasLojas);
+      const resultadosPorLoja = resultadosSettled
+        .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled' && !!r.value)
+        .map(r => r.value);
 
       resultadosPorLoja.forEach(r => {
         todosPedidos.push(...r.pedidos);
