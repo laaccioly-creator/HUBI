@@ -45,6 +45,7 @@ export interface CockpitMetricDrawerProps {
   tipoMetrica: TipoMetricaCockpitDrawer | null;
   payload: PayloadDashboardExecutivo | null;
   onAbrirEntradaEstoque?: (produto?: ProdutoEstoqueRisco) => void;
+  nomeLojaContexto?: string;
 }
 
 export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
@@ -52,7 +53,8 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
   onClose,
   tipoMetrica,
   payload,
-  onAbrirEntradaEstoque
+  onAbrirEntradaEstoque,
+  nomeLojaContexto
 }) => {
   const { tema } = useTheme();
   const isDark = tema === 'dark';
@@ -198,6 +200,11 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                 <div>
                   <h2 className="text-base sm:text-lg font-bold flex items-center gap-2 text-black dark:text-white">
                     <span>{configAtual.titulo}</span>
+                    {nomeLojaContexto && (
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                        {nomeLojaContexto}
+                      </span>
+                    )}
                   </h2>
                   <p className="text-xs mt-0.5 text-black dark:text-slate-400 font-medium">
                     {configAtual.subtitulo} • <span className="font-bold text-black dark:text-slate-200">{intervalo.label}</span>

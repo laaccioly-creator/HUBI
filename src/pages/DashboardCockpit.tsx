@@ -39,6 +39,7 @@ import {
   CockpitMetricDrawer,
   TipoMetricaCockpitDrawer
 } from '../components/dashboard/CockpitMetricDrawer';
+import { ModalDesdobramentoMetricaLojas } from '../components/dashboard/ModalDesdobramentoMetricaLojas';
 import { ConfiguracoesMetas } from '../components/configuracoes/ConfiguracoesMetas';
 import { ModalEntradaEstoque } from '../components/ModalEntradaEstoque';
 import { ModalAdicionarLoja } from '../components/lojas/ModalAdicionarLoja';
@@ -86,9 +87,21 @@ export const DashboardCockpit: React.FC = () => {
   const [modalEntradaAberto, setModalEntradaAberto] = useState<boolean>(false);
   const [produtoSelecionadoEntrada, setProdutoSelecionadoEntrada] = useState<Produto | null>(null);
 
+  // Estados do Modal de Desdobramento por Loja (Visão Conglomerado)
+  const [modalDesdobramentoAberto, setModalDesdobramentoAberto] = useState<boolean>(false);
+  const [metricaDesdobramento, setMetricaDesdobramento] = useState<TipoMetricaCockpitDrawer | null>(null);
+  const [payloadDrawerEspecifico, setPayloadDrawerEspecifico] = useState<PayloadDashboardExecutivo | null>(null);
+  const [lojaDrawerEspecifica, setLojaDrawerEspecifica] = useState<{ id: string; nome: string } | null>(null);
+  const [carregandoLojaId, setCarregandoLojaId] = useState<string | null>(null);
+
   // Registro na pilha de navegação para tecla ESC e botão Voltar Mobile
   useRegisterOverlay(menuDrawerAberto, () => setMenuDrawerAberto(false), 'cockpit-menu-drawer');
-  useRegisterOverlay(drawerMetrica !== null, () => setDrawerMetrica(null), 'cockpit-metric-drawer');
+  useRegisterOverlay(modalDesdobramentoAberto, () => setModalDesdobramentoAberto(false), 'cockpit-modal-desdobramento');
+  useRegisterOverlay(drawerMetrica !== null, () => {
+    setDrawerMetrica(null);
+    setPayloadDrawerEspecifico(null);
+    setLojaDrawerEspecifica(null);
+  }, 'cockpit-metric-drawer');
   useRegisterOverlay(modalEntradaAberto, () => {
     setModalEntradaAberto(false);
     setProdutoSelecionadoEntrada(null);
@@ -191,6 +204,50 @@ export const DashboardCockpit: React.FC = () => {
       setProdutoSelecionadoEntrada(null);
     }
     setModalEntradaAberto(true);
+  };
+
+  // Handler do clique em qualquer um dos 6 velocímetros:
+  // Se estiver na visão "Todas as Lojas", abre o modal intermediário de desdobramento por filial.
+  // Se for uma loja individual, abre diretamente a gaveta lateral de auditoria.
+  const handleCliqueGauge = (metrica: TipoMetricaCockpitDrawer) => {
+    if (escopoLojaId === 'todas') {
+      setMetricaDesdobramento(metrica);
+      setModalDesdobramentoAberto(true);
+    } else {
+      setLojaDrawerEspecifica(null);
+      setPayloadDrawerEspecifico(null);
+      setDrawerMetrica(metrica);
+    }
+  };
+
+  // Handler de seleção de filial específica no modal de desdobramento
+  const handleSelecionarLojaDesdobramento = async (lojaId: string, lojaNome: string) => {
+    try {
+      setCarregandoLojaId(lojaId);
+      const res = await dashboardJevService.obterDashboardExecutivo({
+        lojaId,
+        tipoPeriodo,
+        periodoOffset,
+        dataInicioCustom,
+        dataFimCustom
+      });
+      setPayloadDrawerEspecifico(res.payload);
+      setLojaDrawerEspecifica({ id: lojaId, nome: lojaNome });
+      setModalDesdobramentoAberto(false);
+      setDrawerMetrica(metricaDesdobramento);
+    } catch (err) {
+      console.error('[DashboardCockpit] Erro ao carregar auditoria da filial:', err);
+    } finally {
+      setCarregandoLojaId(null);
+    }
+  };
+
+  // Handler de ação "Ver Auditoria Geral Consolidada" a partir do modal de desdobramento
+  const handleVerConsolidado = () => {
+    setModalDesdobramentoAberto(false);
+    setLojaDrawerEspecifica(null);
+    setPayloadDrawerEspecifico(null);
+    setDrawerMetrica(metricaDesdobramento);
   };
 
   // Saudação contextual ao usuário
@@ -517,7 +574,7 @@ export const DashboardCockpit: React.FC = () => {
             valorMeta={metasProporcionais.meta_faturamento}
             tipoFormato="moeda"
             isLoading={carregando && !payloadExecutivo}
-            onClickDrillDown={() => setDrawerMetrica('faturamento')}
+            onClickDrillDown={() => handleCliqueGauge('faturamento')}
           />
 
           {/* 2. VOLUME DE PEDIDOS */}
@@ -527,7 +584,7 @@ export const DashboardCockpit: React.FC = () => {
             valorMeta={metasProporcionais.meta_pedidos}
             tipoFormato="inteiro"
             isLoading={carregando && !payloadExecutivo}
-            onClickDrillDown={() => setDrawerMetrica('pedidos')}
+            onClickDrillDown={() => handleCliqueGauge('pedidos')}
           />
 
           {/* 3. LUCRO LÍQUIDO REAL */}
@@ -537,7 +594,7 @@ export const DashboardCockpit: React.FC = () => {
             valorMeta={metasProporcionais.meta_lucro_liquido}
             tipoFormato="moeda"
             isLoading={carregando && !payloadExecutivo}
-            onClickDrillDown={() => setDrawerMetrica('lucro')}
+            onClickDrillDown={() => handleCliqueGauge('lucro')}
           />
 
           {/* 4. DESPESAS OPERACIONAIS (TETO ORÇAMENTÁRIO) */}
@@ -549,7 +606,7 @@ export const DashboardCockpit: React.FC = () => {
             tipoFormato="moeda"
             escalaInvertida={true}
             isLoading={carregando && !payloadExecutivo}
-            onClickDrillDown={() => setDrawerMetrica('despesas')}
+            onClickDrillDown={() => handleCliqueGauge('despesas')}
           />
 
           {/* 5. INADIMPLÊNCIA FIADO (ESCALA INVERTIDA) */}
@@ -560,7 +617,7 @@ export const DashboardCockpit: React.FC = () => {
             tipoFormato="percentual"
             escalaInvertida={true}
             isLoading={carregando && !payloadExecutivo}
-            onClickDrillDown={() => setDrawerMetrica('inadimplencia')}
+            onClickDrillDown={() => handleCliqueGauge('inadimplencia')}
           />
 
           {/* 6. SAÚDE DO ESTOQUE (HÍBRIDO: FASE 1 ESTOQUE MÍNIMO / FASE 2 CURVA ABC) */}
@@ -583,7 +640,7 @@ export const DashboardCockpit: React.FC = () => {
                 valorExibicaoCustomizado={`${totalItensEmRisco} em risco`}
                 metaExibicaoCustomizada={`${metaRupturaEstoque} ${metaRupturaEstoque === 1 ? 'ruptura' : 'rupturas'}`}
                 isLoading={carregando && !payloadExecutivo}
-                onClickDrillDown={() => setDrawerMetrica('saude_estoque')}
+                onClickDrillDown={() => handleCliqueGauge('saude_estoque')}
               />
             );
           })()}
@@ -608,13 +665,37 @@ export const DashboardCockpit: React.FC = () => {
       </div>
 
       {/* ========================================================================= */}
+      {/* MODAL INTERMEDIÁRIO DE DESDOBRAMENTO POR LOJA (VISÃO CONSOLIDADA) */}
+      {/* ========================================================================= */}
+      <ModalDesdobramentoMetricaLojas
+        isOpen={modalDesdobramentoAberto}
+        onClose={() => setModalDesdobramentoAberto(false)}
+        tipoMetrica={metricaDesdobramento}
+        periodoLabel={labelExibicaoPeriodo}
+        desdobramentoLojas={payloadExecutivo?.desdobramentoLojas || []}
+        carregandoLojaId={carregandoLojaId}
+        onSelecionarLoja={handleSelecionarLojaDesdobramento}
+        onVerConsolidado={handleVerConsolidado}
+      />
+
+      {/* ========================================================================= */}
       {/* GAVETA LATERAL DE AUDITORIA E DECOMPOSIÇÃO DAS MÉTRICAS */}
       {/* ========================================================================= */}
       <CockpitMetricDrawer
         isOpen={drawerMetrica !== null}
-        onClose={() => setDrawerMetrica(null)}
+        onClose={() => {
+          setDrawerMetrica(null);
+          setPayloadDrawerEspecifico(null);
+          setLojaDrawerEspecifica(null);
+        }}
         tipoMetrica={drawerMetrica}
-        payload={payloadExecutivo}
+        payload={payloadDrawerEspecifico || payloadExecutivo}
+        nomeLojaContexto={
+          lojaDrawerEspecifica?.nome ||
+          (escopoLojaId === 'todas'
+            ? 'Visão Consolidada da Rede'
+            : (lojasDisponiveis?.find(l => l.id === escopoLojaId)?.nome_fantasia || loja?.nome_fantasia))
+        }
         onAbrirEntradaEstoque={handleAbrirEntradaEstoque}
       />
 

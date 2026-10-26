@@ -3,10 +3,13 @@ import { typesafeService } from './typesafeService';
 import {
   dashboardService,
   TipoPeriodoDashboard,
-  METAS_PADRAO_LOJA
+  METAS_PADRAO_LOJA,
+  DesdobramentoLojaItem
 } from './dashboardService';
 import { MetricasCockpit, LojaMetas, Produto } from '../types';
 import { obterDataOperacao } from '../utils/dataOperacao';
+
+export type { DesdobramentoLojaItem };
 
 // ============================================================================
 // TIPAGEM ESTRUTURADA (TYPE-SAFE SCHEMAS) DO COCKPIT EXECUTIVO COM JEV
@@ -178,6 +181,7 @@ export interface PayloadDashboardExecutivo {
   };
   parecerJev: ParecerJevExecutivo;
   timestamp: number;
+  desdobramentoLojas?: DesdobramentoLojaItem[];
 }
 
 export interface ParametrosConsultaDashboard {
@@ -346,6 +350,137 @@ export const dashboardJevService = {
   },
 
   /**
+   * Helper puro para calcular métricas individuais de uma loja a partir de dados em memória
+   */
+  calcularMetricasUnidade(
+    pedidosLoja: any[],
+    transacoesLoja: any[],
+    movimentacoesLoja: any[],
+    produtosLoja: Produto[],
+    usarTaxaPdvLoja: boolean,
+    dInicio: Date,
+    dFim: Date
+  ): MetricasCockpit {
+    const pedidosDoPeriodo = pedidosLoja.filter(p => {
+      let dataRef: Date;
+      const pag = p.pagamentos && p.pagamentos.length > 0 ? p.pagamentos[0] : null;
+      if (pag && pag.eh_pagamento_fiado && pag.data_pagamento) {
+        dataRef = new Date(pag.data_pagamento);
+      } else if (p.data_venda) {
+        dataRef = new Date(p.data_venda);
+      } else if (pag && pag.data_pagamento) {
+        dataRef = new Date(pag.data_pagamento);
+      } else {
+        dataRef = new Date(p.criado_em || '');
+      }
+      return dataRef >= dInicio && dataRef <= dFim;
+    });
+
+    const pedidosFaturados = pedidosDoPeriodo.filter(p => {
+      if (p.status === 'cancelado') return false;
+      const stPag = p.status_pagamento || (Number(p.saldo_devedor) <= 0 && Number(p.valor_pago) > 0 ? 'pago' : Number(p.valor_pago) > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
+      return p.status === 'concluido' || stPag === 'pago' || stPag === 'parcialmente_pago';
+    });
+
+    let faturamento = 0;
+    let cmv = 0;
+    let taxasGateways = 0;
+
+    pedidosFaturados.forEach(p => {
+      const val = Number(p.valor_total || p.valor_pago || 0);
+      faturamento += val;
+
+      (p.itens || []).forEach((it: any) => {
+        cmv += (Number(it.preco_custo_unitario || 0) * Number(it.quantidade || 1));
+      });
+
+      if (usarTaxaPdvLoja && p.pagamentos) {
+        p.pagamentos.forEach((pg: any) => {
+          taxasGateways += Number(pg.valor_taxa || 0);
+        });
+      }
+    });
+
+    const qtdPedidos = pedidosFaturados.length;
+    const ticketMedio = qtdPedidos > 0 ? Math.round((faturamento / qtdPedidos) * 100) / 100 : 0;
+
+    let despesas = 0;
+    transacoesLoja.forEach(t => {
+      const tipo = String(t.tipo || '').toUpperCase();
+      if (tipo === 'SAIDA' || tipo.startsWith('DESPESA')) {
+        const dt = new Date(t.data_pagamento || t.criado_em);
+        if (dt >= dInicio && dt <= dFim) {
+          despesas += Number(t.valor || 0);
+        }
+      }
+    });
+
+    movimentacoesLoja.forEach(m => {
+      const dt = new Date(m.criado_em);
+      if (dt >= dInicio && dt <= dFim) {
+        despesas += Number(m.valor || 0);
+      }
+    });
+
+    const lucroLiquido = Math.round((faturamento - cmv - taxasGateways - despesas) * 100) / 100;
+
+    const agoraRef = new Date();
+    let totalDevedor = 0;
+    let totalInadimplente = 0;
+
+    pedidosLoja.forEach(p => {
+      if (p.status !== 'cancelado') {
+        const saldo = Number(p.saldo_devedor || 0);
+        if (saldo > 0) {
+          totalDevedor += saldo;
+          let vencimento: Date | null = null;
+          if (p.data_vencimento_fiado) {
+            vencimento = new Date(p.data_vencimento_fiado);
+          } else if (p.criado_em) {
+            vencimento = new Date(new Date(p.criado_em).getTime() + (30 * 24 * 60 * 60 * 1000));
+          }
+          if (vencimento && agoraRef > vencimento) {
+            totalInadimplente += saldo;
+          }
+        }
+      }
+    });
+
+    const taxaInadimplencia = totalDevedor > 0
+      ? Math.round((totalInadimplente / totalDevedor) * 10000) / 100
+      : 0;
+
+    let itensEmRisco = 0;
+    produtosLoja.forEach(prod => {
+      const est = Number(prod.quantidade_estoque || 0);
+      const min = Number(prod.estoque_minimo_alerta || 0);
+      if (est <= 0 || (min > 0 && est <= min)) {
+        itensEmRisco++;
+      }
+    });
+
+    const indiceRuptura = produtosLoja.length > 0
+      ? Math.round((itensEmRisco / produtosLoja.length) * 1000) / 10
+      : 0;
+
+    return {
+      faturamento: Math.round(faturamento * 100) / 100,
+      pedidos: qtdPedidos,
+      ticket_medio: ticketMedio,
+      lucro_liquido: lucroLiquido,
+      inadimplencia: taxaInadimplencia,
+      giro_estoque: indiceRuptura,
+      saude_estoque: indiceRuptura,
+      saude_estoque_itens_risco: itensEmRisco,
+      saude_estoque_itens_total: produtosLoja.length,
+      saude_estoque_tag: 'Base: Estoque Mínimo Geral',
+      cmv: Math.round(cmv * 100) / 100,
+      despesas: Math.round(despesas * 100) / 100,
+      taxas_gateways: Math.round(taxasGateways * 100) / 100
+    };
+  },
+
+  /**
    * Varredura analítica única e consolidada no PostgreSQL com agregação tipada
    */
   async computarPayloadCompleto(params: ParametrosConsultaDashboard): Promise<PayloadDashboardExecutivo> {
@@ -373,6 +508,7 @@ export const dashboardJevService = {
     let usarTaxaPdv = false;
     let historicoPrimeiraVendaRes: any = null;
     let lojaConfigExtras: any = null;
+    let desdobramentoLojas: DesdobramentoLojaItem[] = [];
 
     if (ehConsolidado && listaLojasIds.length > 0) {
       metasLoja = await dashboardService.obterMetasConsolidadasConglomerado(listaLojasIds);
@@ -380,7 +516,7 @@ export const dashboardJevService = {
       // Consultas paralelas isoladas por tenant (.eq('loja_id', id)) para conformidade estrita com RLS
       const resultadosPorLoja = await Promise.all(
         listaLojasIds.map(async (id) => {
-          const [pRes, tRes, mRes, prRes, lRes] = await Promise.all([
+          const [pRes, tRes, mRes, prRes, lRes, mLoja] = await Promise.all([
             supabase
               .from('pedidos')
               .select(`
@@ -410,17 +546,21 @@ export const dashboardJevService = {
               .eq('ativo', true),
             supabase
               .from('lojas')
-              .select('configuracoes_extras')
+              .select('id, nome_fantasia, configuracoes_extras')
               .eq('id', id)
-              .maybeSingle()
+              .maybeSingle(),
+            dashboardService.obterMetasLoja(id)
           ]);
 
           return {
+            lojaId: id,
+            nome_fantasia: (lRes?.data as any)?.nome_fantasia || 'Loja',
             pedidos: (pRes.data || []) as any[],
             transacoes: (tRes.data || []) as any[],
             movimentacoes: (mRes.data || []) as any[],
             produtos: (prRes.data || []) as Produto[],
-            usarTaxaPdv: Boolean((lRes?.data as any)?.configuracoes_extras?.taxas_venda?.usar_taxa_pdv)
+            usarTaxaPdv: Boolean((lRes?.data as any)?.configuracoes_extras?.taxas_venda?.usar_taxa_pdv),
+            metas: mLoja
           };
         })
       );
@@ -431,6 +571,26 @@ export const dashboardJevService = {
         todasMovimentacoesCaixa.push(...r.movimentacoes);
         todosProdutos.push(...r.produtos);
         if (r.usarTaxaPdv) usarTaxaPdv = true;
+      });
+
+      // Calcula as métricas decompostas para cada filial individualmente
+      desdobramentoLojas = resultadosPorLoja.map(r => {
+        const metasProporcionaisLoja = dashboardService.calcularMetasProporcionais(r.metas, intervalo.diasIntervalo);
+        const metricasLoja = this.calcularMetricasUnidade(
+          r.pedidos,
+          r.transacoes,
+          r.movimentacoes,
+          r.produtos,
+          r.usarTaxaPdv,
+          dInicio,
+          dFim
+        );
+        return {
+          lojaId: r.lojaId,
+          lojaNome: r.nome_fantasia,
+          metricas: metricasLoja,
+          metasProporcionais: metasProporcionaisLoja
+        };
       });
     } else {
       // 2. Busca paralela das fontes de dados isoladas por tenant (loja_id)
@@ -1165,7 +1325,8 @@ export const dashboardJevService = {
         }
       },
       parecerJev,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      desdobramentoLojas
     };
   },
 

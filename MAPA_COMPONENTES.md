@@ -1,7 +1,7 @@
 # 🗺️ MAPA DE COMPONENTES E ARQUITETURA FRONTEND (HUBI)
 
-> **Versão do Documento:** 1.7.0  
-> **Data de Atualização:** 22/10/2026  
+> **Versão do Documento:** 1.7.1  
+> **Data de Atualização:** 26/10/2026  
 > **Classificação:** Guia de Referência Rápida de Componentes, Hooks, Serviços e Utilitários  
 > **Objetivo:** Localização cirúrgica de arquivos em `src/`, agilizando a navegação de desenvolvedores e agentes de IA com máxima economia de contexto.
 
@@ -21,7 +21,7 @@
 11. [Layout, Navegação e Componentes Globais / Modais](#11-layout-navegação-e-componentes-globais--modais)
 12. [Camada de Estado (Contexts) e Hooks Customizados](#12-camada-de-estado-contexts-e-hooks-customizados)
 13. [Camada de Serviços de Negócio e Infraestrutura (`src/services/`)](#13-camada-de-serviços-de-negócio-e-infraestrutura-srcservices)
-14. [Utilitários e Formatadores (`src/utils/`)](#14-utilitários-e-formatadores-srcutils)
+14. [Utilitários, Validações e Schemas (`src/utils/` & `src/lib/validations/`)](#14-utilitários-validações-e-schemas-srcutils--srclibvalidations)
 
 ---
 
@@ -32,6 +32,8 @@
 | **Frente de Caixa Desktop** | `src/components/PosCheckout.tsx` | Tela mestre do PDV desktop, leitor ótico/laser, atalhos de teclado (F2-F10), split de pagamento e recibo pós-venda. |
 | **Frente de Caixa Mobile** | `src/components/PosCheckoutMobile.tsx` | Versão tátil para celulares e tablets com teclado numérico ágil, leitor de câmera e finalização rápida. |
 | **Terminal de Venda / Balcão** | `src/components/CadastroPdv.tsx` | Atalho para venda rápida integrada na visão de retaguarda. |
+| **Entrada de Peso Fracionado (Balança)** | `src/components/ui/ModalInputPesoFracionado.tsx` | Modal tátil de digitação rápida de quantidade por peso (Kg, Gramas ou Valor R$) com recálculo automático para itens pesáveis. |
+| **Input Monetário pt-BR** | `src/components/ui/MoneyInput.tsx` | Componente de entrada numérica monetária formatada em tempo real com máscara e tratamento decimal. |
 | **Carrinho de Venda Isolado** | `src/components/vendas/CarrinhoVenda.tsx` | Componente reutilizável de carrinho de compras e cálculo de subtotais. |
 | **Modal de Liquidação / Pagamento** | `src/components/ModalPagamentoFechamento.tsx` | Modal com split de pagamentos (Dinheiro, Cartões, PIX, Fiado) e conferência de troco. |
 | **Leitor de Código de Barras (Câmera)**| `src/components/ModalLeitorCodigoBarras.tsx` | Leitor ótico por câmera de dispositivo móvel para escaneamento instantâneo de EAN/GTIN. |
@@ -45,8 +47,10 @@
 | :--- | :--- | :--- |
 | **Velocímetro Analógico F1 (Gauge)** | `src/components/dashboard/CockpitGaugeF1.tsx` | Gauge SVG com ponteiro dinâmico, arcos coloridos, zonas de tolerância e comparação meta vs. realizado. |
 | **Drawer Analítico de Métrica F1** | `src/components/dashboard/CockpitMetricDrawer.tsx` | Drawer lateral com decomposição profunda da métrica (canais, formas de pagamento, horários de pico, DRE real e insights Jev). |
+| **Desdobramento de Métrica por Loja** | `src/components/dashboard/ModalDesdobramentoMetricaLojas.tsx` | Modal intermediário acionado na visão "Todas as Lojas" para desdobrar a métrica em velocímetros individuais por filial, comparação de metas e atalho para auditoria geral ou por loja. |
 | **Configuração de Metas da Loja** | `src/components/configuracoes/ConfiguracoesMetas.tsx` | Painel para parametrização de metas (faturamento, pedidos, ticket médio, lucro, despesas, inadimplência e giro/ruptura). Suporta edição fluida sem travamento de zero, seleção no foco e persistência atômica via RPC. |
 | **Estatísticas e Analytics Clássico** | `src/components/EstatisticasAnalytics.tsx` | Painel de relatórios gráficos de faturamento, curvas de vendas e giro de estoque. |
+| **Página Mestre Cockpit F1** | `src/pages/DashboardCockpit.tsx` | Visão executiva em tela cheia com velocímetro, cards de KPIs e atalhos analíticos. |
 
 ---
 
@@ -56,7 +60,7 @@
 | :--- | :--- | :--- |
 | **Central de Pedidos Desktop** | `src/components/PedidosLista.tsx` | Kanban e listagem com filtros de status, busca por cliente, edição de pedidos e drawer de detalhes. |
 | **Central de Pedidos Mobile** | `src/components/PedidosListaMobile.tsx` | Painel de pedidos com cards táteis, abas de status e drawer de ações otimizado para celular. |
-| **Conferência e Pesagem de Pedido (Balança)** | `src/components/pedidos/ModalConferenciaPesagemPedido.tsx` | Painel de digitação ágil de peso na balança para itens por quilo, recálculo em tempo real, baixa de estoque e disparo WhatsApp. |
+| **Conferência e Pesagem de Pedido (Balança)** | `src/components/pedidos/ModalConferenciaPesagemPedido.tsx` | Painel de digitação ágil de peso na balança para itens por quilo, recálculo atômico em tempo real de subtotais e frete/desconto, baixa de estoque idempotente e disparo de notificação/deep link via WhatsApp. |
 | **Modal de Itens do Pedido** | `src/components/ModalItensPedido.tsx` | Visualizador rápido dos produtos, variações, quantidades e preços do pedido. |
 | **Modal de Alteração de Status** | `src/components/ModalAlterarStatusPedido.tsx` | Modal para avançar ou regredir status do pedido com justificativa e persistência de histórico auditado. |
 | **Definição de Envio em Pedido** | `src/components/pedidos/ModalDefinirEnvio.tsx` | Seleção de transportadora e modalidade de entrega para pedidos pendentes. |
@@ -64,6 +68,7 @@
 | **Visualizador de Recibo Genérico** | `src/components/ModalReciboPedido.tsx` | Componente de pré-visualização e impressão de cupom fiscal/não-fiscal. |
 | **Página Pública do Recibo** | `src/components/ReciboPublico.tsx` | Página web pública (`/recibo/:id`) acessível via QR Code ou link compartilhado com o cliente. |
 | **Acompanhamento Público do Pedido** | `src/components/PedidoAndamentoPublico.tsx` | Tela pública de tracking (`/order-tracking/:id`) com progresso em tempo real do preparo e entrega. |
+| **Página de Rastreamento de Pedido** | `src/pages/OrderTracking.tsx` | Página wrapper de roteamento público para acompanhamento em tempo real do pedido. |
 | **Resumo Financeiro do Recibo** | `src/components/shipping/OrderReceiptFinancialSummary.tsx` | Bloco discriminado de subtotal, frete, desconto e valor final do pedido. |
 | **Histórico de Vendas Concluídas** | `src/components/VendasHistorico.tsx` | Grid desktop de vendas finalizadas com filtros por data operacional e reimpressão de cupons. |
 | **Histórico de Vendas Mobile** | `src/components/VendasHistoricoMobile.tsx` | Histórico tátil para consulta e estorno de vendas no smartphone. |
@@ -98,7 +103,7 @@
 | **Área do Cliente: Notificações** | `src/components/ModalNotificacoesCliente.tsx` | Central de avisos, promoções e atualizações de entrega da loja para o cliente. |
 | **Área do Cliente: Meus Endereços** | `src/components/ModalEnderecoClienteCatalogo.tsx` | Gerenciamento de múltiplos endereços de entrega pelo próprio cliente final. |
 | **Área do Cliente: Caderneta e Extrato** | `src/components/ModalCadernetaClienteCatalogo.tsx` | Visualização transparente de compras na caderneta, débitos do ciclo mensal, limite disponível e contato com a loja. |
-| **Pagamento de Pedido Pesado na Balança** | `src/components/catalogo/ModalPagamentoPedidoPesado.tsx` | Modal acionado por deep link (`?pagar_pedido=`) para quitação do valor total apurado após pesagem, via Pix, Caderneta ou no ato. |
+| **Pagamento de Pedido Pesado na Balança** | `src/components/catalogo/ModalPagamentoPedidoPesado.tsx` | Modal acionado por deep link (`?pagar_pedido=`) para quitação online pós-pesagem via Pix dinâmico Mercado Pago (com Realtime), Pix direto da loja, Caderneta de Mercadinho ou entrega. |
 | **Busca Inteligente no Catálogo** | `src/components/ModalBuscaClienteCatalogo.tsx` | Modal de busca instantânea com filtros e sugestões semânticas. |
 | **Detalhes do Produto no Catálogo** | `src/components/ModalDetalhesProdutoCatalogo.tsx` | Modal completo com galeria de fotos, grade de variações, preços por volume e botão de sacola. |
 | **Dúvidas de Produto com IA** | `src/components/ModalDuvidaProdutoIA.tsx` | Esclarecimento de dúvidas técnicas sobre o item usando IA sem alucinação. |
@@ -133,6 +138,7 @@
 | **Histórico de Compras Fiado** | `src/components/ModalHistoricoFiadoCliente.tsx` | Modal detalhado de pedidos comprados no fiado com status aberto, parcial e quitado. |
 | **Amortização e Quitação de Fiado** | `src/components/ModalReceberFiado.tsx` | Baixa de débitos de fiado com split de pagamento e envio de comprovante via WhatsApp. |
 | **Extrato da Caderneta de Mercadinho**| `src/components/ModalExtratoCadernetaCliente.tsx` | Painel da caderneta com limite de crédito, saldo devedor, amortização/quitação e envio de comprovante por WhatsApp. |
+| **Quitação Unificada de Caderneta** | `src/components/caderneta/ModalPagamentoCadernetaUnificado.tsx` | Modal unificado para pagamento total ou parcial da Caderneta de Mercadinho no Catálogo e PDV/Admin. |
 | **Importação de Clientes em Lote** | `src/components/ModalImportarClientes.tsx` | Modal universal para upload de CSV/Excel (WhatsApp/Google), prévia com higienização e adoção em lote da Caderneta. |
 | **Guia Didático de Exportação Contatos**| `src/components/ModalGuiaExportacaoWhatsApp.tsx` | Guia com 3 abas ilustradas (Google Contatos, WhatsApp Web e Planilha HUBI) com download de modelos. |
 | **Gestão de Usuários e Permissões** | `src/components/UsuariosGestao.tsx` | Controle de operadores da loja com controle RBAC (Admin, Gerente, Vendedor) e restrições de tela. |
@@ -182,6 +188,7 @@
 | Nome Visual / Elemento | Caminho do Arquivo | Resumo da Responsabilidade |
 | :--- | :--- | :--- |
 | **Layout Mestre da Aplicação** | `src/components/layout/AppLayout.tsx` | Barra de navegação superior, badges de conexão, troca de tema e atalhos rápidos. |
+| **Cabeçalho Mobile Superior** | `src/components/layout/MobileHeader.tsx` | Cabeçalho responsivo para dispositivos móveis com indicador de filial, botão voltar e status. |
 | **Menu Lateral Mobile** | `src/components/layout/MobileMenuDrawer.tsx` | Drawer de navegação responsivo para dispositivos móveis com suporte a gestos e histórico. |
 | **Configurações Gerais da Loja** | `src/components/ConfiguracoesLoja.tsx` | Cadastro da empresa, CNPJ, dados de contato, impressoras térmicas e preferências. |
 | **Gestão de Cupons Promocionais** | `src/components/CuponsGestao.tsx` | Criação e controle de validade de cupons de desconto fixo ou percentual. |
@@ -192,8 +199,11 @@
 | **Tutorial Chave Gemini AI** | `src/components/configuracoes/ModalComoObterGeminiApiKey.tsx` | Modal educativo ilustrado em 4 passos com links diretos e botão de colar para obtenção de API Key gratuita no Google AI Studio. |
 | **Modal Nova Filial (Conglomerado)** | `src/components/lojas/ModalAdicionarLoja.tsx` | Cadastro de nova unidade/filial com degustação gratuita, formulário de endereço completo (CEP, logradouro, número, complemento, bairro, cidade, UF), autopreenchimento assíncrono via ViaCEP e foco automático. |
 | **Parâmetros Globais HUBI (Admin)** | `src/components/configuracoes/CardParametrosHubiAdmin.tsx` | Painel exclusivo do Super Admin (`laaccioly@hotmail.com`) para controle de dias de trial, valores base e modo manutenção. |
-| **Conexão Mercado Livre** | `src/components/CardConexaoMercadoLivre.tsx` | Card de integração OAuth 2.0 com Mercado Livre, status em tempo real, dados do vendedor e ações de vínculo. |
-| **Vínculo de Anúncio ML** | `src/components/ModalVincularAnuncioMl.tsx` | Modal para associação de anúncios/variações do Mercado Livre aos produtos e variações nativas do HUBI. |
+| **Painel Carteira Pré-Paga WhatsApp** | `src/components/configuracoes/CardCarteiraWhatsapp.tsx` | Painel de gestão da Carteira Pré-Paga de WhatsApp: switch de automação, saldo em tempo real, estimativa de disparos e histórico auditável paginado. |
+| **Modal Recarga Carteira WhatsApp** | `src/components/configuracoes/ModalRecargaWhatsapp.tsx` | Modal de recarga instantânea de créditos WhatsApp via Pix Mercado Pago com QR Code dinâmico e atualização automática via Supabase Realtime. |
+| **Configurações de WhatsApp e IA** | `src/components/configuracoes/ConfiguracoesWhatsAppIA.tsx` | Painel de configuração de credenciais, prompts e parâmetros da Vendedora e Atendente IA. |
+| **Conexão Mercado Livre** | `src/components/mercadolivre/CardConexaoMercadoLivre.tsx` | Card de integração OAuth 2.0 com Mercado Livre, status em tempo real, dados do vendedor e ações de vínculo. |
+| **Vínculo de Anúncio ML** | `src/components/mercadolivre/ModalVincularAnuncioMl.tsx` | Modal para associação de anúncios/variações do Mercado Livre aos produtos e variações nativas do HUBI. |
 | **Banner de Trial e Renovação Anual** | `src/components/assinatura/BannerAssinaturaTop.tsx` | Tarja superior centralizada em vermelho e branco puro com dias restantes de trial e conversão rápida colada ao valor. |
 | **Tela de Bloqueio Operacional** | `src/components/assinatura/TelaBloqueioAssinatura.tsx` | Bloqueio irremovível da filial vencida, checkout Mercado Pago (12x R$ 49,90) e alternador para lojas ativas. |
 | **Prompt de Atualização PWA** | `src/components/pwa/ReloadPrompt.tsx` | Toast discreto de notificação para recarregar quando uma nova versão do app estiver pronta. |
@@ -211,6 +221,7 @@
 | **AuthContext** | `src/contexts/AuthContext.tsx` | Sessão do usuário Supabase Auth, perfil ativo, permissões RBAC e isolamento multi-tenant (`loja_id`). |
 | **DataOperacaoContext** | `src/contexts/DataOperacaoContext.tsx` | Gestão da data contábil/fiscal ativa para fechamento de turnos e auditorias retroativas. |
 | **FeedbackContext** | `src/contexts/FeedbackContext.tsx` | Sistema global de alertas, toasts e diálogos de confirmação padronizados em `pt-BR`. |
+| **MenuContext** | `src/contexts/MenuContext.tsx` | Gerenciamento de abertura/fechamento do menu lateral e controle de navegação responsiva. |
 | **ThemeContext** | `src/contexts/ThemeContext.tsx` | Alternância de temas visuais (Dark Slate e Light Mode Mobile). |
 
 ### Hooks Customizados (`src/hooks/`)
@@ -222,6 +233,7 @@
 | **usePermissions** | `src/hooks/usePermissions.ts` | Validação declarativa de permissões RBAC do operador autenticado e flag mestre `ehSuperAdmin` (`laaccioly@hotmail.com`). |
 | **useNetworkStatus** | `src/hooks/useNetworkStatus.ts` | Monitoramento contínuo do status online/offline da conexão com a internet. |
 | **useAssinaturaStatus** | `src/hooks/useAssinaturaStatus.ts` | Avaliação dinâmica do ciclo de vida da loja (Trial via `dias_trial` global, Ativo, Alerta 7 dias, Bloqueado), valores de referência e Realtime. |
+| **useGlobalNavigation** | `src/hooks/useGlobalNavigation.ts` | Hook de navegação segura para controle de telas, parâmetros de rota e histórico. |
 
 ---
 
@@ -246,6 +258,7 @@
 | **pricingEngine** | `src/services/pricingEngine.ts` | Aplicação automática de regras de Atacado (6+ un), Autoatacado (24+ un) e Promoções ativas. |
 | **estoquePedidoService**| `src/services/estoquePedidoService.ts`| Baixa e estorno estritamente idempotentes de estoque de pedidos com log em `movimentacoes_estoque`. |
 | **vendaService** | `src/services/vendaService.ts` | Transações de finalização de vendas do PDV e split de meios de pagamento. |
+| **produtoService** | `src/services/produtoService.ts` | Operações centralizadas de consulta, mutação e busca rápida de produtos e variações. |
 | **cadernetaService** | `src/services/cadernetaService.ts` | Gestão de ledger da Caderneta de Mercadinho, cálculo de ciclo mensal de acerto, compras e amortizações. |
 | **cupomService** | `src/services/cupomService.ts` | Validação de regras e aplicação de cupons de desconto no PDV e catálogo. |
 | **clienteCatalogoService**| `src/services/clienteCatalogoService.ts`| Autenticação com Web Crypto SHA-256, sincronização de carrinho, favoritos e notificações do cliente. |
@@ -259,15 +272,14 @@
 | **mercadoLivreService** | `src/services/mercadoLivreService.ts` | Conexão OAuth com refresh preventivo de sessão, gestão de anúncios, vínculo de grades e download de etiquetas. |
 | **configuracoesPlataformaService** | `src/services/configuracoesPlataformaService.ts` | Singleton de governança com cache em memória para parâmetros de trial, valores base, tarifas da Carteira WhatsApp e Super Admin. |
 | **whatsappWalletService** | `src/services/whatsappWalletService.ts` | Motor híbrido de notificações WhatsApp (Janela 24h gratuita, Disparo Tarifado Cloud API e Fallback Manual Gratuito), extrato e recarga Pix da carteira pré-paga. |
-| **CardCarteiraWhatsapp** | `src/components/configuracoes/CardCarteiraWhatsapp.tsx` | Painel de gestão da Carteira Pré-Paga de WhatsApp: switch de automação, saldo em tempo real, estimativa de disparos e histórico auditável paginado. |
-| **ModalRecargaWhatsapp** | `src/components/configuracoes/ModalRecargaWhatsapp.tsx` | Modal de recarga instantânea de créditos WhatsApp via Pix Mercado Pago com QR Code dinâmico e atualização automática via Supabase Realtime. |
-| **ModalPagamentoCadernetaUnificado** | `src/components/caderneta/ModalPagamentoCadernetaUnificado.tsx` | Modal unificado para quitação total ou parcial de Caderneta de Mercadinho no Catálogo Online (com upload de comprovante) e no PDV/Admin. |
 
 ### Inteligência Artificial e Família TypeSafe AI / Jev
 | Serviço | Arquivo | Responsabilidade |
 | :--- | :--- | :--- |
 | **typesafeService** | `src/services/typesafeService.ts` | Cliente das primitivas System One (Choice, Noul, Score) via Edge Function blindada. |
 | **rubiRouterService** | `src/services/rubiRouterService.ts` | Roteador híbrido de IA: classifica intenções com Jev (< 250ms) e roteia para tutoriais locais ou Gemini. |
+| **whatsappIaService** | `src/services/whatsappIaService.ts` | Orquestrador de atendimento inteligente e automações da IA integrada ao WhatsApp. |
+| **geminiClient** | `src/services/geminiClient.ts` | Cliente HTTP e autenticação para chamadas ao modelo Google Gemini. |
 | **dashboardJevService** | `src/services/dashboardJevService.ts` | Análise preditiva e diagnósticos operacionais executivos para o Cockpit F1. |
 | **catalogJevService** | `src/services/catalogJevService.ts` | Busca semântica e recomendação inteligente de produtos na vitrine virtual. |
 | **rubiCatalogoJevService**| `src/services/rubiCatalogoJevService.ts`| Assistente de atendimento ao cliente final no catálogo para auxílio na sacola de compras. |
@@ -291,9 +303,9 @@
 
 ---
 
-## 14. Utilitários e Formatadores (`src/utils/`)
+## 14. Utilitários, Validações e Schemas (`src/utils/` & `src/lib/validations/`)
 
-| Utilitário | Arquivo | Responsabilidade |
+| Utilitário / Validador | Caminho do Arquivo | Resumo da Responsabilidade |
 | :--- | :--- | :--- |
 | **correiosValidator.ts** | `src/utils/correiosValidator.ts` | Validador sintático de SRO dos Correios com algoritmo de módulo 11 e mapeamento PAC/SEDEX. |
 | **dataOperacao.ts** | `src/utils/dataOperacao.ts` | Helpers de cálculo temporal considerando a data contábil simulada vs. data do relógio. |
@@ -304,3 +316,6 @@
 | **statusPedidoUtils.ts** | `src/utils/statusPedidoUtils.ts` | Rótulos em `pt-BR`, cores e fluxos de transição dos estados de pedidos. |
 | **imageCompressor.ts** | `src/utils/imageCompressor.ts` | Compressor de fotos no cliente via `createObjectURL` e Canvas para prevenir Out-of-Memory (OOM) no mobile. |
 | **gdmMercadoLivreMapper.ts** | `src/utils/gdmMercadoLivreMapper.ts` | Normalizador de atributos e variações de anúncios do Mercado Livre para modelo canônico GDM. |
+| **pesagemSchema.ts** | `src/lib/validations/pesagemSchema.ts` | Validação Zod de quantidades fracionadas (até 3 decimais) e decodificação de código de barras EAN-13 de balança comercial iniciado com 2. |
+| **cadernetaSchema.ts** | `src/lib/validations/cadernetaSchema.ts` | Schemas Zod de validação de crédito, dias de acerto e lançamentos contábeis da Caderneta de Mercadinho. |
+| **checkoutSchema.ts** | `src/lib/validations/checkoutSchema.ts` | Schemas Zod para validação rigorosa de splits de pagamento, endereço e finalização de compras. |

@@ -15,6 +15,13 @@ export type TipoPeriodoDashboard =
 
 export type PeriodoDashboard = TipoPeriodoDashboard | 'semana' | 'mes' | 'ano';
 
+export interface DesdobramentoLojaItem {
+  lojaId: string;
+  lojaNome: string;
+  metricas: MetricasCockpit;
+  metasProporcionais: LojaMetas;
+}
+
 export const PERIODOS_DASHBOARD_OPCOES: { id: TipoPeriodoDashboard; label: string }[] = [
   { id: 'hoje', label: 'Hoje' },
   { id: 'ontem', label: 'Ontem' },
@@ -761,6 +768,29 @@ export async function obterMetricasCockpit(
   };
 }
 
+/**
+ * Consulta e decompõe indicadores e metas para uma lista de lojas (Visão Multilojas)
+ */
+export async function obterDesdobramentoLojas(
+  lojas: { id: string; nome_fantasia?: string }[],
+  paramInicio: string | PeriodoDashboard,
+  paramFim?: string,
+  diasIntervalo?: number
+): Promise<DesdobramentoLojaItem[]> {
+  const resultados = await Promise.all(
+    lojas.map(async (l) => {
+      const res = await obterMetricasCockpit(l.id, paramInicio, paramFim, diasIntervalo);
+      return {
+        lojaId: l.id,
+        lojaNome: l.nome_fantasia || 'Loja',
+        metricas: res.metricas,
+        metasProporcionais: res.metasProporcionais
+      };
+    })
+  );
+  return resultados;
+}
+
 export const dashboardService = {
   METAS_PADRAO_LOJA,
   PERIODOS_DASHBOARD_OPCOES,
@@ -770,5 +800,6 @@ export const dashboardService = {
   obterMetasLoja,
   obterMetasConsolidadasConglomerado,
   salvarMetasLoja,
-  obterMetricasCockpit
+  obterMetricasCockpit,
+  obterDesdobramentoLojas
 };

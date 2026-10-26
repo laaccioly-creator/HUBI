@@ -1,7 +1,7 @@
 # 📘 DOCUMENTAÇÃO TÉCNICA E ARQUITETURAL DO SISTEMA HUBI
 
-> **Versão do Documento:** 1.7.0  
-> **Data de Atualização:** 22/10/2026  
+> **Versão do Documento:** 1.7.1  
+> **Data de Atualização:** 26/10/2026  
 > **Classificação:** Documento Técnico de Arquitetura, Engenharia e Operações  
 > **Público-alvo:** Desenvolvedores, Engenheiros de Software, Arquitetos e Agentes de IA
 
@@ -255,6 +255,13 @@ erDiagram
 | `status_pronto_para_retirar` | BOOLEAN | DEFAULT FALSE | Habilita status 'pronto_para_retirar' para retiradas na loja |
 | `caderneta_ativa` | BOOLEAN | DEFAULT FALSE | Feature toggle para habilitar o módulo de Caderneta de Mercadinho |
 | `dia_vencimento_padrao_caderneta` | INTEGER | DEFAULT 10, CHECK (dia >= 1 AND dia <= 31) | Dia padrão de fechamento/acerto da caderneta na loja |
+| `exigir_pesagem_previa_pagamento` | BOOLEAN | NOT NULL DEFAULT FALSE | Quando TRUE, pedidos no catálogo online com itens vendidos por quilo (kg) têm o pagamento bloqueado até o lojista aferir o peso real na balança |
+| `whatsapp_auto_ativo` | BOOLEAN | NOT NULL DEFAULT FALSE | Habilita ou desabilita o envio automático de notificações via WhatsApp Cloud API |
+| `whatsapp_saldo` | NUMERIC(12,2) | NOT NULL DEFAULT 2.00 | Saldo financeiro pré-pago da carteira de WhatsApp da loja (inicia com R$ 2,00 de degustação) |
+| `whatsapp_bonus_expira_em` | TIMESTAMPTZ | DEFAULT (NOW() + INTERVAL '7 days') | Validade do bônus inicial restrita aos 7 primeiros dias de trial da loja |
+| `whatsapp_alerta_saldo_baixo` | NUMERIC(10,2) | NOT NULL DEFAULT 5.00 | Limite financeiro para disparo de alerta visual de saldo acabando |
+| `gemini_api_key` | TEXT | NULL | Chave de API oficial do Google Gemini (BYOK) - ponto único relacional para Vendedora IA, Rubi, Catálogo e PDV |
+| `pode_trocar_loja` | BOOLEAN | NOT NULL DEFAULT TRUE | Permite ao operador alternar entre filiais vinculadas à mesma organização |
 | `tipos_venda` | JSONB | DEFAULT '{"varejo":true,"atacado":true,"distribuidor":true}' | Flags de tipos de venda habilitados no PDV |
 | `configuracoes_extras` | JSONB | DEFAULT '{}' | Preferências de layout, recibo e interface |
 | `criado_em` / `atualizado_em` | TIMESTAMPTZ | DEFAULT NOW() | Carimbos de auditoria temporal |
@@ -287,7 +294,15 @@ erDiagram
 | `codigo_barras` | VARCHAR(50) | NULL | Código EAN/GTIN para leitura por leitor ótico |
 | `descricao` | TEXT | NULL | Descrição detalhada do produto |
 | `fotos_urls` | JSONB | DEFAULT '[]' | Lista de URLs de fotos hospedadas |
-| `tipo_unidade` | VARCHAR(10) | DEFAULT 'un' | Unidade (un, kg, l, m) |
+| `tipo_unidade` | VARCHAR(10) | DEFAULT 'un' | Unidade mestre (un, kg, l, m) |
+| `unidade_medida` | VARCHAR(10) | NOT NULL DEFAULT 'UN' | Sigla padronizada da unidade de medida (UN, KG, G, L, ML, M, CM) |
+| `permite_fracionado` | BOOLEAN | NOT NULL DEFAULT FALSE | Habilita digitação de quantidades decimais fracionadas (até 3 casas) |
+| `venda_por_peso` | BOOLEAN | NOT NULL DEFAULT FALSE | Indica que o item é vendido por aferição em balança física |
+| `codigo_balanca` | INTEGER | NULL | Código interno na balança comercial (padrão EAN-13 iniciando em 2) |
+| `peso_bruto_kg` | NUMERIC(10,3) | DEFAULT 0.000 | Peso físico unitário do produto em kg para cubagem logística |
+| `comprimento_cm` | NUMERIC(10,2) | DEFAULT 0.00 | Comprimento da embalagem para cotação de frete |
+| `largura_cm` | NUMERIC(10,2) | DEFAULT 0.00 | Largura da embalagem para cotação de frete |
+| `altura_cm` | NUMERIC(10,2) | DEFAULT 0.00 | Altura da embalagem para cotação de frete |
 | `tipo_item` | VARCHAR(20) | CHECK in ('produto', 'servico') | Diferenciação entre produto físico e serviço |
 | `preco_custo` | NUMERIC(12,2) | DEFAULT 0.00 | Preço de custo unitário |
 | `preco_venda_varejo` | NUMERIC(12,2) | NOT NULL DEFAULT 0.00 | Preço base unitário de varejo |
@@ -337,7 +352,8 @@ erDiagram
 | `origem` | VARCHAR(20) | CHECK in ('pdv_mobile', 'pdv_desktop', 'catalogo_online') | Canal gerador do pedido |
 | `tabela_preco_aplicada` | VARCHAR(20) | DEFAULT 'varejo' | Tabela de precificação adotada na venda |
 | `status` | VARCHAR(50) | CHECK in ('pendente', 'confirmado', 'em_separacao', 'em_producao', 'em_expedicao', 'saiu_para_entrega', 'pronto_para_retirar', 'entregue', 'concluido', 'cancelado', 'vencido') | Estado do fluxo operacional |
-| `status_pagamento` | VARCHAR(30) | DEFAULT 'aguardando_pagamento' | Estado da quitação financeira |
+| `status_pagamento` | VARCHAR(30) | DEFAULT 'aguardando_pagamento', CHECK in ('aguardando_pesagem', 'aguardando_pagamento', 'pago', 'parcialmente_pago', 'fiado', 'caderneta', 'cancelado') | Estado da quitação financeira (inclui retenção 'aguardando_pesagem' para pedidos com itens fracionados) |
+| `forma_pagamento_catalogo` | VARCHAR(50) | NULL | Identificador da forma de pagamento escolhida no catálogo ou 'aguardando_pesagem' |
 | `estoque_baixado` | BOOLEAN | DEFAULT FALSE | Flag de controle idempotente indicando se os itens já tiveram saída física realizada |
 | `subtotal_produtos` | NUMERIC(10,2) | NOT NULL DEFAULT 0.00 | Soma dos produtos puros (sem taxas ou frete) |
 | `subtotal` | NUMERIC(12,2) | NOT NULL DEFAULT 0.00 | Subtotal de compatibilidade |
@@ -408,7 +424,12 @@ erDiagram
 | `rotulo_variacao` | VARCHAR(150) | NULL | Rótulo congelado (ex: 'Vermelho / G') |
 | `preco_custo_unitario` | NUMERIC(12,2) | DEFAULT 0.00 | Custo do item no momento da venda |
 | `preco_venda_unitario` | NUMERIC(12,2) | NOT NULL DEFAULT 0.00 | Preço praticado por unidade |
-| `quantidade` | NUMERIC(12,3) | NOT NULL DEFAULT 1 | Quantidade de itens adquiridos |
+| `quantidade` | NUMERIC(12,3) | NOT NULL DEFAULT 1 | Quantidade ou peso real final de itens adquiridos (3 casas decimais) |
+| `quantidade_solicitada` | NUMERIC(12,3) | NULL | Quantidade/peso originalmente solicitado pelo cliente antes da pesagem balança |
+| `tipo_unidade` | VARCHAR(10) | NULL | Tipo de unidade do produto (ex: 'kg', 'un', 'l', 'm'), herdado do cadastro mestre |
+| `unidade_medida` | VARCHAR(10) | NOT NULL DEFAULT 'UN' | Unidade de medida gravada no snapshot (ex: 'KG', 'UN') |
+| `peso_solicitado_kg` | NUMERIC(12,3) | NULL | Peso estimado em quilos solicitado na compra |
+| `peso_real_kg` | NUMERIC(12,3) | NULL | Peso real aferido na balança física pela equipe da loja |
 | `subtotal` | NUMERIC(12,2) | NOT NULL DEFAULT 0.00 | `preco_venda_unitario * quantidade` |
 | `observacoes` | VARCHAR(255) | NULL | Observação individual do item |
 
@@ -461,6 +482,11 @@ erDiagram
 | `permite_retirada_loja` | BOOLEAN | DEFAULT TRUE | Coluna de compatibilidade operacional |
 | `frete_gratis_ativo` | BOOLEAN | DEFAULT FALSE | Ativa benefício de frete grátis por valor mínimo |
 | `frete_gratis_valor_minimo`| NUMERIC(12,2)| DEFAULT 0.00 | Valor mínimo do subtotal de compras para gratuidade |
+| `frete_proprio_ativo` | BOOLEAN | NOT NULL DEFAULT FALSE | Habilita modalidade de entrega própria da loja |
+| `frete_proprio_nome` | VARCHAR(100) | NOT NULL DEFAULT 'Entrega Própria da Loja' | Nome comercial exibido no checkout do catálogo |
+| `frete_proprio_tipo_cobranca` | VARCHAR(20) | NOT NULL DEFAULT 'fixo' | Tipo de precificação da entrega própria ('fixo', 'por_km', 'faixa_cep') |
+| `frete_proprio_valor_padrao` | NUMERIC(10,2) | NOT NULL DEFAULT 0.00 | Taxa padrão aplicada na entrega própria |
+| `frete_proprio_prazo_estimado` | VARCHAR(80) | NOT NULL DEFAULT 'Entrega hoje (30 a 60 min)' | Prazo estimado exibido ao cliente no seletor |
 | `origem_cep` | VARCHAR(9) | NOT NULL | CEP da loja física de onde saem os despachos |
 | `origem_logradouro` | VARCHAR(255) | NULL | Rua de coleta para transportadoras |
 | `origem_numero` | VARCHAR(20) | NULL | Número |
@@ -689,6 +715,13 @@ Tabela singleton de governança do ecossistema HUBI (`id = 1`), permitindo ao Su
 | `valor_anual_base` | NUMERIC(10,2) | NOT NULL DEFAULT 598.80 | Valor da anuidade cobrada no Mercado Pago (R$) |
 | `email_super_admin` | VARCHAR(255) | NOT NULL DEFAULT 'laaccioly@hotmail.com' | E-mail mestre com acesso irrestrito ao painel de parâmetros |
 | `whatsapp_suporte` | VARCHAR(50) | NULL | WhatsApp oficial de atendimento e suporte aos lojistas |
+| `custo_disparo_whatsapp` | NUMERIC(10,2) | NOT NULL DEFAULT 0.15, CHECK (>= 0) | Tarifa cobrada por disparo de WhatsApp fora da janela de 24h |
+| `valor_minimo_recarga_whatsapp` | NUMERIC(10,2) | NOT NULL DEFAULT 10.00, CHECK (> 0) | Valor mínimo permitido para recarga da carteira WhatsApp via Pix |
+| `credito_bonus_trial_whatsapp` | NUMERIC(10,2) | NOT NULL DEFAULT 2.00, CHECK (>= 0) | Valor de bônus cortesia concedido na criação da loja |
+| `meta_phone_number_id` | TEXT | NULL | ID do número corporativo na Meta Cloud API |
+| `meta_waba_id` | TEXT | NULL | WhatsApp Business Account ID (WABA) global da plataforma |
+| `meta_access_token` | TEXT | NULL | Token permanente de usuário do sistema da Meta Cloud API |
+| `meta_verify_token` | TEXT | DEFAULT 'hubi_whatsapp_webhook_token' | Token de validação de webhooks da Meta Cloud API |
 | `modo_manutencao` | BOOLEAN | NOT NULL DEFAULT FALSE | Flag de bloqueio temporário global para manutenções |
 | `mensagem_manutencao` | TEXT | NULL | Aviso informativo exibido em modo de manutenção |
 | `atualizado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Carimbo de auditoria da última alteração de parâmetros |
@@ -793,6 +826,7 @@ Centraliza o cadastro unificado de clientes do estabelecimento, limites de créd
 | `endereco_estado` | VARCHAR(2) | NULL | Estado (UF) |
 | `endereco_principal` | TEXT | NULL | Endereço completo concatenado para exibição rápida |
 | `data_aniversario` | DATE | NULL | Data de nascimento do cliente |
+| `whatsapp_ultima_interacao_cliente_em` | TIMESTAMPTZ | NULL | Timestamp da última mensagem inbound do cliente (janela 24h Meta) |
 | `observacoes` | TEXT | NULL | Notas e histórico interno do lojista |
 | `ativo` | BOOLEAN | DEFAULT TRUE | Status ativo/inativo |
 | `criado_em` / `atualizado_em` | TIMESTAMPTZ | DEFAULT NOW() | Carimbos de auditoria temporal |
@@ -818,6 +852,25 @@ Registra de forma normalizada, auditada e imutável todas as movimentações fin
 | `observacoes` | TEXT | NULL | Histórico e notas complementares do lançamento |
 | `criado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Momento da gravação do lançamento no ledger |
 
+#### 29. Tabela `loja_whatsapp_transacoes` (Ledger Auditável da Carteira WhatsApp)
+Registra de forma normalizada, auditada e imutável todas as movimentações financeiras da carteira pré-paga de notificações WhatsApp de cada loja (recargas via Pix, débitos por disparos tarifados, créditos de bônus e expirações).
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | ID exclusivo da transação no ledger da carteira |
+| `loja_id` | UUID | NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Vínculo multi-tenant estrito com a loja |
+| `usuario_id` | UUID | NULL, FK -> usuarios_loja(id) ON DELETE SET NULL | Operador responsável pela ação (se houver) |
+| `pedido_id` | UUID | NULL, FK -> pedidos(id) ON DELETE SET NULL | Pedido disparador da notificação |
+| `cliente_id` | UUID | NULL, FK -> clientes(id) ON DELETE SET NULL | Cliente destinatário da mensagem |
+| `tipo` | VARCHAR(25) | NOT NULL, CHECK ('bonus_inicial', 'recarga_pix', 'consumo_disparo', 'expiracao_bonus', 'estorno') | Natureza da movimentação contábil |
+| `evento_gatilho` | VARCHAR(40) | NULL | Identificador do gatilho (ex: 'liberacao_pagamento_pesagem', 'recarga_manual') |
+| `valor` | NUMERIC(12,2) | NOT NULL | Valor financeiro transacionado na carteira (R$) |
+| `saldo_anterior` | NUMERIC(12,2) | NOT NULL | Saldo da carteira imediatamente anterior ao lançamento |
+| `saldo_posterior` | NUMERIC(12,2) | NOT NULL | Saldo resultante da carteira após o lançamento |
+| `mp_payment_id` | TEXT | UNIQUE, NULL | ID do pagamento Mercado Pago vinculado (recargas Pix) |
+| `status_pagamento` | VARCHAR(25) | NOT NULL DEFAULT 'concluido', CHECK ('pendente', 'concluido', 'cancelado') | Estado financeiro da transação |
+| `descricao` | TEXT | NOT NULL | Histórico descritivo em linguagem natural |
+| `criado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Carimbo temporal auditável do evento |
+
 ### 3.3 Triggers, Automações e Segurança no Banco (RLS)
 1. **Baixa e Reajuste Automático de Estoque (`fn_atualizar_estoque_pedido`):**
    - Disparado em `AFTER INSERT` na tabela `itens_pedido`.
@@ -835,6 +888,9 @@ Registra de forma normalizada, auditada e imutável todas as movimentações fin
 5. **Funções Security Definer:**
    - `public.usuario_pertence_loja(p_loja_id UUID)`: Valida em tempo real se `auth.uid()` possui vínculo ativo com a loja solicitada.
    - `public.eh_gerente_ou_admin(p_loja_id UUID)`: Valida se o usuário tem privilégio gerencial para visualizar relatórios ou alterar parâmetros globais.
+   - `public.obter_pedido_para_pagamento_catalogo(p_pedido_id UUID, p_slug_catalogo VARCHAR)`: RPC com `SECURITY DEFINER` liberada para `anon` e `authenticated`, retornando de forma segura e higienizada os dados do pedido pesado, itens (quantidades solicitadas e pesos aferidos na balança) e dados da caderneta com validação estrita de tenant (`loja_id`).
+   - `public.debitar_saldo_whatsapp_atomico(...)`: RPC com bloqueio pessimista (`SELECT ... FOR UPDATE`) que abate a tarifa de disparo do saldo pré-pago e insere o evento no ledger auditável `loja_whatsapp_transacoes`.
+   - `public.creditar_recarga_whatsapp_atomico(...)`: RPC idempotente invocada via webhook do Mercado Pago para creditar saldo e ativar automações após aprovação de recarga Pix.
 
 ---
 
@@ -911,8 +967,9 @@ O catálogo online (`CatalogoPublico.tsx`) é a frente de vendas digital públic
 6. **Gravação e Notificação:**
    - O pedido é gravado na tabela `pedidos` com `origem = 'catalogo_online'`, `status = 'pendente'` e seus itens em `itens_pedido`.
    - Um registro é gravado em `pedido_entregas` com o snapshot do endereço e a transportadora escolhida.
+   - **Retenção de Pagamento para Itens por Quilo (`lojas.exigir_pesagem_previa_pagamento = true`):** Quando o carrinho possui produtos vendidos por peso (`tipo_unidade = 'kg'`), a emissão de cobrança imediata é retida, marcando `status_pagamento = 'aguardando_pesagem'`. O cliente recebe notificação orientando que a loja aferirá o peso na balança antes do envio do link definitivo de pagamento (vide detalhamento na Subseção 5.20).
    - Uma mensagem formatada com todos os itens, valores e link de acompanhamento é montada e o cliente é redirecionado via `https://wa.me/...` para enviar o pedido diretamente no WhatsApp do lojista.
-   - Em lojas com integração de pagamentos digitais ativa (Mercado Pago / Asaas), é gerado na tela um QR Code PIX com confirmação via webhook.
+   - Em lojas com integração de pagamentos digitais ativa (Mercado Pago / Asaas) e pedidos sem retenção de pesagem, é gerado na tela um QR Code PIX com confirmação via webhook.
 
 ### 4.4 Sistema de Autenticação e Isolamento Multi-tenant
 1. **Sessão do Usuário:** O `AuthContext.tsx` gerencia a conexão com o Supabase Auth (`auth.users`). Ao efetuar login, o sistema busca na tabela `usuarios_loja` quais são as lojas vinculadas àquele e-mail ou UID.
@@ -1406,13 +1463,6 @@ A monetização do HUBI adota arquitetura de licença anual autônoma por unidad
 4. **Geradores de Modelos:**
    - `downloadModeloSimplificadoXLSX()` e `downloadModeloSimplificadoCSV()` com as 4 colunas essenciais (*Nome*, *WhatsApp*, *Endereço*, *Observações*).
 
----
-
-> **Diretriz Final para Desenvolvedores e Agentes de IA:**
-> Este documento reflete com exatidão a implementação presente na base de código. Ao criar novos módulos, telas ou funcionalidades, **é obrigatório** seguir a modelagem relacional pura (sem colunas JSON genéricas para dados de negócio), manter o padrão de nomenclatura em `pt-BR`, preservar a segurança multitenant com validação de `loja_id` e respeitar a governança da suíte Google Mantis.
-
-
-
 ### 5.19 Carteira Pré-Paga (Wallet) e Motor Híbrido de Notificações WhatsApp (`whatsappWalletService.ts`)
 1. **Modelagem Relacional e Colunas de Governança (`supabase/migrations/20261025_carteira_whatsapp_e_motor_hibrido.sql`):**
    - **Tabela `public.lojas`:**
@@ -1436,3 +1486,100 @@ A monetização do HUBI adota arquitetura de licença anual autônoma por unidad
 3. **Recarga Instantânea via Pix Mercado Pago:**
    - **Edge Function `hubi-criar-recarga-whatsapp-mp`:** Valida `valor_recarga >= valor_minimo_recarga_whatsapp`, registra transação pendente em `loja_whatsapp_transacoes` e gera Pix dinâmico na API oficial do Mercado Pago com `external_reference = "whatsapp_wallet:${loja_id}:${transacao_id}"`.
    - **Edge Function `hubi-webhook-mp`:** Detecta notificações com prefixo `whatsapp_wallet:` e, quando `status === 'approved'`, invoca a RPC idempotente `creditar_recarga_whatsapp_atomico`, somando o valor em `lojas.whatsapp_saldo`, ativando `whatsapp_auto_ativo = true` e notificando o front-end via Supabase Realtime.
+
+### 5.20 Fluxo Parametrizável de Pedidos com Itens por Quilo / Pesagem Posterior
+
+O HUBI conta com um motor completo para comércio de hortifrúti, açougues, frios e produtos vendidos por peso ou a granel, onde a precificação final depende da conferência física dos itens na balança antes da liquidação financeira definitiva.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Cliente as Cliente (Catálogo PWA)
+    participant Cat as CatalogoPublico
+    participant Supa as Supabase (PostgreSQL)
+    participant Ret as Retaguarda / PDV
+    participant Bal as ModalConferenciaPesagemPedido
+    participant Wpp as whatsappWalletService
+    participant Pay as ModalPagamentoPedidoPesado
+
+    Cliente->>Cat: Monta pedido com itens vendidos por kg
+    Note over Cat: loja.exigir_pesagem_previa_pagamento = TRUE
+    Cliente->>Cat: Conclui checkout
+    Cat->>Supa: Grava pedido (status_pagamento = 'aguardando_pesagem')
+    Cat-->>Cliente: Notifica retenção de pagamento para aferição de peso
+    Ret->>Bal: Operador abre pedido e informa pesos da balança
+    Bal->>Bal: Recalcula subtotais, frete proporcional e total final
+    Bal->>Supa: Atualiza itens_pedido (peso_real_kg) e pedidos (totais)
+    Bal->>Supa: Baixa física de estoque (EstoquePedidoService)
+    Bal->>Supa: Registra auditoria em historico_pedidos
+    Bal->>Wpp: Dispara notificação com deep link (?pagar_pedido={id})
+    Wpp-->>Cliente: Recebe WhatsApp com total apurado e link de pagamento
+    Cliente->>Pay: Acessa catálogo via deep link e escolhe forma de quitação
+    Pay->>Supa: Quita pedido via Pix / Caderneta / Entrega (Realtime sync)
+```
+
+1. **Modelagem Relacional de Suporte a Itens por Quilo e Precisão Decimal:**
+   - **Precisão de 3 Casas Decimais (`NUMERIC(12,3)`):** Em conformidade com a diretriz `anti-jsonb-linter`, a manipulação de frações de peso opera exclusivamente com colunas numéricas tipadas (`produtos.quantidade_estoque`, `variacoes_produto.quantidade_estoque`, `itens_pedido.quantidade`, `itens_pedido.quantidade_solicitada`, `itens_pedido.peso_solicitado_kg`, `itens_pedido.peso_real_kg`).
+   - **Colunas no Cadastro Mestre (`public.produtos`):**
+     - `tipo_unidade VARCHAR(10) DEFAULT 'un'`: Unidade mestre (`'kg'`, `'un'`, `'l'`, `'m'`).
+     - `unidade_medida VARCHAR(10) NOT NULL DEFAULT 'UN'`: Sigla padronizada (`'KG'`, `'UN'`).
+     - `permite_fracionado BOOLEAN NOT NULL DEFAULT FALSE`: Habilita digitação decimal no carrinho e PDV.
+     - `venda_por_peso BOOLEAN NOT NULL DEFAULT FALSE`: Sinaliza precificação por quilograma aferido em balança.
+     - `codigo_balanca INTEGER NULL`: Código interno do produto configurado na balança etiquetadora.
+   - **Colunas de Snapshot nas Linhas do Pedido (`public.itens_pedido`):**
+     - `tipo_unidade VARCHAR(10) NULL`: Herdado do produto no ato da inserção para direcionar a conferência.
+     - `unidade_medida VARCHAR(10) NOT NULL DEFAULT 'UN'`: Sigla congelada no momento da compra.
+     - `quantidade_solicitada NUMERIC(12,3) NULL`: Quantidade ou peso original estimado pelo cliente.
+     - `peso_solicitado_kg NUMERIC(12,3) NULL`: Peso de referência informado no catálogo online.
+     - `peso_real_kg NUMERIC(12,3) NULL`: Peso definitivo pesado e validado pelo operador na retaguarda.
+     - `quantidade NUMERIC(12,3) NOT NULL`: Quantidade final adotada para recálculo do subtotal (`peso_real_kg * preco_venda_unitario`).
+   - **Decodificação de Etiquetas de Balança Comercial (`pesagemSchema.ts`):**
+     - Função `decodificarEtiquetaBalancaEan13`: Realiza o parsing de códigos de barras padrão EAN-13 brasileiro iniciados com o dígito `2` (`2 CCCCC W/V WWWW D`), extraindo com exatidão o código do produto na balança e o peso em gramas (ou valor em centavos) para lançamento instantâneo no PDV.
+   - **Modal de Entrada de Peso Fracionado (`ModalInputPesoFracionado.tsx`):**
+     - Integrado a `PosCheckout.tsx`, `PosCheckoutMobile.tsx` e `CatalogoPublico.tsx`.
+     - Permite entrada tátil por 3 modos intercambiáveis: **Quilos** (ex: `1.250 kg`), **Gramas** (ex: `1250 g`) ou **Valor em Reais** (ex: `R$ 15,00`), calculando automaticamente o peso equivalente em tempo real com base no preço do quilo.
+
+2. **Parametrização por Loja e Retenção de Pagamento no Catálogo (`lojas.exigir_pesagem_previa_pagamento`):**
+   - **Regra de Negócio Relacional:** A coluna `exigir_pesagem_previa_pagamento BOOLEAN NOT NULL DEFAULT FALSE` na tabela `public.lojas` permite ao estabelecimento reter a cobrança imediata de pedidos online sempre que houver produtos pesáveis no carrinho (`temItemPorQuiloNoCarrinho`).
+   - **Fechamento do Carrinho sem Cobrança Imediata:**
+     - Quando ativada a exigência, o catálogo omite a solicitação de pagamento antecipado (Pix dinâmico ou cartão) na etapa final de checkout.
+     - O pedido é gravado no banco de dados com:
+       - `status = 'pendente'`
+       - `status_pagamento = 'aguardando_pesagem'`
+       - `forma_pagamento_catalogo = 'aguardando_pesagem'`
+     - Os pesos/quantidades solicitados pelo cliente são salvos em `quantidade_solicitada` e `peso_solicitado_kg`.
+     - A interface exibe aviso claro e transparente ao cliente: *"Seu pedido contém itens por peso. Nossa equipe fará a pesagem exata dos produtos e enviará o valor final com link para pagamento no seu WhatsApp."*.
+
+3. **Conferência e Aferição de Balança na Retaguarda/PDV (`ModalConferenciaPesagemPedido.tsx`):**
+   - **Sinalização Operacional:** Na Central de Pedidos Desktop (`PedidosLista.tsx`) e Mobile (`PedidosListaMobile.tsx`), pedidos com `status_pagamento = 'aguardando_pesagem'` ganham destaque com badge âmbar/esmeralda e botão direto *"Pesar Pedido (Balança)"*.
+   - **Aferição Ágil com Balança:**
+     - O modal lista exclusivamente os itens por quilo (`tipoUnidade === 'kg' || ehPesavel`), permitindo digitação veloz com tolerância a vírgula e ponto numérico (`handleAlterarPeso`).
+     - Itens convencionais em unidades (`un`) permanecem protegidos e inalterados na lista, entrando no somatório global de totais.
+   - **Recálculo Atômico em Memória:**
+     - Recalcula instantaneamente o subtotal de cada item pesado (`Math.round(pesoAferido * precoUnitario * 100) / 100`), o somatório de produtos (`subtotalProdutos`), descontos globais e cupons, frete fixo ou dinâmico e o `valorTotalDefinitivo`, apontando a variação monetária (`diferencaTotal`).
+   - **Persistência Transacional em 5 Etapas:**
+     1. **Atualização das Linhas (`itens_pedido`):** Atualiza em lote com `quantidade = pesoAferido`, `peso_real_kg = pesoAferido`, `unidade_medida = 'KG'`, `tipo_unidade = 'kg'` e `subtotal = pesoAferido * precoUnitario`.
+     2. **Atualização do Pedido Mestre (`pedidos`):** Atualiza `subtotal`, `subtotal_produtos`, `valor_total`, `saldo_devedor`, avança o status operacional para `status = 'confirmado'` e altera `status_pagamento = 'aguardando_pagamento'`.
+     3. **Baixa Idempotente de Estoque (`EstoquePedidoService.baixarEstoquePedido`):** Realiza a dedução física do estoque baseada no peso real pesado na balança, prevenindo baixas repetidas através da trava relacional `estoque_baixado = true` e registrando o histórico em `movimentacoes_estoque`.
+     4. **Trilha de Auditoria (`historico_pedidos`):** Registra o evento `tipo_evento = 'pesagem_confirmada'`, com usuário responsável e detalhamento descritivo da variação do valor do pedido.
+     5. **Disparo do Motor Híbrido de WhatsApp (`whatsappWalletService`):**
+        - Monta a mensagem formatada para o cliente com o número do pedido, o valor total definitivo apurado e o deep link único de checkout.
+        - Executa o disparo híbrido (janela gratuita de 24h, disparo tarifado pela carteira pré-paga ou fallback manual com link `wa.me`).
+
+4. **Checkout Posterior e Liquidação no Catálogo Online (`ModalPagamentoPedidoPesado.tsx`):**
+   - **Deep Link Parametrizado:** O link enviado ao cliente segue o padrão:
+     `https://[dominio]/catalog/[slug_loja]?pagar_pedido=[pedido_id]`
+   - **RPC Security Definer de Consulta Segura (`obter_pedido_para_pagamento_catalogo`):**
+     - Executada no carregamento do catálogo com deep link.
+     - Valida a correspondência entre `p_pedido_id` e a loja proprietária (`loja_id`), retornando os dados higienizados do pedido e itens pesados sem expor PII sensível.
+   - **Interface e Modalidades de Pagamento no Modal:**
+     - **Quadro Comparativo Transparente:** Exibe para cada item a quantidade originalmente solicitada pelo cliente e o peso exato apurado na balança com o respectivo subtotal ajustado.
+     - **Pix Dinâmico Mercado Pago:** Gera cobrança automática via API do Mercado Pago com QR Code e código Copia-e-Cola. Uma subscrição em tempo real (`supabase.channel`) escuta atualizações na tabela `pedidos` via Supabase Realtime; quando o webhook confirma o Pix (`status_pagamento = 'pago'`), a tela do cliente atualiza instantaneamente para o estado de concluído.
+     - **Pix Direto da Loja:** Exibe chave Pix cadastrada pelo lojista com botão de cópia e instruções para envio de comprovante.
+     - **Caderneta de Mercadinho:** Caso o cliente possua autorização (`cliente.permite_caderneta = true`), o modal exibe o saldo devedor e limite disponível, permitindo debitar o valor do pedido pesado na conta corrente com 1 clique através de `CadernetaService.registrarCompraCaderneta`.
+     - **Pagamento Presencial na Entrega/Retirada:** Opção para pagar na entrega em dinheiro (com campo de troco) ou cartão de débito/crédito na maquininha móvel do entregador.
+
+---
+
+> **Diretriz Final para Desenvolvedores e Agentes de IA:**
+> Este documento reflete com exatidão a implementação presente na base de código. Ao criar novos módulos, telas ou funcionalidades, **é obrigatório** seguir a modelagem relacional pura (sem colunas JSON genéricas para dados de negócio), manter o padrão de nomenclatura em `pt-BR`, preservar a segurança multitenant com validação de `loja_id` e respeitar a governança da suíte Google Mantis.
