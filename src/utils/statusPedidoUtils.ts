@@ -258,7 +258,8 @@ export function validarTransicaoStatusPedido(
   novoStatus?: string,
   estaQuitado: boolean = false,
   ehRetiradaBalcao: boolean = false,
-  loja?: Loja | null
+  loja?: Loja | null,
+  statusPagamento?: string
 ): { permitido: boolean; motivo?: string; requerPagamento?: boolean } {
   if (!statusAtual || !novoStatus || statusAtual === novoStatus) {
     return { permitido: true };
@@ -285,7 +286,7 @@ export function validarTransicaoStatusPedido(
     };
   }
 
-  // Trava financeira: avanços operacionais exigem quitação do pedido
+  // Trava financeira: avanços operacionais exigem quitação do pedido ou concessão prévia de crédito (Caderneta/Fiado)
   const statusAvancoOperacional = [
     'em_separacao',
     'em_expedicao',
@@ -296,7 +297,10 @@ export function validarTransicaoStatusPedido(
     'concluido'
   ];
 
-  if (statusAvancoOperacional.includes(novoStatus) && !estaQuitado) {
+  const ehCreditoConcedido = statusPagamento === 'caderneta' || statusPagamento === 'fiado';
+  const quitadoEfetivo = estaQuitado || ehCreditoConcedido;
+
+  if (statusAvancoOperacional.includes(novoStatus) && !quitadoEfetivo) {
     return {
       permitido: false,
       motivo: 'Este pedido ainda não foi pago. Efetue o recebimento antes de avançar para separação ou envio.',

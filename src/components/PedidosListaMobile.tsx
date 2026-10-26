@@ -1424,7 +1424,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 const saldoDevedor = Number(pedidoSelecionado.saldo_devedor ?? (Number(pedidoSelecionado.valor_total || 0) - Number(pedidoSelecionado.valor_pago || 0)));
                 const ehFiado = statusPag === 'fiado';
                 const ehCaderneta = statusPag === 'caderneta';
-                const temPagamentoPendente = !ehCaderneta && (statusPag === 'aguardando_pagamento' || statusPag === 'parcialmente_pago' || saldoDevedor > 0.009);
+                const ehCredito = ehFiado || ehCaderneta;
+                const temPagamentoPendente = !ehCredito && (statusPag === 'aguardando_pagamento' || statusPag === 'parcialmente_pago' || saldoDevedor > 0.009);
 
                 // Prioridade 0: Aguardando pesagem de balança (mesmo se status === 'pendente')
                 if (statusPag === 'aguardando_pesagem') {
@@ -1457,43 +1458,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   );
                 }
 
-                // Prioridade 1: Se for fiado com saldo devedor
-                if (ehFiado && saldoDevedor > 0.009) {
-                  return (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        let cli = pedidoSelecionado.cliente_id ? (mapaClientes.get(pedidoSelecionado.cliente_id) || null) : ((pedidoSelecionado.cliente as Cliente) || null);
-                        if (!cli && pedidoSelecionado.cliente_id) {
-                          try {
-                            const { data } = await supabase.from('clientes').select('*').eq('id', pedidoSelecionado.cliente_id).single();
-                            if (data) cli = data as Cliente;
-                          } catch (e) {
-                            console.warn('Erro ao buscar cliente:', e);
-                          }
-                        }
-
-                        if (cli) {
-                          setFiltroHistoricoFiadoModal('a_vencer');
-                          setClienteHistoricoFiadoModal(cli);
-                        } else {
-                          if (onAbrirReceberFiado) {
-                            onAbrirReceberFiado(pedidoSelecionado);
-                          } else {
-                            onAbrirReceberPagamento(pedidoSelecionado);
-                          }
-                        }
-                      }}
-                      className="flex-1 h-12 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
-                      title="Receber pagamento do fiado"
-                    >
-                      <DollarSign className="w-4 h-4" />
-                      <span>Receber Fiado</span>
-                    </button>
-                  );
-                }
-
-                // Prioridade 2: Se tiver pagamento pendente (mesmo que status seja aguardando_envio ou outro)
+                // Prioridade 1: Se tiver pagamento pendente (mesmo que status seja aguardando_envio ou outro)
                 if (temPagamentoPendente) {
                   return (
                     <button
@@ -1745,6 +1710,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   pedidoSelecionado.status !== 'cancelado' &&
                   statusPag !== 'aguardando_pesagem' &&
                   statusPag !== 'caderneta' &&
+                  statusPag !== 'fiado' &&
                   (statusPag === 'aguardando_pagamento' || statusPag === 'parcialmente_pago' || saldoDevedor > 0.009);
 
                 const isUberDespachado = Boolean(
@@ -1814,16 +1780,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         type="button"
                         onClick={() => {
                           setModalOpcoesPedido(false);
-                          if (statusPag === 'fiado' && onAbrirReceberFiado) {
-                            onAbrirReceberFiado(pedidoSelecionado);
-                          } else {
-                            onAbrirReceberPagamento(pedidoSelecionado);
-                          }
+                          onAbrirReceberPagamento(pedidoSelecionado);
                         }}
                         className="w-full h-11 px-3.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-2.5 transition text-left cursor-pointer shadow-sm active:scale-98"
                       >
                         <DollarSign className="w-4 h-4 text-white shrink-0" />
-                        <span>{statusPag === 'fiado' ? 'Receber Fiado' : 'Receber Pagamento'}</span>
+                        <span>Receber Pagamento</span>
                       </button>
                     )}
 

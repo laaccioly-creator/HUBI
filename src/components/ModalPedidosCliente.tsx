@@ -235,8 +235,8 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    {/* Botão Pagar Pedido quando houver saldo pendente ou aguardando pagamento */}
-                    {(ped.status_pagamento === 'aguardando_pagamento' || (ped.status_pagamento !== 'pago' && ped.status !== 'cancelado')) && (
+                    {/* Botão Pagar Pedido exibido exclusivamente quando aguardando pagamento (após pesagem ou convencional) */}
+                    {ped.status !== 'cancelado' && ped.status_pagamento === 'aguardando_pagamento' && (
                       <button
                         type="button"
                         onClick={() => {

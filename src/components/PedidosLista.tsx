@@ -1027,16 +1027,23 @@ export const PedidosLista: React.FC = () => {
       // Validação da quitação / condição financeira
       const saldoDevedor = Number(pedAlvo.saldo_devedor ?? (Number(pedAlvo.valor_total || 0) - Number(pedAlvo.valor_pago || 0)));
       const temFiadoValido = (pedAlvo.pagamentos || []).some(
-        (p: any) => p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado'
+        (p: any) => p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado' || p.forma_pagamento?.tipo === 'caderneta'
       );
-      const estaQuitadoOuFiado = pedAlvo.status_pagamento === 'pago' || saldoDevedor <= 0.009 || temFiadoValido;
+      const estaQuitadoOuFiado =
+        pedAlvo.status_pagamento === 'pago' ||
+        pedAlvo.status_pagamento === 'caderneta' ||
+        pedAlvo.status_pagamento === 'fiado' ||
+        Boolean((pedAlvo as any).eh_venda_caderneta) ||
+        Boolean((pedAlvo as any).eh_venda_fiado) ||
+        saldoDevedor <= 0.009 ||
+        temFiadoValido;
 
       const ehRetirada = (pedAlvo as any).tipo_atendimento === 'retirada' ||
         (pedAlvo as any).tipo_entrega === 'retirada' ||
         pedAlvo.forma_entrega?.tipo === 'retirada' ||
         pedAlvo.pedido_entrega?.tipo_atendimento === 'retirada';
 
-      const validacaoCiclo = validarTransicaoStatusPedido(pedAlvo.status, novoStatus, estaQuitadoOuFiado, ehRetirada, loja);
+      const validacaoCiclo = validarTransicaoStatusPedido(pedAlvo.status, novoStatus, estaQuitadoOuFiado, ehRetirada, loja, pedAlvo.status_pagamento);
       if (!validacaoCiclo.permitido) {
         if (validacaoCiclo.requerPagamento) {
           setPedidoReceberModal(pedAlvo);
@@ -3377,20 +3384,19 @@ export const PedidosLista: React.FC = () => {
                   );
                 })()}
 
-                {resolverStatusPagamento(pedidoSelecionado) !== 'pago' && pedidoSelecionado.status !== 'cancelado' && (
+                {resolverStatusPagamento(pedidoSelecionado) !== 'pago' &&
+                 resolverStatusPagamento(pedidoSelecionado) !== 'fiado' &&
+                 resolverStatusPagamento(pedidoSelecionado) !== 'caderneta' &&
+                 pedidoSelecionado.status !== 'cancelado' && (
                   <button
                     type="button"
                     onClick={() => {
-                      if (resolverStatusPagamento(pedidoSelecionado) === 'fiado' || resolverStatusPagamento(pedidoSelecionado) === 'caderneta') {
-                        setPedidoReceberFiadoModal(pedidoSelecionado);
-                      } else {
-                        setPedidoReceberModal(pedidoSelecionado);
-                      }
+                      setPedidoReceberModal(pedidoSelecionado);
                     }}
                     className={`w-full mt-2 px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
                   >
                     <DollarSign className="w-4 h-4" />
-                    <span>{resolverStatusPagamento(pedidoSelecionado) === 'caderneta' ? 'Receber Caderneta' : resolverStatusPagamento(pedidoSelecionado) === 'fiado' ? 'Receber Fiado' : 'Receber Pagamento'}</span>
+                    <span>Receber Pagamento</span>
                   </button>
                 )}
               </div>
@@ -3904,24 +3910,12 @@ export const PedidosLista: React.FC = () => {
                                     <Truck className="w-3.5 h-3.5" />
                                     <span>Escolher Envio</span>
                                   </button>
-                                ) : (statusPag === 'fiado' && pedido.status === 'confirmado') ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setPedidoReceberFiadoModal(pedido);
-                                    }}
-                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold'}`}
-                                    title="Receber pagamento do fiado"
-                                  >
-                                    <DollarSign className="w-3.5 h-3.5" />
-                                    <span>Receber Fiado</span>
-                                  </button>
                                 ) : (pedido.status === 'aguardando_envio' || (pedido.status === 'confirmado' && !resolverProvedorEntrega(pedido).isRetirada)) ? (
                                   (() => {
                                     const { prov, pe } = resolverProvedorEntrega(pedido);
                                     const isUber = prov === 'uber' || (pe?.transportadora_nome || '').toLowerCase().includes('uber');
                                     const isMelhorEnvio = prov === 'melhor_envio';
-                                    const estaPagoOuFiado = statusPag === 'pago' || statusPag === 'fiado';
+                                    const estaPagoOuFiado = statusPag === 'pago' || statusPag === 'fiado' || statusPag === 'caderneta';
                                     const permiteDespachoSemPagamento = prov === 'frete_proprio' || prov === 'retirada_loja';
                                     const isGerando = despachandoPedidoId === pedido.id;
 
@@ -3970,7 +3964,7 @@ export const PedidosLista: React.FC = () => {
                                       </div>
                                     );
                                   })()
-                                ) : statusPag !== 'pago' && statusPag !== 'fiado' ? (
+                                ) : statusPag !== 'pago' && statusPag !== 'fiado' && statusPag !== 'caderneta' ? (
                                   <button
                                     type="button"
                                     onClick={() => {

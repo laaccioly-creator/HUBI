@@ -148,9 +148,15 @@ export const ModalAlterarStatusPedido: React.FC<ModalAlterarStatusPedidoProps> =
     pedido.saldo_devedor ?? (Number(pedido.valor_total || 0) - Number(pedido.valor_pago || 0))
   );
   const temFiado = (pedido.pagamentos || []).some(
-    (p) => p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado'
+    (p) => p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado' || p.forma_pagamento?.tipo === 'caderneta'
   );
-  const quitado = pedido.status_pagamento === 'pago' || saldoDev <= 0.009 || temFiado;
+  const ehCadernetaOuFiado =
+    pedido.status_pagamento === 'caderneta' ||
+    pedido.status_pagamento === 'fiado' ||
+    Boolean((pedido as any).eh_venda_caderneta) ||
+    Boolean((pedido as any).eh_venda_fiado) ||
+    temFiado;
+  const quitado = pedido.status_pagamento === 'pago' || saldoDev <= 0.009 || ehCadernetaOuFiado;
 
   const ehRetiradaModal =
     pedido.forma_entrega?.tipo === 'retirada' ||
@@ -261,8 +267,9 @@ export const ModalAlterarStatusPedido: React.FC<ModalAlterarStatusPedidoProps> =
             <div className="space-y-2">
               {opcoesDisponiveis.map((opcao) => {
                 const ehCancelamento = opcao.id === 'cancelado';
-                // Transição para Confirmado é permitida sem pagamento prévio para possibilitar separação e pesagem
-                const permiteSemQuitacao = ehCancelamento || opcao.id === 'confirmado';
+                // Transição para Confirmado é permitida sem pagamento prévio para possibilitar separação e pesagem.
+                // Vendas em Caderneta ou Fiado têm expedição autorizada pela concessão prévia de crédito.
+                const permiteSemQuitacao = ehCancelamento || opcao.id === 'confirmado' || ehCadernetaOuFiado;
                 const requerQuitacao = !permiteSemQuitacao && !quitado;
                 const estaDesabilitado = atualizandoStatusRapido || requerQuitacao;
 
