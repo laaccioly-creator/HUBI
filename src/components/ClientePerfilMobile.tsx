@@ -23,7 +23,8 @@ import {
   ArrowRight,
   CreditCard,
   Banknote,
-  Zap
+  Zap,
+  BookOpen
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -33,6 +34,7 @@ import { extrairEnderecoEstruturado } from './ModalNovoCliente';
 import { caixaService } from '../services/caixaService';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { ModalHistoricoFiadoCliente } from './ModalHistoricoFiadoCliente';
+import { ModalExtratoCadernetaCliente } from './ModalExtratoCadernetaCliente';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 
 interface ClientePerfilMobileProps {
@@ -85,6 +87,19 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
       ? String(cliente.limite_credito)
       : '500.00'
   );
+  const [permiteCaderneta, setPermiteCaderneta] = useState<boolean>(Boolean(cliente.permite_caderneta));
+  const [limiteCaderneta, setLimiteCaderneta] = useState<string>(
+    cliente.limite_caderneta !== undefined && cliente.limite_caderneta !== null && Number(cliente.limite_caderneta) > 0
+      ? String(cliente.limite_caderneta)
+      : '500.00'
+  );
+  const [diaVencimentoCaderneta, setDiaVencimentoCaderneta] = useState<string>(
+    cliente.dia_vencimento_caderneta ? String(cliente.dia_vencimento_caderneta) : '10'
+  );
+  const [saldoDevedorCaderneta, setSaldoDevedorCaderneta] = useState<number>(
+    Number(cliente.saldo_devedor_caderneta || 0)
+  );
+  const [modalExtratoCadernetaAberto, setModalExtratoCadernetaAberto] = useState<boolean>(false);
 
   const snapshotInicial = useMemo(() => {
     return JSON.stringify({
@@ -104,7 +119,16 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
       permiteFiado: cliente.permite_fiado !== false,
       limiteCredito: cliente.limite_credito !== undefined && cliente.limite_credito !== null && Number(cliente.limite_credito) > 0
         ? String(cliente.limite_credito)
-        : (cliente.permite_fiado !== false ? '500.00' : '')
+        : (cliente.permite_fiado !== false ? '500.00' : ''),
+      permiteCaderneta: Boolean(cliente.permite_caderneta),
+      limiteCaderneta: cliente.permite_caderneta
+        ? (cliente.limite_caderneta !== undefined && cliente.limite_caderneta !== null && Number(cliente.limite_caderneta) > 0
+          ? String(cliente.limite_caderneta)
+          : '500.00')
+        : '',
+      diaVencimentoCaderneta: cliente.permite_caderneta
+        ? (cliente.dia_vencimento_caderneta ? String(cliente.dia_vencimento_caderneta) : '10')
+        : ''
     });
   }, [cliente.id]);
 
@@ -124,7 +148,10 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
       numeroDocumento,
       observacoes,
       permiteFiado,
-      limiteCredito: permiteFiado ? limiteCredito : ''
+      limiteCredito: permiteFiado ? limiteCredito : '',
+      permiteCaderneta,
+      limiteCaderneta: permiteCaderneta ? limiteCaderneta : '',
+      diaVencimentoCaderneta: permiteCaderneta ? diaVencimentoCaderneta : ''
     });
   }, [
     nome,
@@ -141,7 +168,10 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
     numeroDocumento,
     observacoes,
     permiteFiado,
-    limiteCredito
+    limiteCredito,
+    permiteCaderneta,
+    limiteCaderneta,
+    diaVencimentoCaderneta
   ]);
 
   const temAlteracoesForm = snapshotAtual !== snapshotInicial;
@@ -328,6 +358,10 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
     try {
       setSalvando(true);
       const limiteNum = permiteFiado ? (parseFloat(limiteCredito.replace(',', '.')) || 0) : 0;
+      const limiteCadNum = permiteCaderneta ? (parseFloat(limiteCaderneta.replace(',', '.')) || 0) : 0;
+      const diaVencCadNum = permiteCaderneta
+        ? Math.min(31, Math.max(1, parseInt(diaVencimentoCaderneta, 10) || 10))
+        : null;
       const payload: Partial<Cliente> = {
         nome: nome.trim(),
         whatsapp: whatsapp.trim(),
@@ -339,6 +373,9 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
         observacoes: observacoes.trim() || null,
         permite_fiado: permiteFiado,
         limite_credito: limiteNum,
+        permite_caderneta: permiteCaderneta,
+        limite_caderneta: limiteCadNum,
+        dia_vencimento_caderneta: diaVencCadNum,
         endereco_logradouro: enderecoLogradouro.trim() || null,
         endereco_numero: enderecoNumero.trim() || null,
         endereco_bairro: enderecoBairro.trim() || null,
@@ -352,6 +389,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
         .from('clientes')
         .update(payload)
         .eq('id', cliente.id)
+        .eq('loja_id', loja?.id || cliente.loja_id)
         .select()
         .single();
 
@@ -779,6 +817,101 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   </div>
                 </div>
               )}
+
+              {/* Permitir Caderneta de Mercadinho Switch */}
+              <div className={`flex items-center justify-between py-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                <div>
+                  <span className={`text-xs font-black flex items-center gap-1.5 ${isDark ? 'text-white' : 'text-black'}`}>
+                    <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Habilitar Caderneta de Mercadinho</span>
+                  </span>
+                  <span className={`text-[10px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    {permiteCaderneta ? 'Conta corrente contínua ativa no PDV e Catálogo' : 'Caderneta desabilitada para este cliente'}
+                  </span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={permiteCaderneta}
+                    onChange={(e) => setPermiteCaderneta(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className={`w-11 h-6 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 ${
+                    isDark ? 'bg-slate-800 after:border-slate-700' : 'bg-slate-300 after:border-slate-300'
+                  }`}></div>
+                </label>
+              </div>
+
+              {permiteCaderneta && (
+                <div className={`pt-1 pb-3 border-t animate-in fade-in slide-in-from-top-2 duration-200 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                  <div className={`border rounded-2xl p-3 space-y-2.5 ${
+                    isDark
+                      ? 'bg-[#000000] border-emerald-500/40 text-white'
+                      : 'bg-emerald-50/50 border-2 border-emerald-300 text-black'
+                  }`}>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>
+                          Limite da Caderneta (R$)
+                        </label>
+                        <div className="relative">
+                          <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>R$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="500,00"
+                            value={limiteCaderneta}
+                            onChange={(e) => setLimiteCaderneta(e.target.value)}
+                            className={`w-full rounded-xl pl-8 pr-2.5 py-2 text-xs font-black focus:outline-none transition ${
+                              isDark
+                                ? 'bg-[#000000] border border-emerald-500 text-emerald-400 placeholder:text-slate-600'
+                                : 'bg-white border-2 border-emerald-600 text-emerald-800 placeholder:text-slate-400'
+                            }`}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>
+                          Dia de Vencimento
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="31"
+                          placeholder="10"
+                          value={diaVencimentoCaderneta}
+                          onChange={(e) => setDiaVencimentoCaderneta(e.target.value)}
+                          className={`w-full rounded-xl px-3 py-2 text-xs font-black focus:outline-none transition ${
+                            isDark
+                              ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
+                              : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <div>
+                        <span className={`text-[10px] font-bold block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                          Saldo Devedor na Caderneta
+                        </span>
+                        <span className={`text-sm font-black font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          R$ {saldoDevedorCaderneta.toFixed(2)}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setModalExtratoCadernetaAberto(true)}
+                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-medium flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                      >
+                        <BookOpen className="w-3.5 h-3.5" />
+                        <span>Ver Extrato</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Blocos de Valor Fiado e Valor Vencido */}
@@ -1007,6 +1140,52 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
         {abaAtiva === 'conta' && (
           <div className="flex flex-col justify-between h-full p-4 overflow-y-auto space-y-4">
             <div className="space-y-4">
+              {/* CARD 0: CADERNETA DE MERCADINHO */}
+              {(permiteCaderneta || saldoDevedorCaderneta > 0 || Boolean(loja?.caderneta_ativa ?? loja?.configuracoes_extras?.pagamentos?.caderneta_ativa)) && (
+                <div className={`p-4 rounded-3xl border-2 text-center space-y-3 ${
+                  isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-slate-300 text-black'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>Caderneta de Mercadinho</span>
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
+                      saldoDevedorCaderneta > 0
+                        ? isDark
+                          ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                          : 'bg-amber-100 text-amber-800 border-amber-300'
+                        : isDark
+                          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                          : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                    }`}>
+                      {saldoDevedorCaderneta > 0 ? '● Saldo em Aberto' : '● Em Dia'}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className={`text-xs uppercase tracking-wider font-bold block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      Saldo Devedor na Caderneta
+                    </span>
+                    <div className={`text-3xl sm:text-4xl font-black tracking-tight font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      R$ {saldoDevedorCaderneta.toFixed(2)}
+                    </div>
+                    <span className={`text-[11px] font-medium block mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      Limite Disponível: R$ {Math.max(0, (parseFloat(limiteCaderneta.replace(',', '.')) || 0) - saldoDevedorCaderneta).toFixed(2)}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setModalExtratoCadernetaAberto(true)}
+                    className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs shadow-md border border-emerald-500 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    <span>{saldoDevedorCaderneta > 0 ? 'Ver Extrato / Receber Pagamento' : 'Abrir Extrato da Caderneta'}</span>
+                  </button>
+                </div>
+              )}
+
               {/* CARD 1: DÍVIDA A PRAZO (FIADO) */}
               <div className={`p-4 rounded-3xl border-2 text-center space-y-3 ${
                 isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-slate-300 text-black'
@@ -1557,6 +1736,34 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
         onClienteAtualizado={(c) => {
           setSaldoDevedorFiado(Number(c.saldo_devedor_fiado || 0));
           onClienteAtualizado(c);
+          carregarPedidos();
+        }}
+      />
+
+      {/* Modal de Extrato e Quitação da Caderneta de Mercadinho */}
+      <ModalExtratoCadernetaCliente
+        isOpen={modalExtratoCadernetaAberto}
+        onClose={() => setModalExtratoCadernetaAberto(false)}
+        cliente={{
+          ...cliente,
+          permite_caderneta: permiteCaderneta,
+          limite_caderneta: parseFloat(limiteCaderneta.replace(',', '.')) || 0,
+          saldo_devedor_caderneta: saldoDevedorCaderneta,
+          dia_vencimento_caderneta: parseInt(diaVencimentoCaderneta, 10) || 10
+        }}
+        onAtualizado={async () => {
+          if (!cliente.id || !loja?.id) return;
+          const { data } = await supabase
+            .from('clientes')
+            .select('*')
+            .eq('id', cliente.id)
+            .eq('loja_id', loja.id)
+            .single();
+          if (data) {
+            setSaldoDevedorCaderneta(Number(data.saldo_devedor_caderneta || 0));
+            setSaldoDevedorFiado(Number(data.saldo_devedor_fiado || 0));
+            onClienteAtualizado(data as Cliente);
+          }
           carregarPedidos();
         }}
       />

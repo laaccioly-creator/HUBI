@@ -651,17 +651,23 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           <div className={`p-3 border-b flex items-center justify-between ${
             isDark ? 'bg-[#000000] border-slate-800' : 'bg-white border-slate-300'
           }`}>
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-              <div>
-                <span className={`text-xs font-bold block ${isDark ? 'text-emerald-400' : 'text-black'}`}>{clienteSelecionado.nome}</span>
-                <span className={`text-[10px] ${isDark ? 'text-slate-300' : 'text-slate-700 font-medium'}`}>Cliente selecionado para esta venda</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+              <div className="min-w-0">
+                <span className={`text-xs font-bold block truncate ${isDark ? 'text-emerald-400' : 'text-black'}`}>{clienteSelecionado.nome}</span>
+                <span className={`text-[10px] block truncate ${isDark ? 'text-slate-300' : 'text-slate-700 font-medium'}`}>
+                  {clienteSelecionado.permite_caderneta
+                    ? `Caderneta disp.: R$ ${Math.max(0, Number(clienteSelecionado.limite_caderneta || 0) - Number(clienteSelecionado.saldo_devedor_caderneta || 0)).toFixed(2)}`
+                    : clienteSelecionado.permite_fiado
+                    ? `Fiado disp.: R$ ${Math.max(0, Number(clienteSelecionado.limite_credito || 0)).toFixed(2)}`
+                    : 'Cliente selecionado para esta venda'}
+                </span>
               </div>
             </div>
             <button
               type="button"
               onClick={() => setClienteSelecionado(null)}
-              className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
+              className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer shrink-0"
             >
               Remover
             </button>
@@ -675,41 +681,57 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               Nenhum cliente encontrado.
             </div>
           ) : (
-            clientesFiltrados.map((cliente) => (
-              <div
-                key={cliente.id}
-                onClick={() => {
-                  setClienteSelecionado(cliente);
-                  setSubTela(origemClientes);
-                }}
-                className={`p-3.5 transition flex items-center justify-between cursor-pointer ${
-                  isDark ? 'bg-[#000000] hover:bg-slate-900 border-b border-slate-800' : 'bg-white hover:bg-slate-50 border-b border-slate-200'
-                }`}
-              >
-                <div className="space-y-0.5">
-                  <h4 className={`font-bold text-xs uppercase ${isDark ? 'text-white' : 'text-black'}`}>{cliente.nome}</h4>
-                  <p className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                    {cliente.telefone ? `Tel: ${cliente.telefone}` : 'Sem telefone cadastrado'}
-                  </p>
-                </div>
+            clientesFiltrados.map((cliente) => {
+              const dispCaderneta = Math.max(0, Number(cliente.limite_caderneta || 0) - Number(cliente.saldo_devedor_caderneta || 0));
+              const dispFiado = Math.max(0, Number(cliente.limite_credito || 0));
+              return (
+                <div
+                  key={cliente.id}
+                  onClick={() => {
+                    setClienteSelecionado(cliente);
+                    setSubTela(origemClientes);
+                  }}
+                  className={`p-3.5 transition flex items-center justify-between cursor-pointer ${
+                    isDark ? 'bg-[#000000] hover:bg-slate-900 border-b border-slate-800' : 'bg-white hover:bg-slate-50 border-b border-slate-200'
+                  }`}
+                >
+                  <div className="space-y-0.5 min-w-0 pr-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h4 className={`font-bold text-xs uppercase truncate ${isDark ? 'text-white' : 'text-black'}`}>{cliente.nome}</h4>
+                      {cliente.permite_caderneta && (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                          Caderneta: R$ {dispCaderneta.toFixed(2)}
+                        </span>
+                      )}
+                      {!cliente.permite_caderneta && cliente.permite_fiado && dispFiado > 0 && (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30">
+                          Fiado: R$ {dispFiado.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                    <p className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      {cliente.telefone ? `Tel: ${cliente.telefone}` : 'Sem telefone cadastrado'}
+                    </p>
+                  </div>
 
-                <div className="flex items-center gap-3">
-                  {cliente.whatsapp && (
-                    <a
-                      href={`https://wa.me/55${cliente.whatsapp.replace(/\D/g, '')}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="p-1.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition"
-                      title="Enviar WhatsApp"
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                    </a>
-                  )}
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                  <div className="flex items-center gap-3 shrink-0">
+                    {cliente.whatsapp && (
+                      <a
+                        href={`https://wa.me/55${cliente.whatsapp.replace(/\D/g, '')}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-1.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition"
+                        title="Enviar WhatsApp"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                      </a>
+                    )}
+                    <ChevronRight className="w-4 h-4 text-slate-400" />
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

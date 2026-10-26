@@ -2413,13 +2413,13 @@ Fico no aguardo da confirmação! ✨`;
               <button
                 type="button"
                 onClick={() => setMenuUsuarioAberto(!menuUsuarioAberto)}
-                className="px-2.5 py-1.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-emerald-500/50 text-emerald-700 dark:bg-slate-800/90 dark:hover:bg-slate-750 dark:border-2 dark:border-emerald-400 dark:text-emerald-300 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                className="px-2.5 py-1.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-900 dark:bg-slate-800/90 dark:hover:bg-slate-750 dark:border-slate-700 dark:text-slate-100 font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                 title="Minha Conta"
               >
-                <div className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center text-[10px] font-black">
+                <div className="w-5 h-5 rounded-full bg-slate-800 border border-slate-700 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
                   {clienteSelecionado.nome.charAt(0).toUpperCase()}
                 </div>
-                <span className="hidden sm:inline max-w-[90px] md:max-w-[120px] truncate text-slate-800 dark:text-slate-200 font-bold">
+                <span className="inline max-w-[95px] sm:max-w-[120px] truncate text-slate-900 dark:text-slate-100 font-semibold">
                   Olá, {clienteSelecionado.nome.split(' ')[0]}
                 </span>
               </button>

@@ -21,7 +21,8 @@ import {
   Pencil,
   ArrowLeft,
   Receipt,
-  Upload
+  Upload,
+  BookOpen
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -518,28 +519,28 @@ export const ClientesFiado: React.FC = () => {
           titulo={`Clientes (${clientes.length})`}
           acoesDireita={
             <div className="flex items-center gap-1.5">
-              {/* Botão (FIADO) */}
+              {/* Botão (CADERNETA / FIADO) */}
               <button
                 type="button"
                 onClick={() => {
-                  setFiltroStatus(prev => prev === 'fiado' ? 'todos' : 'fiado');
+                  const alvo = cadernetaAtivaLoja ? 'caderneta' : 'fiado';
+                  setFiltroStatus(prev => prev === alvo ? 'todos' : alvo);
                   setFiltroApenasFiado(false);
                 }}
-                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer border ${
-                  filtroStatus === 'fiado'
-                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
+                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer border ${
+                  (cadernetaAtivaLoja ? filtroStatus === 'caderneta' : filtroStatus === 'fiado')
+                    ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 shadow-xs'
                     : isDark
-                    ? 'bg-[#000000] border-amber-500/50 text-amber-400 hover:bg-slate-900'
-                    : 'bg-white border-2 border-amber-300 text-amber-800 hover:bg-amber-50'
+                    ? 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'
+                    : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
                 }`}
-                title="Filtrar clientes com fiado em aberto"
+                title={cadernetaAtivaLoja ? 'Filtrar clientes da Caderneta' : 'Filtrar clientes com fiado em aberto'}
               >
-                <span>Fiado</span>
-                {totalClientesComFiado > 0 && (
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                    filtroStatus === 'fiado' ? 'bg-slate-950 text-amber-300' : 'bg-amber-100 text-amber-800'
-                  }`}>
-                    {totalClientesComFiado}
+                <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
+                <span>{cadernetaAtivaLoja ? 'Caderneta' : 'Fiado'}</span>
+                {(cadernetaAtivaLoja ? totalClientesComDebitoCaderneta : totalClientesComFiado) > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-300">
+                    {cadernetaAtivaLoja ? totalClientesComDebitoCaderneta : totalClientesComFiado}
                   </span>
                 )}
               </button>
@@ -602,7 +603,7 @@ export const ClientesFiado: React.FC = () => {
         </div>
 
         {/* Resumo de Débito / Fiado: Indicadores de Topo */}
-        <div className={`p-3 grid ${Boolean(loja?.caderneta_ativa) ? 'grid-cols-4' : 'grid-cols-3'} gap-2 shrink-0 ${isDark ? 'bg-[#08131A]' : 'bg-slate-100'}`}>
+        <div className={`p-3 grid ${cadernetaAtivaLoja ? 'grid-cols-4' : 'grid-cols-3'} gap-2 shrink-0 ${isDark ? 'bg-[#08131A]' : 'bg-slate-100'}`}>
           {/* Card 1: Clientes */}
           <div
             onClick={() => {
@@ -687,7 +688,7 @@ export const ClientesFiado: React.FC = () => {
           </div>
 
           {/* Card 4: Caderneta (Visível se ativa na loja) */}
-          {Boolean(loja?.caderneta_ativa) && (
+          {cadernetaAtivaLoja && (
             <div
               onClick={() => {
                 const novo = filtroStatus === 'caderneta' ? 'todos' : 'caderneta';
@@ -697,17 +698,17 @@ export const ClientesFiado: React.FC = () => {
               className={`p-2.5 rounded-2xl border transition cursor-pointer flex flex-col justify-between ${
                 filtroStatus === 'caderneta'
                   ? isDark
-                    ? 'bg-[#000000] border-2 border-amber-400 text-amber-400 shadow-sm'
-                    : 'bg-amber-50 border-2 border-amber-500 text-amber-900 shadow-sm'
+                    ? 'bg-[#000000] border-2 border-emerald-500 text-emerald-400 shadow-sm'
+                    : 'bg-emerald-50 border-2 border-emerald-600 text-emerald-900 shadow-sm'
                   : isDark
-                  ? 'bg-[#000000] border border-slate-700 hover:border-amber-500/50 text-amber-400'
-                  : 'bg-white border-2 border-slate-300 hover:border-amber-400 text-amber-700'
+                  ? 'bg-[#000000] border border-slate-700 hover:border-emerald-500/50 text-emerald-400'
+                  : 'bg-white border-2 border-slate-300 hover:border-emerald-500 text-emerald-700'
               }`}
             >
               <div className="flex items-center justify-between">
                 <span className="text-[9px] font-bold uppercase">Caderneta</span>
                 {filtroStatus === 'caderneta' && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                 )}
               </div>
               <p className="text-xs sm:text-sm font-black truncate">
@@ -733,22 +734,14 @@ export const ClientesFiado: React.FC = () => {
               return (
                 <div
                   key={cliente.id}
-                  onClick={() => {
-                    if (emDebitoCaderneta || cliente.permite_caderneta) {
-                      setClienteExtratoCaderneta(cliente);
-                    } else if (emDebito) {
-                      setClienteHistoricoFiado(cliente);
-                    } else {
-                      setClientePerfilMobile(cliente);
-                    }
-                  }}
+                  onClick={() => setClientePerfilMobile(cliente)}
                   className={`p-3 rounded-2xl transition cursor-pointer space-y-2 shadow-xs ${
                     isDark
                       ? 'bg-[#000000] border border-slate-700 hover:bg-slate-900/60 active:bg-slate-900'
                       : 'bg-white border-2 border-slate-300 hover:bg-slate-50 active:bg-slate-100'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className={`w-9 h-9 rounded-full font-bold text-xs flex items-center justify-center shrink-0 ${
                         isDark
@@ -769,16 +762,42 @@ export const ClientesFiado: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="text-right shrink-0">
+                    <div className="text-right shrink-0 flex flex-col items-end gap-1">
                       {emDebitoCaderneta ? (
-                        <div>
-                          <span className="text-[10px] text-amber-500 font-bold block">Caderneta</span>
-                          <span className="font-black text-xs sm:text-sm text-amber-500 font-mono">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setClienteExtratoCaderneta(cliente);
+                          }}
+                          className="text-right px-2 py-1 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 transition cursor-pointer"
+                        >
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block">Caderneta • Extrato</span>
+                          <span className={`font-black text-xs sm:text-sm font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>
                             {formatarMoeda(cliente.saldo_devedor_caderneta || 0)}
                           </span>
-                        </div>
+                        </button>
+                      ) : cliente.permite_caderneta ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setClienteExtratoCaderneta(cliente);
+                          }}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold hover:bg-emerald-500/20 transition cursor-pointer"
+                        >
+                          <BookOpen className="w-3 h-3" />
+                          <span>Caderneta</span>
+                        </button>
                       ) : emDebito ? (
-                        <div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setClienteHistoricoFiado(cliente);
+                          }}
+                          className="text-right cursor-pointer"
+                        >
                           <div className="flex items-center justify-end gap-1">
                             {estaVencido && (
                               <span className={`px-1.5 py-0.2 rounded text-[9px] font-black ${
@@ -794,7 +813,7 @@ export const ClientesFiado: React.FC = () => {
                           <span className={`font-black text-xs sm:text-sm ${estaVencido ? 'text-rose-500' : 'text-amber-500'}`}>
                             R$ {Number(cliente.saldo_devedor_fiado).toFixed(2)}
                           </span>
-                        </div>
+                        </button>
                       ) : (
                         <span className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Em dia</span>
                       )}

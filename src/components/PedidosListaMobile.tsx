@@ -1046,8 +1046,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
               if (pedidoSelecionado.status_pagamento === 'aguardando_pesagem') {
                 return (
-                  <div className="px-3 py-1.5 rounded-xl border border-amber-300 bg-amber-500/15 text-amber-700 dark:text-amber-400 flex items-center gap-1.5 text-xs font-bold">
-                    <Scale className="w-3.5 h-3.5 text-amber-600" />
+                  <div className="px-3 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300 flex items-center gap-1.5 text-xs font-bold">
+                    <Scale className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                     <span>Aguardando Pesagem</span>
                   </div>
                 );
@@ -1419,25 +1419,14 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 <XCircle className="w-4 h-4 text-rose-600" />
                 <span>Pedido Cancelado</span>
               </div>
-            ) : pedidoSelecionado.status === 'pendente' ? (
-              <button
-                type="button"
-                onClick={() => {
-                  onAlterarStatus(pedidoSelecionado.id, 'confirmado');
-                  setPedidoSelecionado({ ...pedidoSelecionado, status: 'confirmado' });
-                }}
-                className="flex-1 h-12 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
-              >
-                <Check className="w-4 h-4 stroke-[3]" />
-                <span>Confirmar Pedido</span>
-              </button>
             ) : (() => {
                 const statusPag = resolverStatusPagamento(pedidoSelecionado);
                 const saldoDevedor = Number(pedidoSelecionado.saldo_devedor ?? (Number(pedidoSelecionado.valor_total || 0) - Number(pedidoSelecionado.valor_pago || 0)));
                 const ehFiado = statusPag === 'fiado';
-                const temPagamentoPendente = statusPag === 'aguardando_pagamento' || statusPag === 'parcialmente_pago' || saldoDevedor > 0.009;
+                const ehCaderneta = statusPag === 'caderneta';
+                const temPagamentoPendente = !ehCaderneta && (statusPag === 'aguardando_pagamento' || statusPag === 'parcialmente_pago' || saldoDevedor > 0.009);
 
-                // Prioridade 0: Aguardando pesagem de balança
+                // Prioridade 0: Aguardando pesagem de balança (mesmo se status === 'pendente')
                 if (statusPag === 'aguardando_pesagem') {
                   return (
                     <button
@@ -1447,6 +1436,23 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     >
                       <Scale className="w-4 h-4" />
                       <span>Informar Peso</span>
+                    </button>
+                  );
+                }
+
+                // Prioridade 0.5: Pedido pendente já pesado ou sem itens por kg
+                if (pedidoSelecionado.status === 'pendente') {
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onAlterarStatus(pedidoSelecionado.id, 'confirmado');
+                        setPedidoSelecionado({ ...pedidoSelecionado, status: 'confirmado' });
+                      }}
+                      className="flex-1 h-12 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
+                    >
+                      <Check className="w-4 h-4 stroke-[3]" />
+                      <span>Confirmar Pedido</span>
                     </button>
                   );
                 }
@@ -1563,8 +1569,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       type="button"
                       onClick={() => {
                         const saldoDevedorAtual = Number(pedidoSelecionado.saldo_devedor ?? (Number(pedidoSelecionado.valor_total || 0) - Number(pedidoSelecionado.valor_pago || 0)));
-                        const estaQuitado = saldoDevedorAtual <= 0.009;
-                        if (estaQuitado) {
+                        const podeConcluirSemPagamentoImediato = saldoDevedorAtual <= 0.009 || ehFiado || ehCaderneta || statusPag === 'pago';
+                        if (podeConcluirSemPagamentoImediato) {
                           onAlterarStatus(pedidoSelecionado.id, 'concluido');
                           setPedidoSelecionado({ ...pedidoSelecionado, status: 'concluido' });
                         } else {
@@ -1626,10 +1632,39 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     key={st.id}
                     type="button"
                     onClick={() => {
-                      if (st.id === 'concluido') {
-                        const saldoDevedor = Number(pedidoSelecionado.saldo_devedor ?? (Number(pedidoSelecionado.valor_total || 0) - Number(pedidoSelecionado.valor_pago || 0)));
-                        if (saldoDevedor > 0.009) {
+                      const statusExigeQuitacao = [
+                        'aguardando_envio',
+                        'em_producao',
+                        'em_expedicao',
+                        'pronto_para_retirar',
+                        'enviado',
+                        'saiu_para_entrega',
+                        'entregue',
+                        'concluido',
+                      ].includes(st.id);
+
+                      if (statusExigeQuitacao) {
+                        const statusPagAtual = resolverStatusPagamento(pedidoSelecionado);
+                        if (statusPagAtual === 'aguardando_pesagem') {
                           setModalAlterarStatus(false);
+                          mostrarToast('Informe o peso dos itens na balança antes de avançar para expedição.', 'aviso');
+                          setPedidoParaPesagem(pedidoSelecionado);
+                          return;
+                        }
+                        const pagInfoAtual = obterDadosPagamentoRecibo(pedidoSelecionado);
+                        const saldoDevedor = Number(pedidoSelecionado.saldo_devedor ?? (Number(pedidoSelecionado.valor_total || 0) - Number(pedidoSelecionado.valor_pago || 0)));
+                        const isentoQuitacaoImediata =
+                          statusPagAtual === 'pago' ||
+                          statusPagAtual === 'fiado' ||
+                          statusPagAtual === 'caderneta' ||
+                          pagInfoAtual.foiPago ||
+                          pagInfoAtual.ehFiado ||
+                          pagInfoAtual.ehCaderneta ||
+                          saldoDevedor <= 0.009;
+
+                        if (!isentoQuitacaoImediata) {
+                          setModalAlterarStatus(false);
+                          mostrarToast('Confirme o recebimento do pagamento antes de avançar para expedição/entrega.', 'aviso');
                           onAbrirReceberPagamento(pedidoSelecionado);
                           return;
                         }
@@ -1705,7 +1740,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 const statusPag = resolverStatusPagamento(pedidoSelecionado);
                 const estaPagoOuFiado = statusPag === 'pago' || statusPag === 'fiado' || statusPag === 'caderneta';
                 const saldoDevedor = Number(pedidoSelecionado.saldo_devedor ?? (Number(pedidoSelecionado.valor_total || 0) - Number(pedidoSelecionado.valor_pago || 0)));
-                const precisaReceber = pedidoSelecionado.status !== 'cancelado' && (statusPag === 'aguardando_pagamento' || statusPag === 'parcialmente_pago' || saldoDevedor > 0.009);
+                const precisaPesagem = pedidoSelecionado.status !== 'cancelado' && statusPag === 'aguardando_pesagem';
+                const precisaReceber =
+                  pedidoSelecionado.status !== 'cancelado' &&
+                  statusPag !== 'aguardando_pesagem' &&
+                  statusPag !== 'caderneta' &&
+                  (statusPag === 'aguardando_pagamento' || statusPag === 'parcialmente_pago' || saldoDevedor > 0.009);
 
                 const isUberDespachado = Boolean(
                   (pe?.codigo_corrida && pe.codigo_corrida.startsWith('del_')) ||
@@ -1753,7 +1793,22 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
                 return (
                   <div className="space-y-1.5">
-                    {/* Ação 0: Receber Pagamento (se pendente de quitação) */}
+                    {/* Ação 0.A: Informar Peso (se aguardando pesagem na balança) */}
+                    {precisaPesagem && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setModalOpcoesPedido(false);
+                          setPedidoParaPesagem(pedidoSelecionado);
+                        }}
+                        className="w-full h-11 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs flex items-center gap-2.5 transition text-left cursor-pointer shadow-sm active:scale-98"
+                      >
+                        <Scale className="w-4 h-4 text-white shrink-0" />
+                        <span>Informar Peso</span>
+                      </button>
+                    )}
+
+                    {/* Ação 0.B: Receber Pagamento (se pendente de quitação) */}
                     {precisaReceber && (
                       <button
                         type="button"
@@ -2220,6 +2275,21 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
           onFeedbackSucesso={(msg) => mostrarToast(msg, 'sucesso')}
           onFeedbackErro={(msg) => mostrarToast(msg, 'erro')}
         />
+
+        {/* MODAL DE CONFERÊNCIA DE PESAGEM / BALANÇA (DENTRO DO DETALHE MOBILE) */}
+        <ModalConferenciaPesagemPedido
+          isOpen={Boolean(pedidoParaPesagem)}
+          pedido={pedidoParaPesagem}
+          loja={loja}
+          usuarioId={usuario?.id}
+          onClose={() => setPedidoParaPesagem(null)}
+          onPesagemConfirmada={(pedidoAtualizado) => {
+            setPedidoSelecionado((prev) =>
+              prev && prev.id === pedidoAtualizado.id ? { ...prev, ...pedidoAtualizado } : prev
+            );
+            if (onRecarregar) onRecarregar();
+          }}
+        />
       </div>
     );
   }
@@ -2379,19 +2449,34 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                           <span className={`text-[10px] font-normal ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>por {vendedor}</span>
                         </div>
 
-                        <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wide border shrink-0 ${
-                          ped.status === 'concluido'
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : ped.status === 'cancelado'
-                            ? 'bg-rose-50 text-rose-700 border-rose-200'
-                            : ped.status === 'confirmado'
-                            ? 'bg-blue-50 text-blue-700 border-blue-200'
-                            : ped.status === 'em_producao' || ped.status === 'em_expedicao'
-                            ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                            : 'bg-amber-50 text-amber-700 border-amber-200'
-                        }`}>
-                          {ROTULOS_STATUS_PEDIDO[ped.status] || ped.status.replace(/_/g, ' ')}
-                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {ped.status_pagamento === 'aguardando_pesagem' && ped.status !== 'cancelado' && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPedidoParaPesagem(ped);
+                              }}
+                              className="px-2 py-0.5 rounded-lg text-[10px] font-medium bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 shadow-xs cursor-pointer active:scale-95"
+                            >
+                              <Scale className="w-3 h-3" />
+                              <span>Informar Peso</span>
+                            </button>
+                          )}
+                          <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wide border shrink-0 ${
+                            ped.status === 'concluido'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : ped.status === 'cancelado'
+                              ? 'bg-rose-50 text-rose-700 border-rose-200'
+                              : ped.status === 'confirmado'
+                              ? 'bg-blue-50 text-blue-700 border-blue-200'
+                              : ped.status === 'em_producao' || ped.status === 'em_expedicao'
+                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                              : 'bg-amber-50 text-amber-700 border-amber-200'
+                          }`}>
+                            {ROTULOS_STATUS_PEDIDO[ped.status] || ped.status.replace(/_/g, ' ')}
+                          </span>
+                        </div>
                       </div>
 
                       <div className={`flex items-center justify-between text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>

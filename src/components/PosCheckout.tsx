@@ -444,12 +444,15 @@ export const PosCheckout: React.FC = () => {
 
   // Verifica se a loja e o cliente estão habilitados para a Caderneta de Mercadinho
   const clienteAptoCaderneta = useMemo(() => {
-    if (!loja?.caderneta_ativa || !clienteSelecionado?.id) return false;
+    const cadernetaAtivaLoja = Boolean(
+      loja?.caderneta_ativa ?? loja?.configuracoes_extras?.pagamentos?.caderneta_ativa
+    );
+    if (!cadernetaAtivaLoja || !clienteSelecionado?.id) return false;
     const permite = Boolean(clienteSelecionado.permite_caderneta);
     const limite = Number(clienteSelecionado.limite_caderneta || 0);
     const saldo = Number(clienteSelecionado.saldo_devedor_caderneta || 0);
     return permite && (limite - saldo) > 0;
-  }, [loja?.caderneta_ativa, clienteSelecionado]);
+  }, [loja?.caderneta_ativa, loja?.configuracoes_extras, clienteSelecionado]);
 
   // Filtra as formas de pagamento disponíveis: Fiado e Caderneta respeitam habilitação, exclusividade mútua e saldo
   const formasPagamentoDisponiveis = useMemo(() => {
@@ -1383,7 +1386,8 @@ export const PosCheckout: React.FC = () => {
               valor_taxa: 0,
               valor_liquido: Number(l.valor),
               data_pagamento: dataIso,
-              eh_pagamento_fiado: l.forma_tipo === 'fiado'
+              eh_pagamento_fiado: l.forma_tipo === 'fiado',
+              eh_pagamento_caderneta: l.forma_tipo === 'caderneta'
             };
           }))
         : [];
@@ -1547,6 +1551,10 @@ export const PosCheckout: React.FC = () => {
       .filter(l => l.forma_tipo === 'fiado')
       .reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
 
+    const valorCadernetaTotal = linhasAtivas
+      .filter(l => l.forma_tipo === 'caderneta' || l.forma_nome?.toLowerCase().includes('caderneta'))
+      .reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
+
     if (valorFiadoTotal > 0) {
       if (!clienteSelecionado) {
         mostrarAviso('Para pagamentos com Fiado / A Prazo, é obrigatório selecionar um cliente cadastrado.', 'Cliente Obrigatório');
@@ -1559,6 +1567,22 @@ export const PosCheckout: React.FC = () => {
       const limiteDisponivel = Number(clienteSelecionado.limite_credito || 0);
       if (valorFiadoTotal > limiteDisponivel + 0.01) {
         mostrarAviso(`O valor no fiado (R$ ${valorFiadoTotal.toFixed(2)}) excede o limite de crédito disponível do cliente (R$ ${limiteDisponivel.toFixed(2)}).`, 'Limite Insuficiente');
+        return;
+      }
+    }
+
+    if (valorCadernetaTotal > 0) {
+      if (!clienteSelecionado) {
+        mostrarAviso('Para lançamentos na Caderneta de Mercadinho, selecione um cliente cadastrado.', 'Cliente Obrigatório');
+        return;
+      }
+      if (!clienteSelecionado.permite_caderneta) {
+        mostrarAviso(`O cliente ${clienteSelecionado.nome} não possui Caderneta de Mercadinho habilitada.`, 'Caderneta Não Habilitada');
+        return;
+      }
+      const limiteDisponivelCad = Math.max(0, Number(clienteSelecionado.limite_caderneta || 0) - Number(clienteSelecionado.saldo_devedor_caderneta || 0));
+      if (valorCadernetaTotal > limiteDisponivelCad + 0.01) {
+        mostrarAviso(`O valor na Caderneta (R$ ${valorCadernetaTotal.toFixed(2)}) excede o limite disponível do cliente (R$ ${limiteDisponivelCad.toFixed(2)}).`, 'Limite da Caderneta Insuficiente');
         return;
       }
     }
