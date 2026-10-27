@@ -67,6 +67,7 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
     { id: `fp_pix_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Pix (Imediato)', tipo: 'pix', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
     { id: `fp_debito_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Cartão de Débito', tipo: 'cartao_debito', taxa_percentual: 1.5, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
     { id: `fp_credito_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Cartão de Crédito', tipo: 'cartao_credito', taxa_percentual: 3.2, taxa_fixa: 0, maximo_parcelas: 12, ativo: true, exibir_catalogo: true },
+    { id: `fp_fiado_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Fiado', tipo: 'fiado', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: false },
     { id: `fp_caderneta_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Caderneta', tipo: 'caderneta', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: false }
   ];
 
@@ -90,7 +91,10 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
             if (cadPadrao) lista = [...lista, cadPadrao];
           }
         }
-        lista = lista.filter(f => f.tipo !== 'fiado');
+        if (!lista.some(f => f.tipo === 'fiado')) {
+          const fiadoPadrao = FORMAS_PADRAO.find(f => f.tipo === 'fiado');
+          if (fiadoPadrao) lista = [...lista, fiadoPadrao];
+        }
         setFormasPagamento(lista);
       } catch (err) {
         console.warn('Fallback formas de pagamento:', err);
@@ -110,7 +114,7 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
       const saldoRestante = Math.max(0, Number(pedido.saldo_devedor ?? (valorTot - valorJaPago)));
       const valorSugerido = saldoRestante > 0 ? saldoRestante : (valorTot > 0 ? valorTot : 0);
 
-      const fpsDisponiveis = (formasPagamento && formasPagamento.length > 0 ? formasPagamento : FORMAS_PADRAO).filter(f => f.tipo !== 'fiado');
+      const fpsDisponiveis = formasPagamento && formasPagamento.length > 0 ? formasPagamento : FORMAS_PADRAO;
       const fpInicial = fpsDisponiveis.find(f => f.tipo === 'dinheiro') || fpsDisponiveis[0];
 
       setLinhasPagamento([
@@ -156,7 +160,7 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
   }, [loja?.caderneta_ativa, pedido?.cliente, limiteDisponivelCaderneta]);
 
   const formasDisponiveis = useMemo(() => {
-    const base = (formasPagamento && formasPagamento.length > 0 ? formasPagamento : FORMAS_PADRAO).filter(f => f.tipo !== 'fiado');
+    const base = formasPagamento && formasPagamento.length > 0 ? formasPagamento : FORMAS_PADRAO;
     return base.filter(f => {
       if (f.tipo === 'caderneta') return clienteAptoCaderneta;
       return true;
@@ -261,18 +265,43 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
       setProcessando(true);
       setErroMsg(null);
 
+      const linhasAtivas = linhasPagamento.filter(l => Number(l.valor) > 0);
+
+      const totalFiado = linhasAtivas
+        .filter(l => l.forma_tipo === 'fiado')
+        .reduce((acc, l) => acc + Number(l.valor || 0), 0);
+
+      const totalRealPago = linhasAtivas
+        .filter(l => l.forma_tipo !== 'fiado' && l.forma_tipo !== 'caderneta')
+        .reduce((acc, l) => acc + Number(l.valor || 0), 0);
+
+      if (totalFiado > 0 && !pedido.cliente_id && !pedido.cliente?.id) {
+        setErroMsg('Para registrar pagamento em Fiado, é obrigatório selecionar um cliente para vincular o saldo devedor.');
+        setProcessando(false);
+        return;
+      }
+
       const dataIso = obterDataOperacaoISO();
-      const novoValorPago = Number((valorJaPago + totalLinhasPagamento).toFixed(2));
+      // O valor pago real soma apenas as formas imediatas (dinheiro, pix, cartões). Fiado é crédito a prazo.
+      const novoValorPago = Number((valorJaPago + totalRealPago).toFixed(2));
       const novoSaldoDevedor = Number(Math.max(0, valorTotal - novoValorPago).toFixed(2));
-      const quitado = novoSaldoDevedor <= 0.009;
-      const novoStatusPagamento: StatusPagamento = quitado
+      const temFiado = totalFiado > 0;
+      const quitado = !temFiado && novoSaldoDevedor <= 0.009;
+      const novoStatusPagamento: StatusPagamento = temFiado
+        ? 'fiado'
+        : quitado
         ? 'pago'
         : novoValorPago > 0
         ? 'parcialmente_pago'
         : 'aguardando_pagamento';
 
-      // 1. Inserir pagamentos em pagamentos_pedido para cada linha com valor > 0
-      const linhasAtivas = linhasPagamento.filter(l => Number(l.valor) > 0);
+      let dataVencimentoFiado: string | null = null;
+      if (temFiado) {
+        const prazoDias = Number(loja?.configuracoes_extras?.pagamentos?.dias_vencimento_fiado || 30);
+        const dataBase = new Date();
+        dataBase.setDate(dataBase.getDate() + prazoDias);
+        dataVencimentoFiado = pedido.data_vencimento_fiado || dataBase.toISOString().split('T')[0];
+      }
 
       // Validação do limite de Caderneta
       const totalCaderneta = linhasAtivas
@@ -318,7 +347,7 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
             valor_taxa: taxaValor,
             valor_liquido: valorLiquido,
             data_pagamento: dataIso,
-            eh_pagamento_fiado: false,
+            eh_pagamento_fiado: linha.forma_tipo === 'fiado',
             eh_pagamento_caderneta: linha.forma_tipo === 'caderneta'
           }
         ]).select('id').single();
@@ -352,6 +381,13 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
         fiado_quitado: quitado,
         atualizado_em: dataIso
       };
+
+      if (temFiado) {
+        payloadUpdate.eh_venda_fiado = true;
+        if (dataVencimentoFiado) {
+          payloadUpdate.data_vencimento_fiado = dataVencimentoFiado;
+        }
+      }
 
       if (quitado) {
         const isStatusLogistico = ['envio_pendente', 'aguardando_envio', 'em_expedicao', 'enviado', 'saiu_para_entrega'].includes(pedido.status);
@@ -392,7 +428,7 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
 
       if (erroUpd) throw erroUpd;
 
-      // 3. Atualizar saldo devedor do cliente se for quitação de venda fiado (apenas numerário real, sem abater em pagamento por fiado ou caderneta)
+      // 3. Atualizar saldo devedor do cliente se for venda em fiado OU quitação de fiado
       const totalAbatimentoFiado = linhasAtivas
         .filter(l => l.forma_tipo !== 'fiado' && l.forma_tipo !== 'caderneta')
         .reduce((acc, l) => acc + Number(l.valor || 0), 0);
@@ -402,7 +438,41 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
         (pedido.pagamentos && pedido.pagamentos.some((p: any) => p.eh_pagamento_fiado))
       );
 
-      if (pedido.cliente_id && totalAbatimentoFiado > 0 && ehVendaOriginalmenteFiado) {
+      if (pedido.cliente_id && totalFiado > 0 && loja?.id) {
+        try {
+          const { data: cliData } = await supabase
+            .from('clientes')
+            .select('saldo_devedor_fiado, limite_credito')
+            .eq('id', pedido.cliente_id)
+            .single();
+
+          const debitoCli = Number(cliData?.saldo_devedor_fiado || 0);
+          const novoDebitoCli = Number((debitoCli + totalFiado).toFixed(2));
+          const limiteAtual = Number(cliData?.limite_credito || 0);
+          const novoLimite = Math.max(0, Number((limiteAtual - totalFiado).toFixed(2)));
+
+          await supabase
+            .from('clientes')
+            .update({
+              saldo_devedor_fiado: novoDebitoCli,
+              limite_credito: novoLimite
+            })
+            .eq('id', pedido.cliente_id);
+
+          await supabase.from('movimentacoes_saldo_cliente').insert([{
+            loja_id: loja.id,
+            cliente_id: pedido.cliente_id,
+            tipo: 'debito_venda',
+            valor: totalFiado,
+            saldo_anterior: debitoCli,
+            saldo_posterior: novoDebitoCli,
+            descricao: `Venda a prazo (Fiado) - Pedido #${pedido.numero_pedido}`,
+            usuario_id: usuario?.id || null
+          }]);
+        } catch (cliErr) {
+          console.warn('Aviso ao registrar fiado na conta do cliente:', cliErr);
+        }
+      } else if (pedido.cliente_id && totalAbatimentoFiado > 0 && ehVendaOriginalmenteFiado && !temFiado) {
         try {
           const { data: cliData } = await supabase
             .from('clientes')

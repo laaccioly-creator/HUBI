@@ -23,6 +23,7 @@ export const CONFIG_PLATAFORMA_PADRAO: ConfiguracoesPlataformaHubi = {
   meta_waba_id: null,
   meta_access_token: null,
   meta_verify_token: 'hubi_whatsapp_webhook_token',
+  serpapi_key: null,
 };
 
 export const configuracoesPlataformaService = {
@@ -64,6 +65,7 @@ export const configuracoesPlataformaService = {
         meta_waba_id: data.meta_waba_id || null,
         meta_access_token: data.meta_access_token || null,
         meta_verify_token: data.meta_verify_token || 'hubi_whatsapp_webhook_token',
+        serpapi_key: data.serpapi_key || null,
         atualizado_em: data.atualizado_em,
         atualizado_por: data.atualizado_por,
       };

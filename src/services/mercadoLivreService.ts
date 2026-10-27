@@ -67,6 +67,58 @@ async function obterSessaoValida() {
   throw new Error('Sessão não identificada. Por favor, atualize a página (F5) ou faça login novamente para continuar.');
 }
 
+/**
+ * Extrai a mensagem de erro detalhada retornada pela Edge Function ou pela API do Mercado Livre.
+ * Quando o status HTTP é de erro (ex: 400), o Supabase client armazena a Response no campo `error.context`.
+ */
+async function extrairMensagemErroEdgeFunction(error: unknown, data?: any): Promise<string> {
+  if (data) {
+    if (typeof data.error === 'string' && data.error.trim()) return data.error;
+    if (typeof data.message === 'string' && data.message.trim()) return data.message;
+    if (Array.isArray(data.cause) && data.cause.length > 0) {
+      const causas = data.cause
+        .map((c: any) => (typeof c === 'string' ? c : c?.message || c?.code || ''))
+        .filter(Boolean)
+        .join('; ');
+      if (causas) return `Erro ML: ${causas}`;
+    }
+  }
+
+  if (error && typeof error === 'object') {
+    const errObj = error as any;
+    if (errObj.context && typeof errObj.context.json === 'function') {
+      try {
+        const body = await errObj.context.json();
+        if (body) {
+          if (typeof body.error === 'string' && body.error.trim()) return body.error;
+          if (typeof body.message === 'string' && body.message.trim()) return body.message;
+          if (Array.isArray(body.cause) && body.cause.length > 0) {
+            const causas = body.cause
+              .map((c: any) => (typeof c === 'string' ? c : c?.message || c?.code || ''))
+              .filter(Boolean)
+              .join('; ');
+            if (causas) return `Erro ML: ${causas}`;
+          }
+          if (typeof body === 'string' && body.trim()) return body;
+        }
+      } catch {
+        try {
+          const texto = await errObj.context.text();
+          if (texto && texto.trim()) return texto;
+        } catch {
+          // Ignora falha de leitura
+        }
+      }
+    }
+
+    if (typeof errObj.message === 'string' && errObj.message.trim() && !errObj.message.includes('non-2xx status code')) {
+      return errObj.message;
+    }
+  }
+
+  return 'Falha na comunicação com o Mercado Livre. Verifique a conexão da sua conta ou tente novamente.';
+}
+
 export const mercadoLivreService = {
   /**
    * Obtém a conta conectada do Mercado Livre para a loja ativa
@@ -210,6 +262,12 @@ export const mercadoLivreService = {
     variacaoId?: string | null;
     mlItemId: string;
   }): Promise<{ sucesso: boolean; mensagem: string }> {
+    try {
+      await supabase.auth.refreshSession();
+    } catch (errSession) {
+      console.warn('[mercadoLivreService] Aviso ao renovar sessão antes de vincular:', errSession);
+    }
+
     const { data, error } = await supabase.functions.invoke('ml-estoque-sync', {
       body: {
         action: 'link_existing',
@@ -221,7 +279,8 @@ export const mercadoLivreService = {
     });
 
     if (error || !data?.sucesso) {
-      throw new Error(data?.error || error?.message || 'Falha ao vincular anúncio do Mercado Livre.');
+      const msgErro = await extrairMensagemErroEdgeFunction(error, data);
+      throw new Error(msgErro);
     }
 
     return data;
@@ -237,6 +296,12 @@ export const mercadoLivreService = {
     payloadMl: any;
     margemSobrepreco?: number;
   }): Promise<{ sucesso: boolean; mensagem: string; item: any }> {
+    try {
+      await supabase.auth.refreshSession();
+    } catch (errSession) {
+      console.warn('[mercadoLivreService] Aviso ao renovar sessão antes de publicar:', errSession);
+    }
+
     const { data, error } = await supabase.functions.invoke('ml-estoque-sync', {
       body: {
         action: 'create_listing',
@@ -249,7 +314,8 @@ export const mercadoLivreService = {
     });
 
     if (error || !data?.sucesso) {
-      throw new Error(data?.error || error?.message || 'Falha ao publicar anúncio no Mercado Livre.');
+      const msgErro = await extrairMensagemErroEdgeFunction(error, data);
+      throw new Error(msgErro);
     }
 
     return data;

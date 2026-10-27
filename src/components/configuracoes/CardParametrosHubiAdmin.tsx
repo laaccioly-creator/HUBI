@@ -21,7 +21,8 @@ import {
   Check,
   Shield,
   AlertTriangle,
-  Sliders
+  Sliders,
+  Sparkles
 } from 'lucide-react';
 import { configuracoesPlataformaService } from '../../services/configuracoesPlataformaService';
 import { testarConexaoMeta, salvarConfiguracoesWhatsApp } from '../../services/whatsappIaService';
@@ -63,6 +64,8 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
   const [metaAccessToken, setMetaAccessToken] = useState<string>('');
   const [metaVerifyToken, setMetaVerifyToken] = useState<string>('hubi_whatsapp_webhook_token');
   const [mostrarMetaToken, setMostrarMetaToken] = useState<boolean>(false);
+  const [serpApiKey, setSerpApiKey] = useState<string>('');
+  const [mostrarSerpApiKey, setMostrarSerpApiKey] = useState<boolean>(false);
   const [testandoMeta, setTestandoMeta] = useState<boolean>(false);
   const [statusMeta, setStatusMeta] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
   const [copiadoUrl, setCopiadoUrl] = useState<boolean>(false);
@@ -95,6 +98,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
       setMetaWabaId(params.meta_waba_id || '');
       setMetaAccessToken(params.meta_access_token || '');
       setMetaVerifyToken(params.meta_verify_token || 'hubi_whatsapp_webhook_token');
+      setSerpApiKey(params.serpapi_key || '');
       setUltimaAtualizacao(params.atualizado_em || null);
     } catch (err: unknown) {
       console.error('[CardParametrosHubiAdmin] Falha ao carregar parâmetros:', err);
@@ -155,7 +159,14 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
         meta_waba_id: metaWabaId.trim() || null,
         meta_access_token: metaAccessToken.trim() || null,
         meta_verify_token: metaVerifyToken.trim() || 'hubi_whatsapp_webhook_token',
+        serpapi_key: serpApiKey.trim() || null,
       });
+
+      if (serpApiKey.trim()) {
+        localStorage.setItem('hubi_serpapi_key', serpApiKey.trim());
+      } else {
+        localStorage.removeItem('hubi_serpapi_key');
+      }
 
       if (lojaId) {
         await salvarConfiguracoesWhatsApp(lojaId, {
@@ -864,6 +875,72 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
 
               <p className="text-[11px] text-slate-400 leading-relaxed">
                 💡 No portal <strong>Meta for Developers &gt; WhatsApp &gt; Configuração &gt; Webhook</strong>, insira a URL e Token acima. Depois, em <strong>Campos do Webhook</strong>, assine o campo <code>messages</code>.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Bloco 5: Motor de Imagens Google (SerpApi - Global Super Admin) */}
+        <div>
+          <h4
+            className={`text-xs font-black uppercase tracking-wider mb-2 flex items-center gap-1.5 ${
+              isDark ? 'text-slate-300' : 'text-slate-700'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Motor de Imagens Google via SerpApi (Global HUBI)</span>
+          </h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+            Chave SerpApi global do ecossistema HUBI gerenciada pelo Super Admin. Fornece busca automática e importação de fotografias de produtos no cadastro e estoque para todas as lojas.
+          </p>
+
+          <div
+            className={`p-3.5 rounded-xl border space-y-3 shadow-2xs ${
+              isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'
+            }`}
+          >
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label
+                  className={`text-xs font-bold block ${
+                    isDark ? 'text-slate-300' : 'text-slate-700'
+                  }`}
+                >
+                  SerpApi Private API Key (Chave Global)
+                </label>
+                <a
+                  href="https://serpapi.com/dashboard"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[11px] text-emerald-500 hover:text-emerald-400 font-bold flex items-center gap-1 transition"
+                >
+                  <span>Painel SerpApi</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+              <div className="relative flex items-center">
+                <input
+                  type={mostrarSerpApiKey ? 'text' : 'password'}
+                  value={serpApiKey}
+                  onChange={(e) => setSerpApiKey(e.target.value)}
+                  placeholder="Cole a chave SerpApi global aqui (Ex: 7a8b9c0d1e2f3a4b5c6d...)"
+                  className={`w-full pr-10 pl-3 py-2 rounded-xl text-xs font-mono outline-hidden border ${
+                    isDark
+                      ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
+                      : 'bg-white border-slate-300 text-slate-900 focus:border-emerald-500'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarSerpApiKey(!mostrarSerpApiKey)}
+                  className="absolute right-3 text-slate-400 hover:text-slate-200 cursor-pointer"
+                  title={mostrarSerpApiKey ? 'Ocultar chave' : 'Exibir chave'}
+                >
+                  {mostrarSerpApiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+                Ao preencher esta chave global, todos os operadores e filiais têm acesso à busca de fotos sem necessidade de cadastrar chaves individuais nas configurações da loja.
               </p>
             </div>
           </div>

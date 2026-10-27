@@ -76,6 +76,7 @@ export const AppLayout: React.FC = () => {
   const [pedidosConfirmadosCount, setPedidosConfirmadosCount] = useState<number>(0);
   const [maisMenuOpen, setMaisMenuOpen] = useState<boolean>(false);
   const [userMenuOpen, setUserMenuOpen] = useState<boolean>(false);
+  const [storeDropdownOpen, setStoreDropdownOpen] = useState<boolean>(false);
   const [modalAdicionarLojaAberto, setModalAdicionarLojaAberto] = useState<boolean>(false);
   const [listaUsuariosLoja, setListaUsuariosLoja] = useState<UsuarioLoja[]>([]);
 
@@ -90,6 +91,7 @@ export const AppLayout: React.FC = () => {
 
   const maisMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const storeDropdownRef = useRef<HTMLDivElement>(null);
 
   const handleNavegacaoMenu = (path: string, e?: React.MouseEvent) => {
     if (e) e.preventDefault();
@@ -116,6 +118,10 @@ export const AppLayout: React.FC = () => {
         }
         if (userMenuOpen) {
           setUserMenuOpen(false);
+          return;
+        }
+        if (storeDropdownOpen) {
+          setStoreDropdownOpen(false);
           return;
         }
 
@@ -155,7 +161,7 @@ export const AppLayout: React.FC = () => {
       window.removeEventListener('keydown', handleGlobalKeyDown);
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [mobileMenuOpen, maisMenuOpen, userMenuOpen, location.pathname, navigate, verificarSaidaComConfirmacao]);
+  }, [mobileMenuOpen, maisMenuOpen, userMenuOpen, storeDropdownOpen, location.pathname, navigate, verificarSaidaComConfirmacao]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -164,6 +170,9 @@ export const AppLayout: React.FC = () => {
       }
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setUserMenuOpen(false);
+      }
+      if (storeDropdownRef.current && !storeDropdownRef.current.contains(event.target as Node)) {
+        setStoreDropdownOpen(false);
       }
     };
 
@@ -486,20 +495,24 @@ export const AppLayout: React.FC = () => {
       {/* TOP HEADER DESKTOP (BARRA SUPERIOR EM 2 FILEIRAS DE 6 BOTÕES) */}
       <header className={`hidden md:block border-b z-40 relative shrink-0 shadow-xs ${isDark ? 'bg-slate-950 border-slate-800' : 'bg-white border-[#E2E8F0]'}`}>
         <div className="px-3 md:px-5 py-2 flex items-center justify-between gap-4">
-          {/* IDENTIFICAÇÃO DA LOJA E INFORMATIVO DE TRIAL FIXO */}
-          <div className="flex items-center gap-3 shrink-0 min-w-52 lg:min-w-64 max-w-[310px]">
+          {/* IDENTIFICAÇÃO DA LOJA E INFORMATIVO DE TRIAL FIXO COM DROPDOWN DE TROCA RÁPIDA */}
+          <div className="relative shrink-0 min-w-52 lg:min-w-64 max-w-[310px]" ref={storeDropdownRef}>
             <button
               type="button"
-              onClick={(e) => handleNavegacaoMenu(permissions.podeAcessarDashboard ? '/dashboard' : '/pos', e)}
-              className="flex items-center gap-2.5 group text-left cursor-pointer min-w-0"
+              onClick={() => setStoreDropdownOpen(prev => !prev)}
+              className="flex items-center gap-2.5 group text-left cursor-pointer min-w-0 w-full p-1 -m-1 rounded-xl hover:bg-slate-500/5 transition"
+              title="Clique para alternar de filial / loja"
             >
               <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-black text-white shadow-lg shadow-emerald-500/20 text-sm shrink-0 group-hover:scale-105 transition">
                 {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
               </div>
-              <div className="hidden sm:block min-w-0">
-                <h1 className={`font-bold text-xs lg:text-sm truncate max-w-[130px] lg:max-w-[160px] leading-tight group-hover:text-emerald-500 transition ${isDark ? 'text-slate-100' : 'text-[#0F172A]'}`}>
-                  {loja?.nome_fantasia || 'HUBI PDV'}
-                </h1>
+              <div className="hidden sm:block min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <h1 className={`font-bold text-xs lg:text-sm truncate max-w-[130px] lg:max-w-[160px] leading-tight group-hover:text-emerald-500 transition ${isDark ? 'text-slate-100' : 'text-[#0F172A]'}`}>
+                    {loja?.nome_fantasia || 'HUBI PDV'}
+                  </h1>
+                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-500 transition shrink-0 ${storeDropdownOpen ? 'rotate-180' : ''}`} />
+                </div>
                 {ehTrial ? (
                   <div className="flex flex-col mt-0.5" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-1.5">
@@ -526,6 +539,64 @@ export const AppLayout: React.FC = () => {
                 )}
               </div>
             </button>
+
+            {/* Menu Suspenso de Troca Rápida de Loja */}
+            {storeDropdownOpen && (
+              <div className={`absolute top-full left-0 mt-2 w-72 rounded-2xl p-2 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-150 border shadow-2xl ${
+                isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-[#E2E8F0] text-slate-900'
+              }`}>
+                <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-200/50 dark:border-slate-800">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    Lojas da Organização
+                  </span>
+                  {permissions.ehOwner && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStoreDropdownOpen(false);
+                        setModalAdicionarLojaAberto(true);
+                      }}
+                      className="flex items-center gap-1 text-[10px] font-bold text-emerald-500 hover:text-emerald-400 transition cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Nova Filial</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="max-h-56 overflow-y-auto space-y-0.5 custom-scrollbar py-1">
+                  {lojasDisponiveis.map((l) => {
+                    const ativa = l.id === loja?.id;
+                    return (
+                      <button
+                        key={l.id}
+                        type="button"
+                        onClick={async () => {
+                          setStoreDropdownOpen(false);
+                          if (!ativa) {
+                            await selecionarLoja(l.id);
+                            await recarregarDadosLoja();
+                          }
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition text-left cursor-pointer ${
+                          ativa
+                            ? 'bg-emerald-500/15 text-emerald-400 font-bold border border-emerald-500/30'
+                            : isDark
+                            ? 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                            : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 truncate">
+                          <Building2 className={`w-3.5 h-3.5 shrink-0 ${ativa ? 'text-emerald-400' : 'text-slate-400'}`} />
+                          <span className="truncate">{l.nome_fantasia}</span>
+                        </div>
+                        {ativa && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 ml-1.5" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* GRID CENTRAL EM EXATAMENTE 2 FILEIRAS BALANCEADAS (LINHA 1: 6 BOTÕES | LINHA 2: 7 BOTÕES) */}
@@ -601,26 +672,45 @@ export const AppLayout: React.FC = () => {
             </div>
           </nav>
 
-          {/* LADO DIREITO: MENU DO USUÁRIO (DATA OPERACIONAL ACESSÍVEL VIA DROPDOWN) */}
-          <div className="flex items-center gap-2 shrink-0 justify-end">
+          {/* LADO DIREITO: MENU DO USUÁRIO & ALTERNADOR DE TEMA */}
+          <div className="flex items-center gap-1.5 shrink-0 justify-end">
+            {/* Alternador Rápido de Tema (Sol / Lua) */}
+            <button
+              type="button"
+              onClick={() => setTema(isDark ? 'light' : 'dark')}
+              className={`p-2 rounded-xl transition flex items-center justify-center cursor-pointer text-xs shadow-xs ${
+                isDark
+                  ? 'bg-slate-800/80 hover:bg-slate-700/80 text-amber-400 border-2 border-slate-400'
+                  : 'bg-slate-100 hover:bg-slate-200 text-indigo-600 border border-slate-300/80'
+              }`}
+              title={isDark ? 'Alternar para Modo Claro' : 'Alternar para Modo Escuro'}
+              aria-label={isDark ? 'Alternar para Modo Claro' : 'Alternar para Modo Escuro'}
+            >
+              {isDark ? (
+                <Sun className="w-4 h-4 text-amber-400" />
+              ) : (
+                <Moon className="w-4 h-4 text-indigo-600" />
+              )}
+            </button>
+
             <div className="relative" ref={userMenuRef}>
               <button
                 type="button"
                 onClick={() => setUserMenuOpen(prev => !prev)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-xl transition text-left cursor-pointer shadow-xs ${
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition text-left cursor-pointer shadow-xs ${
                   isDark
                     ? 'bg-slate-800/80 hover:bg-slate-700/80 border-2 border-slate-400 text-white font-semibold'
                     : 'bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 font-semibold'
                 }`}
               >
-                <div className={`w-6 h-6 rounded-lg font-bold text-[11px] flex items-center justify-center border ${
+                <div className={`w-5 h-5 rounded-md font-bold text-[10px] flex items-center justify-center border ${
                   isDark
                     ? 'bg-emerald-600/30 text-white border-emerald-500/40'
                     : 'bg-slate-200 text-slate-900 border-slate-300'
                 }`}>
                   {nomeExibicaoUsuario.slice(0, 1).toUpperCase()}
                 </div>
-                <span className={`text-xs font-semibold max-w-[100px] truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                <span className={`text-xs font-semibold max-w-[85px] lg:max-w-[100px] truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
                   {nomeExibicaoUsuario}
                 </span>
                 <ChevronDown className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-slate-800'}`} />

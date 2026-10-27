@@ -65,6 +65,26 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
   const precoCalculadoMl = calcularPrecoMercadoLivre(precoBaseReferencia, margemComissao, taxaFixa);
   const estoqueFisico = variacaoAtual ? variacaoAtual.quantidade_estoque : produto.quantidade_estoque;
 
+  // Validações estritas para publicação no Mercado Livre
+  const temFotos = Boolean(
+    (Array.isArray(produto.fotos_urls) && produto.fotos_urls.length > 0) ||
+    (Array.isArray((produto as any).fotos) && (produto as any).fotos.length > 0) ||
+    (produto as any).url_foto
+  );
+  const temMarca = Boolean(marca.trim());
+  const temModelo = Boolean(modelo.trim());
+  const temPrecoValido = precoCalculadoMl > 0;
+  const temEstoque = estoqueFisico > 0;
+
+  const camposPendentesPublicacao: string[] = [];
+  if (!temFotos) camposPendentesPublicacao.push('Fotos do produto (mínimo 1 foto)');
+  if (!temMarca) camposPendentesPublicacao.push('Marca (obrigatório)');
+  if (!temModelo) camposPendentesPublicacao.push('Modelo (obrigatório)');
+  if (!temPrecoValido) camposPendentesPublicacao.push('Preço final de venda maior que R$ 0,00');
+  if (!temEstoque) camposPendentesPublicacao.push('Estoque físico disponível maior que 0');
+
+  const formularioPublicacaoValido = camposPendentesPublicacao.length === 0;
+
   const handleVincularExistente = async () => {
     const itemLimpo = mlItemIdInput.trim().toUpperCase();
     if (!itemLimpo) {
@@ -97,6 +117,14 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
   };
 
   const handlePublicarNovo = async () => {
+    if (!formularioPublicacaoValido) {
+      mostrarAviso(
+        `Preencha todos os campos obrigatórios antes de publicar: ${camposPendentesPublicacao.join(', ')}.`,
+        'Dados Incompletos'
+      );
+      return;
+    }
+
     try {
       setSalvando(true);
 
@@ -326,29 +354,54 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
               </div>
             </div>
 
-            {/* Marca e Modelo Opcionais */}
+            {/* Marca e Modelo (Obrigatórios no Mercado Livre) */}
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">Marca</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                  <span>Marca</span>
+                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">* obrigatório</span>
+                </label>
                 <input
                   type="text"
                   value={marca}
                   onChange={(e) => setMarca(e.target.value)}
                   placeholder="Ex: Samsung, Genérico..."
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-slate-100 outline-hidden"
+                  className={`w-full bg-slate-50 dark:bg-slate-950 border rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-slate-100 outline-hidden transition ${
+                    !marca.trim() ? 'border-amber-400/60 focus:border-amber-500' : 'border-slate-200 dark:border-slate-700 focus:border-emerald-500'
+                  }`}
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">Modelo</label>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                  <span>Modelo</span>
+                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">* obrigatório</span>
+                </label>
                 <input
                   type="text"
                   value={modelo}
                   onChange={(e) => setModelo(e.target.value)}
                   placeholder="Ex: Pro, V2, Standard..."
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-slate-100 outline-hidden"
+                  className={`w-full bg-slate-50 dark:bg-slate-950 border rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-slate-100 outline-hidden transition ${
+                    !modelo.trim() ? 'border-amber-400/60 focus:border-amber-500' : 'border-slate-200 dark:border-slate-700 focus:border-emerald-500'
+                  }`}
                 />
               </div>
             </div>
+
+            {/* Aviso de Requisitos Pendentes para Publicação */}
+            {!formularioPublicacaoValido && (
+              <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs space-y-1.5 animate-in fade-in">
+                <div className="flex items-center gap-1.5 font-bold">
+                  <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span>Pendências para publicação no Mercado Livre:</span>
+                </div>
+                <ul className="list-disc list-inside text-[11px] space-y-0.5 opacity-90 pl-1">
+                  {camposPendentesPublicacao.map((item, idx) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <div className="flex justify-end gap-2 pt-2">
               <button
@@ -362,8 +415,13 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
               <button
                 type="button"
                 onClick={handlePublicarNovo}
-                disabled={salvando}
-                className="px-4 py-2 rounded-xl bg-[#FFE600] hover:bg-[#F5DC00] text-slate-950 font-black text-xs flex items-center gap-2 shadow-sm transition cursor-pointer disabled:opacity-50 active:scale-95"
+                disabled={salvando || !formularioPublicacaoValido}
+                title={
+                  !formularioPublicacaoValido
+                    ? `Preencha os campos obrigatórios: ${camposPendentesPublicacao.join(', ')}`
+                    : 'Publicar anúncio no Mercado Livre'
+                }
+                className="px-4 py-2 rounded-xl bg-[#FFE600] hover:bg-[#F5DC00] text-slate-950 font-black text-xs flex items-center gap-2 shadow-sm transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
               >
                 {salvando ? (
                   <>

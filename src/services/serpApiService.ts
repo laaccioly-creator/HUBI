@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { Loja } from '../types';
+import { configuracoesPlataformaService } from './configuracoesPlataformaService';
 
 export const STORAGE_KEY_SERPAPI_KEY = 'hubi_serpapi_key';
 
@@ -209,9 +210,23 @@ export const obterOuBuscarSerpApiKey = async (loja?: Loja | null): Promise<strin
   const chaveSincrona = obterSerpApiKey(loja);
   if (chaveSincrona) return chaveSincrona;
 
+  // 1. Prioridade: Parâmetros Globais da Plataforma HUBI (Super Admin)
+  try {
+    const params = await configuracoesPlataformaService.obterParametros();
+    if (params?.serpapi_key && params.serpapi_key.trim()) {
+      const limpa = params.serpapi_key.trim();
+      localStorage.setItem(STORAGE_KEY_SERPAPI_KEY, limpa);
+      logSerpSucesso('Chave SerpApi obtida dos Parâmetros Globais HUBI e sincronizada localmente!');
+      return limpa;
+    }
+  } catch (errPlat: any) {
+    logSerpAviso('Aviso ao consultar serpapi_key em configuracoes_plataforma:', errPlat?.message);
+  }
+
+  // 2. Fallback Transitório: Consultar Supabase na tabela lojas
   if (loja?.id) {
     try {
-      logSerp('Chave não encontrada localmente. Consultando Supabase para a loja:', loja.id);
+      logSerp('Chave global não encontrada. Consultando Supabase lojas como fallback:', loja.id);
       const { data, error } = await supabase
         .from('lojas')
         .select('serpapi_key, configuracoes_extras')
@@ -228,7 +243,7 @@ export const obterOuBuscarSerpApiKey = async (loja?: Loja | null): Promise<strin
           const limpa = chaveDb.trim();
           if (limpa) {
             localStorage.setItem(STORAGE_KEY_SERPAPI_KEY, limpa);
-            logSerpSucesso('Chave SerpApi obtida do Supabase e sincronizada no dispositivo móvel!');
+            logSerpSucesso('Chave SerpApi obtida do Supabase lojas (fallback)!');
             return limpa;
           }
         }

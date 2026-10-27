@@ -116,6 +116,7 @@ export interface PrazosTaxasMaquininha {
 
 export interface OpcoesPagamentoDetalhes {
   permitir_fiado?: boolean;
+  dias_vencimento_fiado?: number;
   caderneta_ativa?: boolean;
   dia_vencimento_padrao_caderneta?: number;
   pix_ativo?: boolean;
@@ -247,6 +248,7 @@ export interface ConfiguracoesPlataformaHubi {
   meta_waba_id?: string | null;
   meta_access_token?: string | null;
   meta_verify_token?: string | null;
+  serpapi_key?: string | null;
   atualizado_em?: string;
   atualizado_por?: string | null;
 }

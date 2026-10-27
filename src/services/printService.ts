@@ -76,11 +76,13 @@ export const ehPedidoCaderneta = (pedido?: Pedido | null): boolean => {
 
 export const ehPedidoFiado = (pedido: Pedido): boolean => {
   if (!pedido) return false;
+  if (pedido.status_pagamento === 'fiado' || (pedido as any).eh_venda_fiado) return true;
   if (Array.isArray(pedido.pagamentos) && pedido.pagamentos.length > 0) {
     const temPagamentoFiado = pedido.pagamentos.some(p => 
       p.eh_pagamento_fiado === true || 
       p.forma_pagamento?.tipo === 'fiado' ||
-      p.forma_pagamento?.nome?.toLowerCase().includes('fiado')
+      p.forma_pagamento?.nome?.toLowerCase().includes('fiado') ||
+      (p as any).forma_tipo === 'fiado'
     );
     if (temPagamentoFiado) return true;
   }
@@ -142,6 +144,7 @@ export interface InfoPagamentoRecibo {
 export const obterDadosPagamentoRecibo = (pedido: Pedido): InfoPagamentoRecibo => {
   const ehCaderneta = ehPedidoCaderneta(pedido);
   const ehFiado = !ehCaderneta && ehPedidoFiado(pedido);
+  const temFiadoEmAberto = ehFiado && !pedido.fiado_quitado && Number(pedido.saldo_devedor ?? pedido.valor_total) > 0;
 
   let mensagemCaderneta: string | undefined;
   if (ehCaderneta) {
@@ -157,12 +160,13 @@ export const obterDadosPagamentoRecibo = (pedido: Pedido): InfoPagamentoRecibo =
   }
 
   const statusPag = (ehCaderneta && !pedido.fiado_quitado) ? 'caderneta'
+    : temFiadoEmAberto ? 'fiado'
     : pedido.status_pagamento 
     || (Number(pedido.saldo_devedor) <= 0 && Number(pedido.valor_pago) > 0 ? 'pago' 
     : pedido.status === 'concluido' && (!ehFiado || Number(pedido.saldo_devedor) <= 0) ? 'pago' 
     : 'aguardando_pagamento');
 
-  const foiPago = statusPag === 'pago' || (Number(pedido.saldo_devedor) <= 0 && Number(pedido.valor_pago) > 0);
+  const foiPago = !temFiadoEmAberto && !ehCaderneta && (statusPag === 'pago' || (Number(pedido.saldo_devedor) <= 0 && Number(pedido.valor_pago) > 0));
   const totalPago = Number(pedido.valor_pago || (foiPago ? pedido.valor_total : 0));
 
   const itensPag: InfoPagamentoRecibo['pagamentosDetalhados'] = [];

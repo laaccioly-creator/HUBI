@@ -189,30 +189,17 @@ const gerarSnapshotCarrinhoPdv = (
   desc: number,
   tipoDesc: 'valor' | 'percentual',
   taxa: number,
-  entrega: PedidoEntrega | null | undefined,
-  tabela: TabelaPreco
+  entrega: PedidoEntrega | null | undefined
 ) => {
-  return JSON.stringify({
-    itens: (itensAtuais || [])
-      .map(i => ({
-        chaveItem: `${i.produto?.id || ''}_${i.variacao?.id || 'base'}`,
-        produto_id: i.produto?.id || '',
-        variacao_id: i.variacao?.id || null,
-        quantidade: Number(Number(i.quantidade || 0).toFixed(4)),
-        precoUnitario: Number(i.precoUnitario?.toFixed?.(2) || i.precoUnitario || 0),
-        observacoes: i.observacoes || ''
-      }))
-      .sort((a, b) => a.chaveItem.localeCompare(b.chaveItem)),
-    clienteId: cli?.id || null,
-    desconto: Number(desc?.toFixed?.(2) || desc || 0),
-    tipoDesconto: tipoDesc || 'valor',
-    taxaEntrega: Number(taxa?.toFixed?.(2) || taxa || 0),
-    entregaTransp: entrega?.transportadora_nome || null,
-    entregaTipo: entrega?.tipo_atendimento || null,
-    entregaServico: entrega?.servico_codigo || null,
-    entregaValor: Number(entrega?.valor_frete || 0),
-    tabela: tabela || 'varejo'
-  });
+  const itensStr = (itensAtuais || [])
+    .map(i => `${i.produto?.id || (i as any).produto_id || ''}_${i.variacao?.id || (i as any).variacao_id || 'base'}:${Number(i.quantidade || 0)}`)
+    .sort()
+    .join('|');
+  const cliId = cli?.id || '';
+  const descVal = Number(desc || 0).toFixed(2);
+  const taxaVal = Number(taxa || 0).toFixed(2);
+  const tipoAtend = entrega?.tipo_atendimento || 'retirada';
+  return `${itensStr}#${cliId}#${descVal}#${tipoDesc}#${taxaVal}#${tipoAtend}`;
 };
 
 export const PosCheckout: React.FC = () => {
@@ -221,7 +208,7 @@ export const PosCheckout: React.FC = () => {
   const { tema } = useTheme();
   const isDark = tema === 'dark';
   const permissions = usePermissions();
-  const { mostrarSucesso, mostrarAviso, mostrarErro, setTemAlteracoesNaoSalvas, verificarSaidaComConfirmacao } = useFeedbackModal();
+  const { mostrarSucesso, mostrarAviso, mostrarErro, mostrarToast, setTemAlteracoesNaoSalvas, verificarSaidaComConfirmacao } = useFeedbackModal();
   const cart = useCart();
   const {
     itens: rawItens,
@@ -283,6 +270,7 @@ export const PosCheckout: React.FC = () => {
   }, [clienteSelecionado?.id]);
 
   const snapshotInicialRef = useRef<string | null>(null);
+  const pedidoIdInicialRef = useRef<string | null>(null);
 
   // Snapshot determinístico do carrinho para verificação estrita de alterações na sessão
   const snapshotAtual = useMemo(() => {
@@ -292,49 +280,37 @@ export const PosCheckout: React.FC = () => {
       desconto,
       tipoDesconto,
       taxaEntrega,
-      pedidoEntrega,
-      tabelaPrecoGlobal
+      pedidoEntrega
     );
-  }, [itens, clienteSelecionado, desconto, tipoDesconto, taxaEntrega, pedidoEntrega, tabelaPrecoGlobal]);
+  }, [itens, clienteSelecionado, desconto, tipoDesconto, taxaEntrega, pedidoEntrega]);
 
+  // Ao hidratar ou carregar um pedido, estabelece o snapshot inicial de referência da sessão
   useEffect(() => {
     if (!isHydrated) return;
 
-    // Se estiver em modo de edição de pedido existente, respeita estritamente o snapshot do pedido original
-    if (pedidoEmEdicao) {
-      setTemAlteracoesNaoSalvas(Boolean(temAlteracoesPedido));
-      return;
-    }
-
-    // Se o carrinho estiver vazio e não for edição de pedido existente, não há venda a proteger
-    if (itens.length === 0) {
+    const idAtual = pedidoEmEdicao?.id || null;
+    if (snapshotInicialRef.current === null || pedidoIdInicialRef.current !== idAtual) {
       snapshotInicialRef.current = snapshotAtual;
+      pedidoIdInicialRef.current = idAtual;
       setTemAlteracoesNaoSalvas(false);
       return;
     }
 
-    // Inicializa o snapshot de referência da sessão quando o PDV monta ou após salvar/limpar
-    if (snapshotInicialRef.current === null) {
-      snapshotInicialRef.current = snapshotAtual;
-      setTemAlteracoesNaoSalvas(false);
-      return;
-    }
-
-    // Só sinaliza alterações não salvas se o usuário efetivamente alterou o carrinho nesta sessão e não salvou
+    // Só bloqueia a saída se o operador efetivamente adicionou/removeu itens, alterou quantidades, cliente ou desconto
     const houveAlteracao = snapshotAtual !== snapshotInicialRef.current;
     setTemAlteracoesNaoSalvas(houveAlteracao);
-
-    return () => {
-      setTemAlteracoesNaoSalvas(false);
-    };
   }, [
     isHydrated,
-    pedidoEmEdicao,
-    temAlteracoesPedido,
-    itens.length,
+    pedidoEmEdicao?.id,
     snapshotAtual,
     setTemAlteracoesNaoSalvas
   ]);
+
+  useEffect(() => {
+    return () => {
+      setTemAlteracoesNaoSalvas(false);
+    };
+  }, [setTemAlteracoesNaoSalvas]);
 
   const {
     isOnline,
@@ -396,6 +372,7 @@ export const PosCheckout: React.FC = () => {
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const clienteDropdownRef = useRef<HTMLDivElement>(null);
+  const inputClienteBuscaRef = useRef<HTMLInputElement>(null);
 
   const FORMAS_PADRAO: FormaPagamento[] = [
     { id: `fp_dinheiro_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Dinheiro', tipo: 'dinheiro', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
@@ -2397,10 +2374,10 @@ export const PosCheckout: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
-                  verificarSaidaComConfirmacao(() => {
-                    cancelarEdicaoPedido();
-                    navigate('/orders');
-                  });
+                  setTemAlteracoesNaoSalvas(false);
+                  snapshotInicialRef.current = null;
+                  cancelarEdicaoPedido();
+                  navigate('/orders');
                 }}
                 className={`p-1.5 rounded-xl transition cursor-pointer shrink-0 ${
                   isDark ? 'bg-slate-700/60 hover:bg-rose-500/20 text-slate-400 hover:text-rose-300' : 'bg-[#F1F5F9] hover:bg-rose-50 text-[#64748B] hover:text-rose-600'
@@ -2440,6 +2417,7 @@ export const PosCheckout: React.FC = () => {
               <div className="relative flex-1">
                 <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
+                  ref={inputClienteBuscaRef}
                   type="text"
                   placeholder={isEdicaoTravada ? "Cliente fixo para pedidos neste status" : "Buscar cliente ou avulso..."}
                   value={clienteSelecionado ? clienteSelecionado.nome : clienteBuscaTexto}
@@ -2668,6 +2646,18 @@ export const PosCheckout: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
+                    if (!clienteSelecionado?.id) {
+                      setTaxaEntrega(0);
+                      setPedidoEntrega(FORMA_ENTREGA_RETIRADA_PADRAO);
+                      setFreteConfirmado(false);
+                      mostrarToast('Para entregas (Envio), selecione primeiro o cliente para carregar o endereço de entrega.', 'aviso');
+                      if (inputClienteBuscaRef.current) {
+                        inputClienteBuscaRef.current.focus();
+                        inputClienteBuscaRef.current.select();
+                      }
+                      setClienteDropdownAberto(true);
+                      return;
+                    }
                     setTaxaEntrega(0);
                     setPedidoEntrega({
                       ...FORMA_ENTREGA_RETIRADA_PADRAO,

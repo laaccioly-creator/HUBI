@@ -362,6 +362,10 @@ export async function obterMetasConsolidadasConglomerado(lojasIds: string[]): Pr
   const somaPedidos = metasPorLoja.reduce((acc, m) => acc + Number(m.meta_pedidos || 0), 0);
   const somaLucro = metasPorLoja.reduce((acc, m) => acc + Number(m.meta_lucro_liquido || 0), 0);
   const somaDespesas = metasPorLoja.reduce((acc, m) => acc + Number(m.meta_despesas_maximas || 0), 0);
+  const somaRupturas = metasPorLoja.reduce(
+    (acc, m) => acc + Number(m.meta_saude_estoque_max_ruptura !== undefined && m.meta_saude_estoque_max_ruptura !== null ? m.meta_saude_estoque_max_ruptura : (m.meta_giro_estoque ?? 0)),
+    0
+  );
   const ticketMedioPonderado = somaPedidos > 0 ? Math.round((somaFaturamento / somaPedidos) * 100) / 100 : Number(METAS_PADRAO_LOJA.meta_ticket_medio);
   const mediaInadimplencia = metasPorLoja.length > 0
     ? metasPorLoja.reduce((acc, m) => acc + Number(m.meta_inadimplencia_maxima || 0), 0) / metasPorLoja.length
@@ -380,7 +384,7 @@ export async function obterMetasConsolidadasConglomerado(lojasIds: string[]): Pr
     meta_despesas_maximas: somaDespesas,
     meta_inadimplencia_maxima: Math.round(mediaInadimplencia * 100) / 100,
     meta_giro_estoque: Math.round(mediaGiro * 100) / 100,
-    meta_saude_estoque_max_ruptura: 0
+    meta_saude_estoque_max_ruptura: somaRupturas
   };
 }
 

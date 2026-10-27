@@ -17,6 +17,8 @@ import {
   Bike,
   Package,
   RefreshCw,
+  ChevronDown,
+  ChevronUp,
   X
 } from 'lucide-react';
 import {
@@ -257,7 +259,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   const [larguraInput, setLarguraInput] = useState<string>('11');
   const [alturaInput, setAlturaInput] = useState<string>('4');
   const [pacoteManualEditado, setPacoteManualEditado] = useState<boolean>(false);
-  const [modalVolumesMobileAberto, setModalVolumesMobileAberto] = useState<boolean>(false);
+  const [accordionVolumesAberto, setAccordionVolumesAberto] = useState<boolean>(false);
 
   // Assinatura estável dos itens do carrinho para evitar disparo por recriação de array
   const itensSig = useMemo(() => {
@@ -1839,359 +1841,215 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                   </div>
                 ) : (
                 <div className="space-y-3">
-                  {/* Painel de Conferência de Volumes e Dimensões do Pacote (Apenas lojista) */}
+                  {/* Accordion Colapsável: Conferência de Volumes e Dimensões do Pacote (Apenas lojista) */}
                   {(temMelhorEnvio || temUber) && !ehCatalogo && (
-                    <>
-                      {/* VERSÃO DESKTOP: Painel Completo Aberto */}
-                      <div className={`hidden sm:block p-3.5 rounded-2xl border shadow-sm space-y-3 ${
-                        ehDark
-                          ? 'bg-[#000000] border-slate-700 text-white'
-                          : 'bg-white border-2 border-slate-300 text-slate-900'
-                      }`}>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center border ${
+                    <div className={`rounded-2xl border transition shadow-xs overflow-hidden ${
+                      ehDark
+                        ? 'bg-slate-900/60 border-slate-800 text-white'
+                        : 'bg-white border-slate-200 text-slate-900'
+                    }`}>
+                      {/* Cabeçalho do Accordion (Sempre visível, recolhido por padrão) */}
+                      <button
+                        type="button"
+                        onClick={() => setAccordionVolumesAberto(prev => !prev)}
+                        className="w-full p-3 flex items-center justify-between gap-2.5 text-left transition hover:bg-slate-500/5 cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${
                             ehDark
                               ? 'bg-emerald-950/50 text-emerald-400 border-emerald-800/50'
                               : 'bg-emerald-100 text-emerald-800 border-emerald-200'
                           }`}>
                             <Package className="w-4 h-4" />
                           </div>
-                          <div>
-                            <h4 className={`text-xs font-bold ${ehDark ? 'text-white' : 'text-slate-900'}`}>Conferência da Embalagem & Volumes</h4>
-                            <p className={`text-[11px] ${ehDark ? 'text-slate-300' : 'text-slate-600'}`}>Ajuste peso e medidas antes de cotar no Melhor Envio</p>
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => enderecoSelecionado && executarCotacao(enderecoSelecionado, true)}
-                          disabled={cotando}
-                          className={`px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition border cursor-pointer disabled:opacity-50 active:scale-95 ${
-                            ehDark
-                              ? 'bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-400 border-emerald-700/60'
-                              : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
-                          }`}
-                          title="Recalcular com as medidas informadas"
-                        >
-                          <RefreshCw className={`w-3.5 h-3.5 ${cotando ? 'animate-spin' : ''}`} />
-                          <span>Recalcular</span>
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
-                        <div>
-                          <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-white' : 'text-slate-700'}`}>Volumes</label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={volumesCount}
-                            onChange={(e) => {
-                              setPacoteManualEditado(true);
-                              setVolumesCount(Math.max(1, parseInt(e.target.value) || 1));
-                            }}
-                            onBlur={() => enderecoSelecionado && executarCotacao(enderecoSelecionado, true)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && enderecoSelecionado) {
-                                executarCotacao(enderecoSelecionado, true);
-                              }
-                            }}
-                            className={`w-full px-2.5 py-1.5 rounded-xl border text-center font-bold outline-none transition ${
-                              ehDark
-                                ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
-                                : 'bg-white border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500'
-                            }`}
-                          />
-                        </div>
-
-                        <div>
-                          <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-white' : 'text-slate-700'}`}>Peso (kg)</label>
-                          <input
-                            type="text"
-                            value={pesoInput}
-                            onChange={(e) => {
-                              setPacoteManualEditado(true);
-                              setPesoInput(e.target.value);
-                            }}
-                            onBlur={() => enderecoSelecionado && executarCotacao(enderecoSelecionado, true)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && enderecoSelecionado) {
-                                executarCotacao(enderecoSelecionado, true);
-                              }
-                            }}
-                            placeholder="0.300"
-                            className={`w-full px-2.5 py-1.5 rounded-xl border text-center font-bold outline-none transition ${
-                              ehDark
-                                ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
-                                : 'bg-white border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500'
-                            }`}
-                          />
-                        </div>
-
-                        <div>
-                          <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-white' : 'text-slate-700'}`}>Comp. (cm)</label>
-                          <input
-                            type="text"
-                            value={comprimentoInput}
-                            onChange={(e) => {
-                              setPacoteManualEditado(true);
-                              setComprimentoInput(e.target.value);
-                            }}
-                            onBlur={() => enderecoSelecionado && executarCotacao(enderecoSelecionado, true)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && enderecoSelecionado) {
-                                executarCotacao(enderecoSelecionado, true);
-                              }
-                            }}
-                            placeholder="16"
-                            className={`w-full px-2.5 py-1.5 rounded-xl border text-center font-bold outline-none transition ${
-                              ehDark
-                                ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
-                                : 'bg-white border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500'
-                            }`}
-                          />
-                        </div>
-
-                        <div>
-                          <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-white' : 'text-slate-700'}`}>Largura (cm)</label>
-                          <input
-                            type="text"
-                            value={larguraInput}
-                            onChange={(e) => {
-                              setPacoteManualEditado(true);
-                              setLarguraInput(e.target.value);
-                            }}
-                            onBlur={() => enderecoSelecionado && executarCotacao(enderecoSelecionado, true)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && enderecoSelecionado) {
-                                executarCotacao(enderecoSelecionado, true);
-                              }
-                            }}
-                            placeholder="11"
-                            className={`w-full px-2.5 py-1.5 rounded-xl border text-center font-bold outline-none transition ${
-                              ehDark
-                                ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
-                                : 'bg-white border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500'
-                            }`}
-                          />
-                        </div>
-
-                        <div className="col-span-2 sm:col-span-1">
-                          <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-white' : 'text-slate-700'}`}>Altura (cm)</label>
-                          <input
-                            type="text"
-                            value={alturaInput}
-                            onChange={(e) => {
-                              setPacoteManualEditado(true);
-                              setAlturaInput(e.target.value);
-                            }}
-                            onBlur={() => enderecoSelecionado && executarCotacao(enderecoSelecionado, true)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && enderecoSelecionado) {
-                                executarCotacao(enderecoSelecionado, true);
-                              }
-                            }}
-                            placeholder="4"
-                            className={`w-full px-2.5 py-1.5 rounded-xl border text-center font-bold outline-none transition ${
-                              ehDark
-                                ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
-                                : 'bg-white border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500'
-                            }`}
-                          />
-                        </div>
-                      </div>
-
-                      <div className={`flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-xl border ${
-                        ehDark ? 'bg-slate-950 text-slate-300 border-slate-800' : 'bg-white text-slate-600 border-slate-200'
-                      }`}>
-                        <span>
-                          Pacote: <strong className={ehDark ? 'text-white' : 'text-slate-900'}>{volumesCount} {volumesCount > 1 ? 'volumes' : 'volume'}</strong> • <strong className={ehDark ? 'text-white' : 'text-slate-900'}>{pesoInput} kg {volumesCount > 1 ? `(${(parseFloat(pesoInput.replace(',', '.')) / volumesCount || 0).toFixed(2)} kg/vol)` : 'total'}</strong> • <strong className={ehDark ? 'text-white' : 'text-slate-900'}>{comprimentoInput}x{larguraInput}x{alturaInput} cm</strong>
-                        </span>
-                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 font-bold px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-700/60">
-                          Utilizado na cotação
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* VERSÃO MOBILE: Linha única resumida com botão Alterar */}
-                      <div className={`sm:hidden p-3 rounded-xl border flex items-center justify-between gap-2 shadow-xs ${
-                        ehDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-                      }`}>
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${
-                            ehDark ? 'bg-emerald-950/50 text-emerald-400 border-emerald-800/50' : 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                          }`}>
-                            <Package className="w-4 h-4" />
-                          </div>
                           <div className="min-w-0">
-                            <span className={`text-xs font-bold block truncate ${ehDark ? 'text-white' : 'text-slate-900'}`}>
-                              Conferência da Embalagem & Volumes
-                            </span>
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 block truncate">
-                              {volumesCount} vol • {pesoInput} kg • {comprimentoInput}x{larguraInput}x{alturaInput} cm
-                            </span>
+                            <h4 className={`text-xs font-bold truncate ${ehDark ? 'text-white' : 'text-slate-900'}`}>
+                              Definir volumes e dimensões (opcional)
+                            </h4>
+                            <p className={`text-[11px] truncate ${ehDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                              Pacote padrão: {volumesCount} {volumesCount > 1 ? 'volumes' : 'volume'} • {pesoInput} kg • {comprimentoInput}x{larguraInput}x{alturaInput} cm
+                            </p>
                           </div>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => setModalVolumesMobileAberto(true)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition border cursor-pointer active:scale-95 ${
-                            ehDark
-                              ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
-                              : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
-                          }`}
-                        >
-                          Alterar
-                        </button>
-                      </div>
+                        <div className="flex items-center gap-1.5 shrink-0 text-slate-400">
+                          {accordionVolumesAberto ? (
+                            <ChevronUp className="w-4 h-4 text-emerald-500" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-slate-400" />
+                          )}
+                        </div>
+                      </button>
 
-                      {/* MODAL / BOTTOM SHEET SECUNDÁRIO MOBILE: Ajuste de Medidas da Embalagem */}
-                      {modalVolumesMobileAberto && (
-                        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-                          <div
-                            className={`w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 border shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto ${
-                              ehDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-800">
-                              <div className="flex items-center gap-2">
-                                <Package className="w-5 h-5 text-emerald-500" />
-                                <h3 className="font-bold text-sm">Conferência da Embalagem & Volumes</h3>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => setModalVolumesMobileAberto(false)}
-                                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white"
-                              >
-                                <X className="w-5 h-5" />
-                              </button>
-                            </div>
+                      {/* Corpo do Accordion (Expandido apenas se accordionVolumesAberto for true) */}
+                      {accordionVolumesAberto && (
+                        <div className={`p-3.5 pt-2 border-t space-y-3 ${
+                          ehDark ? 'border-slate-800/80 bg-slate-950/40' : 'border-slate-100 bg-slate-50/50'
+                        } animate-in fade-in duration-150`}>
+                          <div className="flex items-center justify-between">
+                            <span className={`text-[11px] ${ehDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                              Ajuste peso e medidas antes de cotar no Melhor Envio / Uber
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => enderecoSelecionado && executarCotacao(enderecoSelecionado, true)}
+                              disabled={cotando}
+                              className={`px-2.5 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition border cursor-pointer disabled:opacity-50 active:scale-95 ${
+                                ehDark
+                                  ? 'bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-400 border-emerald-700/60'
+                                  : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                              }`}
+                              title="Recalcular com as medidas informadas"
+                            >
+                              <RefreshCw className={`w-3.5 h-3.5 ${cotando ? 'animate-spin' : ''}`} />
+                              <span>Recalcular</span>
+                            </button>
+                          </div>
 
-                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                              Ajuste o peso e as medidas do pacote para calcular o valor de frete preciso com as transportadoras.
-                            </p>
-
-                            <div className="grid grid-cols-2 gap-3 text-xs">
-                              <div>
-                                <label className="block text-xs font-bold mb-1 text-slate-700 dark:text-slate-200">Volumes</label>
-                                <input
-                                  type="number"
-                                  min="1"
-                                  value={volumesCount}
-                                  onChange={(e) => {
-                                    setPacoteManualEditado(true);
-                                    setVolumesCount(Math.max(1, parseInt(e.target.value) || 1));
-                                  }}
-                                  className="w-full px-3 py-2 rounded-xl border text-center font-bold outline-none bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:border-emerald-500"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-bold mb-1 text-slate-700 dark:text-slate-200">Peso (kg)</label>
-                                <input
-                                  type="text"
-                                  value={pesoInput}
-                                  onChange={(e) => {
-                                    setPacoteManualEditado(true);
-                                    setPesoInput(e.target.value);
-                                  }}
-                                  placeholder="0.300"
-                                  className="w-full px-3 py-2 rounded-xl border text-center font-bold outline-none bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:border-emerald-500"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-bold mb-1 text-slate-700 dark:text-slate-200">Comp. (cm)</label>
-                                <input
-                                  type="text"
-                                  value={comprimentoInput}
-                                  onChange={(e) => {
-                                    setPacoteManualEditado(true);
-                                    setComprimentoInput(e.target.value);
-                                  }}
-                                  placeholder="16"
-                                  className="w-full px-3 py-2 rounded-xl border text-center font-bold outline-none bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:border-emerald-500"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-bold mb-1 text-slate-700 dark:text-slate-200">Largura (cm)</label>
-                                <input
-                                  type="text"
-                                  value={larguraInput}
-                                  onChange={(e) => {
-                                    setPacoteManualEditado(true);
-                                    setLarguraInput(e.target.value);
-                                  }}
-                                  placeholder="11"
-                                  className="w-full px-3 py-2 rounded-xl border text-center font-bold outline-none bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:border-emerald-500"
-                                />
-                              </div>
-                              <div className="col-span-2">
-                                <label className="block text-xs font-bold mb-1 text-slate-700 dark:text-slate-200">Altura (cm)</label>
-                                <input
-                                  type="text"
-                                  value={alturaInput}
-                                  onChange={(e) => {
-                                    setPacoteManualEditado(true);
-                                    setAlturaInput(e.target.value);
-                                  }}
-                                  placeholder="4"
-                                  className="w-full px-3 py-2 rounded-xl border text-center font-bold outline-none bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:border-emerald-500"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="pt-2 flex items-center gap-3">
-                              <button
-                                type="button"
-                                onClick={() => setModalVolumesMobileAberto(false)}
-                                className="flex-1 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 font-bold text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-                              >
-                                Cancelar
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (enderecoSelecionado) {
+                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+                            <div>
+                              <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-white' : 'text-slate-700'}`}>Volumes</label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={volumesCount}
+                                onChange={(e) => {
+                                  setPacoteManualEditado(true);
+                                  setVolumesCount(Math.max(1, parseInt(e.target.value) || 1));
+                                }}
+                                onBlur={() => enderecoSelecionado && executarCotacao(enderecoSelecionado, true)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && enderecoSelecionado) {
                                     executarCotacao(enderecoSelecionado, true);
                                   }
-                                  setModalVolumesMobileAberto(false);
                                 }}
-                                disabled={cotando}
-                                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-sm disabled:opacity-50 cursor-pointer"
-                              >
-                                <RefreshCw className={`w-3.5 h-3.5 ${cotando ? 'animate-spin' : ''}`} />
-                                <span>Recalcular & Salvar</span>
-                              </button>
+                                className={`w-full px-2.5 py-1.5 rounded-xl border text-center font-bold outline-none transition ${
+                                  ehDark
+                                    ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
+                                    : 'bg-white border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500'
+                                }`}
+                              />
                             </div>
+
+                            <div>
+                              <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-white' : 'text-slate-700'}`}>Peso (kg)</label>
+                              <input
+                                type="text"
+                                value={pesoInput}
+                                onChange={(e) => {
+                                  setPacoteManualEditado(true);
+                                  setPesoInput(e.target.value);
+                                }}
+                                onBlur={() => enderecoSelecionado && executarCotacao(enderecoSelecionado, true)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && enderecoSelecionado) {
+                                    executarCotacao(enderecoSelecionado, true);
+                                  }
+                                }}
+                                placeholder="0.300"
+                                className={`w-full px-2.5 py-1.5 rounded-xl border text-center font-bold outline-none transition ${
+                                  ehDark
+                                    ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
+                                    : 'bg-white border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500'
+                                }`}
+                              />
+                            </div>
+
+                            <div>
+                              <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-white' : 'text-slate-700'}`}>Comp. (cm)</label>
+                              <input
+                                type="text"
+                                value={comprimentoInput}
+                                onChange={(e) => {
+                                  setPacoteManualEditado(true);
+                                  setComprimentoInput(e.target.value);
+                                }}
+                                onBlur={() => enderecoSelecionado && executarCotacao(enderecoSelecionado, true)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && enderecoSelecionado) {
+                                    executarCotacao(enderecoSelecionado, true);
+                                  }
+                                }}
+                                placeholder="16"
+                                className={`w-full px-2.5 py-1.5 rounded-xl border text-center font-bold outline-none transition ${
+                                  ehDark
+                                    ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
+                                    : 'bg-white border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500'
+                                }`}
+                              />
+                            </div>
+
+                            <div>
+                              <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-white' : 'text-slate-700'}`}>Largura (cm)</label>
+                              <input
+                                type="text"
+                                value={larguraInput}
+                                onChange={(e) => {
+                                  setPacoteManualEditado(true);
+                                  setLarguraInput(e.target.value);
+                                }}
+                                onBlur={() => enderecoSelecionado && executarCotacao(enderecoSelecionado, true)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && enderecoSelecionado) {
+                                    executarCotacao(enderecoSelecionado, true);
+                                  }
+                                }}
+                                placeholder="11"
+                                className={`w-full px-2.5 py-1.5 rounded-xl border text-center font-bold outline-none transition ${
+                                  ehDark
+                                    ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
+                                    : 'bg-white border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500'
+                                }`}
+                              />
+                            </div>
+
+                            <div className="col-span-2 sm:col-span-1">
+                              <label className={`block text-[11px] font-bold mb-1 ${ehDark ? 'text-white' : 'text-slate-700'}`}>Altura (cm)</label>
+                              <input
+                                type="text"
+                                value={alturaInput}
+                                onChange={(e) => {
+                                  setPacoteManualEditado(true);
+                                  setAlturaInput(e.target.value);
+                                }}
+                                onBlur={() => enderecoSelecionado && executarCotacao(enderecoSelecionado, true)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && enderecoSelecionado) {
+                                    executarCotacao(enderecoSelecionado, true);
+                                  }
+                                }}
+                                placeholder="4"
+                                className={`w-full px-2.5 py-1.5 rounded-xl border text-center font-bold outline-none transition ${
+                                  ehDark
+                                    ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
+                                    : 'bg-white border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500'
+                                }`}
+                              />
+                            </div>
+                          </div>
+
+                          <div className={`flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-xl border ${
+                            ehDark ? 'bg-slate-950 text-slate-300 border-slate-800' : 'bg-white text-slate-600 border-slate-200'
+                          }`}>
+                            <span>
+                              Pacote: <strong className={ehDark ? 'text-white' : 'text-slate-900'}>{volumesCount} {volumesCount > 1 ? 'volumes' : 'volume'}</strong> • <strong className={ehDark ? 'text-white' : 'text-slate-900'}>{pesoInput} kg {volumesCount > 1 ? `(${(parseFloat(pesoInput.replace(',', '.')) / volumesCount || 0).toFixed(2)} kg/vol)` : 'total'}</strong> • <strong className={ehDark ? 'text-white' : 'text-slate-900'}>{comprimentoInput}x{larguraInput}x{alturaInput} cm</strong>
+                            </span>
+                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 font-bold px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-700/60">
+                              Utilizado na cotação
+                            </span>
                           </div>
                         </div>
                       )}
-                    </>
+                    </div>
                   )}
                   {carregandoConfig || cotando ? (
-                    <div className="space-y-2.5 animate-pulse py-1">
-                      {[1, 2, 3].map((i) => (
-                        <div
-                          key={i}
-                          className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${
-                            ehDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-100/70 border-slate-200'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-9 h-9 rounded-xl ${ehDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
-                            <div className="space-y-1.5">
-                              <div className={`h-3 w-28 rounded ${ehDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
-                              <div className={`h-2.5 w-44 rounded ${ehDark ? 'bg-slate-800/60' : 'bg-slate-200/70'}`} />
-                            </div>
-                          </div>
-                          <div className={`h-4 w-16 rounded ${ehDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
-                        </div>
-                      ))}
-                      <div className="text-center pt-1">
-                        <span className="text-[11px] text-slate-500 font-medium">
-                          Calculando opções de frete disponíveis em tempo real...
-                        </span>
-                      </div>
+                    <div className={`py-10 flex flex-col items-center justify-center gap-3 rounded-2xl border ${
+                      ehDark ? 'bg-slate-900/40 border-slate-800/80' : 'bg-slate-50 border-slate-200/80'
+                    } animate-in fade-in duration-200`}>
+                      <Loader2 className="w-7 h-7 animate-spin text-emerald-500" />
+                      <p className={`text-xs font-semibold ${ehDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                        Calculando melhores opções de frete...
+                      </p>
                     </div>
                   ) : !temUber && !temMelhorEnvio && !temFreteProprio ? (
                     ehCatalogo ? (

@@ -106,7 +106,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   const location = useLocation();
   const { loja, usuario, desconectarPdv } = useAuth();
   const permissions = usePermissions();
-  const { verificarSaidaComConfirmacao } = useFeedbackModal();
+  const { verificarSaidaComConfirmacao, mostrarToast } = useFeedbackModal();
   const { tema } = useTheme();
   const isDark = tema === 'dark';
 
@@ -1466,6 +1466,12 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                   <button
                     type="button"
                     onClick={() => {
+                      if (!clienteSelecionado?.id) {
+                        setTaxaEntrega?.(0);
+                        setPedidoEntrega?.(FORMA_ENTREGA_RETIRADA_PADRAO);
+                        mostrarToast('Para entregas (Envio), selecione primeiro o cliente para carregar o endereço de entrega.', 'aviso');
+                        return;
+                      }
                       if (pedidoEntrega?.tipo_atendimento !== 'entrega') {
                         setTaxaEntrega?.(0);
                         setPedidoEntrega?.({
