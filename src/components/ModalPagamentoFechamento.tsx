@@ -693,11 +693,8 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
         atualizado_por: usuario?.id || null
       };
 
-      if (temFiado) {
-        payloadUpdate.eh_venda_fiado = true;
-        if (dataVencimentoCalculada) {
-          payloadUpdate.data_vencimento_fiado = dataVencimentoCalculada;
-        }
+      if (temFiado && dataVencimentoCalculada) {
+        payloadUpdate.data_vencimento_fiado = dataVencimentoCalculada;
       }
 
       if (quitado) {
@@ -724,10 +721,12 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
         }
       }
 
+      const lojaIdEfetivo = loja?.id || pedido.loja_id;
       const { data: pedUpd, error: erroUpd } = await supabase
         .from('pedidos')
         .update(payloadUpdate)
         .eq('id', pedido.id)
+        .eq('loja_id', lojaIdEfetivo)
         .select(`
           *,
           cliente:clientes(*),
@@ -745,7 +744,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
         .reduce((acc, l) => acc + Number(l.valor || 0), 0);
 
       const ehVendaOriginalmenteFiado = Boolean(
-        (pedido as any).eh_venda_fiado ||
+        pedido.status_pagamento === 'fiado' ||
         (pedido.pagamentos && pedido.pagamentos.some((p: any) => p.eh_pagamento_fiado))
       );
 
@@ -857,7 +856,9 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
           .filter(l => Number(l.valor) > 0)
           .map(l => `${l.forma_nome}: R$ ${Number(l.valor).toFixed(2).replace('.', ',')}`)
           .join(', ');
-        const descPag = quitado
+        const descPag = temFiado
+          ? `Venda a prazo (Fiado) registrada no valor de R$ ${totalLinhasPagamento.toFixed(2).replace('.', ',')} (${resumoFormas}). Vencimento: ${dataVencimentoCalculada ? dataVencimentoCalculada.split('-').reverse().join('/') : '30 dias'}.`
+          : quitado
           ? `Pagamento integral registrado no valor de R$ ${totalLinhasPagamento.toFixed(2).replace('.', ',')} (${resumoFormas}). Pedido quitado.`
           : `Pagamento parcial registrado no valor de R$ ${totalLinhasPagamento.toFixed(2).replace('.', ',')} (${resumoFormas}). Saldo restante: R$ ${novoSaldoDevedor.toFixed(2).replace('.', ',')}.`;
 

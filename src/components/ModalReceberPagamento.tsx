@@ -382,11 +382,8 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
         atualizado_em: dataIso
       };
 
-      if (temFiado) {
-        payloadUpdate.eh_venda_fiado = true;
-        if (dataVencimentoFiado) {
-          payloadUpdate.data_vencimento_fiado = dataVencimentoFiado;
-        }
+      if (temFiado && dataVencimentoFiado) {
+        payloadUpdate.data_vencimento_fiado = dataVencimentoFiado;
       }
 
       if (quitado) {
@@ -417,6 +414,7 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
         .from('pedidos')
         .update(payloadUpdate)
         .eq('id', pedido.id)
+        .eq('loja_id', loja.id)
         .select(`
           *,
           cliente:clientes(*),
@@ -434,7 +432,7 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
         .reduce((acc, l) => acc + Number(l.valor || 0), 0);
 
       const ehVendaOriginalmenteFiado = Boolean(
-        (pedido as any).eh_venda_fiado ||
+        pedido.status_pagamento === 'fiado' ||
         (pedido.pagamentos && pedido.pagamentos.some((p: any) => p.eh_pagamento_fiado))
       );
 

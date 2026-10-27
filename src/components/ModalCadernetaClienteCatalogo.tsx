@@ -57,11 +57,11 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
 
       const { data: pedidosFiado } = await supabase
         .from('pedidos')
-        .select('id, numero_pedido, valor_total, valor_pago, saldo_devedor, status, status_pagamento, eh_venda_fiado, eh_venda_caderneta, data_venda, criado_em, itens:itens_pedido(*)')
+        .select('id, numero_pedido, valor_total, valor_pago, saldo_devedor, status, status_pagamento, eh_venda_caderneta, data_venda, criado_em, itens:itens_pedido(*)')
         .eq('loja_id', loja.id)
         .eq('cliente_id', cliente.id)
         .neq('status', 'cancelado')
-        .or('eh_venda_fiado.eq.true,eh_venda_caderneta.eq.true,status_pagamento.eq.fiado')
+        .or('eh_venda_caderneta.eq.true,status_pagamento.eq.fiado')
         .order('criado_em', { ascending: false });
 
       if (pedidosFiado && pedidosFiado.length > 0) {
