@@ -143,8 +143,40 @@ export interface InfoPagamentoRecibo {
 
 export const obterDadosPagamentoRecibo = (pedido: Pedido): InfoPagamentoRecibo => {
   const ehCaderneta = ehPedidoCaderneta(pedido);
-  const ehFiado = !ehCaderneta && ehPedidoFiado(pedido);
-  const temFiadoEmAberto = ehFiado && !pedido.fiado_quitado && Number(pedido.saldo_devedor ?? pedido.valor_total) > 0;
+  const temLinhaFiado = Array.isArray(pedido.pagamentos) && pedido.pagamentos.some(
+    p => p.eh_pagamento_fiado === true || 
+         p.forma_pagamento?.tipo === 'fiado' ||
+         (p.forma_pagamento?.nome || '').toLowerCase().includes('fiado') ||
+         (p as any).forma_tipo === 'fiado' ||
+         (p as any).nome_forma?.toLowerCase().includes('fiado')
+  );
+  const ehFiado = !ehCaderneta && (ehPedidoFiado(pedido) || temLinhaFiado);
+
+  // Calcula o valor real pago em numerário (dinheiro, pix, cartões) desconsiderando fiado e caderneta
+  const valorRealPagoNumerario = Array.isArray(pedido.pagamentos) && pedido.pagamentos.length > 0
+    ? pedido.pagamentos
+        .filter(p => 
+          !p.eh_pagamento_fiado && 
+          !p.eh_pagamento_caderneta && 
+          p.forma_pagamento?.tipo !== 'fiado' && 
+          p.forma_pagamento?.tipo !== 'caderneta' &&
+          !(p.forma_pagamento?.nome || '').toLowerCase().includes('fiado') &&
+          !(p.forma_pagamento?.nome || '').toLowerCase().includes('caderneta') &&
+          (p as any).forma_tipo !== 'fiado' &&
+          (p as any).forma_tipo !== 'caderneta'
+        )
+        .reduce((sum, p) => sum + Number(p.valor || 0), 0)
+    : (ehFiado ? 0 : Number(pedido.valor_pago || 0));
+
+  const saldoDevedorReal = Number(pedido.saldo_devedor ?? (Number(pedido.valor_total || 0) - valorRealPagoNumerario));
+
+  // Um pedido fiado só é considerado quitado se foi explicitamente quitado com numerário real que cobriu o total
+  const temFiadoEmAberto = ehFiado && (
+    !pedido.fiado_quitado ||
+    pedido.status_pagamento === 'fiado' ||
+    saldoDevedorReal > 0.01 ||
+    valorRealPagoNumerario < Number(pedido.valor_total || 0) - 0.01
+  );
 
   let mensagemCaderneta: string | undefined;
   if (ehCaderneta) {
@@ -166,8 +198,13 @@ export const obterDadosPagamentoRecibo = (pedido: Pedido): InfoPagamentoRecibo =
     : pedido.status === 'concluido' && (!ehFiado || Number(pedido.saldo_devedor) <= 0) ? 'pago' 
     : 'aguardando_pagamento');
 
-  const foiPago = !temFiadoEmAberto && !ehCaderneta && (statusPag === 'pago' || (Number(pedido.saldo_devedor) <= 0 && Number(pedido.valor_pago) > 0));
-  const totalPago = Number(pedido.valor_pago || (foiPago ? pedido.valor_total : 0));
+  // foiPago é estritamente falso se houver saldo fiado em aberto ou caderneta
+  const foiPago = !temFiadoEmAberto && !ehCaderneta && (
+    (pedido.status_pagamento === 'pago' && !temLinhaFiado) ||
+    (saldoDevedorReal <= 0.01 && valorRealPagoNumerario > 0.01)
+  );
+
+  const totalPago = Number(valorRealPagoNumerario);
 
   const itensPag: InfoPagamentoRecibo['pagamentosDetalhados'] = [];
 
@@ -243,9 +280,11 @@ export const obterDadosPagamentoRecibo = (pedido: Pedido): InfoPagamentoRecibo =
       ? 'AGUARDANDO PESAGEM / SEPARAÇÃO'
       : ehCaderneta
         ? 'CADERNETA'
-        : foiPago
-          ? 'PAGO'
-          : 'AGUARDANDO PAGAMENTO',
+        : (ehFiado || pedido.status_pagamento === 'fiado' || temLinhaFiado) && !foiPago
+          ? 'AGUARDANDO PAGAMENTO (FIADO)'
+          : foiPago
+            ? '✓ PAGO'
+            : 'AGUARDANDO PAGAMENTO',
     mensagemCaderneta,
     totalPago,
     pagamentosDetalhados: itensPag

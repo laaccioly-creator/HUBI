@@ -444,6 +444,7 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
             .from('clientes')
             .select('saldo_devedor_fiado, limite_credito')
             .eq('id', pedido.cliente_id)
+            .eq('loja_id', loja.id)
             .single();
 
           const debitoCli = Number(cliData?.saldo_devedor_fiado || 0);
@@ -457,7 +458,8 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
               saldo_devedor_fiado: novoDebitoCli,
               limite_credito: novoLimite
             })
-            .eq('id', pedido.cliente_id);
+            .eq('id', pedido.cliente_id)
+            .eq('loja_id', loja.id);
 
           await supabase.from('movimentacoes_saldo_cliente').insert([{
             loja_id: loja.id,
@@ -466,31 +468,45 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
             valor: totalFiado,
             saldo_anterior: debitoCli,
             saldo_posterior: novoDebitoCli,
-            descricao: `Venda a prazo (Fiado) - Pedido #${pedido.numero_pedido}`,
+            observacao: `Faturamento Fiado via Recebimento Pedido #${pedido.numero_pedido}`,
             usuario_id: usuario?.id || null
           }]);
         } catch (cliErr) {
           console.warn('Aviso ao registrar fiado na conta do cliente:', cliErr);
         }
-      } else if (pedido.cliente_id && totalAbatimentoFiado > 0 && ehVendaOriginalmenteFiado && !temFiado) {
+      } else if (pedido.cliente_id && totalAbatimentoFiado > 0 && ehVendaOriginalmenteFiado && !temFiado && loja?.id) {
         try {
           const { data: cliData } = await supabase
             .from('clientes')
             .select('saldo_devedor_fiado, limite_credito')
             .eq('id', pedido.cliente_id)
+            .eq('loja_id', loja.id)
             .single();
 
           if (cliData) {
             const debitoCli = Number(cliData.saldo_devedor_fiado || 0);
-            const novoDebitoCli = Math.max(0, debitoCli - totalAbatimentoFiado);
-            const novoLimite = Number(cliData.limite_credito || 0) + totalAbatimentoFiado;
+            const novoDebitoCli = Math.max(0, Number((debitoCli - totalAbatimentoFiado).toFixed(2)));
+            const limiteAtual = Number(cliData.limite_credito || 0);
+            const novoLimite = Number((limiteAtual + totalAbatimentoFiado).toFixed(2));
             await supabase
               .from('clientes')
               .update({
                 saldo_devedor_fiado: novoDebitoCli,
                 limite_credito: novoLimite
               })
-              .eq('id', pedido.cliente_id);
+              .eq('id', pedido.cliente_id)
+              .eq('loja_id', loja.id);
+
+            await supabase.from('movimentacoes_saldo_cliente').insert([{
+              loja_id: loja.id,
+              cliente_id: pedido.cliente_id,
+              tipo: 'credito_pagamento',
+              valor: totalAbatimentoFiado,
+              saldo_anterior: debitoCli,
+              saldo_posterior: novoDebitoCli,
+              observacao: `Quitação Fiado via Recebimento Pedido #${pedido.numero_pedido}`,
+              usuario_id: usuario?.id || null
+            }]);
           }
         } catch (cliErr) {
           console.warn('Aviso ao abater fiado do cliente e devolver limite:', cliErr);

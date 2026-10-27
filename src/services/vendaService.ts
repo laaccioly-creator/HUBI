@@ -486,15 +486,33 @@ export class VendaService {
               .from('clientes')
               .select('saldo_devedor_fiado, limite_credito')
               .eq('id', clienteSelecionado.id)
+              .eq('loja_id', lojaId)
               .single();
 
             const saldoAtual = Number(cliDb?.saldo_devedor_fiado || clienteSelecionado.saldo_devedor_fiado || 0);
             const limiteAtual = Number(cliDb?.limite_credito || clienteSelecionado.limite_credito || 0);
+            const novoSaldo = Math.max(0, Number((saldoAtual + diferencaFiado).toFixed(2)));
+            const novoLimite = Math.max(0, Number((limiteAtual - diferencaFiado).toFixed(2)));
 
             await supabase.from('clientes').update({
-              limite_credito: Math.max(0, limiteAtual - diferencaFiado),
-              saldo_devedor_fiado: Math.max(0, saldoAtual + diferencaFiado)
-            }).eq('id', clienteSelecionado.id);
+              limite_credito: novoLimite,
+              saldo_devedor_fiado: novoSaldo
+            })
+            .eq('id', clienteSelecionado.id)
+            .eq('loja_id', lojaId);
+
+            await supabase.from('movimentacoes_saldo_cliente').insert([{
+              loja_id: lojaId,
+              cliente_id: clienteSelecionado.id,
+              tipo: diferencaFiado > 0 ? 'debito_venda' : 'credito_pagamento',
+              valor: Math.abs(diferencaFiado),
+              saldo_anterior: saldoAtual,
+              saldo_posterior: novoSaldo,
+              observacao: diferencaFiado > 0
+                ? `Faturamento Fiado via PDV - Pedido #${pedidoGravado.numero_pedido}`
+                : `Ajuste Fiado - Pedido #${pedidoGravado.numero_pedido}`,
+              usuario_id: vendedorIdSanitizado || null
+            }]);
           } catch (errCli: any) {
             logger.warn('VendaService', 'saldo_devedor', `Aviso ao atualizar saldo do cliente: ${errCli?.message || errCli}`, { loja_id: lojaId });
           }

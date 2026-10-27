@@ -575,11 +575,58 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
 
     try {
       const dataIso = obterDataOperacaoISO();
-      const novoValorPago = Number((valorJaPago + totalLinhasPagamento).toFixed(2));
-      const novoSaldoDevedor = Math.max(0, Number((valorTotal - novoValorPago).toFixed(2)));
-      const quitado = novoSaldoDevedor <= 0;
 
-      const novoStatusPagamento: StatusPagamento = quitado ? 'pago' : 'parcialmente_pago';
+      // Identificar se há valor em Fiado ou Caderneta (formas a prazo)
+      const valorFiadoRecebimento = linhasAtivas
+        .filter(l => l.forma_tipo === 'fiado' || (l.forma_nome || '').toLowerCase().includes('fiado'))
+        .reduce((acc, l) => acc + Number(l.valor || 0), 0);
+
+      const valorCadernetaRecebimento = linhasAtivas
+        .filter(l => l.forma_tipo === 'caderneta' || (l.forma_nome || '').toLowerCase().includes('caderneta'))
+        .reduce((acc, l) => acc + Number(l.valor || 0), 0);
+
+      // Pagamento imediato (numerário real): dinheiro, pix, cartões
+      const valorRealPagoNestaOperacao = linhasAtivas
+        .filter(l => 
+          l.forma_tipo !== 'fiado' && 
+          l.forma_tipo !== 'caderneta' && 
+          !(l.forma_nome || '').toLowerCase().includes('fiado') && 
+          !(l.forma_nome || '').toLowerCase().includes('caderneta')
+        )
+        .reduce((acc, l) => acc + Number(l.valor || 0), 0);
+
+      const temFiado = valorFiadoRecebimento > 0;
+      const temCaderneta = valorCadernetaRecebimento > 0;
+      const temCreditoAPrazo = temFiado || temCaderneta;
+
+      // O valor pago real soma apenas as formas imediatas (dinheiro, pix, cartões). Fiado e Caderneta são faturamentos a prazo, não numerário quitado!
+      const novoValorPago = Number((valorJaPago + valorRealPagoNestaOperacao).toFixed(2));
+      const novoSaldoDevedor = Number(Math.max(0, valorTotal - novoValorPago).toFixed(2));
+
+      // Quitado apenas se não houver fiado/caderneta em aberto e o saldo devedor for zero
+      const quitado = !temCreditoAPrazo && novoSaldoDevedor <= 0.009;
+
+      const novoStatusPagamento: StatusPagamento = temFiado
+        ? 'fiado'
+        : temCaderneta
+        ? 'caderneta'
+        : quitado
+        ? 'pago'
+        : novoValorPago > 0
+        ? 'parcialmente_pago'
+        : 'aguardando_pagamento';
+
+      let dataVencimentoCalculada: string | null = null;
+      if (temFiado) {
+        const prazoDias = Number(
+          (loja?.configuracoes_extras?.pagamentos as any)?.dias_vencimento_fiado ||
+          (loja?.configuracoes_extras?.pagamentos as any)?.dia_vencimento_padrao_caderneta ||
+          30
+        );
+        const dataVenc = new Date();
+        dataVenc.setDate(dataVenc.getDate() + prazoDias);
+        dataVencimentoCalculada = pedido.data_vencimento_fiado || dataVenc.toISOString().split('T')[0];
+      }
 
       // 1. Gravar pagamentos em lote na tabela pagamentos_pedido
       const pagamentosParaDb = await Promise.all(linhasAtivas.map(async (linha) => {
@@ -592,6 +639,9 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
         const taxaValor = Number(((linha.valor * taxaPerc) / 100).toFixed(2));
         const valorLiquido = Number((linha.valor - taxaValor).toFixed(2));
 
+        const ehLinhaFiado = linha.forma_tipo === 'fiado' || (linha.forma_nome || '').toLowerCase().includes('fiado');
+        const ehLinhaCaderneta = linha.forma_tipo === 'caderneta' || (linha.forma_nome || '').toLowerCase().includes('caderneta');
+
         return {
           loja_id: loja?.id,
           pedido_id: pedido.id,
@@ -600,9 +650,9 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
           parcelas: linha.parcelas || 1,
           valor_taxa: taxaValor,
           valor_liquido: valorLiquido,
-          data_pagamento: dataIso,
-          eh_pagamento_fiado: linha.forma_tipo === 'fiado',
-          eh_pagamento_caderneta: linha.forma_tipo === 'caderneta'
+          data_pagamento: (ehLinhaFiado || ehLinhaCaderneta) ? null : dataIso,
+          eh_pagamento_fiado: ehLinhaFiado,
+          eh_pagamento_caderneta: ehLinhaCaderneta
         };
       }));
 
@@ -643,6 +693,13 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
         atualizado_por: usuario?.id || null
       };
 
+      if (temFiado) {
+        payloadUpdate.eh_venda_fiado = true;
+        if (dataVencimentoCalculada) {
+          payloadUpdate.data_vencimento_fiado = dataVencimentoCalculada;
+        }
+      }
+
       if (quitado) {
         const isStatusLogistico = ['aguardando_envio', 'em_expedicao', 'enviado'].includes(pedido.status);
         if (!isStatusLogistico) {
@@ -682,7 +739,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
 
       if (erroUpd) throw erroUpd;
 
-      // 3. Atualizar saldo devedor do cliente se for quitação de venda fiado (apenas numerário real, sem abater em pagamento por fiado ou caderneta)
+      // 3. Atualizar saldo devedor do cliente e auditoria contábil
       const totalAbatimentoFiado = linhasAtivas
         .filter(l => l.forma_tipo !== 'fiado' && l.forma_tipo !== 'caderneta')
         .reduce((acc, l) => acc + Number(l.valor || 0), 0);
@@ -692,25 +749,83 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
         (pedido.pagamentos && pedido.pagamentos.some((p: any) => p.eh_pagamento_fiado))
       );
 
-      if (pedido.cliente_id && totalAbatimentoFiado > 0 && ehVendaOriginalmenteFiado) {
+      // Caso A: Se recebeu/faturou em Fiado nesta operação -> DEBITA a conta do cliente e registra movimentação
+      if (pedido.cliente_id && valorFiadoRecebimento > 0 && loja?.id) {
+        try {
+          const { data: clienteAtual } = await supabase
+            .from('clientes')
+            .select('saldo_devedor_fiado, limite_credito')
+            .eq('id', pedido.cliente_id)
+            .eq('loja_id', loja.id)
+            .single();
+
+          const saldoAnterior = Number(clienteAtual?.saldo_devedor_fiado || 0);
+          const limiteAnterior = Number(clienteAtual?.limite_credito || 0);
+          const novoSaldo = Number((saldoAnterior + valorFiadoRecebimento).toFixed(2));
+          const novoLimite = Math.max(0, Number((limiteAnterior - valorFiadoRecebimento).toFixed(2)));
+
+          await supabase
+            .from('clientes')
+            .update({
+              saldo_devedor_fiado: novoSaldo,
+              limite_credito: novoLimite
+            })
+            .eq('id', pedido.cliente_id)
+            .eq('loja_id', loja.id);
+
+          await supabase
+            .from('movimentacoes_saldo_cliente')
+            .insert([{
+              loja_id: loja.id,
+              cliente_id: pedido.cliente_id,
+              tipo: 'debito_venda',
+              valor: valorFiadoRecebimento,
+              saldo_anterior: saldoAnterior,
+              saldo_posterior: novoSaldo,
+              observacao: `Faturamento Fiado via Recebimento Pedido #${pedido.numero_pedido}`,
+              usuario_id: usuario?.id || null
+            }]);
+        } catch (errFiadoCli) {
+          console.error('Erro ao debitar saldo fiado do cliente:', errFiadoCli);
+        }
+      }
+      // Caso B: Se for quitação com numerário real de um pedido que era originalmente fiado -> ABATE a dívida e devolve limite
+      else if (pedido.cliente_id && totalAbatimentoFiado > 0 && ehVendaOriginalmenteFiado && !temFiado && loja?.id) {
         try {
           const { data: cliData } = await supabase
             .from('clientes')
             .select('saldo_devedor_fiado, limite_credito')
             .eq('id', pedido.cliente_id)
+            .eq('loja_id', loja.id)
             .single();
 
           if (cliData) {
             const debitoCli = Number(cliData.saldo_devedor_fiado || 0);
-            const novoDebitoCli = Math.max(0, debitoCli - totalAbatimentoFiado);
-            const novoLimite = Number(cliData.limite_credito || 0) + totalAbatimentoFiado;
+            const novoDebitoCli = Math.max(0, Number((debitoCli - totalAbatimentoFiado).toFixed(2)));
+            const limiteAtual = Number(cliData.limite_credito || 0);
+            const novoLimite = Number((limiteAtual + totalAbatimentoFiado).toFixed(2));
+
             await supabase
               .from('clientes')
               .update({
                 saldo_devedor_fiado: novoDebitoCli,
                 limite_credito: novoLimite
               })
-              .eq('id', pedido.cliente_id);
+              .eq('id', pedido.cliente_id)
+              .eq('loja_id', loja.id);
+
+            await supabase
+              .from('movimentacoes_saldo_cliente')
+              .insert([{
+                loja_id: loja.id,
+                cliente_id: pedido.cliente_id,
+                tipo: 'credito_pagamento',
+                valor: totalAbatimentoFiado,
+                saldo_anterior: debitoCli,
+                saldo_posterior: novoDebitoCli,
+                observacao: `Quitação Fiado via Recebimento Pedido #${pedido.numero_pedido}`,
+                usuario_id: usuario?.id || null
+              }]);
           }
         } catch (cliErr) {
           console.warn('Aviso ao abater fiado do cliente e devolver limite:', cliErr);

@@ -413,12 +413,14 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
             </div>
 
             {/* Dados do Pagamento (Após o Valor Total) */}
-            {pagInfo.ehFiado && Number(pedido.saldo_devedor || 0) > 0 && (
+            {((pagInfo.ehFiado || pedido.status_pagamento === 'fiado') && !pagInfo.foiPago) && (
               <div className="mt-2.5 p-3 bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl text-center space-y-0.5">
                 <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
                   {pagInfo.ehCaderneta ? 'Saldo Caderneta' : 'Saldo a Pagar (Fiado)'}
                 </span>
-                <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 block">{formatarMoeda(Number(pedido.saldo_devedor))}</span>
+                <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 block">
+                  {formatarMoeda(Number(pedido.saldo_devedor || pedido.valor_total))}
+                </span>
                 <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block pt-0.5">
                   Data de Vencimento: {obterInfoVencimentoFiado(pedido).formatada}
                 </span>
@@ -433,20 +435,20 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                     ? 'bg-emerald-50 text-emerald-900 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
                     : pagInfo.ehCaderneta
                     ? 'bg-emerald-50 text-emerald-900 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+                    : (pagInfo.ehFiado || pedido.status_pagamento === 'fiado') && !pagInfo.foiPago
+                    ? 'bg-amber-50 text-amber-900 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800'
                     : pagInfo.foiPago
                     ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-700'
-                    : (pagInfo.ehFiado || pedido.status_pagamento === 'fiado')
-                    ? 'bg-amber-50 text-amber-900 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800'
                     : 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
                 }`}>
                   {pedido.status_pagamento === 'aguardando_pesagem'
                     ? 'AGUARDANDO PESAGEM / SEPARAÇÃO'
                     : pagInfo.ehCaderneta
                     ? 'CADERNETA'
+                    : (pagInfo.ehFiado || pedido.status_pagamento === 'fiado') && !pagInfo.foiPago
+                    ? 'AGUARDANDO PAGAMENTO (FIADO)'
                     : pagInfo.foiPago
                     ? '✓ PAGO'
-                    : (pagInfo.ehFiado || pedido.status_pagamento === 'fiado')
-                    ? 'AGUARDANDO PAGAMENTO (FIADO)'
                     : 'AGUARDANDO PAGAMENTO'}
                 </span>
               </div>
@@ -465,23 +467,25 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                   })()}
                 </div>
               )}
-              {pagInfo.foiPago && pagInfo.pagamentosDetalhados.length > 0 ? (
+              {pagInfo.pagamentosDetalhados.length > 0 ? (
                 <div className="space-y-1.5 pt-1 text-slate-700">
                   {pagInfo.pagamentosDetalhados.map((pag, idx) => (
                     <div key={idx} className="flex justify-between items-start text-[11px]">
                       <div>
-                        <span className="font-semibold text-slate-900 block">{pag.forma}{pag.parcelas ? ` (${pag.parcelas}x)` : ''}:</span>
+                        <span className="font-semibold text-slate-900 dark:text-slate-100 block">{pag.forma}{pag.parcelas ? ` (${pag.parcelas}x)` : ''}:</span>
                         {pag.origemGateway && (
-                          <span className="text-[10px] text-slate-500 block font-medium">Origem: {pag.origemGateway}</span>
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">Origem: {pag.origemGateway}</span>
                         )}
                       </div>
-                      <span className="font-bold text-slate-900">{formatarMoeda(pag.valor)}</span>
+                      <span className="font-bold text-slate-900 dark:text-slate-100">{formatarMoeda(pag.valor)}</span>
                     </div>
                   ))}
-                  <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-xs">
-                    <span className="text-slate-700 font-medium">Valor Pago:</span>
-                    <span className="text-emerald-700 font-black text-sm">{formatarMoeda(pagInfo.totalPago)}</span>
-                  </div>
+                  {pagInfo.foiPago && (
+                    <div className="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-800 text-xs">
+                      <span className="text-slate-700 dark:text-slate-300 font-medium">Valor Pago:</span>
+                      <span className="text-emerald-700 dark:text-emerald-400 font-black text-sm">{formatarMoeda(pagInfo.totalPago)}</span>
+                    </div>
+                  )}
                 </div>
               ) : null}
             </div>
