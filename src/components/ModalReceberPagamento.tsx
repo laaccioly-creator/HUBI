@@ -139,6 +139,30 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
     }
   }, [pedido, isOpen, formasPagamento]);
 
+  const limiteDisponivelCaderneta = useMemo(() => {
+    if (!pedido?.cliente?.permite_caderneta) return 0;
+    const limite = Number(pedido.cliente.limite_caderneta || 0);
+    const saldoDevedor = Number(pedido.cliente.saldo_devedor_caderneta || 0);
+    return Math.max(0, limite - saldoDevedor);
+  }, [pedido?.cliente]);
+
+  const clienteAptoCaderneta = useMemo(() => {
+    return Boolean(
+      loja?.caderneta_ativa &&
+      pedido?.cliente?.id &&
+      pedido.cliente.permite_caderneta === true &&
+      limiteDisponivelCaderneta > 0
+    );
+  }, [loja?.caderneta_ativa, pedido?.cliente, limiteDisponivelCaderneta]);
+
+  const formasDisponiveis = useMemo(() => {
+    const base = (formasPagamento && formasPagamento.length > 0 ? formasPagamento : FORMAS_PADRAO).filter(f => f.tipo !== 'fiado');
+    return base.filter(f => {
+      if (f.tipo === 'caderneta') return clienteAptoCaderneta;
+      return true;
+    });
+  }, [formasPagamento, clienteAptoCaderneta]);
+
   if (!isOpen || !pedido) return null;
 
   const valorTotal = Number(pedido.valor_total || 0);
@@ -161,30 +185,6 @@ export const ModalReceberPagamento: React.FC<ModalReceberPagamentoProps> = ({
     linhasPagamento.reduce((acc, l) => acc + (Number(l.valor) || 0), 0).toFixed(2)
   );
   const diferencaPagamento = Number((saldoDevedorAtual - totalLinhasPagamento).toFixed(2));
-
-  const limiteDisponivelCaderneta = useMemo(() => {
-    if (!pedido.cliente?.permite_caderneta) return 0;
-    const limite = Number(pedido.cliente.limite_caderneta || 0);
-    const saldoDevedor = Number(pedido.cliente.saldo_devedor_caderneta || 0);
-    return Math.max(0, limite - saldoDevedor);
-  }, [pedido.cliente]);
-
-  const clienteAptoCaderneta = useMemo(() => {
-    return Boolean(
-      loja?.caderneta_ativa &&
-      pedido.cliente?.id &&
-      pedido.cliente.permite_caderneta === true &&
-      limiteDisponivelCaderneta > 0
-    );
-  }, [loja?.caderneta_ativa, pedido.cliente, limiteDisponivelCaderneta]);
-
-  const formasDisponiveis = useMemo(() => {
-    const base = (formasPagamento && formasPagamento.length > 0 ? formasPagamento : FORMAS_PADRAO).filter(f => f.tipo !== 'fiado');
-    return base.filter(f => {
-      if (f.tipo === 'caderneta') return clienteAptoCaderneta;
-      return true;
-    });
-  }, [formasPagamento, clienteAptoCaderneta]);
 
   const handleAlterarFormaLinha = (linhaId: string, fp: FormaPagamento) => {
     setLinhasPagamento(prev => prev.map(l => {

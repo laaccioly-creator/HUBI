@@ -53,6 +53,7 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
   const permissions = usePermissions();
   const { tema, setTema } = useTheme();
   const { dataOperacaoFormatada, modoSimulacaoAtivo, abrirModal } = useDataOperacao();
+  const { verificarSaidaComConfirmacao } = useFeedbackModal();
   const [internalCount, setInternalCount] = useState<number>(0);
 
   // Registro automático no overlayStackService (garante ESC e Voltar unificados)
@@ -98,7 +99,6 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
 
   if (!aberto) return null;
 
-  const { verificarSaidaComConfirmacao } = useFeedbackModal();
   const catalogUrl = loja?.slug_catalogo ? `/catalog/${loja.slug_catalogo}` : '/catalog';
   const pedidosCount = countProp !== undefined ? countProp : internalCount;
 

@@ -360,9 +360,31 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
     });
   }, [formasPagamento, clienteAptoFiado, clienteAptoCaderneta, linhasPagamento]);
 
+  const pedRaw = pedidoLocal || pedido;
+  const valorTotal = Number(pedRaw?.valor_total || 0);
+  const valorJaPago = Number(pedRaw?.valor_pago || 0);
+  const saldoDevedorAtual = Math.max(0, Number(pedRaw?.saldo_devedor ?? (valorTotal - valorJaPago)));
+
+  // Ponto 12: Quando houver apenas 1 linha de pagamento (sem split), sincronizar automaticamente com o saldo devedor atualizado
+  useEffect(() => {
+    if (!isOpen || !pedido) return;
+    if (linhasPagamento.length === 1) {
+      const valorAlvo = Number(saldoDevedorAtual.toFixed(2));
+      if (Math.abs((linhasPagamento[0].valor || 0) - valorAlvo) > 0.009) {
+        setLinhasPagamento(prev => {
+          if (prev.length === 1 && Math.abs((prev[0].valor || 0) - valorAlvo) > 0.009) {
+            return [{ ...prev[0], valor: valorAlvo }];
+          }
+          return prev;
+        });
+      }
+    }
+  }, [isOpen, pedido, saldoDevedorAtual, linhasPagamento.length]);
+
   if (!isOpen || !pedido) return null;
 
   const pedAtivo = pedidoLocal || pedido;
+
   const rawPe = (pedAtivo as any)?.pedido_entrega || (Array.isArray((pedAtivo as any)?.pedido_entregas) ? (pedAtivo as any)?.pedido_entregas[0] : null);
   const meta = (pedAtivo as any)?.metadados || {};
   const metaTipo = String(meta.tipo_atendimento || '').toLowerCase();
@@ -391,26 +413,6 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
   );
 
   const freteADefinir = ehEnvio && !isFreteFormalizado;
-
-  const valorTotal = Number(pedAtivo.valor_total || 0);
-  const valorJaPago = Number(pedAtivo.valor_pago || 0);
-  const saldoDevedorAtual = Math.max(0, Number(pedAtivo.saldo_devedor ?? (valorTotal - valorJaPago)));
-
-  // Ponto 12: Quando houver apenas 1 linha de pagamento (sem split), sincronizar automaticamente com o saldo devedor atualizado
-  useEffect(() => {
-    if (!isOpen) return;
-    if (linhasPagamento.length === 1) {
-      const valorAlvo = Number(saldoDevedorAtual.toFixed(2));
-      if (Math.abs((linhasPagamento[0].valor || 0) - valorAlvo) > 0.009) {
-        setLinhasPagamento(prev => {
-          if (prev.length === 1 && Math.abs((prev[0].valor || 0) - valorAlvo) > 0.009) {
-            return [{ ...prev[0], valor: valorAlvo }];
-          }
-          return prev;
-        });
-      }
-    }
-  }, [isOpen, saldoDevedorAtual, linhasPagamento.length]);
 
   const totalLinhasPagamento = linhasPagamento.reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
   const diferencaPagamento = Number((saldoDevedorAtual - totalLinhasPagamento).toFixed(2));
