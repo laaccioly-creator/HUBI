@@ -108,6 +108,7 @@ export const ShippingSettingsScreen: React.FC = () => {
   const [freteProprioTipoCobranca, setFreteProprioTipoCobranca] = useState<'fixo' | 'manual' | 'gratis'>('fixo');
   const [freteProprioValorPadrao, setFreteProprioValorPadrao] = useState<string>('0.00');
   const [freteProprioPrazoEstimado, setFreteProprioPrazoEstimado] = useState<string>('Mesmo dia ou até 24h');
+  const [freteProprioRaioMaximoKm, setFreteProprioRaioMaximoKm] = useState<string>('5.00');
 
   // 3. Melhor Envio
   const [melhorEnvioAtivo, setMelhorEnvioAtivo] = useState<boolean>(false);
@@ -170,6 +171,7 @@ export const ShippingSettingsScreen: React.FC = () => {
           setFreteProprioTipoCobranca((config as any).frete_proprio_tipo_cobranca || 'fixo');
           if ((config as any).frete_proprio_valor_padrao != null) setFreteProprioValorPadrao(String((config as any).frete_proprio_valor_padrao));
           setFreteProprioPrazoEstimado((config as any).frete_proprio_prazo_estimado || 'Mesmo dia ou até 24h');
+          if ((config as any).frete_proprio_raio_maximo_km != null) setFreteProprioRaioMaximoKm(String((config as any).frete_proprio_raio_maximo_km));
 
           setMelhorEnvioAtivo(Boolean(config.melhor_envio_ativo));
           setMelhorEnvioSandboxMode(Boolean(config.melhor_envio_sandbox_mode));
@@ -417,6 +419,7 @@ export const ShippingSettingsScreen: React.FC = () => {
         frete_proprio_tipo_cobranca: freteProprioTipoCobranca,
         frete_proprio_valor_padrao: freteProprioTipoCobranca === 'gratis' ? 0 : (freteProprioValorPadrao.trim() ? parseFloat(freteProprioValorPadrao.replace(',', '.')) : 0),
         frete_proprio_prazo_estimado: freteProprioPrazoEstimado.trim() || 'A combinar',
+        frete_proprio_raio_maximo_km: freteProprioRaioMaximoKm.trim() ? parseFloat(freteProprioRaioMaximoKm.replace(',', '.')) : 5.00,
         melhor_envio_ativo: melhorEnvioAtivo,
         melhor_envio_sandbox_mode: melhorEnvioSandboxMode,
         melhor_envio_token: melhorEnvioToken.trim() || null,
@@ -1044,6 +1047,24 @@ export const ShippingSettingsScreen: React.FC = () => {
                   className="w-full px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Raio Máximo de Atendimento (km)
+                </label>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="0.5"
+                  value={freteProprioRaioMaximoKm}
+                  onChange={(e) => setFreteProprioRaioMaximoKm(e.target.value)}
+                  placeholder="5.00"
+                  className="w-full px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                />
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  Distância máxima da loja atendida por motoboy próprio.
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -1208,7 +1229,7 @@ export const ShippingSettingsScreen: React.FC = () => {
               type="button"
               onClick={handleCriarApp}
               disabled={salvandoApp || !novoAppNome.trim()}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold text-slate-900 bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white active:scale-95 transition disabled:opacity-50 cursor-pointer shadow-sm"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium active:scale-95 transition disabled:opacity-50 cursor-pointer shadow-sm"
             >
               {salvandoApp ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
               Adicionar Aplicativo
@@ -1241,11 +1262,7 @@ export const ShippingSettingsScreen: React.FC = () => {
                       type="button"
                       onClick={() => handleAlternarApp(app)}
                       title={app.ativo ? 'Desativar aplicativo' : 'Ativar aplicativo'}
-                      className={`text-xs font-semibold px-2.5 py-1 rounded-xl border transition cursor-pointer ${
-                        app.ativo
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
-                          : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white'
-                      }`}
+                      className="text-xs font-semibold px-2.5 py-1 rounded-xl border transition cursor-pointer bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-700"
                     >
                       {app.ativo ? 'Ativo' : 'Inativo'}
                     </button>
@@ -1287,7 +1304,7 @@ export const ShippingSettingsScreen: React.FC = () => {
             <button
               type="button"
               onClick={handleAbrirNovaTransp}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-slate-900 bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white transition cursor-pointer self-start sm:self-auto shadow-sm"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition cursor-pointer self-start sm:self-auto shadow-sm"
             >
               <Plus className="w-4 h-4" />
               <span>Nova Transportadora</span>
@@ -1328,7 +1345,7 @@ export const ShippingSettingsScreen: React.FC = () => {
                         </p>
                       )}
                       {transp.url_rastreio && (
-                        <p className="text-xs text-emerald-300/90 truncate mt-1 font-mono">
+                        <p className="text-xs text-slate-700 hover:text-slate-900 hover:underline dark:text-slate-300 dark:hover:text-white truncate mt-1 font-mono cursor-pointer">
                           🔗 {transp.url_rastreio}
                         </p>
                       )}
@@ -1338,11 +1355,7 @@ export const ShippingSettingsScreen: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleAlternarTransp(transp)}
-                        className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition cursor-pointer ${
-                          transp.ativo
-                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
-                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-                        }`}
+                        className="text-[10px] font-bold px-2 py-1 rounded-lg border transition cursor-pointer bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-700"
                       >
                         {transp.ativo ? 'Ativa' : 'Inativa'}
                       </button>

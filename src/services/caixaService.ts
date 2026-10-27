@@ -402,9 +402,10 @@ export const caixaService = {
 
       const { data: pedsLoja } = await supabase
         .from('pedidos')
-        .select('*, pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*))')
+        .select('id, numero_pedido, origem, data_venda, criado_em, valor_total, valor_pago, pagamentos:pagamentos_pedido(valor, forma_pagamento:formas_pagamento(tipo, nome))')
         .eq('loja_id', sessao.loja_id)
-        .eq('status_pagamento', 'pago');
+        .eq('status_pagamento', 'pago')
+        .gte('criado_em', new Date(tsAbertura - 5 * 60 * 1000).toISOString());
 
       if (pedsLoja && pedsLoja.length > 0) {
         const pedidosComMov = new Set(
@@ -430,8 +431,9 @@ export const caixaService = {
             for (const pag of p.pagamentos) {
               const val = Number(pag.valor || 0);
               if (val <= 0) continue;
-              const metodo = this.mapearMetodoPagamento(pag.forma_pagamento?.tipo || pag.forma_pagamento?.nome);
-              const descFp = pag.forma_pagamento?.nome || metodo;
+              const fpRaw: any = Array.isArray(pag.forma_pagamento) ? pag.forma_pagamento[0] : pag.forma_pagamento;
+              const metodo = this.mapearMetodoPagamento(fpRaw?.tipo || fpRaw?.nome);
+              const descFp = fpRaw?.nome || metodo;
 
               const novaMov = await this.registrarMovimentacao({
                 lojaId: sessao.loja_id,

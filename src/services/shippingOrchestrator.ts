@@ -14,7 +14,7 @@ import { Loja, Pedido, FormaEntrega } from '../types';
 import { UberDirectService } from './uberDirectService';
 import { MelhorEnvioService } from './melhorEnvioService';
 import { isUuidValido } from './syncService';
-import { normalizarTexto } from '../utils/geoUtils';
+import { normalizarTexto, calcularDistanciaKm } from '../utils/geoUtils';
 
 export class ShippingOrchestrator {
   /**
@@ -479,31 +479,52 @@ export class ShippingOrchestrator {
       }
     }
 
-    // 3. Frete Próprio da Loja - APENAS se ativado explicitamente
-    if (config?.frete_proprio_ativo === true) {
-      const tipoCobranca = config.frete_proprio_tipo_cobranca || 'fixo';
-      const ehManual = tipoCobranca === 'manual';
-      const valorFreteProprio = (tipoCobranca === 'gratis' || ehManual) 
-        ? 0 
-        : Number(config.frete_proprio_valor_padrao || 0);
-      const nomeFreteProprio = (config as any).frete_proprio_nome || 'Entrega Própria da Loja';
-      const prazoFreteProprio = (config as any).frete_proprio_prazo_estimado || 'Entrega hoje (30 a 60 min)';
+    // 3. Frete Próprio da Loja - APENAS se ativado explicitamente e dentro do raio / mesmo estado
+    if (config?.frete_proprio_ativo === true && !(req as any).somente_automatico) {
+      const ufOrigem = (config?.origem_uf || '').toUpperCase().trim();
+      const ufDestino = (destino_uf || '').toUpperCase().trim();
+      const outroEstado = Boolean(ufOrigem && ufDestino && ufOrigem !== ufDestino);
 
-      opcoesTotais.push({
-        id: 'opcao_frete_proprio',
-        provedor: 'frete_proprio',
-        transportadora_nome: nomeFreteProprio,
-        servico_codigo: tipoCobranca,
-        servico_nome: ehManual ? 'Valor Manual' : (tipoCobranca === 'gratis' || valorFreteProprio === 0 ? 'Frete Grátis' : 'Taxa Fixa'),
-        valor_frete: valorFreteProprio,
-        valor_original: valorFreteProprio,
-        valor_subsidio: 0,
-        is_frete_gratis: tipoCobranca === 'gratis' || valorFreteProprio === 0,
-        prazo_estimado_texto: prazoFreteProprio,
-        icone_tipo: 'loja',
-        permite_edicao_valor: ehManual,
-        tipo_cobranca: (tipoCobranca === 'bairro' ? 'fixo' : tipoCobranca) as 'fixo' | 'manual' | 'gratis'
-      });
+      const raioMaximo = Number((config as any)?.frete_proprio_raio_maximo_km) || 5.0;
+      let foraDoRaio = false;
+
+      const origLat = Number(config?.origem_latitude);
+      const origLng = Number(config?.origem_longitude);
+      const destLat = Number((req as any).destino_latitude || (req as any).destino_lat);
+      const destLng = Number((req as any).destino_longitude || (req as any).destino_lng);
+
+      if (!isNaN(origLat) && !isNaN(origLng) && origLat !== 0 && origLng !== 0 && !isNaN(destLat) && !isNaN(destLng) && destLat !== 0 && destLng !== 0) {
+        const distKm = calcularDistanciaKm(origLat, origLng, destLat, destLng);
+        if (distKm > raioMaximo) {
+          foraDoRaio = true;
+        }
+      }
+
+      if (!outroEstado && !foraDoRaio) {
+        const tipoCobranca = config.frete_proprio_tipo_cobranca || 'fixo';
+        const ehManual = tipoCobranca === 'manual';
+        const valorFreteProprio = (tipoCobranca === 'gratis' || ehManual) 
+          ? 0 
+          : Number(config.frete_proprio_valor_padrao || 0);
+        const nomeFreteProprio = (config as any).frete_proprio_nome || 'Entrega Própria da Loja';
+        const prazoFreteProprio = (config as any).frete_proprio_prazo_estimado || 'Entrega hoje (30 a 60 min)';
+
+        opcoesTotais.push({
+          id: 'opcao_frete_proprio',
+          provedor: 'frete_proprio',
+          transportadora_nome: nomeFreteProprio,
+          servico_codigo: tipoCobranca,
+          servico_nome: ehManual ? 'Valor Manual' : (tipoCobranca === 'gratis' || valorFreteProprio === 0 ? 'Frete Grátis' : 'Taxa Fixa'),
+          valor_frete: valorFreteProprio,
+          valor_original: valorFreteProprio,
+          valor_subsidio: 0,
+          is_frete_gratis: tipoCobranca === 'gratis' || valorFreteProprio === 0,
+          prazo_estimado_texto: prazoFreteProprio,
+          icone_tipo: 'loja',
+          permite_edicao_valor: ehManual,
+          tipo_cobranca: (tipoCobranca === 'bairro' ? 'fixo' : tipoCobranca) as 'fixo' | 'manual' | 'gratis'
+        });
+      }
     }
 
     // 4. Filtro Inteligente de Modalidades por Município (Origem vs Destino)

@@ -81,6 +81,7 @@ export interface LojaShippingConfig {
   frete_proprio_tipo_cobranca?: 'fixo' | 'manual' | 'gratis' | 'bairro';
   frete_proprio_valor_padrao?: number;
   frete_proprio_prazo_estimado?: string;
+  frete_proprio_raio_maximo_km?: number;
   embalagem_padrao_peso_kg?: number;
   embalagem_padrao_altura_cm?: number;
   embalagem_padrao_largura_cm?: number;
@@ -226,10 +227,13 @@ export interface RequisicaoCotacaoOrquestrador {
   destino_bairro?: string;
   destino_cidade?: string;
   destino_uf?: string;
+  destino_latitude?: number | null;
+  destino_longitude?: number | null;
   subtotal: number;
   itens: CotacaoItemProduto[];
   config: LojaShippingConfig;
   pacote?: PacoteEnvioCotacao;
+  somente_automatico?: boolean;
 }
 
 export interface ShippingSelectionResult {

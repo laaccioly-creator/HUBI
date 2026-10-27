@@ -859,7 +859,7 @@ export const PedidosLista: React.FC = () => {
         const pedidosEntregaParaAguardando = (pedidosNormalizados as any[]).filter((p: any) => {
           if (p.status !== 'confirmado') return false;
           const statusPag = resolverStatusPagamento(p);
-          const estaPago = statusPag === 'pago' || statusPag === 'fiado';
+          const estaPago = statusPag === 'pago' || statusPag === 'fiado' || statusPag === 'caderneta';
           if (!estaPago) return false;
           const { isRetirada } = resolverProvedorEntrega(p);
           return !isRetirada;
@@ -1275,7 +1275,7 @@ export const PedidosLista: React.FC = () => {
     if (!ped || !loja?.id || ped.status === 'cancelado') return;
 
     const statusPagPed = resolverStatusPagamento(ped);
-    if (statusPagPed !== 'pago' && statusPagPed !== 'fiado') {
+    if (statusPagPed !== 'pago' && statusPagPed !== 'fiado' && statusPagPed !== 'caderneta') {
       mostrarAviso('O pedido só pode ser despachado após a quitação do pagamento.', 'Pagamento Pendente');
       return;
     }

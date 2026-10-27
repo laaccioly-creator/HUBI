@@ -380,7 +380,10 @@ export class VendaService {
       const valorNum = Number(l.valor) || 0;
       if (valorNum <= 0) return null; // Elimina estritamente registros de pagamento com valor zero
 
-      const fpIdReal = await SyncService.resolverFormaPagamentoId(lojaId, l.forma_pagamento_id, l.forma_tipo);
+      let fpIdReal = l.forma_pagamento_id;
+      if (!fpIdReal || !SyncService.isUuidValido(fpIdReal) || String(fpIdReal).startsWith('fp_')) {
+        fpIdReal = await SyncService.resolverFormaPagamentoId(lojaId, l.forma_pagamento_id, l.forma_tipo);
+      }
       if (!fpIdReal || !SyncService.isUuidValido(fpIdReal)) return null;
 
       const fpRef = formasPagamentoDisponiveis.find(f => f.id === l.forma_pagamento_id || f.id === fpIdReal || f.tipo === l.forma_tipo);
@@ -542,7 +545,7 @@ export class VendaService {
       promessasPosVenda.push(taskCaixa);
     }
 
-    // 4d. Auditoria no historico_pedidos
+    // 4d. Auditoria no historico_pedidos (Executado assincronamente em background sem travar retorno da tela)
     const taskAuditoria = (async () => {
       try {
         await supabase.from('historico_pedidos').insert({
@@ -560,10 +563,12 @@ export class VendaService {
         logger.warn('VendaService', 'historico_pedidos', `Falha não-bloqueante ao registrar histórico: ${errAudit?.message || errAudit}`, { loja_id: lojaId });
       }
     })();
-    promessasPosVenda.push(taskAuditoria);
+    // Background task: não bloqueia resposta central
+    taskAuditoria.catch(() => {});
 
-    // 4e. Baixa idempotente de estoque (se status for operacional/concluído e ainda não baixado)
+    // 4e. Baixa idempotente de estoque e sincronização Mercado Livre (Executados assincronamente em background)
     if (STATUS_QUE_BAIXAM_ESTOQUE.includes(statusFinal)) {
+      estoqueBaixadoFlag = true;
       const taskEstoque = (async () => {
         try {
           const resEstoque = await EstoquePedidoService.baixarEstoquePedido({
@@ -572,10 +577,9 @@ export class VendaService {
             usuarioId,
             itens: itensFormatados as any
           });
-          estoqueBaixadoFlag = resEstoque.estoqueBaixado;
 
           // 4f. Sincronização assíncrona de estoque com Mercado Livre para produtos vendidos
-          if (estoqueBaixadoFlag && itens && itens.length > 0) {
+          if (resEstoque.estoqueBaixado && itens && itens.length > 0) {
             const produtosIdsUnicos = Array.from(new Set(itens.map((i) => i.produto?.id).filter(Boolean)));
             for (const pId of produtosIdsUnicos) {
               mercadoLivreService.sincronizarEstoqueProduto(lojaId, pId).catch(() => {});
@@ -585,10 +589,11 @@ export class VendaService {
           logger.warn('VendaService', 'baixa_estoque', `Falha não-bloqueante ao processar baixa de estoque: ${errEst?.message || errEst}`, { loja_id: lojaId });
         }
       })();
-      promessasPosVenda.push(taskEstoque);
+      // Background task: não bloqueia resposta central
+      taskEstoque.catch(() => {});
     }
 
-    // Aguardar conclusão concorrente de todas as tarefas complementares
+    // Aguardar conclusão concorrente apenas das tarefas centrais (Entrega, Fiado/Caderneta, Caixa)
     await Promise.allSettled(promessasPosVenda);
 
     const pedidoCompleto: Pedido = {

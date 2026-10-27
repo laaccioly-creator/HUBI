@@ -610,16 +610,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     entrega?: PedidoEntrega | null
   ) => {
     return JSON.stringify({
-      itens: itensAtuais
+      itens: (itensAtuais || [])
         .map(i => ({
-          id: i.id,
-          produto_id: i.produto.id,
-          variacao_id: i.variacao?.id || null,
-          quantidade: i.quantidade,
-          precoUnitario: Number(i.precoUnitario.toFixed(2)),
-          observacoes: i.observacoes || ''
+          produto_id: i.produto?.id || (i as any).produto_id,
+          variacao_id: i.variacao?.id || i.variacao_id || null,
+          quantidade: Number(i.quantidade || 0),
+          precoUnitario: Number(Number(i.precoUnitario || 0).toFixed(2)),
+          observacoes: i.observacoes ? String(i.observacoes).trim() : ''
         }))
-        .sort((a, b) => a.id.localeCompare(b.id)),
+        .sort((a, b) => `${a.produto_id}_${a.variacao_id || ''}`.localeCompare(`${b.produto_id}_${b.variacao_id || ''}`)),
       clienteId: cli?.id || null,
       desconto: Number(desc.toFixed(2)),
       tipoDesconto: tipoDesc,
@@ -628,7 +627,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       entregaTransp: entrega?.transportadora_nome || null,
       entregaTipo: entrega?.tipo_atendimento || null,
       entregaServico: entrega?.servico_codigo || null,
-      entregaValor: Number(entrega?.valor_frete || 0)
+      entregaValor: Number(Number(entrega?.valor_frete || 0).toFixed(2))
     });
   };
 
@@ -637,7 +636,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!snapshotPedidoOriginal) return false;
     const snapshotAtual = gerarSnapshotPedido(
       itens,
-      clienteSelecionado,
+      clienteSelecionado || (pedidoEmEdicao.cliente_id ? { id: pedidoEmEdicao.cliente_id } as any : null),
       desconto,
       tipoDesconto,
       taxaEntrega,
@@ -833,7 +832,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Registra o snapshot do pedido carregado
     const snapshot = gerarSnapshotPedido(
       cartItens,
-      pedido.cliente || null,
+      pedido.cliente || (pedido.cliente_id ? { id: pedido.cliente_id } as any : null),
       descVal,
       tipoDescFinal,
       taxaFinal,

@@ -12,7 +12,8 @@ import {
   Banknote,
   BookOpen,
   ArrowRight,
-  Receipt
+  Receipt,
+  Paperclip
 } from 'lucide-react';
 import { Loja } from '../../types';
 import { supabase } from '../../lib/supabase';
@@ -35,8 +36,16 @@ export const ModalPagamentoPedidoPesado: React.FC<ModalPagamentoPedidoPesadoProp
   pedido,
   onPagamentoConcluido
 }) => {
+  const pagConfig = (loja as any)?.configuracoes_extras?.pagamentos || {};
+  const permiteDinheiro = pagConfig.dinheiro_ativo ?? true;
+  const permiteDebito = pagConfig.debito_ativo ?? true;
+  const permiteCredito = pagConfig.credito_ativo ?? true;
+  const defaultPresencial = permiteCredito ? 'cartao_credito' : permiteDebito ? 'cartao_debito' : 'dinheiro';
+
   const [metodoEscolhido, setMetodoEscolhido] = useState<'pix' | 'caderneta' | 'entrega'>('pix');
-  const [formaEntregaPresencial, setFormaEntregaPresencial] = useState<'dinheiro' | 'cartao'>('cartao');
+  const [formaEntregaPresencial, setFormaEntregaPresencial] = useState<'dinheiro' | 'cartao_credito' | 'cartao_debito'>(defaultPresencial);
+  const [comprovanteArquivo, setComprovanteArquivo] = useState<File | null>(null);
+  const [trocoPara, setTrocoPara] = useState<string>('');
   const [pixInfo, setPixInfo] = useState<PixDinamicoResponse | null>(null);
   const [carregandoPix, setCarregandoPix] = useState<boolean>(false);
   const [processando, setProcessando] = useState<boolean>(false);
@@ -51,10 +60,13 @@ export const ModalPagamentoPedidoPesado: React.FC<ModalPagamentoPedidoPesadoProp
     loja?.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.ativo &&
     loja?.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.access_token
   );
-  const pagConfig = (loja as any)?.configuracoes_extras?.pagamentos || {};
   const chavePixLoja = pagConfig.pix_chave || (loja as any)?.chave_pix || '';
   const tipoChaveLoja = pagConfig.pix_tipo_chave || (loja as any)?.tipo_chave_pix || 'Chave';
   const temChavePixLoja = Boolean(chavePixLoja);
+
+  const tipoAtendimento = pedido?.pedido_entregas?.[0]?.tipo_atendimento || pedido?.pedido_entregas?.tipo_atendimento || pedido?.tipo_operacao || pedido?.tipo_entrega || 'entrega';
+  const ehRetirada = tipoAtendimento === 'retirada' || String(pedido?.endereco_entrega || '').toLowerCase().includes('retirada');
+  const rotuloAbaPresencial = ehRetirada ? 'Na Retirada' : 'Na Entrega';
 
   // Carregar Pix Mercado Pago dinâmico se habilitado
   useEffect(() => {
@@ -172,6 +184,16 @@ export const ModalPagamentoPedidoPesado: React.FC<ModalPagamentoPedidoPesadoProp
     }
   };
 
+  const handleEnviarComprovanteWhatsApp = () => {
+    const lojaTel = (loja.whatsapp || (loja as any).telefone || '').replace(/\D/g, '');
+    const phoneFinal = lojaTel.startsWith('55') ? lojaTel : `55${lojaTel}`;
+    const msg = `Olá, ${loja.nome_fantasia}! Segue a confirmação de pagamento Pix do Pedido #${pedido.numero_pedido} no valor de ${formatarMoeda(valorTotal)}.${comprovanteArquivo ? `\n📎 Arquivo de comprovante: ${comprovanteArquivo.name} (enviado em anexo nesta conversa)` : ''}`;
+    const url = `https://api.whatsapp.com/send?phone=${phoneFinal}&text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+    setPagamentoSucesso(true);
+    onPagamentoConcluido();
+  };
+
   const handleConfirmarPagamentoEntrega = async () => {
     try {
       setProcessando(true);
@@ -179,20 +201,34 @@ export const ModalPagamentoPedidoPesado: React.FC<ModalPagamentoPedidoPesadoProp
 
       const rotuloPagamento = formaEntregaPresencial === 'dinheiro'
         ? 'dinheiro_entrega'
-        : 'cartao_maquininha_entrega';
+        : formaEntregaPresencial === 'cartao_credito'
+        ? 'cartao_credito_entrega'
+        : 'cartao_debito_entrega';
+
+      const payloadUpdate: any = {
+        status_pagamento: 'aguardando_pagamento',
+        status: 'confirmado',
+        forma_pagamento_catalogo: rotuloPagamento,
+        atualizado_em: new Date().toISOString()
+      };
+
+      if (formaEntregaPresencial === 'dinheiro' && trocoPara) {
+        payloadUpdate.troco_para = Number(trocoPara);
+      }
 
       const { error: errPed } = await supabase
         .from('pedidos')
-        .update({
-          status_pagamento: 'aguardando_pagamento',
-          status: 'confirmado',
-          forma_pagamento_catalogo: rotuloPagamento,
-          atualizado_em: new Date().toISOString()
-        })
+        .update(payloadUpdate)
         .eq('id', pedido.id)
         .eq('loja_id', loja.id);
 
       if (errPed) throw errPed;
+
+      const nomeForma = formaEntregaPresencial === 'dinheiro'
+        ? 'Dinheiro'
+        : formaEntregaPresencial === 'cartao_credito'
+        ? 'Cartão de Crédito'
+        : 'Cartão de Débito';
 
       // Registrar auditoria
       await supabase.from('historico_pedidos').insert({
@@ -202,7 +238,7 @@ export const ModalPagamentoPedidoPesado: React.FC<ModalPagamentoPedidoPesadoProp
         tipo_evento: 'pagamento_presencial_agendado',
         status_anterior: pedido.status,
         status_novo: 'confirmado',
-        motivo: `Cliente escolheu pagar no ato (${formaEntregaPresencial === 'dinheiro' ? 'Dinheiro' : 'Cartão'})`,
+        motivo: `Cliente escolheu pagar ${rotuloAbaPresencial.toLowerCase()} (${nomeForma}${trocoPara ? ` - Troco para ${formatarMoeda(Number(trocoPara))}` : ''})`,
         criado_em: new Date().toISOString()
       });
 
@@ -375,7 +411,7 @@ export const ModalPagamentoPedidoPesado: React.FC<ModalPagamentoPedidoPesadoProp
                     !podeCaderneta
                       ? 'opacity-40 cursor-not-allowed border-slate-200 dark:border-slate-800 text-slate-400'
                       : metodoEscolhido === 'caderneta'
-                      ? 'border-purple-500 bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold shadow-sm cursor-pointer'
+                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold shadow-sm cursor-pointer'
                       : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 text-slate-600 dark:text-slate-400 cursor-pointer'
                   }`}
                 >
@@ -389,12 +425,12 @@ export const ModalPagamentoPedidoPesado: React.FC<ModalPagamentoPedidoPesadoProp
                   onClick={() => setMetodoEscolhido('entrega')}
                   className={`p-3 rounded-2xl border text-center transition cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
                     metodoEscolhido === 'entrega'
-                      ? 'border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400 font-bold shadow-sm'
+                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold shadow-sm'
                       : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 text-slate-600 dark:text-slate-400'
                   }`}
                 >
                   <Banknote className="w-5 h-5" />
-                  <span className="text-xs">No Ato</span>
+                  <span className="text-xs">{rotuloAbaPresencial}</span>
                 </button>
               </div>
             </div>
@@ -409,7 +445,7 @@ export const ModalPagamentoPedidoPesado: React.FC<ModalPagamentoPedidoPesadoProp
                   </div>
                 ) : pixInfo?.qrCodeBase64 ? (
                   <div className="space-y-3">
-                    <div className="w-44 h-44 bg-white p-2 rounded-2xl mx-auto shadow-md border border-slate-200 flex items-center justify-center">
+                    <div className="w-40 h-40 bg-white p-2 rounded-2xl mx-auto shadow-md border border-slate-200 flex items-center justify-center">
                       <img
                         src={`data:image/png;base64,${pixInfo.qrCodeBase64}`}
                         alt="QR Code Pix"
@@ -420,57 +456,107 @@ export const ModalPagamentoPedidoPesado: React.FC<ModalPagamentoPedidoPesadoProp
                       Abra o app do seu banco e aponte a câmera para o QR Code acima, ou copie o código Pix abaixo:
                     </p>
                     {pixInfo.qrCode && (
-                      <button
-                        type="button"
-                        onClick={() => copiarPix(pixInfo.qrCode || '')}
-                        className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95 shadow-md shadow-emerald-600/20"
-                      >
-                        {pixCopiado ? <CheckCircle2 className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                        <span>{pixCopiado ? 'Código Pix Copiado!' : 'Copiar Código Pix (Copia e Cola)'}</span>
-                      </button>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => copiarPix(pixInfo.qrCode || '')}
+                          className="py-2 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95 shadow-sm"
+                        >
+                          {pixCopiado ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                          <span>{pixCopiado ? 'Código Pix Copiado!' : 'Copiar Código Pix'}</span>
+                        </button>
+                      </div>
                     )}
                   </div>
                 ) : temChavePixLoja ? (
-                  <div className="space-y-3 text-left">
-                    <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1">
-                      <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-bold">
-                        Chave Pix da Loja ({tipoChaveLoja})
-                      </span>
-                      <span className="font-mono text-sm font-black text-slate-900 dark:text-white select-all">
-                        {chavePixLoja}
-                      </span>
+                  <div className="space-y-2.5 text-left">
+                    <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-bold">
+                          Chave Pix da Loja ({tipoChaveLoja})
+                        </span>
+                        <span className="font-mono text-xs sm:text-sm font-black text-slate-900 dark:text-white select-all break-all">
+                          {chavePixLoja}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copiarPix(chavePixLoja || '')}
+                        className="py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1 transition cursor-pointer shrink-0 active:scale-95"
+                      >
+                        {pixCopiado ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{pixCopiado ? 'Copiada!' : 'Copiar'}</span>
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => copiarPix(chavePixLoja || '')}
-                      className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
-                    >
-                      {pixCopiado ? <CheckCircle2 className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                      <span>{pixCopiado ? 'Chave Pix Copiada!' : 'Copiar Chave Pix'}</span>
-                    </button>
                   </div>
                 ) : (
                   <p className="text-xs text-slate-500">
                     A chave Pix da loja não foi localizada. Entre em contato pelo WhatsApp para combinar o pagamento.
                   </p>
                 )}
+
+                {/* ANEXO DE COMPROVANTE */}
+                <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800 text-left">
+                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block">
+                    Comprovante de pagamento Pix (opcional):
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 transition">
+                      <Paperclip className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>{comprovanteArquivo ? 'Trocar Arquivo' : 'Anexar Comprovante'}</span>
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) setComprovanteArquivo(f);
+                        }}
+                      />
+                    </label>
+                    {comprovanteArquivo && (
+                      <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300 truncate max-w-[200px]">
+                        <span className="truncate">{comprovanteArquivo.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setComprovanteArquivo(null)}
+                          className="text-rose-500 hover:text-rose-600 p-1"
+                          title="Remover anexo"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* BOTÃO ENVIAR COMPROVANTE NO WHATSAPP */}
+                <button
+                  type="button"
+                  disabled={processando}
+                  onClick={handleEnviarComprovanteWhatsApp}
+                  className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-md shadow-emerald-600/20 active:scale-95"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Enviar Comprovante no WhatsApp</span>
+                </button>
               </div>
             )}
 
             {metodoEscolhido === 'caderneta' && podeCaderneta && (
-              <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/30 space-y-3">
-                <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 font-bold text-xs">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-3">
+                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
                   <BookOpen className="w-4 h-4" />
-                  <span>Caderneta de Mercadinho Habilitada</span>
+                  <span>Caderneta de Mercadinho</span>
                 </div>
-                <p className="text-xs text-purple-700 dark:text-purple-300 leading-relaxed">
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
                   O valor de <strong>{formatarMoeda(valorTotal)}</strong> será lançado na sua conta para quitação na data de vencimento combinada.
                 </p>
                 <button
                   type="button"
                   disabled={processando}
                   onClick={handleConfirmarCaderneta}
-                  className="w-full py-3 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-md shadow-purple-600/20 active:scale-95"
+                  className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-md shadow-emerald-600/20 active:scale-95"
                 >
                   {processando ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                   <span>Confirmar Lançamento na Caderneta</span>
@@ -481,45 +567,79 @@ export const ModalPagamentoPedidoPesado: React.FC<ModalPagamentoPedidoPesadoProp
             {metodoEscolhido === 'entrega' && (
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-3">
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                  Como deseja realizar o pagamento no ato da entrega ou retirada?
+                  Como deseja realizar o pagamento?
                 </span>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setFormaEntregaPresencial('cartao')}
-                    className={`p-3 rounded-xl border text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                      formaEntregaPresencial === 'cartao'
-                        ? 'border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400'
-                        : 'border-slate-200 dark:border-slate-800 text-slate-500'
-                    }`}
-                  >
-                    <CreditCard className="w-4 h-4" />
-                    <span>Cartão no Ato</span>
-                  </button>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {permiteCredito && (
+                    <button
+                      type="button"
+                      onClick={() => setFormaEntregaPresencial('cartao_credito')}
+                      className={`p-3 rounded-xl border text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                        formaEntregaPresencial === 'cartao_credito'
+                          ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                          : 'border-slate-200 dark:border-slate-800 text-slate-500 hover:border-slate-300'
+                      }`}
+                    >
+                      <CreditCard className="w-4 h-4" />
+                      <span>Cartão de Crédito</span>
+                    </button>
+                  )}
 
-                  <button
-                    type="button"
-                    onClick={() => setFormaEntregaPresencial('dinheiro')}
-                    className={`p-3 rounded-xl border text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                      formaEntregaPresencial === 'dinheiro'
-                        ? 'border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400'
-                        : 'border-slate-200 dark:border-slate-800 text-slate-500'
-                    }`}
-                  >
-                    <Banknote className="w-4 h-4" />
-                    <span>Dinheiro no Ato</span>
-                  </button>
+                  {permiteDebito && (
+                    <button
+                      type="button"
+                      onClick={() => setFormaEntregaPresencial('cartao_debito')}
+                      className={`p-3 rounded-xl border text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                        formaEntregaPresencial === 'cartao_debito'
+                          ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                          : 'border-slate-200 dark:border-slate-800 text-slate-500 hover:border-slate-300'
+                      }`}
+                    >
+                      <CreditCard className="w-4 h-4" />
+                      <span>Cartão de Débito</span>
+                    </button>
+                  )}
+
+                  {permiteDinheiro && (
+                    <button
+                      type="button"
+                      onClick={() => setFormaEntregaPresencial('dinheiro')}
+                      className={`p-3 rounded-xl border text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                        formaEntregaPresencial === 'dinheiro'
+                          ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                          : 'border-slate-200 dark:border-slate-800 text-slate-500 hover:border-slate-300'
+                      }`}
+                    >
+                      <Banknote className="w-4 h-4" />
+                      <span>Dinheiro</span>
+                    </button>
+                  )}
                 </div>
+
+                {formaEntregaPresencial === 'dinheiro' && permiteDinheiro && (
+                  <div className="pt-2 text-left">
+                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                      Precisa de troco para quanto? (opcional)
+                    </label>
+                    <input
+                      type="number"
+                      placeholder={`Ex: ${Math.ceil(valorTotal + 10)}`}
+                      value={trocoPara}
+                      onChange={(e) => setTrocoPara(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-medium text-slate-900 dark:text-white"
+                    />
+                  </div>
+                )}
 
                 <button
                   type="button"
                   disabled={processando}
                   onClick={handleConfirmarPagamentoEntrega}
-                  className="w-full py-3 px-4 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-md shadow-sky-600/20 active:scale-95"
+                  className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-md shadow-emerald-600/20 active:scale-95"
                 >
                   {processando ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-                  <span>Confirmar Pagamento no Ato</span>
+                  <span>Confirmar Pagamento</span>
                 </button>
               </div>
             )}

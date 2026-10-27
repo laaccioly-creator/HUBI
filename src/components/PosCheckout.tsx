@@ -195,14 +195,14 @@ const gerarSnapshotCarrinhoPdv = (
   return JSON.stringify({
     itens: (itensAtuais || [])
       .map(i => ({
-        id: i.id,
+        chaveItem: `${i.produto?.id || ''}_${i.variacao?.id || 'base'}`,
         produto_id: i.produto?.id || '',
         variacao_id: i.variacao?.id || null,
-        quantidade: i.quantidade,
+        quantidade: Number(Number(i.quantidade || 0).toFixed(4)),
         precoUnitario: Number(i.precoUnitario?.toFixed?.(2) || i.precoUnitario || 0),
         observacoes: i.observacoes || ''
       }))
-      .sort((a, b) => a.id.localeCompare(b.id)),
+      .sort((a, b) => a.chaveItem.localeCompare(b.chaveItem)),
     clienteId: cli?.id || null,
     desconto: Number(desc?.toFixed?.(2) || desc || 0),
     tipoDesconto: tipoDesc || 'valor',
@@ -560,6 +560,26 @@ export const PosCheckout: React.FC = () => {
   const totalComCupom = useMemo(() => {
     return Math.max(0, Number((total - (valorDescontoCupom || 0)).toFixed(2)));
   }, [total, valorDescontoCupom]);
+
+  // Ponto 12: Quando houver apenas 1 linha de pagamento (sem split), sincronizar automaticamente com o total da venda ao atualizar frete ou desconto
+  useEffect(() => {
+    if (!modalFechamento) return;
+    if (linhasPagamento.length === 1) {
+      const valorAlvo = totalComCupom;
+      if (Math.abs((linhasPagamento[0].valor || 0) - valorAlvo) > 0.009) {
+        setLinhasPagamento(prev => {
+          if (prev.length === 1 && Math.abs((prev[0].valor || 0) - valorAlvo) > 0.009) {
+            return [{
+              ...prev[0],
+              valor: valorAlvo,
+              valor_entregue: prev[0].forma_tipo === 'dinheiro' && prev[0].valor_entregue ? valorAlvo : prev[0].valor_entregue
+            }];
+          }
+          return prev;
+        });
+      }
+    }
+  }, [modalFechamento, totalComCupom, linhasPagamento.length]);
 
   const diferencaPagamento = useMemo(() => {
     return Number((totalComCupom - totalLinhasPagamento).toFixed(2));
@@ -1703,18 +1723,7 @@ export const PosCheckout: React.FC = () => {
         ? 'pago'
         : (valorPago > 0 ? 'parcialmente_pago' : 'aguardando_pagamento');
 
-      let vendedorIdSanitizado: string | null = SyncService.isUuidValido(vendedorIdFinal) ? vendedorIdFinal : null;
-      if (vendedorIdSanitizado) {
-        const { data: usuarioExiste } = await supabase
-          .from('usuarios_loja')
-          .select('id')
-          .eq('id', vendedorIdSanitizado)
-          .limit(1);
-
-        if (!usuarioExiste || (usuarioExiste?.length || 0) === 0) {
-          vendedorIdSanitizado = null;
-        }
-      }
+      const vendedorIdSanitizado: string | null = SyncService.isUuidValido(vendedorIdFinal) ? vendedorIdFinal : null;
 
       const clienteIdSanitizado = clienteSelecionado && SyncService.isUuidValido(clienteSelecionado.id) ? clienteSelecionado.id : null;
 

@@ -33,7 +33,7 @@ import {
 import { FormaEntrega } from '../../types';
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
 import { isUuidValido } from '../../services/syncService';
-import { verificarMesmaRegiaoMetropolitana, gerarLinkWhatsAppLocalizacaoLoja, normalizarTexto } from '../../utils/geoUtils';
+import { verificarMesmaRegiaoMetropolitana, gerarLinkWhatsAppLocalizacaoLoja, normalizarTexto, calcularDistanciaKm } from '../../utils/geoUtils';
 import { validarRastreioCorreios } from '../../utils/correiosValidator';
 import { ModalEscolherOutroEndereco } from './ModalEscolherOutroEndereco';
 import { ModalVerNoMapaLoja } from './ModalVerNoMapaLoja';
@@ -574,32 +574,57 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   const temMetodoOficialAtivo = Boolean(permiteRetirada || temFreteProprio || temUber || temMelhorEnvio || transportadorasCadastradas.length > 0);
 
   const opcoesCotacaoExibidas = useMemo<OpcaoFreteCotada[]>(() => {
-    if (cotacoes.length > 0) return cotacoes;
-    if (temFreteProprio && configLoja) {
-      const tipoCobranca = configLoja.frete_proprio_tipo_cobranca || 'fixo';
-      const ehManual = tipoCobranca === 'manual';
-      const valorBase = (tipoCobranca === 'gratis' || ehManual) ? 0 : Number(configLoja.frete_proprio_valor_padrao || 0);
-      const freteGratisPorMinimo = Boolean(configLoja.frete_gratis_ativo && Number(configLoja.frete_gratis_valor_minimo) > 0 && subtotal >= Number(configLoja.frete_gratis_valor_minimo));
-      const isGratis = tipoCobranca === 'gratis' || valorBase === 0 || freteGratisPorMinimo;
-      const valorFinal = isGratis ? 0 : valorBase;
-      return [{
-        id: 'opcao_frete_proprio',
-        provedor: 'frete_proprio',
-        transportadora_nome: (configLoja as any).frete_proprio_nome || 'Entrega Própria da Loja',
-        servico_codigo: tipoCobranca,
-        servico_nome: isGratis ? 'Frete Grátis' : (ehManual ? 'Valor Manual' : 'Taxa Fixa'),
-        valor_frete: valorFinal,
-        valor_original: valorBase,
-        valor_subsidio: freteGratisPorMinimo ? valorBase : 0,
-        is_frete_gratis: isGratis,
-        prazo_estimado_texto: (configLoja as any).frete_proprio_prazo_estimado || 'Entrega hoje (30 a 60 min)',
-        icone_tipo: 'loja',
-        permite_edicao_valor: ehManual,
-        tipo_cobranca: (tipoCobranca === 'bairro' ? 'fixo' : tipoCobranca) as 'fixo' | 'manual' | 'gratis'
-      }];
+    let lista = cotacoes;
+    if (!ehCatalogo) {
+      // No PDV/retaguarda, a aba de cotação automática destina-se estritamente a transportadoras e APIs externas
+      lista = lista.filter(op => op.provedor !== 'frete_proprio');
+    }
+    if (lista.length > 0) return lista;
+
+    if (ehCatalogo && temFreteProprio && configLoja) {
+      const ufOrigem = (configLoja.origem_uf || '').toUpperCase().trim();
+      const ufDestino = (enderecoSelecionado?.uf || '').toUpperCase().trim();
+      const outroEstado = Boolean(ufOrigem && ufDestino && ufOrigem !== ufDestino);
+
+      const raioMaximo = Number((configLoja as any)?.frete_proprio_raio_maximo_km) || 5.0;
+      let foraDoRaio = false;
+      const origLat = Number(configLoja.origem_latitude);
+      const origLng = Number(configLoja.origem_longitude);
+      const destLat = Number(enderecoSelecionado?.latitude);
+      const destLng = Number(enderecoSelecionado?.longitude);
+      if (!isNaN(origLat) && !isNaN(origLng) && origLat !== 0 && origLng !== 0 && !isNaN(destLat) && !isNaN(destLng) && destLat !== 0 && destLng !== 0) {
+        const distKm = calcularDistanciaKm(origLat, origLng, destLat, destLng);
+        if (distKm > raioMaximo) {
+          foraDoRaio = true;
+        }
+      }
+
+      if (!outroEstado && !foraDoRaio) {
+        const tipoCobranca = configLoja.frete_proprio_tipo_cobranca || 'fixo';
+        const ehManual = tipoCobranca === 'manual';
+        const valorBase = (tipoCobranca === 'gratis' || ehManual) ? 0 : Number(configLoja.frete_proprio_valor_padrao || 0);
+        const freteGratisPorMinimo = Boolean(configLoja.frete_gratis_ativo && Number(configLoja.frete_gratis_valor_minimo) > 0 && subtotal >= Number(configLoja.frete_gratis_valor_minimo));
+        const isGratis = tipoCobranca === 'gratis' || valorBase === 0 || freteGratisPorMinimo;
+        const valorFinal = isGratis ? 0 : valorBase;
+        return [{
+          id: 'opcao_frete_proprio',
+          provedor: 'frete_proprio',
+          transportadora_nome: (configLoja as any).frete_proprio_nome || 'Entrega Própria da Loja',
+          servico_codigo: tipoCobranca,
+          servico_nome: isGratis ? 'Frete Grátis' : (ehManual ? 'Valor Manual' : 'Taxa Fixa'),
+          valor_frete: valorFinal,
+          valor_original: valorBase,
+          valor_subsidio: freteGratisPorMinimo ? valorBase : 0,
+          is_frete_gratis: isGratis,
+          prazo_estimado_texto: (configLoja as any).frete_proprio_prazo_estimado || 'Entrega hoje (30 a 60 min)',
+          icone_tipo: 'loja',
+          permite_edicao_valor: ehManual,
+          tipo_cobranca: (tipoCobranca === 'bairro' ? 'fixo' : tipoCobranca) as 'fixo' | 'manual' | 'gratis'
+        }];
+      }
     }
     return [];
-  }, [cotacoes, temFreteProprio, configLoja, subtotal]);
+  }, [cotacoes, temFreteProprio, configLoja, subtotal, ehCatalogo, enderecoSelecionado]);
 
   const limiteDeclaracaoConteudo = Number(configLoja?.limite_declaracao_conteudo ?? 1000);
   const excedeLimiteSemNfe = !ehCatalogo && subtotal > limiteDeclaracaoConteudo && !possuiNfe;
@@ -699,10 +724,13 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
             destino_bairro: endAlvo.bairro,
             destino_cidade: endAlvo.cidade,
             destino_uf: endAlvo.uf,
+            destino_latitude: endAlvo.latitude,
+            destino_longitude: endAlvo.longitude,
             subtotal,
             itens,
             config: runtimeConfig,
-            pacote: pacoteAtual
+            pacote: pacoteAtual,
+            somente_automatico: !ehCatalogo
           })
         : Promise.resolve([] as OpcaoFreteCotada[]);
 
@@ -2140,12 +2168,30 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                       )}
                     </>
                   )}
-                  {carregandoConfig ? (
-                    <div className={`p-4 rounded-2xl border flex items-center justify-center gap-2 text-xs ${
-                      ehDark ? 'bg-slate-900/60 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'
-                    }`}>
-                      <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
-                      <span>Carregando opções de entrega da loja...</span>
+                  {carregandoConfig || cotando ? (
+                    <div className="space-y-2.5 animate-pulse py-1">
+                      {[1, 2, 3].map((i) => (
+                        <div
+                          key={i}
+                          className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${
+                            ehDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-100/70 border-slate-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-9 h-9 rounded-xl ${ehDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
+                            <div className="space-y-1.5">
+                              <div className={`h-3 w-28 rounded ${ehDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
+                              <div className={`h-2.5 w-44 rounded ${ehDark ? 'bg-slate-800/60' : 'bg-slate-200/70'}`} />
+                            </div>
+                          </div>
+                          <div className={`h-4 w-16 rounded ${ehDark ? 'bg-slate-800' : 'bg-slate-200'}`} />
+                        </div>
+                      ))}
+                      <div className="text-center pt-1">
+                        <span className="text-[11px] text-slate-500 font-medium">
+                          Calculando opções de frete disponíveis em tempo real...
+                        </span>
+                      </div>
                     </div>
                   ) : !temUber && !temMelhorEnvio && !temFreteProprio ? (
                     ehCatalogo ? (
@@ -2226,11 +2272,6 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                         </div>
                       </div>
                     )
-                  ) : cotando && opcoesCotacaoExibidas.length === 0 ? (
-                    <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col items-center justify-center gap-2 text-slate-500 text-xs">
-                      <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
-                      <span>Calculando opções de frete via API em tempo real...</span>
-                    </div>
                   ) : erroCotacaoMsg && opcoesCotacaoExibidas.length === 0 ? (
                     ehCatalogo ? (
                       !temMetodoOficialAtivo ? (
@@ -2560,13 +2601,39 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                       .map((forma) => {
                         const selecionada = modalidade === 'entrega' && viaEntrega === 'manual' && formaManualEscolhidaId === forma.id;
                         const valorForma = valoresManuais[forma.id] ?? '';
+                        const ehFormaPropria = forma.tipo === 'motoboy' || forma.tipo === 'frota_propria' || forma.tipo === 'proprio' || (forma.nome || '').toLowerCase().includes('própri') || (forma.nome || '').toLowerCase().includes('propri');
+
+                        let bloqueadaPorRaio = false;
+                        if (ehFormaPropria && configLoja) {
+                          const ufOrigem = (configLoja.origem_uf || '').toUpperCase().trim();
+                          const ufDestino = (enderecoSelecionado?.uf || '').toUpperCase().trim();
+                          if (ufOrigem && ufDestino && ufOrigem !== ufDestino) {
+                            bloqueadaPorRaio = true;
+                          } else {
+                            const raioMaximo = Number((configLoja as any)?.frete_proprio_raio_maximo_km) || 5.0;
+                            const origLat = Number(configLoja.origem_latitude);
+                            const origLng = Number(configLoja.origem_longitude);
+                            const destLat = Number(enderecoSelecionado?.latitude);
+                            const destLng = Number(enderecoSelecionado?.longitude);
+                            if (!isNaN(origLat) && !isNaN(origLng) && origLat !== 0 && origLng !== 0 && !isNaN(destLat) && !isNaN(destLng) && destLat !== 0 && destLng !== 0) {
+                              const distKm = calcularDistanciaKm(origLat, origLng, destLat, destLng);
+                              if (distKm > raioMaximo) {
+                                bloqueadaPorRaio = true;
+                              }
+                            }
+                          }
+                        }
 
                         return (
                           <div
                             key={forma.id}
-                            onClick={() => handleSelecionarFormaManual(forma)}
-                            className={`p-3.5 rounded-2xl border transition cursor-pointer ${
-                              selecionada
+                            onClick={() => !bloqueadaPorRaio && handleSelecionarFormaManual(forma)}
+                            className={`p-3.5 rounded-2xl border transition ${
+                              bloqueadaPorRaio
+                                ? 'opacity-50 cursor-not-allowed bg-slate-900/40 border-slate-800'
+                                : 'cursor-pointer'
+                            } ${
+                              selecionada && !bloqueadaPorRaio
                                 ? ehDark
                                   ? 'bg-slate-800/90 border-2 border-emerald-500 text-white shadow-md shadow-emerald-950/50'
                                   : 'bg-emerald-50/80 border-2 border-emerald-500 text-slate-900 shadow-sm'
@@ -2579,7 +2646,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                             <div className="flex items-center justify-between gap-3">
                               <div className="flex items-center gap-3 min-w-0">
                                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
-                                  selecionada
+                                  selecionada && !bloqueadaPorRaio
                                     ? 'bg-emerald-600 text-white border-emerald-600'
                                     : ehDark
                                       ? 'bg-slate-800 text-emerald-400 border-slate-700'
@@ -2601,6 +2668,11 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                     <span className={`text-xs font-bold truncate ${ehDark ? 'text-white' : 'text-slate-900'}`}>
                                       {forma.nome}
                                     </span>
+                                    {bloqueadaPorRaio && (
+                                      <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                                        Fora do raio de atendimento da loja
+                                      </span>
+                                    )}
                                   </div>
                                   {forma.tempo_estimado && (
                                     <div className="flex items-center gap-1.5 text-xs font-medium mt-1">
@@ -2626,6 +2698,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                     type="number"
                                     step="0.01"
                                     min="0"
+                                    disabled={bloqueadaPorRaio}
                                     placeholder="0,00"
                                     value={valorForma}
                                     onClick={(e) => e.stopPropagation()}

@@ -28,7 +28,7 @@ import {
   avaliarNivelCarrinho,
   calcularPrecoUnitarioPorTabela
 } from '../services/pricingEngine';
-import { LayoutGrid, List, Scale, Smartphone, Info, Copy, QrCode, ExternalLink, Ticket, Check, Loader2, User, Phone, MapPin, UserCheck, Edit2, Banknote, CreditCard, Eye, Store, Bell, Star, Clock, Package, LogOut, ArrowRight, Sun, Moon, FileText } from 'lucide-react';
+import { LayoutGrid, List, Scale, Smartphone, Info, Copy, QrCode, ExternalLink, Ticket, Check, Loader2, User, Phone, MapPin, UserCheck, Edit2, Banknote, CreditCard, Eye, Store, Bell, Star, Clock, Package, LogOut, ArrowRight, Sun, Moon, FileText, Paperclip } from 'lucide-react';
 import { paymentGatewayService, PixDinamicoResponse } from '../services/paymentGatewayService';
 import { CupomService } from '../services/cupomService';
 import { audioService } from '../services/audioService';
@@ -276,6 +276,7 @@ export const CatalogoPublico: React.FC = () => {
   const [pedidoIdPendentePagar, setPedidoIdPendentePagar] = useState<string | null>(null);
   const [formaPagamentoCatalogoEscolhida, setFormaPagamentoCatalogoEscolhida] = useState<string>('');
   const [pixCopiadoCheckout, setPixCopiadoCheckout] = useState<boolean>(false);
+  const [comprovantePixCheckout, setComprovantePixCheckout] = useState<File | null>(null);
   const [saldoContaClienteReconciliado, setSaldoContaClienteReconciliado] = useState<number>(0);
   const [menuUsuarioAberto, setMenuUsuarioAberto] = useState<boolean>(false);
   const menuUsuarioRef = useRef<HTMLDivElement>(null);
@@ -1475,7 +1476,7 @@ export const CatalogoPublico: React.FC = () => {
       lista.push({
         id: 'pix',
         tipo: 'pix',
-        nome: 'Pix Manual',
+        nome: 'Pix',
         descricao: chave ? `Chave Pix: ${chave}` : 'Transferência instantânea via Pix'
       });
     }
@@ -1484,7 +1485,7 @@ export const CatalogoPublico: React.FC = () => {
       lista.push({
         id: 'mercado_pago',
         tipo: 'mercado_pago',
-        nome: 'Pagamento Online (Mercado Pago)',
+        nome: 'Mercado Pago',
         descricao: 'Pix automático ou Cartão via checkout online'
       });
     }
@@ -1493,7 +1494,7 @@ export const CatalogoPublico: React.FC = () => {
       lista.push({
         id: 'dinheiro',
         tipo: 'dinheiro',
-        nome: 'Dinheiro na Entrega / Balcão',
+        nome: 'Dinheiro',
         descricao: 'Pagamento em espécie ao receber ou retirar'
       });
     }
@@ -1783,50 +1784,7 @@ export const CatalogoPublico: React.FC = () => {
 
       if (erroPedido || !pedidoCriado) throw erroPedido;
 
-      // Persistir isolamento relacional em pedido_entregas
-      try {
-        const ehEntregaFallback = formaEntregaEscolhida?.tipo === 'entrega' || Boolean(enderecoEntrega && !enderecoEntrega.toLowerCase().includes('retirada'));
-        const entregaPayload = pedidoEntrega ? {
-          ...pedidoEntrega,
-          pedido_id: pedidoCriado.id,
-          valor_frete: valorFreteEfetivo,
-          forma_entrega_id: formaEntregaIdSanitizada,
-          servico_correios: pedidoEntrega.servico_correios || (
-            pedidoEntrega.transportadora_nome?.toUpperCase().includes('SEDEX') ? 'SEDEX' :
-            pedidoEntrega.transportadora_nome?.toUpperCase().includes('PAC') ? 'PAC' : null
-          ),
-          is_frete_gratis: valorFreteEfetivo === 0 && (freteGratisCupom || elegivelFreteGratisLoja)
-        } : {
-          pedido_id: pedidoCriado.id,
-          tipo_atendimento: (ehEntregaFallback || valorFreteEfetivo > 0 ? 'entrega' : 'retirada') as any,
-          valor_frete: valorFreteEfetivo,
-          provedor: (ehEntregaFallback || valorFreteEfetivo > 0 ? 'uber' : 'retirada_loja') as any,
-          transportadora_nome: (ehEntregaFallback || valorFreteEfetivo > 0) ? (formaEntregaEscolhida?.nome || 'Entrega Padrão') : 'Retirada na Loja',
-          status_envio: 'pendente',
-          forma_entrega_id: formaEntregaIdSanitizada,
-          is_frete_gratis: valorFreteEfetivo === 0 && (freteGratisCupom || elegivelFreteGratisLoja)
-        };
-        await ShippingOrchestrator.salvarPedidoEntrega(pedidoCriado.id, entregaPayload);
-      } catch (eEntregaCat) {
-        console.warn('Aviso ao salvar pedido_entregas no catálogo:', eEntregaCat);
-      }
-
-      // Inserir registro inicial de auditoria na tabela relacional historico_pedidos
-      try {
-        await supabase.from('historico_pedidos').insert({
-          loja_id: loja.id,
-          pedido_id: pedidoCriado.id,
-          usuario_id: null,
-          tipo_evento: 'criacao',
-          status_anterior: null,
-          status_novo: 'pendente',
-          motivo: 'Pedido recebido via catálogo online',
-          criado_em: dataOperacaoIso
-        });
-      } catch (errHist) {
-        console.warn('Aviso: Histórico de pedidos não pôde ser gravado:', errHist);
-      }
-
+      // Montar itens e entrega para gravação atômica em paralelo
       const itensFormatados = carrinho.map(item => {
         const precoUnitario = calcularPrecoUnitarioPorTabela(
           item.produto,
@@ -1858,7 +1816,45 @@ export const CatalogoPublico: React.FC = () => {
         };
       });
 
-      await supabase.from('itens_pedido').insert(itensFormatados);
+      const ehEntregaFallback = formaEntregaEscolhida?.tipo === 'entrega' || Boolean(enderecoEntrega && !enderecoEntrega.toLowerCase().includes('retirada'));
+      const entregaPayload = pedidoEntrega ? {
+        ...pedidoEntrega,
+        pedido_id: pedidoCriado.id,
+        valor_frete: valorFreteEfetivo,
+        forma_entrega_id: formaEntregaIdSanitizada,
+        servico_correios: pedidoEntrega.servico_correios || (
+          pedidoEntrega.transportadora_nome?.toUpperCase().includes('SEDEX') ? 'SEDEX' :
+          pedidoEntrega.transportadora_nome?.toUpperCase().includes('PAC') ? 'PAC' : null
+        ),
+        is_frete_gratis: valorFreteEfetivo === 0 && (freteGratisCupom || elegivelFreteGratisLoja)
+      } : {
+        pedido_id: pedidoCriado.id,
+        tipo_atendimento: (ehEntregaFallback || valorFreteEfetivo > 0 ? 'entrega' : 'retirada') as any,
+        valor_frete: valorFreteEfetivo,
+        provedor: (ehEntregaFallback || valorFreteEfetivo > 0 ? 'uber' : 'retirada_loja') as any,
+        transportadora_nome: (ehEntregaFallback || valorFreteEfetivo > 0) ? (formaEntregaEscolhida?.nome || 'Entrega Padrão') : 'Retirada na Loja',
+        status_envio: 'pendente',
+        forma_entrega_id: formaEntregaIdSanitizada,
+        is_frete_gratis: valorFreteEfetivo === 0 && (freteGratisCupom || elegivelFreteGratisLoja)
+      };
+
+      // Disparar inserções essenciais em batch simultâneo
+      await Promise.all([
+        supabase.from('itens_pedido').insert(itensFormatados),
+        ShippingOrchestrator.salvarPedidoEntrega(pedidoCriado.id, entregaPayload)
+      ]);
+
+      // Registro não-bloqueante de auditoria em segundo plano
+      Promise.resolve(supabase.from('historico_pedidos').insert({
+        loja_id: loja.id,
+        pedido_id: pedidoCriado.id,
+        usuario_id: null,
+        tipo_evento: 'criacao',
+        status_anterior: null,
+        status_novo: 'pendente',
+        motivo: 'Pedido recebido via catálogo online',
+        criado_em: dataOperacaoIso
+      })).catch(() => {});
 
       // Tratamento Contábil para Meios a Prazo (Fiado e Caderneta)
       if (ehFiado && clienteFinalId) {
@@ -2061,7 +2057,7 @@ ${itensMsg}
 🏷️ *Tabela Aplicada:* ${tabelaTexto}
 ${avaliacaoCarrinho.economiaTotal > 0 ? `💰 *Economia Obtida:* R$ ${avaliacaoCarrinho.economiaTotal.toFixed(2)}\n` : ''}💰 *Subtotal:* R$ ${subtotal.toFixed(2)}
 🛵 *Entrega:* ${entregaTextoMsg}
-💳 *Pagamento:* ${textoFormaPagamento}
+💳 *Pagamento:* ${textoFormaPagamento}${comprovantePixCheckout ? `\n📎 *Comprovante Pix:* ${comprovantePixCheckout.name} (enviando em anexo nesta conversa)` : ''}
 💵 *TOTAL ESTIMADO:* R$ ${total.toFixed(2)}${avisoPesagemMsg}
 ━━━━━━━━━━━━━━━━━━━━
 👤 *Nome:* ${nomeCliente}
@@ -2070,8 +2066,14 @@ ${avaliacaoCarrinho.economiaTotal > 0 ? `💰 *Economia Obtida:* R$ ${avaliacaoC
 ${observacoes ? `📝 *Observação:* ${observacoes}\n` : ''}
 Fico no aguardo da confirmação! ✨`;
 
-      const lojaPhone = loja.whatsapp.replace(/\D/g, '');
-      const urlWhats = `https://api.whatsapp.com/send?phone=55${lojaPhone}&text=${encodeURIComponent(msgWhatsApp)}`;
+      const lojaPhone = (loja.whatsapp || (loja as any).telefone || '').replace(/\D/g, '');
+      const phoneFinal = lojaPhone.startsWith('55') ? lojaPhone : `55${lojaPhone}`;
+      const urlWhats = `https://api.whatsapp.com/send?phone=${phoneFinal}&text=${encodeURIComponent(msgWhatsApp)}`;
+
+      // Redireciona diretamente para o WhatsApp se configurado na loja
+      if (loja.resumo_whatsapp ?? true) {
+        window.open(urlWhats, '_blank');
+      }
 
       setCarrinho([]);
       setModalPagamentoCheckoutAberto(false);
@@ -3662,21 +3664,21 @@ Fico no aguardo da confirmação! ✨`;
                 )}
               </div>
 
-              {/* Exibição da chave Pix e instruções caso Pix Manual esteja selecionado */}
+              {/* Exibição da chave Pix e instruções caso Pix esteja selecionado */}
               {formaPagamentoCatalogoEscolhida === 'pix' && (() => {
                 const pagConfig = (loja?.configuracoes_extras as any)?.pagamentos || {};
                 const chavePix = pagConfig.pix_chave || (loja as any)?.chave_pix || '';
                 const orientacoesPix = pagConfig.pix_orientacoes || '';
                 if (!chavePix && !orientacoesPix) return null;
                 return (
-                  <div className="p-3.5 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 space-y-2">
+                  <div className="p-3 rounded-2xl border border-emerald-500/40 bg-emerald-500/5 space-y-2.5">
                     {chavePix && (
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
                         <div className="min-w-0">
                           <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 block">
                             Chave Pix da Loja
                           </span>
-                          <span className="text-xs font-mono font-bold text-slate-900 dark:text-white break-all">
+                          <span className="text-xs font-mono font-bold text-slate-900 dark:text-white select-all break-all">
                             {chavePix}
                           </span>
                         </div>
@@ -3691,18 +3693,47 @@ Fico no aguardo da confirmação! ✨`;
                               // ignore
                             }
                           }}
-                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
+                          className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1 shrink-0 cursor-pointer transition active:scale-95"
                         >
                           {pixCopiadoCheckout ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                          <span>{pixCopiadoCheckout ? 'Copiada!' : 'Copiar Chave'}</span>
+                          <span>{pixCopiadoCheckout ? 'Copiada!' : 'Copiar'}</span>
                         </button>
                       </div>
                     )}
                     {orientacoesPix && (
-                      <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                      <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed px-1">
                         {orientacoesPix}
                       </p>
                     )}
+                    {/* Campo de anexo do comprovante */}
+                    <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
+                      <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 transition">
+                        <Paperclip className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>{comprovantePixCheckout ? 'Trocar Comprovante' : 'Anexar Comprovante Pix'}</span>
+                        <input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) setComprovantePixCheckout(f);
+                          }}
+                        />
+                      </label>
+                      {comprovantePixCheckout && (
+                        <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300 truncate max-w-[180px]">
+                          <span className="truncate">{comprovantePixCheckout.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => setComprovantePixCheckout(null)}
+                            className="text-rose-500 hover:text-rose-600 p-1"
+                            title="Remover anexo"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })()}

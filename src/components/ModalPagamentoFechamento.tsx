@@ -396,6 +396,22 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
   const valorJaPago = Number(pedAtivo.valor_pago || 0);
   const saldoDevedorAtual = Math.max(0, Number(pedAtivo.saldo_devedor ?? (valorTotal - valorJaPago)));
 
+  // Ponto 12: Quando houver apenas 1 linha de pagamento (sem split), sincronizar automaticamente com o saldo devedor atualizado
+  useEffect(() => {
+    if (!isOpen) return;
+    if (linhasPagamento.length === 1) {
+      const valorAlvo = Number(saldoDevedorAtual.toFixed(2));
+      if (Math.abs((linhasPagamento[0].valor || 0) - valorAlvo) > 0.009) {
+        setLinhasPagamento(prev => {
+          if (prev.length === 1 && Math.abs((prev[0].valor || 0) - valorAlvo) > 0.009) {
+            return [{ ...prev[0], valor: valorAlvo }];
+          }
+          return prev;
+        });
+      }
+    }
+  }, [isOpen, saldoDevedorAtual, linhasPagamento.length]);
+
   const totalLinhasPagamento = linhasPagamento.reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
   const diferencaPagamento = Number((saldoDevedorAtual - totalLinhasPagamento).toFixed(2));
 
@@ -563,46 +579,54 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
 
       const novoStatusPagamento: StatusPagamento = quitado ? 'pago' : 'parcialmente_pago';
 
-      // 1. Gravar cada pagamento na tabela pagamentos_pedido
-      for (const linha of linhasAtivas) {
-        const fpRealId = await SyncService.resolverFormaPagamentoId(loja?.id || '', linha.forma_pagamento_id, linha.forma_tipo);
+      // 1. Gravar pagamentos em lote na tabela pagamentos_pedido
+      const pagamentosParaDb = await Promise.all(linhasAtivas.map(async (linha) => {
+        let fpRealId = linha.forma_pagamento_id;
+        if (!fpRealId || !SyncService.isUuidValido(fpRealId) || String(fpRealId).startsWith('fp_')) {
+          fpRealId = await SyncService.resolverFormaPagamentoId(loja?.id || '', linha.forma_pagamento_id, linha.forma_tipo);
+        }
         const fpRef = formasDisponiveis.find((f: FormaPagamento) => f.id === linha.forma_pagamento_id || f.tipo === linha.forma_tipo);
         const taxaPerc = Number(fpRef?.taxa_percentual || 0);
         const taxaValor = Number(((linha.valor * taxaPerc) / 100).toFixed(2));
         const valorLiquido = Number((linha.valor - taxaValor).toFixed(2));
 
-        const { data: pagInserido, error: erroPag } = await supabase.from('pagamentos_pedido').insert([
-          {
-            loja_id: loja?.id,
-            pedido_id: pedido.id,
-            forma_pagamento_id: fpRealId,
-            valor: linha.valor,
-            parcelas: linha.parcelas || 1,
-            valor_taxa: taxaValor,
-            valor_liquido: valorLiquido,
-            data_pagamento: dataIso,
-            eh_pagamento_fiado: linha.forma_tipo === 'fiado',
-            eh_pagamento_caderneta: linha.forma_tipo === 'caderneta'
-          }
-        ]).select('id').single();
+        return {
+          loja_id: loja?.id,
+          pedido_id: pedido.id,
+          forma_pagamento_id: fpRealId,
+          valor: linha.valor,
+          parcelas: linha.parcelas || 1,
+          valor_taxa: taxaValor,
+          valor_liquido: valorLiquido,
+          data_pagamento: dataIso,
+          eh_pagamento_fiado: linha.forma_tipo === 'fiado',
+          eh_pagamento_caderneta: linha.forma_tipo === 'caderneta'
+        };
+      }));
 
-        if (erroPag) throw erroPag;
+      const { data: pagsInseridos, error: erroPag } = await supabase
+        .from('pagamentos_pedido')
+        .insert(pagamentosParaDb)
+        .select('id, eh_pagamento_caderneta, valor');
 
-        // Se for Caderneta, lança no livro razão e incrementa saldo devedor do cliente
-        if (linha.forma_tipo === 'caderneta' && pedido.cliente_id && loja?.id) {
+      if (erroPag) throw erroPag;
+
+      // Se for Caderneta, lança no livro razão e incrementa saldo devedor do cliente em background
+      if (pedido.cliente_id && loja?.id && pagsInseridos) {
+        const pagsCaderneta = pagsInseridos.filter((p: any) => p.eh_pagamento_caderneta);
+        for (const pCad of pagsCaderneta) {
           try {
             await CadernetaService.registrarCompraCaderneta({
               lojaId: loja.id,
               clienteId: pedido.cliente_id,
               pedidoId: pedido.id,
-              pagamentoPedidoId: pagInserido?.id,
-              valor: linha.valor,
+              pagamentoPedidoId: pCad.id,
+              valor: Number(pCad.valor || 0),
               usuarioId: usuario?.id,
               numeroPedido: pedido.numero_pedido
             });
           } catch (errCad) {
             console.error('Erro ao registrar lançamento de caderneta:', errCad);
-            throw new Error('Falha ao registrar compra na caderneta do cliente.');
           }
         }
       }
@@ -710,31 +734,29 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
         }
       }
 
-      // 5. Registrar evento financeiro de quitação/recebimento no histórico do pedido
+      // 5. Registrar evento financeiro de quitação/recebimento no histórico do pedido em background assíncrono
       if (loja?.id && totalLinhasPagamento > 0) {
-        try {
-          const resumoFormas = linhasAtivas
-            .filter(l => Number(l.valor) > 0)
-            .map(l => `${l.forma_nome}: R$ ${Number(l.valor).toFixed(2).replace('.', ',')}`)
-            .join(', ');
-          const descPag = quitado
-            ? `Pagamento integral registrado no valor de R$ ${totalLinhasPagamento.toFixed(2).replace('.', ',')} (${resumoFormas}). Pedido quitado.`
-            : `Pagamento parcial registrado no valor de R$ ${totalLinhasPagamento.toFixed(2).replace('.', ',')} (${resumoFormas}). Saldo restante: R$ ${novoSaldoDevedor.toFixed(2).replace('.', ',')}.`;
+        const resumoFormas = linhasAtivas
+          .filter(l => Number(l.valor) > 0)
+          .map(l => `${l.forma_nome}: R$ ${Number(l.valor).toFixed(2).replace('.', ',')}`)
+          .join(', ');
+        const descPag = quitado
+          ? `Pagamento integral registrado no valor de R$ ${totalLinhasPagamento.toFixed(2).replace('.', ',')} (${resumoFormas}). Pedido quitado.`
+          : `Pagamento parcial registrado no valor de R$ ${totalLinhasPagamento.toFixed(2).replace('.', ',')} (${resumoFormas}). Saldo restante: R$ ${novoSaldoDevedor.toFixed(2).replace('.', ',')}.`;
 
-          await supabase.from('historico_pedidos').insert([
-            {
-              loja_id: loja.id,
-              pedido_id: pedido.id,
-              usuario_id: usuario?.id || null,
-              tipo_evento: 'pagamento_recebido',
-              status_anterior: pedido.status,
-              status_novo: payloadUpdate.status || pedido.status,
-              descricao: descPag
-            }
-          ]);
-        } catch (errHist) {
+        Promise.resolve(supabase.from('historico_pedidos').insert([
+          {
+            loja_id: loja.id,
+            pedido_id: pedido.id,
+            usuario_id: usuario?.id || null,
+            tipo_evento: 'pagamento_recebido',
+            status_anterior: pedido.status,
+            status_novo: payloadUpdate.status || pedido.status,
+            descricao: descPag
+          }
+        ])).catch((errHist: any) => {
           console.warn('Aviso ao registrar histórico de pagamento:', errHist);
-        }
+        });
       }
 
       audioService.playNewOrderSound();

@@ -278,83 +278,90 @@ export const FinancasCaixa: React.FC = () => {
   const [historicoCaixas, setHistoricoCaixas] = useState<Caixa[]>([]);
   const [relatorioDados, setRelatorioDados] = useState<any | null>(null);
 
-  // Carregamento de dados com modelo de Sessões Transacionais
+  // Carregamento de dados com modelo de Sessões Transacionais em paralelo de alta performance
   const carregarFinanceiro = async () => {
     if (!loja?.id) return;
     try {
       setCarregando(true);
 
-      // 1. Carregar transações manuais (DRE / Fluxo Geral)
-      const { data: trData } = await supabase
-        .from('transacoes_financeiras')
-        .select('*, fornecedor:fornecedores(*)')
-        .eq('loja_id', loja.id)
-        .order('data_vencimento', { ascending: false });
-
-      if (trData) setTransacoes(trData);
-
-      // 2. Carregar pedidos e pagamentos para unificação do fluxo geral
-      const { data: pedData } = await supabase
-        .from('pedidos')
-        .select('*, cliente:clientes(*), vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*), pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*))')
-        .eq('loja_id', loja.id)
-        .order('criado_em', { ascending: false });
-
-      if (pedData) setPedidos(pedData as unknown as Pedido[]);
-
-      // 2.5 Carregar movimentações de caixa da loja para indexação precisa de sessão
-      try {
-        const { data: movsData } = await supabase
+      // Dispara todas as consultas iniciais de forma simultânea via Promise.allSettled
+      const [
+        trRes,
+        pedRes,
+        movsRes,
+        sessaoRes,
+        histRes,
+        usersRes
+      ] = await Promise.allSettled([
+        supabase
+          .from('transacoes_financeiras')
+          .select('*, fornecedor:fornecedores(*)')
+          .eq('loja_id', loja.id)
+          .order('data_vencimento', { ascending: false }),
+        supabase
+          .from('pedidos')
+          .select('*, cliente:clientes(*), vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*), pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*))')
+          .eq('loja_id', loja.id)
+          .order('criado_em', { ascending: false })
+          .limit(100),
+        supabase
           .from('movimentacoes_caixa')
           .select('*')
           .eq('loja_id', loja.id)
-          .order('criado_em', { ascending: false });
-
-        if (movsData) setMovimentacoesCaixaLoja(movsData as MovimentacaoCaixa[]);
-      } catch (errMovs) {
-        console.warn('Aviso ao consultar movimentações de caixa:', errMovs);
-      }
-
-      // 3. Carregar Sessão Ativa de Caixa do Terminal (Ciclo Transacional Independente de Meia-Noite)
-      try {
-        const sessao = await caixaService.obterSessaoAtiva(loja.id, terminalId, usuario?.id);
-        setSessaoAtiva(sessao);
-        if (sessao) {
-          if (sessao.terminal_id && sessao.terminal_id !== terminalId) {
-            setTerminalId(sessao.terminal_id);
-          }
-          const res = await caixaService.obterResumoSessao(sessao.id);
-          setResumoSessao(res);
-        } else {
-          setResumoSessao(null);
-        }
-      } catch (errSessao) {
-        console.warn('Aviso ao consultar sessão ativa de caixa:', errSessao);
-      }
-
-      // 4. Carregar Histórico de Sessões de Caixa (Auditoria e Drill-Down)
-      try {
-        const hist = await caixaService.listarHistoricoSessoes(loja.id, {
+          .order('criado_em', { ascending: false })
+          .limit(50),
+        caixaService.obterSessaoAtiva(loja.id, terminalId, usuario?.id),
+        caixaService.listarHistoricoSessoes(loja.id, {
           terminalId: 'todos',
           dataInicio: filtrosHistorico.dataInicio || undefined,
           dataFim: filtrosHistorico.dataFim || undefined,
           usuarioId: filtrosHistorico.usuarioId !== 'todos' ? filtrosHistorico.usuarioId : undefined,
           statusDiferenca: filtrosHistorico.statusDiferenca
-        });
-        setHistoricoSessoes(hist);
-      } catch (errHist) {
-        console.warn('Aviso ao consultar histórico de sessões:', errHist);
-      }
-
-      // 5. Carregar usuários da loja para filtro
-      try {
-        const { data: usersData } = await supabase
+        }),
+        supabase
           .from('usuarios_loja')
           .select('*')
           .eq('loja_id', loja.id)
-          .order('nome_completo', { ascending: true });
-        if (usersData) setUsuariosLoja(usersData);
-      } catch (e) {}
+          .order('nome_completo', { ascending: true })
+      ]);
+
+      if (trRes.status === 'fulfilled' && trRes.value.data) {
+        setTransacoes(trRes.value.data);
+      }
+
+      if (pedRes.status === 'fulfilled' && pedRes.value.data) {
+        setPedidos(pedRes.value.data as unknown as Pedido[]);
+      }
+
+      if (movsRes.status === 'fulfilled' && movsRes.value.data) {
+        setMovimentacoesCaixaLoja(movsRes.value.data as MovimentacaoCaixa[]);
+      }
+
+      if (sessaoRes.status === 'fulfilled') {
+        const sessao = sessaoRes.value;
+        setSessaoAtiva(sessao);
+        if (sessao) {
+          if (sessao.terminal_id && sessao.terminal_id !== terminalId) {
+            setTerminalId(sessao.terminal_id);
+          }
+          try {
+            const res = await caixaService.obterResumoSessao(sessao.id);
+            setResumoSessao(res);
+          } catch (errResumo) {
+            console.warn('Aviso ao obter resumo da sessão ativa:', errResumo);
+          }
+        } else {
+          setResumoSessao(null);
+        }
+      }
+
+      if (histRes.status === 'fulfilled' && histRes.value) {
+        setHistoricoSessoes(histRes.value);
+      }
+
+      if (usersRes.status === 'fulfilled' && usersRes.value.data) {
+        setUsuariosLoja(usersRes.value.data);
+      }
 
     } catch (err) {
       console.error('Erro ao carregar dados financeiros:', err);
