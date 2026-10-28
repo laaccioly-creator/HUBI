@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, Store, Printer, Share2, Download, CheckCircle2, MessageCircle } from 'lucide-react';
+import { X, Store, Printer, Share2, Download, CheckCircle2, MessageCircle, Receipt } from 'lucide-react';
 import { Pedido } from '../../types';
 import { obterDadosPagamentoRecibo, formatarDataRecibo, PrintService } from '../../services/printService';
 import { ReceiptPdfService } from '../../services/receiptPdfService';
@@ -241,28 +241,42 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
-      <div className={`w-full max-w-md rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh] ${
-        isDark ? 'bg-[#08131A] border-2 border-slate-400 text-slate-100' : 'bg-slate-100 border-2 border-slate-300 text-black'
+      <div className={`w-full max-w-md rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh] border ${
+        isDark ? 'bg-[#08131A] border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
       }`}>
+        {/* Header Padrão HUBI com Ícone Circular Esmeralda */}
         <div className={`p-4 border-b flex items-center justify-between shrink-0 ${
-          isDark ? 'border-slate-800 bg-[#08131A] text-white' : 'border-slate-300 bg-slate-100 text-black'
+          isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-100 bg-white'
         }`}>
-          <h3 className="text-sm font-bold">
-            Recibo #{pedido.numero_pedido}
-          </h3>
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center border ${
+              isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-emerald-50 text-emerald-600 border-emerald-200'
+            }`}>
+              <Receipt className="w-4.5 h-4.5" />
+            </div>
+            <div>
+              <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                Recibo do Pedido #{pedido.numero_pedido}
+              </h3>
+              <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                Comprovante fiscal e de entrega
+              </p>
+            </div>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className={`p-1.5 rounded-lg transition cursor-pointer ${
-              isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-500 hover:text-black hover:bg-slate-200'
+            className={`p-1.5 rounded-full transition cursor-pointer ${
+              isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
             }`}
+            title="Fechar"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className={`flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 flex justify-center items-start custom-scrollbar ${
-          isDark ? 'bg-[#000000]' : 'bg-slate-100'
+          isDark ? 'bg-[#000000]' : 'bg-slate-50'
         }`}>
           {/* Bobina de Papel Autêntica (Branca com Tipografia Nítida em Preto/Slate) */}
           <div
@@ -528,7 +542,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
 
         {/* BOTÕES DE AÇÃO NO RODAPÉ DO MODAL (EXATAMENTE 4 BOTÕES HORIZONTAIS COMPACTOS ALINHADOS) */}
         <div className={`p-2.5 sm:p-3 border-t flex flex-row items-center justify-between gap-1.5 sm:gap-2 shrink-0 ${
-          isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-300 bg-slate-100'
+          isDark ? 'border-slate-800 bg-[#08131A]' : 'border-slate-100 bg-white'
         }`}>
           <button
             type="button"

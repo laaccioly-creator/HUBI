@@ -1441,8 +1441,23 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   );
                 }
 
-                // Prioridade 0.5: Pedido pendente já pesado ou sem itens por kg
-                if (pedidoSelecionado.status === 'pendente') {
+                // Prioridade 1: Se tiver pagamento pendente (mesmo que status seja pendente, aguardando_envio ou outro)
+                if (temPagamentoPendente) {
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => onAbrirReceberPagamento(pedidoSelecionado)}
+                      className="flex-1 h-12 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
+                      title="Receber pagamento pendente"
+                    >
+                      <DollarSign className="w-4 h-4" />
+                      <span>Receber Pagamento</span>
+                    </button>
+                  );
+                }
+
+                // Prioridade 1.5: Pedido pendente sem pagamento pendente (só se não for crédito/pago)
+                if (pedidoSelecionado.status === 'pendente' && !ehCredito) {
                   return (
                     <button
                       type="button"
@@ -1454,21 +1469,6 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     >
                       <Check className="w-4 h-4 stroke-[3]" />
                       <span>Confirmar Pedido</span>
-                    </button>
-                  );
-                }
-
-                // Prioridade 1: Se tiver pagamento pendente (mesmo que status seja aguardando_envio ou outro)
-                if (temPagamentoPendente) {
-                  return (
-                    <button
-                      type="button"
-                      onClick={() => onAbrirReceberPagamento(pedidoSelecionado)}
-                      className="flex-1 h-12 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
-                      title="Receber pagamento pendente"
-                    >
-                      <DollarSign className="w-4 h-4" />
-                      <span>Receber Pagamento</span>
                     </button>
                   );
                 }
@@ -1838,8 +1838,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       </button>
                     )}
 
-                    {/* Ação: Confirmar Pedido (se status for pendente) */}
-                    {pedidoSelecionado.status === 'pendente' && (
+                    {/* Ação: Confirmar Pedido (se status for pendente e ainda não quitado/pago) */}
+                    {pedidoSelecionado.status === 'pendente' && !estaPagoOuFiado && (
                       <button
                         type="button"
                         onClick={() => {

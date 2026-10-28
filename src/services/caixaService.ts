@@ -368,6 +368,36 @@ export const caixaService = {
   },
 
   /**
+   * Estorna financeiramente um pedido cancelado:
+   * 1. Atualiza as transações financeiras vinculadas para 'cancelado';
+   * 2. Remove as movimentações de caixa vinculadas a este pedido para abater do saldo da gaveta física.
+   */
+  async estornarVendaPedido(lojaId: string, pedidoId: string, _usuarioId?: string): Promise<void> {
+    if (!pedidoId || !lojaId) return;
+
+    try {
+      // 1. Atualiza transações financeiras para status 'cancelado'
+      await supabase
+        .from('transacoes_financeiras')
+        .update({
+          status: 'cancelado',
+          atualizado_em: new Date().toISOString()
+        })
+        .eq('loja_id', lojaId)
+        .eq('pedido_id', pedidoId);
+
+      // 2. Remove registros em movimentacoes_caixa gerados pelo pedido para abater o dinheiro da gaveta
+      await supabase
+        .from('movimentacoes_caixa')
+        .delete()
+        .eq('loja_id', lojaId)
+        .eq('pedido_id', pedidoId);
+    } catch (errEstorno) {
+      console.warn('[caixaService] Falha ao estornar movimentações/transações do pedido cancelado:', errEstorno);
+    }
+  },
+
+  /**
    * Consolida o resumo analítico e em tempo real da sessão (sem filtros por data-calendário)
    */
   async obterResumoSessao(sessaoId: string): Promise<ResumoSessaoCaixa> {
@@ -405,6 +435,7 @@ export const caixaService = {
         .select('id, numero_pedido, origem, data_venda, criado_em, valor_total, valor_pago, pagamentos:pagamentos_pedido(valor, forma_pagamento:formas_pagamento(tipo, nome))')
         .eq('loja_id', sessao.loja_id)
         .eq('status_pagamento', 'pago')
+        .neq('status', 'cancelado')
         .gte('criado_em', new Date(tsAbertura - 5 * 60 * 1000).toISOString());
 
       if (pedsLoja && pedsLoja.length > 0) {
@@ -487,7 +518,31 @@ export const caixaService = {
     let totalSangrias = 0;
     let totalDespesas = 0;
 
+    // 2.2 Blindagem Anti-Furo de Caixa: desconsiderar pedidos cancelados do cálculo
+    const idsPedidosNasMovs = Array.from(
+      new Set(movimentacoes.map(m => m.pedido_id).filter(Boolean) as string[])
+    );
+    let pedidosCanceladosIds = new Set<string>();
+    if (idsPedidosNasMovs.length > 0) {
+      try {
+        const { data: pedsCancelados } = await supabase
+          .from('pedidos')
+          .select('id')
+          .in('id', idsPedidosNasMovs)
+          .eq('status', 'cancelado');
+        if (pedsCancelados && pedsCancelados.length > 0) {
+          pedidosCanceladosIds = new Set(pedsCancelados.map(p => p.id.toLowerCase()));
+        }
+      } catch (errCanc) {
+        console.warn('Aviso ao consultar pedidos cancelados na sessão de caixa:', errCanc);
+      }
+    }
+
     for (const m of movimentacoes) {
+      // Pedidos cancelados NÃO devem compor as Vendas nem o Saldo Esperado na Gaveta Física
+      if (m.pedido_id && pedidosCanceladosIds.has(m.pedido_id.toLowerCase())) {
+        continue;
+      }
       const v = Number(m.valor || 0);
       if (m.tipo === 'VENDA') {
         switch (m.metodo_pagamento) {
@@ -739,6 +794,7 @@ export const caixaService = {
       // Buscar movimentações de todas as sessões retornadas para garantir dados analíticos detalhados
       const idsSessoes = rawList.map(s => s.id).filter(Boolean);
       const mapMovs: Record<string, MovimentacaoCaixa[]> = {};
+      let canceladosHistIds = new Set<string>();
       if (idsSessoes.length > 0) {
         try {
           const { data: movsData } = await supabase
@@ -750,6 +806,18 @@ export const caixaService = {
               if (!mapMovs[m.sessao_caixa_id]) mapMovs[m.sessao_caixa_id] = [];
               mapMovs[m.sessao_caixa_id].push(m);
             });
+
+            const pedsIds = Array.from(new Set(movsData.map((m: any) => m.pedido_id).filter(Boolean))) as string[];
+            if (pedsIds.length > 0) {
+              const { data: pedsCanc } = await supabase
+                .from('pedidos')
+                .select('id')
+                .in('id', pedsIds)
+                .eq('status', 'cancelado');
+              if (pedsCanc) {
+                canceladosHistIds = new Set(pedsCanc.map(p => p.id.toLowerCase()));
+              }
+            }
           }
         } catch (e) {
           console.warn('Aviso ao carregar movimentações do histórico:', e);
@@ -768,6 +836,9 @@ export const caixaService = {
         let despesas = 0;
 
         movs.forEach((m: any) => {
+          if (m.pedido_id && canceladosHistIds.has(m.pedido_id.toLowerCase())) {
+            return;
+          }
           const val = Number(m.valor || 0);
           if (m.tipo === 'VENDA') {
             switch (m.metodo_pagamento) {

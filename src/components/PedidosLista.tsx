@@ -94,6 +94,7 @@ import {
 } from '../utils/statusPedidoUtils';
 
 import { orderGuardJevService, RestricaoOperacionalPedido } from '../services/orderGuardJevService';
+import { caixaService } from '../services/caixaService';
 
 type OrdenacaoCampo = 'data' | 'valor' | 'codigo';
 type OrdenacaoDirecao = 'asc' | 'desc';
@@ -1199,6 +1200,13 @@ export const PedidosLista: React.FC = () => {
             } catch (errEstornoEstoque) {
               console.warn('Aviso ao estornar estoque do pedido cancelado:', errEstornoEstoque);
             }
+          }
+
+          // 5. Estorno financeiro e de gaveta de caixa no cancelamento
+          try {
+            await caixaService.estornarVendaPedido(loja.id, pedidoId, usuario?.id);
+          } catch (errEstornoCaixa) {
+            console.warn('Falha ao estornar movimentações e transações do caixa:', errEstornoCaixa);
           }
         } else if (STATUS_QUE_BAIXAM_ESTOQUE.includes(novoStatus)) {
           // Gatilho de Saída de Estoque (Baixa Única idempotente)
@@ -3918,7 +3926,7 @@ export const PedidosLista: React.FC = () => {
                                     <Truck className="w-3.5 h-3.5" />
                                     <span>Escolher Envio</span>
                                   </button>
-                                ) : (pedido.status === 'aguardando_envio' || (pedido.status === 'confirmado' && !resolverProvedorEntrega(pedido).isRetirada)) ? (
+                                ) : (pedido.status === 'aguardando_envio' || (pedido.status === 'confirmado' && !resolverProvedorEntrega(pedido).isRetirada) || (pedido.status === 'pendente' && (statusPag === 'pago' || statusPag === 'fiado' || statusPag === 'caderneta') && !resolverProvedorEntrega(pedido).isRetirada)) ? (
                                   (() => {
                                     const { prov, pe } = resolverProvedorEntrega(pedido);
                                     const isUber = prov === 'uber' || (pe?.transportadora_nome || '').toLowerCase().includes('uber');
@@ -4138,7 +4146,7 @@ export const PedidosLista: React.FC = () => {
                                       <span>Concluir</span>
                                     </button>
                                   </div>
-                                ) : pedido.status === 'pendente' ? (
+                                ) : (pedido.status === 'pendente' && statusPag !== 'pago' && statusPag !== 'fiado' && statusPag !== 'caderneta') ? (
                                   <button
                                     type="button"
                                     onClick={() => atualizarStatus(pedido.id, 'confirmado')}
@@ -4148,7 +4156,7 @@ export const PedidosLista: React.FC = () => {
                                     <CheckCircle2 className="w-3.5 h-3.5" />
                                     <span>Confirmar</span>
                                   </button>
-                                ) : (pedido.status === 'pronto_para_retirar' || (pedido.status === 'confirmado' && resolverProvedorEntrega(pedido).isRetirada)) ? (
+                                ) : (pedido.status === 'pronto_para_retirar' || ((pedido.status === 'confirmado' || pedido.status === 'pendente') && resolverProvedorEntrega(pedido).isRetirada)) ? (
                                   <button
                                     type="button"
                                     onClick={() => atualizarStatus(pedido.id, 'concluido')}
@@ -4528,11 +4536,18 @@ export const PedidosLista: React.FC = () => {
           setPedidoReceberModal(null);
           setConcluirAposReceber(false);
         }}
-        onPagamentoConcluido={(pedidoAtualizado) => {
+        onPagamentoConcluido={async (pedidoAtualizado) => {
           setPedidoReceberModal(null);
           setConcluirAposReceber(false);
-          if (pedidoAtualizado && pedidoSelecionado?.id === pedidoAtualizado.id) {
-            setPedidoSelecionado(pedidoAtualizado);
+          if (pedidoAtualizado) {
+            if (pedidoAtualizado.status === 'pendente') {
+              const { isRetirada } = resolverProvedorEntrega(pedidoAtualizado);
+              const proxStatus = isRetirada ? 'confirmado' : 'aguardando_envio';
+              await atualizarStatus(pedidoAtualizado.id, proxStatus);
+            }
+            if (pedidoSelecionado?.id === pedidoAtualizado.id) {
+              setPedidoSelecionado(pedidoAtualizado);
+            }
           }
           carregarPedidos();
         }}

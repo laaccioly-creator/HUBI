@@ -707,27 +707,26 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
         payloadUpdate.data_vencimento_fiado = dataVencimentoCalculada;
       }
 
-      if (quitado) {
-        const isStatusLogistico = ['aguardando_envio', 'em_expedicao', 'enviado'].includes(pedido.status);
-        if (!isStatusLogistico) {
-          const rawPe = (pedido as any).pedido_entregas || (pedido as any).pedido_entrega;
-          const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
-          const ehRetirada = pe?.tipo_atendimento === 'retirada' || (pedido as any).tipo_atendimento === 'retirada';
-          const ehEntrega = !ehRetirada && (
-            Boolean(pe) ||
-            Boolean(pedido.endereco_entrega && !pedido.endereco_entrega.toLowerCase().includes('retirada') && pedido.endereco_entrega.toLowerCase() !== 'retirada na loja') ||
-            Boolean(pedido.forma_entrega_id) ||
-            Boolean((pedido as any).nome_transportadora) ||
-            Number(pedido.valor_frete || 0) > 0
-          );
+      // Se o pedido estava pendente e teve pagamento registrado (ou se foi quitado), transiciona automaticamente
+      const isStatusLogistico = ['aguardando_envio', 'em_expedicao', 'enviado', 'concluido'].includes(pedido.status);
+      if (!isStatusLogistico) {
+        const rawPe = (pedido as any).pedido_entregas || (pedido as any).pedido_entrega;
+        const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
+        const ehRetirada = pe?.tipo_atendimento === 'retirada' || (pedido as any).tipo_atendimento === 'retirada';
+        const ehEntrega = !ehRetirada && (
+          Boolean(pe) ||
+          Boolean(pedido.endereco_entrega && !pedido.endereco_entrega.toLowerCase().includes('retirada') && pedido.endereco_entrega.toLowerCase() !== 'retirada na loja') ||
+          Boolean(pedido.forma_entrega_id) ||
+          Boolean((pedido as any).nome_transportadora) ||
+          Number(pedido.valor_frete || 0) > 0
+        );
 
-          if (concluirAoQuitarCheck && !ehEntrega) {
-            payloadUpdate.status = 'concluido';
-          } else if (ehEntrega) {
-            payloadUpdate.status = 'aguardando_envio';
-          } else if (pedido.status === 'pendente') {
-            payloadUpdate.status = 'confirmado';
-          }
+        if (quitado && concluirAoQuitarCheck && !ehEntrega) {
+          payloadUpdate.status = 'concluido';
+        } else if (ehEntrega) {
+          payloadUpdate.status = 'aguardando_envio';
+        } else if (pedido.status === 'pendente') {
+          payloadUpdate.status = 'confirmado';
         }
       }
 

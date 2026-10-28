@@ -26,6 +26,54 @@ import { useFeedbackModal } from '../../contexts/FeedbackContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 
+/**
+ * Formata defensivamente datas retornadas por APIs de rastreamento (Correios, Melhor Envio, Jadlog).
+ * Suporta formatos ISO, timestamps numéricos e o formato brasileiro "DD/MM/YYYY HH:mm(:ss)".
+ * Retorna string vazia ("") caso a data seja nula, indefinida ou inválida, impedindo "Invalid Date".
+ */
+export function formatarDataRastreioDefensiva(valor?: any): string {
+  if (!valor) return '';
+  if (typeof valor !== 'string' && !(valor instanceof Date) && typeof valor !== 'number') return '';
+
+  try {
+    let d: Date | null = null;
+
+    if (valor instanceof Date) {
+      d = valor;
+    } else if (typeof valor === 'number') {
+      d = new Date(valor);
+    } else if (typeof valor === 'string') {
+      const s = valor.trim();
+      if (!s || s === '-' || s.toLowerCase() === 'invalid date') return '';
+
+      // Trata formato brasileiro: DD/MM/YYYY ou DD/MM/YYYY HH:mm ou DD/MM/YYYY HH:mm:ss
+      const matchBr = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+      if (matchBr) {
+        const dia = parseInt(matchBr[1], 10);
+        const mes = parseInt(matchBr[2], 10) - 1;
+        const ano = parseInt(matchBr[3], 10);
+        const hora = matchBr[4] ? parseInt(matchBr[4], 10) : 0;
+        const min = matchBr[5] ? parseInt(matchBr[5], 10) : 0;
+        const seg = matchBr[6] ? parseInt(matchBr[6], 10) : 0;
+        d = new Date(ano, mes, dia, hora, min, seg);
+      } else {
+        d = new Date(s);
+      }
+    }
+
+    if (!d || isNaN(d.getTime())) return '';
+
+    return d.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch {
+    return '';
+  }
+}
+
 async function consultarMelhorRastreioGraphQL(codigoRastreio: string) {
   try {
     const mrQuery = {
@@ -177,7 +225,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
             const rawEvents = Array.isArray(parcel.trackingEvents) ? parcel.trackingEvents : [];
             const evs = rawEvents.map((ev: any) => ({
               data: ev.createdAt,
-              data_formatada: new Date(ev.createdAt).toLocaleString('pt-BR'),
+              data_formatada: formatarDataRastreioDefensiva(ev.createdAt),
               titulo: ev.title || ev.status,
               descricao: ev.description,
               local: ev.location ? `${ev.location.city || ''} - ${ev.location.state || ''}`.trim() : '',
@@ -807,16 +855,15 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
                       >
                         {etapa.titulo}
                       </span>
-                      {etapa.data && (
-                        <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                          {new Date(etapa.data).toLocaleString('pt-BR', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </span>
-                      )}
+                      {concluido && (() => {
+                        const dataStr = formatarDataRastreioDefensiva(etapa.data);
+                        if (!dataStr) return null;
+                        return (
+                          <span className={`text-[11px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                            {dataStr}
+                          </span>
+                        );
+                      })()}
                     </div>
                     <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
                       {etapa.descricao}
@@ -878,7 +925,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
                         <span className={`font-bold ${isDark ? 'text-white' : 'text-black'}`}>{ev.titulo || ev.tipo}</span>
                       </span>
                       <span className={`text-[11px] shrink-0 font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                        {ev.data_formatada || (ev.data ? new Date(ev.data).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '')}
+                        {formatarDataRastreioDefensiva(ev.data_formatada || ev.data || ev.criado_em || ev.createdAt)}
                       </span>
                     </div>
                     {ev.local && (

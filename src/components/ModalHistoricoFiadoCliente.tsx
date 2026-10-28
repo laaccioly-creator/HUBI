@@ -514,37 +514,37 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[70] animate-in fade-in">
-      <div className={`rounded-3xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 ${
-        isDark ? 'bg-[#08131A] border-2 border-slate-400 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
+      <div className={`rounded-3xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border animate-in zoom-in-95 duration-150 ${
+        isDark ? 'bg-[#0b131e] border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
       }`}>
         
         {/* Cabeçalho */}
-        <div className={`p-4 sm:p-5 border-b flex items-center justify-between ${
-          isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-100 border-slate-300'
+        <div className={`p-4 sm:p-5 border-b flex items-center justify-between shrink-0 ${
+          isDark ? 'bg-[#0b131e] border-slate-800' : 'bg-white border-slate-100'
         }`}>
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
-              isDark ? 'bg-[#000000] border border-amber-500/50 text-amber-400' : 'bg-white border-2 border-amber-300 text-amber-700'
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 border ${
+              isDark ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' : 'bg-amber-50 border-amber-200 text-amber-600'
             }`}>
               <FileText className="w-5 h-5" />
             </div>
             <div>
-              <h3 className={`font-black text-base leading-tight ${isDark ? 'text-white' : 'text-black'}`}>
+              <h3 className={`font-bold text-base leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 {filtroStatus === 'vencidos'
                   ? 'Compras Fiado Vencidas'
                   : filtroStatus === 'a_vencer'
                   ? 'Compras Fiado a Vencer'
                   : 'Histórico de Compras Fiado'}
               </h3>
-              <p className={`text-xs mt-0.5 ${isDark ? 'text-white' : 'text-black font-semibold'}`}>
-                Cliente: <span className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>{cliente.nome}</span>
+              <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                Cliente: <span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{cliente.nome}</span>
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer shadow-xs"
+            className="p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-white transition cursor-pointer"
             title="Fechar"
           >
             <X className="w-5 h-5" />
@@ -552,27 +552,31 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
         </div>
 
         {/* Resumo do Cliente (Saldo Devedor e Limite de Crédito) */}
-        <div className={`p-4 sm:p-5 border-b grid grid-cols-2 gap-3 ${
-          isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-100 border-slate-300'
+        <div className={`p-4 sm:p-5 border-b grid grid-cols-2 gap-3 shrink-0 ${
+          isDark ? 'bg-[#0b131e] border-slate-800' : 'bg-white border-slate-100'
         }`}>
-          <div className={`p-3.5 rounded-2xl space-y-1 shadow-xs ${
-            isDark ? 'bg-[#000000] border border-amber-500/50' : 'bg-white border-2 border-amber-300'
+          <div className={`p-4 rounded-2xl space-y-1 border shadow-xs transition ${
+            isDark ? 'bg-amber-950/20 border-amber-900/40' : 'bg-amber-50/50 border-amber-200/80'
           }`}>
-            <span className={`text-xs font-black block ${isDark ? 'text-amber-400' : 'text-amber-900'}`}>Total Fiado (Saldo Devedor)</span>
-            <span className={`text-xl sm:text-2xl font-black block ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
+            <span className={`text-xs font-semibold block ${isDark ? 'text-amber-400/90' : 'text-amber-800'}`}>
+              Total Fiado (Saldo Devedor)
+            </span>
+            <span className={`text-xl sm:text-2xl font-black block tracking-tight ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
               R$ {Number(cliente.saldo_devedor_fiado || 0).toFixed(2)}
             </span>
-            <span className={`text-[11px] font-bold block ${isDark ? 'text-white' : 'text-black'}`}>
+            <span className={`text-[11px] font-medium block ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
               {pedidosFiltrados.length} {pedidosFiltrados.length === 1 ? 'compra listada' : 'compras listadas'}
             </span>
           </div>
 
-          <div className={`p-3.5 rounded-2xl space-y-1 flex flex-col justify-between shadow-xs ${
-            isDark ? 'bg-[#000000] border border-emerald-500/50' : 'bg-white border-2 border-emerald-300'
+          <div className={`p-4 rounded-2xl space-y-1 flex flex-col justify-between border shadow-xs transition ${
+            isDark ? 'bg-emerald-950/20 border-emerald-900/40' : 'bg-emerald-50/50 border-emerald-200/80'
           }`}>
             <div>
-              <span className={`text-xs font-black block ${isDark ? 'text-emerald-400' : 'text-emerald-900'}`}>Limite de Crédito Disponível</span>
-              <span className={`text-xl sm:text-2xl font-black block ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+              <span className={`text-xs font-semibold block ${isDark ? 'text-emerald-400/90' : 'text-emerald-800'}`}>
+                Limite de Crédito Disponível
+              </span>
+              <span className={`text-xl sm:text-2xl font-black block tracking-tight ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
                 R$ {Number(cliente.limite_credito || 0).toFixed(2)}
               </span>
             </div>
@@ -580,7 +584,7 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
               <button
                 type="button"
                 onClick={handleAbrirReceberTotalCliente}
-                className="w-full mt-2 py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5 border border-emerald-500"
+                className="w-full mt-2 py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
               >
                 <DollarSign className="w-3.5 h-3.5" />
                 <span>Receber Total</span>
@@ -589,54 +593,64 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
           </div>
         </div>
 
-        {/* Filtros rápidos: Todas | A Vencer | Vencidas */}
-        <div className={`px-4 sm:px-5 py-2.5 border-b flex items-center gap-2 shrink-0 ${
-          isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-100 border-slate-300'
+        {/* Filtros rápidos segmentados: Todas | A Vencer | Vencidas */}
+        <div className={`px-4 sm:px-5 py-3 border-b flex items-center shrink-0 ${
+          isDark ? 'bg-[#0b131e] border-slate-800' : 'bg-white border-slate-100'
         }`}>
-          <button
-            type="button"
-            onClick={() => setFiltroStatus('todos')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
-              filtroStatus === 'todos'
-                ? 'bg-emerald-600 text-white shadow-xs border border-emerald-500'
-                : isDark
-                ? 'bg-[#000000] text-white border border-slate-700 hover:border-slate-500'
-                : 'bg-white text-black border-2 border-slate-300 hover:border-slate-400'
-            }`}
-          >
-            Todas ({pedidos.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setFiltroStatus('a_vencer')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
-              filtroStatus === 'a_vencer'
-                ? 'bg-amber-600 text-white shadow-xs border border-amber-500'
-                : isDark
-                ? 'bg-[#000000] text-amber-400 border border-slate-700 hover:border-amber-500'
-                : 'bg-white text-amber-900 border-2 border-slate-300 hover:border-amber-400'
-            }`}
-          >
-            A Vencer ({pedidosAVencer.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setFiltroStatus('vencidos')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
-              filtroStatus === 'vencidos'
-                ? 'bg-rose-600 text-white shadow-xs border border-rose-500'
-                : isDark
-                ? 'bg-[#000000] text-rose-400 border border-slate-700 hover:border-rose-500'
-                : 'bg-white text-rose-900 border-2 border-slate-300 hover:border-rose-400'
-            }`}
-          >
-            Vencidas ({pedidosVencidos.length})
-          </button>
+          <div className={`p-1 rounded-xl inline-flex gap-1 border ${
+            isDark ? 'bg-slate-800/80 border-slate-700/60' : 'bg-slate-100 border-slate-200/80'
+          }`}>
+            <button
+              type="button"
+              onClick={() => setFiltroStatus('todos')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                filtroStatus === 'todos'
+                  ? isDark
+                    ? 'bg-slate-700 text-white shadow-xs'
+                    : 'bg-white text-slate-900 shadow-xs'
+                  : isDark
+                  ? 'text-slate-400 hover:text-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Todas ({pedidos.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFiltroStatus('a_vencer')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                filtroStatus === 'a_vencer'
+                  ? isDark
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'bg-white text-amber-700 shadow-xs'
+                  : isDark
+                  ? 'text-slate-400 hover:text-amber-300'
+                  : 'text-slate-600 hover:text-amber-800'
+              }`}
+            >
+              A Vencer ({pedidosAVencer.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFiltroStatus('vencidos')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                filtroStatus === 'vencidos'
+                  ? isDark
+                    ? 'bg-rose-600 text-white shadow-xs'
+                    : 'bg-white text-rose-700 shadow-xs'
+                  : isDark
+                  ? 'text-slate-400 hover:text-rose-300'
+                  : 'text-slate-600 hover:text-rose-800'
+              }`}
+            >
+              Vencidas ({pedidosVencidos.length})
+            </button>
+          </div>
         </div>
 
         {/* Lista de Compras / Pedidos de Fiado */}
-        <div className={`flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5 ${
-          isDark ? 'bg-[#08131A]' : 'bg-slate-100'
+        <div className={`flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5 custom-scrollbar ${
+          isDark ? 'bg-[#080d14]' : 'bg-slate-50/50'
         }`}>
           {carregando ? (
             <div className="py-16 text-center space-y-2">
@@ -672,17 +686,17 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
               return (
                 <div
                   key={pedido.id}
-                  className={`rounded-2xl p-4 space-y-3 transition shadow-xs ${
+                  className={`rounded-2xl p-4 space-y-3 transition border shadow-xs ${
                     isDark
-                      ? 'bg-[#000000] border border-slate-700 hover:border-slate-500'
-                      : 'bg-white border-2 border-slate-300 hover:border-slate-400'
+                      ? 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
+                      : 'bg-white border-slate-200/90 hover:border-slate-300'
                   }`}
                 >
                   {/* Topo do Pedido */}
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>
+                        <span className={`font-black text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>
                           Pedido #{pedido.numero_pedido || pedido.id.slice(0, 8)}
                         </span>
                         {/* Vencimento com destaque se vencido */}
@@ -691,18 +705,18 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
                             ⚠️ VENCIDO ({infoVenc.formatada})
                           </span>
                         ) : (
-                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                             isDark
-                              ? 'bg-amber-950/60 text-amber-400 border border-amber-600/50'
-                              : 'bg-amber-100 text-amber-900 border-2 border-amber-300'
+                              ? 'bg-amber-950/40 text-amber-400 border border-amber-600/40'
+                              : 'bg-amber-50 text-amber-800 border border-amber-200'
                           }`}>
                             Vence em: {infoVenc.formatada}
                           </span>
                         )}
                       </div>
-                      <div className={`flex items-center gap-3 text-xs mt-1 ${isDark ? 'text-white font-semibold' : 'text-black font-semibold'}`}>
+                      <div className={`flex items-center gap-3 text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                         <span className="flex items-center gap-1">
-                          <Calendar className={`w-3.5 h-3.5 ${isDark ? 'text-white' : 'text-black'}`} />
+                          <Calendar className="w-3.5 h-3.5" />
                           Compra: {formatarData(pedido.data_venda)}
                         </span>
                       </div>
@@ -712,7 +726,7 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
                     <button
                       type="button"
                       onClick={() => handleAbrirReceberPedido(pedido)}
-                      className="py-2 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-xs flex items-center gap-1.5 transition cursor-pointer active:scale-95 border border-emerald-500"
+                      className="py-2 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 transition cursor-pointer active:scale-95"
                     >
                       <DollarSign className="w-4 h-4" />
                       <span>Receber</span>
@@ -720,23 +734,23 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
                   </div>
 
                   {/* Valores */}
-                  <div className={`grid grid-cols-3 gap-2 py-2.5 px-3 rounded-xl text-center ${
-                    isDark ? 'bg-[#08131A] border border-slate-700' : 'bg-slate-100 border-2 border-slate-300'
+                  <div className={`grid grid-cols-3 gap-2 py-2.5 px-3 rounded-xl text-center border ${
+                    isDark ? 'bg-slate-950/60 border-slate-800/80' : 'bg-slate-50 border-slate-200/70'
                   }`}>
                     <div>
-                      <span className={`text-[10px] block font-bold ${isDark ? 'text-white' : 'text-black'}`}>Total Compra</span>
-                      <span className={`text-xs font-black ${isDark ? 'text-white' : 'text-black'}`}>
+                      <span className={`text-[10px] block font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Total Compra</span>
+                      <span className={`text-xs font-black ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
                         R$ {Number(pedido.valor_total).toFixed(2)}
                       </span>
                     </div>
                     <div>
-                      <span className={`text-[10px] block font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-900'}`}>Valor Pago</span>
+                      <span className={`text-[10px] block font-semibold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>Valor Pago</span>
                       <span className={`text-xs font-black ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
                         R$ {Number(pedido.valor_pago || 0).toFixed(2)}
                       </span>
                     </div>
                     <div>
-                      <span className={`text-[10px] block font-black ${isDark ? 'text-amber-400' : 'text-amber-900'}`}>Valor Fiado</span>
+                      <span className={`text-[10px] block font-semibold ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>Valor Fiado</span>
                       <span className={`text-xs font-black ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
                         R$ {saldoPed.toFixed(2)}
                       </span>
@@ -750,35 +764,35 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
                         type="button"
                         onClick={() => alternarExpansaoItens(pedido.id)}
                         className={`w-full flex items-center justify-between text-xs font-bold transition py-1 cursor-pointer ${
-                          isDark ? 'text-white hover:text-white' : 'text-black hover:text-black'
+                          isDark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
                         <span className="flex items-center gap-1.5">
-                          <Package className={`w-3.5 h-3.5 ${isDark ? 'text-white' : 'text-black'}`} />
+                          <Package className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
                           <span>{pedido.itens.length} {pedido.itens.length === 1 ? 'produto nesta compra' : 'produtos nesta compra'}</span>
                         </span>
                         {expandido ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                       </button>
 
                       {expandido && (
-                        <div className={`mt-2 divide-y rounded-xl p-2.5 space-y-1.5 ${
+                        <div className={`mt-2 divide-y rounded-xl p-2.5 space-y-1.5 border ${
                           isDark
-                            ? 'bg-[#08131A] border border-slate-700 divide-slate-800'
-                            : 'bg-slate-100 border-2 border-slate-300 divide-slate-200'
+                            ? 'bg-slate-950/80 border-slate-800 divide-slate-800/60'
+                            : 'bg-slate-50 border-slate-200/70 divide-slate-200/60'
                         }`}>
                           {pedido.itens.map((item: any, itIdx: number) => (
-                            <div key={item.id || itIdx} className="flex items-center justify-between text-xs pt-1.5 first:pt-0">
-                              <div>
-                                <span className={`font-bold block ${isDark ? 'text-white' : 'text-black'}`}>
+                            <div key={item.id || itIdx} className="flex items-center justify-between gap-3 text-xs pt-1.5 first:pt-0">
+                              <div className="truncate min-w-0 flex-1" title={item.nome_produto}>
+                                <span className={`font-bold block truncate ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
                                   {item.quantidade}x {item.nome_produto}
                                 </span>
                                 {item.rotulo_variacao && (
-                                  <span className={`text-[10px] block font-medium ${isDark ? 'text-white' : 'text-black'}`}>
+                                  <span className={`text-[10px] block font-medium truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                                     Var: {item.rotulo_variacao}
                                   </span>
                                 )}
                               </div>
-                              <span className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>
+                              <span className={`font-black shrink-0 text-right ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
                                 R$ {Number(item.subtotal || item.quantidade * item.preco_venda_unitario).toFixed(2)}
                               </span>
                             </div>
@@ -794,16 +808,16 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
         </div>
 
         {/* Rodapé */}
-        <div className={`p-4 border-t flex justify-end ${
-          isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-100 border-slate-300'
+        <div className={`p-4 border-t flex justify-end shrink-0 ${
+          isDark ? 'bg-[#0b131e] border-slate-800' : 'bg-white border-slate-100'
         }`}>
           <button
             type="button"
             onClick={onClose}
-            className={`py-2.5 px-5 rounded-xl font-bold text-xs transition cursor-pointer ${
+            className={`py-2.5 px-5 rounded-xl font-bold text-xs transition cursor-pointer border ${
               isDark
-                ? 'bg-[#000000] text-white border border-slate-700 hover:bg-slate-900'
-                : 'bg-white text-black border-2 border-slate-300 hover:bg-slate-50'
+                ? 'bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700'
+                : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
             }`}
           >
             Fechar
@@ -816,17 +830,17 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
       {/* ========================================================================= */}
       {modalReceberAberto && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[80] animate-in fade-in">
-          <div className={`rounded-3xl w-full max-w-xl sm:max-w-2xl p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto ${
-            isDark ? 'bg-[#08131A] border-2 border-slate-400 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
+          <div className={`rounded-3xl w-full max-w-xl sm:max-w-2xl p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto border ${
+            isDark ? 'bg-[#0b131e] border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
           }`}>
             <div className={`flex items-center justify-between border-b pb-3 ${
-              isDark ? 'border-slate-700' : 'border-slate-300'
+              isDark ? 'border-slate-800' : 'border-slate-100'
             }`}>
-              <h3 className={`font-black text-base flex items-center gap-2 ${
-                isDark ? 'text-white' : 'text-black'
+              <h3 className={`font-bold text-base flex items-center gap-2 ${
+                isDark ? 'text-white' : 'text-slate-900'
               }`}>
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                  isDark ? 'bg-[#000000] border border-emerald-500/50 text-emerald-400' : 'bg-white border-2 border-emerald-300 text-emerald-700'
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${
+                  isDark ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-emerald-50 border-emerald-200 text-emerald-600'
                 }`}>
                   <CreditCard className="w-4 h-4" />
                 </div>
@@ -835,7 +849,7 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
               <button
                 type="button"
                 onClick={() => setModalReceberAberto(false)}
-                className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer shadow-xs"
+                className="p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-white transition cursor-pointer"
                 title="Fechar"
               >
                 <X className="w-5 h-5" />
@@ -843,8 +857,8 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
             </div>
 
             {/* Informações do Recebimento */}
-            <div className={`p-3.5 rounded-2xl text-center space-y-1 shadow-xs ${
-              isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
+            <div className={`p-4 rounded-2xl text-center space-y-1 border shadow-xs ${
+              isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200'
             }`}>
               <span className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-black'}`}>
                 {pedidoSelecionadoReceber
