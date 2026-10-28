@@ -59,8 +59,9 @@ import { ShippingFulfillmentSelector } from './shipping/ShippingFulfillmentSelec
 import { ModalAtualizarEnderecoCliente } from './shipping/ModalAtualizarEnderecoCliente';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import { ShippingSelectionResult, LojaShippingConfig } from '../types/shipping';
-import { extrairObservacaoLimpa, formatarMoeda, formatarValorBRL, ehProdutoFracionado, formatarQuantidadeUnidade, obterSiglaUnidade, formatarLinhaCalculoItem } from '../utils/formatters';
+import { extrairObservacaoLimpa, formatarMoeda, formatarValorBRL, ehProdutoFracionado, obterSiglaUnidade, formatarLinhaCalculoItem } from '../utils/formatters';
 import { ModalInputPesoFracionado } from './ui/ModalInputPesoFracionado';
+import { InputQuantidadeCarrinho } from './ui/InputQuantidadeCarrinho';
 import { caixaService } from '../services/caixaService';
 import { SyncService } from '../services/syncService';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
@@ -2817,17 +2818,19 @@ export const PosCheckout: React.FC = () => {
                         >
                           <Minus className="w-3.5 h-3.5" />
                         </button>
-                        <span
-                          onClick={() => {
-                            if (ehProdutoFracionado(item.produto)) {
+                        <InputQuantidadeCarrinho
+                          quantidade={item.quantidade}
+                          ehFracionado={ehProdutoFracionado(item.produto)}
+                          disabled={isEdicaoTravada}
+                          isDark={isDark}
+                          onChangeQtd={(novaQtd) => atualizarQuantidade(item.id, novaQtd)}
+                          onDoubleClick={() => {
+                            if (ehProdutoFracionado(item.produto) && !isEdicaoTravada) {
                               setItemPesagemModal({ produto: item.produto, variacao: item.variacao, quantidadeAtual: item.quantidade, cartId: item.id });
                             }
                           }}
-                          title={ehProdutoFracionado(item.produto) ? "Clique para informar o peso (kg)" : undefined}
-                          className={`px-2 text-xs font-bold ${ehProdutoFracionado(item.produto) ? 'cursor-pointer hover:text-emerald-400 underline decoration-dotted' : ''} ${isDark ? 'text-slate-100' : 'text-slate-900'}`}
-                        >
-                          {formatarQuantidadeUnidade(item.quantidade, obterSiglaUnidade(item.produto))}
-                        </span>
+                          title={ehProdutoFracionado(item.produto) ? "Digite a quantidade/peso ou dê duplo clique para abrir a balança" : "Digite a quantidade"}
+                        />
                         <button
                           onClick={() => {
                             if (isEdicaoTravada) return;

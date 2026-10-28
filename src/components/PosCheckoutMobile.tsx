@@ -61,8 +61,9 @@ import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { MobileHeader } from './layout/MobileHeader';
 import { getCategoriaPeso } from './PosCheckout';
 import { audioService } from '../services/audioService';
-import { formatarMoeda, ehProdutoFracionado, formatarQuantidadeUnidade, obterSiglaUnidade, formatarLinhaCalculoItem } from '../utils/formatters';
+import { formatarMoeda, ehProdutoFracionado, obterSiglaUnidade, formatarLinhaCalculoItem } from '../utils/formatters';
 import { ModalInputPesoFracionado } from './ui/ModalInputPesoFracionado';
+import { InputQuantidadeCarrinho } from './ui/InputQuantidadeCarrinho';
 import { podeEditarPedido } from '../utils/statusPedidoUtils';
 import { obterRegrasPrecificacao } from '../services/pricingEngine';
 
@@ -1257,7 +1258,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                       }`}
                       title="Quantidade bloqueada para pedidos já confirmados"
                     >
-                      {formatarQuantidadeUnidade(it.quantidade, obterSiglaUnidade(it.produto))}
+                      {it.quantidade}
                     </div>
                   ) : (
                     <div className={`flex items-center gap-1 p-1 rounded-xl shrink-0 ${
@@ -1280,16 +1281,19 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                       >
                         <Minus className="w-3 h-3" />
                       </button>
-                      <span
-                        onClick={() => {
+                      <InputQuantidadeCarrinho
+                        quantidade={it.quantidade}
+                        ehFracionado={ehProdutoFracionado(it.produto)}
+                        isDark={isDark}
+                        className="w-10 sm:w-12 text-xs font-black"
+                        onChangeQtd={(novaQtd) => atualizarQuantidade(it.id, novaQtd)}
+                        onDoubleClick={() => {
                           if (ehProdutoFracionado(it.produto)) {
                             setItemPesagemModal({ produto: it.produto, variacao: it.variacao, quantidadeAtual: it.quantidade, cartId: it.id });
                           }
                         }}
-                        className={`px-1 text-center text-xs font-black ${ehProdutoFracionado(it.produto) ? 'cursor-pointer underline decoration-dotted text-emerald-500' : isDark ? 'text-white' : 'text-black'}`}
-                      >
-                        {formatarQuantidadeUnidade(it.quantidade, obterSiglaUnidade(it.produto))}
-                      </span>
+                        title={ehProdutoFracionado(it.produto) ? "Digite o peso (kg) ou dê duplo toque para abrir a balança" : "Digite a quantidade"}
+                      />
                       <button
                         type="button"
                         onClick={() => {
