@@ -207,9 +207,18 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
   const [telefone2IsWhatsapp, setTelefone2IsWhatsapp] = useState(false);
 
   // Fiado e Tabela de Preço
-  const [permiteFiado, setPermiteFiado] = useState(permissions.podeAtivarFiado);
+  const cadernetaAtivaLoja = Boolean(
+    loja?.caderneta_ativa ??
+    loja?.configuracoes_extras?.pagamentos?.caderneta_ativa
+  );
+
+  const fiadoAtivoLoja = !cadernetaAtivaLoja && (
+    (loja?.configuracoes_extras?.pagamentos?.permitir_fiado ?? true) !== false
+  );
+
+  const [permiteFiado, setPermiteFiado] = useState(fiadoAtivoLoja && permissions.podeAtivarFiado);
   const [limiteCredito, setLimiteCredito] = useState('500,00');
-  const [permiteCaderneta, setPermiteCaderneta] = useState(false);
+  const [permiteCaderneta, setPermiteCaderneta] = useState(cadernetaAtivaLoja);
   const [limiteCaderneta, setLimiteCaderneta] = useState('500,00');
   const [diaVencimentoCaderneta, setDiaVencimentoCaderneta] = useState<number>(Number(loja?.dia_vencimento_padrao_caderneta || 10));
   const [tabelaPreco, setTabelaPreco] = useState<TabelaPreco>('varejo');
@@ -255,9 +264,9 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
         const tel1Whats = clienteEditar.telefone_is_whatsapp ?? true;
         const tel2 = clienteEditar.telefone2 || '';
         const tel2Whats = clienteEditar.telefone2_is_whatsapp ?? false;
-        const fiado = clienteEditar.permite_fiado ?? permissions.podeAtivarFiado;
+        const fiado = fiadoAtivoLoja ? (clienteEditar.permite_fiado ?? permissions.podeAtivarFiado) : false;
         const lim = formatarValorBRL(clienteEditar.limite_credito ?? 500);
-        const cad = Boolean(clienteEditar.permite_caderneta);
+        const cad = cadernetaAtivaLoja ? Boolean(clienteEditar.permite_caderneta) : false;
         const limCad = formatarValorBRL(clienteEditar.limite_caderneta ?? 500);
         const diaCad = Number(clienteEditar.dia_vencimento_caderneta || loja?.dia_vencimento_padrao_caderneta || 10);
         const tab = clienteEditar.tabela_preco_padrao || 'varejo';
@@ -355,9 +364,9 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
         setTelefone1IsWhatsapp(true);
         setTelefone2('');
         setTelefone2IsWhatsapp(false);
-        setPermiteFiado(permissions.podeAtivarFiado);
-        setLimiteCredito(permissions.podeAtivarFiado ? '500,00' : '0,00');
-        setPermiteCaderneta(false);
+        setPermiteFiado(fiadoAtivoLoja && permissions.podeAtivarFiado);
+        setLimiteCredito(fiadoAtivoLoja && permissions.podeAtivarFiado ? '500,00' : '0,00');
+        setPermiteCaderneta(cadernetaAtivaLoja);
         setLimiteCaderneta('500,00');
         setDiaVencimentoCaderneta(Number(loja?.dia_vencimento_padrao_caderneta || 10));
         setTabelaPreco('varejo');
@@ -380,8 +389,8 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
           telefone1IsWhatsapp: true,
           telefone2: '',
           telefone2IsWhatsapp: false,
-          permiteFiado: permissions.podeAtivarFiado,
-          limiteCredito: permissions.podeAtivarFiado ? '500,00' : '0,00',
+          permiteFiado: fiadoAtivoLoja && permissions.podeAtivarFiado,
+          limiteCredito: fiadoAtivoLoja && permissions.podeAtivarFiado ? '500,00' : '0,00',
           tabelaPreco: 'varejo',
           cep: '',
           rua: '',
@@ -658,13 +667,13 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
       telefone_is_whatsapp: telefone1IsWhatsapp,
       telefone2_is_whatsapp: telefone2IsWhatsapp,
       whatsapp: whatsappPrincipal || null,
-      permite_fiado: permiteFiado,
-      limite_credito: limiteCreditoNum,
+      permite_fiado: fiadoAtivoLoja ? permiteFiado : false,
+      limite_credito: fiadoAtivoLoja && permiteFiado ? limiteCreditoNum : 0,
       saldo_devedor_fiado: clienteEditar ? (Number(clienteEditar.saldo_devedor_fiado) || 0) : 0,
-      permite_caderneta: permiteCaderneta,
-      limite_caderneta: permiteCaderneta ? (parseFloat(String(limiteCaderneta || '').trim().replace(/\./g, '').replace(',', '.')) || 0) : 0,
+      permite_caderneta: cadernetaAtivaLoja ? permiteCaderneta : false,
+      limite_caderneta: cadernetaAtivaLoja && permiteCaderneta ? (parseFloat(String(limiteCaderneta || '').trim().replace(/\./g, '').replace(',', '.')) || 0) : 0,
       saldo_devedor_caderneta: clienteEditar ? (Number(clienteEditar.saldo_devedor_caderneta) || 0) : 0,
-      dia_vencimento_caderneta: permiteCaderneta ? diaVencimentoCaderneta : null,
+      dia_vencimento_caderneta: cadernetaAtivaLoja && permiteCaderneta ? diaVencimentoCaderneta : null,
       tabela_preco_padrao: tabelaPreco,
       observacoes: observacoes.trim() || null,
       endereco_cep: cep.trim() || null,
@@ -1071,7 +1080,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
               isDark ? 'text-emerald-400' : 'text-emerald-700'
             }`}>
               <DollarSign className="w-3.5 h-3.5" />
-              <span>3. Controle de Fiado & Tabela de Preço</span>
+              <span>3. {cadernetaAtivaLoja ? 'Caderneta & Tabela de Preço' : fiadoAtivoLoja ? 'Controle de Fiado & Tabela de Preço' : 'Tabela de Preço'}</span>
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -1093,8 +1102,8 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                 </select>
               </div>
 
-              {/* Indicador se Permite Fiado (Apenas se autorizado a ativar fiado) */}
-              {permissions.podeAtivarFiado && (
+              {/* Indicador se Permite Fiado (Apenas se autorizado e fiado ativo na loja) */}
+              {fiadoAtivoLoja && permissions.podeAtivarFiado && (
                 <>
                   <div className={`sm:col-span-2 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs border ${
                     isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
@@ -1183,10 +1192,13 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                       </div>
                     </div>
                   )}
-                  {/* CADERNETA DE MERCADINHO (CASO HABILITADA NA LOJA) */}
-                  {Boolean(loja?.caderneta_ativa) && (
-                    <>
-                      <div className={`sm:col-span-2 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs border ${
+                </>
+              )}
+
+              {/* CADERNETA DE MERCADINHO (CASO HABILITADA NA LOJA) */}
+              {cadernetaAtivaLoja && (
+                <>
+                  <div className={`sm:col-span-2 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs border ${
                         isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
                       }`}>
                         <div className="flex items-center gap-3">
@@ -1293,9 +1305,6 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                       )}
                     </>
                   )}
-
-                </>
-              )}
             </div>
           </div>
 

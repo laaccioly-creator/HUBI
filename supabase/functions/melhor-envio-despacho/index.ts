@@ -81,6 +81,9 @@ function limparTelefone(tel?: string | null): string {
   return t.length >= 10 ? t : "11999999999";
 }
 
+// Cache de dados do titular do Melhor Envio em memória do runtime serverless
+const meUserCacheMap = new Map<string, { data: any; expiresAt: number }>();
+
 function extrairCepDeTexto(texto?: string | null): string {
   if (!texto) return "";
   const match = String(texto).match(/\b(\d{5})[-.\s]?(\d{3})\b/);
@@ -242,15 +245,23 @@ serve(async (req: Request) => {
       "User-Agent": "HUBI Sistema (suporte@hubi.app)",
     };
 
-    // Consulta perfil do titular no Melhor Envio para harmonizar regras de PF/PJ
+    // Consulta perfil do titular no Melhor Envio com cache em memória (otimização de despacho)
     let meUser: any = null;
-    try {
-      const meRes = await fetch(`${baseUrl}/api/v2/me`, { headers: headersComuns });
-      if (meRes.ok) {
-        meUser = await meRes.json();
+    const cacheKeyMe = `${token.slice(-10)}:${isSandbox ? "sandbox" : "prod"}`;
+    const agoraMs = Date.now();
+    const meUserCached = meUserCacheMap.get(cacheKeyMe);
+    if (meUserCached && meUserCached.expiresAt > agoraMs) {
+      meUser = meUserCached.data;
+    } else {
+      try {
+        const meRes = await fetch(`${baseUrl}/api/v2/me`, { headers: headersComuns });
+        if (meRes.ok) {
+          meUser = await meRes.json();
+          meUserCacheMap.set(cacheKeyMe, { data: meUser, expiresAt: agoraMs + 600000 });
+        }
+      } catch (eMe) {
+        console.warn("[MelhorEnvio-Edge] Falha ao consultar /api/v2/me:", eMe);
       }
-    } catch (eMe) {
-      console.warn("[MelhorEnvio-Edge] Falha ao consultar /api/v2/me:", eMe);
     }
 
     // -------------------------------------------------------------------------
@@ -1770,17 +1781,12 @@ serve(async (req: Request) => {
         codigo_rastreio: String(codigoRastreio || ""),
         debug_cart: cartData,
         debug_checkout: checkoutData,
-        debug_generate: generateData,
-        debug_print: debugPrint,
         motivo_real_api: {
           status_cart: resCart.status,
           retorno_cart: cartData,
           status_checkout: resCheckout.status,
           retorno_checkout: checkoutData,
-          status_generate: resGenerate.status,
-          retorno_generate: generateData
         },
-        mensagem_geracao: generateMensagem || undefined,
         link_etiqueta: linkEtiqueta,
         link_rastreio: linkRastreioOficial,
         status_melhor_envio: statusOrdemME || "criado",

@@ -3885,17 +3885,24 @@ export const PosCheckout: React.FC = () => {
             setFreteConfirmado(true);
             const valFrete = Number(resultado.valor_frete ?? resultado.opcao_frete?.valor_frete ?? resultado.pedido_entrega?.valor_frete ?? 0);
             setTaxaEntrega(valFrete);
+            const provedorResolvido =
+              resultado.opcao_frete?.provedor ||
+              resultado.pedido_entrega?.provedor ||
+              ((resultado.opcao_frete?.transportadora_nome || '').toLowerCase().includes('uber') ? 'uber' : 'melhor_envio');
+
             if (resultado.pedido_entrega) {
               setPedidoEntrega({
                 ...resultado.pedido_entrega,
+                provedor: provedorResolvido,
                 valor_frete: valFrete
               } as PedidoEntrega);
             } else {
               setPedidoEntrega({
                 ...(pedidoEntrega || FORMA_ENTREGA_RETIRADA_PADRAO),
                 tipo_atendimento: 'entrega',
+                provedor: provedorResolvido,
                 valor_frete: valFrete,
-                transportadora_nome: resultado.opcao_frete?.transportadora_nome || 'Envio Definido',
+                transportadora_nome: resultado.opcao_frete?.transportadora_nome || 'Melhor Envio',
                 servico_codigo: resultado.opcao_frete?.servico_codigo || 'entrega_definida'
               });
             }

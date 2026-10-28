@@ -566,12 +566,20 @@ export const PedidosLista: React.FC = () => {
     let prov: 'uber' | 'melhor_envio' | 'frete_proprio' | 'retirada_loja' = 'frete_proprio';
     let provNome = 'Frete Próprio / Entrega Local';
 
+    const temTransportadoraManualCadastrada = Boolean(pe?.transportadora_id);
+
     const ehMelhorEnvio =
       peProvedor === 'melhor_envio' ||
       metaProvedor === 'melhor_envio' ||
       diretoProvedor === 'melhor_envio' ||
       textoConsolidado.includes('melhor envio') ||
-      textoConsolidado.includes('melhorenvio');
+      textoConsolidado.includes('melhorenvio') ||
+      Boolean(meta.melhor_envio_order_id) ||
+      (!temTransportadoraManualCadastrada && (
+        textoConsolidado.includes('jadlog') ||
+        textoConsolidado.includes('.package') ||
+        textoConsolidado.includes('.com')
+      ));
 
     const nomeApp = (pedido as any)?.nome_app || pe?.nome_app || (pedido as any)?.metadados?.nome_app;
     const ehUber =
@@ -597,13 +605,10 @@ export const PedidosLista: React.FC = () => {
     const ehTransportadoraPrivada =
       !ehMelhorEnvio &&
       !ehUber &&
-      (pe?.tipo_operacao === 'transportadora' ||
-      (pedido as any)?.tipo_operacao === 'transportadora' ||
-      Boolean(pe?.transportadora_id) ||
-      peTransp.toLowerCase().includes('jadlog') ||
-      metaTransp.toLowerCase().includes('jadlog') ||
-      diretoTransp.toLowerCase().includes('jadlog') ||
-      ((peTransp.toLowerCase().includes('transportadora') || metaTransp.toLowerCase().includes('transportadora') || diretoTransp.toLowerCase().includes('transportadora')) && !textoConsolidado.includes('correios')));
+      (temTransportadoraManualCadastrada ||
+      ((pe?.tipo_operacao === 'transportadora' || (pedido as any)?.tipo_operacao === 'transportadora') &&
+       (peTransp.toLowerCase().includes('transportadora') || metaTransp.toLowerCase().includes('transportadora') || diretoTransp.toLowerCase().includes('transportadora')) &&
+       !textoConsolidado.includes('correios')));
 
     const servicoCorreios =
       (pedido as any)?.servico_correios ||
@@ -1561,7 +1566,17 @@ export const PedidosLista: React.FC = () => {
     const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
     const linkEtq = (pe?.link_etiqueta || (ped as any).link_etiqueta || (ped as any).metadados?.link_etiqueta || '').trim();
 
-    if (ehUrlEtiquetaValida(linkEtq) && !linkEtq.includes('amazonaws.com') && !linkEtq.includes('s3.')) {
+    // Se já tivermos um PDF público persistido no Supabase Storage ou blob local direto (sem exigir login)
+    const ehPdfPublicoDireto = Boolean(
+      linkEtq &&
+      ehUrlEtiquetaValida(linkEtq) &&
+      !linkEtq.includes('melhorenvio.com.br') &&
+      !linkEtq.includes('amazonaws.com') &&
+      !linkEtq.includes('s3.') &&
+      (linkEtq.toLowerCase().includes('.pdf') || linkEtq.includes('/storage/v1/object/public/'))
+    );
+
+    if (ehPdfPublicoDireto) {
       window.open(linkEtq, '_blank', 'noopener,noreferrer');
       return;
     }
@@ -1572,7 +1587,7 @@ export const PedidosLista: React.FC = () => {
       const lojaId = loja?.id || ped.loja_id;
       const ordemId = (ped.metadados as any)?.melhor_envio_order_id || (pe?.codigo_rastreio?.startsWith('ORD-') ? pe?.codigo_rastreio : undefined);
       const urlPdf = await MelhorEnvioService.obterEtiquetaOficialPdf(ped.id, lojaId, ordemId);
-      if (urlPdf) {
+      if (urlPdf && !urlPdf.includes('/login') && !urlPdf.includes('/painel')) {
         window.open(urlPdf, '_blank', 'noopener,noreferrer');
         setPedidos((prev) =>
           prev.map((p) =>
@@ -1588,9 +1603,14 @@ export const PedidosLista: React.FC = () => {
         if (pedidoSelecionado?.id === ped.id) {
           setPedidoSelecionado((prev) => prev ? { ...prev, link_etiqueta: urlPdf } : null);
         }
+      } else {
+        // Fallback nativo: abre o modal de impressão nativa do HUBI
+        setPedidoEtiquetaModal(ped);
       }
     } catch (err: any) {
-      mostrarErro(err.message || 'Etiqueta oficial ainda não liberada no Melhor Envio.');
+      console.warn('Falha ao obter etiqueta oficial do Melhor Envio, usando modal nativo:', err);
+      // Fallback seguro: abre o modal de etiqueta térmica do HUBI em vez de quebrar a tela
+      setPedidoEtiquetaModal(ped);
     } finally {
       setImprimindoEtiquetaMeId(null);
     }

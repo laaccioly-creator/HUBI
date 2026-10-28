@@ -314,9 +314,19 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
     }
   }, [pedido?.id, pedido?.loja_id, pedido?.codigo_rastreio, pedido?.status, loja?.id, codigoRastreioLocal, peResolvido?.codigo_rastreio, peResolvido?.nome_transportadora, transportadoraObj?.nome, usuario?.id, onAtualizarStatus, mostrarSucesso, mostrarToast]);
 
-  // Sincroniza estados reativos locais apenas quando os identificadores das props mudarem
+  // Sincroniza estados reativos locais e reseta imediatamente na troca de pedido para não piscar dados antigos
   React.useEffect(() => {
-    if (!pedido) return;
+    if (!isOpen || !pedido) {
+      setCodigoRastreioLocal('');
+      setLinkRastreioLocal('');
+      setStatusEnvioLocal('');
+      setDataPostagemLocal(null);
+      setDataEntregaLocal(null);
+      setEventosRastreioLocal([]);
+      setTransportadoraObj(null);
+      return;
+    }
+
     const peCurrent: PedidoEntrega | null =
       entrega || (pedido as any)?.pedido_entregas?.[0] || pedido?.pedido_entrega || null;
 
@@ -381,31 +391,61 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
 
   const transpRaw = (pe?.transportadora_nome || pe?.nome_transportadora || (pedido as any)?.nome_transportadora || '').trim();
 
+  const ehRetirada =
+    pe?.tipo_atendimento === 'retirada' ||
+    pe?.provedor === 'retirada_loja' ||
+    (pedido as any)?.tipo_entrega === 'retirada' ||
+    transpRaw.toLowerCase().includes('retirada');
+
+  const provedorFinal = pe?.provedor || (pedido?.metadados as any)?.provedor_frete;
+
+  const ehUber =
+    !ehRetirada &&
+    (provedorFinal === 'uber' ||
+     provedorFinal === 'uber_direct' ||
+     pe?.tipo_operacao === 'uber' ||
+     (pedido as any)?.tipo_operacao === 'uber' ||
+     (pe?.nome_app || '').toLowerCase().includes('uber') ||
+     transpRaw.toLowerCase().includes('uber') ||
+     linkRastreio.includes('uber.com') ||
+     linkRastreio.includes('ubr.to'));
+
   const ehCorreios =
-    pe?.tipo_operacao === 'correios' ||
+    !ehRetirada &&
+    !ehUber &&
+    (pe?.tipo_operacao === 'correios' ||
     (pedido as any)?.tipo_operacao === 'correios' ||
     (pe?.provedor as any) === 'correios' ||
     transpRaw.toLowerCase().includes('correios') ||
     Boolean(servicoCorreios) ||
-    (servicoDetectado !== null && servicoDetectado !== 'OUTRO');
+    (servicoDetectado !== null && servicoDetectado !== 'OUTRO'));
 
-  const provedorFinal = pe?.provedor || (pedido?.metadados as any)?.provedor_frete;
-  const ehMelhorEnvio = provedorFinal === 'melhor_envio';
-  const ehUber = provedorFinal === 'uber' || pe?.tipo_operacao === 'uber' || (pedido as any)?.tipo_operacao === 'uber';
-  const ehAppCorrida = pe?.tipo_operacao === 'app_entrega' || Boolean(pe?.app_entrega_id);
-  const ehTransportadoraManual = (pe?.tipo_operacao === 'transportadora' || Boolean(pe?.transportadora_id)) && !ehMelhorEnvio;
+  const ehMelhorEnvio =
+    !ehRetirada &&
+    !ehUber &&
+    (provedorFinal === 'melhor_envio' ||
+     transpRaw.toLowerCase().includes('melhor envio') ||
+     Boolean((pedido?.metadados as any)?.melhor_envio_order_id) ||
+     (!pe?.transportadora_id && ['jadlog', 'azul', 'buslog', 'loggi', 'latam', '.package', '.com'].some(t => transpRaw.toLowerCase().includes(t))));
+
+  const ehAppCorrida = !ehRetirada && !ehUber && !ehMelhorEnvio && (pe?.tipo_operacao === 'app_entrega' || Boolean(pe?.app_entrega_id));
+  const ehTransportadoraManual = !ehRetirada && !ehUber && !ehMelhorEnvio && (pe?.tipo_operacao === 'transportadora' || Boolean(pe?.transportadora_id));
 
   const nomeTransportadoraExibicao = transportadoraObj?.nome || pe?.nome_transportadora || transpRaw || 'Transportadora';
 
-  const transportadora = ehCorreios
-    ? (servicoCorreios ? `Correios (${servicoCorreios})` : 'Correios')
+  const transportadora = ehRetirada
+    ? 'Retirada na Loja'
     : ehUber
     ? 'Uber Direct'
+    : ehCorreios
+    ? (servicoCorreios ? `Correios (${servicoCorreios})` : 'Correios')
+    : ehMelhorEnvio
+    ? (transpRaw && !transpRaw.toLowerCase().includes('melhor envio') ? `${transpRaw.toUpperCase()} (MELHOR ENVIO)` : 'Melhor Envio')
     : ehAppCorrida
     ? (pe?.nome_app || 'App de Corrida')
     : ehTransportadoraManual
     ? nomeTransportadoraExibicao
-    : (transpRaw || 'Melhor Envio');
+    : (transpRaw || 'Entrega Local');
 
   // Montagem da URL de rastreio para Transportadora manual (com interpolação de {{codigo}})
   let urlRastreioTransportadora: string | null = null;
@@ -936,6 +976,23 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
             >
               <ExternalLink className="w-3.5 h-3.5 text-white" />
               <span>Acompanhar Uber</span>
+            </a>
+          )}
+
+          {/* MELHOR ENVIO / CORREIOS: Link oficial de rastreamento */}
+          {(ehMelhorEnvio || ehCorreios) && urlRastreioOficial && (
+            <a
+              href={urlRastreioOficial}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
+                isDark
+                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
+                  : 'bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white shadow-sm'
+              }`}
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-white" />
+              <span>Rastrear no {ehCorreios ? 'Correios' : 'Melhor Envio'}</span>
             </a>
           )}
 

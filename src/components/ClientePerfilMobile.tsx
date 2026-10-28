@@ -81,13 +81,23 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
   const [telefone, setTelefone] = useState(cliente.telefone2 || cliente.telefone || '');
   const [numeroDocumento, setNumeroDocumento] = useState(cliente.numero_documento || '');
   const [observacoes, setObservacoes] = useState(cliente.observacoes || '');
-  const [permiteFiado, setPermiteFiado] = useState(cliente.permite_fiado !== false);
+
+  const cadernetaAtivaLoja = Boolean(
+    loja?.caderneta_ativa ??
+    loja?.configuracoes_extras?.pagamentos?.caderneta_ativa
+  );
+
+  const fiadoAtivoLoja = !cadernetaAtivaLoja && (
+    (loja?.configuracoes_extras?.pagamentos?.permitir_fiado ?? true) !== false
+  );
+
+  const [permiteFiado, setPermiteFiado] = useState(fiadoAtivoLoja && cliente.permite_fiado !== false);
   const [limiteCredito, setLimiteCredito] = useState(
     cliente.limite_credito !== undefined && cliente.limite_credito !== null && Number(cliente.limite_credito) > 0
       ? String(cliente.limite_credito)
       : '500.00'
   );
-  const [permiteCaderneta, setPermiteCaderneta] = useState<boolean>(Boolean(cliente.permite_caderneta));
+  const [permiteCaderneta, setPermiteCaderneta] = useState<boolean>(cadernetaAtivaLoja && Boolean(cliente.permite_caderneta));
   const [limiteCaderneta, setLimiteCaderneta] = useState<string>(
     cliente.limite_caderneta !== undefined && cliente.limite_caderneta !== null && Number(cliente.limite_caderneta) > 0
       ? String(cliente.limite_caderneta)
@@ -357,9 +367,9 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
 
     try {
       setSalvando(true);
-      const limiteNum = permiteFiado ? (parseFloat(limiteCredito.replace(',', '.')) || 0) : 0;
-      const limiteCadNum = permiteCaderneta ? (parseFloat(limiteCaderneta.replace(',', '.')) || 0) : 0;
-      const diaVencCadNum = permiteCaderneta
+      const limiteNum = (fiadoAtivoLoja && permiteFiado) ? (parseFloat(limiteCredito.replace(',', '.')) || 0) : 0;
+      const limiteCadNum = (cadernetaAtivaLoja && permiteCaderneta) ? (parseFloat(limiteCaderneta.replace(',', '.')) || 0) : 0;
+      const diaVencCadNum = (cadernetaAtivaLoja && permiteCaderneta)
         ? Math.min(31, Math.max(1, parseInt(diaVencimentoCaderneta, 10) || 10))
         : null;
       const payload: Partial<Cliente> = {
@@ -371,9 +381,9 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
         numero_documento: numeroDocumento.trim() || null,
         data_aniversario: dataAniversario || null,
         observacoes: observacoes.trim() || null,
-        permite_fiado: permiteFiado,
+        permite_fiado: fiadoAtivoLoja ? permiteFiado : false,
         limite_credito: limiteNum,
-        permite_caderneta: permiteCaderneta,
+        permite_caderneta: cadernetaAtivaLoja ? permiteCaderneta : false,
         limite_caderneta: limiteCadNum,
         dia_vencimento_caderneta: diaVencCadNum,
         endereco_logradouro: enderecoLogradouro.trim() || null,
@@ -765,105 +775,51 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                 )}
               </div>
 
-              {/* Permitir Fiado Switch */}
-              <div className={`flex items-center justify-between py-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
-                <div>
-                  <span className={`text-xs font-black block ${isDark ? 'text-white' : 'text-black'}`}>Permitir fiado</span>
-                  <span className={`text-[10px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                    {permiteFiado ? 'Vendas a prazo liberadas' : 'Apenas pagamentos à vista'}
-                  </span>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={permiteFiado}
-                    onChange={(e) => setPermiteFiado(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className={`w-11 h-6 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 ${
-                    isDark ? 'bg-slate-800 after:border-slate-700' : 'bg-slate-300 after:border-slate-300'
-                  }`}></div>
-                </label>
-              </div>
-
-              {/* Limite de Crédito / Fiado: exibido quando permitir fiado estiver ativo */}
-              {permiteFiado && (
-                <div className={`pt-1 pb-3 border-t animate-in fade-in slide-in-from-top-2 duration-200 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
-                  <div className={`border rounded-2xl p-3 space-y-1.5 ${
-                    isDark
-                      ? 'bg-[#000000] border-emerald-500/40 text-white'
-                      : 'bg-emerald-50/50 border-2 border-emerald-300 text-black'
-                  }`}>
-                    <label className={`text-[11px] font-black flex items-center justify-between ${isDark ? 'text-white' : 'text-black'}`}>
-                      <span>Limite de Crédito / Fiado (R$) *</span>
-                      <span className={`text-[10px] font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>Teto máximo de débito</span>
-                    </label>
-                    <div className="relative">
-                      <span className={`absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-black ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>R$</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="500,00"
-                        value={limiteCredito}
-                        onChange={(e) => setLimiteCredito(e.target.value)}
-                        className={`w-full rounded-xl pl-10 pr-3 py-2 text-sm font-black focus:outline-none transition ${
-                          isDark
-                            ? 'bg-[#000000] border border-emerald-500 text-emerald-400 placeholder:text-slate-600'
-                            : 'bg-white border-2 border-emerald-600 text-emerald-800 placeholder:text-slate-400'
-                        }`}
-                      />
+              {/* Permitir Fiado Switch (Apenas se Fiado estiver ativo na loja) */}
+              {fiadoAtivoLoja && (
+                <>
+                  <div className={`flex items-center justify-between py-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                    <div>
+                      <span className={`text-xs font-black block ${isDark ? 'text-white' : 'text-black'}`}>Permitir fiado</span>
+                      <span className={`text-[10px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                        {permiteFiado ? 'Vendas a prazo liberadas' : 'Apenas pagamentos à vista'}
+                      </span>
                     </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={permiteFiado}
+                        onChange={(e) => setPermiteFiado(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className={`w-11 h-6 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 ${
+                        isDark ? 'bg-slate-800 after:border-slate-700' : 'bg-slate-300 after:border-slate-300'
+                      }`}></div>
+                    </label>
                   </div>
-                </div>
-              )}
 
-              {/* Permitir Caderneta de Mercadinho Switch */}
-              <div className={`flex items-center justify-between py-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
-                <div>
-                  <span className={`text-xs font-black flex items-center gap-1.5 ${isDark ? 'text-white' : 'text-black'}`}>
-                    <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
-                    <span>Habilitar Caderneta de Mercadinho</span>
-                  </span>
-                  <span className={`text-[10px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                    {permiteCaderneta ? 'Conta corrente contínua ativa no PDV e Catálogo' : 'Caderneta desabilitada para este cliente'}
-                  </span>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={permiteCaderneta}
-                    onChange={(e) => setPermiteCaderneta(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className={`w-11 h-6 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 ${
-                    isDark ? 'bg-slate-800 after:border-slate-700' : 'bg-slate-300 after:border-slate-300'
-                  }`}></div>
-                </label>
-              </div>
-
-              {permiteCaderneta && (
-                <div className={`pt-1 pb-3 border-t animate-in fade-in slide-in-from-top-2 duration-200 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
-                  <div className={`border rounded-2xl p-3 space-y-2.5 ${
-                    isDark
-                      ? 'bg-[#000000] border-emerald-500/40 text-white'
-                      : 'bg-emerald-50/50 border-2 border-emerald-300 text-black'
-                  }`}>
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <div>
-                        <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>
-                          Limite da Caderneta (R$)
+                  {/* Limite de Crédito / Fiado: exibido quando permitir fiado estiver ativo */}
+                  {permiteFiado && (
+                    <div className={`pt-1 pb-3 border-t animate-in fade-in slide-in-from-top-2 duration-200 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                      <div className={`border rounded-2xl p-3 space-y-1.5 ${
+                        isDark
+                          ? 'bg-[#000000] border-emerald-500/40 text-white'
+                          : 'bg-emerald-50/50 border-2 border-emerald-300 text-black'
+                      }`}>
+                        <label className={`text-[11px] font-black flex items-center justify-between ${isDark ? 'text-white' : 'text-black'}`}>
+                          <span>Limite de Crédito / Fiado (R$) *</span>
+                          <span className={`text-[10px] font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>Teto máximo de débito</span>
                         </label>
                         <div className="relative">
-                          <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>R$</span>
+                          <span className={`absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-black ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>R$</span>
                           <input
                             type="number"
                             step="0.01"
                             min="0"
                             placeholder="500,00"
-                            value={limiteCaderneta}
-                            onChange={(e) => setLimiteCaderneta(e.target.value)}
-                            className={`w-full rounded-xl pl-8 pr-2.5 py-2 text-xs font-black focus:outline-none transition ${
+                            value={limiteCredito}
+                            onChange={(e) => setLimiteCredito(e.target.value)}
+                            className={`w-full rounded-xl pl-10 pr-3 py-2 text-sm font-black focus:outline-none transition ${
                               isDark
                                 ? 'bg-[#000000] border border-emerald-500 text-emerald-400 placeholder:text-slate-600'
                                 : 'bg-white border-2 border-emerald-600 text-emerald-800 placeholder:text-slate-400'
@@ -871,46 +827,108 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                           />
                         </div>
                       </div>
-                      <div>
-                        <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>
-                          Dia de Vencimento
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="31"
-                          placeholder="10"
-                          value={diaVencimentoCaderneta}
-                          onChange={(e) => setDiaVencimentoCaderneta(e.target.value)}
-                          className={`w-full rounded-xl px-3 py-2 text-xs font-black focus:outline-none transition ${
-                            isDark
-                              ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
-                              : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
-                          }`}
-                        />
-                      </div>
                     </div>
+                  )}
+                </>
+              )}
 
-                    <div className="flex items-center justify-between pt-1">
-                      <div>
-                        <span className={`text-[10px] font-bold block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                          Saldo Devedor na Caderneta
-                        </span>
-                        <span className={`text-sm font-black font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                          R$ {saldoDevedorCaderneta.toFixed(2)}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setModalExtratoCadernetaAberto(true)}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-medium flex items-center gap-1.5 transition cursor-pointer shadow-xs"
-                      >
-                        <BookOpen className="w-3.5 h-3.5" />
-                        <span>Ver Extrato</span>
-                      </button>
+              {/* Permitir Caderneta de Mercadinho Switch (Apenas se Caderneta ativa na loja) */}
+              {cadernetaAtivaLoja && (
+                <>
+                  <div className={`flex items-center justify-between py-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                    <div>
+                      <span className={`text-xs font-black flex items-center gap-1.5 ${isDark ? 'text-white' : 'text-black'}`}>
+                        <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Habilitar Caderneta de Mercadinho</span>
+                      </span>
+                      <span className={`text-[10px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                        {permiteCaderneta ? 'Conta corrente contínua ativa no PDV e Catálogo' : 'Caderneta desabilitada para este cliente'}
+                      </span>
                     </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={permiteCaderneta}
+                        onChange={(e) => setPermiteCaderneta(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className={`w-11 h-6 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 ${
+                        isDark ? 'bg-slate-800 after:border-slate-700' : 'bg-slate-300 after:border-slate-300'
+                      }`}></div>
+                    </label>
                   </div>
-                </div>
+
+                  {permiteCaderneta && (
+                    <div className={`pt-1 pb-3 border-t animate-in fade-in slide-in-from-top-2 duration-200 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                      <div className={`border rounded-2xl p-3 space-y-2.5 ${
+                        isDark
+                          ? 'bg-[#000000] border-emerald-500/40 text-white'
+                          : 'bg-emerald-50/50 border-2 border-emerald-300 text-black'
+                      }`}>
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <div>
+                            <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>
+                              Limite da Caderneta (R$)
+                            </label>
+                            <div className="relative">
+                              <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>R$</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="500,00"
+                                value={limiteCaderneta}
+                                onChange={(e) => setLimiteCaderneta(e.target.value)}
+                                className={`w-full rounded-xl pl-8 pr-2.5 py-2 text-xs font-black focus:outline-none transition ${
+                                  isDark
+                                    ? 'bg-[#000000] border border-emerald-500 text-emerald-400 placeholder:text-slate-600'
+                                    : 'bg-white border-2 border-emerald-600 text-emerald-800 placeholder:text-slate-400'
+                                }`}
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>
+                              Dia de Vencimento
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="31"
+                              placeholder="10"
+                              value={diaVencimentoCaderneta}
+                              onChange={(e) => setDiaVencimentoCaderneta(e.target.value)}
+                              className={`w-full rounded-xl px-3 py-2 text-xs font-black focus:outline-none transition ${
+                                isDark
+                                  ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
+                                  : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
+                              }`}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1">
+                          <div>
+                            <span className={`text-[10px] font-bold block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                              Saldo Devedor na Caderneta
+                            </span>
+                            <span className={`text-sm font-black font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                              R$ {saldoDevedorCaderneta.toFixed(2)}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setModalExtratoCadernetaAberto(true)}
+                            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-medium flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                          >
+                            <BookOpen className="w-3.5 h-3.5" />
+                            <span>Ver Extrato</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -1186,54 +1204,56 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                 </div>
               )}
 
-              {/* CARD 1: DÍVIDA A PRAZO (FIADO) */}
-              <div className={`p-4 rounded-3xl border-2 text-center space-y-3 ${
-                isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-slate-300 text-black'
-              }`}>
-                <div className="flex items-center justify-between">
-                  <span className={`text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                    Conta a Prazo (Fiado)
-                  </span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
-                    saldoDevedorFiado > 0
-                      ? isDark
-                        ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
-                        : 'bg-rose-100 text-rose-800 border-rose-300'
-                      : isDark
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                        : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                  }`}>
-                    {saldoDevedorFiado > 0 ? '● Débito Pendente' : '● Em Dia'}
-                  </span>
-                </div>
-
-                <div>
-                  <span className={`text-xs uppercase tracking-wider font-bold block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                    Saldo Devedor
-                  </span>
-                  <div className={`text-3xl sm:text-4xl font-black tracking-tight font-mono ${
-                    saldoDevedorFiado > 0 ? 'text-rose-500' : isDark ? 'text-white' : 'text-black'
-                  }`}>
-                    R$ {saldoDevedorFiado.toFixed(2)}
+              {/* CARD 1: DÍVIDA A PRAZO (FIADO) - Exibido se Fiado ativo na loja ou se houver saldo pendente */}
+              {(fiadoAtivoLoja || saldoDevedorFiado > 0) && (
+                <div className={`p-4 rounded-3xl border-2 text-center space-y-3 ${
+                  isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-slate-300 text-black'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      Conta a Prazo (Fiado)
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
+                      saldoDevedorFiado > 0
+                        ? isDark
+                          ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                          : 'bg-rose-100 text-rose-800 border-rose-300'
+                        : isDark
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                          : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    }`}>
+                      {saldoDevedorFiado > 0 ? '● Débito Pendente' : '● Em Dia'}
+                    </span>
                   </div>
-                </div>
 
-                {saldoDevedorFiado > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setValorQuitarStr(saldoDevedorFiado.toFixed(2));
-                      setFormaQuitar('dinheiro');
-                      setObsQuitar('');
-                      setModalQuitarFiado(true);
-                    }}
-                    className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
-                  >
-                    <DollarSign className="w-4 h-4" />
-                    <span>Quitar / Abater Fiado</span>
-                  </button>
-                )}
-              </div>
+                  <div>
+                    <span className={`text-xs uppercase tracking-wider font-bold block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      Saldo Devedor
+                    </span>
+                    <div className={`text-3xl sm:text-4xl font-black tracking-tight font-mono ${
+                      saldoDevedorFiado > 0 ? 'text-rose-500' : isDark ? 'text-white' : 'text-black'
+                    }`}>
+                      R$ {saldoDevedorFiado.toFixed(2)}
+                    </div>
+                  </div>
+
+                  {saldoDevedorFiado > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setValorQuitarStr(saldoDevedorFiado.toFixed(2));
+                        setFormaQuitar('dinheiro');
+                        setObsQuitar('');
+                        setModalQuitarFiado(true);
+                      }}
+                      className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+                    >
+                      <DollarSign className="w-4 h-4" />
+                      <span>Quitar / Abater Fiado</span>
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* CARD 2: SALDO DE CRÉDITOS (PRÉ-PAGO / ADIANTAMENTOS) */}
               <div className={`p-4 rounded-3xl border-2 text-center space-y-3 ${

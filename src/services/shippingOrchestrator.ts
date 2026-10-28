@@ -1976,17 +1976,28 @@ export class ShippingOrchestrator {
       (pe.nome_app || '').toLowerCase().includes('uber') ||
       (pe.forma_entrega_nome || '').toLowerCase().includes('uber');
 
+    const ehMelhorEnvioSolicitado =
+      pe.provedor === 'melhor_envio' ||
+      resultado.opcao_frete?.provedor === 'melhor_envio' ||
+      (pe.transportadora_nome || '').toLowerCase().includes('melhor envio') ||
+      (resultado.opcao_frete?.transportadora_nome || '').toLowerCase().includes('melhor envio') ||
+      Boolean(resultado.pacote) ||
+      (
+        !ehUberSolicitado &&
+        pe.tipo_operacao !== 'transportadora' &&
+        !pe.transportadora_id &&
+        ['jadlog', 'azul cargo', 'buslog', 'loggi', 'latam cargo', '.package', '.com'].some(t =>
+          (pe.transportadora_nome || resultado.opcao_frete?.transportadora_nome || pe.forma_entrega_nome || '').toLowerCase().includes(t)
+        )
+      );
+
     // Identificação do provedor
     let provedorFinal: 'uber' | 'melhor_envio' | 'retirada_loja' | 'frete_proprio' = 'frete_proprio';
     if (resultado.tipo_atendimento === 'retirada') {
       provedorFinal = 'retirada_loja';
     } else if (ehUberSolicitado) {
       provedorFinal = 'uber';
-    } else if (
-      pe.provedor === 'melhor_envio' ||
-      resultado.opcao_frete?.provedor === 'melhor_envio' ||
-      (pe.transportadora_nome || '').toLowerCase().includes('melhor envio')
-    ) {
+    } else if (ehMelhorEnvioSolicitado) {
       provedorFinal = 'melhor_envio';
     } else if (
       pe.tipo_operacao === 'app_entrega' ||
