@@ -4131,7 +4131,27 @@ export const PedidosLista: React.FC = () => {
                                       <span>Concluir</span>
                                     </button>
                                   </div>
-                                ) : pedido.status !== 'concluido' ? (
+                                ) : pedido.status === 'pendente' ? (
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => atualizarStatus(pedido.id, 'confirmado')}
+                                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-blue-600 hover:bg-blue-500 text-white border border-blue-500' : 'bg-blue-600 hover:bg-blue-700 text-white border border-blue-700 shadow-sm'}`}
+                                      title="Confirmar Pedido (Avançar de Pendente para Confirmado)"
+                                    >
+                                      <CheckCircle2 className="w-3.5 h-3.5" />
+                                      <span>Confirmar</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setPedidoAlterarStatusModal(pedido)}
+                                      className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 shadow-xs transition cursor-pointer active:scale-95"
+                                      title="Alterar status do pedido"
+                                    >
+                                      <span>Alterar</span>
+                                    </button>
+                                  </div>
+                                ) : (pedido.status === 'pronto_para_retirar' || (pedido.status === 'confirmado' && resolverProvedorEntrega(pedido).isRetirada)) ? (
                                   <button
                                     type="button"
                                     onClick={() => atualizarStatus(pedido.id, 'concluido')}
@@ -4140,6 +4160,15 @@ export const PedidosLista: React.FC = () => {
                                   >
                                     <Check className="w-3.5 h-3.5 stroke-[2.5]" />
                                     <span>Concluir Pedido</span>
+                                  </button>
+                                ) : pedido.status !== 'concluido' ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setPedidoAlterarStatusModal(pedido)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 shadow-xs transition cursor-pointer active:scale-95"
+                                    title="Alterar status do pedido"
+                                  >
+                                    <span>Alterar</span>
                                   </button>
                                 ) : (
                                   <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30">

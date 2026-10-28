@@ -1527,8 +1527,15 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   );
                 }
 
-                // Prioridade 4: Se não for concluído
-                if (pedidoSelecionado.status !== 'concluido') {
+                // Prioridade 4: Conclusão permitida apenas para status operacionais/finais
+                const { isRetirada } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
+                const podeConcluirFinal =
+                  pedidoSelecionado.status === 'entregue' ||
+                  pedidoSelecionado.status === 'pronto_para_retirar' ||
+                  (pedidoSelecionado.status === 'confirmado' && isRetirada) ||
+                  pedidoSelecionado.status === 'enviado';
+
+                if (podeConcluirFinal) {
                   return (
                     <button
                       type="button"
@@ -1542,10 +1549,23 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                           onAbrirReceberPagamento(pedidoSelecionado);
                         }
                       }}
-                      className="flex-1 h-12 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
+                      className="flex-1 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
                     >
                       <span>Concluir Pedido</span>
                       <ArrowRight className="w-4 h-4" />
+                    </button>
+                  );
+                }
+
+                if (pedidoSelecionado.status !== 'concluido') {
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => setModalOpcoesPedido(true)}
+                      className="flex-1 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                      <span>Opções do Pedido</span>
                     </button>
                   );
                 }
@@ -1818,8 +1838,25 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       </button>
                     )}
 
-                    {/* Ação 2: Concluir Pedido (se pronto para concluir e não finalizado/cancelado) */}
-                    {prontoParaConcluir && pedidoSelecionado.status !== 'concluido' && pedidoSelecionado.status !== 'cancelado' && (
+                    {/* Ação: Confirmar Pedido (se status for pendente) */}
+                    {pedidoSelecionado.status === 'pendente' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setModalOpcoesPedido(false);
+                          onAlterarStatus(pedidoSelecionado.id, 'confirmado');
+                          setPedidoSelecionado({ ...pedidoSelecionado, status: 'confirmado' });
+                          mostrarToast('Pedido confirmado com sucesso!', 'sucesso');
+                        }}
+                        className="w-full h-11 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 shadow-sm"
+                      >
+                        <CheckCircle2 className="w-4 h-4 text-white shrink-0" />
+                        <span>Confirmar Pedido</span>
+                      </button>
+                    )}
+
+                    {/* Ação 2: Concluir Pedido (se pronto para concluir e NUNCA se pendente) */}
+                    {prontoParaConcluir && pedidoSelecionado.status !== 'pendente' && pedidoSelecionado.status !== 'concluido' && pedidoSelecionado.status !== 'cancelado' && (
                       <button
                         type="button"
                         onClick={() => {
