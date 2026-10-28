@@ -1629,9 +1629,15 @@ export const PosCheckout: React.FC = () => {
         const prazoDias = (formaFiado && formaFiado.prazo_dias != null && formaFiado.prazo_dias > 0)
           ? formaFiado.prazo_dias
           : 30;
-        const dataVenc = new Date();
+        const dataBase = pedidoEmEdicao?.data_venda
+          ? new Date(pedidoEmEdicao.data_venda)
+          : new Date();
+        const dataVenc = new Date(dataBase);
         dataVenc.setDate(dataVenc.getDate() + prazoDias);
-        dataVencimentoFiado = dataVenc.toISOString().split('T')[0];
+        const ano = dataVenc.getFullYear();
+        const mes = String(dataVenc.getMonth() + 1).padStart(2, '0');
+        const dia = String(dataVenc.getDate()).padStart(2, '0');
+        dataVencimentoFiado = `${ano}-${mes}-${dia}`;
       }
 
       const obsFinal = extrairObservacaoLimpa(pedidoEmEdicao?.observacoes);

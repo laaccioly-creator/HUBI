@@ -224,7 +224,11 @@ export class VendaService {
       fiado_quitado: fiadoQuitado,
       eh_venda_caderneta: valorCadernetaTotal > 0,
       ciclo_referencia_caderneta: valorCadernetaTotal > 0 ? `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}` : null,
-      data_vencimento_fiado: dataVencimentoFiado || (valorFiadoTotal > 0 ? (pedidoEmEdicao?.data_vencimento_fiado || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]) : null),
+      data_vencimento_fiado: dataVencimentoFiado || (valorFiadoTotal > 0 ? (() => {
+        const d = new Date(pedidoEmEdicao?.data_venda || Date.now());
+        d.setDate(d.getDate() + 30);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      })() : null),
       observacoes: observacoes || null,
       data_venda: pedidoEmEdicao?.data_venda || dataIsoFinal,
       atualizado_por: vendedorIdSanitizado

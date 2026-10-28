@@ -618,14 +618,24 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
 
       let dataVencimentoCalculada: string | null = null;
       if (temFiado) {
-        const prazoDias = Number(
-          (loja?.configuracoes_extras?.pagamentos as any)?.dias_vencimento_fiado ||
-          (loja?.configuracoes_extras?.pagamentos as any)?.dia_vencimento_padrao_caderneta ||
-          30
-        );
-        const dataVenc = new Date();
-        dataVenc.setDate(dataVenc.getDate() + prazoDias);
-        dataVencimentoCalculada = pedido.data_vencimento_fiado || dataVenc.toISOString().split('T')[0];
+        const formaFiado = (formasDisponiveis || []).find((f: FormaPagamento) => f.tipo === 'fiado');
+        const prazoDias = (formaFiado && formaFiado.prazo_dias != null && formaFiado.prazo_dias > 0)
+          ? Number(formaFiado.prazo_dias)
+          : (Number((loja?.configuracoes_extras?.pagamentos as any)?.dias_vencimento_fiado) || 30);
+
+        const dataBase = pedido.data_venda
+          ? new Date(pedido.data_venda)
+          : pedido.criado_em
+          ? new Date(pedido.criado_em)
+          : new Date();
+
+        const dataVencimento = new Date(dataBase);
+        dataVencimento.setDate(dataVencimento.getDate() + prazoDias);
+
+        const ano = dataVencimento.getFullYear();
+        const mes = String(dataVencimento.getMonth() + 1).padStart(2, '0');
+        const dia = String(dataVencimento.getDate()).padStart(2, '0');
+        dataVencimentoCalculada = `${ano}-${mes}-${dia}`;
       }
 
       // 1. Gravar pagamentos em lote na tabela pagamentos_pedido
