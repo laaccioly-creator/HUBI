@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Search,
   Barcode,
@@ -232,6 +232,7 @@ export const PosCheckout: React.FC = () => {
     adicionarItem,
     removerItem,
     atualizarQuantidade,
+    sincronizarEstoqueCarrinho,
     setClienteSelecionado,
     setTabelaPrecoGlobal,
     setDescontoValor,
@@ -696,6 +697,59 @@ export const PosCheckout: React.FC = () => {
 
     carregarDados();
   }, [loja?.id]);
+
+  const recarregarProdutos = useCallback(async () => {
+    if (!loja?.id) return;
+    try {
+      const dados = await SyncService.baixarDadosParaOffline(loja.id);
+      if (dados?.produtos && dados.produtos.length > 0) {
+        setProdutos(dados.produtos);
+      }
+    } catch (err) {
+      console.warn('Aviso ao sincronizar produtos atualizados no PDV:', err);
+    }
+  }, [loja?.id]);
+
+  // Sincroniza imediatamente o estoque dos itens no carrinho sempre que a listagem de produtos atualizar
+  useEffect(() => {
+    if (produtos && produtos.length > 0 && sincronizarEstoqueCarrinho) {
+      sincronizarEstoqueCarrinho(produtos);
+    }
+  }, [produtos, sincronizarEstoqueCarrinho]);
+
+  // Atualização em tempo real via Supabase Realtime e ao focar na janela do PDV
+  useEffect(() => {
+    if (!loja?.id) return;
+
+    const canalNome = `pdv_produtos_realtime_${loja.id}_${Math.random().toString(36).substring(2, 7)}`;
+    const channel = supabase
+      .channel(canalNome)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'produtos', filter: `loja_id=eq.${loja.id}` },
+        () => {
+          recarregarProdutos();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'variacoes_produto' },
+        () => {
+          recarregarProdutos();
+        }
+      )
+      .subscribe();
+
+    const handleFocus = () => {
+      recarregarProdutos();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [loja?.id, recarregarProdutos]);
 
   const handleClicarFormaEntrega = () => {
     setModalDefinirEnvioAberto(true);
@@ -2811,7 +2865,7 @@ export const PosCheckout: React.FC = () => {
                           onClick={() => {
                             if (isEdicaoTravada) return;
                             const passo = ehProdutoFracionado(item.produto) ? 0.1 : 1;
-                            atualizarQuantidade(item.id, Number((item.quantidade - passo).toFixed(3)));
+                            atualizarQuantidade(item.id, Number((item.quantidade - passo).toFixed(3)), produtos);
                           }}
                           disabled={isEdicaoTravada}
                           className={`p-1 ${isEdicaoTravada ? 'text-slate-600 cursor-not-allowed' : isDark ? 'text-slate-400 hover:text-white cursor-pointer' : 'text-slate-500 hover:text-slate-900 cursor-pointer'}`}
@@ -2823,7 +2877,7 @@ export const PosCheckout: React.FC = () => {
                           ehFracionado={ehProdutoFracionado(item.produto)}
                           disabled={isEdicaoTravada}
                           isDark={isDark}
-                          onChangeQtd={(novaQtd) => atualizarQuantidade(item.id, novaQtd)}
+                          onChangeQtd={(novaQtd) => atualizarQuantidade(item.id, novaQtd, produtos)}
                           onDoubleClick={() => {
                             if (ehProdutoFracionado(item.produto) && !isEdicaoTravada) {
                               setItemPesagemModal({ produto: item.produto, variacao: item.variacao, quantidadeAtual: item.quantidade, cartId: item.id });
@@ -2835,7 +2889,7 @@ export const PosCheckout: React.FC = () => {
                           onClick={() => {
                             if (isEdicaoTravada) return;
                             const passo = ehProdutoFracionado(item.produto) ? 0.1 : 1;
-                            atualizarQuantidade(item.id, Number((item.quantidade + passo).toFixed(3)));
+                            atualizarQuantidade(item.id, Number((item.quantidade + passo).toFixed(3)), produtos);
                           }}
                           disabled={isEdicaoTravada}
                           className={`p-1 ${isEdicaoTravada ? 'text-slate-600 cursor-not-allowed' : isDark ? 'text-slate-400 hover:text-white cursor-pointer' : 'text-slate-500 hover:text-slate-900 cursor-pointer'}`}
@@ -3045,7 +3099,7 @@ export const PosCheckout: React.FC = () => {
           temaDark={isDark}
           onConfirmar={(pesoKg: number) => {
             if (itemPesagemModal.cartId) {
-              atualizarQuantidade(itemPesagemModal.cartId, pesoKg);
+              atualizarQuantidade(itemPesagemModal.cartId, pesoKg, produtos);
             } else {
               adicionarItem(itemPesagemModal.produto, itemPesagemModal.variacao, pesoKg);
             }

@@ -599,30 +599,26 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         tipos_venda_ativos: payloadTiposVenda
       };
 
-      let erroDb: any = null;
-      const resComColuna = await supabase
+      // 1. Gravar explicitamente na coluna tipos_venda e espelhar em configuracoes_extras.tipos_venda_ativos
+      const { error: erroComColuna } = await supabase
         .from('lojas')
         .update({
-          permite_atacado: Boolean(tipoVendaAtacado),
-          permite_distribuidor: Boolean(tipoVendaDistribuidor),
           tipos_venda: payloadTiposVenda,
           configuracoes_extras: novasExtras
         })
         .eq('id', loja.id);
 
-      if (resComColuna.error) {
-        if (resComColuna.error.code === '42703' || resComColuna.error.message?.includes('tipos_venda')) {
-          const resFallback = await supabase
+      if (erroComColuna) {
+        if (erroComColuna.code === '42703' || erroComColuna.message?.includes('tipos_venda')) {
+          const { error: erroFallback } = await supabase
             .from('lojas')
             .update({
-              permite_atacado: Boolean(tipoVendaAtacado),
-              permite_distribuidor: Boolean(tipoVendaDistribuidor),
               configuracoes_extras: novasExtras
             })
             .eq('id', loja.id);
-          erroDb = resFallback.error;
+          if (erroFallback) throw erroFallback;
         } else {
-          erroDb = resComColuna.error;
+          throw erroComColuna;
         }
       }
 
@@ -684,6 +680,13 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       }
 
       salvouRecenteRef.current = true;
+      if (loja) {
+        setLoja({
+          ...loja,
+          tipos_venda: payloadTiposVenda,
+          configuracoes_extras: novasExtras
+        });
+      }
       await recarregarDadosLoja();
       limparInteracaoFisica();
       setSnapshotInicial(snapshotAtual);
@@ -893,8 +896,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       const entregaRet = extras.entrega_retirada || {};
       const parceiros = extras.integracoes_parceiros || {};
 
-      // Tipos de Venda
-      const tiposVenda = extras.tipos_venda_ativos || {};
+      // Tipos de Venda (prioriza coluna tipos_venda com fallback para configuracoes_extras.tipos_venda_ativos)
+      const tiposVenda = (loja as any)?.tipos_venda || extras.tipos_venda_ativos || {};
       setTipoVendaVarejo(tiposVenda.varejo !== false);
       setTipoVendaAtacado(tiposVenda.atacado !== false);
       setTipoVendaDistribuidor(tiposVenda.distribuidor !== false);

@@ -1270,7 +1270,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                           const passo = ehProdutoFracionado(it.produto) ? 0.1 : 1;
                           const novaQtd = Number((it.quantidade - passo).toFixed(3));
                           if (novaQtd > 0) {
-                            atualizarQuantidade(it.id, novaQtd);
+                            atualizarQuantidade(it.id, novaQtd, produtos);
                           } else {
                             removerItem(it.id);
                           }
@@ -1286,7 +1286,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                         ehFracionado={ehProdutoFracionado(it.produto)}
                         isDark={isDark}
                         className="w-10 sm:w-12 text-xs font-black"
-                        onChangeQtd={(novaQtd) => atualizarQuantidade(it.id, novaQtd)}
+                        onChangeQtd={(novaQtd) => atualizarQuantidade(it.id, novaQtd, produtos)}
                         onDoubleClick={() => {
                           if (ehProdutoFracionado(it.produto)) {
                             setItemPesagemModal({ produto: it.produto, variacao: it.variacao, quantidadeAtual: it.quantidade, cartId: it.id });
@@ -1298,7 +1298,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                         type="button"
                         onClick={() => {
                           const passo = ehProdutoFracionado(it.produto) ? 0.1 : 1;
-                          atualizarQuantidade(it.id, Number((it.quantidade + passo).toFixed(3)));
+                          atualizarQuantidade(it.id, Number((it.quantidade + passo).toFixed(3)), produtos);
                         }}
                         className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold transition cursor-pointer active:scale-95 border ${
                           isDark ? 'bg-[#000000] border-slate-600 text-white hover:bg-slate-800' : 'bg-white border-slate-300 text-black hover:bg-slate-100'
@@ -2246,7 +2246,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
           temaDark={isDark}
           onConfirmar={(pesoKg: number) => {
             if (itemPesagemModal.cartId) {
-              atualizarQuantidade(itemPesagemModal.cartId, pesoKg);
+              atualizarQuantidade(itemPesagemModal.cartId, pesoKg, produtos);
             } else {
               adicionarItem(itemPesagemModal.produto, itemPesagemModal.variacao, pesoKg);
             }

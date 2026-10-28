@@ -55,7 +55,8 @@ interface CartContextType {
   resetarSnapshotPedido: () => void;
   adicionarItem: (produto: Produto, variacao?: VariacaoProduto | null, quantidade?: number, observacoes?: string) => void;
   removerItem: (cartId: string) => void;
-  atualizarQuantidade: (cartId: string, quantidade: number) => void;
+  atualizarQuantidade: (cartId: string, quantidade: number, listaProdutosAtualizada?: Produto[]) => void;
+  sincronizarEstoqueCarrinho: (produtosAtualizados: Produto[]) => void;
   setClienteSelecionado: (cliente: Cliente | null) => void;
   setTabelaPrecoGlobal: (tabela: TabelaPreco) => void;
   setDescontoValor: (valor: number) => void;
@@ -107,6 +108,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [pedidoEmEdicao, setPedidoEmEdicao] = useState<any | null>(null);
   const [snapshotPedidoOriginal, setSnapshotPedidoOriginal] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState<boolean>(false);
+  const [produtosReferencia, setProdutosReferencia] = useState<Produto[]>([]);
   const activeTenantKeyRef = React.useRef<CartStorageKey | null>(null);
 
   const setTaxaEntrega = (valor: number) => {
@@ -438,7 +440,52 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setItens(prev => prev.filter(i => i.id !== cartId));
   };
 
-  const atualizarQuantidade = (cartId: string, quantidade: number) => {
+  const sincronizarEstoqueCarrinho = (produtosAtualizados: Produto[]) => {
+    if (!produtosAtualizados || produtosAtualizados.length === 0) return;
+    setProdutosReferencia(produtosAtualizados);
+    setItens(prev => {
+      let houveMudanca = false;
+      const novosItens = prev.map(item => {
+        const prodId = item.produto?.id || (item as any).produto_id;
+        const prodAtual = produtosAtualizados.find(p => p.id === prodId);
+        if (!prodAtual) return item;
+
+        let varAtual = item.variacao;
+        if (item.variacao && prodAtual.variacoes) {
+          const v = prodAtual.variacoes.find(varItem => varItem.id === item.variacao?.id);
+          if (v) varAtual = v;
+        }
+
+        const estoqueProdutoMudou = Number(prodAtual.quantidade_estoque ?? 0) !== Number(item.produto?.quantidade_estoque ?? 0);
+        const estoqueVariacaoMudou = Boolean(
+          varAtual &&
+          item.variacao &&
+          Number(varAtual.quantidade_estoque ?? 0) !== Number(item.variacao.quantidade_estoque ?? 0)
+        );
+
+        if (estoqueProdutoMudou || estoqueVariacaoMudou) {
+          houveMudanca = true;
+          return {
+            ...item,
+            produto: {
+              ...item.produto,
+              ...prodAtual,
+              quantidade_estoque: prodAtual.quantidade_estoque
+            },
+            variacao: varAtual ? {
+              ...item.variacao,
+              ...varAtual,
+              quantidade_estoque: varAtual.quantidade_estoque
+            } : item.variacao
+          };
+        }
+        return item;
+      });
+      return houveMudanca ? novosItens : prev;
+    });
+  };
+
+  const atualizarQuantidade = (cartId: string, quantidade: number, listaProdutos?: Produto[]) => {
     if (pedidoEmEdicao && !podeEditarPedido(pedidoEmEdicao)) {
       alert(`⚠️ Pedidos com status "${pedidoEmEdicao.status}" não permitem alterar quantidades de itens.`);
       return;
@@ -450,20 +497,33 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const itemAlvo = itens.find(i => i.id === cartId);
-    const isServico = itemAlvo?.produto?.tipo_item === 'servico';
+    if (!itemAlvo) return;
+
+    // Buscar versão mais recente do produto (na lista passada, no estado de referência ou no próprio item)
+    const fonteProdutos = (listaProdutos && listaProdutos.length > 0) ? listaProdutos : produtosReferencia;
+    const prodId = itemAlvo.produto?.id || (itemAlvo as any).produto_id;
+    const prodAtualizado = (fonteProdutos && fonteProdutos.length > 0)
+      ? (fonteProdutos.find(p => p.id === prodId) || itemAlvo.produto)
+      : itemAlvo.produto;
+
+    const varAtualizada = itemAlvo.variacao && prodAtualizado.variacoes
+      ? (prodAtualizado.variacoes.find(v => v.id === itemAlvo.variacao?.id) || itemAlvo.variacao)
+      : itemAlvo.variacao;
+
+    const isServico = prodAtualizado?.tipo_item === 'servico';
     const controlaEstoque = !isServico && loja?.configuracoes_extras?.controlar_estoque !== false && loja?.configuracoes_extras?.geral?.controlar_estoque !== false;
-    if (itemAlvo && controlaEstoque) {
+    if (controlaEstoque) {
       const permiteNegativo = Boolean(
-        (itemAlvo.variacao as any)?.permite_estoque_negativo ||
-        itemAlvo.produto.permite_estoque_negativo ||
+        (varAtualizada as any)?.permite_estoque_negativo ||
+        prodAtualizado.permite_estoque_negativo ||
         loja?.configuracoes_extras?.geral?.permitir_venda_estoque_negativo ||
         loja?.configuracoes_extras?.permitir_venda_estoque_negativo
       );
-      const estoqueDisponivel = itemAlvo.variacao
-        ? Number(itemAlvo.variacao.quantidade_estoque ?? 0)
-        : Number(itemAlvo.produto.quantidade_estoque ?? 0);
+      const estoqueDisponivel = varAtualizada
+        ? Number(varAtualizada.quantidade_estoque ?? 0)
+        : Number(prodAtualizado.quantidade_estoque ?? 0);
       if (!permiteNegativo && quantidade > estoqueDisponivel) {
-        alert(`⚠️ Quantidade solicitada (${quantidade} un) excede o estoque disponível (${estoqueDisponivel} un) de "${itemAlvo.produto.nome}".`);
+        alert(`⚠️ Quantidade solicitada (${quantidade} un) excede o estoque disponível (${estoqueDisponivel} un) de "${prodAtualizado.nome}".`);
         return;
       }
     }
@@ -471,9 +531,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setItens(prev =>
       prev.map(item => {
         if (item.id === cartId) {
-          const preco = calcularPrecoItemContext(item.produto, item.variacao, tabelaPrecoCalculada, quantidade);
+          const preco = calcularPrecoItemContext(prodAtualizado, varAtualizada, tabelaPrecoCalculada, quantidade);
           return {
             ...item,
+            produto: {
+              ...item.produto,
+              ...prodAtualizado,
+              quantidade_estoque: prodAtualizado.quantidade_estoque
+            },
+            variacao: varAtualizada ? {
+              ...item.variacao,
+              ...varAtualizada,
+              quantidade_estoque: varAtualizada.quantidade_estoque
+            } : item.variacao,
             quantidade,
             precoUnitario: preco,
             tabelaPrecoUtilizada: tabelaPrecoCalculada,
@@ -884,6 +954,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         adicionarItem,
         removerItem,
         atualizarQuantidade,
+        sincronizarEstoqueCarrinho,
         setClienteSelecionado,
         setTabelaPrecoGlobal,
         setDescontoValor,
