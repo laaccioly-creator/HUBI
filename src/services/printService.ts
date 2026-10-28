@@ -541,32 +541,72 @@ export class PrintService {
 
       console.log(`🖨️ [HUBI PrintService] Formatando ${itens.length} itens do pedido #${pedido.numero_pedido}...`);
 
+      const formatNumeroMoeda = (val: number | string | null | undefined): string => {
+        const n = Number(val || 0);
+        return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      };
+
       const itensHtml = itens.length > 0 ? itens.map(item => {
         const qtdSol = Number((item as any).quantidade_solicitada ?? (item as any).peso_solicitado_kg ?? 0);
         const qtdReal = Number(item.quantidade || 1);
         const unidade = ((item as any).unidade_medida || (item as any).tipo_unidade || (item as any).produto?.unidade_medida || 'un').toLowerCase();
         const ehKg = unidade === 'kg';
         const teveVariacaoPeso = ehKg && qtdSol > 0 && Math.abs(qtdSol - qtdReal) > 0.001;
+        const vlUnitario = Number(item.preco_venda_unitario ?? (item as any).preco_unitario ?? 0);
+        const vlTotal = Number(item.subtotal ?? (vlUnitario * qtdReal));
+        const nomeCompleto = `${item.nome_produto || 'Item'}${item.rotulo_variacao ? ` / ${item.rotulo_variacao}` : ''}`;
 
+        if (isA4) {
+          return `
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 6px 4px 6px 0; font-size: 13px; font-weight: 700; color: #0f172a; text-align: left; vertical-align: top;">
+              ${ehKg ? `${qtdReal.toFixed(3)}kg` : `${qtdReal}`}
+            </td>
+            <td style="padding: 6px 8px; font-size: 13px; color: #1e293b; text-align: left; vertical-align: top;">
+              <div>${nomeCompleto}</div>
+              ${teveVariacaoPeso ? `
+                <div style="font-size: 11px; color: #b45309; font-weight: 600; margin-top: 1px;">
+                  (Pedido: ${qtdSol.toFixed(3)} kg | Pesado: ${qtdReal.toFixed(3)} kg)
+                </div>
+              ` : ''}
+            </td>
+            <td style="padding: 6px 8px; font-size: 13px; font-weight: 600; color: #334155; text-align: right; white-space: nowrap; vertical-align: top;">
+              ${formatNumeroMoeda(vlUnitario)}
+            </td>
+            <td style="padding: 6px 0 6px 8px; font-size: 13px; font-weight: 700; color: #0f172a; text-align: right; white-space: nowrap; vertical-align: top;">
+              ${formatNumeroMoeda(vlTotal)}
+            </td>
+          </tr>
+        `;
+        }
+
+        const qtdTexto = ehKg ? `${qtdReal.toFixed(3)}kg` : `${qtdReal}x`;
         return `
-        <tr style="border-bottom: 1px solid #f1f5f9;">
-          <td style="padding: 6px 0; font-size: ${isA4 ? '13px' : '11px'}; color: #1e293b; text-align: left; vertical-align: top;">
-            <strong>${ehKg ? `${qtdReal.toFixed(3)}kg` : `${qtdReal}x`}</strong> ${item.nome_produto || 'Item'}
-            ${item.rotulo_variacao ? ` / ${item.rotulo_variacao}` : ''}
-            ${teveVariacaoPeso ? `
-              <div style="font-size: ${isA4 ? '11px' : '9px'}; color: #b45309; font-weight: 600; margin-top: 1px;">
-                (Pedido: ${qtdSol.toFixed(3)} kg | Pesado: ${qtdReal.toFixed(3)} kg)
-              </div>
-            ` : ''}
+        <tr style="border-bottom: 1px dashed #f1f5f9; font-size: 11px; line-height: 1.35;">
+          <td style="padding: 4px 2px 4px 0; text-align: left; font-weight: 800; color: #0f172a; white-space: nowrap; vertical-align: middle;">
+            ${qtdTexto}
           </td>
-          <td style="padding: 6px 0; text-align: right; font-size: ${isA4 ? '13px' : '11px'}; font-weight: 600; color: #1e293b; white-space: nowrap; vertical-align: top;">
-            R$ ${Number(item.subtotal || item.preco_venda_unitario || 0).toFixed(2)}
+          <td style="padding: 4px 4px; text-align: left; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 0; vertical-align: middle;" title="${nomeCompleto}">
+            ${nomeCompleto}
+          </td>
+          <td style="padding: 4px 2px; text-align: right; font-weight: 600; color: #475569; white-space: nowrap; vertical-align: middle;">
+            ${formatNumeroMoeda(vlUnitario)}
+          </td>
+          <td style="padding: 4px 0 4px 2px; text-align: right; font-weight: 800; color: #0f172a; white-space: nowrap; vertical-align: middle;">
+            ${formatNumeroMoeda(vlTotal)}
           </td>
         </tr>
+        ${teveVariacaoPeso ? `
+          <tr>
+            <td colspan="4" style="padding: 0 0 3px 0; font-size: 9px; color: #b45309; font-weight: 600;">
+              (Pedido: ${qtdSol.toFixed(3)} kg | Pesado: ${qtdReal.toFixed(3)} kg)
+            </td>
+          </tr>
+        ` : ''}
       `;
       }).join('') : `
         <tr>
-          <td colspan="2" style="padding: 8px 0; text-align: center; font-size: 11px; color: #64748b;">
+          <td colspan="4" style="padding: 8px 0; text-align: center; font-size: 11px; color: #64748b;">
             (Itens não detalhados)
           </td>
         </tr>
@@ -684,8 +724,25 @@ export class PrintService {
           <!-- Linha Divisória Superior -->
           <div style="border-top: 1.5px solid #334155; margin: 4px 0 8px 0;"></div>
 
-          <!-- Tabela de Itens -->
-          <table style="width: 100%; border-collapse: collapse; margin: 4px 0;">
+          <!-- Tabela de Itens Formatada -->
+          <table style="width: 100%; border-collapse: collapse; margin: 4px 0; table-layout: fixed;">
+            <thead>
+              ${isA4 ? `
+                <tr style="border-bottom: 1.5px solid #0f172a; text-transform: uppercase; font-size: 11px; font-weight: 800; color: #475569;">
+                  <th style="padding: 6px 4px 6px 0; text-align: left; width: 45px;">Qtd</th>
+                  <th style="padding: 6px 8px; text-align: left;">Descrição do Produto</th>
+                  <th style="padding: 6px 8px; text-align: right; width: 85px; white-space: nowrap;">Unitário</th>
+                  <th style="padding: 6px 0 6px 8px; text-align: right; width: 95px; white-space: nowrap;">Total</th>
+                </tr>
+              ` : `
+                <tr style="border-bottom: 1px dashed #cbd5e1; text-transform: uppercase; font-size: 9.5px; font-weight: 800; color: #64748b;">
+                  <th style="padding: 4px 2px 4px 0; text-align: left; width: ${is58 ? '36px' : '44px'};">Qtd</th>
+                  <th style="padding: 4px 4px; text-align: left;">Descrição</th>
+                  <th style="padding: 4px 2px; text-align: right; width: ${is58 ? '44px' : '52px'};">Unit</th>
+                  <th style="padding: 4px 0 4px 2px; text-align: right; width: ${is58 ? '54px' : '64px'};">Total</th>
+                </tr>
+              `}
+            </thead>
             <tbody>
               ${itensHtml}
             </tbody>
@@ -695,12 +752,12 @@ export class PrintService {
           <div style="margin-top: 8px; padding-top: 6px; font-size: ${isA4 ? '12px' : '11px'}; color: #475569; border-top: 1px dashed #e2e8f0;">
             <div style="display: flex; justify-content: space-between; margin: 2px 0;">
               <span>Subtotal dos Produtos:</span>
-              <span>R$ ${Number(pedido.subtotal_produtos || pedido.subtotal || 0).toFixed(2)}</span>
+              <span>R$ ${formatNumeroMoeda(pedido.subtotal_produtos || pedido.subtotal || 0)}</span>
             </div>
             ${Number(pedido.valor_desconto || 0) > 0 ? `
               <div style="display: flex; justify-content: space-between; margin: 2px 0; color: #dc2626;">
                 <span>Desconto Aplicado:</span>
-                <span>- R$ ${Number(pedido.valor_desconto).toFixed(2)}</span>
+                <span>- R$ ${formatNumeroMoeda(pedido.valor_desconto)}</span>
               </div>
             ` : ''}
             ${!ehRetirada ? `
@@ -708,7 +765,7 @@ export class PrintService {
               <span>Frete${formaEntregaTexto ? ` (${formaEntregaTexto})` : ''}:</span>
               <span style="font-weight: 600;">
                 ${Number(pedido.valor_frete || 0) > 0 
-                  ? `+ R$ ${Number(pedido.valor_frete).toFixed(2)}` 
+                  ? `+ R$ ${formatNumeroMoeda(pedido.valor_frete)}` 
                   : (formaEntregaTexto && !formaEntregaTexto.toLowerCase().includes('definir') && !formaEntregaTexto.toLowerCase().includes('combinar'))
                     ? 'Grátis (R$ 0,00)'
                     : 'A Definir'}
@@ -723,7 +780,7 @@ export class PrintService {
           <!-- Total da Venda em Destaque -->
           <div style="display: flex; justify-content: space-between; align-items: center; margin: 8px 0 6px 0; font-size: ${isA4 ? '15px' : '13px'}; font-weight: 800; color: #0f172a;">
             <span>VALOR TOTAL:</span>
-            <span style="font-size: ${isA4 ? '18px' : '15px'}; font-weight: 900; color: #0f172a;">R$ ${Number(pedido.valor_total || 0).toFixed(2)}</span>
+            <span style="font-size: ${isA4 ? '18px' : '15px'}; font-weight: 900; color: #0f172a;">R$ ${formatNumeroMoeda(pedido.valor_total || 0)}</span>
           </div>
 
           ${((pagamentoInfo.ehCaderneta || pagamentoInfo.ehFiado) && Number(pedido.saldo_devedor || 0) > 0) ? `
@@ -811,11 +868,11 @@ export class PrintService {
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Recibo Pedido #${pedido.numero_pedido} - ${nomeLoja}</title>
+          <title></title>
           <style>
             @page {
-              size: ${pageWidth} auto;
-              margin: ${isA4 ? '10mm' : '2mm'};
+              size: ${isA4 ? 'A4 portrait' : `${pageWidth} auto`};
+              margin: ${isA4 ? '12mm' : '2mm'};
             }
             * {
               box-sizing: border-box;
@@ -878,17 +935,24 @@ export class PrintService {
               overflow: hidden;
             }
             @media print {
+              @page {
+                size: ${isA4 ? 'A4 portrait' : `${pageWidth} auto`};
+                margin: ${isA4 ? '12mm' : '2mm'};
+              }
               .action-bar {
                 display: none !important;
               }
               body {
                 background: #fff !important;
+                margin: 0 !important;
+                padding: 0 !important;
               }
               .paper-wrapper {
                 box-shadow: none !important;
                 margin: 0 !important;
                 max-width: 100% !important;
                 border-radius: 0 !important;
+                padding: 0 !important;
               }
             }
           </style>
@@ -897,7 +961,7 @@ export class PrintService {
           <div class="action-bar">
             <span style="font-size: 13px; font-weight: 600;">Recibo Pedido #${pedido.numero_pedido}</span>
             <div style="display: flex; gap: 8px;">
-              <button class="btn btn-primary" onclick="window.print()">
+              <button class="btn btn-primary" onclick="executarImpressao()">
                 🖨️ Imprimir / Salvar PDF
               </button>
               <button class="btn btn-secondary" onclick="window.close()">
@@ -911,11 +975,22 @@ export class PrintService {
           </div>
 
           <script>
-            // Disparar impressão automaticamente ao carregar
+            window.addEventListener('beforeprint', function() {
+              document.title = '';
+            });
+            window.addEventListener('afterprint', function() {
+              document.title = '';
+            });
+            function executarImpressao() {
+              document.title = '';
+              window.print();
+            }
+            // Disparar impressão automaticamente ao carregar com título limpo
             window.addEventListener('load', function() {
+              document.title = '';
               setTimeout(function() {
                 window.focus();
-                window.print();
+                executarImpressao();
               }, 300);
             });
           </script>
@@ -943,9 +1018,14 @@ export class PrintService {
         console.warn('⚠️ [HUBI PrintService] Bloqueio ao abrir popup, disparando fallback no container da página:', popErr);
       }
 
-      // 4. Fallback caso popup seja restrito: dispara window.print() na página atual
+      // 4. Fallback caso popup seja restrito: dispara window.print() na página atual limpando título
       console.log('🖨️ [HUBI PrintService] Disparando window.print() na janela principal...');
+      const titleOriginal = document.title;
+      document.title = '';
       window.print();
+      setTimeout(() => {
+        document.title = titleOriginal;
+      }, 1000);
     } catch (err) {
       console.error('❌ [HUBI PrintService] Erro ao executar impressão:', err);
       alert(`Não foi possível abrir a impressão: ${err}`);
@@ -1693,11 +1773,11 @@ Agradecemos a sua preferência! ✨`;
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Fechamento de Caixa #${sessaoId} - ${nomeLoja}</title>
+          <title></title>
           <style>
             @page {
               size: ${pageWidth} auto;
-              margin: ${isA4 ? '8mm' : '2mm'};
+              margin: ${isA4 ? '12mm' : '2mm'};
             }
             * {
               box-sizing: border-box;
@@ -1823,7 +1903,7 @@ Agradecemos a sua preferência! ✨`;
                 </button>
               </div>
 
-              <button class="btn btn-primary" onclick="window.print()">
+              <button class="btn btn-primary" onclick="executarImpressaoFechamento()">
                 🖨️ Imprimir / Salvar PDF
               </button>
               <button class="btn btn-secondary" onclick="window.close()">
@@ -1837,10 +1917,21 @@ Agradecemos a sua preferência! ✨`;
           </div>
 
           <script>
+            window.addEventListener('beforeprint', function() {
+              document.title = '';
+            });
+            window.addEventListener('afterprint', function() {
+              document.title = '';
+            });
+            function executarImpressaoFechamento() {
+              document.title = '';
+              window.print();
+            }
             window.addEventListener('load', function() {
+              document.title = '';
               setTimeout(function() {
                 window.focus();
-                window.print();
+                executarImpressaoFechamento();
               }, 350);
             });
           </script>

@@ -582,6 +582,9 @@ html.dark .text-purple-700 {
 }
 
 @media print {
+  @page {
+    margin: 12mm;
+  }
   html, body {
     background: #ffffff !important;
     color: #000000 !important;

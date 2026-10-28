@@ -345,31 +345,45 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
             </div>
 
             {/* Itens */}
-            <div className="space-y-2 border-b border-slate-200 border-dashed pb-2">
-              <span className="font-bold text-slate-600 uppercase tracking-wider text-[10px] block">
-                Itens ({calcularTotalItens(pedido)} un)
-              </span>
+            <div className="space-y-1.5 border-b border-slate-200 border-dashed pb-2">
+              <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                <span>Itens ({calcularTotalItens(pedido)} un)</span>
+                <div className="flex items-center gap-2 text-right">
+                  <span className="w-14">Unit</span>
+                  <span className="w-16">Total</span>
+                </div>
+              </div>
               {(pedido.itens || []).map((item: any, idx: number) => {
                 const qtdSol = Number(item.quantidade_solicitada ?? item.peso_solicitado_kg ?? 0);
                 const qtdReal = Number(item.quantidade ?? 0);
                 const unidade = (item.unidade_medida || item.produto?.unidade_medida || item.produto?.tipo_unidade || 'un').toLowerCase();
                 const teveVariacaoPeso = unidade === 'kg' && qtdSol > 0 && Math.abs(qtdSol - qtdReal) > 0.001;
+                const vlUnitario = Number(item.preco_venda_unitario ?? item.preco_unitario ?? 0);
+                const vlTotal = Number(item.subtotal ?? (vlUnitario * (qtdReal || 1)));
+                const nomeItem = item.nome_produto || item.produto?.nome || 'Produto';
+                const rotuloVar = item.rotulo_variacao ? ` / ${item.rotulo_variacao}` : '';
+
                 return (
-                <div key={idx} className="flex justify-between py-0.5 text-slate-800">
-                  <div className="flex flex-col min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-slate-900">{item.quantidade}x</span>
-                      <span className="text-slate-800 truncate">{item.nome_produto || item.produto?.nome || 'Produto'}</span>
-                    </div>
-                    {teveVariacaoPeso && (
-                      <span className="text-[10px] text-amber-700 font-mono font-medium pl-5 block">
-                        (Pedido: {qtdSol.toFixed(3)} kg | Pesado: {qtdReal.toFixed(3)} kg)
+                <div key={idx} className="text-xs text-slate-800">
+                  <div className="flex items-center justify-between gap-1 py-0.5">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1 mr-1">
+                      <span className="font-bold text-slate-900 shrink-0">{item.quantidade}x</span>
+                      <span className="text-slate-800 truncate" title={`${nomeItem}${rotuloVar}`}>
+                        {nomeItem}{rotuloVar}
                       </span>
-                    )}
+                    </div>
+                    <span className="font-medium text-slate-600 w-14 text-right shrink-0">
+                      {vlUnitario.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                    <span className="font-bold text-slate-900 w-16 text-right shrink-0">
+                      {vlTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
                   </div>
-                  <span className="font-bold text-slate-900 whitespace-nowrap pl-2">
-                    R$ {Number(item.subtotal || (Number(item.preco_venda_unitario || item.preco_unitario || 0) * Number(item.quantidade || 1))).toFixed(2)}
-                  </span>
+                  {teveVariacaoPeso && (
+                    <span className="text-[10px] text-amber-700 font-mono font-medium pl-5 block">
+                      (Pedido: {qtdSol.toFixed(3)} kg | Pesado: {qtdReal.toFixed(3)} kg)
+                    </span>
+                  )}
                 </div>
                 );
               })}
