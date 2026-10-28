@@ -35,21 +35,38 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
   const [urlDaceOficial, setUrlDaceOficial] = useState<string | null>(null);
 
   React.useEffect(() => {
-    if (pedido?.id) {
-      supabase
-        .from('pedido_entregas')
-        .select('*')
-        .eq('pedido_id', pedido.id)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (data) {
-            setEntregaCarregada(data as PedidoEntrega);
-            if (data.link_etiqueta && (data.link_etiqueta.includes('/storage/') || data.link_etiqueta.includes('etiquetas'))) {
-              setUrlEtiquetaOficial(data.link_etiqueta);
-            }
-          }
-        });
+    if (!pedido?.id) {
+      setEntregaCarregada(null);
+      setUrlEtiquetaOficial(null);
+      setUrlDaceOficial(null);
+      return;
     }
+
+    const rawInicial = entrega || (pedido as any).pedido_entregas || pedido.pedido_entrega;
+    const peInicial: PedidoEntrega | null = Array.isArray(rawInicial) ? (rawInicial[0] || null) : (rawInicial || null);
+    const linkInicial = (
+      peInicial?.link_etiqueta ||
+      (pedido as any).link_etiqueta ||
+      (pedido as any).metadados?.link_etiqueta ||
+      ''
+    ).trim();
+
+    setUrlEtiquetaOficial(linkInicial && (ehUrlPublicaValida(linkInicial) || linkInicial.startsWith('blob:')) ? linkInicial : null);
+    setUrlDaceOficial(null);
+
+    supabase
+      .from('pedido_entregas')
+      .select('*')
+      .eq('pedido_id', pedido.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setEntregaCarregada(data as PedidoEntrega);
+          if (data.link_etiqueta && (ehUrlPublicaValida(data.link_etiqueta) || data.link_etiqueta.startsWith('blob:'))) {
+            setUrlEtiquetaOficial(data.link_etiqueta);
+          }
+        }
+      });
   }, [pedido?.id]);
 
   if (!isOpen || !pedido) return null;
@@ -136,10 +153,20 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
     pe?.provedor === 'uber' ||
     pe?.provedor === 'frete_proprio';
 
-  const ehMelhorEnvio = !ehAppOuManual && (
+  const ehMelhorEnvio = !ehAppOuManual && Boolean(
     pe?.provedor === 'melhor_envio' ||
+    (pedido as any).provedor === 'melhor_envio' ||
+    (pedido as any).tipo_operacao === 'melhor_envio' ||
+    pe?.tipo_operacao === 'melhor_envio' ||
     (pedido as any).metadados?.provedor_frete === 'melhor_envio' ||
-    Boolean((pedido as any).metadados?.melhor_envio_order_id)
+    (pedido as any).metadados?.provedor === 'melhor_envio' ||
+    Boolean((pedido as any).metadados?.melhor_envio_order_id) ||
+    Boolean((pe as any)?.melhor_envio_order_id) ||
+    (pe?.codigo_rastreio && pe.codigo_rastreio.startsWith('ORD-')) ||
+    (pedido.codigo_rastreio && pedido.codigo_rastreio.startsWith('ORD-')) ||
+    (pe?.transportadora_nome && pe.transportadora_nome.toLowerCase().includes('melhor envio')) ||
+    (pedido.nome_transportadora && pedido.nome_transportadora.toLowerCase().includes('melhor envio')) ||
+    (pe?.link_etiqueta && pe.link_etiqueta.includes('melhorenvio'))
   );
 
   const ehUrlStorageSupabase = (url?: string | null): boolean => {
@@ -636,7 +663,7 @@ export const ModalImprimirEtiqueta: React.FC<ModalImprimirEtiquetaProps> = ({
                 ) : (
                   <FileText className="w-3.5 h-3.5" />
                 )}
-                <span>Declaração (DACE)</span>
+                <span>Declaração de Conteúdo</span>
               </button>
 
               <button

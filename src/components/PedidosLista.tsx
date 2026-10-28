@@ -2585,33 +2585,19 @@ export const PedidosLista: React.FC = () => {
                   )}
                 </button>
               ) : (() => {
-                const { isRetirada, prov } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
+                const { isRetirada } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
                 if (pedidoSelecionado.status !== 'cancelado' && !isRetirada) {
                   return (
                     <button
                       type="button"
-                      disabled={imprimindoEtiquetaMeId === pedidoSelecionado.id}
                       onClick={() => {
-                        if (prov === 'melhor_envio') {
-                          handleImprimirEtiquetaOficialMelhorEnvio(pedidoSelecionado);
-                        } else {
-                          setPedidoEtiquetaModal(pedidoSelecionado);
-                        }
+                        setPedidoEtiquetaModal(pedidoSelecionado);
                       }}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-xs active:scale-95 disabled:opacity-60 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-xs active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
                       title="Imprimir Etiqueta de Envio"
                     >
-                      {imprimindoEtiquetaMeId === pedidoSelecionado.id ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>Obtendo Etiqueta...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Tag className="w-3.5 h-3.5" />
-                          <span>Etiqueta</span>
-                        </>
-                      )}
+                      <Tag className="w-3.5 h-3.5" />
+                      <span>Etiqueta</span>
                     </button>
                   );
                 }
@@ -3000,42 +2986,15 @@ export const PedidosLista: React.FC = () => {
                                 <span>Rastrear Envio na Transportadora</span>
                               </button>
 
-                              {(() => {
-                                const linkEtq = pe?.link_etiqueta || (pedidoSelecionado as any).link_etiqueta;
-                                const ehPdfValido = Boolean(
-                                  linkEtq &&
-                                  (linkEtq.toLowerCase().endsWith('.pdf') || linkEtq.toLowerCase().includes('.pdf?') || linkEtq.startsWith('blob:')) &&
-                                  !linkEtq.includes('sandbox.melhorenvio.com.br/imprimir') &&
-                                  !linkEtq.includes('/painel/envios')
-                                );
-
-                                if (ehPdfValido) {
-                                  return (
-                                    <a
-                                      href={linkEtq}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs transition cursor-pointer shadow-xs active:scale-95"
-                                      title="Imprimir Etiqueta Oficial (PDF)"
-                                    >
-                                      <Tag className="w-3.5 h-3.5" />
-                                      <span>Imprimir Etiqueta</span>
-                                    </a>
-                                  );
-                                }
-
-                                return (
-                                  <button
-                                    type="button"
-                                    onClick={() => setPedidoEtiquetaModal(pedidoSelecionado)}
-                                    className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs transition cursor-pointer shadow-xs active:scale-95"
-                                    title="Imprimir Etiqueta Térmica Padrão HUBI"
-                                  >
-                                    <Tag className="w-3.5 h-3.5" />
-                                    <span>Imprimir Etiqueta</span>
-                                  </button>
-                                );
-                              })()}
+                              <button
+                                type="button"
+                                onClick={() => setPedidoEtiquetaModal(pedidoSelecionado)}
+                                className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs transition cursor-pointer shadow-xs active:scale-95"
+                                title="Imprimir Etiqueta de Envio"
+                              >
+                                <Tag className="w-3.5 h-3.5" />
+                                <span>Imprimir Etiqueta</span>
+                              </button>
                             </div>
                           );
                         }
@@ -3219,42 +3178,15 @@ export const PedidosLista: React.FC = () => {
                                 <span>Acompanhar Rastreio em Tempo Real</span>
                               </button>
 
-                              {(() => {
-                                const linkEtq = pe?.link_etiqueta || (pedidoSelecionado as any).link_etiqueta;
-                                const ehPdfValido = Boolean(
-                                  linkEtq &&
-                                  (linkEtq.toLowerCase().endsWith('.pdf') || linkEtq.toLowerCase().includes('.pdf?') || linkEtq.startsWith('blob:')) &&
-                                  !linkEtq.includes('sandbox.melhorenvio.com.br/imprimir') &&
-                                  !linkEtq.includes('/painel/envios')
-                                );
-
-                                if (ehPdfValido) {
-                                  return (
-                                    <a
-                                      href={linkEtq}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs transition cursor-pointer shadow-xs active:scale-95"
-                                      title="Imprimir Etiqueta Oficial (PDF)"
-                                    >
-                                      <Tag className="w-3.5 h-3.5" />
-                                      <span>Imprimir Etiqueta</span>
-                                    </a>
-                                  );
-                                }
-
-                                return (
-                                  <button
-                                    type="button"
-                                    onClick={() => setPedidoEtiquetaModal(pedidoSelecionado)}
-                                    className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs transition cursor-pointer shadow-xs active:scale-95"
-                                    title="Imprimir Etiqueta Térmica Padrão HUBI"
-                                  >
-                                    <Tag className="w-3.5 h-3.5" />
-                                    <span>Imprimir Etiqueta</span>
-                                  </button>
-                                );
-                              })()}
+                              <button
+                                type="button"
+                                onClick={() => setPedidoEtiquetaModal(pedidoSelecionado)}
+                                className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white font-bold text-xs transition cursor-pointer shadow-xs active:scale-95"
+                                title="Imprimir Etiqueta de Envio"
+                              >
+                                <Tag className="w-3.5 h-3.5" />
+                                <span>Imprimir Etiqueta</span>
+                              </button>
                             </div>
                           </div>
                         );
@@ -4105,49 +4037,38 @@ export const PedidosLista: React.FC = () => {
 
                                       return (
                                         <>
-                                          {ehMelhorEnvio ? (
-                                            <>
-                                              <button
-                                                type="button"
-                                                onClick={() => handleImprimirEtiquetaOficialMelhorEnvio(pedido)}
-                                                disabled={imprimindoEtiquetaMeId === pedido.id}
-                                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-60 ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold'}`}
-                                                title="Imprimir Etiqueta Oficial (PDF)"
-                                              >
-                                                {imprimindoEtiquetaMeId === pedido.id ? (
-                                                  <>
-                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                    <span>Obtendo...</span>
-                                                  </>
-                                                ) : (
-                                                  <>
-                                                    <Tag className="w-3.5 h-3.5" />
-                                                    <span>Etiqueta</span>
-                                                  </>
-                                                )}
-                                              </button>
-
-                                              <button
-                                                type="button"
-                                                onClick={() => setPedidoRastreioModal(pedido)}
-                                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold'}`}
-                                                title="Acompanhar Rastreamento em Tempo Real"
-                                              >
-                                                <Package className="w-3.5 h-3.5" />
-                                                <span>Rastrear</span>
-                                              </button>
-                                            </>
-                                          ) : temEtiqueta ? (
+                                          {(ehMelhorEnvio || temEtiqueta) && (
                                             <button
                                               type="button"
-                                              onClick={() => setPedidoEtiquetaModal(pedido)}
-                                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 shadow-xs transition cursor-pointer active:scale-95"
+                                              onClick={() => {
+                                                setPedidoSelecionado(pedido);
+                                                setPedidoEtiquetaModal(pedido);
+                                              }}
+                                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer active:scale-95 ${
+                                                ehMelhorEnvio
+                                                  ? isDark
+                                                    ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200'
+                                                    : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold'
+                                                  : 'bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200'
+                                              }`}
                                               title="Imprimir Etiqueta de Envio"
                                             >
                                               <Tag className="w-3.5 h-3.5" />
                                               <span>Etiqueta</span>
                                             </button>
-                                          ) : null}
+                                          )}
+
+                                          {ehMelhorEnvio && (
+                                            <button
+                                              type="button"
+                                              onClick={() => setPedidoRastreioModal(pedido)}
+                                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold'}`}
+                                              title="Acompanhar Rastreamento em Tempo Real"
+                                            >
+                                              <Package className="w-3.5 h-3.5" />
+                                              <span>Rastrear</span>
+                                            </button>
+                                          )}
 
                                           {ehTranspManual && cod && (
                                             <button
