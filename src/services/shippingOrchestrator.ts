@@ -849,6 +849,10 @@ export class ShippingOrchestrator {
           entregaAjustada.destino_cidade = entregaAjustada.destino_cidade || endDb.cidade;
           entregaAjustada.destino_uf = entregaAjustada.destino_uf || endDb.uf;
           entregaAjustada.destino_cep = (entregaAjustada.destino_cep || endDb.cep || '').replace(/\D/g, '');
+          if (endDb.latitude && endDb.longitude) {
+            entregaAjustada.destino_latitude = Number(endDb.latitude);
+            entregaAjustada.destino_longitude = Number(endDb.longitude);
+          }
           if (!entregaAjustada.cliente_endereco_id && endDb.id && isUuidValido(endDb.id)) {
             entregaAjustada.cliente_endereco_id = endDb.id;
           }

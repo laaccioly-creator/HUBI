@@ -11,6 +11,13 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// Cache de Bearer Token OAuth em memória do runtime serverless (reaproveitamento sem handshake repetitivo)
+interface UberTokenCacheItem {
+  token: string;
+  expiresAt: number;
+}
+const tokenCacheMap = new Map<string, UberTokenCacheItem>();
+
 /**
  * 1. Formatação de Telefone (Padrão E.164 Obrigatório)
  * - Remove qualquer caractere que não seja número.
@@ -308,40 +315,58 @@ serve(async (req: Request) => {
       );
     }
 
-    // 3. Autenticação OAuth 2.0 (https://login.uber.com/oauth/v2/token)
-    const tokenParams = new URLSearchParams();
-    tokenParams.append("client_id", uberClientId);
-    tokenParams.append("client_secret", uberClientSecret);
-    tokenParams.append("grant_type", "client_credentials");
-    tokenParams.append("scope", "eats.deliveries");
+    // 3. Autenticação OAuth 2.0 com Cache de Memória Serverless
+    const cacheKey = `${uberClientId}:${isSandbox ? "sandbox" : "prod"}`;
+    const agoraMs = Date.now();
+    const tokenEmCache = tokenCacheMap.get(cacheKey);
+    let access_token = "";
 
-    const tokenRes = await fetch("https://login.uber.com/oauth/v2/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: tokenParams.toString(),
-    });
+    if (tokenEmCache && tokenEmCache.expiresAt > agoraMs + 60000) {
+      access_token = tokenEmCache.token;
+      console.log(`[uber-dispatch] Token OAuth recuperado do cache em memória (${cacheKey}).`);
+    } else {
+      console.log(`[uber-dispatch] Solicitando novo Bearer Token OAuth para Uber Direct...`);
+      const tokenParams = new URLSearchParams();
+      tokenParams.append("client_id", uberClientId);
+      tokenParams.append("client_secret", uberClientSecret);
+      tokenParams.append("grant_type", "client_credentials");
+      tokenParams.append("scope", "eats.deliveries");
 
-    if (!tokenRes.ok) {
-      const errTokenText = await tokenRes.text();
-      let parsedTokenErr: any;
-      try {
-        parsedTokenErr = JSON.parse(errTokenText);
-      } catch {
-        parsedTokenErr = { message: errTokenText };
+      const tokenRes = await fetch("https://login.uber.com/oauth/v2/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: tokenParams.toString(),
+      });
+
+      if (!tokenRes.ok) {
+        const errTokenText = await tokenRes.text();
+        let parsedTokenErr: any;
+        try {
+          parsedTokenErr = JSON.parse(errTokenText);
+        } catch {
+          parsedTokenErr = { message: errTokenText };
+        }
+
+        return new Response(
+          JSON.stringify({
+            error: parsedTokenErr.error_description || parsedTokenErr.message || "Erro na autenticação OAuth com a Uber Direct.",
+            details: parsedTokenErr,
+            code: parsedTokenErr.error || "OAUTH_FAILED",
+            status: tokenRes.status,
+          }),
+          { status: tokenRes.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
 
-      return new Response(
-        JSON.stringify({
-          error: parsedTokenErr.error_description || parsedTokenErr.message || "Erro na autenticação OAuth com a Uber Direct.",
-          details: parsedTokenErr,
-          code: parsedTokenErr.error || "OAUTH_FAILED",
-          status: tokenRes.status,
-        }),
-        { status: tokenRes.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      const tokenData = await tokenRes.json();
+      access_token = tokenData.access_token;
+      const expiresInSec = Number(tokenData.expires_in) || 2592000;
+      tokenCacheMap.set(cacheKey, {
+        token: access_token,
+        expiresAt: agoraMs + expiresInSec * 1000,
+      });
+      console.log(`[uber-dispatch] Novo Token OAuth cacheado por ${expiresInSec}s.`);
     }
-
-    const { access_token } = await tokenRes.json();
 
     // 3.0. Ação: Cotação Oficial de Entrega em Tempo Real (POST /v1/customers/{customer_id}/delivery_quotes)
     if (body.acao === "cotar" || body.acao === "quote" || body.acao === "cotacao") {
@@ -376,9 +401,16 @@ serve(async (req: Request) => {
       const pickupAddressJsonStr = typeof pickupAddressStr === "string" ? pickupAddressStr : JSON.stringify(pickupAddressStr);
       const dropoffAddressJsonStr = typeof dropoffAddressStr === "string" ? dropoffAddressStr : JSON.stringify(dropoffAddressStr);
 
-      const quotePayload = {
+      const quotePickupLat = Number(body.origem_latitude || body.pickup_latitude || loja?.endereco_latitude || loja?.latitude || 0) || null;
+      const quotePickupLng = Number(body.origem_longitude || body.pickup_longitude || loja?.endereco_longitude || loja?.longitude || 0) || null;
+      const quoteDropoffLat = Number(body.destino_latitude || body.dropoff_latitude || 0) || null;
+      const quoteDropoffLng = Number(body.destino_longitude || body.dropoff_longitude || 0) || null;
+
+      const quotePayload: Record<string, any> = {
         pickup_address: pickupAddressJsonStr,
         dropoff_address: dropoffAddressJsonStr,
+        ...(quotePickupLat && quotePickupLng ? { pickup_latitude: quotePickupLat, pickup_longitude: quotePickupLng } : {}),
+        ...(quoteDropoffLat && quoteDropoffLng ? { dropoff_latitude: quoteDropoffLat, dropoff_longitude: quoteDropoffLng } : {}),
       };
 
       console.log(`[uber-dispatch] Solicitando cotação oficial Uber Direct (${isSandbox ? "Sandbox" : "Produção"}):`, quotePayload);
@@ -631,6 +663,12 @@ serve(async (req: Request) => {
     const pickupAddressDeliveryStr = typeof pickupAddressStr === "string" ? pickupAddressStr : JSON.stringify(pickupAddressStr);
     const dropoffAddressDeliveryStr = typeof dropoffAddressStr === "string" ? dropoffAddressStr : JSON.stringify(dropoffAddressStr);
 
+    const pickupLat = Number(customPayload?.pickup_latitude || customPayload?.pickup?.location?.lat || entrega?.origem_latitude || loja?.endereco_latitude || loja?.latitude || 0) || null;
+    const pickupLng = Number(customPayload?.pickup_longitude || customPayload?.pickup?.location?.lng || entrega?.origem_longitude || loja?.endereco_longitude || loja?.longitude || 0) || null;
+
+    const dropoffLat = Number(customPayload?.dropoff_latitude || customPayload?.dropoff?.location?.lat || entrega?.destino_latitude || pedido?.cliente?.latitude || pedido?.cliente?.endereco_latitude || 0) || null;
+    const dropoffLng = Number(customPayload?.dropoff_longitude || customPayload?.dropoff?.location?.lng || entrega?.destino_longitude || pedido?.cliente?.longitude || pedido?.cliente?.endereco_longitude || 0) || null;
+
     const deliveryPayload: Record<string, any> = {
       ...(quoteId ? { quote_id: quoteId } : {}),
       pickup_name: pickupName,
@@ -640,6 +678,8 @@ serve(async (req: Request) => {
       dropoff_address: dropoffAddressDeliveryStr,
       dropoff_phone_number: dropoffPhone,
       manifest_items: manifestItems,
+      ...(pickupLat && pickupLng ? { pickup_latitude: pickupLat, pickup_longitude: pickupLng } : {}),
+      ...(dropoffLat && dropoffLng ? { dropoff_latitude: dropoffLat, dropoff_longitude: dropoffLng } : {}),
     };
 
     // Configuração de Sandbox na Uber Direct (RoboCourier automático)

@@ -272,6 +272,7 @@ export const PedidosLista: React.FC = () => {
   const [pedidoAlterarStatusModal, setPedidoAlterarStatusModal] = useState<Pedido | null>(null);
   const [atualizandoStatusRapido, setAtualizandoStatusRapido] = useState<boolean>(false);
   const [imprimindoEtiquetaMlId, setImprimindoEtiquetaMlId] = useState<string | null>(null);
+  const [imprimindoEtiquetaMeId, setImprimindoEtiquetaMeId] = useState<string | null>(null);
   const [concluirAposReceber, setConcluirAposReceber] = useState<boolean>(false);
 
   const handleImprimirEtiquetaMl = async (pedido: Pedido) => {
@@ -1409,6 +1410,24 @@ export const PedidosLista: React.FC = () => {
 
         const entregaAtualizada = await ShippingOrchestrator.buscarPedidoEntrega(ped.id);
         if (entregaAtualizada) setEntregaPedido(entregaAtualizada);
+
+        // Notificação assíncrona ao cliente via WhatsApp (Fire-and-Forget)
+        const telCliUber = String(pedCompleto.cliente?.whatsapp || pedCompleto.cliente?.telefone || (pedCompleto as any).telefone_cliente || '').trim();
+        if (loja?.id && telCliUber) {
+          whatsappWalletService.notificarExpedicao({
+            lojaId: loja.id,
+            pedidoId: ped.id,
+            telefoneDestino: telCliUber,
+            numeroPedido: ped.numero_pedido || ped.id.slice(0, 6),
+            nomeCliente: pedCompleto.cliente?.nome,
+            nomeLoja: loja.nome_fantasia,
+            meioEnvio: 'Uber Flash / Direct',
+            codigoRastreio: resultado.delivery_id,
+            linkRastreio: resultado.link_rastreio,
+            usuarioId: usuario?.id,
+            clienteId: pedCompleto.cliente_id || pedCompleto.cliente?.id
+          });
+        }
       } else if (prov === 'melhor_envio') {
         const docCliente = (pedCompleto.cliente?.numero_documento || pedCompleto.cliente_documento_avulso || '').replace(/\D/g, '');
         if (!docCliente) {
@@ -1486,6 +1505,24 @@ export const PedidosLista: React.FC = () => {
         const entregaAtualizada = await ShippingOrchestrator.buscarPedidoEntrega(ped.id);
         if (entregaAtualizada) setEntregaPedido(entregaAtualizada);
 
+        // Notificação assíncrona ao cliente via WhatsApp (Fire-and-Forget)
+        const telCliME = String(pedCompleto.cliente?.whatsapp || pedCompleto.cliente?.telefone || (pedCompleto as any).telefone_cliente || '').trim();
+        if (loja?.id && telCliME) {
+          whatsappWalletService.notificarExpedicao({
+            lojaId: loja.id,
+            pedidoId: ped.id,
+            telefoneDestino: telCliME,
+            numeroPedido: ped.numero_pedido || ped.id.slice(0, 6),
+            nomeCliente: pedCompleto.cliente?.nome,
+            nomeLoja: loja.nome_fantasia,
+            meioEnvio: entregaValida.transportadora_nome || 'Melhor Envio',
+            codigoRastreio: codRastreioFinal,
+            linkRastreio: urlRastreio,
+            usuarioId: usuario?.id,
+            clienteId: pedCompleto.cliente_id || pedCompleto.cliente?.id
+          });
+        }
+
         mostrarSucesso('Envio gerado com sucesso!', 'Pedido despachado via transportadora. Etiqueta e rastreamento disponíveis.');
       }
     } catch (err: any) {
@@ -1530,7 +1567,8 @@ export const PedidosLista: React.FC = () => {
     }
 
     try {
-      mostrarSucesso('Obtendo etiqueta oficial com o Melhor Envio...', 'Aguarde um instante');
+      setImprimindoEtiquetaMeId(ped.id);
+      mostrarToast('Obtendo etiqueta oficial com o Melhor Envio...', 'info');
       const lojaId = loja?.id || ped.loja_id;
       const ordemId = (ped.metadados as any)?.melhor_envio_order_id || (pe?.codigo_rastreio?.startsWith('ORD-') ? pe?.codigo_rastreio : undefined);
       const urlPdf = await MelhorEnvioService.obterEtiquetaOficialPdf(ped.id, lojaId, ordemId);
@@ -1553,6 +1591,8 @@ export const PedidosLista: React.FC = () => {
       }
     } catch (err: any) {
       mostrarErro(err.message || 'Etiqueta oficial ainda não liberada no Melhor Envio.');
+    } finally {
+      setImprimindoEtiquetaMeId(null);
     }
   };
 
@@ -2525,17 +2565,33 @@ export const PedidosLista: React.FC = () => {
                   )}
                 </button>
               ) : (() => {
-                const { isRetirada } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
+                const { isRetirada, prov } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
                 if (pedidoSelecionado.status !== 'cancelado' && !isRetirada) {
                   return (
                     <button
                       type="button"
-                      onClick={() => setPedidoEtiquetaModal(pedidoSelecionado)}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-xs active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
+                      disabled={imprimindoEtiquetaMeId === pedidoSelecionado.id}
+                      onClick={() => {
+                        if (prov === 'melhor_envio') {
+                          handleImprimirEtiquetaOficialMelhorEnvio(pedidoSelecionado);
+                        } else {
+                          setPedidoEtiquetaModal(pedidoSelecionado);
+                        }
+                      }}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-xs active:scale-95 disabled:opacity-60 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
                       title="Imprimir Etiqueta de Envio"
                     >
-                      <Tag className="w-3.5 h-3.5" />
-                      <span>Etiqueta</span>
+                      {imprimindoEtiquetaMeId === pedidoSelecionado.id ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Obtendo Etiqueta...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Tag className="w-3.5 h-3.5" />
+                          <span>Etiqueta</span>
+                        </>
+                      )}
                     </button>
                   );
                 }
@@ -4033,12 +4089,22 @@ export const PedidosLista: React.FC = () => {
                                             <>
                                               <button
                                                 type="button"
-                                                onClick={() => setPedidoEtiquetaModal(pedido)}
-                                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold'}`}
-                                                title="Imprimir Etiqueta de Envio"
+                                                onClick={() => handleImprimirEtiquetaOficialMelhorEnvio(pedido)}
+                                                disabled={imprimindoEtiquetaMeId === pedido.id}
+                                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-60 ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold'}`}
+                                                title="Imprimir Etiqueta Oficial (PDF)"
                                               >
-                                                <Tag className="w-3.5 h-3.5" />
-                                                <span>Etiqueta</span>
+                                                {imprimindoEtiquetaMeId === pedido.id ? (
+                                                  <>
+                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                    <span>Obtendo...</span>
+                                                  </>
+                                                ) : (
+                                                  <>
+                                                    <Tag className="w-3.5 h-3.5" />
+                                                    <span>Etiqueta</span>
+                                                  </>
+                                                )}
                                               </button>
 
                                               <button

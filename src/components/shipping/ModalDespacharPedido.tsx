@@ -452,7 +452,8 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
           codRastreioOuCorrida ? `\n🔎 Código de Rastreio/Corrida: *${codRastreioOuCorrida}*` : ''
         }${dadosDespacho.linkRastreio ? `\n🔗 Acompanhe: ${dadosDespacho.linkRastreio}` : ''}`;
 
-        const resHibrido = await whatsappWalletService.dispararNotificacaoHibrida({
+        // Disparo assíncrono em segundo plano (Fire-and-Forget) para não travar a interface
+        whatsappWalletService.dispararNotificacaoHibrida({
           lojaId: loja.id,
           telefoneDestino: telefoneCliente,
           mensagem: mensagemDespacho,
@@ -460,13 +461,17 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
           pedidoId: pedido.id,
           clienteId: pedido.cliente_id || pedido.cliente?.id || null,
           usuarioId: usuario?.id || null,
+        }).catch((err) => {
+          console.warn('[ModalDespacharPedido] Falha assíncrona ao notificar WhatsApp:', err);
         });
+
+        const manualUrl = whatsappWalletService.construirLinkManualWhatsApp(telefoneCliente, mensagemDespacho);
 
         setConfirmacaoSucesso({
           numPedido: numPed,
           clienteNome: clienteNomeFinal,
           meioEnvio: detalheEnvio,
-          manualUrl: resHibrido?.manualUrl || (telefoneCliente ? `https://wa.me/55${telefoneCliente.replace(/\D/g, '')}?text=${encodeURIComponent(mensagemDespacho)}` : null)
+          manualUrl
         });
         return;
       }

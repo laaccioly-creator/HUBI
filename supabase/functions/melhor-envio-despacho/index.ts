@@ -1692,223 +1692,26 @@ serve(async (req: Request) => {
       );
     }
 
-    // Delay de 2 segundos antes de chamar /api/v2/me/shipment/generate
-    await new Promise((r) => setTimeout(r, 2000));
-
     // -------------------------------------------------------------------------
-    // PASSO 3: Solicitar Geração da Etiqueta (POST /api/v2/me/shipment/generate)
+    // PASSO 3: Enfileirar Geração da Etiqueta em Segundo Plano (Fire-and-Forget)
+    // A geração e impressão do PDF (POST /print) são executadas sob demanda
+    // quando o operador clica no botão [ Etiqueta ] (Lazy Loading), reduzindo
+    // o tempo de despacho de ~30s para < 2s sem bloqueios de tela.
     // -------------------------------------------------------------------------
-    console.log('[ME-Despacho][3-Generate] Enviando orders:', [orderId]);
-    let generateLiberado = false;
-    let generateMensagem = "";
-
-    const resGenerate = await fetch(`${baseUrl}/api/v2/me/shipment/generate`, {
+    fetch(`${baseUrl}/api/v2/me/shipment/generate`, {
       method: "POST",
       headers: headersComuns,
       body: JSON.stringify({ orders: [orderId] }),
-    });
-    const generateResponseText = await resGenerate.text();
-    let generateData: any;
-    try { generateData = JSON.parse(generateResponseText); } catch { generateData = generateResponseText; }
-    console.log('[Generate Response]', generateResponseText);
-    console.log('[ME-Despacho][3-Generate] Status:', resGenerate.status, 'Resposta:', generateResponseText);
+    })
+      .then((r) => console.log(`[ME-Despacho][Background-Generate] Ordem ${orderId} enfileirada. Status:`, r.status))
+      .catch((eGen) => console.warn("[ME-Despacho][Background-Generate] Aviso na geração assíncrona:", eGen));
 
-    // Tratamento crítico na resposta da geração:
-    const genLower = (generateResponseText || "").toLowerCase();
-    const ehMensagemSucessoAssincrono =
-      genLower.includes("encaminhado para gera") ||
-      genLower.includes("fila de processamento") ||
-      (genLower.includes("processo de geração") && genLower.includes("sucesso"));
-
-    if (ehMensagemSucessoAssincrono) {
-      generateLiberado = true;
-    } else if (generateData && typeof generateData === 'object') {
-      const orderResult = generateData[orderId] || generateData[Object.keys(generateData)[0]];
-      if (orderResult && typeof orderResult === 'object') {
-        if (orderResult.status === true || orderResult.status === 'released' || orderResult.status === 'generated') {
-          generateLiberado = true;
-        } else {
-          generateLiberado = false;
-          generateMensagem = orderResult.message || orderResult.error || "Geração não liberada pela transportadora";
-        }
-      } else if (generateData.status === true) {
-        generateLiberado = true;
-      } else if (generateData.status === false) {
-        generateLiberado = false;
-        generateMensagem = generateData.message || generateData.error || "Geração recusada pelo Melhor Envio";
-      } else if (generateData.message) {
-        if (genLower.includes("erro") || genLower.includes("falha") || genLower.includes("rejeit") || genLower.includes("não possível")) {
-          generateLiberado = false;
-          generateMensagem = generateData.message;
-        } else {
-          generateLiberado = true;
-        }
-      } else if (resGenerate.ok) {
-        generateLiberado = true;
-      }
-    } else if (resGenerate.ok) {
-      generateLiberado = true;
-    }
-
-    // Se a geração falhar ou retornar qualquer mensagem de recusa, retorne no corpo da Edge Function para o Frontend
-    if (!generateLiberado) {
-      console.error("[MelhorEnvio-Edge] Recusa na geração pela API:", generateData);
-      return new Response(
-        JSON.stringify({
-          sucesso: false,
-          ordem_id: String(orderId),
-          erro: `Recusa na geração da etiqueta: ${generateMensagem || (typeof generateData === 'string' ? generateData : JSON.stringify(generateData))}`,
-          error: `Recusa na geração da etiqueta: ${generateMensagem || (typeof generateData === 'string' ? generateData : JSON.stringify(generateData))}`,
-          motivo_real_api: {
-            status_cart: resCart.status,
-            retorno_cart: cartData,
-            status_checkout: resCheckout.status,
-            retorno_checkout: checkoutData,
-            status_generate: resGenerate.status,
-            retorno_generate: generateData
-          }
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-      );
-    }
-
-    // -------------------------------------------------------------------------
-    // PASSO 4: Obter URL de Impressão da Etiqueta (POST /api/v2/me/shipment/print)
-    // No Sandbox, só chama print se generate retornou sucesso na liberação.
-    // -------------------------------------------------------------------------
+    // Código e link de rastreio imediatos disponibilizados pelo Melhor Envio
+    let codigoRastreio = cartData.tracking || cartData.authorization_code || cartData.self_tracking || "";
+    let linkRastreioOficial = codigoRastreio ? `https://melhorrastreio.com.br/app/${codigoRastreio}` : null;
     let linkEtiqueta: string | null = null;
-    let debugPrint: any = null;
-
-    if (generateLiberado) {
-      // Aguarda o processamento assíncrono do Melhor Envio
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      console.log('[ME-Despacho][4-Print] Solicitando link PDF direto para:', [orderId]);
-      try {
-        const directFileRes = await fetch(`${baseUrl}/api/v2/me/imprimir/pdf/${orderId}`, {
-          method: "GET",
-          headers: headersComuns,
-        });
-        if (directFileRes.ok) {
-          const directFileData = await directFileRes.json().catch(() => null);
-          if (Array.isArray(directFileData) && directFileData.length > 0) {
-            const primeiraUrl = String(directFileData[0] || "").trim();
-            if (primeiraUrl && (primeiraUrl.includes(".pdf") || primeiraUrl.includes("s3.amazonaws.com"))) {
-              linkEtiqueta = primeiraUrl;
-              console.log('[ME-Despacho][4-Print] PDF direto obtido no despacho:', linkEtiqueta);
-            }
-          }
-        }
-      } catch (eDir) {
-        console.warn("[ME-Despacho][4-Print] Falha ao consultar endpoint de PDF direto:", eDir);
-      }
-
-      if (!linkEtiqueta) {
-        try {
-          const printRes = await fetch(`${baseUrl}/api/v2/me/shipment/print`, {
-            method: "POST",
-            headers: headersComuns,
-            body: JSON.stringify({ mode: "public", orders: [orderId] }),
-          });
-          const printText = await printRes.clone().text();
-          console.log('[ME-Despacho][4-Print] Status:', printRes.status, 'Resposta:', printText);
-          try { debugPrint = JSON.parse(printText); } catch { debugPrint = printText; }
-
-          if (printRes.ok && debugPrint && typeof debugPrint === 'object') {
-            const rawPrintUrl = String(debugPrint?.url || '').trim();
-            const ehUrlPublicaPrint =
-              Boolean(rawPrintUrl) &&
-              (rawPrintUrl.includes('/portal/imprimir/') || rawPrintUrl.includes('/imprimir/') || rawPrintUrl.endsWith('.pdf')) &&
-              !rawPrintUrl.includes('/painel') &&
-              !rawPrintUrl.includes('/login') &&
-              !rawPrintUrl.includes('/entrar') &&
-              !rawPrintUrl.includes('/auth');
-
-            if (ehUrlPublicaPrint) {
-              linkEtiqueta = rawPrintUrl;
-            }
-          }
-        } catch (ePrint: any) {
-          console.warn("[ME-Despacho][4-Print] Exceção ao imprimir:", ePrint);
-          debugPrint = ePrint?.message || String(ePrint);
-        }
-      }
-    } else {
-      console.warn(`[ME-Despacho][4-Print] Geração não confirmada ou pendente: "${generateMensagem || 'não liberado'}". Chamada de print cancelada.`);
-      debugPrint = {
-        pulado: true,
-        motivo: generateMensagem || "Etiqueta ainda não liberada no Melhor Envio",
-      };
-      linkEtiqueta = null;
-    }
-
-    // -------------------------------------------------------------------------
-    // PASSO 5: Obter Código de Rastreamento Real com Retry Polling (GET /api/v2/me/orders/${orderId})
-    // -------------------------------------------------------------------------
-    let codigoRastreio = "";
-    let linkRastreioOficial = "";
     let statusEnvioTransportadora = "despachado";
-    let statusOrdemME = "";
-
-    for (let tentativa = 1; tentativa <= 4; tentativa++) {
-      try {
-        console.log(`[MelhorEnvio-Edge] Consultando dados da ordem ${orderId} (tentativa ${tentativa}/4)...`);
-        const orderRes = await fetch(`${baseUrl}/api/v2/me/orders/${orderId}`, {
-          method: "GET",
-          headers: headersComuns,
-        });
-
-        if (orderRes.ok) {
-          const orderData = await orderRes.json();
-          statusOrdemME = (orderData.status || "").toLowerCase();
-
-          const selfTracking = (orderData.self_tracking || "").trim(); // ex: ME26006DUM4BR
-          const tracking = (orderData.tracking || "").trim(); // ex: 830803761 ou QB123456789BR
-          const codAuth = (orderData.authorization_code || "").trim();
-          const codVolume = (orderData.volumes?.[0]?.tracking || "").trim();
-          const codBarraJadlog = (orderData.additional_info?.volume?.[0]?.codbarra || "").trim();
-
-          if (orderData.status === "delivered" || orderData.delivered_at) {
-            statusEnvioTransportadora = "entregue";
-          } else if (orderData.status === "posted" || orderData.posted_at) {
-            statusEnvioTransportadora = "em_transito";
-          } else if (orderData.status === "released" || orderData.status === "generated") {
-            statusEnvioTransportadora = "despachado";
-          }
-
-          // Prioridade: tracking oficial (ex: código numérico Jadlog 830803761 ou Correios SRO) > authorization_code > volumes > codBarraJadlog > self_tracking
-          // NUNCA salvar orderData.protocol, cartData.id ou 'ORD-...' no campo codigoRastreio visível
-          codigoRastreio = tracking || codAuth || codVolume || codBarraJadlog || selfTracking || "";
-
-          if (codigoRastreio) {
-            linkRastreioOficial = `https://melhorrastreio.com.br/app/${codigoRastreio}`;
-            console.log(`[MelhorEnvio-Edge] Código de rastreio obtido com sucesso: ${codigoRastreio}`);
-            break;
-          }
-        }
-      } catch (eOrder) {
-        console.warn(`[MelhorEnvio-Edge] Erro na tentativa ${tentativa} de consulta da ordem:`, eOrder);
-      }
-
-      if (tentativa < 4) {
-        await new Promise((resolve) => setTimeout(resolve, 1200));
-      }
-    }
-
-    // Fallback: se ainda assim não preencheu, tenta apenas campos estritamente de rastreio do cartData
-    if (!codigoRastreio) {
-      codigoRastreio = cartData.tracking || cartData.authorization_code || cartData.self_tracking || "";
-    }
-
-    if (!linkRastreioOficial && codigoRastreio) {
-      linkRastreioOficial = `https://melhorrastreio.com.br/app/${codigoRastreio}`;
-    }
-
-    // Se a etiqueta ainda não estiver pronta (status !== 'released') e ainda não obtivemos link público tokenizado, marque link_etiqueta = null
-    // e não interrompa a persistência do código de rastreio já gerado.
-    if (statusOrdemME && statusOrdemME !== 'released' && !linkEtiqueta) {
-      console.log(`[MelhorEnvio-Edge] Ordem com status '${statusOrdemME}'. link_etiqueta mantido como null até liberação.`);
-      linkEtiqueta = null;
-    }
+    let statusOrdemME = "released";
 
     const despachadoEm = new Date().toISOString();
 

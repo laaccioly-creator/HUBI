@@ -535,4 +535,52 @@ export const whatsappWalletService = {
       saldoPosterior: Number(row?.saldo_posterior ?? 0),
     };
   },
+
+  /**
+   * Dispara a notificação de expedição/despacho ao cliente de forma estritamente assíncrona (Fire-and-Forget).
+   * Não bloqueia a thread de execução do despacho nem a interface do operador.
+   */
+  notificarExpedicao(params: {
+    lojaId: string;
+    pedidoId: string;
+    telefoneDestino: string;
+    numeroPedido: number | string;
+    nomeCliente?: string;
+    nomeLoja?: string;
+    meioEnvio: string;
+    codigoRastreio?: string | null;
+    linkRastreio?: string | null;
+    usuarioId?: string | null;
+    clienteId?: string | null;
+  }): void {
+    const {
+      lojaId,
+      pedidoId,
+      telefoneDestino,
+      numeroPedido,
+      nomeCliente,
+      nomeLoja,
+      meioEnvio,
+      codigoRastreio,
+      linkRastreio,
+      usuarioId,
+      clienteId,
+    } = params;
+
+    if (!lojaId || !telefoneDestino) return;
+
+    const mensagem = `Olá${nomeCliente ? `, *${nomeCliente}*` : ''}! 📦\nSeu pedido *#${numeroPedido}* na loja *${nomeLoja || 'HUBI'}* acabou de ser despachado via *${meioEnvio}*!${codigoRastreio ? `\n🔎 Código de Rastreio/Corrida: *${codigoRastreio}*` : ''}${linkRastreio ? `\n🔗 Acompanhe: ${linkRastreio}` : ''}`;
+
+    this.dispararNotificacaoHibrida({
+      lojaId,
+      telefoneDestino,
+      mensagem,
+      eventoGatilho: 'rastreio_despacho',
+      pedidoId,
+      clienteId: clienteId || null,
+      usuarioId: usuarioId || null,
+    }).catch((err) => {
+      console.warn('[WhatsAppWalletService] Falha assíncrona ao notificar expedição:', err);
+    });
+  },
 };

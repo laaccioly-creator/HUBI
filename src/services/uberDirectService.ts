@@ -533,6 +533,11 @@ export class UberDirectService {
 
     const quoteIdFinal = entrega.cotacao_id || (entrega as any).quote_id || (pedido.metadados as any)?.cotacao_id || undefined;
 
+    const origemLat = Number(config.origem_latitude || (loja as any).endereco_latitude || (loja as any).latitude || 0) || null;
+    const origemLng = Number(config.origem_longitude || (loja as any).endereco_longitude || (loja as any).longitude || 0) || null;
+    const destinoLat = Number(entrega.destino_latitude || (pedido.cliente as any)?.latitude || 0) || null;
+    const destinoLng = Number(entrega.destino_longitude || (pedido.cliente as any)?.longitude || 0) || null;
+
     const payload = {
       ...(quoteIdFinal ? { quote_id: quoteIdFinal } : {}),
       pickup_name: loja.nome_fantasia || 'HUBI PDV',
@@ -542,6 +547,8 @@ export class UberDirectService {
       dropoff_address: dropoffAddressObj,
       dropoff_phone_number: dropoffPhone,
       manifest_items: manifestItems,
+      ...(origemLat && origemLng ? { pickup_latitude: origemLat, pickup_longitude: origemLng } : {}),
+      ...(destinoLat && destinoLng ? { dropoff_latitude: destinoLat, dropoff_longitude: destinoLng } : {}),
       ...(isSandbox ? { test_specifications: { robo_courier_specification: { mode: 'auto' } } } : {})
     };
 
