@@ -360,22 +360,95 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
     Boolean(pedSeguro?.endereco_entrega)
   );
 
-  const provedorFrete = (rawPe?.provedor || (pedSeguro as any)?.provedor_frete || '').toLowerCase();
-  const transpNomeFrete = (rawPe?.transportadora_nome || pedSeguro?.nome_transportadora || '').toLowerCase();
-  const servicoCorreiosFrete = (rawPe?.servico_correios || pedSeguro?.servico_correios || '').toLowerCase();
-  const ehOperadoraExternaFrete = 
+  const provedorFrete = (
+    rawPe?.provedor || 
+    (pedSeguro as any)?.provedor_frete || 
+    (pedSeguro as any)?.provedor ||
+    meta.provedor || 
+    meta.opcao_frete?.provedor || 
+    ''
+  ).toLowerCase();
+
+  const transpNomeFrete = (
+    rawPe?.transportadora_nome || 
+    pedSeguro?.nome_transportadora || 
+    rawPe?.forma_entrega_nome || 
+    (pedSeguro as any)?.forma_entrega_nome || 
+    (pedSeguro as any)?.transportadora || 
+    (pedSeguro as any)?.transportadora_nome ||
+    meta.transportadora_nome || 
+    meta.transportadora || 
+    meta.opcao_frete?.transportadora_nome || 
+    meta.opcao_frete?.nome || 
+    ''
+  ).toLowerCase();
+
+  const nomeAppFrete = (
+    rawPe?.nome_app || 
+    pedSeguro?.nome_app || 
+    (pedSeguro as any)?.nome_app ||
+    meta.nome_app || 
+    meta.opcao_frete?.nome_app || 
+    ''
+  ).toLowerCase();
+
+  const servicoCorreiosFrete = (
+    rawPe?.servico_correios || 
+    pedSeguro?.servico_correios || 
+    meta.servico_correios || 
+    ''
+  ).toLowerCase();
+
+  const servicoCodigoFrete = (
+    rawPe?.servico_codigo || 
+    meta.opcao_frete?.servico_codigo || 
+    meta.opcao_frete?.id || 
+    ''
+  ).toLowerCase();
+
+  const tipoOperacaoFrete = (
+    rawPe?.tipo_operacao || 
+    pedSeguro?.tipo_operacao || 
+    (pedSeguro as any)?.tipo_operacao ||
+    meta.tipo_operacao || 
+    ''
+  ).toLowerCase();
+
+  // Identificação estrita de frete terceirizado (Uber Direct, Correios, Jadlog, Melhor Envio, 99, etc.)
+  const ehFreteTerceirizado = Boolean(
+    provedorFrete === 'uber' ||
     provedorFrete === 'melhor_envio' ||
     provedorFrete === 'correios' ||
-    Boolean(servicoCorreiosFrete) ||
+    nomeAppFrete.includes('uber') ||
+    nomeAppFrete.includes('99') ||
+    nomeAppFrete.includes('ifood') ||
+    nomeAppFrete.includes('rappi') ||
+    nomeAppFrete.includes('lalamove') ||
+    transpNomeFrete.includes('uber') ||
+    transpNomeFrete.includes('melhor envio') ||
+    transpNomeFrete.includes('melhorenvio') ||
     transpNomeFrete.includes('correios') ||
     transpNomeFrete.includes('sedex') ||
     transpNomeFrete.includes('pac') ||
     transpNomeFrete.includes('jadlog') ||
     transpNomeFrete.includes('azul cargo') ||
+    transpNomeFrete.includes('azulcargo') ||
     transpNomeFrete.includes('loggi') ||
-    transpNomeFrete.includes('latam');
+    transpNomeFrete.includes('latam') ||
+    transpNomeFrete.includes('buslog') ||
+    transpNomeFrete.includes('.package') ||
+    transpNomeFrete.includes('.com') ||
+    Boolean(servicoCorreiosFrete) ||
+    servicoCodigoFrete.includes('uber') ||
+    tipoOperacaoFrete === 'transportadora' ||
+    tipoOperacaoFrete === 'app_entrega'
+  );
 
-  const presencialPermitido = ehRetirada || !ehOperadoraExternaFrete;
+  // Pagamento presencial (dinheiro/cartão na entrega) é permitido exclusivamente se:
+  // 1) For retirada na loja (balcão);
+  // 2) For liquidação de caderneta (sem despacho); ou
+  // 3) For entrega própria da loja (NÃO terceirizada por Uber/Correios/Jadlog/Melhor Envio)
+  const presencialPermitido = ehRetirada || ehModoCaderneta || (!ehFreteTerceirizado && ehEnvio);
 
   const limiteDisponivelCaderneta = useMemo(() => {
     if (!clientePedidoMemo) return 0;
@@ -495,6 +568,37 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
       }
     }
   }, [isOpen, saldoDevedorAtual, linhasPagamento.length]);
+
+  // Reset de meios presenciais inválidos se o frete for terceirizado (Uber, Correios, Jadlog, etc.)
+  useEffect(() => {
+    if (!isOpen || presencialPermitido) return;
+
+    setLinhasPagamento(prev => {
+      const temInvalido = prev.some(l => 
+        l.forma_tipo === 'dinheiro' || 
+        l.forma_tipo === 'cartao_debito' || 
+        l.forma_tipo === 'cartao_credito'
+      );
+      if (!temInvalido) return prev;
+
+      return prev.map(l => {
+        if (
+          l.forma_tipo === 'dinheiro' || 
+          l.forma_tipo === 'cartao_debito' || 
+          l.forma_tipo === 'cartao_credito'
+        ) {
+          return {
+            ...l,
+            forma_pagamento_id: '',
+            forma_tipo: '' as any,
+            forma_nome: '',
+            valor_entregue: null
+          };
+        }
+        return l;
+      });
+    });
+  }, [isOpen, presencialPermitido]);
 
   if (!isOpen || (!pedido && !saldoDevedorAvulso)) return null;
 
@@ -735,6 +839,11 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
 
     if (linhasAtivas.some(l => !l.forma_tipo || !l.forma_pagamento_id)) {
       setErroMsg('Por favor, selecione uma forma de pagamento para prosseguir.');
+      return;
+    }
+
+    if (!presencialPermitido && linhasAtivas.some(l => l.forma_tipo === 'dinheiro' || l.forma_tipo === 'cartao_debito' || l.forma_tipo === 'cartao_credito')) {
+      setErroMsg('Para entregas terceirizadas (Uber Direct, Correios, etc.), os meios presenciais na entrega não estão disponíveis. Selecione um meio digital.');
       return;
     }
 
@@ -1044,6 +1153,16 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
               <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center gap-2 text-xs text-rose-600 dark:text-rose-400 animate-in fade-in">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{erroMsg}</span>
+              </div>
+            )}
+
+            {/* Aviso Informativo de Frete Terceirizado */}
+            {ehFreteTerceirizado && !ehRetirada && !ehModoCaderneta && (
+              <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-2.5 text-xs text-amber-700 dark:text-amber-300 animate-in fade-in">
+                <Truck className="w-4 h-4 shrink-0 text-amber-500" />
+                <span className="leading-relaxed">
+                  Entrega terceirizada ({transpNomeFrete || nomeAppFrete || 'Uber Direct / Transportadora'}). Pagamento presencial na entrega indisponível; selecione um meio digital (PIX ou Mercado Pago).
+                </span>
               </div>
             )}
 
