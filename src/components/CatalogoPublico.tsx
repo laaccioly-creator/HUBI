@@ -2091,17 +2091,27 @@ export const CatalogoPublico: React.FC = () => {
         ShippingOrchestrator.salvarPedidoEntrega(pedidoCriado.id, entregaPayload)
       ]);
 
-      // Registro não-bloqueante de auditoria em segundo plano
-      Promise.resolve(supabase.from('historico_pedidos').insert({
-        loja_id: loja.id,
-        pedido_id: pedidoCriado.id,
-        usuario_id: null,
-        tipo_evento: 'criacao',
-        status_anterior: null,
-        status_novo: 'pendente',
-        motivo: 'Pedido recebido via catálogo online',
-        criado_em: dataOperacaoIso
-      })).catch(() => {});
+      // Registro não-bloqueante de auditoria em segundo plano (resiliente a RLS anon 401)
+      try {
+        Promise.resolve(
+          supabase.from('historico_pedidos').insert({
+            loja_id: loja.id,
+            pedido_id: pedidoCriado.id,
+            usuario_id: null,
+            tipo_evento: 'criacao',
+            status_anterior: null,
+            status_novo: 'pendente',
+            motivo: 'Pedido recebido via catálogo online',
+            criado_em: dataOperacaoIso
+          })
+        ).then(({ error }) => {
+          if (error) {
+            console.warn('[CatalogoPublico] Registro histórico de criação não gravado (não-bloqueante):', error.message);
+          }
+        }).catch(() => {});
+      } catch (errHist) {
+        // Silencioso para não bloquear fluxo público do catálogo (RLS anon)
+      }
 
       // Se solicitado abrir o modal unificado de pagamento do catálogo:
       if (abrirModalPagamento) {

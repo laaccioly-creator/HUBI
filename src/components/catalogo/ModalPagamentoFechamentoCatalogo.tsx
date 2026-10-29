@@ -790,28 +790,31 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
         const dataIso = obterDataOperacaoISO();
         if (!ehModoCaderneta && SyncService.isUuidValido(pedSeguro.id)) {
           const lojaIdEfetivo = loja?.id || pedSeguro.loja_id;
-          await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedSeguro.id);
+          try {
+            await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedSeguro.id);
 
-          const previstosDb = await Promise.all(linhasValidas.map(async (l) => {
-            let fpRealId = l.forma_pagamento_id;
-            if (!fpRealId || !SyncService.isUuidValido(fpRealId) || String(fpRealId).startsWith('fp_')) {
-              fpRealId = await SyncService.resolverFormaPagamentoId(lojaIdEfetivo, l.forma_pagamento_id, l.forma_tipo);
-            }
-            return {
-              loja_id: lojaIdEfetivo,
-              pedido_id: pedSeguro.id,
-              forma_pagamento_id: fpRealId && SyncService.isUuidValido(fpRealId) ? fpRealId : null,
-              forma_tipo: l.forma_tipo,
-              forma_nome: l.forma_nome,
-              valor: Number(l.valor),
-              valor_entregue: l.valor_entregue != null && Number(l.valor_entregue) > 0 ? Number(l.valor_entregue) : null,
-              parcelas: l.parcelas || 1,
-              data_prevista: dataIso
-            };
-          }));
+            const previstosDb = await Promise.all(linhasValidas.map(async (l) => {
+              let fpRealId = l.forma_pagamento_id;
+              if (!fpRealId || !SyncService.isUuidValido(fpRealId) || String(fpRealId).startsWith('fp_')) {
+                fpRealId = await SyncService.resolverFormaPagamentoId(lojaIdEfetivo, l.forma_pagamento_id, l.forma_tipo);
+              }
+              return {
+                loja_id: lojaIdEfetivo,
+                pedido_id: pedSeguro.id,
+                forma_pagamento_id: fpRealId && SyncService.isUuidValido(fpRealId) ? fpRealId : null,
+                forma_tipo: l.forma_tipo,
+                forma_nome: l.forma_nome,
+                valor: Number(l.valor),
+                valor_entregue: l.valor_entregue != null && Number(l.valor_entregue) > 0 ? Number(l.valor_entregue) : null,
+                parcelas: l.parcelas || 1
+              };
+            }));
 
-          const { error: errPag } = await supabase.from('pedidos_pagamentos_previstos').insert(previstosDb);
-          if (errPag) console.warn('Aviso ao salvar pedidos_pagamentos_previstos:', errPag);
+            const { error: errPag } = await supabase.from('pedidos_pagamentos_previstos').insert(previstosDb);
+            if (errPag) console.warn('Aviso ao salvar pedidos_pagamentos_previstos:', errPag);
+          } catch (errPrevDb) {
+            console.warn('Aviso não-bloqueante ao registrar pedidos_pagamentos_previstos:', errPrevDb);
+          }
 
           const primeiraLinha = linhasValidas[0];
           const formaPrincipal = primeiraLinha ? primeiraLinha.forma_tipo : '';
@@ -820,7 +823,6 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
 
           const payloadPed: Record<string, any> = {
             forma_pagamento_catalogo: formaPrincipal,
-            forma_pagamento: formaPrincipal,
             atualizado_em: dataIso
           };
           if (trocoParaDinheiro !== null) {
@@ -906,27 +908,30 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
       // 1. Grava previsão de pagamento detalhada (apenas para pedidos reais com UUID)
       if (!ehModoCaderneta && SyncService.isUuidValido(pedSeguro.id)) {
         const lojaIdEfetivo = loja?.id || pedSeguro.loja_id;
-        await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedSeguro.id);
-        const previstosDb = await Promise.all(linhasAtivas.map(async (linha) => {
-          let fpRealId = linha.forma_pagamento_id;
-          if (!fpRealId || !SyncService.isUuidValido(fpRealId) || String(fpRealId).startsWith('fp_')) {
-            fpRealId = await SyncService.resolverFormaPagamentoId(lojaIdEfetivo, linha.forma_pagamento_id, linha.forma_tipo);
+        try {
+          await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedSeguro.id);
+          const previstosDb = await Promise.all(linhasAtivas.map(async (linha) => {
+            let fpRealId = linha.forma_pagamento_id;
+            if (!fpRealId || !SyncService.isUuidValido(fpRealId) || String(fpRealId).startsWith('fp_')) {
+              fpRealId = await SyncService.resolverFormaPagamentoId(lojaIdEfetivo, linha.forma_pagamento_id, linha.forma_tipo);
+            }
+            return {
+              loja_id: lojaIdEfetivo,
+              pedido_id: pedSeguro.id,
+              forma_pagamento_id: fpRealId && SyncService.isUuidValido(fpRealId) ? fpRealId : null,
+              forma_tipo: linha.forma_tipo,
+              forma_nome: linha.forma_nome,
+              valor: Number(linha.valor),
+              valor_entregue: linha.valor_entregue != null && Number(linha.valor_entregue) > 0 ? Number(linha.valor_entregue) : null,
+              parcelas: linha.parcelas || 1
+            };
+          }));
+          const { error: errPrev } = await supabase.from('pedidos_pagamentos_previstos').insert(previstosDb);
+          if (errPrev) {
+            console.warn('Aviso ao inserir pedidos_pagamentos_previstos:', errPrev);
           }
-          return {
-            loja_id: lojaIdEfetivo,
-            pedido_id: pedSeguro.id,
-            forma_pagamento_id: fpRealId && SyncService.isUuidValido(fpRealId) ? fpRealId : null,
-            forma_tipo: linha.forma_tipo,
-            forma_nome: linha.forma_nome,
-            valor: Number(linha.valor),
-            valor_entregue: linha.valor_entregue != null && Number(linha.valor_entregue) > 0 ? Number(linha.valor_entregue) : null,
-            parcelas: linha.parcelas || 1,
-            data_prevista: dataIso
-          };
-        }));
-        const { error: errPrev } = await supabase.from('pedidos_pagamentos_previstos').insert(previstosDb);
-        if (errPrev) {
-          console.warn('Aviso ao inserir pedidos_pagamentos_previstos:', errPrev);
+        } catch (errPrevDb) {
+          console.warn('Aviso não-bloqueante ao registrar pedidos_pagamentos_previstos:', errPrevDb);
         }
       }
 
@@ -1012,7 +1017,6 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
         const updatePayload: Record<string, any> = {
           status_pagamento: statusPagamentoFinal,
           forma_pagamento_catalogo: formaPrincipal,
-          forma_pagamento: formaPrincipal,
           atualizado_em: dataIso
         };
         if (trocoParaDinheiro !== null) {
@@ -1035,6 +1039,30 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
 
         if (erroUpd) throw erroUpd;
         pedUpd = data;
+
+        // Auditoria relacional em historico_pedidos (não-bloqueante para clientes públicos sem auth de funcionário)
+        try {
+          const formaPrincipalRotulo = primeiraLinha ? (primeiraLinha.forma_nome || primeiraLinha.forma_tipo) : 'Entrega';
+          Promise.resolve(
+            supabase.from('historico_pedidos').insert({
+              loja_id: lojaIdEfetivo,
+              pedido_id: pedSeguro.id,
+              usuario_id: null,
+              tipo_evento: 'pagamento_catalogo',
+              status_anterior: pedSeguro.status,
+              status_novo: pedSeguro.status,
+              motivo: `Forma de pagamento registrada no catálogo: ${formaPrincipalRotulo}`,
+              descricao: `Forma de pagamento registrada no catálogo: ${formaPrincipalRotulo}`,
+              criado_em: dataIso
+            })
+          ).then(({ error }) => {
+            if (error) {
+              console.warn('[ModalPagamentoFechamentoCatalogo] Registro histórico não gravado (não-bloqueante):', error.message);
+            }
+          }).catch(() => {});
+        } catch (eH) {
+          // Não bloqueia
+        }
       }
 
       audioService.playNewOrderSound();
