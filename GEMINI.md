@@ -67,3 +67,11 @@ O **HUBI** é uma plataforma de gestão e vendas multiplataforma (Mobile, Tablet
 - **Linguagem & Nomenclatura:** Código, commits, mensagens de erro, logs e nomes de tabelas/colunas sempre em **Português do Brasil (pt-BR)**.
 - **Tema Visual:** Dark Slate com destaques em Emerald (`#10B981`) para ações primárias/sucessos e tipografia limpa.
 - **Qualidade de Entrega:** Código limpo, fortemente tipado com TypeScript, livre de `any` dispensáveis, sem placeholders ou mocks incompletos em produção.
+
+---
+
+## 🐘🐟 8. PROTOCOLO ATÔMICO DE EXECUÇÃO: ELEFANTES E PEIXINHOS (ATOMIC-EXECUTION-PROTOCOL)
+
+- **Foco Estrito e Blindagem contra Regressões:** Cada ciclo de desenvolvimento atua estrita e cirurgicamente sobre o subproblema em questão. É expressamente vedado alterar, simplificar ou remover lógicas, botões, gateways ou componentes funcionais adjacentes (ex.: ao ajustar um método de pagamento, não interferir em outros gateways ativos nem desconfigurar rotinas de outros fluxos).
+- **Desacoplamento Arquitetural Rígido:** Manter a separação completa entre componentes do PDV Desktop / Balcão (`PosCheckout.tsx`, `ModalPagamentoFechamento.tsx`) e do Catálogo Online (`ModalPagamentoFechamentoCatalogo.tsx`, `CatalogoPublico.tsx`). Mudanças voltadas ao autoatendimento e navegação web do cliente final jamais devem afetar ou compartilhar código crítico com o caixa físico.
+- **Validação e Isolamento:** Cada modificação é tratada como uma unidade independente e autossuficiente: verificação de importações, validação estrita de tipos via TypeScript (`npx tsc --noEmit`) e garantia de compilação íntegra do projeto (`npm run build`).

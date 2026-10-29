@@ -36,3 +36,10 @@ Este documento define as regras de governança, restrições arquiteturais e pro
 ## 🧭 5. ROTEAMENTO DINÂMICO DA SUÍTE MANTIS (`mantis-router`)
 - **Otimização de Contexto:** Não carregar as 18 sub-skills do Mantis permanentemente no prompt de inicialização.
 - **Inicialização Padrão:** Carregar exclusivamente a `mantis-meta-agent`. As sub-skills (`mantis-researcher`, `mantis-threat-model`, `mantis-review`, `mantis-patch`, etc.) devem ser acionadas dinamicamente sob demanda quando solicitadas explicitamente (ex: `/mantis-audit`).
+
+---
+
+## 🐘🐟 6. PROTOCOLO ATÔMICO DE EXECUÇÃO: ELEFANTES E PEIXINHOS (`atomic-execution-protocol`)
+- **Escopo Estrito e Prevenção de Regressões:** Toda tarefa deve focar unicamente no subproblema demandado. É expressamente vedado alterar, simplificar ou excluir lógicas, botões, gateways ou componentes adjacentes homologados (ex.: ao ajustar um meio de pagamento, jamais remover outros gateways ativos ou alterar regras de métodos já validados).
+- **Desacoplamento Arquitetural Mandatório:** Manter isolamento absoluto entre o PDV Desktop / Balcão (`PosCheckout.tsx`, `ModalPagamentoFechamento.tsx`) e a experiência do Catálogo Online (`ModalPagamentoFechamentoCatalogo.tsx`, `CatalogoPublico.tsx`). Nenhuma lógica de autoatendimento ao consumidor final pode impactar a frente de caixa física.
+- **Validação e Isolamento Funcional:** Cada intervenção cirúrgica é tratada como unidade atômica independente: validação imediata de tipos em TypeScript (`npx tsc --noEmit`), integridade de importações e garantia de build de produção (`npm run build`) sem quebras.
