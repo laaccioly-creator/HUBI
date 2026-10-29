@@ -33,6 +33,7 @@ import {
   consolidarHistoricoPedidos,
   formatarDataHoraHistorico
 } from '../utils/historicoPedidoUtils';
+import { ModalEscolhaPagamento } from './catalogo/ModalEscolhaPagamento';
 
 export const PedidoAndamentoPublico: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -43,6 +44,8 @@ export const PedidoAndamentoPublico: React.FC = () => {
   const [carregando, setCarregando] = useState<boolean>(true);
   const [copiado, setCopiado] = useState<boolean>(false);
   const [baixandoPdf, setBaixandoPdf] = useState<boolean>(false);
+  const [modalPagamentoAberto, setModalPagamentoAberto] = useState<boolean>(false);
+  const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
   const reciboRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -185,7 +188,7 @@ export const PedidoAndamentoPublico: React.FC = () => {
       cancelado = true;
       supabase.removeChannel(canal);
     };
-  }, [id]);
+  }, [id, refreshTrigger]);
 
   if (carregando) {
     return (
@@ -461,13 +464,14 @@ export const PedidoAndamentoPublico: React.FC = () => {
 
               {pedido.status_pagamento === 'aguardando_pagamento' && (pedido as any).status !== 'cancelado' && (
                 <div className="pt-1">
-                  <Link
-                    to={`/catalog/${loja?.slug_catalogo || ''}?pagar_pedido=${pedido.id}`}
+                  <button
+                    type="button"
+                    onClick={() => setModalPagamentoAberto(true)}
                     className="w-full py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25 transition cursor-pointer active:scale-95 border border-emerald-500"
                   >
                     <CreditCard className="w-4 h-4" />
                     <span>Efetuar Pagamento Agora ({formatarMoeda ? formatarMoeda(valorTotal) : `R$ ${valorTotal.toFixed(2)}`})</span>
-                  </Link>
+                  </button>
                 </div>
               )}
 
@@ -766,7 +770,7 @@ export const PedidoAndamentoPublico: React.FC = () => {
             {/* Iniciar Nova Compra no Catálogo */}
             <div className="text-center pt-2">
               <Link
-                to={`/catalog`}
+                to={loja?.slug_catalogo ? `/catalog/${loja.slug_catalogo}` : `/catalog`}
                 className="inline-flex items-center justify-center gap-2 w-full py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-wider transition shadow-lg shadow-emerald-600/25 active:scale-95 cursor-pointer"
               >
                 <ShoppingBag className="w-4 h-4" />
@@ -776,6 +780,20 @@ export const PedidoAndamentoPublico: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal Unificado de Escolha de Pagamento */}
+      {modalPagamentoAberto && loja && pedido && (
+        <ModalEscolhaPagamento
+          isOpen={modalPagamentoAberto}
+          onClose={() => setModalPagamentoAberto(false)}
+          loja={loja}
+          pedido={pedido}
+          onPagamentoConcluido={() => {
+            setModalPagamentoAberto(false);
+            setRefreshTrigger(prev => prev + 1);
+          }}
+        />
+      )}
     </div>
   );
 };

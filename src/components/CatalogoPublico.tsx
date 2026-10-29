@@ -43,7 +43,9 @@ import { ModalPedidosCliente } from './ModalPedidosCliente';
 import { ModalFavoritosCliente } from './ModalFavoritosCliente';
 import { ModalNotificacoesCliente } from './ModalNotificacoesCliente';
 import { ModalCadernetaClienteCatalogo } from './ModalCadernetaClienteCatalogo';
-import { ModalPagamentoPedidoPesado } from './catalogo/ModalPagamentoPedidoPesado';
+import { ModalEscolhaPagamento } from './catalogo/ModalEscolhaPagamento';
+import { calcularDistanciaKm } from '../utils/geoUtils';
+import { gerarPayloadPixEmv } from '../utils/pixUtils';
 import { CadernetaService } from '../services/cadernetaService';
 import { ClienteCatalogoService } from '../services/clienteCatalogoService';
 import { formatarResumoDescricao } from './DescricaoFormatadaProduto';
@@ -249,7 +251,7 @@ export const CatalogoPublico: React.FC = () => {
   const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(() => {
     if (typeof window === 'undefined') return null;
     try {
-      const salvo = sessionStorage.getItem(`hubi_cliente_catalogo_${slugKey}`);
+      const salvo = sessionStorage.getItem(`hubi_cliente_catalogo_${slugKey}`) || localStorage.getItem(`hubi_cliente_catalogo_${slugKey}`);
       if (salvo) return JSON.parse(salvo);
     } catch {
       // Ignore
@@ -384,6 +386,7 @@ export const CatalogoPublico: React.FC = () => {
     setClienteSelecionado(cliente);
     try {
       sessionStorage.setItem(`hubi_cliente_catalogo_${slugKey}`, JSON.stringify(cliente));
+      localStorage.setItem(`hubi_cliente_catalogo_${slugKey}`, JSON.stringify(cliente));
       cartContext?.setClienteSelecionado(cliente);
     } catch {
       // Ignore
@@ -478,6 +481,7 @@ export const CatalogoPublico: React.FC = () => {
 
     try {
       sessionStorage.removeItem(`hubi_cliente_catalogo_${slugKey}`);
+      localStorage.removeItem(`hubi_cliente_catalogo_${slugKey}`);
       sessionStorage.removeItem(`hubi_contato_catalogo_${slugKey}`);
       sessionStorage.removeItem(`hubi_nome_cliente_catalogo_${slugKey}`);
       sessionStorage.removeItem(`hubi_whatsapp_cliente_catalogo_${slugKey}`);
@@ -1490,12 +1494,62 @@ export const CatalogoPublico: React.FC = () => {
       });
     }
 
+    // Validação Geográfica para Pagamentos Presenciais
+    const ehRetirada = pedidoEntrega?.tipo_atendimento === 'retirada' || formaEntregaEscolhida?.tipo === 'retirada' || (enderecoEntrega && enderecoEntrega.toLowerCase().includes('retirada'));
+    let presencialPermitido = true;
+    let motivoBloqueioPresencial = '';
+
+    if (!ehRetirada) {
+      const provedor = (pedidoEntrega?.provedor || '').toLowerCase();
+      const transpNome = (pedidoEntrega?.transportadora_nome || formaEntregaEscolhida?.nome || '').toLowerCase();
+      const servicoCorreios = (pedidoEntrega?.servico_correios || '').toLowerCase();
+
+      const ehOperadoraExterna = 
+        provedor === 'melhor_envio' ||
+        provedor === 'correios' ||
+        Boolean(servicoCorreios) ||
+        transpNome.includes('correios') ||
+        transpNome.includes('sedex') ||
+        transpNome.includes('pac') ||
+        transpNome.includes('jadlog') ||
+        transpNome.includes('azul cargo') ||
+        transpNome.includes('loggi') ||
+        transpNome.includes('latam');
+
+      if (ehOperadoraExterna) {
+        presencialPermitido = false;
+        motivoBloqueioPresencial = 'Indisponível para entregas via transportadora/Correios. Use Pix ou Mercado Pago.';
+      } else {
+        const shippingConfig = (loja as any)?.configuracoes_extras?.shipping || {};
+        const raioMaximoKm = Number(
+          shippingConfig.frete_proprio_raio_maximo_km ||
+          (loja as any)?.raio_entrega_km ||
+          15.0
+        );
+        const origLat = Number(shippingConfig.origem_latitude || (loja as any)?.latitude);
+        const origLng = Number(shippingConfig.origem_longitude || (loja as any)?.longitude);
+        const destLat = Number(pedidoEntrega?.destino_latitude || (clienteSelecionado as any)?.endereco_latitude || (clienteSelecionado as any)?.latitude);
+        const destLng = Number(pedidoEntrega?.destino_longitude || (clienteSelecionado as any)?.endereco_longitude || (clienteSelecionado as any)?.longitude);
+
+        if (!isNaN(origLat) && !isNaN(origLng) && origLat !== 0 && origLng !== 0 &&
+            !isNaN(destLat) && !isNaN(destLng) && destLat !== 0 && destLng !== 0) {
+          const distKm = calcularDistanciaKm(origLat, origLng, destLat, destLng);
+          if (distKm > raioMaximoKm) {
+            presencialPermitido = false;
+            motivoBloqueioPresencial = `Fora do raio de entrega local (${distKm.toFixed(1)} km > ${raioMaximoKm} km). Use Pix ou Mercado Pago.`;
+          }
+        }
+      }
+    }
+
     if (pagConfig.dinheiro_ativo ?? true) {
       lista.push({
         id: 'dinheiro',
         tipo: 'dinheiro',
         nome: 'Dinheiro',
-        descricao: 'Pagamento em espécie ao receber ou retirar'
+        descricao: presencialPermitido ? 'Pagamento em espécie ao receber ou retirar' : motivoBloqueioPresencial,
+        desabilitado: !presencialPermitido,
+        motivoDesabilitado: motivoBloqueioPresencial || undefined
       });
     }
 
@@ -1504,7 +1558,9 @@ export const CatalogoPublico: React.FC = () => {
         id: 'cartao_debito',
         tipo: 'cartao_debito',
         nome: 'Cartão de Débito (Maquininha)',
-        descricao: 'Pagamento na maquininha na entrega ou balcão'
+        descricao: presencialPermitido ? 'Pagamento na maquininha na entrega ou balcão' : motivoBloqueioPresencial,
+        desabilitado: !presencialPermitido,
+        motivoDesabilitado: motivoBloqueioPresencial || undefined
       });
     }
 
@@ -1513,7 +1569,9 @@ export const CatalogoPublico: React.FC = () => {
         id: 'cartao_credito',
         tipo: 'cartao_credito',
         nome: 'Cartão de Crédito (Maquininha)',
-        descricao: 'Pagamento na maquininha na entrega ou balcão'
+        descricao: presencialPermitido ? 'Pagamento na maquininha na entrega ou balcão' : motivoBloqueioPresencial,
+        desabilitado: !presencialPermitido,
+        motivoDesabilitado: motivoBloqueioPresencial || undefined
       });
     }
 
@@ -1551,7 +1609,7 @@ export const CatalogoPublico: React.FC = () => {
     }
 
     return lista;
-  }, [loja, clienteSelecionado, saldoContaClienteReconciliado, total]);
+  }, [loja, clienteSelecionado, saldoContaClienteReconciliado, total, pedidoEntrega, formaEntregaEscolhida, enderecoEntrega]);
 
   const handleFinalizarPedido = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -1944,26 +2002,13 @@ export const CatalogoPublico: React.FC = () => {
         }
       }
 
-      // Gerar cobrança e preferência Mercado Pago se estiver ativo na loja e não for meio a prazo
+      // Gerar preferência Mercado Pago se estiver ativo na loja e não for meio a prazo
       let pixInfoRes: PixDinamicoResponse | null = null;
       let linkPagamentoUrl: string | null = null;
       let linkPreferenceId: string | null = null;
 
       if (!ehFiado && !ehCaderneta && formaPagamentoEfetiva === 'mercado_pago' && loja.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.ativo) {
         const emailEfetivo = dadosContato.email?.trim() || clienteSelecionado?.email?.trim() || undefined;
-
-        try {
-          pixInfoRes = await paymentGatewayService.gerarPixMercadoPago({
-            loja,
-            valor: total,
-            descricao: `Pedido #${pedidoCriado.numero_pedido} - ${loja.nome_fantasia}`,
-            pedidoNumero: pedidoCriado.numero_pedido,
-            emailCliente: emailEfetivo,
-            nomeCliente: nomeCliente
-          });
-        } catch (errPix) {
-          console.warn('Aviso ao gerar Pix Mercado Pago:', errPix);
-        }
 
         try {
           const itensPreference = carrinho.map(c => {
@@ -2070,10 +2115,8 @@ Fico no aguardo da confirmação! ✨`;
       const phoneFinal = lojaPhone.startsWith('55') ? lojaPhone : `55${lojaPhone}`;
       const urlWhats = `https://api.whatsapp.com/send?phone=${phoneFinal}&text=${encodeURIComponent(msgWhatsApp)}`;
 
-      // Redireciona diretamente para o WhatsApp se configurado na loja
-      if (loja.resumo_whatsapp ?? true) {
-        window.open(urlWhats, '_blank');
-      }
+      // Item 2: Remoção do disparo automático para o WhatsApp ao criar pedido
+      // O envio de resumo é 100% manual acionado se o cliente clicar no botão no modal pós-pedido
 
       setCarrinho([]);
       setModalPagamentoCheckoutAberto(false);
@@ -2087,10 +2130,16 @@ Fico no aguardo da confirmação! ✨`;
         ClienteCatalogoService.limparCarrinho(loja.id, clienteSelecionado.id);
       }
 
+      // Item 1.1: Redirecionamento IMEDIATO para o Mercado Pago sem telas intermediárias
+      if (formaPagamentoEfetiva === 'mercado_pago' && linkPagamentoUrl) {
+        window.location.href = linkPagamentoUrl;
+        return;
+      }
+
       setPedidoConcluidoModal({
         numeroPedido: pedidoCriado.numero_pedido,
-        whatsAppUrl: (loja.resumo_whatsapp ?? true) ? urlWhats : '',
-        pixInfo: pixInfoRes?.sucesso ? pixInfoRes : null,
+        whatsAppUrl: urlWhats,
+        pixInfo: null,
         linkPagamento: linkPagamentoUrl,
         preferenceId: linkPreferenceId,
         formaPagamentoEscolhida: formaPagamentoEfetiva
@@ -3529,15 +3578,15 @@ Fico no aguardo da confirmação! ✨`;
         </div>
       )}
 
-      {/* MODAL DE PAGAMENTO PARA PEDIDO PESADO NA BALANÇA */}
+      {/* MODAL DE PAGAMENTO PARA PEDIDO (UNIFICADO) */}
       {modalPagamentoPedidoPesadoAberto && pedidoParaPagamento && loja && (
-        <ModalPagamentoPedidoPesado
+        <ModalEscolhaPagamento
           isOpen={modalPagamentoPedidoPesadoAberto}
           onClose={() => setModalPagamentoPedidoPesadoAberto(false)}
           loja={loja}
           pedido={pedidoParaPagamento}
           onPagamentoConcluido={() => {
-            // Callback após pagamento
+            setModalPagamentoPedidoPesadoAberto(false);
           }}
         />
       )}
@@ -3670,34 +3719,47 @@ Fico no aguardo da confirmação! ✨`;
                 const chavePix = pagConfig.pix_chave || (loja as any)?.chave_pix || '';
                 const orientacoesPix = pagConfig.pix_orientacoes || '';
                 if (!chavePix && !orientacoesPix) return null;
+
+                const codigoPixEmv = chavePix ? gerarPayloadPixEmv({
+                  chavePix,
+                  nomeRecebedor: loja.nome_fantasia || 'HUBI SISTEMAS',
+                  cidade: (loja as any)?.cidade || (loja as any)?.endereco_cidade || 'BRASIL',
+                  valor: total
+                }) : '';
+
                 return (
                   <div className="p-3 rounded-2xl border border-emerald-500/40 bg-emerald-500/5 space-y-2.5">
                     {chavePix && (
-                      <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                        <div className="min-w-0">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 block">
-                            Chave Pix da Loja
-                          </span>
-                          <span className="text-xs font-mono font-bold text-slate-900 dark:text-white select-all break-all">
-                            {chavePix}
-                          </span>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                          <div className="min-w-0">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 block">
+                              Pix Copia e Cola (BR Code Oficial)
+                            </span>
+                            <span className="text-xs font-mono font-bold text-slate-900 dark:text-white select-all break-all truncate block">
+                              {codigoPixEmv || chavePix}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(codigoPixEmv || chavePix);
+                                setPixCopiadoCheckout(true);
+                                setTimeout(() => setPixCopiadoCheckout(false), 2500);
+                              } catch {
+                                // ignore
+                              }
+                            }}
+                            className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1 shrink-0 cursor-pointer transition active:scale-95 shadow-xs"
+                          >
+                            {pixCopiadoCheckout ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                            <span>{pixCopiadoCheckout ? 'Copiado!' : 'Copiar Pix'}</span>
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            try {
-                              await navigator.clipboard.writeText(chavePix);
-                              setPixCopiadoCheckout(true);
-                              setTimeout(() => setPixCopiadoCheckout(false), 2500);
-                            } catch {
-                              // ignore
-                            }
-                          }}
-                          className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1 shrink-0 cursor-pointer transition active:scale-95"
-                        >
-                          {pixCopiadoCheckout ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                          <span>{pixCopiadoCheckout ? 'Copiada!' : 'Copiar'}</span>
-                        </button>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 px-1">
+                          Chave Pix: <strong className="text-slate-700 dark:text-slate-300 select-all">{chavePix}</strong>
+                        </div>
                       </div>
                     )}
                     {orientacoesPix && (
@@ -3863,7 +3925,6 @@ Fico no aguardo da confirmação! ✨`;
               <Link
                 to={`/order-tracking/${pedidoConcluidoModal.numeroPedido}`}
                 className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer shadow-sm active:scale-98"
-                target="_blank"
               >
                 <ShoppingBag className="w-4 h-4 text-white" />
                 <span>Acompanhar Pedido #{pedidoConcluidoModal.numeroPedido}</span>
