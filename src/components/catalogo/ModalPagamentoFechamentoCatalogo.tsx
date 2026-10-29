@@ -695,6 +695,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
               forma_tipo: l.forma_tipo,
               forma_nome: l.forma_nome,
               valor: Number(l.valor),
+              valor_entregue: l.valor_entregue != null && Number(l.valor_entregue) > 0 ? Number(l.valor_entregue) : null,
               parcelas: l.parcelas || 1,
               data_prevista: dataIso
             };
@@ -787,6 +788,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
             forma_tipo: linha.forma_tipo,
             forma_nome: linha.forma_nome,
             valor: linha.valor,
+            valor_entregue: linha.valor_entregue != null && Number(linha.valor_entregue) > 0 ? Number(linha.valor_entregue) : null,
             parcelas: linha.parcelas || 1,
             data_prevista: dataIso
           };
@@ -868,12 +870,20 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
       let pedUpd: any = null;
       if (!ehModoCaderneta && SyncService.isUuidValido(pedSeguro.id)) {
         const lojaIdEfetivo = loja?.id || pedSeguro.loja_id;
+        const linhaDinheiro = linhasAtivas.find(l => l.forma_tipo === 'dinheiro');
+        const trocoParaDinheiro = linhaDinheiro && Number(linhaDinheiro.valor_entregue) > 0 ? Number(linhaDinheiro.valor_entregue) : null;
+
+        const updatePayload: Record<string, any> = {
+          status_pagamento: statusPagamentoFinal,
+          atualizado_em: dataIso
+        };
+        if (trocoParaDinheiro !== null) {
+          updatePayload.troco_para = trocoParaDinheiro;
+        }
+
         const { data, error: erroUpd } = await supabase
           .from('pedidos')
-          .update({
-            status_pagamento: statusPagamentoFinal,
-            atualizado_em: dataIso
-          })
+          .update(updatePayload)
           .eq('id', pedSeguro.id)
           .eq('loja_id', lojaIdEfetivo)
           .select(`

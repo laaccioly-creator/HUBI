@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Search,
@@ -22,6 +22,7 @@ import {
   Tag,
   Edit,
   CreditCard,
+  Banknote,
   ChevronDown,
   Lock,
   Copy,
@@ -202,6 +203,290 @@ export const BadgeRestricaoPedido: React.FC<{ observacao: string | null | undefi
         </p>
       </div>
     </div>
+  );
+};
+
+export interface InfoPagamentoEntrega {
+  tipo: 'credito' | 'debito' | 'dinheiro';
+  badgeTexto: string;
+  pagaCom?: number;
+  troco?: number;
+  temTroco: boolean;
+  mensagemPopover: string;
+}
+
+export function extrairInfoPagamentoEntrega(pedido: Pedido): InfoPagamentoEntrega | null {
+  const valorTotal = Number(pedido.valor_total || 0);
+
+  // 1. Verificar em pagamentos_previstos
+  const previstos = pedido.pagamentos_previstos || [];
+  const prevDinheiro = previstos.find(p => p.forma_tipo === 'dinheiro' || (p.forma_nome || '').toLowerCase().includes('dinheiro'));
+  const prevCredito = previstos.find(p => p.forma_tipo === 'cartao_credito' || (p.forma_nome || '').toLowerCase().includes('crédito') || (p.forma_nome || '').toLowerCase().includes('credito'));
+  const prevDebito = previstos.find(p => p.forma_tipo === 'cartao_debito' || (p.forma_nome || '').toLowerCase().includes('débito') || (p.forma_nome || '').toLowerCase().includes('debito'));
+
+  // 2. Extrair dados de valor entregue / troco
+  let pagaCom: number | undefined = undefined;
+  if (prevDinheiro?.valor_entregue && Number(prevDinheiro.valor_entregue) > 0) {
+    pagaCom = Number(prevDinheiro.valor_entregue);
+  }
+  if (!pagaCom && pedido.troco_para && Number(pedido.troco_para) > 0) {
+    pagaCom = Number(pedido.troco_para);
+  }
+  if (!pagaCom && (pedido.metadados as any)?.troco_para) {
+    pagaCom = Number((pedido.metadados as any).troco_para);
+  }
+  if (!pagaCom && (pedido.metadados as any)?.valor_entregue) {
+    pagaCom = Number((pedido.metadados as any).valor_entregue);
+  }
+  if (!pagaCom && pedido.observacoes) {
+    const match = pedido.observacoes.match(/troco\s*(?:para)?\s*R?\$?\s*([\d.,]+)/i);
+    if (match && match[1]) {
+      const clean = match[1].replace(/\./g, '').replace(',', '.');
+      const num = parseFloat(clean);
+      if (!isNaN(num) && num > 0) {
+        pagaCom = num;
+      }
+    }
+  }
+
+  // 3. Identificar tipo de pagamento presencial
+  let tipo: 'credito' | 'debito' | 'dinheiro' | null = null;
+
+  if (prevDinheiro) {
+    tipo = 'dinheiro';
+  } else if (prevCredito) {
+    tipo = 'credito';
+  } else if (prevDebito) {
+    tipo = 'debito';
+  } else {
+    // Fallback para forma_pagamento_catalogo
+    const fpc = (pedido.forma_pagamento_catalogo || '').toLowerCase();
+    if (fpc === 'dinheiro' || fpc.includes('dinheiro')) {
+      tipo = 'dinheiro';
+    } else if (fpc === 'cartao_credito' || fpc === 'credito' || fpc.includes('crédito') || fpc.includes('credito')) {
+      tipo = 'credito';
+    } else if (fpc === 'cartao_debito' || fpc === 'debito' || fpc.includes('débito') || fpc.includes('debito')) {
+      tipo = 'debito';
+    } else if (pedido.observacoes) {
+      const obs = pedido.observacoes.toLowerCase();
+      if (obs.includes('troco') || obs.includes('dinheiro')) {
+        tipo = 'dinheiro';
+      } else if (obs.includes('crédito') || obs.includes('credito')) {
+        tipo = 'credito';
+      } else if (obs.includes('débito') || obs.includes('debito')) {
+        tipo = 'debito';
+      }
+    }
+  }
+
+  if (!tipo) return null;
+
+  if (tipo === 'credito') {
+    return {
+      tipo: 'credito',
+      badgeTexto: 'Crédito na entrega',
+      temTroco: false,
+      mensagemPopover: 'Cobrança presencial na entrega: Levar máquina de cartão habilitada para Crédito.'
+    };
+  }
+
+  if (tipo === 'debito') {
+    return {
+      tipo: 'debito',
+      badgeTexto: 'Débito na entrega',
+      temTroco: false,
+      mensagemPopover: 'Cobrança presencial na entrega: Levar máquina de cartão habilitada para Débito.'
+    };
+  }
+
+  // tipo === 'dinheiro'
+  const temTroco = Boolean(pagaCom && pagaCom > valorTotal);
+  const troco = temTroco && pagaCom ? Number((pagaCom - valorTotal).toFixed(2)) : 0;
+
+  if (temTroco && pagaCom) {
+    return {
+      tipo: 'dinheiro',
+      badgeTexto: 'Dinheiro (Troco)',
+      pagaCom,
+      troco,
+      temTroco: true,
+      mensagemPopover: `Cobrança presencial em dinheiro. Paga com: ${formatarMoeda(pagaCom)}. Troco a levar: ${formatarMoeda(troco)}.`
+    };
+  }
+
+  return {
+    tipo: 'dinheiro',
+    badgeTexto: 'Dinheiro na entrega',
+    temTroco: false,
+    mensagemPopover: 'Cobrança presencial em dinheiro: Valor exato, sem necessidade de troco.'
+  };
+}
+
+export const BadgeStatusPagamentoPedido: React.FC<{
+  pedido: Pedido;
+  statusPag: StatusPagamento;
+  isDark: boolean;
+}> = ({ pedido, statusPag, isDark }) => {
+  const [popoverAberto, setPopoverAberto] = useState(false);
+  const [hoverAberto, setHoverAberto] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!popoverAberto) return;
+    const handleClickFora = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setPopoverAberto(false);
+      }
+    };
+    document.addEventListener('click', handleClickFora);
+    return () => document.removeEventListener('click', handleClickFora);
+  }, [popoverAberto]);
+
+  // Se não estiver pago, nem fiado, nem caderneta, nem pesagem pendente, verifica previsão de pagamento na entrega
+  const ehElegivelEntrega = statusPag !== 'pago' && statusPag !== 'fiado' && statusPag !== 'caderneta' && statusPag !== 'aguardando_pesagem' && pedido.status !== 'cancelado';
+  const infoEntrega = ehElegivelEntrega ? extrairInfoPagamentoEntrega(pedido) : null;
+
+  if (infoEntrega) {
+    let corBadge = '';
+    let icone = null;
+
+    if (infoEntrega.tipo === 'credito') {
+      corBadge = isDark
+        ? 'bg-amber-600/20 text-amber-200 border-amber-500/40 hover:bg-amber-600/30'
+        : 'bg-amber-100/90 text-amber-900 border-amber-300 hover:bg-amber-200/90';
+      icone = <CreditCard className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />;
+    } else if (infoEntrega.tipo === 'debito') {
+      corBadge = isDark
+        ? 'bg-orange-500/20 text-orange-200 border-orange-500/40 hover:bg-orange-500/30'
+        : 'bg-orange-100 text-orange-900 border-orange-300 hover:bg-orange-200';
+      icone = <CreditCard className="w-3 h-3 text-orange-600 dark:text-orange-400 shrink-0" />;
+    } else if (infoEntrega.temTroco) {
+      corBadge = isDark
+        ? 'bg-amber-500/25 text-amber-300 border-amber-400/50 hover:bg-amber-500/35 ring-1 ring-amber-500/30'
+        : 'bg-amber-200/80 text-amber-950 border-amber-400 hover:bg-amber-300/80 ring-1 ring-amber-400/40';
+      icone = <Coins className="w-3 h-3 text-amber-700 dark:text-amber-300 shrink-0" />;
+    } else {
+      // Dinheiro sem troco
+      corBadge = isDark
+        ? 'bg-yellow-500/20 text-yellow-200 border-yellow-500/40 hover:bg-yellow-500/30'
+        : 'bg-yellow-100 text-yellow-900 border-yellow-300 hover:bg-yellow-200';
+      icone = <Banknote className="w-3 h-3 text-yellow-600 dark:text-yellow-400 shrink-0" />;
+    }
+
+    const exibirPopover = popoverAberto || hoverAberto;
+
+    return (
+      <div className="relative inline-block" ref={popoverRef}>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setPopoverAberto(prev => !prev);
+          }}
+          onMouseEnter={() => setHoverAberto(true)}
+          onMouseLeave={() => setHoverAberto(false)}
+          title={infoEntrega.mensagemPopover}
+          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold border transition cursor-pointer active:scale-95 whitespace-nowrap shadow-2xs select-none ${corBadge}`}
+        >
+          {icone}
+          <span>{infoEntrega.badgeTexto}</span>
+        </button>
+
+        {exibirPopover && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className={`absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 p-3 rounded-2xl border shadow-2xl text-left w-64 animate-in fade-in zoom-in-95 duration-100 ${
+              isDark
+                ? 'bg-slate-900 border-slate-700 text-white shadow-black/70'
+                : 'bg-white border-slate-200 text-slate-900 shadow-slate-400/40'
+            }`}
+          >
+            {/* Seta indicativa */}
+            <div
+              className={`absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 border-t border-l ${
+                isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
+              }`}
+            />
+            <div className="relative space-y-1.5">
+              <div className="flex items-center justify-between border-b pb-1.5 border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-1.5">
+                  <Truck className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Expedição • Entrega
+                  </span>
+                </div>
+                {popoverAberto && (
+                  <button
+                    type="button"
+                    onClick={() => setPopoverAberto(false)}
+                    className="p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded cursor-pointer"
+                    title="Fechar"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+
+              <p className="text-xs font-semibold leading-relaxed">
+                {infoEntrega.mensagemPopover}
+              </p>
+
+              {infoEntrega.temTroco && (
+                <div className="pt-1.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[11px] font-mono">
+                  <span className="text-slate-500 dark:text-slate-400 font-medium">Troco a levar:</span>
+                  <span className="font-black text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                    {formatarMoeda(infoEntrega.troco || 0)}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Badges padrão para os demais status
+  if (statusPag === 'pago') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 whitespace-nowrap">
+        Pago
+      </span>
+    );
+  }
+  if (statusPag === 'caderneta') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 whitespace-nowrap">
+        Caderneta
+      </span>
+    );
+  }
+  if (statusPag === 'fiado') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 whitespace-nowrap">
+        Fiado
+      </span>
+    );
+  }
+  if (statusPag === 'aguardando_pesagem') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 whitespace-nowrap">
+        Aguardando pesagem
+      </span>
+    );
+  }
+  if (statusPag === 'parcialmente_pago') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 whitespace-nowrap">
+        Parcial
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium text-slate-500 dark:text-slate-400 bg-slate-500/10 border border-slate-500/20 whitespace-nowrap">
+      Aguardando pgto
+    </span>
   );
 };
 
@@ -3400,6 +3685,29 @@ export const PedidosLista: React.FC = () => {
                   );
                 })()}
 
+                {(() => {
+                  const infoEntrega = extrairInfoPagamentoEntrega(pedidoSelecionado);
+                  if (!infoEntrega || resolverStatusPagamento(pedidoSelecionado) === 'pago') return null;
+
+                  return (
+                    <div className={`p-3 rounded-2xl border text-xs space-y-1.5 mt-2 ${
+                      isDark
+                        ? 'bg-amber-950/25 border-amber-500/35 text-amber-200'
+                        : 'bg-amber-50 border-amber-300 text-amber-950'
+                    }`}>
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <Truck className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                        <span className="text-[10px] font-black uppercase tracking-wider">
+                          Expedição • {infoEntrega.badgeTexto}
+                        </span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed">
+                        {infoEntrega.mensagemPopover}
+                      </p>
+                    </div>
+                  );
+                })()}
+
                 {resolverStatusPagamento(pedidoSelecionado) !== 'pago' &&
                  resolverStatusPagamento(pedidoSelecionado) !== 'fiado' &&
                  resolverStatusPagamento(pedidoSelecionado) !== 'caderneta' &&
@@ -3820,25 +4128,12 @@ export const PedidosLista: React.FC = () => {
                           })()}
                         </td>
 
-                        <td className="py-2.5 px-2 whitespace-nowrap text-center">
-                          {(() => {
-                            const formatarStatusPagamentoTexto = (status: string) => {
-                              switch (status) {
-                                case 'aguardando_pesagem': return 'Aguardando pesagem';
-                                case 'pago': return 'Pago';
-                                case 'caderneta': return 'Caderneta';
-                                case 'fiado': return 'Fiado';
-                                case 'parcialmente_pago': return 'Parcial';
-                                case 'aguardando_pagamento': return 'Aguardando pgto';
-                                default: return status;
-                              }
-                            };
-                            return (
-                              <span className={`text-xs font-medium ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                                {formatarStatusPagamentoTexto(statusPag)}
-                              </span>
-                            );
-                          })()}
+                        <td className="py-2.5 px-2 whitespace-nowrap text-center relative">
+                          <BadgeStatusPagamentoPedido
+                            pedido={pedido}
+                            statusPag={statusPag}
+                            isDark={isDark}
+                          />
                         </td>
 
                         <td className="py-2.5 px-2 whitespace-nowrap text-center">
