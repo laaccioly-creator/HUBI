@@ -14,7 +14,7 @@ import { Cliente, CadernetaLancamento, Loja, Pedido } from '../types';
 import { CadernetaService, ResumoCadernetaCliente } from '../services/cadernetaService';
 import { formatarMoeda } from '../utils/formatters';
 import { supabase } from '../lib/supabase';
-import { ModalPagamentoFechamento } from './ModalPagamentoFechamento';
+import { ModalPagamentoFechamentoCatalogo } from './catalogo/ModalPagamentoFechamentoCatalogo';
 import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
 
 interface ModalCadernetaClienteCatalogoProps {
@@ -411,9 +411,9 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
           )}
         </div>
 
-        {/* Modal Oficial Unificado de Pagamento / Liquidação da Caderneta */}
+        {/* Modal Oficial Dedicado de Pagamento / Liquidação da Caderneta no Catálogo */}
         {modoPagamento && (
-          <ModalPagamentoFechamento
+          <ModalPagamentoFechamentoCatalogo
             isOpen={modoPagamento}
             onClose={() => setModoPagamento(false)}
             loja={loja}

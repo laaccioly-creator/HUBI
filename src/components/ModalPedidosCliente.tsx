@@ -3,7 +3,7 @@ import { X, Package, Clock, ExternalLink, Loader2, AlertCircle, ShoppingBag, Che
 import { Pedido, Loja } from '../types';
 import { ClienteCatalogoService } from '../services/clienteCatalogoService';
 import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
-import { ModalPagamentoFechamento } from './ModalPagamentoFechamento';
+import { ModalPagamentoFechamentoCatalogo } from './catalogo/ModalPagamentoFechamentoCatalogo';
 import { supabase } from '../lib/supabase';
 
 interface ModalPedidosClienteProps {
@@ -376,9 +376,9 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
         loja={loja}
       />
 
-      {/* Modal Oficial de Pagamento para Pedidos Pendentes */}
+      {/* Modal Oficial de Pagamento para Pedidos Pendentes (Catálogo) */}
       {pedidoPagamentoModal && loja && (
-        <ModalPagamentoFechamento
+        <ModalPagamentoFechamentoCatalogo
           isOpen={!!pedidoPagamentoModal}
           onClose={() => setPedidoPagamentoModal(null)}
           loja={loja}

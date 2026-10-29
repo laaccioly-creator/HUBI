@@ -43,7 +43,8 @@ import { ModalPedidosCliente } from './ModalPedidosCliente';
 import { ModalFavoritosCliente } from './ModalFavoritosCliente';
 import { ModalNotificacoesCliente } from './ModalNotificacoesCliente';
 import { ModalCadernetaClienteCatalogo } from './ModalCadernetaClienteCatalogo';
-import { ModalPagamentoFechamento } from './ModalPagamentoFechamento';
+import { ModalPagamentoFechamentoCatalogo } from './catalogo/ModalPagamentoFechamentoCatalogo';
+import { ModalMeusDadosCliente } from './catalogo/ModalMeusDadosCliente';
 import { calcularDistanciaKm } from '../utils/geoUtils';
 import { gerarPayloadPixEmv } from '../utils/pixUtils';
 import { CadernetaService } from '../services/cadernetaService';
@@ -302,6 +303,7 @@ export const CatalogoPublico: React.FC = () => {
   const [modalFavoritosAberto, setModalFavoritosAberto] = useState<boolean>(false);
   const [modalNotificacoesAberto, setModalNotificacoesAberto] = useState<boolean>(false);
   const [modalCadernetaAberto, setModalCadernetaAberto] = useState<boolean>(false);
+  const [modalMeusDadosAberto, setModalMeusDadosAberto] = useState<boolean>(false);
   const [modalPagamentoCheckoutAberto, setModalPagamentoCheckoutAberto] = useState<boolean>(false);
   const [modalPagamentoPedidoPesadoAberto, setModalPagamentoPedidoPesadoAberto] = useState<boolean>(false);
   const [pedidoParaPagamento, setPedidoParaPagamento] = useState<any | null>(null);
@@ -2683,6 +2685,17 @@ Fico no aguardo da confirmação! ✨`;
                     type="button"
                     onClick={() => {
                       setMenuUsuarioAberto(false);
+                      setModalMeusDadosAberto(true);
+                    }}
+                    className="w-full px-3.5 py-2 text-left text-xs text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer font-semibold"
+                  >
+                    <User className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Meus Dados</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuUsuarioAberto(false);
                       setModalCadernetaAberto(true);
                     }}
                     className="w-full px-3.5 py-2 text-left text-xs text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer font-semibold"
@@ -3760,9 +3773,9 @@ Fico no aguardo da confirmação! ✨`;
         </div>
       )}
 
-      {/* MODAL DE PAGAMENTO PARA PEDIDO (UNIFICADO) */}
+      {/* MODAL DE PAGAMENTO PARA PEDIDO (DEDICADO AO CATÁLOGO) */}
       {modalPagamentoPedidoPesadoAberto && pedidoParaPagamento && loja && (
-        <ModalPagamentoFechamento
+        <ModalPagamentoFechamentoCatalogo
           isOpen={modalPagamentoPedidoPesadoAberto}
           onClose={() => setModalPagamentoPedidoPesadoAberto(false)}
           loja={loja}
@@ -4342,6 +4355,22 @@ Fico no aguardo da confirmação! ✨`;
           cliente={clienteSelecionado}
           loja={loja}
           onAtualizado={atualizarDadosContaCliente}
+        />
+      )}
+
+      {/* MODAL MEUS DADOS E GESTÃO DE ENDEREÇOS DO CLIENTE */}
+      {modalMeusDadosAberto && clienteSelecionado && loja && (
+        <ModalMeusDadosCliente
+          isOpen={modalMeusDadosAberto}
+          onClose={() => setModalMeusDadosAberto(false)}
+          cliente={clienteSelecionado}
+          lojaId={loja.id}
+          slugKey={slug}
+          onClienteAtualizado={(novoCli) => {
+            setClienteSelecionado(novoCli);
+            setNomeCliente(novoCli.nome || '');
+            setWhatsappCliente(novoCli.whatsapp || novoCli.telefone || '');
+          }}
         />
       )}
 

@@ -576,12 +576,12 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   const temMetodoOficialAtivo = Boolean(permiteRetirada || temFreteProprio || temUber || temMelhorEnvio || transportadorasCadastradas.length > 0);
 
   const opcoesCotacaoExibidas = useMemo<OpcaoFreteCotada[]>(() => {
-    let lista = cotacoes;
+    let lista = [...cotacoes];
     if (!ehCatalogo) {
       // No PDV/retaguarda, a aba de cotação automática destina-se estritamente a transportadoras e APIs externas
       lista = lista.filter(op => op.provedor !== 'frete_proprio');
+      return lista;
     }
-    if (lista.length > 0) return lista;
 
     if (ehCatalogo && temFreteProprio && configLoja) {
       const ufOrigem = (configLoja.origem_uf || '').toUpperCase().trim();
@@ -608,24 +608,29 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         const freteGratisPorMinimo = Boolean(configLoja.frete_gratis_ativo && Number(configLoja.frete_gratis_valor_minimo) > 0 && subtotal >= Number(configLoja.frete_gratis_valor_minimo));
         const isGratis = tipoCobranca === 'gratis' || valorBase === 0 || freteGratisPorMinimo;
         const valorFinal = isGratis ? 0 : valorBase;
-        return [{
-          id: 'opcao_frete_proprio',
-          provedor: 'frete_proprio',
-          transportadora_nome: (configLoja as any).frete_proprio_nome || 'Entrega Própria da Loja',
-          servico_codigo: tipoCobranca,
-          servico_nome: isGratis ? 'Frete Grátis' : (ehManual ? 'Valor Manual' : 'Taxa Fixa'),
-          valor_frete: valorFinal,
-          valor_original: valorBase,
-          valor_subsidio: freteGratisPorMinimo ? valorBase : 0,
-          is_frete_gratis: isGratis,
-          prazo_estimado_texto: (configLoja as any).frete_proprio_prazo_estimado || 'Entrega hoje (30 a 60 min)',
-          icone_tipo: 'loja',
-          permite_edicao_valor: ehManual,
-          tipo_cobranca: (tipoCobranca === 'bairro' ? 'fixo' : tipoCobranca) as 'fixo' | 'manual' | 'gratis'
-        }];
+        
+        const jaTemProprio = lista.some(op => op.provedor === 'frete_proprio');
+        if (!jaTemProprio) {
+          const opcaoPropria: OpcaoFreteCotada = {
+            id: 'opcao_frete_proprio',
+            provedor: 'frete_proprio',
+            transportadora_nome: (configLoja as any).frete_proprio_nome || 'Entrega Própria da Loja',
+            servico_codigo: tipoCobranca,
+            servico_nome: isGratis ? 'Frete Grátis' : (ehManual ? 'Valor Manual' : 'Taxa Fixa'),
+            valor_frete: valorFinal,
+            valor_original: valorBase,
+            valor_subsidio: freteGratisPorMinimo ? valorBase : 0,
+            is_frete_gratis: isGratis,
+            prazo_estimado_texto: (configLoja as any).frete_proprio_prazo_estimado || 'Entrega hoje (30 a 60 min)',
+            icone_tipo: 'loja',
+            permite_edicao_valor: ehManual,
+            tipo_cobranca: (tipoCobranca === 'bairro' ? 'fixo' : tipoCobranca) as 'fixo' | 'manual' | 'gratis'
+          };
+          lista = [opcaoPropria, ...lista];
+        }
       }
     }
-    return [];
+    return lista;
   }, [cotacoes, temFreteProprio, configLoja, subtotal, ehCatalogo, enderecoSelecionado]);
 
   const limiteDeclaracaoConteudo = Number(configLoja?.limite_declaracao_conteudo ?? 1000);

@@ -14,6 +14,7 @@ export interface ModalDefinirEnvioProps {
   pedido: Pedido | null;
   loja: any;
   usuario?: any;
+  modoCatalogo?: boolean;
   onClose: () => void;
   onSucesso: () => void;
   onFeedbackSucesso?: (msg: string) => void;
@@ -26,6 +27,7 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
   pedido,
   loja,
   usuario,
+  modoCatalogo = false,
   onClose,
   onSucesso,
   onFeedbackSucesso,
@@ -185,6 +187,7 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
             lojaId={loja.id}
             loja={loja}
             temaDark={isDark}
+            modoCatalogo={modoCatalogo}
             clienteId={pedido.cliente_id || pedido.cliente?.id || null}
             cliente={clienteAtivo || pedido.cliente || null}
             permiteRetirada={false}

@@ -20,7 +20,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { supabase } from '../lib/supabase';
-import { ModalPagamentoFechamento } from './ModalPagamentoFechamento';
+import { ModalPagamentoFechamentoCatalogo } from './catalogo/ModalPagamentoFechamentoCatalogo';
 import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
 import { whatsappWalletService } from '../services/whatsappWalletService';
 
@@ -547,9 +547,9 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
           )}
         </div>
 
-        {/* Modal Oficial Unificado de Pagamento / Liquidação da Caderneta */}
+        {/* Modal Oficial Dedicado de Pagamento / Liquidação da Caderneta no Catálogo */}
         {modalAbatimentoAberto && (
-          <ModalPagamentoFechamento
+          <ModalPagamentoFechamentoCatalogo
             isOpen={modalAbatimentoAberto}
             onClose={() => setModalAbatimentoAberto(false)}
             loja={loja}

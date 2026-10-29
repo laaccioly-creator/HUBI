@@ -33,7 +33,7 @@ import {
   consolidarHistoricoPedidos,
   formatarDataHoraHistorico
 } from '../utils/historicoPedidoUtils';
-import { ModalPagamentoFechamento } from './ModalPagamentoFechamento';
+import { ModalPagamentoFechamentoCatalogo } from './catalogo/ModalPagamentoFechamentoCatalogo';
 
 export const PedidoAndamentoPublico: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -808,9 +808,9 @@ export const PedidoAndamentoPublico: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal Oficial de Pagamento */}
+      {/* Modal Oficial de Pagamento Dedicado ao Catálogo */}
       {modalPagamentoAberto && loja && pedido && (
-        <ModalPagamentoFechamento
+        <ModalPagamentoFechamentoCatalogo
           isOpen={modalPagamentoAberto}
           onClose={() => setModalPagamentoAberto(false)}
           loja={loja}

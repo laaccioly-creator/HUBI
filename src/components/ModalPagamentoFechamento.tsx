@@ -14,16 +14,12 @@ import {
   FileText,
   Truck,
   AlertTriangle,
-  BookOpen,
-  Copy,
-  Check,
-  Paperclip,
-  ShoppingBag
+  BookOpen
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { Pedido, FormaPagamento, StatusPagamento, TipoPagamento, Loja, Cliente } from '../types';
+import { Pedido, FormaPagamento, StatusPagamento, TipoPagamento, Loja } from '../types';
 import { PrintService } from '../services/printService';
 import { SyncService } from '../services/syncService';
 import { audioService } from '../services/audioService';
@@ -31,7 +27,6 @@ import { caixaService } from '../services/caixaService';
 import { CadernetaService } from '../services/cadernetaService';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { formatarMoeda, formatarValorBRL } from '../utils/formatters';
-import { gerarPayloadPixEmv } from '../utils/pixUtils';
 import { ModalDefinirEnvio } from './pedidos/ModalDefinirEnvio';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 
@@ -127,9 +122,6 @@ export interface ModalPagamentoFechamentoProps {
   concluirAoQuitar?: boolean;
   onSalvar?: (linhas: LinhaPagamentoRecebimento[]) => Promise<void>;
   loja?: Loja | null;
-  origem?: 'pdv' | 'catalogo' | 'caderneta';
-  cliente?: Cliente | null;
-  saldoDevedorAvulso?: number;
 }
 
 export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> = ({
@@ -139,10 +131,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
   onPagamentoConcluido,
   concluirAoQuitar = false,
   onSalvar,
-  loja: lojaProp,
-  origem = 'pdv',
-  cliente: clienteProp,
-  saldoDevedorAvulso
+  loja: lojaProp
 }) => {
   const auth = useAuth();
   const loja = lojaProp || auth?.loja;
@@ -152,19 +141,11 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
 
   const [formasPagamento, setFormasPagamento] = useState<FormaPagamento[]>([]);
   const [linhasPagamento, setLinhasPagamento] = useState<LinhaPagamentoRecebimento[]>([]);
+  const [concluirAoQuitarCheck, setConcluirAoQuitarCheck] = useState<boolean>(concluirAoQuitar);
   const [processando, setProcessando] = useState<boolean>(false);
   const [salvando, setSalvando] = useState<boolean>(false);
   const [erroMsg, setErroMsg] = useState<string | null>(null);
   const [sucessoModal, setSucessoModal] = useState<boolean>(false);
-  const [sucessoConfig, setSucessoConfig] = useState<{
-    titulo: string;
-    mensagem: string;
-    aguardandoConferencia?: boolean;
-  } | null>(null);
-  const [pixCopiado, setPixCopiado] = useState<boolean>(false);
-  const [chavePixCopiada, setChavePixCopiada] = useState<boolean>(false);
-  const [comprovanteArquivo, setComprovanteArquivo] = useState<File | null>(null);
-  const [comprovanteDataUrl, setComprovanteDataUrl] = useState<string | null>(null);
   const [pedidoAtualizado, setPedidoAtualizado] = useState<Pedido | null>(null);
   const [pedidoLocal, setPedidoLocal] = useState<Pedido | null>(pedido);
   const [modalDefinirEnvioAberto, setModalDefinirEnvioAberto] = useState<boolean>(false);
@@ -211,8 +192,6 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
   const FORMAS_PADRAO: FormaPagamento[] = [
     { id: `fp_dinheiro_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Dinheiro', tipo: 'dinheiro', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
     { id: `fp_pix_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'PIX', tipo: 'pix', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
-    { id: `fp_mercado_pago_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Mercado Pago', tipo: 'mercado_pago', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
-    { id: `fp_mercado_livre_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Mercado Livre', tipo: 'mercado_livre', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
     { id: `fp_credito_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Cartão de Crédito', tipo: 'cartao_credito', taxa_percentual: 3.2, taxa_fixa: 0, maximo_parcelas: 12, ativo: true, exibir_catalogo: true },
     { id: `fp_debito_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Cartão de Débito', tipo: 'cartao_debito', taxa_percentual: 1.5, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
     { id: `fp_fiado_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Fiado', tipo: 'fiado', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: false },
@@ -232,7 +211,6 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
           .order('nome');
 
         const pagCfg = loja?.configuracoes_extras?.pagamentos;
-        const pagDigitais = loja?.configuracoes_extras?.pagamentos_digitais;
         const cadernetaAtivaLoja = Boolean(loja?.caderneta_ativa ?? pagCfg?.caderneta_ativa);
         const fiadoAtivoLoja = !cadernetaAtivaLoja && Boolean(pagCfg?.permitir_fiado ?? true);
 
@@ -242,8 +220,6 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
           if (t === 'dinheiro') return pagCfg?.dinheiro_ativo !== false;
           if (t === 'cartao_debito') return pagCfg?.debito_ativo !== false;
           if (t === 'cartao_credito') return pagCfg?.credito_ativo !== false;
-          if (t === 'mercado_pago') return true;
-          if (t === 'mercado_livre') return true;
           if (t === 'fiado') return fiadoAtivoLoja;
           if (t === 'caderneta') return cadernetaAtivaLoja;
           return true;
@@ -268,15 +244,6 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
             const cadernetaPadrao = FORMAS_PADRAO.find(f => f.tipo === 'caderneta');
             if (cadernetaPadrao) lista = [...lista, cadernetaPadrao];
           }
-          // Assegura que Mercado Pago e Mercado Livre estejam sempre disponíveis para pagamentos digitais / online
-          if (!lista.some(f => f.tipo === 'mercado_pago')) {
-            const mpPadrao = FORMAS_PADRAO.find(f => f.tipo === 'mercado_pago');
-            if (mpPadrao) lista = [...lista, mpPadrao];
-          }
-          if (!lista.some(f => f.tipo === 'mercado_livre')) {
-            const mlPadrao = FORMAS_PADRAO.find(f => f.tipo === 'mercado_livre');
-            if (mlPadrao) lista = [...lista, mlPadrao];
-          }
         }
         setFormasPagamento(lista);
       } catch (err) {
@@ -293,7 +260,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
 
   useEffect(() => {
     if (!isOpen || !loja?.id) return;
-    const cliId = pedido?.cliente_id || clienteProp?.id || (pedido as any)?.cliente?.id;
+    const cliId = pedido?.cliente_id || (pedido as any)?.cliente?.id;
     if (!cliId) {
       setDadosClienteFresco(null);
       return;
@@ -314,16 +281,15 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
       }
     };
     carregarCliente();
-  }, [isOpen, loja?.id, pedido?.cliente_id, clienteProp?.id, (pedido as any)?.cliente?.id]);
+  }, [isOpen, loja?.id, pedido?.cliente_id, (pedido as any)?.cliente?.id]);
 
-  // Inicializar linhas de pagamento quando o modal abrir para um pedido ou dívida avulsa
+  // Inicializar linhas de pagamento quando o modal abrir para um pedido
   useEffect(() => {
-    if ((pedido || saldoDevedorAvulso) && isOpen) {
-      const valorTot = saldoDevedorAvulso != null && saldoDevedorAvulso > 0 ? saldoDevedorAvulso : Number(pedido?.valor_total || 0);
-      const valorJaPago = pedido ? Number(pedido.valor_pago || 0) : 0;
-      const saldoRestante = saldoDevedorAvulso != null && saldoDevedorAvulso > 0
-        ? saldoDevedorAvulso
-        : Math.max(0, Number(pedido?.saldo_devedor ?? (valorTot - valorJaPago)));
+    if (pedido && isOpen) {
+      setConcluirAoQuitarCheck(concluirAoQuitar);
+      const valorTot = Number(pedido.valor_total || 0);
+      const valorJaPago = Number(pedido.valor_pago || 0);
+      const saldoRestante = Math.max(0, Number(pedido.saldo_devedor ?? (valorTot - valorJaPago)));
       const valorSugerido = saldoRestante > 0 ? saldoRestante : (valorTot > 0 ? valorTot : 0);
 
       const fpsDisponiveis = formasPagamento && formasPagamento.length > 0 ? formasPagamento : FORMAS_PADRAO;
@@ -343,7 +309,6 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
 
       setErroMsg(null);
       setSucessoModal(false);
-      setSucessoConfig(null);
       setPedidoAtualizado(null);
 
       const timer = setTimeout(() => {
@@ -355,9 +320,9 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
 
       return () => clearTimeout(timer);
     }
-  }, [pedido?.id, isOpen, saldoDevedorAvulso]);
+  }, [pedido?.id, isOpen, concluirAoQuitar]);
 
-  const clientePedidoMemo = dadosClienteFresco || clienteProp || pedidoLocal?.cliente || pedido?.cliente;
+  const clientePedidoMemo = dadosClienteFresco || pedidoLocal?.cliente || pedido?.cliente;
 
   const limiteDisponivelCaderneta = useMemo(() => {
     if (!clientePedidoMemo?.permite_caderneta) return 0;
@@ -428,10 +393,6 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
       .filter((fp: FormaPagamento) => {
         if (!fp.ativo) return false;
 
-        if (origem === 'caderneta') {
-          if (fp.tipo === 'fiado' || fp.tipo === 'caderneta') return false;
-        }
-
         // Se a modalidade de envio não aceitar pagamento presencial (ex: frete externo Correios/transportadora), ocultar da lista
         if (!presencialPermitido) {
           if (fp.tipo === 'dinheiro' || fp.tipo === 'cartao_debito' || fp.tipo === 'cartao_credito') {
@@ -466,17 +427,13 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
   }, [formasPagamento, clienteAptoFiado, clienteAptoCaderneta, linhasPagamento, presencialPermitido]);
 
   const pedRaw = pedidoLocal || pedido;
-  const valorTotal = saldoDevedorAvulso != null && saldoDevedorAvulso > 0
-    ? saldoDevedorAvulso
-    : Number(pedRaw?.valor_total || 0);
-  const valorJaPago = pedido ? Number(pedRaw?.valor_pago || 0) : 0;
-  const saldoDevedorAtual = saldoDevedorAvulso != null && saldoDevedorAvulso > 0
-    ? saldoDevedorAvulso
-    : Math.max(0, Number(pedRaw?.saldo_devedor ?? (valorTotal - valorJaPago)));
+  const valorTotal = Number(pedRaw?.valor_total || 0);
+  const valorJaPago = Number(pedRaw?.valor_pago || 0);
+  const saldoDevedorAtual = Math.max(0, Number(pedRaw?.saldo_devedor ?? (valorTotal - valorJaPago)));
 
   // Ponto 12: Quando houver apenas 1 linha de pagamento (sem split), sincronizar automaticamente com o saldo devedor atualizado
   useEffect(() => {
-    if (!isOpen || (!pedido && !saldoDevedorAvulso)) return;
+    if (!isOpen || !pedido) return;
     if (linhasPagamento.length === 1) {
       const valorAlvo = Number(saldoDevedorAtual.toFixed(2));
       if (Math.abs((linhasPagamento[0].valor || 0) - valorAlvo) > 0.009) {
@@ -488,24 +445,11 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
         });
       }
     }
-  }, [isOpen, pedido, saldoDevedorAtual, saldoDevedorAvulso, linhasPagamento.length]);
+  }, [isOpen, pedido, saldoDevedorAtual, linhasPagamento.length]);
 
-  if (!isOpen || (!pedido && !saldoDevedorAvulso)) return null;
+  if (!isOpen || !pedido) return null;
 
-  const pedSeguro: Pedido = (pedidoLocal || pedido) || {
-    id: `caderneta_${clienteProp?.id || 'temp'}`,
-    loja_id: loja?.id || '',
-    cliente_id: clienteProp?.id || '',
-    cliente: clienteProp || undefined,
-    numero_pedido: 0,
-    valor_total: Number(saldoDevedorAvulso || 0),
-    valor_pago: 0,
-    saldo_devedor: Number(saldoDevedorAvulso || 0),
-    status: 'pendente',
-    status_pagamento: 'caderneta',
-    origem: origem === 'catalogo' ? 'catalogo_online' : 'pdv_desktop',
-    criado_em: new Date().toISOString()
-  } as any;
+  const pedSeguro = (pedidoLocal || pedido)!;
 
   const isFreteFormalizado = Boolean(
     !ehEnvio ||
@@ -610,16 +554,16 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
         await onSalvar(linhasValidas);
       } else {
         const dataIso = obterDataOperacaoISO();
-        await supabase.from('pagamentos_pedido').delete().eq('pedido_id', pedSeguro.id);
+        await supabase.from('pagamentos_pedido').delete().eq('pedido_id', pedido.id);
         try {
-          await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedSeguro.id);
+          await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedido.id);
         } catch {}
 
         const pagamentosParaDb = await Promise.all(linhasValidas.map(async (l) => {
           const fpRealId = await SyncService.resolverFormaPagamentoId(loja.id, l.forma_pagamento_id, l.forma_tipo);
           return {
             loja_id: loja.id,
-            pedido_id: pedSeguro.id,
+            pedido_id: pedido.id,
             forma_pagamento_id: fpRealId,
             valor: Number(l.valor),
             parcelas: l.parcelas || 1,
@@ -634,7 +578,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
         if (errPag) throw errPag;
 
         audioService.playBeep();
-        onPagamentoConcluido(pedSeguro);
+        onPagamentoConcluido(pedido);
         onClose();
       }
     } catch (err: any) {
@@ -685,136 +629,6 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
 
     try {
       const dataIso = obterDataOperacaoISO();
-      const ehOperacaoCatalogo = origem === 'catalogo' || (pedSeguro.origem === 'catalogo_online' && !usuario);
-
-      // CASO 1: Liquidação de Caderneta Avulsa
-      if (origem === 'caderneta') {
-        const primeiraLinha = linhasAtivas[0];
-        const fpId = await SyncService.resolverFormaPagamentoId(loja?.id || '', primeiraLinha.forma_pagamento_id, primeiraLinha.forma_tipo);
-        const cliId = pedSeguro.cliente_id || clienteProp?.id;
-        if (!cliId || !loja?.id) {
-          setErroMsg('Cliente não identificado para liquidação da caderneta.');
-          return;
-        }
-
-        if (ehOperacaoCatalogo) {
-          // Cliente pelo catálogo
-          let urlComprovante: string | null = null;
-          if (comprovanteDataUrl) {
-            urlComprovante = comprovanteDataUrl;
-          }
-          const res = await CadernetaService.solicitarLiquidacaoCadernetaCatalogo({
-            lojaId: loja.id,
-            clienteId: cliId,
-            valorSolicitado: totalLinhasPagamento,
-            formaPagamentoId: fpId,
-            formaTipo: primeiraLinha.forma_tipo,
-            metodoNome: primeiraLinha.forma_nome,
-            comprovanteUrl: urlComprovante
-          });
-          if (!res.sucesso) {
-            setErroMsg(res.mensagem || 'Erro ao registrar solicitação de liquidação.');
-            return;
-          }
-          setSucessoConfig({
-            titulo: 'Solicitação de Liquidação Enviada!',
-            mensagem: `Sua solicitação de ${formatarMoeda(totalLinhasPagamento)} via ${primeiraLinha.forma_nome} foi enviada para o lojista. O saldo e limite serão liberados assim que o lojista confirmar o recebimento.`,
-            aguardandoConferencia: true
-          });
-        } else {
-          // Lojista no PDV
-          const res = await CadernetaService.registrarPagamentoCaderneta({
-            lojaId: loja.id,
-            clienteId: cliId,
-            valorPago: totalLinhasPagamento,
-            formaPagamentoId: fpId,
-            formaTipo: primeiraLinha.forma_tipo,
-            usuarioId: usuario?.id,
-            observacoes: `Liquidação de caderneta via ${primeiraLinha.forma_nome}`
-          });
-          if (!res.sucesso) {
-            setErroMsg(res.mensagem || 'Erro ao registrar liquidação da caderneta.');
-            return;
-          }
-          setSucessoConfig({
-            titulo: 'Liquidação da Caderneta Registrada!',
-            mensagem: `O valor de ${formatarMoeda(totalLinhasPagamento)} foi abatido com sucesso e o limite de compras foi restabelecido.`,
-            aguardandoConferencia: false
-          });
-        }
-
-        setSucessoModal(true);
-        onPagamentoConcluido();
-        return;
-      }
-
-      // CASO 2: Catálogo Online com Pagamento Manual/Presencial (Pix manual, dinheiro ou cartão presencial)
-      // REGRA DE SEGURANÇA FINANCEIRA: NÃO marca como pago, grava em pedidos_pagamentos_previstos e aguarda conferência
-      const temPagamentoManualOuPresencial = linhasAtivas.some(l =>
-        l.forma_tipo === 'dinheiro' ||
-        l.forma_tipo === 'pix' ||
-        l.forma_tipo === 'cartao_debito' ||
-        l.forma_tipo === 'cartao_credito'
-      );
-
-      if (ehOperacaoCatalogo && temPagamentoManualOuPresencial) {
-        // Gravar intenção em pedidos_pagamentos_previstos SEM alterar status_pagamento para 'pago'
-        await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedSeguro.id);
-        const previstosDb = await Promise.all(linhasAtivas.map(async (linha) => {
-          let fpRealId = linha.forma_pagamento_id;
-          if (!fpRealId || !SyncService.isUuidValido(fpRealId) || String(fpRealId).startsWith('fp_')) {
-            fpRealId = await SyncService.resolverFormaPagamentoId(loja?.id || '', linha.forma_pagamento_id, linha.forma_tipo);
-          }
-          return {
-            loja_id: loja?.id,
-            pedido_id: pedSeguro.id,
-            forma_pagamento_id: fpRealId,
-            forma_tipo: linha.forma_tipo,
-            forma_nome: linha.forma_nome,
-            valor: Number(linha.valor),
-            valor_entregue: linha.valor_entregue ? Number(linha.valor_entregue) : null,
-            parcelas: linha.parcelas || 1
-          };
-        }));
-        const { error: erroPrev } = await supabase.from('pedidos_pagamentos_previstos').insert(previstosDb);
-        if (erroPrev) throw erroPrev;
-
-        // Atualizar metadados com comprovante se anexado, mantendo status_pagamento: 'aguardando_pagamento'
-        const lojaIdEfetivo = loja?.id || pedSeguro.loja_id;
-        const payloadAtualizacao: any = {
-          status_pagamento: 'aguardando_pagamento',
-          atualizado_em: dataIso
-        };
-        if (comprovanteDataUrl) {
-          const metaAtual = (pedSeguro as any).metadados || {};
-          payloadAtualizacao.metadados = { ...metaAtual, comprovante_pix_url: comprovanteDataUrl };
-        }
-        await supabase.from('pedidos').update(payloadAtualizacao).eq('id', pedSeguro.id).eq('loja_id', lojaIdEfetivo);
-
-        // Registro de histórico
-        const resumoFormas = linhasAtivas.map(l => `${l.forma_nome}: ${formatarMoeda(l.valor)}`).join(', ');
-        Promise.resolve(supabase.from('historico_pedidos').insert([{
-          loja_id: loja?.id,
-          pedido_id: pedSeguro.id,
-          usuario_id: null,
-          tipo_evento: 'pagamento_informado',
-          status_anterior: pedSeguro.status,
-          status_novo: pedSeguro.status,
-          descricao: `Cliente informou intenção de pagamento via ${resumoFormas}. Aguardando conferência do lojista.`
-        }])).catch(() => {});
-
-        setSucessoConfig({
-          titulo: 'Informações de Pagamento Registradas!',
-          mensagem: `Seu pedido foi registrado aguardando a conferência do pagamento pelo estabelecimento (${resumoFormas}). Assim que o lojista confirmar o recebimento, o pedido será liberado.`,
-          aguardandoConferencia: true
-        });
-
-        const objAtualizado = { ...pedSeguro, status_pagamento: 'aguardando_pagamento' } as Pedido;
-        setPedidoAtualizado(objAtualizado);
-        setSucessoModal(true);
-        onPagamentoConcluido(objAtualizado);
-        return;
-      }
 
       // Identificar se há valor em Fiado ou Caderneta (formas a prazo)
       const valorFiadoRecebimento = linhasAtivas
@@ -863,10 +677,10 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
           ? Number(formaFiado.prazo_dias)
           : (Number((loja?.configuracoes_extras?.pagamentos as any)?.dias_vencimento_fiado) || 30);
 
-        const dataBase = pedSeguro.data_venda
-          ? new Date(pedSeguro.data_venda)
-          : pedSeguro.criado_em
-          ? new Date(pedSeguro.criado_em)
+        const dataBase = pedido.data_venda
+          ? new Date(pedido.data_venda)
+          : pedido.criado_em
+          ? new Date(pedido.criado_em)
           : new Date();
 
         const dataVencimento = new Date(dataBase);
@@ -894,7 +708,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
 
         return {
           loja_id: loja?.id,
-          pedido_id: pedSeguro.id,
+          pedido_id: pedido.id,
           forma_pagamento_id: fpRealId,
           valor: linha.valor,
           parcelas: linha.parcelas || 1,
@@ -914,18 +728,18 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
       if (erroPag) throw erroPag;
 
       // Se for Caderneta, lança no livro razão e incrementa saldo devedor do cliente em background
-      if (pedSeguro.cliente_id && loja?.id && pagsInseridos) {
+      if (pedido.cliente_id && loja?.id && pagsInseridos) {
         const pagsCaderneta = pagsInseridos.filter((p: any) => p.eh_pagamento_caderneta);
         for (const pCad of pagsCaderneta) {
           try {
             await CadernetaService.registrarCompraCaderneta({
               lojaId: loja.id,
-              clienteId: pedSeguro.cliente_id,
-              pedidoId: pedSeguro.id,
+              clienteId: pedido.cliente_id,
+              pedidoId: pedido.id,
               pagamentoPedidoId: pCad.id,
               valor: Number(pCad.valor || 0),
               usuarioId: usuario?.id,
-              numeroPedido: pedSeguro.numero_pedido
+              numeroPedido: pedido.numero_pedido
             });
           } catch (errCad) {
             console.error('Erro ao registrar lançamento de caderneta:', errCad);
@@ -948,33 +762,33 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
       }
 
       // Se o pedido estava pendente e teve pagamento registrado (ou se foi quitado), transiciona automaticamente
-      const isStatusLogistico = ['aguardando_envio', 'em_expedicao', 'enviado', 'concluido'].includes(pedSeguro.status);
+      const isStatusLogistico = ['aguardando_envio', 'em_expedicao', 'enviado', 'concluido'].includes(pedido.status);
       if (!isStatusLogistico) {
-        const rawPe = (pedSeguro as any).pedido_entregas || (pedSeguro as any).pedido_entrega;
+        const rawPe = (pedido as any).pedido_entregas || (pedido as any).pedido_entrega;
         const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
-        const ehRetirada = pe?.tipo_atendimento === 'retirada' || (pedSeguro as any).tipo_atendimento === 'retirada';
+        const ehRetirada = pe?.tipo_atendimento === 'retirada' || (pedido as any).tipo_atendimento === 'retirada';
         const ehEntrega = !ehRetirada && (
           Boolean(pe) ||
-          Boolean(pedSeguro.endereco_entrega && !pedSeguro.endereco_entrega.toLowerCase().includes('retirada') && pedSeguro.endereco_entrega.toLowerCase() !== 'retirada na loja') ||
-          Boolean(pedSeguro.forma_entrega_id) ||
-          Boolean((pedSeguro as any).nome_transportadora) ||
-          Number(pedSeguro.valor_frete || 0) > 0
+          Boolean(pedido.endereco_entrega && !pedido.endereco_entrega.toLowerCase().includes('retirada') && pedido.endereco_entrega.toLowerCase() !== 'retirada na loja') ||
+          Boolean(pedido.forma_entrega_id) ||
+          Boolean((pedido as any).nome_transportadora) ||
+          Number(pedido.valor_frete || 0) > 0
         );
 
-        if (quitado && !ehEntrega) {
+        if (quitado && concluirAoQuitarCheck && !ehEntrega) {
           payloadUpdate.status = 'concluido';
         } else if (ehEntrega) {
           payloadUpdate.status = 'aguardando_envio';
-        } else if (pedSeguro.status === 'pendente') {
+        } else if (pedido.status === 'pendente') {
           payloadUpdate.status = 'confirmado';
         }
       }
 
-      const lojaIdEfetivo = loja?.id || pedSeguro.loja_id;
+      const lojaIdEfetivo = loja?.id || pedido.loja_id;
       const { data: pedUpd, error: erroUpd } = await supabase
         .from('pedidos')
         .update(payloadUpdate)
-        .eq('id', pedSeguro.id)
+        .eq('id', pedido.id)
         .eq('loja_id', lojaIdEfetivo)
         .select(`
           *,
@@ -993,17 +807,17 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
         .reduce((acc, l) => acc + Number(l.valor || 0), 0);
 
       const ehVendaOriginalmenteFiado = Boolean(
-        pedSeguro.status_pagamento === 'fiado' ||
-        (pedSeguro.pagamentos && pedSeguro.pagamentos.some((p: any) => p.eh_pagamento_fiado))
+        pedido.status_pagamento === 'fiado' ||
+        (pedido.pagamentos && pedido.pagamentos.some((p: any) => p.eh_pagamento_fiado))
       );
 
       // Caso A: Se recebeu/faturou em Fiado nesta operação -> DEBITA a conta do cliente e registra movimentação
-      if (pedSeguro.cliente_id && valorFiadoRecebimento > 0 && loja?.id) {
+      if (pedido.cliente_id && valorFiadoRecebimento > 0 && loja?.id) {
         try {
           const { data: clienteAtual } = await supabase
             .from('clientes')
             .select('saldo_devedor_fiado, limite_credito')
-            .eq('id', pedSeguro.cliente_id)
+            .eq('id', pedido.cliente_id)
             .eq('loja_id', loja.id)
             .single();
 
@@ -1018,19 +832,19 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
               saldo_devedor_fiado: novoSaldo,
               limite_credito: novoLimite
             })
-            .eq('id', pedSeguro.cliente_id)
+            .eq('id', pedido.cliente_id)
             .eq('loja_id', loja.id);
 
           await supabase
             .from('movimentacoes_saldo_cliente')
             .insert([{
               loja_id: loja.id,
-              cliente_id: pedSeguro.cliente_id,
+              cliente_id: pedido.cliente_id,
               tipo: 'debito_venda',
               valor: valorFiadoRecebimento,
               saldo_anterior: saldoAnterior,
               saldo_posterior: novoSaldo,
-              observacao: `Faturamento Fiado via Recebimento Pedido #${pedSeguro.numero_pedido}`,
+              observacao: `Faturamento Fiado via Recebimento Pedido #${pedido.numero_pedido}`,
               usuario_id: usuario?.id || null
             }]);
         } catch (errFiadoCli) {
@@ -1038,12 +852,12 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
         }
       }
       // Caso B: Se for quitação com numerário real de um pedido que era originalmente fiado -> ABATE a dívida e devolve limite
-      else if (pedSeguro.cliente_id && totalAbatimentoFiado > 0 && ehVendaOriginalmenteFiado && !temFiado && loja?.id) {
+      else if (pedido.cliente_id && totalAbatimentoFiado > 0 && ehVendaOriginalmenteFiado && !temFiado && loja?.id) {
         try {
           const { data: cliData } = await supabase
             .from('clientes')
             .select('saldo_devedor_fiado, limite_credito')
-            .eq('id', pedSeguro.cliente_id)
+            .eq('id', pedido.cliente_id)
             .eq('loja_id', loja.id)
             .single();
 
@@ -1059,19 +873,19 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                 saldo_devedor_fiado: novoDebitoCli,
                 limite_credito: novoLimite
               })
-              .eq('id', pedSeguro.cliente_id)
+              .eq('id', pedido.cliente_id)
               .eq('loja_id', loja.id);
 
             await supabase
               .from('movimentacoes_saldo_cliente')
               .insert([{
                 loja_id: loja.id,
-                cliente_id: pedSeguro.cliente_id,
+                cliente_id: pedido.cliente_id,
                 tipo: 'credito_pagamento',
                 valor: totalAbatimentoFiado,
                 saldo_anterior: debitoCli,
                 saldo_posterior: novoDebitoCli,
-                observacao: `Quitação Fiado via Recebimento Pedido #${pedSeguro.numero_pedido}`,
+                observacao: `Quitação Fiado via Recebimento Pedido #${pedido.numero_pedido}`,
                 usuario_id: usuario?.id || null
               }]);
           }
@@ -1086,7 +900,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
         try {
           await caixaService.registrarVendaPedido({
             lojaId: loja.id,
-            pedido: pedUpd || pedSeguro,
+            pedido: pedUpd || pedido,
             pagamentos: pagamentosCaixa.map(l => ({
               forma_nome: l.forma_nome,
               forma_tipo: l.forma_tipo,
@@ -1114,11 +928,11 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
         Promise.resolve(supabase.from('historico_pedidos').insert([
           {
             loja_id: loja.id,
-            pedido_id: pedSeguro.id,
+            pedido_id: pedido.id,
             usuario_id: usuario?.id || null,
             tipo_evento: 'pagamento_recebido',
-            status_anterior: pedSeguro.status,
-            status_novo: payloadUpdate.status || pedSeguro.status,
+            status_anterior: pedido.status,
+            status_novo: payloadUpdate.status || pedido.status,
             descricao: descPag
           }
         ])).catch((errHist: any) => {
@@ -1127,12 +941,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
       }
 
       audioService.playNewOrderSound();
-      setSucessoConfig({
-        titulo: temFiado ? 'Venda a Prazo (Fiado) Registrada!' : temCaderneta ? 'Compra na Caderneta Registrada!' : 'Pagamento Recebido com Sucesso!',
-        mensagem: `O valor de ${formatarMoeda(totalLinhasPagamento)} foi registrado no pedido.`,
-        aguardandoConferencia: false
-      });
-      const objAtualizado = (pedUpd as unknown as Pedido) || { ...pedSeguro, ...payloadUpdate };
+      const objAtualizado = (pedUpd as unknown as Pedido) || { ...pedido, ...payloadUpdate };
       setPedidoAtualizado(objAtualizado);
       setSucessoModal(true);
       onPagamentoConcluido(objAtualizado);
@@ -1145,8 +954,8 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
   };
 
   const handleImprimirComprovante = () => {
-    if (pedidoAtualizado || pedSeguro) {
-      PrintService.printReceipt(pedidoAtualizado || pedSeguro, loja, '80mm');
+    if (pedidoAtualizado || pedido) {
+      PrintService.printReceipt(pedidoAtualizado || pedido, loja, '80mm');
     }
   };
 
@@ -1174,17 +983,13 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
               <h3 className={`font-bold text-base flex items-center gap-2 ${
                 isDark ? 'text-white' : 'text-slate-900'
               }`}>
-                <span>{origem === 'caderneta' ? 'Liquidação de Caderneta' : 'Pagamento & Fechamento'}</span>
-                {origem !== 'caderneta' && pedSeguro.numero_pedido > 0 && (
-                  <span className={`text-xs font-normal ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                    #{pedSeguro.origem === 'catalogo_online' ? `c-${pedSeguro.numero_pedido}` : pedSeguro.numero_pedido}
-                  </span>
-                )}
+                <span>Pagamento & Fechamento</span>
+                <span className={`text-xs font-normal ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  #{pedido.origem === 'catalogo_online' ? `c-${pedido.numero_pedido}` : pedido.numero_pedido}
+                </span>
               </h3>
               <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                Cliente: <span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
-                  {clientePedidoMemo?.nome || pedSeguro.cliente?.nome || 'Cliente Balcão'}
-                </span>
+                Cliente: <span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{pedido.cliente?.nome || 'Cliente Balcão'}</span>
               </p>
             </div>
           </div>
@@ -1212,11 +1017,9 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
               <CheckCircle2 className="w-8 h-8" />
             </div>
             <div className="space-y-1">
-              <h4 className={`text-lg font-black ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-                {sucessoConfig?.titulo || 'Pagamento Recebido com Sucesso!'}
-              </h4>
-              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'} max-w-sm mx-auto`}>
-                {sucessoConfig?.mensagem || `O valor de ${formatarMoeda(totalLinhasPagamento)} foi registrado.`}
+              <h4 className={`text-lg font-black ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>Pagamento Recebido com Sucesso!</h4>
+              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                O valor de <span className="text-emerald-600 dark:text-emerald-400 font-bold">{formatarMoeda(totalLinhasPagamento)}</span> foi registrado no pedido.
               </p>
             </div>
 
@@ -1224,38 +1027,36 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
               isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
             }`}>
               <div className={`flex justify-between ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                <span>Total:</span>
+                <span>Total do Pedido:</span>
                 <span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{formatarMoeda(valorTotal)}</span>
               </div>
               <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
-                <span>{sucessoConfig?.aguardandoConferencia ? 'Valor Informado:' : 'Total Pago:'}</span>
-                <span className="font-bold">{formatarMoeda(totalLinhasPagamento)}</span>
+                <span>Total Pago até agora:</span>
+                <span className="font-bold">{formatarMoeda(valorJaPago + totalLinhasPagamento)}</span>
               </div>
               <div className={`flex justify-between pt-1 border-t ${
                 isDark ? 'text-slate-400 border-slate-800' : 'text-slate-500 border-slate-200'
               }`}>
-                <span>Status Financeiro:</span>
-                <span className={`font-bold ${sucessoConfig?.aguardandoConferencia ? 'text-amber-500' : 'text-emerald-500'}`}>
-                  {sucessoConfig?.aguardandoConferencia ? 'Aguardando Conferência' : 'Quitado / Processado'}
+                <span>Saldo Devedor Restante:</span>
+                <span className={`font-bold ${Math.max(0, valorTotal - (valorJaPago + totalLinhasPagamento)) <= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                  {formatarMoeda(Math.max(0, valorTotal - (valorJaPago + totalLinhasPagamento)))}
                 </span>
               </div>
             </div>
 
             <div className="flex items-center justify-center gap-3 pt-2">
-              {!sucessoConfig?.aguardandoConferencia && (
-                <button
-                  type="button"
-                  onClick={handleImprimirComprovante}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-xs border ${
-                    isDark
-                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-100 border-slate-700'
-                      : 'bg-white hover:bg-slate-50 text-slate-800 border-slate-200'
-                  }`}
-                >
-                  <Printer className="w-4 h-4" />
-                  <span>Imprimir Recibo</span>
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={handleImprimirComprovante}
+                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-xs border ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-100 border-slate-700'
+                    : 'bg-white hover:bg-slate-50 text-slate-800 border-slate-200'
+                }`}
+              >
+                <Printer className="w-4 h-4" />
+                <span>Imprimir Recibo</span>
+              </button>
               <button
                 type="button"
                 onClick={handleFecharTudo}
@@ -1296,7 +1097,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
             </div>
 
             {/* Linhas de Pagamento */}
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
               <div className="flex items-center justify-between">
                 <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                   Meios de Pagamento ({linhasPagamento.length}):
@@ -1337,11 +1138,8 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                     {formasDisponiveis.map((fp: FormaPagamento) => {
                       const estaSelecionado = linha.forma_pagamento_id === fp.id || (!linha.forma_pagamento_id && linha.forma_tipo === fp.tipo);
                       const ehPresencial = fp.tipo === 'dinheiro' || fp.tipo === 'cartao_debito' || fp.tipo === 'cartao_credito';
-                      const ehOnlineExterno = !presencialPermitido && (fp.tipo === 'mercado_pago' || fp.tipo === 'mercado_livre' || fp.tipo === 'pix');
                       const textoContextual = ehPresencial
                         ? (ehRetirada ? 'Pagamento na retirada' : 'Pagamento na entrega')
-                        : ehOnlineExterno
-                        ? 'Online Recomendado'
                         : null;
 
                       return (
@@ -1358,21 +1156,17 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                           <div className="flex items-center gap-1.5 w-full">
                             {fp.tipo === 'dinheiro' && <Banknote className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}
                             {fp.tipo === 'pix' && <Zap className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400 shrink-0" />}
-                            {fp.tipo === 'mercado_pago' && <CreditCard className="w-3.5 h-3.5 text-sky-500 shrink-0" />}
-                            {fp.tipo === 'mercado_livre' && <ShoppingBag className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
                             {fp.tipo === 'cartao_debito' && <CreditCard className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />}
                             {fp.tipo === 'cartao_credito' && <CreditCard className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />}
                             {fp.tipo === 'fiado' && <FileText className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />}
                             {fp.tipo === 'caderneta' && <BookOpen className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />}
-                            {fp.tipo !== 'dinheiro' && fp.tipo !== 'pix' && fp.tipo !== 'mercado_pago' && fp.tipo !== 'mercado_livre' && fp.tipo !== 'cartao_debito' && fp.tipo !== 'cartao_credito' && fp.tipo !== 'fiado' && fp.tipo !== 'caderneta' && (
+                            {fp.tipo !== 'dinheiro' && fp.tipo !== 'pix' && fp.tipo !== 'cartao_debito' && fp.tipo !== 'cartao_credito' && fp.tipo !== 'fiado' && fp.tipo !== 'caderneta' && (
                               <CreditCard className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                             )}
                             <span className="truncate">{fp.nome}</span>
                           </div>
                           {textoContextual && (
-                            <span className={`text-[10px] font-medium leading-tight ${
-                              ehOnlineExterno ? 'text-sky-600 dark:text-sky-400 font-bold' : 'text-slate-500 dark:text-slate-400'
-                            }`}>
+                            <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 leading-tight">
                               {textoContextual}
                             </span>
                           )}
@@ -1515,7 +1309,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                         <span className={`font-semibold truncate max-w-[200px] ${
                           isDark ? 'text-slate-200' : 'text-slate-800'
                         }`}>
-                          {clientePedidoMemo?.nome || pedSeguro.cliente?.nome || 'Nenhum selecionado'}
+                          {clientePedidoMemo?.nome || pedido.cliente?.nome || 'Nenhum selecionado'}
                         </span>
                       </div>
                       <div className={`flex justify-between text-[11px] ${
@@ -1523,12 +1317,12 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                       }`}>
                         <span>Limite de Crédito Disponível:</span>
                         <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                          {formatarMoeda(Number(clientePedidoMemo?.limite_credito || pedSeguro.cliente?.limite_credito || 0))}
+                          {formatarMoeda(Number(clientePedidoMemo?.limite_credito || pedido.cliente?.limite_credito || 0))}
                         </span>
                       </div>
-                      {linha.valor > Number(clientePedidoMemo?.limite_credito || pedSeguro.cliente?.limite_credito || 0) && (
+                      {linha.valor > Number(clientePedidoMemo?.limite_credito || pedido.cliente?.limite_credito || 0) && (
                         <p className="text-[11px] text-rose-600 dark:text-rose-400 font-bold">
-                          ⚠️ Valor informado excede o limite disponível de {formatarMoeda(Number(clientePedidoMemo?.limite_credito || pedSeguro.cliente?.limite_credito || 0))}.
+                          ⚠️ Valor informado excede o limite disponível de {formatarMoeda(Number(clientePedidoMemo?.limite_credito || pedido.cliente?.limite_credito || 0))}.
                         </p>
                       )}
                     </div>
@@ -1549,7 +1343,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                         <span className={`font-semibold truncate max-w-[200px] ${
                           isDark ? 'text-slate-100' : 'text-slate-900'
                         }`}>
-                          {clientePedidoMemo?.nome || pedSeguro.cliente?.nome || 'Nenhum selecionado'}
+                          {clientePedidoMemo?.nome || pedido.cliente?.nome || 'Nenhum selecionado'}
                         </span>
                       </div>
                       <div className={`flex justify-between items-center ${
@@ -1557,7 +1351,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                       }`}>
                         <span className="font-medium">Saldo Devedor Atual:</span>
                         <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-                          {formatarMoeda(Number(clientePedidoMemo?.saldo_devedor_caderneta || (pedSeguro.cliente as any)?.saldo_devedor_caderneta || 0))}
+                          {formatarMoeda(Number(clientePedidoMemo?.saldo_devedor_caderneta || (pedido.cliente as any)?.saldo_devedor_caderneta || 0))}
                         </span>
                       </div>
                       <div className={`flex justify-between items-center ${
@@ -1583,181 +1377,6 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                       )}
                     </div>
                   )}
-
-                  {/* Pix Manual: Chave, Pix Copia e Cola e Comprovante */}
-                  {linha.forma_tipo === 'pix' && (() => {
-                    const pagConfig = (loja?.configuracoes_extras as any)?.pagamentos || {};
-                    const chavePix = pagConfig.pix_chave || (loja as any)?.chave_pix || '';
-                    const orientacoesPix = pagConfig.pix_orientacoes || '';
-
-                    const codigoPixEmv = chavePix ? gerarPayloadPixEmv({
-                      chavePix,
-                      nomeRecebedor: loja?.nome_fantasia || 'HUBI SISTEMAS',
-                      cidade: (loja as any)?.cidade || (loja as any)?.endereco_cidade || 'BRASIL',
-                      valor: linha.valor
-                    }) : '';
-
-                    return (
-                      <div className={`p-3.5 rounded-2xl border space-y-3 text-xs ${
-                        isDark ? 'bg-slate-950 border-emerald-500/30' : 'bg-emerald-50/50 border-emerald-200'
-                      }`}>
-                        <div className="flex items-center gap-2">
-                          <Zap className="w-4 h-4 text-emerald-500 shrink-0" />
-                          <span className="font-bold text-emerald-700 dark:text-emerald-400">
-                            Pagamento via PIX da Loja
-                          </span>
-                        </div>
-
-                        {chavePix ? (
-                          <div className="space-y-2.5">
-                            {/* Botão Oficial Pix Copia e Cola (Oculta string EMV bruta) */}
-                            {codigoPixEmv && (
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  try {
-                                    await navigator.clipboard.writeText(codigoPixEmv);
-                                    setPixCopiado(true);
-                                    setTimeout(() => setPixCopiado(false), 3000);
-                                  } catch {}
-                                }}
-                                className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-md shadow-emerald-600/20 active:scale-98"
-                              >
-                                {pixCopiado ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                                <span>{pixCopiado ? 'Código Pix Copiado!' : 'Copiar Código Pix Copia e Cola'}</span>
-                              </button>
-                            )}
-
-                            {/* Chave Pix Formatada e Botão de Cópia */}
-                            <div className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 ${
-                              isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-                            }`}>
-                              <div className="min-w-0">
-                                <span className={`text-[10px] uppercase font-bold block ${
-                                  isDark ? 'text-slate-400' : 'text-slate-500'
-                                }`}>
-                                  Chave Pix Manual
-                                </span>
-                                <span className={`text-xs font-semibold select-all truncate block ${
-                                  isDark ? 'text-slate-200' : 'text-slate-800'
-                                }`}>
-                                  {chavePix}
-                                </span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  try {
-                                    await navigator.clipboard.writeText(chavePix);
-                                    setChavePixCopiada(true);
-                                    setTimeout(() => setChavePixCopiada(false), 2500);
-                                  } catch {}
-                                }}
-                                className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold transition flex items-center gap-1 shrink-0 cursor-pointer ${
-                                  chavePixCopiada
-                                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
-                                    : (isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300')
-                                }`}
-                              >
-                                {chavePixCopiada ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                                <span>{chavePixCopiada ? 'Copiada!' : 'Copiar Chave'}</span>
-                              </button>
-                            </div>
-
-                            <p className={`text-[11px] leading-tight ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                              ℹ️ A chave manual requer que você digite o valor de <strong>{formatarMoeda(linha.valor)}</strong> no app do seu banco.
-                            </p>
-
-                            {orientacoesPix && (
-                              <p className={`text-[11px] leading-relaxed italic ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                                {orientacoesPix}
-                              </p>
-                            )}
-
-                            {/* Campo de Anexo do Comprovante */}
-                            <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
-                              <label className={`cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
-                                isDark ? 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
-                              }`}>
-                                <Paperclip className="w-3.5 h-3.5 text-emerald-500" />
-                                <span>{comprovanteArquivo ? 'Trocar Comprovante' : 'Anexar Comprovante Pix'}</span>
-                                <input
-                                  type="file"
-                                  accept="image/*,application/pdf"
-                                  className="hidden"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      setComprovanteArquivo(file);
-                                      const reader = new FileReader();
-                                      reader.onload = (ev) => {
-                                        setComprovanteDataUrl(ev.target?.result as string);
-                                      };
-                                      reader.readAsDataURL(file);
-                                    }
-                                  }}
-                                />
-                              </label>
-                              {comprovanteArquivo && (
-                                <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 truncate max-w-[170px]">
-                                  <span className="truncate">{comprovanteArquivo.name}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setComprovanteArquivo(null);
-                                      setComprovanteDataUrl(null);
-                                    }}
-                                    className="text-rose-500 hover:text-rose-600 p-0.5"
-                                    title="Remover anexo"
-                                  >
-                                    <X className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ) : (
-                          <p className="text-xs text-amber-600 dark:text-amber-400">
-                            Chave Pix da loja não configurada nas configurações de pagamento.
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })()}
-
-                  {/* Mercado Pago */}
-                  {linha.forma_tipo === 'mercado_pago' && (
-                    <div className={`p-3.5 rounded-2xl border space-y-2 text-xs ${
-                      isDark ? 'bg-slate-950 border-sky-500/30 text-sky-200' : 'bg-sky-50 border-sky-200 text-sky-900'
-                    }`}>
-                      <div className="flex items-center gap-2">
-                        <CreditCard className="w-4 h-4 text-sky-500 shrink-0" />
-                        <span className="font-bold text-sky-700 dark:text-sky-400">
-                          Mercado Pago (Pix Automático & Cartão Online)
-                        </span>
-                      </div>
-                      <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                        Ao confirmar, o pagamento será processado via Mercado Pago com liberação e baixa automática em tempo real assim que aprovado.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Mercado Livre */}
-                  {linha.forma_tipo === 'mercado_livre' && (
-                    <div className={`p-3.5 rounded-2xl border space-y-2 text-xs ${
-                      isDark ? 'bg-slate-950 border-amber-500/30 text-amber-200' : 'bg-amber-50 border-amber-200 text-amber-900'
-                    }`}>
-                      <div className="flex items-center gap-2">
-                        <ShoppingBag className="w-4 h-4 text-amber-500 shrink-0" />
-                        <span className="font-bold text-amber-700 dark:text-amber-400">
-                          Mercado Livre (Canal Integrado)
-                        </span>
-                      </div>
-                      <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                        Venda integrada ao Mercado Livre. A conciliação financeira e o status de pagamento são atualizados automaticamente via webhook do canal.
-                      </p>
-                    </div>
-                  )}
                 </div>
               ))}
 
@@ -1781,17 +1400,17 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
               <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
                 <span className="font-medium">Subtotal dos Produtos:</span>
                 <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-                  {formatarMoeda(Number(pedSeguro.subtotal || (valorTotal - Number(pedSeguro.valor_frete || 0) + Number(pedSeguro.valor_desconto || 0))))}
+                  {formatarMoeda(Number(pedido.subtotal || (valorTotal - Number(pedido.valor_frete || 0) + Number(pedido.valor_desconto || 0))))}
                 </span>
               </div>
 
-              {Number(pedSeguro.valor_desconto || 0) > 0 && (
+              {Number(pedido.valor_desconto || 0) > 0 && (
                 <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
                   <span className="font-medium">
-                    Desconto {pedSeguro.cupom_codigo ? `(Cupom: ${pedSeguro.cupom_codigo})` : 'Aplicado'}:
+                    Desconto {pedido.cupom_codigo ? `(Cupom: ${pedido.cupom_codigo})` : 'Aplicado'}:
                   </span>
                   <span className="font-semibold text-rose-600 dark:text-rose-400">
-                    - {formatarMoeda(Number(pedSeguro.valor_desconto || 0))}
+                    - {formatarMoeda(Number(pedido.valor_desconto || 0))}
                   </span>
                 </div>
               )}
@@ -1893,6 +1512,26 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                   </>
                 ) : null}
               </div>
+            </div>
+
+            {/* Toggle / Checkbox Concluir ao Quitar */}
+            <div className={`p-3 rounded-2xl border flex items-center justify-between ${
+              isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+            }`}>
+              <div>
+                <span className={`text-xs font-bold block ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                  Concluir Automaticamente ao Quitar
+                </span>
+                <span className={`text-[11px] block ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  Altera o status do pedido para "Concluído" se o saldo for 100% quitado
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={concluirAoQuitarCheck}
+                onChange={(e) => setConcluirAoQuitarCheck(e.target.checked)}
+                className="w-5 h-5 rounded-lg text-emerald-600 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:ring-emerald-500 cursor-pointer accent-emerald-500"
+              />
             </div>
 
             {/* Botões de Rodapé: [ Cancelar ], [ Salvar ] e [ Confirmar Pagamento ] */}
