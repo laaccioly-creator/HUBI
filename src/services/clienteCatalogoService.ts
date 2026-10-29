@@ -370,7 +370,7 @@ export const ClienteCatalogoService = {
     try {
       const { data, error } = await supabase
         .from('pedidos')
-        .select('*, cliente:clientes(*), forma_entrega:formas_entrega(*), pedido_entrega:pedido_entregas(*), itens:itens_pedido(*), pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*))')
+        .select('*, cliente:clientes(*), forma_entrega:formas_entrega(*), pedido_entrega:pedido_entregas(*), itens:itens_pedido(*), pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*)), pagamentos_previstos:pedidos_pagamentos_previstos(*)')
         .eq('loja_id', lojaId)
         .eq('cliente_id', clienteId)
         .order('criado_em', { ascending: false })
@@ -382,7 +382,7 @@ export const ClienteCatalogoService = {
 
       const { data: fallbackData, error: fallbackError } = await supabase
         .from('pedidos')
-        .select('*, itens:itens_pedido(*), pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*))')
+        .select('*, itens:itens_pedido(*), pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*)), pagamentos_previstos:pedidos_pagamentos_previstos(*)')
         .eq('loja_id', lojaId)
         .eq('cliente_id', clienteId)
         .order('criado_em', { ascending: false })

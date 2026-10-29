@@ -4,7 +4,7 @@ export type TipoDocumento = 'CPF' | 'CNPJ';
 export type PerfilUsuario = 'owner' | 'admin' | 'gerente' | 'vendedor' | 'comum';
 export type TipoUnidade = 'un' | 'kg' | 'l' | 'm';
 export type TabelaPreco = 'varejo' | 'atacado' | 'autoatacado' | 'promocional';
-export type TipoPagamento = 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito' | 'fiado' | 'caderneta' | 'outro';
+export type TipoPagamento = 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito' | 'fiado' | 'caderneta' | 'mercado_pago' | 'mercado_livre' | 'outro';
 export type TipoEntrega = 
   | 'retirada' 
   | 'frota_propria' 

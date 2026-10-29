@@ -20,7 +20,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { supabase } from '../lib/supabase';
-import { ModalPagamentoCadernetaUnificado } from './caderneta/ModalPagamentoCadernetaUnificado';
+import { ModalPagamentoFechamento } from './ModalPagamentoFechamento';
 import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
 import { whatsappWalletService } from '../services/whatsappWalletService';
 
@@ -547,22 +547,24 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
           )}
         </div>
 
-        {/* Modal Único Reutilizável de Liquidação da Caderneta */}
-        <ModalPagamentoCadernetaUnificado
-          isOpen={modalAbatimentoAberto}
-          onClose={() => setModalAbatimentoAberto(false)}
-          loja={loja}
-          cliente={cliente}
-          saldoDevedor={resumo?.saldoDevedor || 0}
-          origem="lojista"
-          usuarioId={usuario?.id}
-          isDark={isDark}
-          onSucesso={async (msg) => {
-            mostrarSucesso(msg);
-            await carregarDados();
-            onAtualizado?.();
-          }}
-        />
+        {/* Modal Oficial Unificado de Pagamento / Liquidação da Caderneta */}
+        {modalAbatimentoAberto && (
+          <ModalPagamentoFechamento
+            isOpen={modalAbatimentoAberto}
+            onClose={() => setModalAbatimentoAberto(false)}
+            loja={loja}
+            cliente={cliente}
+            pedido={null}
+            saldoDevedorAvulso={resumo?.saldoDevedor || 0}
+            origem="caderneta"
+            onPagamentoConcluido={async () => {
+              setModalAbatimentoAberto(false);
+              mostrarSucesso('Pagamento da caderneta registrado com sucesso!');
+              await carregarDados();
+              onAtualizado?.();
+            }}
+          />
+        )}
 
         {/* Modal de Visualização de Comprovante Anexado */}
         {comprovanteVisualizandoUrl && (

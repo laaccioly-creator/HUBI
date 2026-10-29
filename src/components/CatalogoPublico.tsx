@@ -2168,20 +2168,19 @@ export const CatalogoPublico: React.FC = () => {
             return false;
           });
 
-          if (formaCorrespondente?.id) {
-            await supabase.from('pagamentos_pedido').insert([{
-              loja_id: loja.id,
-              pedido_id: pedidoCriado.id,
-              forma_pagamento_id: formaCorrespondente.id,
-              valor: total,
-              parcelas: 1,
-              valor_taxa: 0,
-              valor_liquido: total,
-              data_pagamento: dataOperacaoIso
-            }]);
-          }
+          const formaIdReal = formaCorrespondente?.id || null;
+          await supabase.from('pedidos_pagamentos_previstos').insert([{
+            loja_id: loja.id,
+            pedido_id: pedidoCriado.id,
+            forma_pagamento_id: formaIdReal,
+            forma_tipo: formaPagamentoEfetiva,
+            forma_nome: formaCorrespondente?.nome || formaPagamentoEfetiva,
+            valor: total,
+            valor_entregue: null,
+            parcelas: 1
+          }]);
         } catch (errPagCat) {
-          console.warn('Aviso ao vincular forma de pagamento do catálogo:', errPagCat);
+          console.warn('Aviso ao vincular forma de pagamento prevista do catálogo:', errPagCat);
         }
       }
 
@@ -3767,6 +3766,7 @@ Fico no aguardo da confirmação! ✨`;
           isOpen={modalPagamentoPedidoPesadoAberto}
           onClose={() => setModalPagamentoPedidoPesadoAberto(false)}
           loja={loja}
+          origem="catalogo"
           pedido={pedidoParaPagamento}
           onPagamentoConcluido={() => {
             setModalPagamentoPedidoPesadoAberto(false);
@@ -4035,24 +4035,21 @@ Fico no aguardo da confirmação! ✨`;
               <X className="w-5 h-5" />
             </button>
 
-            <div
-              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto shadow-lg"
-              style={{ backgroundColor: `${corTema}25`, color: corTema }}
-            >
-              <CheckCircle2 className="w-10 h-10" />
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto shadow-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+              <CheckCircle2 className="w-9 h-9" />
             </div>
 
             <div>
               <h3 className="text-lg font-black text-slate-100">
-                Pedido #{pedidoConcluidoModal.numeroPedido} Enviado!
+                Pedido #{pedidoConcluidoModal.numeroPedido} Enviado com Sucesso!
               </h3>
               <p className="text-xs text-slate-400 mt-1">
-                Seu pedido foi registrado no sistema com sucesso.
+                Seu pedido foi registrado e encaminhado para o estabelecimento.
               </p>
             </div>
 
             {/* Mensagem Personalizada de Orientações Pós-Pedido da Loja */}
-            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-xs text-slate-300 text-left whitespace-pre-wrap leading-relaxed">
+            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-xs text-slate-300 text-left whitespace-pre-wrap leading-relaxed shadow-2xs">
               {loja?.instrucoes_pos_pedido || 'Em breve entraremos em contato para confirmar os detalhes da sua compra. Agradecemos pela preferência!'}
             </div>
 
@@ -4079,15 +4076,15 @@ Fico no aguardo da confirmação! ✨`;
 
             {/* STATUS DO MEIO A PRAZO */}
             {(pedidoConcluidoModal.formaPagamentoEscolhida === 'fiado' || pedidoConcluidoModal.formaPagamentoEscolhida === 'caderneta') && (
-              <div className="p-3.5 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 text-center space-y-1">
+              <div className="p-4 rounded-2xl bg-slate-950 border border-emerald-500/30 text-center space-y-1.5 shadow-xs">
                 <span className="text-xs font-black text-emerald-400 flex items-center justify-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                   <span>{pedidoConcluidoModal.formaPagamentoEscolhida === 'caderneta' ? 'Lançado na Caderneta' : 'Lançado no Fiado'}</span>
                 </span>
-                <p className="text-[11px] text-slate-300">
+                <p className="text-[11px] text-slate-300 leading-relaxed">
                   {pedidoConcluidoModal.formaPagamentoEscolhida === 'caderneta'
                     ? 'Esta compra foi registrada na sua Caderneta de Mercadinho para acerto no fechamento do ciclo.'
-                    : 'Esta compra foi registrada no seu saldo devedor de Fiado a prazo.'}
+                    : 'Esta compra foi debitada do seu limite de crédito e lançada no Fiado a prazo.'}
                 </p>
               </div>
             )}
@@ -4097,7 +4094,7 @@ Fico no aguardo da confirmação! ✨`;
               <button
                 type="button"
                 onClick={handleAbrirCheckoutMP}
-                className="w-full py-4 rounded-2xl bg-[#FFE600] hover:bg-[#F5DC00] text-slate-950 font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-400/20 transition cursor-pointer active:scale-98 border border-amber-300"
+                className="w-full py-3.5 rounded-2xl bg-[#FFE600] hover:bg-[#F5DC00] text-slate-950 font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-400/20 transition cursor-pointer active:scale-98 border border-amber-300"
               >
                 <span>Pagar com Mercado Pago</span>
                 <ExternalLink className="w-4 h-4 text-slate-950" />
@@ -4107,7 +4104,7 @@ Fico no aguardo da confirmação! ✨`;
             <div className="space-y-2 pt-2">
               <Link
                 to={`/order-tracking/${pedidoConcluidoModal.numeroPedido}`}
-                className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer shadow-sm active:scale-98"
+                className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer shadow-lg shadow-emerald-600/25 active:scale-98"
               >
                 <ShoppingBag className="w-4 h-4 text-white" />
                 <span>Acompanhar Pedido #{pedidoConcluidoModal.numeroPedido}</span>
@@ -4118,9 +4115,9 @@ Fico no aguardo da confirmação! ✨`;
                   href={pedidoConcluidoModal.whatsAppUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-medium text-xs flex items-center justify-center gap-2 border border-slate-300 dark:border-slate-600 transition cursor-pointer shadow-xs active:scale-98"
+                  className="w-full py-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold text-xs flex items-center justify-center gap-2 border border-emerald-500/30 transition cursor-pointer shadow-xs active:scale-98"
                 >
-                  <Share2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <Share2 className="w-4 h-4 text-emerald-400" />
                   <span>Enviar Resumo no WhatsApp da Loja</span>
                 </a>
               )}
@@ -4132,9 +4129,9 @@ Fico no aguardo da confirmação! ✨`;
                   setPixAprovadoEmTempoReal(false);
                   setModalPedidosAberto(true);
                 }}
-                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-medium text-xs flex items-center justify-center gap-2 border border-slate-300 dark:border-slate-600 transition cursor-pointer shadow-xs active:scale-98"
+                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs flex items-center justify-center gap-2 border border-slate-700 transition cursor-pointer shadow-xs active:scale-98"
               >
-                <Package className="w-4 h-4 text-sky-500" />
+                <Package className="w-4 h-4 text-sky-400" />
                 <span>Meus Pedidos</span>
               </button>
 
@@ -4144,7 +4141,7 @@ Fico no aguardo da confirmação! ✨`;
                   setPedidoConcluidoModal(null);
                   setPixAprovadoEmTempoReal(false);
                 }}
-                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-300 font-medium text-xs border border-slate-300 dark:border-slate-600 transition cursor-pointer shadow-xs active:scale-98"
+                className="w-full py-2.5 rounded-xl bg-slate-900/60 hover:bg-slate-800 text-slate-400 hover:text-slate-200 font-medium text-xs border border-slate-800 transition cursor-pointer shadow-xs active:scale-98"
               >
                 Voltar ao Catálogo
               </button>

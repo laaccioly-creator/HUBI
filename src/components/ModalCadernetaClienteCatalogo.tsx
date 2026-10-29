@@ -14,7 +14,7 @@ import { Cliente, CadernetaLancamento, Loja, Pedido } from '../types';
 import { CadernetaService, ResumoCadernetaCliente } from '../services/cadernetaService';
 import { formatarMoeda } from '../utils/formatters';
 import { supabase } from '../lib/supabase';
-import { ModalPagamentoCadernetaUnificado } from './caderneta/ModalPagamentoCadernetaUnificado';
+import { ModalPagamentoFechamento } from './ModalPagamentoFechamento';
 import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
 
 interface ModalCadernetaClienteCatalogoProps {
@@ -411,20 +411,24 @@ export const ModalCadernetaClienteCatalogo: React.FC<ModalCadernetaClienteCatalo
           )}
         </div>
 
-        {/* Modal Único Reutilizável de Liquidação da Caderneta */}
-        <ModalPagamentoCadernetaUnificado
-          isOpen={modoPagamento}
-          onClose={() => setModoPagamento(false)}
-          loja={loja}
-          cliente={cliente}
-          saldoDevedor={saldoAtual}
-          origem="catalogo"
-          onSucesso={async (msg) => {
-            setPagamentoSucesso(msg);
-            await carregarDados();
-            onAtualizado?.();
-          }}
-        />
+        {/* Modal Oficial Unificado de Pagamento / Liquidação da Caderneta */}
+        {modoPagamento && (
+          <ModalPagamentoFechamento
+            isOpen={modoPagamento}
+            onClose={() => setModoPagamento(false)}
+            loja={loja}
+            cliente={cliente}
+            pedido={null}
+            saldoDevedorAvulso={saldoAtual}
+            origem="caderneta"
+            onPagamentoConcluido={async () => {
+              setModoPagamento(false);
+              setPagamentoSucesso('Operação de pagamento na caderneta concluída!');
+              await carregarDados();
+              onAtualizado?.();
+            }}
+          />
+        )}
         {/* Modal Oficial de Recibo do Pedido Vinculado */}
         <ReciboPedidoModal
           isOpen={Boolean(pedidoReciboModal)}

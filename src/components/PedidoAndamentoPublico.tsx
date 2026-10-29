@@ -814,6 +814,7 @@ export const PedidoAndamentoPublico: React.FC = () => {
           isOpen={modalPagamentoAberto}
           onClose={() => setModalPagamentoAberto(false)}
           loja={loja}
+          origem="catalogo"
           pedido={pedido}
           onPagamentoConcluido={() => {
             setModalPagamentoAberto(false);

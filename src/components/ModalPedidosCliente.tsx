@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, Package, Clock, ExternalLink, Loader2, AlertCircle, ShoppingBag, CheckCircle, Truck, Receipt, Scale, CreditCard } from 'lucide-react';
+import { X, Package, Clock, ExternalLink, Loader2, AlertCircle, ShoppingBag, CheckCircle, Truck, Receipt, Scale, CreditCard, Paperclip, Upload, Share2 } from 'lucide-react';
 import { Pedido, Loja } from '../types';
 import { ClienteCatalogoService } from '../services/clienteCatalogoService';
 import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
@@ -30,8 +30,47 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
   const [pedidoPagamentoModal, setPedidoPagamentoModal] = useState<Pedido | null>(null);
+  const [pedidoEnvioComprovante, setPedidoEnvioComprovante] = useState<Pedido | null>(null);
+  const [arquivoComprovante, setArquivoComprovante] = useState<File | null>(null);
+  const [enviandoComprovante, setEnviandoComprovante] = useState<boolean>(false);
+  const [comprovanteEnviadoSucesso, setComprovanteEnviadoSucesso] = useState<boolean>(false);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [erro, setErro] = useState<string | null>(null);
+
+  const handleSalvarComprovante = async () => {
+    if (!pedidoEnvioComprovante || !arquivoComprovante) return;
+    try {
+      setEnviandoComprovante(true);
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const dataUrl = e.target?.result as string;
+        const metaAtual = (pedidoEnvioComprovante as any).metadados || {};
+        await supabase
+          .from('pedidos')
+          .update({
+            metadados: {
+              ...metaAtual,
+              comprovante_pix_url: dataUrl,
+              comprovante_enviado_em: new Date().toISOString()
+            }
+          })
+          .eq('id', pedidoEnvioComprovante.id)
+          .eq('loja_id', lojaId);
+
+        setComprovanteEnviadoSucesso(true);
+        setTimeout(() => {
+          setPedidoEnvioComprovante(null);
+          setArquivoComprovante(null);
+          setComprovanteEnviadoSucesso(false);
+        }, 2000);
+      };
+      reader.readAsDataURL(arquivoComprovante);
+    } catch (err) {
+      console.error('Erro ao enviar comprovante:', err);
+    } finally {
+      setEnviandoComprovante(false);
+    }
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -235,6 +274,36 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
+                    {/* Botão Enviar Comprovante exibido exclusivamente se escolheu PIX e está aguardando confirmação */}
+                    {(() => {
+                      const ehPedidoPix = Boolean(
+                        (ped as any).forma_pagamento_catalogo === 'pix' ||
+                        (ped.metadados as any)?.forma_pagamento === 'pix' ||
+                        (ped as any).forma_pagamento_nome?.toLowerCase().includes('pix') ||
+                        (Array.isArray(ped.pagamentos) && ped.pagamentos.some((p: any) => (p.forma_pagamento?.tipo || p.forma_tipo || '').toLowerCase().includes('pix'))) ||
+                        (Array.isArray((ped as any).pagamentos_previstos) && (ped as any).pagamentos_previstos.some((p: any) => (p.forma_tipo || p.forma_nome || '').toLowerCase().includes('pix')))
+                      );
+
+                      if (ped.status !== 'cancelado' && ped.status_pagamento === 'aguardando_pagamento' && ehPedidoPix) {
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPedidoEnvioComprovante(ped);
+                              setArquivoComprovante(null);
+                              setComprovanteEnviadoSucesso(false);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-xs transition cursor-pointer active:scale-95"
+                            title="Enviar comprovante do Pix para o estabelecimento"
+                          >
+                            <Paperclip className="w-3.5 h-3.5" />
+                            <span>Enviar Comprovante</span>
+                          </button>
+                        );
+                      }
+                      return null;
+                    })()}
+
                     {/* Botão Pagar Pedido exibido exclusivamente quando aguardando pagamento (após pesagem ou convencional) */}
                     {ped.status !== 'cancelado' && ped.status_pagamento === 'aguardando_pagamento' && (
                       <button
@@ -313,6 +382,7 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
           isOpen={!!pedidoPagamentoModal}
           onClose={() => setPedidoPagamentoModal(null)}
           loja={loja}
+          origem="catalogo"
           pedido={pedidoPagamentoModal}
           onPagamentoConcluido={() => {
             setPedidoPagamentoModal(null);
@@ -323,6 +393,101 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
             carregarAposPagar();
           }}
         />
+      )}
+
+      {/* Modal de Envio de Comprovante Pix */}
+      {pedidoEnvioComprovante && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 z-[80] animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-sm p-5 space-y-4 shadow-2xl text-slate-900 dark:text-white animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 flex items-center justify-center">
+                  <Paperclip className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm">Enviar Comprovante Pix</h4>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Pedido #{pedidoEnvioComprovante.numero_pedido}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setPedidoEnvioComprovante(null);
+                  setArquivoComprovante(null);
+                }}
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {comprovanteEnviadoSucesso ? (
+              <div className="py-4 text-center space-y-2">
+                <div className="w-12 h-12 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center mx-auto">
+                  <CheckCircle className="w-6 h-6" />
+                </div>
+                <h5 className="font-bold text-sm text-emerald-600 dark:text-emerald-400">Comprovante Anexado com Sucesso!</h5>
+                <p className="text-xs text-slate-500 dark:text-slate-400">O lojista foi notificado para conferência do pagamento.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-xs text-slate-600 dark:text-slate-300">
+                  Selecione a imagem ou PDF do comprovante bancário da transferência Pix para o estabelecimento:
+                </p>
+
+                <label className="cursor-pointer flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl hover:border-cyan-500/60 bg-slate-50 dark:bg-slate-950/60 transition gap-1.5 text-center">
+                  <Upload className="w-6 h-6 text-cyan-500" />
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                    {arquivoComprovante ? arquivoComprovante.name : 'Clique para escolher o arquivo'}
+                  </span>
+                  <span className="text-[10px] text-slate-400">JPG, PNG ou PDF</span>
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) setArquivoComprovante(f);
+                    }}
+                  />
+                </label>
+
+                <div className="flex items-center gap-2 pt-2">
+                  {loja?.whatsapp && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const tel = (loja.whatsapp || '').replace(/\D/g, '');
+                        const msg = `Olá! Segue em anexo o comprovante de pagamento Pix do pedido #${pedidoEnvioComprovante.numero_pedido} no valor de R$ ${(pedidoEnvioComprovante.valor_total || 0).toFixed(2)}.`;
+                        window.open(`https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`, '_blank');
+                      }}
+                      className="flex-1 py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
+                    >
+                      <Share2 className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>WhatsApp</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={!arquivoComprovante || enviandoComprovante}
+                    onClick={handleSalvarComprovante}
+                    className="flex-1 py-2.5 px-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-md shadow-cyan-600/20 active:scale-95"
+                  >
+                    {enviandoComprovante ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Paperclip className="w-3.5 h-3.5" />
+                    )}
+                    <span>Anexar</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
