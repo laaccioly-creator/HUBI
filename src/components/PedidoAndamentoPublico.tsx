@@ -33,7 +33,7 @@ import {
   consolidarHistoricoPedidos,
   formatarDataHoraHistorico
 } from '../utils/historicoPedidoUtils';
-import { ModalEscolhaPagamento } from './catalogo/ModalEscolhaPagamento';
+import { ModalPagamentoFechamento } from './ModalPagamentoFechamento';
 
 export const PedidoAndamentoPublico: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -274,7 +274,33 @@ export const PedidoAndamentoPublico: React.FC = () => {
     enderecoExibicao
   } = obterInfoEntregaRecibo(pedido, loja);
 
-  const badgeEstilo = ehRetirada ? 'bg-purple-100 text-purple-800' : 'bg-emerald-100 text-emerald-800';
+  const badgeEstilo = ehRetirada
+    ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
+    : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20';
+
+  const handleIniciarNovaCompra = (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    try {
+      localStorage.setItem('hubi_fechar_pedidos_catalogo', Date.now().toString());
+    } catch {
+      // ignore
+    }
+
+    const destino = loja?.slug_catalogo ? `/catalog/${loja.slug_catalogo}?fechar_pedidos=true` : `/catalog?fechar_pedidos=true`;
+
+    if (window.opener && !window.opener.closed) {
+      try {
+        window.opener.postMessage({ type: 'HUBI_FECHAR_MODAL_PEDIDOS' }, '*');
+        window.opener.focus();
+        window.close();
+        return;
+      } catch {
+        // Fallback para redirecionar se fechar aba for bloqueado pelo navegador
+      }
+    }
+
+    window.location.href = destino;
+  };
 
   const valorSubtotal = Number(
     (pedido as any).subtotal_produtos ||
@@ -752,8 +778,8 @@ export const PedidoAndamentoPublico: React.FC = () => {
                   <span className="font-bold text-[10px] text-slate-600 uppercase">Status Pagamento:</span>
                   <span className={`font-black text-[10px] px-2 py-0.5 rounded-full border ${
                     pagInfo.foiPago
-                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                      : 'bg-slate-100 text-slate-900 border-slate-300'
+                      ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                      : 'bg-slate-100 text-slate-800 border-slate-300'
                   }`}>
                     {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
                   </span>
@@ -769,21 +795,22 @@ export const PedidoAndamentoPublico: React.FC = () => {
 
             {/* Iniciar Nova Compra no Catálogo */}
             <div className="text-center pt-2">
-              <Link
-                to={loja?.slug_catalogo ? `/catalog/${loja.slug_catalogo}` : `/catalog`}
-                className="inline-flex items-center justify-center gap-2 w-full py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-wider transition shadow-lg shadow-emerald-600/25 active:scale-95 cursor-pointer"
+              <button
+                type="button"
+                onClick={handleIniciarNovaCompra}
+                className="inline-flex items-center justify-center gap-2 w-full py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-wider transition shadow-lg shadow-emerald-600/25 active:scale-95 cursor-pointer border border-emerald-500/30"
               >
                 <ShoppingBag className="w-4 h-4" />
                 <span>Iniciar nova compra no Catálogo</span>
-              </Link>
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Modal Unificado de Escolha de Pagamento */}
+      {/* Modal Oficial de Pagamento */}
       {modalPagamentoAberto && loja && pedido && (
-        <ModalEscolhaPagamento
+        <ModalPagamentoFechamento
           isOpen={modalPagamentoAberto}
           onClose={() => setModalPagamentoAberto(false)}
           loja={loja}

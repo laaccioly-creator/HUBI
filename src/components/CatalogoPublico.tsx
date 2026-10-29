@@ -43,7 +43,7 @@ import { ModalPedidosCliente } from './ModalPedidosCliente';
 import { ModalFavoritosCliente } from './ModalFavoritosCliente';
 import { ModalNotificacoesCliente } from './ModalNotificacoesCliente';
 import { ModalCadernetaClienteCatalogo } from './ModalCadernetaClienteCatalogo';
-import { ModalEscolhaPagamento } from './catalogo/ModalEscolhaPagamento';
+import { ModalPagamentoFechamento } from './ModalPagamentoFechamento';
 import { calcularDistanciaKm } from '../utils/geoUtils';
 import { gerarPayloadPixEmv } from '../utils/pixUtils';
 import { CadernetaService } from '../services/cadernetaService';
@@ -184,26 +184,56 @@ export const CatalogoPublico: React.FC = () => {
   const [nomeCliente, setNomeCliente] = useState<string>(() => {
     if (typeof window === 'undefined') return '';
     try {
-      return sessionStorage.getItem(`hubi_nome_cliente_catalogo_${slugKey}`) || '';
+      const salvo = sessionStorage.getItem(`hubi_nome_cliente_catalogo_${slugKey}`);
+      if (salvo) return salvo;
+      const salvoCli = sessionStorage.getItem(`hubi_cliente_catalogo_${slugKey}`) || localStorage.getItem(`hubi_cliente_catalogo_${slugKey}`);
+      if (salvoCli) {
+        const c = JSON.parse(salvoCli);
+        return c.nome || '';
+      }
     } catch {
       return '';
     }
+    return '';
   });
   const [whatsappCliente, setWhatsappCliente] = useState<string>(() => {
     if (typeof window === 'undefined') return '';
     try {
-      return sessionStorage.getItem(`hubi_whatsapp_cliente_catalogo_${slugKey}`) || '';
+      const salvo = sessionStorage.getItem(`hubi_whatsapp_cliente_catalogo_${slugKey}`);
+      if (salvo) return salvo;
+      const salvoCli = sessionStorage.getItem(`hubi_cliente_catalogo_${slugKey}`) || localStorage.getItem(`hubi_cliente_catalogo_${slugKey}`);
+      if (salvoCli) {
+        const c = JSON.parse(salvoCli);
+        return c.whatsapp || c.telefone || c.telefone2 || '';
+      }
     } catch {
       return '';
     }
+    return '';
   });
   const [enderecoEntrega, setEnderecoEntrega] = useState<string>(() => {
     if (typeof window === 'undefined') return '';
     try {
-      return sessionStorage.getItem(`hubi_endereco_formatado_catalogo_${slugKey}`) || '';
+      const salvo = sessionStorage.getItem(`hubi_endereco_formatado_catalogo_${slugKey}`);
+      if (salvo) return salvo;
+      const salvoCli = sessionStorage.getItem(`hubi_cliente_catalogo_${slugKey}`) || localStorage.getItem(`hubi_cliente_catalogo_${slugKey}`);
+      if (salvoCli) {
+        const c = JSON.parse(salvoCli);
+        const partes = [
+          c.endereco_logradouro || c.rua || c.endereco,
+          (c.endereco_numero || c.numero) ? `nº ${c.endereco_numero || c.numero}` : '',
+          (c.endereco_complemento || c.complemento) ? `(${c.endereco_complemento || c.complemento})` : '',
+          (c.endereco_bairro || c.bairro) ? `- ${c.endereco_bairro || c.bairro}` : '',
+          c.endereco_cidade || c.cidade,
+          (c.endereco_estado || c.estado) ? `/${c.endereco_estado || c.estado}` : '',
+          (c.endereco_cep || c.cep) ? `• CEP: ${c.endereco_cep || c.cep}` : ''
+        ].filter(Boolean);
+        return partes.join(' ');
+      }
     } catch {
       return '';
     }
+    return '';
   });
   const [formaEntregaEscolhida, setFormaEntregaEscolhida] = useState<FormaEntrega | null>(null);
   const [pedidoEntrega, setPedidoEntrega] = useState<PedidoEntrega | null>(null);
@@ -341,11 +371,54 @@ export const CatalogoPublico: React.FC = () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [menuUsuarioAberto]);
+
+  // Listener para sincronização e fechamento do modal de pedidos quando navegado a partir do tracking
+  useEffect(() => {
+    const handleMsg = (e: MessageEvent) => {
+      if (e.data?.type === 'HUBI_FECHAR_MODAL_PEDIDOS') {
+        setModalPedidosAberto(false);
+      }
+    };
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'hubi_fechar_pedidos_catalogo') {
+        setModalPedidosAberto(false);
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('message', handleMsg);
+      window.addEventListener('storage', handleStorage);
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('fechar_pedidos') === 'true') {
+        setModalPedidosAberto(false);
+      }
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('message', handleMsg);
+        window.removeEventListener('storage', handleStorage);
+      }
+    };
+  }, []);
+
   const [dadosContato, setDadosContato] = useState<DadosContatoCliente>(() => {
     if (typeof window === 'undefined') return { nome: '', telefone: '', telefoneIsWhatsapp: true };
     try {
       const salvo = sessionStorage.getItem(`hubi_contato_catalogo_${slugKey}`);
       if (salvo) return JSON.parse(salvo);
+      const salvoCli = sessionStorage.getItem(`hubi_cliente_catalogo_${slugKey}`) || localStorage.getItem(`hubi_cliente_catalogo_${slugKey}`);
+      if (salvoCli) {
+        const c = JSON.parse(salvoCli);
+        return {
+          nome: c.nome || '',
+          telefone: c.whatsapp || c.telefone || c.telefone2 || '',
+          telefoneIsWhatsapp: c.telefone_is_whatsapp ?? true,
+          telefone2: c.telefone2 || '',
+          telefone2IsWhatsapp: c.telefone2_is_whatsapp ?? false,
+          cpfCnpj: c.numero_documento || '',
+          dataAniversario: c.data_aniversario || '',
+          email: c.email || ''
+        };
+      }
     } catch {
       // Ignore
     }
@@ -362,6 +435,19 @@ export const CatalogoPublico: React.FC = () => {
     try {
       const salvo = sessionStorage.getItem(`hubi_endereco_catalogo_${slugKey}`);
       if (salvo) return JSON.parse(salvo);
+      const salvoCli = sessionStorage.getItem(`hubi_cliente_catalogo_${slugKey}`) || localStorage.getItem(`hubi_cliente_catalogo_${slugKey}`);
+      if (salvoCli) {
+        const c = JSON.parse(salvoCli);
+        return {
+          cep: c.endereco_cep || c.cep || '',
+          rua: c.endereco_logradouro || c.rua || c.endereco || '',
+          numero: c.endereco_numero || c.numero || '',
+          complemento: c.endereco_complemento || c.complemento || '',
+          bairro: c.endereco_bairro || c.bairro || '',
+          cidade: c.endereco_cidade || c.cidade || '',
+          estado: c.endereco_estado || c.estado || ''
+        };
+      }
     } catch {
       // Ignore
     }
@@ -375,6 +461,61 @@ export const CatalogoPublico: React.FC = () => {
       estado: ''
     };
   });
+
+  // Efeito de herança imediata e sincronização dos dados do cliente logado no carrinho e checkout
+  useEffect(() => {
+    if (!clienteSelecionado) return;
+
+    if (clienteSelecionado.nome) {
+      setNomeCliente(prev => prev || clienteSelecionado.nome || '');
+    }
+    const tel = clienteSelecionado.whatsapp || clienteSelecionado.telefone || clienteSelecionado.telefone2 || '';
+    if (tel) {
+      setWhatsappCliente(prev => prev || tel);
+    }
+
+    setDadosContato(prev => ({
+      nome: prev.nome || clienteSelecionado.nome || '',
+      telefone: prev.telefone || tel,
+      telefoneIsWhatsapp: clienteSelecionado.telefone_is_whatsapp ?? prev.telefoneIsWhatsapp ?? true,
+      telefone2: prev.telefone2 || clienteSelecionado.telefone2 || '',
+      telefone2IsWhatsapp: clienteSelecionado.telefone2_is_whatsapp ?? prev.telefone2IsWhatsapp ?? false,
+      cpfCnpj: prev.cpfCnpj || clienteSelecionado.numero_documento || '',
+      dataAniversario: prev.dataAniversario || clienteSelecionado.data_aniversario || '',
+      email: prev.email || clienteSelecionado.email || ''
+    }));
+
+    const temEnderecoCli = Boolean(
+      clienteSelecionado.endereco_cep || clienteSelecionado.cep ||
+      clienteSelecionado.endereco_logradouro || clienteSelecionado.rua || clienteSelecionado.endereco
+    );
+    if (temEnderecoCli) {
+      const endObj: DadosEnderecoCliente = {
+        cep: clienteSelecionado.endereco_cep || clienteSelecionado.cep || '',
+        rua: clienteSelecionado.endereco_logradouro || clienteSelecionado.rua || clienteSelecionado.endereco || '',
+        numero: clienteSelecionado.endereco_numero || clienteSelecionado.numero || '',
+        complemento: clienteSelecionado.endereco_complemento || clienteSelecionado.complemento || '',
+        bairro: clienteSelecionado.endereco_bairro || clienteSelecionado.bairro || '',
+        cidade: clienteSelecionado.endereco_cidade || clienteSelecionado.cidade || '',
+        estado: clienteSelecionado.endereco_estado || clienteSelecionado.estado || ''
+      };
+      setDadosEndereco(prev => (prev.rua || prev.cep ? prev : endObj));
+
+      const partes = [
+        endObj.rua,
+        endObj.numero ? `nº ${endObj.numero}` : '',
+        endObj.complemento ? `(${endObj.complemento})` : '',
+        endObj.bairro ? `- ${endObj.bairro}` : '',
+        endObj.cidade,
+        endObj.estado ? `/${endObj.estado}` : '',
+        endObj.cep ? `• CEP: ${endObj.cep}` : ''
+      ].filter(Boolean);
+      const formatado = partes.join(' ');
+      setEnderecoEntrega(prev => prev || formatado);
+      cartContext?.setEnderecoEntrega(formatado);
+      cartContext?.setDadosEndereco(endObj);
+    }
+  }, [clienteSelecionado]);
 
   const handleSelecionarCliente = (cliente: Cliente) => {
     logoutManualRef.current = false;
@@ -1447,6 +1588,31 @@ export const CatalogoPublico: React.FC = () => {
   };
 
   const handleClicarFormaEntregaCatalogo = () => {
+    // 1. Identificar se há sessão ativa de cliente (clienteSelecionado ou sessionStorage / localStorage)
+    const clienteAtivo = clienteSelecionado || (() => {
+      try {
+        const salvo = sessionStorage.getItem(`hubi_cliente_catalogo_${slugKey}`) || localStorage.getItem(`hubi_cliente_catalogo_${slugKey}`);
+        return salvo ? JSON.parse(salvo) : null;
+      } catch {
+        return null;
+      }
+    })();
+
+    if (clienteAtivo?.id) {
+      // Se logado, herdar imediatamente nome, whatsapp e endereços, liberando a seleção de frete/retirada diretamente sem exibir aviso nem abrir modal de contato.
+      if (!nomeCliente && clienteAtivo.nome) {
+        setNomeCliente(clienteAtivo.nome);
+      }
+      const tel = clienteAtivo.whatsapp || clienteAtivo.telefone || clienteAtivo.telefone2 || '';
+      if (!whatsappCliente && tel) {
+        setWhatsappCliente(tel);
+      }
+      setDraftResultadoShipping(null);
+      setModalShippingAberto(true);
+      return;
+    }
+
+    // Exigir contato apenas se for visitante anônimo
     const nomeLimpo = nomeCliente.trim();
     const telNumeros = whatsappCliente.replace(/\D/g, '');
 
@@ -1542,37 +1708,33 @@ export const CatalogoPublico: React.FC = () => {
       }
     }
 
-    if (pagConfig.dinheiro_ativo ?? true) {
-      lista.push({
-        id: 'dinheiro',
-        tipo: 'dinheiro',
-        nome: 'Dinheiro',
-        descricao: presencialPermitido ? 'Pagamento em espécie ao receber ou retirar' : motivoBloqueioPresencial,
-        desabilitado: !presencialPermitido,
-        motivoDesabilitado: motivoBloqueioPresencial || undefined
-      });
-    }
+    if (presencialPermitido) {
+      if (pagConfig.dinheiro_ativo ?? true) {
+        lista.push({
+          id: 'dinheiro',
+          tipo: 'dinheiro',
+          nome: 'Dinheiro',
+          descricao: ehRetirada ? 'Pagamento na retirada' : 'Pagamento na entrega'
+        });
+      }
 
-    if (pagConfig.debito_ativo ?? true) {
-      lista.push({
-        id: 'cartao_debito',
-        tipo: 'cartao_debito',
-        nome: 'Cartão de Débito (Maquininha)',
-        descricao: presencialPermitido ? 'Pagamento na maquininha na entrega ou balcão' : motivoBloqueioPresencial,
-        desabilitado: !presencialPermitido,
-        motivoDesabilitado: motivoBloqueioPresencial || undefined
-      });
-    }
+      if (pagConfig.debito_ativo ?? true) {
+        lista.push({
+          id: 'cartao_debito',
+          tipo: 'cartao_debito',
+          nome: 'Cartão de Débito',
+          descricao: ehRetirada ? 'Pagamento na retirada' : 'Pagamento na entrega'
+        });
+      }
 
-    if (pagConfig.credito_ativo ?? true) {
-      lista.push({
-        id: 'cartao_credito',
-        tipo: 'cartao_credito',
-        nome: 'Cartão de Crédito (Maquininha)',
-        descricao: presencialPermitido ? 'Pagamento na maquininha na entrega ou balcão' : motivoBloqueioPresencial,
-        desabilitado: !presencialPermitido,
-        motivoDesabilitado: motivoBloqueioPresencial || undefined
-      });
+      if (pagConfig.credito_ativo ?? true) {
+        lista.push({
+          id: 'cartao_credito',
+          tipo: 'cartao_credito',
+          nome: 'Cartão de Crédito',
+          descricao: ehRetirada ? 'Pagamento na retirada' : 'Pagamento na entrega'
+        });
+      }
     }
 
     // Exclusividade mútua entre Caderneta de Mercadinho e Fiado / Venda a Prazo
@@ -1627,10 +1789,31 @@ export const CatalogoPublico: React.FC = () => {
       return;
     }
 
-    const nomeLimpo = nomeCliente.trim();
-    const telNumeros = whatsappCliente.replace(/\D/g, '');
+    const clienteAtivo = clienteSelecionado || (() => {
+      try {
+        const salvo = sessionStorage.getItem(`hubi_cliente_catalogo_${slugKey}`) || localStorage.getItem(`hubi_cliente_catalogo_${slugKey}`);
+        return salvo ? JSON.parse(salvo) : null;
+      } catch {
+        return null;
+      }
+    })();
 
-    if (!nomeLimpo || telNumeros.length < 10) {
+    let nomeEfetivo = nomeCliente.trim();
+    let telEfetivo = whatsappCliente.replace(/\D/g, '');
+
+    if (clienteAtivo?.id) {
+      if (!nomeEfetivo && clienteAtivo.nome) {
+        nomeEfetivo = clienteAtivo.nome.trim();
+        setNomeCliente(clienteAtivo.nome);
+      }
+      const telCli = (clienteAtivo.whatsapp || clienteAtivo.telefone || clienteAtivo.telefone2 || '').replace(/\D/g, '');
+      if (!telEfetivo && telCli) {
+        telEfetivo = telCli;
+        setWhatsappCliente(clienteAtivo.whatsapp || clienteAtivo.telefone || clienteAtivo.telefone2 || '');
+      }
+    }
+
+    if (!nomeEfetivo || telEfetivo.length < 10) {
       setModalContatoAberto(true);
       alert('Identificação obrigatória: Por favor, informe seu Nome e um WhatsApp válido com DDD (mínimo 10 dígitos) no botão "Contato" para finalizar o pedido.');
       return;
@@ -3580,7 +3763,7 @@ Fico no aguardo da confirmação! ✨`;
 
       {/* MODAL DE PAGAMENTO PARA PEDIDO (UNIFICADO) */}
       {modalPagamentoPedidoPesadoAberto && pedidoParaPagamento && loja && (
-        <ModalEscolhaPagamento
+        <ModalPagamentoFechamento
           isOpen={modalPagamentoPedidoPesadoAberto}
           onClose={() => setModalPagamentoPedidoPesadoAberto(false)}
           loja={loja}
@@ -4109,6 +4292,7 @@ Fico no aguardo da confirmação! ✨`;
         }}
         onPagarPedido={(ped) => {
           setPedidoParaPagamento(ped);
+          setModalPedidosAberto(false);
           setModalPagamentoPedidoPesadoAberto(true);
         }}
       />

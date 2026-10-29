@@ -19,7 +19,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { Pedido, FormaPagamento, StatusPagamento, TipoPagamento } from '../types';
+import { Pedido, FormaPagamento, StatusPagamento, TipoPagamento, Loja } from '../types';
 import { PrintService } from '../services/printService';
 import { SyncService } from '../services/syncService';
 import { audioService } from '../services/audioService';
@@ -121,6 +121,7 @@ export interface ModalPagamentoFechamentoProps {
   onPagamentoConcluido: (pedidoAtualizado?: Pedido) => void;
   concluirAoQuitar?: boolean;
   onSalvar?: (linhas: LinhaPagamentoRecebimento[]) => Promise<void>;
+  loja?: Loja | null;
 }
 
 export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> = ({
@@ -129,9 +130,12 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
   pedido,
   onPagamentoConcluido,
   concluirAoQuitar = false,
-  onSalvar
+  onSalvar,
+  loja: lojaProp
 }) => {
-  const { loja, usuario } = useAuth();
+  const auth = useAuth();
+  const loja = lojaProp || auth?.loja;
+  const usuario = auth?.usuario;
   const { tema } = useTheme();
   const isDark = tema === 'dark';
 
@@ -344,21 +348,83 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
     );
   }, [loja?.caderneta_ativa, clientePedidoMemo, limiteDisponivelCaderneta]);
 
+  const pedAtivo = pedidoLocal || pedido;
+  const rawPe = (pedAtivo as any)?.pedido_entrega || (Array.isArray((pedAtivo as any)?.pedido_entregas) ? (pedAtivo as any)?.pedido_entregas[0] : null);
+  const meta = (pedAtivo as any)?.metadados || {};
+  const metaTipo = String(meta.tipo_atendimento || '').toLowerCase();
+  const peTipo = String(rawPe?.tipo_atendimento || '').toLowerCase();
+
+  const ehRetirada = (
+    peTipo === 'retirada' ||
+    metaTipo === 'retirada' ||
+    (pedAtivo as any)?.tipo_atendimento === 'retirada' ||
+    String(pedAtivo?.endereco_entrega || '').toLowerCase().includes('retirada') ||
+    rawPe?.provedor === 'retirada_loja'
+  );
+
+  const ehEnvio = !ehRetirada && (
+    peTipo === 'entrega' ||
+    metaTipo === 'entrega' ||
+    (pedAtivo as any)?.tipo_entrega === 'envio' ||
+    (pedAtivo as any)?.tipo_atendimento === 'entrega' ||
+    Boolean(pedAtivo?.endereco_entrega)
+  );
+
+  const provedorFrete = (rawPe?.provedor || (pedAtivo as any)?.provedor_frete || '').toLowerCase();
+  const transpNomeFrete = (rawPe?.transportadora_nome || pedAtivo?.nome_transportadora || '').toLowerCase();
+  const servicoCorreiosFrete = (rawPe?.servico_correios || pedAtivo?.servico_correios || '').toLowerCase();
+  const ehOperadoraExternaFrete = 
+    provedorFrete === 'melhor_envio' ||
+    provedorFrete === 'correios' ||
+    Boolean(servicoCorreiosFrete) ||
+    transpNomeFrete.includes('correios') ||
+    transpNomeFrete.includes('sedex') ||
+    transpNomeFrete.includes('pac') ||
+    transpNomeFrete.includes('jadlog') ||
+    transpNomeFrete.includes('azul cargo') ||
+    transpNomeFrete.includes('loggi') ||
+    transpNomeFrete.includes('latam');
+
+  const presencialPermitido = ehRetirada || !ehOperadoraExternaFrete;
+
   const formasDisponiveis: FormaPagamento[] = useMemo(() => {
     const lista = formasPagamento.length > 0 ? formasPagamento : FORMAS_PADRAO;
-    return lista.filter((fp: FormaPagamento) => {
-      if (!fp.ativo) return false;
-      if (fp.tipo === 'fiado') {
-        const linhaJaUsaFiado = linhasPagamento.some(l => l.forma_tipo === 'fiado' || l.forma_pagamento_id === fp.id);
-        return clienteAptoFiado || linhaJaUsaFiado;
-      }
-      if (fp.tipo === 'caderneta') {
-        const linhaJaUsaCaderneta = linhasPagamento.some(l => l.forma_tipo === 'caderneta' || l.forma_pagamento_id === fp.id);
-        return clienteAptoCaderneta || linhaJaUsaCaderneta;
-      }
-      return true;
-    });
-  }, [formasPagamento, clienteAptoFiado, clienteAptoCaderneta, linhasPagamento]);
+    return lista
+      .filter((fp: FormaPagamento) => {
+        if (!fp.ativo) return false;
+
+        // Se a modalidade de envio não aceitar pagamento presencial (ex: frete externo Correios/transportadora), ocultar da lista
+        if (!presencialPermitido) {
+          if (fp.tipo === 'dinheiro' || fp.tipo === 'cartao_debito' || fp.tipo === 'cartao_credito') {
+            return false;
+          }
+        }
+
+        if (fp.tipo === 'fiado') {
+          const linhaJaUsaFiado = linhasPagamento.some(l => l.forma_tipo === 'fiado' || l.forma_pagamento_id === fp.id);
+          return clienteAptoFiado || linhaJaUsaFiado;
+        }
+        if (fp.tipo === 'caderneta') {
+          const linhaJaUsaCaderneta = linhasPagamento.some(l => l.forma_tipo === 'caderneta' || l.forma_pagamento_id === fp.id);
+          return clienteAptoCaderneta || linhaJaUsaCaderneta;
+        }
+        return true;
+      })
+      .map((fp: FormaPagamento) => {
+        let nomeLimpo = fp.nome || '';
+        if (fp.tipo === 'cartao_debito' && (!nomeLimpo || nomeLimpo.toLowerCase().includes('maquininha'))) {
+          nomeLimpo = 'Cartão de Débito';
+        } else if (fp.tipo === 'cartao_credito' && (!nomeLimpo || nomeLimpo.toLowerCase().includes('maquininha'))) {
+          nomeLimpo = 'Cartão de Crédito';
+        } else {
+          nomeLimpo = nomeLimpo.replace(/\s*\([Mm]aquininha\)/g, '').replace(/\s*[Mm]aquininha/g, '').trim();
+        }
+        return {
+          ...fp,
+          nome: nomeLimpo
+        };
+      });
+  }, [formasPagamento, clienteAptoFiado, clienteAptoCaderneta, linhasPagamento, presencialPermitido]);
 
   const pedRaw = pedidoLocal || pedido;
   const valorTotal = Number(pedRaw?.valor_total || 0);
@@ -383,19 +449,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
 
   if (!isOpen || !pedido) return null;
 
-  const pedAtivo = pedidoLocal || pedido;
-
-  const rawPe = (pedAtivo as any)?.pedido_entrega || (Array.isArray((pedAtivo as any)?.pedido_entregas) ? (pedAtivo as any)?.pedido_entregas[0] : null);
-  const meta = (pedAtivo as any)?.metadados || {};
-  const metaTipo = String(meta.tipo_atendimento || '').toLowerCase();
-  const peTipo = String(rawPe?.tipo_atendimento || '').toLowerCase();
-  const ehEnvio = (
-    peTipo === 'entrega' ||
-    metaTipo === 'entrega' ||
-    (pedAtivo as any)?.tipo_entrega === 'envio' ||
-    (pedAtivo as any)?.tipo_atendimento === 'entrega' ||
-    (Boolean(pedAtivo.endereco_entrega) && peTipo !== 'retirada' && metaTipo !== 'retirada')
-  );
+  const pedSeguro = (pedidoLocal || pedido)!;
 
   const isFreteFormalizado = Boolean(
     !ehEnvio ||
@@ -406,10 +460,10 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
       rawPe.transportadora_nome &&
       rawPe.transportadora_nome !== 'Envio a Definir'
     ) ||
-    pedAtivo.forma_entrega_id ||
-    pedAtivo.nome_transportadora ||
-    pedAtivo.codigo_rastreio ||
-    pedAtivo.link_rastreio
+    pedSeguro.forma_entrega_id ||
+    pedSeguro.nome_transportadora ||
+    pedSeguro.codigo_rastreio ||
+    pedSeguro.link_rastreio
   );
 
   const freteADefinir = ehEnvio && !isFreteFormalizado;
@@ -417,7 +471,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
   const totalLinhasPagamento = linhasPagamento.reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
   const diferencaPagamento = Number((saldoDevedorAtual - totalLinhasPagamento).toFixed(2));
 
-  const clientePedido = pedAtivo?.cliente || clientePedidoMemo;
+  const clientePedido = pedSeguro?.cliente || clientePedidoMemo;
 
   const handleAdicionarLinha = () => {
     const somaAtual = linhasPagamento.reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
@@ -911,7 +965,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
   };
 
   return (
-    <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
+    <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-[70] animate-in fade-in overflow-y-auto">
       <div className={`border rounded-3xl w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 my-6 max-h-[92vh] overflow-y-auto ${
         isDark ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
       }`}>
@@ -1083,27 +1137,39 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                     {formasDisponiveis.map((fp: FormaPagamento) => {
                       const estaSelecionado = linha.forma_pagamento_id === fp.id || (!linha.forma_pagamento_id && linha.forma_tipo === fp.tipo);
+                      const ehPresencial = fp.tipo === 'dinheiro' || fp.tipo === 'cartao_debito' || fp.tipo === 'cartao_credito';
+                      const textoContextual = ehPresencial
+                        ? (ehRetirada ? 'Pagamento na retirada' : 'Pagamento na entrega')
+                        : null;
+
                       return (
                         <button
                           key={fp.id}
                           type="button"
                           onClick={() => handleAlterarFormaLinha(linha.id, fp)}
-                          className={`p-2 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer active:scale-95 ${
+                          className={`p-2 rounded-xl border text-[11px] font-bold flex flex-col items-start gap-1 transition cursor-pointer active:scale-95 text-left ${
                             estaSelecionado
                               ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-500/40 shadow-xs'
                               : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300 dark:border-slate-700'
                           }`}
                         >
-                          {fp.tipo === 'dinheiro' && <Banknote className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}
-                          {fp.tipo === 'pix' && <Zap className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400 shrink-0" />}
-                          {fp.tipo === 'cartao_debito' && <CreditCard className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />}
-                          {fp.tipo === 'cartao_credito' && <CreditCard className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />}
-                          {fp.tipo === 'fiado' && <FileText className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />}
-                          {fp.tipo === 'caderneta' && <BookOpen className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />}
-                          {fp.tipo !== 'dinheiro' && fp.tipo !== 'pix' && fp.tipo !== 'cartao_debito' && fp.tipo !== 'cartao_credito' && fp.tipo !== 'fiado' && fp.tipo !== 'caderneta' && (
-                            <CreditCard className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <div className="flex items-center gap-1.5 w-full">
+                            {fp.tipo === 'dinheiro' && <Banknote className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}
+                            {fp.tipo === 'pix' && <Zap className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400 shrink-0" />}
+                            {fp.tipo === 'cartao_debito' && <CreditCard className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />}
+                            {fp.tipo === 'cartao_credito' && <CreditCard className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />}
+                            {fp.tipo === 'fiado' && <FileText className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />}
+                            {fp.tipo === 'caderneta' && <BookOpen className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />}
+                            {fp.tipo !== 'dinheiro' && fp.tipo !== 'pix' && fp.tipo !== 'cartao_debito' && fp.tipo !== 'cartao_credito' && fp.tipo !== 'fiado' && fp.tipo !== 'caderneta' && (
+                              <CreditCard className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            )}
+                            <span className="truncate">{fp.nome}</span>
+                          </div>
+                          {textoContextual && (
+                            <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 leading-tight">
+                              {textoContextual}
+                            </span>
                           )}
-                          <span className="truncate">{fp.nome}</span>
                         </button>
                       );
                     })}
@@ -1368,15 +1434,15 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                 ) : (
                   <div className="flex items-center gap-2">
                     <span className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      {rawPe?.transportadora_nome || pedAtivo.nome_transportadora ? (
+                      {rawPe?.transportadora_nome || pedSeguro.nome_transportadora ? (
                         <span>
-                          {rawPe?.transportadora_nome || pedAtivo.nome_transportadora}
-                          {Number(pedAtivo.valor_frete || 0) > 0
-                            ? ` (+ ${formatarMoeda(Number(pedAtivo.valor_frete || 0))})`
+                          {rawPe?.transportadora_nome || pedSeguro.nome_transportadora}
+                          {Number(pedSeguro.valor_frete || 0) > 0
+                            ? ` (+ ${formatarMoeda(Number(pedSeguro.valor_frete || 0))})`
                             : (rawPe?.is_frete_gratis ? ' (Grátis)' : '')}
                         </span>
-                      ) : Number(pedAtivo.valor_frete || 0) > 0 ? (
-                        formatarMoeda(Number(pedAtivo.valor_frete || 0))
+                      ) : Number(pedSeguro.valor_frete || 0) > 0 ? (
+                        formatarMoeda(Number(pedSeguro.valor_frete || 0))
                       ) : rawPe?.is_frete_gratis ? (
                         'Grátis'
                       ) : (

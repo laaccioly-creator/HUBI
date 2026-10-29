@@ -470,16 +470,6 @@ export const ModalEscolhaPagamento: React.FC<ModalEscolhaPagamentoProps> = ({
               </div>
             </div>
 
-            {/* AVISO DE TRAVA GEOGRÁFICA (SE APLICÁVEL) */}
-            {!validacaoPresencial.permitido && (
-              <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-300">
-                <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                <p className="leading-relaxed">
-                  {validacaoPresencial.motivo} Pagamentos em dinheiro ou maquininha foram desabilitados para esta modalidade de frete. Por favor, utilize Pix ou Mercado Pago.
-                </p>
-              </div>
-            )}
-
             {/* SELEÇÃO DO MÉTODO DE PAGAMENTO */}
             <div className="space-y-2">
               <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
@@ -535,22 +525,21 @@ export const ModalEscolhaPagamento: React.FC<ModalEscolhaPagamentoProps> = ({
                   </button>
                 )}
 
-                {/* 4. PRESENCIAL (DINHEIRO / MAQUININHA) */}
-                <button
-                  type="button"
-                  disabled={!validacaoPresencial.permitido}
-                  onClick={() => validacaoPresencial.permitido && setMetodoEscolhido('presencial')}
-                  className={`p-3 rounded-2xl border text-center transition flex flex-col items-center justify-center gap-1.5 ${
-                    !validacaoPresencial.permitido
-                      ? 'opacity-40 cursor-not-allowed border-slate-200 dark:border-slate-800 text-slate-400'
-                      : metodoEscolhido === 'presencial'
-                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold shadow-sm cursor-pointer'
-                      : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 text-slate-600 dark:text-slate-400 cursor-pointer'
-                  }`}
-                >
-                  <Banknote className="w-5 h-5" />
-                  <span className="text-xs">{ehRetirada ? 'No Balcão' : 'Na Entrega'}</span>
-                </button>
+                {/* 4. PRESENCIAL (DINHEIRO / CARTÃO) - Ocultar se não permitido */}
+                {validacaoPresencial.permitido && (
+                  <button
+                    type="button"
+                    onClick={() => setMetodoEscolhido('presencial')}
+                    className={`p-3 rounded-2xl border text-center transition flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
+                      metodoEscolhido === 'presencial'
+                        ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold shadow-sm'
+                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    <Banknote className="w-5 h-5" />
+                    <span className="text-xs">{ehRetirada ? 'Pagamento na retirada' : 'Pagamento na entrega'}</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -707,11 +696,11 @@ export const ModalEscolhaPagamento: React.FC<ModalEscolhaPagamentoProps> = ({
               </div>
             )}
 
-            {/* SEÇÃO 4: PRESENCIAL (DINHEIRO / MAQUININHA) */}
+            {/* SEÇÃO 4: PRESENCIAL (DINHEIRO / CARTÃO) */}
             {metodoEscolhido === 'presencial' && (
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-3">
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                  Como deseja pagar {ehRetirada ? 'no balcão' : 'ao entregador'}?
+                  Como deseja efetuar o {ehRetirada ? 'pagamento na retirada' : 'pagamento na entrega'}?
                 </span>
 
                 <div className="space-y-2">
@@ -763,7 +752,7 @@ export const ModalEscolhaPagamento: React.FC<ModalEscolhaPagamentoProps> = ({
                           onChange={() => setFormaPresencialEscolhida('cartao_debito')}
                           className="accent-emerald-600"
                         />
-                        <span className="text-xs">Cartão de Débito (Maquininha)</span>
+                        <span className="text-xs">Cartão de Débito</span>
                       </div>
                     </label>
                   )}
@@ -782,7 +771,7 @@ export const ModalEscolhaPagamento: React.FC<ModalEscolhaPagamentoProps> = ({
                           onChange={() => setFormaPresencialEscolhida('cartao_credito')}
                           className="accent-emerald-600"
                         />
-                        <span className="text-xs">Cartão de Crédito (Maquininha)</span>
+                        <span className="text-xs">Cartão de Crédito</span>
                       </div>
                     </label>
                   )}

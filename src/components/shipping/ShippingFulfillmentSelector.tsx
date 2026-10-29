@@ -1220,7 +1220,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
     const logrLimpo = (enderecoSelecionado?.logradouro || '').trim();
     const numLimpo = (enderecoSelecionado?.numero || '').trim();
 
-    if (!clienteId || !enderecoSelecionado || cepLimpo.length !== 8 || !logrLimpo || !numLimpo) {
+    const idValido = clienteId || cliente?.id || (ehCatalogo ? 'cliente-catalogo' : null);
+    if (!idValido || !enderecoSelecionado || cepLimpo.length !== 8 || !logrLimpo || !numLimpo) {
       onSolicitarAtualizarEndereco?.();
       return;
     }
@@ -1796,7 +1797,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
               {/* VIA A: COTAÇÃO AUTOMÁTICA EM TEMPO REAL (UBER DIRECT / MELHOR ENVIO) */}
               {!excedeLimiteSemNfe && (viaEntrega === 'cotar' || ehCatalogo) && (
-                (!clienteId || !enderecoSelecionado || !(enderecoSelecionado.cep || '').replace(/\D/g, '') || !(enderecoSelecionado.logradouro || '').trim()) ? (
+                ((!ehCatalogo && !clienteId && !cliente?.id) || !enderecoSelecionado || !(enderecoSelecionado.cep || '').replace(/\D/g, '') || !(enderecoSelecionado.logradouro || '').trim()) ? (
                   <div className={`p-3.5 rounded-2xl space-y-2.5 border ${
                     ehDark
                       ? 'bg-[#000000] border-amber-500/40 text-white'

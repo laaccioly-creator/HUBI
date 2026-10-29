@@ -98,11 +98,11 @@ export const ModalContatoClienteCatalogo: React.FC<ModalContatoClienteCatalogoPr
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 animate-in fade-in">
-      <div className="bg-slate-900 border-2 border-slate-600/80 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95">
+      <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95">
         {/* Header */}
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
               <User className="w-4 h-4" />
             </div>
             <div>
@@ -141,7 +141,7 @@ export const ModalContatoClienteCatalogo: React.FC<ModalContatoClienteCatalogoPr
                 placeholder="Ex: Maria da Silva"
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
-                className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+                className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
               />
             </div>
           </div>
@@ -162,7 +162,7 @@ export const ModalContatoClienteCatalogo: React.FC<ModalContatoClienteCatalogoPr
                   placeholder="(00) 00000-0000"
                   value={telefone}
                   onChange={(e) => setTelefone(formatarTelefone(e.target.value))}
-                  className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                 />
               </div>
               <button
@@ -189,7 +189,7 @@ export const ModalContatoClienteCatalogo: React.FC<ModalContatoClienteCatalogoPr
                   placeholder="(00) 0000-0000"
                   value={telefone2}
                   onChange={(e) => setTelefone2(formatarTelefone(e.target.value))}
-                  className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                 />
               </div>
               <button
@@ -218,7 +218,7 @@ export const ModalContatoClienteCatalogo: React.FC<ModalContatoClienteCatalogoPr
                   placeholder="000.000.000-00"
                   value={cpfCnpj}
                   onChange={(e) => setCpfCnpj(formatarCpfCnpj(e.target.value))}
-                  className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 font-mono"
+                  className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-mono"
                 />
               </div>
             </div>
@@ -231,7 +231,7 @@ export const ModalContatoClienteCatalogo: React.FC<ModalContatoClienteCatalogoPr
                   type="date"
                   value={dataAniversario}
                   onChange={(e) => setDataAniversario(e.target.value)}
-                  className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                 />
               </div>
             </div>
@@ -247,7 +247,7 @@ export const ModalContatoClienteCatalogo: React.FC<ModalContatoClienteCatalogoPr
                 placeholder="seuemail@exemplo.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+                className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
               />
             </div>
           </div>
@@ -257,13 +257,13 @@ export const ModalContatoClienteCatalogo: React.FC<ModalContatoClienteCatalogoPr
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold text-xs transition cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition cursor-pointer"
+              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-600/25 transition cursor-pointer active:scale-95"
             >
               <Check className="w-4 h-4" />
               <span>Confirmar Contato</span>
