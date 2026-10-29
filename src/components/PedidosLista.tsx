@@ -259,14 +259,21 @@ export function extrairInfoPagamentoEntrega(pedido: Pedido): InfoPagamentoEntreg
   } else if (prevDebito) {
     tipo = 'debito';
   } else {
-    // Fallback para forma_pagamento_catalogo
-    const fpc = (pedido.forma_pagamento_catalogo || '').toLowerCase();
+    // Fallback para forma_pagamento_catalogo e forma_pagamento nativa
+    const fpc = (pedido.forma_pagamento_catalogo || (pedido as any).forma_pagamento || '').toLowerCase();
     if (fpc === 'dinheiro' || fpc.includes('dinheiro')) {
       tipo = 'dinheiro';
     } else if (fpc === 'cartao_credito' || fpc === 'credito' || fpc.includes('crédito') || fpc.includes('credito')) {
       tipo = 'credito';
     } else if (fpc === 'cartao_debito' || fpc === 'debito' || fpc.includes('débito') || fpc.includes('debito')) {
       tipo = 'debito';
+    } else if (pedido.pagamentos && pedido.pagamentos.length > 0) {
+      const pagD = pedido.pagamentos.find(p => (p as any).forma_tipo === 'dinheiro' || (p.forma_pagamento as any)?.tipo === 'dinheiro' || (p.forma_pagamento as any)?.nome?.toLowerCase().includes('dinheiro'));
+      const pagC = pedido.pagamentos.find(p => (p as any).forma_tipo === 'cartao_credito' || (p.forma_pagamento as any)?.tipo === 'cartao_credito' || (p.forma_pagamento as any)?.nome?.toLowerCase().includes('crédito') || (p.forma_pagamento as any)?.nome?.toLowerCase().includes('credito'));
+      const pagB = pedido.pagamentos.find(p => (p as any).forma_tipo === 'cartao_debito' || (p.forma_pagamento as any)?.tipo === 'cartao_debito' || (p.forma_pagamento as any)?.nome?.toLowerCase().includes('débito') || (p.forma_pagamento as any)?.nome?.toLowerCase().includes('debito'));
+      if (pagD) tipo = 'dinheiro';
+      else if (pagC) tipo = 'credito';
+      else if (pagB) tipo = 'debito';
     } else if (pedido.observacoes) {
       const obs = pedido.observacoes.toLowerCase();
       if (obs.includes('troco') || obs.includes('dinheiro')) {
@@ -284,7 +291,7 @@ export function extrairInfoPagamentoEntrega(pedido: Pedido): InfoPagamentoEntreg
   if (tipo === 'credito') {
     return {
       tipo: 'credito',
-      badgeTexto: 'Crédito na entrega',
+      badgeTexto: '💳 Crédito na entrega',
       temTroco: false,
       mensagemPopover: 'Cobrança presencial na entrega: Levar máquina de cartão habilitada para Crédito.'
     };
@@ -293,7 +300,7 @@ export function extrairInfoPagamentoEntrega(pedido: Pedido): InfoPagamentoEntreg
   if (tipo === 'debito') {
     return {
       tipo: 'debito',
-      badgeTexto: 'Débito na entrega',
+      badgeTexto: '💳 Débito na entrega',
       temTroco: false,
       mensagemPopover: 'Cobrança presencial na entrega: Levar máquina de cartão habilitada para Débito.'
     };
@@ -306,7 +313,7 @@ export function extrairInfoPagamentoEntrega(pedido: Pedido): InfoPagamentoEntreg
   if (temTroco && pagaCom) {
     return {
       tipo: 'dinheiro',
-      badgeTexto: 'Dinheiro (Troco)',
+      badgeTexto: '💵 Dinheiro (Troco)',
       pagaCom,
       troco,
       temTroco: true,
@@ -316,7 +323,7 @@ export function extrairInfoPagamentoEntrega(pedido: Pedido): InfoPagamentoEntreg
 
   return {
     tipo: 'dinheiro',
-    badgeTexto: 'Dinheiro na entrega',
+    badgeTexto: '💵 Dinheiro na entrega',
     temTroco: false,
     mensagemPopover: 'Cobrança presencial em dinheiro: Valor exato, sem necessidade de troco.'
   };
@@ -386,9 +393,8 @@ export const BadgeStatusPagamentoPedido: React.FC<{
           onMouseEnter={() => setHoverAberto(true)}
           onMouseLeave={() => setHoverAberto(false)}
           title={infoEntrega.mensagemPopover}
-          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold border transition cursor-pointer active:scale-95 whitespace-nowrap shadow-2xs select-none ${corBadge}`}
+          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border transition cursor-pointer active:scale-95 whitespace-nowrap shadow-2xs select-none ${corBadge}`}
         >
-          {icone}
           <span>{infoEntrega.badgeTexto}</span>
         </button>
 

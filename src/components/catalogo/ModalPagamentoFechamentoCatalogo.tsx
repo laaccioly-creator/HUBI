@@ -789,13 +789,18 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
       } else {
         const dataIso = obterDataOperacaoISO();
         if (!ehModoCaderneta && SyncService.isUuidValido(pedSeguro.id)) {
+          const lojaIdEfetivo = loja?.id || pedSeguro.loja_id;
           await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedSeguro.id);
 
           const previstosDb = await Promise.all(linhasValidas.map(async (l) => {
-            const fpRealId = await SyncService.resolverFormaPagamentoId(loja?.id || '', l.forma_pagamento_id, l.forma_tipo);
+            let fpRealId = l.forma_pagamento_id;
+            if (!fpRealId || !SyncService.isUuidValido(fpRealId) || String(fpRealId).startsWith('fp_')) {
+              fpRealId = await SyncService.resolverFormaPagamentoId(lojaIdEfetivo, l.forma_pagamento_id, l.forma_tipo);
+            }
             return {
+              loja_id: lojaIdEfetivo,
               pedido_id: pedSeguro.id,
-              forma_pagamento_id: fpRealId,
+              forma_pagamento_id: fpRealId && SyncService.isUuidValido(fpRealId) ? fpRealId : null,
               forma_tipo: l.forma_tipo,
               forma_nome: l.forma_nome,
               valor: Number(l.valor),
@@ -806,7 +811,22 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
           }));
 
           const { error: errPag } = await supabase.from('pedidos_pagamentos_previstos').insert(previstosDb);
-          if (errPag) throw errPag;
+          if (errPag) console.warn('Aviso ao salvar pedidos_pagamentos_previstos:', errPag);
+
+          const primeiraLinha = linhasValidas[0];
+          const formaPrincipal = primeiraLinha ? primeiraLinha.forma_tipo : '';
+          const linhaDinheiro = linhasValidas.find(l => l.forma_tipo === 'dinheiro');
+          const trocoParaDinheiro = linhaDinheiro && Number(linhaDinheiro.valor_entregue) > 0 ? Number(linhaDinheiro.valor_entregue) : null;
+
+          const payloadPed: Record<string, any> = {
+            forma_pagamento_catalogo: formaPrincipal,
+            forma_pagamento: formaPrincipal,
+            atualizado_em: dataIso
+          };
+          if (trocoParaDinheiro !== null) {
+            payloadPed.troco_para = trocoParaDinheiro;
+          }
+          await supabase.from('pedidos').update(payloadPed).eq('id', pedSeguro.id).eq('loja_id', lojaIdEfetivo);
         }
 
         audioService.playBeep();
@@ -885,24 +905,29 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
 
       // 1. Grava previsão de pagamento detalhada (apenas para pedidos reais com UUID)
       if (!ehModoCaderneta && SyncService.isUuidValido(pedSeguro.id)) {
+        const lojaIdEfetivo = loja?.id || pedSeguro.loja_id;
         await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedSeguro.id);
         const previstosDb = await Promise.all(linhasAtivas.map(async (linha) => {
           let fpRealId = linha.forma_pagamento_id;
           if (!fpRealId || !SyncService.isUuidValido(fpRealId) || String(fpRealId).startsWith('fp_')) {
-            fpRealId = await SyncService.resolverFormaPagamentoId(loja?.id || '', linha.forma_pagamento_id, linha.forma_tipo);
+            fpRealId = await SyncService.resolverFormaPagamentoId(lojaIdEfetivo, linha.forma_pagamento_id, linha.forma_tipo);
           }
           return {
+            loja_id: lojaIdEfetivo,
             pedido_id: pedSeguro.id,
-            forma_pagamento_id: fpRealId,
+            forma_pagamento_id: fpRealId && SyncService.isUuidValido(fpRealId) ? fpRealId : null,
             forma_tipo: linha.forma_tipo,
             forma_nome: linha.forma_nome,
-            valor: linha.valor,
+            valor: Number(linha.valor),
             valor_entregue: linha.valor_entregue != null && Number(linha.valor_entregue) > 0 ? Number(linha.valor_entregue) : null,
             parcelas: linha.parcelas || 1,
             data_prevista: dataIso
           };
         }));
-        await supabase.from('pedidos_pagamentos_previstos').insert(previstosDb);
+        const { error: errPrev } = await supabase.from('pedidos_pagamentos_previstos').insert(previstosDb);
+        if (errPrev) {
+          console.warn('Aviso ao inserir pedidos_pagamentos_previstos:', errPrev);
+        }
       }
 
       // Se for liquidação de caderneta, registra o abatimento/pagamento via CadernetaService
@@ -979,11 +1004,15 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
       let pedUpd: any = null;
       if (!ehModoCaderneta && SyncService.isUuidValido(pedSeguro.id)) {
         const lojaIdEfetivo = loja?.id || pedSeguro.loja_id;
+        const primeiraLinha = linhasAtivas[0];
+        const formaPrincipal = primeiraLinha ? primeiraLinha.forma_tipo : '';
         const linhaDinheiro = linhasAtivas.find(l => l.forma_tipo === 'dinheiro');
         const trocoParaDinheiro = linhaDinheiro && Number(linhaDinheiro.valor_entregue) > 0 ? Number(linhaDinheiro.valor_entregue) : null;
 
         const updatePayload: Record<string, any> = {
           status_pagamento: statusPagamentoFinal,
+          forma_pagamento_catalogo: formaPrincipal,
+          forma_pagamento: formaPrincipal,
           atualizado_em: dataIso
         };
         if (trocoParaDinheiro !== null) {
