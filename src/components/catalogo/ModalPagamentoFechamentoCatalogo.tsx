@@ -444,11 +444,10 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
     tipoOperacaoFrete === 'app_entrega'
   );
 
-  // Pagamento presencial (dinheiro/cartão na entrega) é permitido exclusivamente se:
-  // 1) For retirada na loja (balcão);
-  // 2) For liquidação de caderneta (sem despacho); ou
-  // 3) For entrega própria da loja (NÃO terceirizada por Uber/Correios/Jadlog/Melhor Envio)
-  const presencialPermitido = ehRetirada || ehModoCaderneta || (!ehFreteTerceirizado && ehEnvio);
+  // Pagamento presencial (dinheiro/cartão na entrega) é permitido exclusivamente se NÃO for liquidação de caderneta e:
+  // 1) For retirada na loja (balcão); ou
+  // 2) For entrega própria da loja (NÃO terceirizada por Uber/Correios/Jadlog/Melhor Envio)
+  const presencialPermitido = !ehModoCaderneta && (ehRetirada || (!ehFreteTerceirizado && ehEnvio));
 
   const limiteDisponivelCaderneta = useMemo(() => {
     if (!clientePedidoMemo) return 0;
@@ -482,9 +481,9 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
         if (!fp.ativo) return false;
         if (fp.tipo === 'mercado_livre') return false; // Não permitido
 
-        // Na liquidação de caderneta, não permitir pagar gerando mais fiado/caderneta
-        if (ehModoCaderneta && (fp.tipo === 'caderneta' || fp.tipo === 'fiado')) {
-          return false;
+        // Na liquidação de caderneta, estritamente apenas meios digitais (Pix e Mercado Pago)
+        if (ehModoCaderneta) {
+          return fp.tipo === 'pix' || fp.tipo === 'mercado_pago';
         }
 
         if (!presencialPermitido) {
@@ -517,7 +516,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
           nome: nomeLimpo
         };
       });
-  }, [formasPagamento, clienteAptoFiado, clienteAptoCaderneta, linhasPagamento, presencialPermitido]);
+  }, [formasPagamento, clienteAptoFiado, clienteAptoCaderneta, linhasPagamento, presencialPermitido, ehModoCaderneta]);
 
   const valorTotal = saldoDevedorAvulso != null && saldoDevedorAvulso > 0
     ? saldoDevedorAvulso
@@ -537,21 +536,35 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
     }
   }, [isOpen]);
 
-  // Inicializar linhas de pagamento quando abrir em estado neutro (sem pré-seleção forçada do Pix)
+  // Inicializar linhas de pagamento quando abrir
   useEffect(() => {
     if (isOpen && linhasPagamento.length === 0) {
-      setLinhasPagamento([
-        {
-          id: `linha_${Date.now()}`,
-          forma_pagamento_id: '',
-          forma_tipo: '' as any,
-          forma_nome: '',
-          valor: Number(saldoDevedorAtual.toFixed(2)),
-          parcelas: 1
-        }
-      ]);
+      if (ehModoCaderneta) {
+        const formaInicial = formasDisponiveis.find(f => f.tipo === 'pix') || formasDisponiveis[0];
+        setLinhasPagamento([
+          {
+            id: `linha_${Date.now()}`,
+            forma_pagamento_id: formaInicial?.id || '',
+            forma_tipo: (formaInicial?.tipo || 'pix') as any,
+            forma_nome: formaInicial?.nome || 'PIX',
+            valor: Number(saldoDevedorAtual.toFixed(2)),
+            parcelas: 1
+          }
+        ]);
+      } else {
+        setLinhasPagamento([
+          {
+            id: `linha_${Date.now()}`,
+            forma_pagamento_id: '',
+            forma_tipo: '' as any,
+            forma_nome: '',
+            valor: Number(saldoDevedorAtual.toFixed(2)),
+            parcelas: 1
+          }
+        ]);
+      }
     }
-  }, [isOpen, saldoDevedorAtual, linhasPagamento.length]);
+  }, [isOpen, saldoDevedorAtual, linhasPagamento.length, ehModoCaderneta, formasDisponiveis]);
 
   // Sincronizar valor único se não houver split
   useEffect(() => {
@@ -569,36 +582,60 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
     }
   }, [isOpen, saldoDevedorAtual, linhasPagamento.length]);
 
-  // Reset de meios presenciais inválidos se o frete for terceirizado (Uber, Correios, Jadlog, etc.)
+  // Reset de meios presenciais/inválidos se o frete for terceirizado ou na liquidação de caderneta
   useEffect(() => {
-    if (!isOpen || presencialPermitido) return;
+    if (!isOpen) return;
 
-    setLinhasPagamento(prev => {
-      const temInvalido = prev.some(l => 
-        l.forma_tipo === 'dinheiro' || 
-        l.forma_tipo === 'cartao_debito' || 
-        l.forma_tipo === 'cartao_credito'
-      );
-      if (!temInvalido) return prev;
+    if (ehModoCaderneta) {
+      setLinhasPagamento(prev => {
+        const temInvalido = prev.some(l => !l.forma_tipo || (l.forma_tipo !== 'pix' && l.forma_tipo !== 'mercado_pago'));
+        if (!temInvalido) return prev;
 
-      return prev.map(l => {
-        if (
+        const formaInicial = formasDisponiveis.find(f => f.tipo === 'pix') || formasDisponiveis[0];
+        return prev.map(l => {
+          if (!l.forma_tipo || (l.forma_tipo !== 'pix' && l.forma_tipo !== 'mercado_pago')) {
+            return {
+              ...l,
+              forma_pagamento_id: formaInicial?.id || '',
+              forma_tipo: (formaInicial?.tipo || 'pix') as any,
+              forma_nome: formaInicial?.nome || 'PIX',
+              valor_entregue: null
+            };
+          }
+          return l;
+        });
+      });
+      return;
+    }
+
+    if (!presencialPermitido) {
+      setLinhasPagamento(prev => {
+        const temInvalido = prev.some(l => 
           l.forma_tipo === 'dinheiro' || 
           l.forma_tipo === 'cartao_debito' || 
           l.forma_tipo === 'cartao_credito'
-        ) {
-          return {
-            ...l,
-            forma_pagamento_id: '',
-            forma_tipo: '' as any,
-            forma_nome: '',
-            valor_entregue: null
-          };
-        }
-        return l;
+        );
+        if (!temInvalido) return prev;
+
+        return prev.map(l => {
+          if (
+            l.forma_tipo === 'dinheiro' || 
+            l.forma_tipo === 'cartao_debito' || 
+            l.forma_tipo === 'cartao_credito'
+          ) {
+            return {
+              ...l,
+              forma_pagamento_id: '',
+              forma_tipo: '' as any,
+              forma_nome: '',
+              valor_entregue: null
+            };
+          }
+          return l;
+        });
       });
-    });
-  }, [isOpen, presencialPermitido]);
+    }
+  }, [isOpen, ehModoCaderneta, presencialPermitido, formasDisponiveis]);
 
   if (!isOpen || (!pedido && !saldoDevedorAvulso)) return null;
 
@@ -1219,6 +1256,16 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
                 <Truck className="w-4 h-4 shrink-0 text-amber-500" />
                 <span className="leading-relaxed">
                   Entrega terceirizada ({transpNomeFrete || nomeAppFrete || 'Uber Direct / Transportadora'}). Pagamento presencial na entrega indisponível; selecione um meio digital (PIX ou Mercado Pago).
+                </span>
+              </div>
+            )}
+
+            {/* Aviso Informativo para Liquidação de Caderneta */}
+            {ehModoCaderneta && (
+              <div className="p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center gap-2.5 text-xs text-cyan-800 dark:text-cyan-300 animate-in fade-in">
+                <Zap className="w-4 h-4 shrink-0 text-cyan-500" />
+                <span className="leading-relaxed">
+                  A liquidação de caderneta é efetuada digitalmente via <strong>PIX</strong> ou <strong>Mercado Pago</strong>.
                 </span>
               </div>
             )}

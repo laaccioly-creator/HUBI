@@ -8,7 +8,7 @@
  */
 
 import { Pedido, Loja, ItemPedido } from '../types';
-import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
+import { obterInfoVencimentoFiado, extrairInfoPagamentoEntrega } from '../utils/statusPedidoUtils';
 import { detectarServicoPorCodigo } from '../utils/correiosValidator';
 import { formatarNomeTransportadora } from '../utils/shippingDisplay';
 
@@ -519,6 +519,7 @@ export class PrintService {
 
       // Dados de pagamento (após o valor total)
       const pagamentoInfo = obterDadosPagamentoRecibo(pedido);
+      const infoEntregaPresencial = extrairInfoPagamentoEntrega(pedido);
 
       // Dados fiéis de frete, forma de entrega e endereçamento
       const {
@@ -808,7 +809,7 @@ export class PrintService {
                 Status Pagamento:
               </span>
               <span style="font-weight: 800; color: ${pagamentoInfo.ehCaderneta ? '#065f46' : pagamentoInfo.ehAguardandoPesagem ? '#b45309' : pagamentoInfo.foiPago ? '#15803d' : '#b45309'}; background: ${pagamentoInfo.ehCaderneta ? '#ecfdf5' : pagamentoInfo.ehAguardandoPesagem ? '#fef3c7' : pagamentoInfo.foiPago ? '#dcfce7' : '#fef3c7'}; border: 1px solid ${pagamentoInfo.ehCaderneta ? '#a7f3d0' : 'transparent'}; padding: 1px 6px; border-radius: 4px; font-size: ${isA4 ? '11px' : '9px'};">
-                ${pagamentoInfo.ehCaderneta ? 'CADERNETA' : pagamentoInfo.ehAguardandoPesagem ? '⚖️ AGUARDANDO PESAGEM' : pagamentoInfo.foiPago ? '✓ PAGO' : '⏳ AGUARDANDO PAGAMENTO'}
+                ${pagamentoInfo.ehCaderneta ? 'CADERNETA' : pagamentoInfo.ehAguardandoPesagem ? '⚖️ AGUARDANDO PESAGEM' : pagamentoInfo.foiPago ? '✓ PAGO' : infoEntregaPresencial ? infoEntregaPresencial.badgeTexto.toUpperCase() : '⏳ AGUARDANDO PAGAMENTO'}
               </span>
             </div>
 
@@ -842,6 +843,12 @@ export class PrintService {
                   <span>Valor Pago:</span>
                   <span>R$ ${pagamentoInfo.totalPago.toFixed(2)}</span>
                 </div>
+              </div>
+            ` : infoEntregaPresencial ? `
+              <div style="margin-top: 4px; padding: 4px 6px; background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 4px; color: #92400e; font-size: ${isA4 ? '11px' : '9px'}; line-height: 1.35;">
+                <strong>Forma de Cobrança:</strong> Pagamento presencial na entrega via ${infoEntregaPresencial.tipo === 'dinheiro' ? 'Dinheiro' : infoEntregaPresencial.tipo === 'debito' ? 'Cartão de Débito' : 'Cartão de Crédito'}. Aguarde a chegada do entregador para efetuar o pagamento.
+                ${infoEntregaPresencial.tipo === 'dinheiro' && infoEntregaPresencial.temTroco && infoEntregaPresencial.troco ? `<br/><strong>Troco:</strong> Preparado para R$ ${infoEntregaPresencial.pagaCom?.toFixed(2)} (Troco: R$ ${infoEntregaPresencial.troco.toFixed(2)})` : ''}
+                ${infoEntregaPresencial.tipo === 'credito' && infoEntregaPresencial.parcelas && infoEntregaPresencial.parcelas > 1 ? `<br/><strong>Parcelamento:</strong> ${infoEntregaPresencial.parcelas}x de R$ ${infoEntregaPresencial.valorParcela?.toFixed(2)}` : ''}
               </div>
             ` : !pagamentoInfo.ehAguardandoPesagem ? `
               <div style="color: #92400e; font-size: ${isA4 ? '11px' : '9px'}; margin-top: 2px;">
@@ -1206,7 +1213,18 @@ export class PrintService {
         }
         text += `Total Pago: R$ ${pagamentoInfo.totalPago.toFixed(2)}\n`;
       } else {
-        text += 'PAGAMENTO: [AGUARDANDO PAGAMENTO]\n';
+        const infoEntregaPresencial = extrairInfoPagamentoEntrega(pedido);
+        if (infoEntregaPresencial) {
+          text += '\x1B\x45\x01'; // Bold ON
+          text += `STATUS: [${infoEntregaPresencial.badgeTexto.toUpperCase()}]\n`;
+          text += '\x1B\x45\x00'; // Bold OFF
+          text += `Forma de Cobranca: Pagamento na entrega (${infoEntregaPresencial.tipo === 'dinheiro' ? 'Dinheiro' : infoEntregaPresencial.tipo === 'debito' ? 'Debito' : 'Credito'})\n`;
+          if (infoEntregaPresencial.temTroco && infoEntregaPresencial.troco) {
+            text += `Troco para R$ ${infoEntregaPresencial.pagaCom?.toFixed(2)} (Troco: R$ ${infoEntregaPresencial.troco.toFixed(2)})\n`;
+          }
+        } else {
+          text += 'PAGAMENTO: [AGUARDANDO PAGAMENTO]\n';
+        }
       }
     } else {
       text += divider;
@@ -1226,7 +1244,18 @@ export class PrintService {
         }
         text += `Total Pago: R$ ${pagamentoInfo.totalPago.toFixed(2)}\n`;
       } else {
-        text += 'PAGAMENTO: [AGUARDANDO PAGAMENTO]\n';
+        const infoEntregaPresencial = extrairInfoPagamentoEntrega(pedido);
+        if (infoEntregaPresencial) {
+          text += '\x1B\x45\x01'; // Bold ON
+          text += `STATUS: [${infoEntregaPresencial.badgeTexto.toUpperCase()}]\n`;
+          text += '\x1B\x45\x00'; // Bold OFF
+          text += `Forma de Cobranca: Pagamento na entrega (${infoEntregaPresencial.tipo === 'dinheiro' ? 'Dinheiro' : infoEntregaPresencial.tipo === 'debito' ? 'Debito' : 'Credito'})\n`;
+          if (infoEntregaPresencial.temTroco && infoEntregaPresencial.troco) {
+            text += `Troco para R$ ${infoEntregaPresencial.pagaCom?.toFixed(2)} (Troco: R$ ${infoEntregaPresencial.troco.toFixed(2)})\n`;
+          }
+        } else {
+          text += 'PAGAMENTO: [AGUARDANDO PAGAMENTO]\n';
+        }
       }
     }
 

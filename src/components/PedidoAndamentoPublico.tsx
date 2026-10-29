@@ -28,6 +28,7 @@ import {
 } from '../services/printService';
 import { ReceiptPdfService } from '../services/receiptPdfService';
 import { formatarMoeda } from '../utils/formatters';
+import { extrairInfoPagamentoEntrega } from '../utils/statusPedidoUtils';
 import { useTheme } from '../contexts/ThemeContext';
 import {
   consolidarHistoricoPedidos,
@@ -81,7 +82,8 @@ export const PedidoAndamentoPublico: React.FC = () => {
             itens:itens_pedido(*),
             vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
             pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*)),
-            pedido_entregas:pedido_entregas(*)
+            pedido_entregas:pedido_entregas(*),
+            pagamentos_previstos:pedidos_pagamentos_previstos(*)
           `);
 
         query = aplicarFiltro(query);
@@ -98,11 +100,12 @@ export const PedidoAndamentoPublico: React.FC = () => {
 
           if (simplePed && !simpleErr) {
             ped = simplePed;
-            const [itensRes, clienteRes, pagRes, entregaRes] = await Promise.allSettled([
+            const [itensRes, clienteRes, pagRes, entregaRes, prevRes] = await Promise.allSettled([
               supabase.from('itens_pedido').select('*').eq('pedido_id', simplePed.id),
               simplePed.cliente_id ? supabase.from('clientes').select('*').eq('id', simplePed.cliente_id).maybeSingle() : Promise.resolve({ data: null }),
               supabase.from('pagamentos_pedido').select('*, forma_pagamento:formas_pagamento(*)').eq('pedido_id', simplePed.id),
-              supabase.from('pedido_entregas').select('*').eq('pedido_id', simplePed.id)
+              supabase.from('pedido_entregas').select('*').eq('pedido_id', simplePed.id),
+              supabase.from('pedidos_pagamentos_previstos').select('*').eq('pedido_id', simplePed.id)
             ]);
 
             if (itensRes.status === 'fulfilled' && (itensRes.value as any)?.data) {
@@ -116,6 +119,9 @@ export const PedidoAndamentoPublico: React.FC = () => {
             }
             if (entregaRes.status === 'fulfilled' && (entregaRes.value as any)?.data) {
               (ped as any).pedido_entregas = (entregaRes.value as any).data;
+            }
+            if (prevRes.status === 'fulfilled' && (prevRes.value as any)?.data) {
+              (ped as any).pagamentos_previstos = (prevRes.value as any).data;
             }
           }
         }
@@ -171,6 +177,13 @@ export const PedidoAndamentoPublico: React.FC = () => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'pedido_entregas' },
+        () => {
+          carregarDados();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pedidos_pagamentos_previstos' },
         () => {
           carregarDados();
         }
@@ -273,6 +286,8 @@ export const PedidoAndamentoPublico: React.FC = () => {
     labelEndereco,
     enderecoExibicao
   } = obterInfoEntregaRecibo(pedido, loja);
+
+  const infoEntrega = extrairInfoPagamentoEntrega(pedido);
 
   const badgeEstilo = ehRetirada
     ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
@@ -490,14 +505,55 @@ export const PedidoAndamentoPublico: React.FC = () => {
 
               {pedido.status_pagamento === 'aguardando_pagamento' && (pedido as any).status !== 'cancelado' && (
                 <div className="pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setModalPagamentoAberto(true)}
-                    className="w-full py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25 transition cursor-pointer active:scale-95 border border-emerald-500"
-                  >
-                    <CreditCard className="w-4 h-4" />
-                    <span>Efetuar Pagamento Agora ({formatarMoeda ? formatarMoeda(valorTotal) : `R$ ${valorTotal.toFixed(2)}`})</span>
-                  </button>
+                  {infoEntrega ? (
+                    <div className={`p-4 rounded-2xl border text-left space-y-1.5 shadow-sm ${
+                      isDark
+                        ? 'bg-amber-950/30 border-amber-800/50 text-amber-200'
+                        : 'bg-amber-50/90 border-amber-200 text-amber-900'
+                    }`}>
+                      <div className="flex items-center gap-2 font-black text-xs uppercase tracking-wider">
+                        {infoEntrega.tipo === 'dinheiro' ? (
+                          <>
+                            <span className="text-base">💵</span>
+                            <span>Pagamento em Dinheiro na Entrega</span>
+                          </>
+                        ) : infoEntrega.tipo === 'debito' ? (
+                          <>
+                            <span className="text-base">💳</span>
+                            <span>Pagamento com Cartão de Débito na Entrega</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-base">💳</span>
+                            <span>Pagamento com Cartão de Crédito na Entrega</span>
+                          </>
+                        )}
+                      </div>
+                      <p className={`text-[11px] leading-relaxed font-medium ${
+                        isDark ? 'text-amber-300/90' : 'text-amber-800/90'
+                      }`}>
+                        {infoEntrega.tipo === 'dinheiro'
+                          ? (infoEntrega.temTroco && infoEntrega.troco && infoEntrega.troco > 0
+                              ? `Troco preparado para ${formatarMoeda(infoEntrega.pagaCom || 0)} (Troco: ${formatarMoeda(infoEntrega.troco)}). Aguarde a chegada do entregador para efetuar o pagamento.`
+                              : 'Pagamento em valor exato, sem necessidade de troco. Aguarde a chegada do entregador para efetuar o pagamento.')
+                          : infoEntrega.tipo === 'debito'
+                          ? 'O entregador levará a máquina de cartão habilitada para Débito. Aguarde a chegada do entregador para efetuar o pagamento.'
+                          : (infoEntrega.parcelas && infoEntrega.parcelas > 1
+                              ? `O entregador levará a máquina de cartão habilitada para Crédito (${infoEntrega.parcelas}x de ${formatarMoeda(infoEntrega.valorParcela || 0)}). Aguarde a chegada do entregador para efetuar o pagamento.`
+                              : 'O entregador levará a máquina de cartão habilitada para Crédito. Aguarde a chegada do entregador para efetuar o pagamento.')
+                        }
+                      </p>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setModalPagamentoAberto(true)}
+                      className="w-full py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25 transition cursor-pointer active:scale-95 border border-emerald-500"
+                    >
+                      <CreditCard className="w-4 h-4" />
+                      <span>Efetuar Pagamento Agora ({formatarMoeda ? formatarMoeda(valorTotal) : `R$ ${valorTotal.toFixed(2)}`})</span>
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -779,17 +835,29 @@ export const PedidoAndamentoPublico: React.FC = () => {
                   <span className={`font-black text-[10px] px-2 py-0.5 rounded-full border ${
                     pagInfo.foiPago
                       ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                      : infoEntrega
+                      ? 'bg-amber-500/10 text-amber-700 border-amber-500/20'
                       : 'bg-slate-100 text-slate-800 border-slate-300'
                   }`}>
-                    {pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
+                    {pagInfo.foiPago ? '✓ PAGO' : infoEntrega ? infoEntrega.badgeTexto : 'AGUARDANDO PAGAMENTO'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center pt-1 text-[11px] text-slate-600">
                   <span>Forma:</span>
                   <span className="font-bold text-slate-900">
-                    {pagInfo.pagamentosDetalhados?.[0]?.forma || pedido.pagamentos?.[0]?.forma_pagamento?.nome || 'Cartão de Débito'}
+                    {pagInfo.pagamentosDetalhados?.[0]?.forma || (infoEntrega ? (infoEntrega.tipo === 'dinheiro' ? 'Dinheiro na entrega' : infoEntrega.tipo === 'debito' ? 'Cartão de Débito na entrega' : 'Cartão de Crédito na entrega') : pedido.pagamentos?.[0]?.forma_pagamento?.nome || 'A Combinar')}
                   </span>
                 </div>
+                {infoEntrega && !pagInfo.foiPago && (
+                  <div className="mt-2 pt-2 border-t border-dashed border-slate-200 text-[11px] text-amber-800 font-medium leading-relaxed">
+                    <strong>Forma de Cobrança:</strong> Pagamento presencial na entrega via {infoEntrega.tipo === 'dinheiro' ? 'Dinheiro' : infoEntrega.tipo === 'debito' ? 'Cartão de Débito' : 'Cartão de Crédito'}. Aguarde a chegada do entregador para efetuar o pagamento.
+                  </div>
+                )}
+                {infoEntrega && pagInfo.foiPago && (
+                  <div className="mt-2 pt-2 border-t border-dashed border-slate-200 text-[11px] text-emerald-800 font-medium text-center">
+                    ✓ Pagamento presencial recebido na entrega com sucesso.
+                  </div>
+                )}
               </div>
             </div>
 

@@ -1,5 +1,6 @@
-import { StatusPedido, Loja } from '../types';
+import { StatusPedido, Loja, Pedido } from '../types';
 import { obterDataOperacaoYMD } from './dataOperacao';
+import { formatarMoeda } from './formatters';
 
 export const ROTULOS_STATUS_PEDIDO: Record<string, string> = {
   todos: 'Todos os status',
@@ -640,4 +641,203 @@ export function obterEstiloBadgeStatusPagamento(status?: string | null): {
         dot: 'bg-amber-500'
       };
   }
+}
+
+export interface InfoPagamentoEntrega {
+  tipo: 'credito' | 'debito' | 'dinheiro';
+  badgeTexto: string;
+  valorTotal: number;
+  pagaCom?: number;
+  troco?: number;
+  temTroco: boolean;
+  parcelas?: number;
+  valorParcela?: number;
+  mensagemPopover: string;
+}
+
+export function extrairInfoPagamentoEntrega(pedido: Pedido | null | undefined): InfoPagamentoEntrega | null {
+  if (!pedido) return null;
+  const valorTotal = Number(pedido.valor_total || 0);
+
+  // 1. Verificar em pagamentos_previstos
+  const previstos = (pedido as any).pagamentos_previstos || [];
+  const prevDinheiro = Array.isArray(previstos)
+    ? previstos.find((p: any) => p.forma_tipo === 'dinheiro' || (p.forma_nome || '').toLowerCase().includes('dinheiro'))
+    : undefined;
+  const prevCredito = Array.isArray(previstos)
+    ? previstos.find((p: any) =>
+        p.forma_tipo === 'cartao_credito' ||
+        p.forma_tipo === 'credito' ||
+        (p.forma_nome || '').toLowerCase().includes('crédito') ||
+        (p.forma_nome || '').toLowerCase().includes('credito')
+      )
+    : undefined;
+  const prevDebito = Array.isArray(previstos)
+    ? previstos.find((p: any) =>
+        p.forma_tipo === 'cartao_debito' ||
+        p.forma_tipo === 'debito' ||
+        (p.forma_nome || '').toLowerCase().includes('débito') ||
+        (p.forma_nome || '').toLowerCase().includes('debito')
+      )
+    : undefined;
+
+  // 2. Extrair dados de valor entregue / troco
+  let pagaCom: number | undefined = undefined;
+  if (prevDinheiro?.valor_entregue && Number(prevDinheiro.valor_entregue) > 0) {
+    pagaCom = Number(prevDinheiro.valor_entregue);
+  }
+  if (!pagaCom && (pedido as any).troco_para && Number((pedido as any).troco_para) > 0) {
+    pagaCom = Number((pedido as any).troco_para);
+  }
+  if (!pagaCom && (pedido.metadados as any)?.troco_para) {
+    pagaCom = Number((pedido.metadados as any).troco_para);
+  }
+  if (!pagaCom && (pedido.metadados as any)?.valor_entregue) {
+    pagaCom = Number((pedido.metadados as any).valor_entregue);
+  }
+  if (!pagaCom && pedido.observacoes) {
+    const match = pedido.observacoes.match(/troco\s*(?:para)?\s*R?\$?\s*([\d.,]+)/i);
+    if (match && match[1]) {
+      const clean = match[1].replace(/\./g, '').replace(',', '.');
+      const num = parseFloat(clean);
+      if (!isNaN(num) && num > 0) {
+        pagaCom = num;
+      }
+    }
+  }
+
+  // 3. Identificar tipo de pagamento presencial
+  let tipo: 'credito' | 'debito' | 'dinheiro' | null = null;
+
+  if (prevDinheiro) {
+    tipo = 'dinheiro';
+  } else if (prevCredito) {
+    tipo = 'credito';
+  } else if (prevDebito) {
+    tipo = 'debito';
+  } else {
+    // Fallback para forma_pagamento_catalogo e forma_pagamento nativa
+    const fpc = String((pedido as any).forma_pagamento_catalogo || (pedido as any).forma_pagamento || (pedido.metadados as any)?.forma_pagamento || '').toLowerCase();
+    if (fpc === 'dinheiro' || fpc.includes('dinheiro') || fpc === 'dinheiro_entrega') {
+      tipo = 'dinheiro';
+    } else if (
+      fpc === 'cartao_credito' ||
+      fpc === 'credito' ||
+      fpc === 'credito_entrega' ||
+      fpc.includes('crédito') ||
+      fpc.includes('credito')
+    ) {
+      tipo = 'credito';
+    } else if (
+      fpc === 'cartao_debito' ||
+      fpc === 'debito' ||
+      fpc === 'debito_entrega' ||
+      fpc.includes('débito') ||
+      fpc.includes('debito')
+    ) {
+      tipo = 'debito';
+    } else if (pedido.pagamentos && pedido.pagamentos.length > 0) {
+      const pagD = pedido.pagamentos.find(
+        (p: any) =>
+          p.forma_tipo === 'dinheiro' ||
+          p.forma_pagamento?.tipo === 'dinheiro' ||
+          p.forma_pagamento?.nome?.toLowerCase().includes('dinheiro')
+      );
+      const pagC = pedido.pagamentos.find(
+        (p: any) =>
+          p.forma_tipo === 'cartao_credito' ||
+          p.forma_pagamento?.tipo === 'cartao_credito' ||
+          p.forma_pagamento?.nome?.toLowerCase().includes('crédito') ||
+          p.forma_pagamento?.nome?.toLowerCase().includes('credito')
+      );
+      const pagB = pedido.pagamentos.find(
+        (p: any) =>
+          p.forma_tipo === 'cartao_debito' ||
+          p.forma_pagamento?.tipo === 'cartao_debito' ||
+          p.forma_pagamento?.nome?.toLowerCase().includes('débito') ||
+          p.forma_pagamento?.nome?.toLowerCase().includes('debito')
+      );
+      if (pagD) tipo = 'dinheiro';
+      else if (pagC) tipo = 'credito';
+      else if (pagB) tipo = 'debito';
+    } else if (pedido.observacoes) {
+      const obs = pedido.observacoes.toLowerCase();
+      if (obs.includes('troco') || obs.includes('dinheiro na entrega') || obs.includes('pagamento em dinheiro')) {
+        tipo = 'dinheiro';
+      } else if (obs.includes('crédito na entrega') || obs.includes('credito na entrega')) {
+        tipo = 'credito';
+      } else if (obs.includes('débito na entrega') || obs.includes('debito na entrega')) {
+        tipo = 'debito';
+      }
+    }
+  }
+
+  if (!tipo) return null;
+
+  if (tipo === 'credito') {
+    let parcelas = 1;
+    if (prevCredito?.parcelas && Number(prevCredito.parcelas) > 0) {
+      parcelas = Number(prevCredito.parcelas);
+    } else if (pedido.pagamentos && pedido.pagamentos.length > 0) {
+      const pagC = pedido.pagamentos.find(
+        (p: any) =>
+          p.forma_tipo === 'cartao_credito' ||
+          p.forma_pagamento?.tipo === 'cartao_credito' ||
+          p.forma_pagamento?.nome?.toLowerCase().includes('crédito') ||
+          p.forma_pagamento?.nome?.toLowerCase().includes('credito')
+      );
+      if (pagC && (pagC as any).parcelas && Number((pagC as any).parcelas) > 0) {
+        parcelas = Number((pagC as any).parcelas);
+      }
+    } else if ((pedido.metadados as any)?.parcelas && Number((pedido.metadados as any).parcelas) > 0) {
+      parcelas = Number((pedido.metadados as any).parcelas);
+    }
+    const valorParcela = Number((valorTotal / Math.max(1, parcelas)).toFixed(2));
+
+    return {
+      tipo: 'credito',
+      badgeTexto: '💳 Crédito na entrega',
+      valorTotal,
+      parcelas,
+      valorParcela,
+      temTroco: false,
+      mensagemPopover: 'Cobrança presencial na entrega: Levar máquina de cartão habilitada para Crédito.'
+    };
+  }
+
+  if (tipo === 'debito') {
+    return {
+      tipo: 'debito',
+      badgeTexto: '💳 Débito na entrega',
+      valorTotal,
+      temTroco: false,
+      mensagemPopover: 'Cobrança presencial na entrega: Levar máquina de cartão habilitada para Débito.'
+    };
+  }
+
+  // tipo === 'dinheiro'
+  const temTroco = Boolean(pagaCom && pagaCom > valorTotal);
+  const troco = temTroco && pagaCom ? Number((pagaCom - valorTotal).toFixed(2)) : 0;
+
+  if (temTroco && pagaCom) {
+    return {
+      tipo: 'dinheiro',
+      badgeTexto: '💵 Dinheiro (Troco)',
+      valorTotal,
+      pagaCom,
+      troco,
+      temTroco: true,
+      mensagemPopover: `Cobrança presencial em dinheiro. Paga com: ${formatarMoeda(pagaCom)}. Troco a levar: ${formatarMoeda(troco)}.`
+    };
+  }
+
+  return {
+    tipo: 'dinheiro',
+    badgeTexto: '💵 Dinheiro na entrega',
+    valorTotal,
+    pagaCom: pagaCom || valorTotal,
+    troco: 0,
+    temTroco: false,
+    mensagemPopover: 'Cobrança presencial em dinheiro: Valor exato, sem necessidade de troco.'
+  };
 }

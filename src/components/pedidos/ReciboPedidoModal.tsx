@@ -3,7 +3,7 @@ import { X, Store, Printer, Share2, Download, CheckCircle2, MessageCircle, Recei
 import { Pedido } from '../../types';
 import { obterDadosPagamentoRecibo, formatarDataRecibo, PrintService } from '../../services/printService';
 import { ReceiptPdfService } from '../../services/receiptPdfService';
-import { obterInfoVencimentoFiado } from '../../utils/statusPedidoUtils';
+import { obterInfoVencimentoFiado, extrairInfoPagamentoEntrega } from '../../utils/statusPedidoUtils';
 import { extrairObservacaoLimpa, formatarMoeda } from '../../utils/formatters';
 import { detectarServicoPorCodigo } from '../../utils/correiosValidator';
 import { formatarNomeTransportadora } from '../../utils/shippingDisplay';
@@ -237,6 +237,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
   const valorFrete = Number(pedido.valor_frete || 0);
   const valorTotal = Number(pedido.valor_total || 0);
   const pagInfo = obterDadosPagamentoRecibo(pedido);
+  const infoEntrega = pedido ? extrairInfoPagamentoEntrega(pedido) : null;
   const obsLimpa = extrairObservacaoLimpa(pedido.observacoes);
 
   return (
@@ -467,6 +468,8 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                     ? 'bg-amber-50 text-amber-900 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800'
                     : pagInfo.foiPago
                     ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-700'
+                    : infoEntrega
+                    ? 'bg-amber-50 text-amber-900 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800'
                     : 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
                 }`}>
                   {pedido.status_pagamento === 'aguardando_pesagem'
@@ -477,9 +480,33 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                     ? 'AGUARDANDO PAGAMENTO (FIADO)'
                     : pagInfo.foiPago
                     ? '✓ PAGO'
+                    : infoEntrega
+                    ? infoEntrega.badgeTexto.toUpperCase()
                     : 'AGUARDANDO PAGAMENTO'}
                 </span>
               </div>
+              {infoEntrega && !pagInfo.foiPago && (
+                <div className="p-2.5 rounded-xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-[11px] leading-relaxed">
+                  <div className="font-bold">
+                    Forma de Cobrança: Pagamento presencial na entrega via {infoEntrega.tipo === 'dinheiro' ? 'Dinheiro' : infoEntrega.tipo === 'debito' ? 'Cartão de Débito' : 'Cartão de Crédito'}. Aguarde a chegada do entregador para efetuar o pagamento.
+                  </div>
+                  {infoEntrega.tipo === 'dinheiro' && infoEntrega.temTroco && infoEntrega.troco && infoEntrega.troco > 0 && (
+                    <div className="text-[10px] text-amber-800 dark:text-amber-300/90 mt-0.5 font-medium">
+                      Troco preparado para {formatarMoeda(infoEntrega.pagaCom || 0)} (Troco a levar: {formatarMoeda(infoEntrega.troco)}).
+                    </div>
+                  )}
+                  {infoEntrega.tipo === 'credito' && infoEntrega.parcelas && infoEntrega.parcelas > 1 && (
+                    <div className="text-[10px] text-amber-800 dark:text-amber-300/90 mt-0.5 font-medium">
+                      Parcelamento: {infoEntrega.parcelas}x de {formatarMoeda(infoEntrega.valorParcela || 0)}.
+                    </div>
+                  )}
+                </div>
+              )}
+              {infoEntrega && pagInfo.foiPago && (
+                <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 text-xs font-semibold text-center">
+                  ✓ Pagamento presencial na entrega realizado com sucesso.
+                </div>
+              )}
               {pedido.status_pagamento === 'aguardando_pesagem' && (
                 <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 text-[11px] leading-relaxed">
                   ⚠️ AVISO: Valor estimado sujeito a pequena variação após a pesagem real dos produtos na loja. Aguarde a confirmação e a mensagem da loja para efetuar o pagamento.

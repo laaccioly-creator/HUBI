@@ -17,6 +17,67 @@ interface ModalPedidosClienteProps {
   onPagarPedido?: (pedido: Pedido) => void;
 }
 
+function obterInfoPagamentoEntregaCliente(ped: Pedido): { ehPresencial: boolean; tipo: 'cartao' | 'dinheiro' | null; label: string } {
+  // Se já concluído, pago ou cancelado, não se aplica
+  if (ped.status === 'cancelado' || ped.status_pagamento === 'pago') {
+    return { ehPresencial: false, tipo: null, label: '' };
+  }
+
+  // 1. Inspecionar pagamentos_previstos
+  const previstos = (ped as any).pagamentos_previstos || [];
+  if (Array.isArray(previstos) && previstos.length > 0) {
+    const prevDinheiro = previstos.find((p: any) => 
+      p.forma_tipo === 'dinheiro' || 
+      (p.forma_nome || '').toLowerCase().includes('dinheiro')
+    );
+    if (prevDinheiro) {
+      return { ehPresencial: true, tipo: 'dinheiro', label: '🏷️ Pagar na Entrega (Dinheiro)' };
+    }
+
+    const prevCartao = previstos.find((p: any) => 
+      p.forma_tipo === 'cartao_credito' || 
+      p.forma_tipo === 'cartao_debito' ||
+      p.forma_tipo === 'credito' || 
+      p.forma_tipo === 'debito' ||
+      (p.forma_nome || '').toLowerCase().includes('crédito') ||
+      (p.forma_nome || '').toLowerCase().includes('credito') ||
+      (p.forma_nome || '').toLowerCase().includes('débito') ||
+      (p.forma_nome || '').toLowerCase().includes('debito') ||
+      (p.forma_nome || '').toLowerCase().includes('cartão') ||
+      (p.forma_nome || '').toLowerCase().includes('cartao')
+    );
+    if (prevCartao) {
+      return { ehPresencial: true, tipo: 'cartao', label: '🏷️ Pagar na Entrega (Cartão)' };
+    }
+  }
+
+  // 2. Inspecionar forma_pagamento_catalogo e metadados
+  const fpc = String((ped as any).forma_pagamento_catalogo || (ped.metadados as any)?.forma_pagamento || '').toLowerCase();
+  if (fpc === 'dinheiro' || fpc.includes('dinheiro') || fpc === 'dinheiro_entrega') {
+    return { ehPresencial: true, tipo: 'dinheiro', label: '🏷️ Pagar na Entrega (Dinheiro)' };
+  }
+  if (
+    fpc === 'cartao_credito' || fpc === 'credito' || fpc === 'credito_entrega' ||
+    fpc === 'cartao_debito' || fpc === 'debito' || fpc === 'debito_entrega' ||
+    fpc.includes('cartao') || fpc.includes('cartão') || fpc.includes('credito') || fpc.includes('crédito') || fpc.includes('debito') || fpc.includes('débito')
+  ) {
+    return { ehPresencial: true, tipo: 'cartao', label: '🏷️ Pagar na Entrega (Cartão)' };
+  }
+
+  // 3. Inspecionar observações por menções a troco / pagamento presencial
+  if (ped.observacoes) {
+    const obs = ped.observacoes.toLowerCase();
+    if (obs.includes('troco') || obs.includes('dinheiro na entrega') || obs.includes('pagamento em dinheiro')) {
+      return { ehPresencial: true, tipo: 'dinheiro', label: '🏷️ Pagar na Entrega (Dinheiro)' };
+    }
+    if (obs.includes('cartão na entrega') || obs.includes('cartao na entrega') || obs.includes('máquina na entrega') || obs.includes('maquininha')) {
+      return { ehPresencial: true, tipo: 'cartao', label: '🏷️ Pagar na Entrega (Cartão)' };
+    }
+  }
+
+  return { ehPresencial: false, tipo: null, label: '' };
+}
+
 export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
   isOpen,
   onClose,
@@ -248,7 +309,9 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
               )}
             </div>
           ) : (
-            pedidos.map((ped) => (
+            pedidos.map((ped) => {
+              const infoPresencial = obterInfoPagamentoEntregaCliente(ped);
+              return (
               <div
                 key={ped.id}
                 className="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-3.5 space-y-2.5 transition"
@@ -274,8 +337,17 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    {/* Botão Enviar Comprovante exibido exclusivamente se escolheu PIX e está aguardando confirmação */}
+                    {/* Tag informativa de Pagamento na Entrega se definido */}
+                    {infoPresencial.ehPresencial && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 whitespace-nowrap shadow-2xs">
+                        {infoPresencial.label}
+                      </span>
+                    )}
+
+                    {/* Botão Enviar Comprovante exibido exclusivamente se escolheu PIX e está aguardando confirmação (sem meio presencial) */}
                     {(() => {
+                      if (infoPresencial.ehPresencial) return null;
+
                       const ehPedidoPix = Boolean(
                         (ped as any).forma_pagamento_catalogo === 'pix' ||
                         (ped.metadados as any)?.forma_pagamento === 'pix' ||
@@ -304,8 +376,8 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                       return null;
                     })()}
 
-                    {/* Botão Pagar Pedido exibido exclusivamente quando aguardando pagamento (após pesagem ou convencional) */}
-                    {ped.status !== 'cancelado' && ped.status_pagamento === 'aguardando_pagamento' && (
+                    {/* Botão Pagar Pedido exibido exclusivamente quando aguardando pagamento SEM definição presencial */}
+                    {!infoPresencial.ehPresencial && ped.status !== 'cancelado' && ped.status_pagamento === 'aguardando_pagamento' && (
                       <button
                         type="button"
                         onClick={() => {
@@ -363,7 +435,8 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                   </div>
                 </div>
               </div>
-            ))
+            );
+          })
           )}
         </div>
       </div>

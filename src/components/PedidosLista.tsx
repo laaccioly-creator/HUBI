@@ -206,148 +206,16 @@ export const BadgeRestricaoPedido: React.FC<{ observacao: string | null | undefi
   );
 };
 
-export interface InfoPagamentoEntrega {
-  tipo: 'credito' | 'debito' | 'dinheiro';
-  badgeTexto: string;
-  pagaCom?: number;
-  troco?: number;
-  temTroco: boolean;
-  mensagemPopover: string;
-}
-
-export function extrairInfoPagamentoEntrega(pedido: Pedido): InfoPagamentoEntrega | null {
-  const valorTotal = Number(pedido.valor_total || 0);
-
-  // 1. Verificar em pagamentos_previstos
-  const previstos = pedido.pagamentos_previstos || [];
-  const prevDinheiro = previstos.find(p => p.forma_tipo === 'dinheiro' || (p.forma_nome || '').toLowerCase().includes('dinheiro'));
-  const prevCredito = previstos.find(p => p.forma_tipo === 'cartao_credito' || (p.forma_nome || '').toLowerCase().includes('crédito') || (p.forma_nome || '').toLowerCase().includes('credito'));
-  const prevDebito = previstos.find(p => p.forma_tipo === 'cartao_debito' || (p.forma_nome || '').toLowerCase().includes('débito') || (p.forma_nome || '').toLowerCase().includes('debito'));
-
-  // 2. Extrair dados de valor entregue / troco
-  let pagaCom: number | undefined = undefined;
-  if (prevDinheiro?.valor_entregue && Number(prevDinheiro.valor_entregue) > 0) {
-    pagaCom = Number(prevDinheiro.valor_entregue);
-  }
-  if (!pagaCom && pedido.troco_para && Number(pedido.troco_para) > 0) {
-    pagaCom = Number(pedido.troco_para);
-  }
-  if (!pagaCom && (pedido.metadados as any)?.troco_para) {
-    pagaCom = Number((pedido.metadados as any).troco_para);
-  }
-  if (!pagaCom && (pedido.metadados as any)?.valor_entregue) {
-    pagaCom = Number((pedido.metadados as any).valor_entregue);
-  }
-  if (!pagaCom && pedido.observacoes) {
-    const match = pedido.observacoes.match(/troco\s*(?:para)?\s*R?\$?\s*([\d.,]+)/i);
-    if (match && match[1]) {
-      const clean = match[1].replace(/\./g, '').replace(',', '.');
-      const num = parseFloat(clean);
-      if (!isNaN(num) && num > 0) {
-        pagaCom = num;
-      }
-    }
-  }
-
-  // 3. Identificar tipo de pagamento presencial
-  let tipo: 'credito' | 'debito' | 'dinheiro' | null = null;
-
-  if (prevDinheiro) {
-    tipo = 'dinheiro';
-  } else if (prevCredito) {
-    tipo = 'credito';
-  } else if (prevDebito) {
-    tipo = 'debito';
-  } else {
-    // Fallback para forma_pagamento_catalogo e forma_pagamento nativa
-    const fpc = (pedido.forma_pagamento_catalogo || (pedido as any).forma_pagamento || '').toLowerCase();
-    if (fpc === 'dinheiro' || fpc.includes('dinheiro')) {
-      tipo = 'dinheiro';
-    } else if (fpc === 'cartao_credito' || fpc === 'credito' || fpc.includes('crédito') || fpc.includes('credito')) {
-      tipo = 'credito';
-    } else if (fpc === 'cartao_debito' || fpc === 'debito' || fpc.includes('débito') || fpc.includes('debito')) {
-      tipo = 'debito';
-    } else if (pedido.pagamentos && pedido.pagamentos.length > 0) {
-      const pagD = pedido.pagamentos.find(p => (p as any).forma_tipo === 'dinheiro' || (p.forma_pagamento as any)?.tipo === 'dinheiro' || (p.forma_pagamento as any)?.nome?.toLowerCase().includes('dinheiro'));
-      const pagC = pedido.pagamentos.find(p => (p as any).forma_tipo === 'cartao_credito' || (p.forma_pagamento as any)?.tipo === 'cartao_credito' || (p.forma_pagamento as any)?.nome?.toLowerCase().includes('crédito') || (p.forma_pagamento as any)?.nome?.toLowerCase().includes('credito'));
-      const pagB = pedido.pagamentos.find(p => (p as any).forma_tipo === 'cartao_debito' || (p.forma_pagamento as any)?.tipo === 'cartao_debito' || (p.forma_pagamento as any)?.nome?.toLowerCase().includes('débito') || (p.forma_pagamento as any)?.nome?.toLowerCase().includes('debito'));
-      if (pagD) tipo = 'dinheiro';
-      else if (pagC) tipo = 'credito';
-      else if (pagB) tipo = 'debito';
-    } else if (pedido.observacoes) {
-      const obs = pedido.observacoes.toLowerCase();
-      if (obs.includes('troco') || obs.includes('dinheiro')) {
-        tipo = 'dinheiro';
-      } else if (obs.includes('crédito') || obs.includes('credito')) {
-        tipo = 'credito';
-      } else if (obs.includes('débito') || obs.includes('debito')) {
-        tipo = 'debito';
-      }
-    }
-  }
-
-  if (!tipo) return null;
-
-  if (tipo === 'credito') {
-    return {
-      tipo: 'credito',
-      badgeTexto: '💳 Crédito na entrega',
-      temTroco: false,
-      mensagemPopover: 'Cobrança presencial na entrega: Levar máquina de cartão habilitada para Crédito.'
-    };
-  }
-
-  if (tipo === 'debito') {
-    return {
-      tipo: 'debito',
-      badgeTexto: '💳 Débito na entrega',
-      temTroco: false,
-      mensagemPopover: 'Cobrança presencial na entrega: Levar máquina de cartão habilitada para Débito.'
-    };
-  }
-
-  // tipo === 'dinheiro'
-  const temTroco = Boolean(pagaCom && pagaCom > valorTotal);
-  const troco = temTroco && pagaCom ? Number((pagaCom - valorTotal).toFixed(2)) : 0;
-
-  if (temTroco && pagaCom) {
-    return {
-      tipo: 'dinheiro',
-      badgeTexto: '💵 Dinheiro (Troco)',
-      pagaCom,
-      troco,
-      temTroco: true,
-      mensagemPopover: `Cobrança presencial em dinheiro. Paga com: ${formatarMoeda(pagaCom)}. Troco a levar: ${formatarMoeda(troco)}.`
-    };
-  }
-
-  return {
-    tipo: 'dinheiro',
-    badgeTexto: '💵 Dinheiro na entrega',
-    temTroco: false,
-    mensagemPopover: 'Cobrança presencial em dinheiro: Valor exato, sem necessidade de troco.'
-  };
-}
+import { extrairInfoPagamentoEntrega, InfoPagamentoEntrega } from '../utils/statusPedidoUtils';
+export type { InfoPagamentoEntrega };
+export { extrairInfoPagamentoEntrega };
 
 export const BadgeStatusPagamentoPedido: React.FC<{
   pedido: Pedido;
   statusPag: StatusPagamento;
   isDark: boolean;
 }> = ({ pedido, statusPag, isDark }) => {
-  const [popoverAberto, setPopoverAberto] = useState(false);
-  const [hoverAberto, setHoverAberto] = useState(false);
-  const popoverRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!popoverAberto) return;
-    const handleClickFora = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        setPopoverAberto(false);
-      }
-    };
-    document.addEventListener('click', handleClickFora);
-    return () => document.removeEventListener('click', handleClickFora);
-  }, [popoverAberto]);
+  const [modalAberto, setModalAberto] = useState(false);
 
   // Se não estiver pago, nem fiado, nem caderneta, nem pesagem pendente, verifica previsão de pagamento na entrega
   const ehElegivelEntrega = statusPag !== 'pago' && statusPag !== 'fiado' && statusPag !== 'caderneta' && statusPag !== 'aguardando_pesagem' && pedido.status !== 'cancelado';
@@ -355,100 +223,204 @@ export const BadgeStatusPagamentoPedido: React.FC<{
 
   if (infoEntrega) {
     let corBadge = '';
-    let icone = null;
 
     if (infoEntrega.tipo === 'credito') {
       corBadge = isDark
         ? 'bg-amber-600/20 text-amber-200 border-amber-500/40 hover:bg-amber-600/30'
         : 'bg-amber-100/90 text-amber-900 border-amber-300 hover:bg-amber-200/90';
-      icone = <CreditCard className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />;
     } else if (infoEntrega.tipo === 'debito') {
       corBadge = isDark
         ? 'bg-orange-500/20 text-orange-200 border-orange-500/40 hover:bg-orange-500/30'
         : 'bg-orange-100 text-orange-900 border-orange-300 hover:bg-orange-200';
-      icone = <CreditCard className="w-3 h-3 text-orange-600 dark:text-orange-400 shrink-0" />;
     } else if (infoEntrega.temTroco) {
       corBadge = isDark
         ? 'bg-amber-500/25 text-amber-300 border-amber-400/50 hover:bg-amber-500/35 ring-1 ring-amber-500/30'
         : 'bg-amber-200/80 text-amber-950 border-amber-400 hover:bg-amber-300/80 ring-1 ring-amber-400/40';
-      icone = <Coins className="w-3 h-3 text-amber-700 dark:text-amber-300 shrink-0" />;
     } else {
       // Dinheiro sem troco
       corBadge = isDark
         ? 'bg-yellow-500/20 text-yellow-200 border-yellow-500/40 hover:bg-yellow-500/30'
         : 'bg-yellow-100 text-yellow-900 border-yellow-300 hover:bg-yellow-200';
-      icone = <Banknote className="w-3 h-3 text-yellow-600 dark:text-yellow-400 shrink-0" />;
     }
 
-    const exibirPopover = popoverAberto || hoverAberto;
-
     return (
-      <div className="relative inline-block" ref={popoverRef}>
+      <>
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            setPopoverAberto(prev => !prev);
+            setModalAberto(true);
           }}
-          onMouseEnter={() => setHoverAberto(true)}
-          onMouseLeave={() => setHoverAberto(false)}
-          title={infoEntrega.mensagemPopover}
-          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border transition cursor-pointer active:scale-95 whitespace-nowrap shadow-2xs select-none ${corBadge}`}
+          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border transition cursor-pointer hover:opacity-80 active:scale-95 whitespace-nowrap shadow-2xs select-none ${corBadge}`}
         >
           <span>{infoEntrega.badgeTexto}</span>
         </button>
 
-        {exibirPopover && (
+        {modalAberto && (
           <div
-            onClick={(e) => e.stopPropagation()}
-            className={`absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 p-3 rounded-2xl border shadow-2xl text-left w-64 animate-in fade-in zoom-in-95 duration-100 ${
-              isDark
-                ? 'bg-slate-900 border-slate-700 text-white shadow-black/70'
-                : 'bg-white border-slate-200 text-slate-900 shadow-slate-400/40'
-            }`}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+            onClick={(e) => {
+              e.stopPropagation();
+              setModalAberto(false);
+            }}
           >
-            {/* Seta indicativa */}
             <div
-              className={`absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 border-t border-l ${
-                isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
+              className={`w-full max-w-md rounded-2xl border p-5 shadow-2xl animate-in zoom-in-95 duration-150 text-left ${
+                isDark
+                  ? 'bg-slate-900 border-slate-700 text-white shadow-black/80'
+                  : 'bg-white border-slate-200 text-slate-900 shadow-slate-900/20'
               }`}
-            />
-            <div className="relative space-y-1.5">
-              <div className="flex items-center justify-between border-b pb-1.5 border-slate-200 dark:border-slate-800">
-                <div className="flex items-center gap-1.5">
-                  <Truck className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    Expedição • Entrega
-                  </span>
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Cabeçalho */}
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                    <Truck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold leading-tight">
+                      Instruções de Cobrança na Entrega
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                      Pedido #{pedido.numero_pedido}
+                    </p>
+                  </div>
                 </div>
-                {popoverAberto && (
-                  <button
-                    type="button"
-                    onClick={() => setPopoverAberto(false)}
-                    className="p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded cursor-pointer"
-                    title="Fechar"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
+                <button
+                  type="button"
+                  onClick={() => setModalAberto(false)}
+                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg transition hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                  title="Fechar"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Corpo / Card de Informação */}
+              <div className="py-4 space-y-3">
+                {infoEntrega.tipo === 'dinheiro' && (
+                  <div className={`p-4 rounded-xl border space-y-3 ${
+                    isDark ? 'bg-slate-800/60 border-slate-700' : 'bg-slate-50 border-slate-200'
+                  }`}>
+                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                      <Banknote className="w-4 h-4 text-emerald-500" />
+                      <span>Cobrança em Dinheiro / Espécie</span>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                        <span>Valor da Compra:</span>
+                        <span className="font-semibold text-slate-900 dark:text-slate-100 font-mono">
+                          {formatarMoeda(infoEntrega.valorTotal)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                        <span>Cliente vai pagar com:</span>
+                        <span className="font-semibold text-slate-900 dark:text-slate-100 font-mono">
+                          {infoEntrega.pagaCom ? formatarMoeda(infoEntrega.pagaCom) : formatarMoeda(infoEntrega.valorTotal)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {infoEntrega.temTroco ? (
+                      <div className={`p-3 rounded-lg border text-center ${
+                        isDark ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-300'
+                      }`}>
+                        <span className="text-xs font-bold text-amber-700 dark:text-amber-300 block mb-0.5">
+                          Troco a preparar:
+                        </span>
+                        <span className="text-xl font-black text-amber-600 dark:text-amber-400 font-mono">
+                          {formatarMoeda(infoEntrega.troco || 0)}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className={`p-2.5 rounded-lg border text-center text-xs font-medium ${
+                        isDark ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                      }`}>
+                        Valor exato em dinheiro • Não necessita de troco
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {infoEntrega.tipo === 'debito' && (
+                  <div className={`p-4 rounded-xl border space-y-3 ${
+                    isDark ? 'bg-slate-800/60 border-slate-700' : 'bg-slate-50 border-slate-200'
+                  }`}>
+                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                      <CreditCard className="w-4 h-4 text-orange-500" />
+                      <span>Cobrança com Cartão de Débito na Entrega</span>
+                    </div>
+
+                    <div className={`p-3 rounded-lg border text-xs leading-relaxed ${
+                      isDark ? 'bg-orange-500/10 border-orange-500/30 text-orange-200' : 'bg-orange-50 border-orange-200 text-orange-900'
+                    }`}>
+                      <strong>Instrução:</strong> Enviar maquininha de cartão habilitada para função <strong>Débito</strong>.
+                    </div>
+
+                    <div className="flex justify-between items-center text-xs pt-1 border-t border-slate-200 dark:border-slate-700/60">
+                      <span className="text-slate-600 dark:text-slate-400">Valor a ser passado na máquina:</span>
+                      <span className="text-base font-black text-orange-600 dark:text-orange-400 font-mono">
+                        {formatarMoeda(infoEntrega.valorTotal)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {infoEntrega.tipo === 'credito' && (
+                  <div className={`p-4 rounded-xl border space-y-3 ${
+                    isDark ? 'bg-slate-800/60 border-slate-700' : 'bg-slate-50 border-slate-200'
+                  }`}>
+                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                      <CreditCard className="w-4 h-4 text-amber-500" />
+                      <span>Cobrança com Cartão de Crédito na Entrega</span>
+                    </div>
+
+                    <div className={`p-3 rounded-lg border text-xs leading-relaxed ${
+                      isDark ? 'bg-amber-500/10 border-amber-500/30 text-amber-200' : 'bg-amber-50 border-amber-200 text-amber-900'
+                    }`}>
+                      <strong>Instrução:</strong> Enviar maquininha de cartão habilitada para função <strong>Crédito</strong>.
+                    </div>
+
+                    <div className="space-y-1.5 text-xs pt-1 border-t border-slate-200 dark:border-slate-700/60">
+                      <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                        <span>Parcelamento:</span>
+                        <span className="font-semibold text-slate-900 dark:text-slate-100 font-mono">
+                          {infoEntrega.parcelas && infoEntrega.parcelas > 1
+                            ? `${infoEntrega.parcelas}x de ${formatarMoeda(infoEntrega.valorParcela || 0)}`
+                            : `À vista (1x de ${formatarMoeda(infoEntrega.valorTotal)})`}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                        <span>Valor a ser passado na máquina:</span>
+                        <span className="text-base font-black text-amber-600 dark:text-amber-400 font-mono">
+                          {formatarMoeda(infoEntrega.valorTotal)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
 
-              <p className="text-xs font-semibold leading-relaxed">
-                {infoEntrega.mensagemPopover}
-              </p>
-
-              {infoEntrega.temTroco && (
-                <div className="pt-1.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[11px] font-mono">
-                  <span className="text-slate-500 dark:text-slate-400 font-medium">Troco a levar:</span>
-                  <span className="font-black text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
-                    {formatarMoeda(infoEntrega.troco || 0)}
-                  </span>
-                </div>
-              )}
+              {/* Rodapé com botão Fechar */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setModalAberto(false)}
+                  className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs transition cursor-pointer active:scale-98 shadow-sm ${
+                    isDark
+                      ? 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300'
+                  }`}
+                >
+                  Entendido / Fechar
+                </button>
+              </div>
             </div>
           </div>
         )}
-      </div>
+      </>
     );
   }
 

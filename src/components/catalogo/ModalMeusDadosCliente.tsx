@@ -4,6 +4,7 @@ import {
   X,
   User,
   Phone,
+  Mail,
   MapPin,
   Plus,
   Trash2,
@@ -53,6 +54,7 @@ export const ModalMeusDadosCliente: React.FC<ModalMeusDadosClienteProps> = ({
   // Dados Pessoais Form
   const [nome, setNome] = useState<string>('');
   const [whatsapp, setWhatsapp] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
   const [salvandoDados, setSalvandoDados] = useState<boolean>(false);
   const [mensagemSucessoDados, setMensagemSucessoDados] = useState<string | null>(null);
 
@@ -82,6 +84,7 @@ export const ModalMeusDadosCliente: React.FC<ModalMeusDadosClienteProps> = ({
     if (isOpen && cliente) {
       setNome(cliente.nome || '');
       setWhatsapp(cliente.whatsapp || cliente.telefone || '');
+      setEmail(cliente.email || '');
       setErroMsg(null);
       setSucessoMsg(null);
       setMensagemSucessoDados(null);
@@ -108,6 +111,7 @@ export const ModalMeusDadosCliente: React.FC<ModalMeusDadosClienteProps> = ({
 
     const nomeTrim = nome.trim();
     const telLimpo = whatsapp.replace(/\D/g, '');
+    const emailTrim = email.trim();
 
     if (!nomeTrim) {
       setErroMsg('Por favor, informe seu Nome Completo.');
@@ -116,6 +120,11 @@ export const ModalMeusDadosCliente: React.FC<ModalMeusDadosClienteProps> = ({
 
     if (telLimpo.length < 10) {
       setErroMsg('Informe um número de WhatsApp válido com DDD (mínimo 10 dígitos).');
+      return;
+    }
+
+    if (emailTrim && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
+      setErroMsg('Por favor, informe um endereço de e-mail válido.');
       return;
     }
 
@@ -130,6 +139,7 @@ export const ModalMeusDadosCliente: React.FC<ModalMeusDadosClienteProps> = ({
           nome: nomeTrim,
           whatsapp: telLimpo,
           telefone: telLimpo,
+          email: emailTrim || null,
           atualizado_em: new Date().toISOString()
         })
         .eq('id', cliente.id)
@@ -474,6 +484,27 @@ export const ModalMeusDadosCliente: React.FC<ModalMeusDadosClienteProps> = ({
                 </div>
                 <p className="text-[11px] text-slate-400 mt-1">
                   Utilizado para notificações e atualizações de entrega dos seus pedidos.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  E-mail
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="exemplo@email.com"
+                    className={`w-full pl-10 pr-3.5 py-2.5 rounded-2xl border text-xs font-semibold focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition ${
+                      isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                    }`}
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Utilizado para envio de recibos e comunicações do pedido.
                 </p>
               </div>
 
