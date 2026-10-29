@@ -170,7 +170,7 @@ export const CatalogoPublico: React.FC = () => {
   const [pixCopiado, setPixCopiado] = useState<boolean>(false);
 
   // Tratamento do Retorno Mercado Pago & Polling do Pix
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [modalRetornoMP, setModalRetornoMP] = useState<{
     aberto: boolean;
     pedidoNumero: number;
@@ -867,16 +867,18 @@ export const CatalogoPublico: React.FC = () => {
       }
 
       try {
+        const temPagarPedido = Boolean(searchParams.get('pagar_pedido') || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('pagar_pedido')));
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user && ativo) {
           await sincronizarUsuarioOAuth(session.user);
-        } else if (ativo && !clienteSelecionado?.id) {
+        } else if (ativo && !clienteSelecionado?.id && !temPagarPedido) {
           setModalOnboardingMotivo('geral');
           setModalOnboardingAberto(true);
         }
       } catch (err) {
         console.warn('Aviso ao sincronizar sessão OAuth no catálogo:', err);
-        if (ativo && !clienteSelecionado?.id) {
+        const temPagarPedido = Boolean(searchParams.get('pagar_pedido') || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('pagar_pedido')));
+        if (ativo && !clienteSelecionado?.id && !temPagarPedido) {
           setModalOnboardingMotivo('geral');
           setModalOnboardingAberto(true);
         }
@@ -906,13 +908,14 @@ export const CatalogoPublico: React.FC = () => {
     };
   }, [loja?.id, clienteSelecionado?.id]);
 
-  // Garante disparo imediato de onboarding se o visitante abrir o catálogo anônimo
+  // Garante disparo imediato de onboarding se o visitante abrir o catálogo anônimo (dispensa se houver deep link de pagamento de pedido)
   useEffect(() => {
-    if (!carregando && loja?.id && !clienteSelecionado?.id) {
+    const temPagarPedido = Boolean(searchParams.get('pagar_pedido') || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('pagar_pedido')));
+    if (!carregando && loja?.id && !clienteSelecionado?.id && !temPagarPedido) {
       setModalOnboardingMotivo('geral');
       setModalOnboardingAberto(true);
     }
-  }, [carregando, loja?.id, clienteSelecionado?.id]);
+  }, [carregando, loja?.id, clienteSelecionado?.id, searchParams]);
 
   const handleSalvarContato = (novosDados: DadosContatoCliente) => {
     setDadosContato(novosDados);
@@ -1168,24 +1171,115 @@ export const CatalogoPublico: React.FC = () => {
     carregarCatalogo();
   }, [slug]);
 
+  // Função para higienizar a URL removendo ?pagar_pedido após encerramento ou conclusão
+  const limparParametroPagarPedido = useCallback(() => {
+    try {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('pagar_pedido');
+        return next;
+      }, { replace: true });
+    } catch {
+      // Ignore
+    }
+
+    if (typeof window !== 'undefined' && window.location) {
+      try {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has('pagar_pedido')) {
+          url.searchParams.delete('pagar_pedido');
+          window.history.replaceState({}, document.title, url.pathname + (url.search ? url.search : ''));
+        }
+      } catch {
+        // Ignore
+      }
+    }
+  }, [setSearchParams]);
+
   // Função reutilizável para carregar o pedido pesado e abrir o modal de pagamento
   const carregarPedidoParaPagamento = useCallback(async (pagarPedidoId: string) => {
     if (!pagarPedidoId || !loja?.id) return;
 
     try {
-      const { data, error } = await supabase.rpc('obter_pedido_para_pagamento_catalogo', {
-        p_pedido_id: pagarPedidoId,
-        p_slug_catalogo: slug || loja.slug_catalogo || loja.id
-      });
+      let ped: any = null;
 
-      if (error || !data?.sucesso || !data?.pedido) {
-        console.warn('[CatalogoPublico] Pedido para pagamento não localizado:', error || data?.mensagem);
+      // 1. Tentar via RPC oficial com SECURITY DEFINER (compatível com anon e authenticated)
+      try {
+        const { data, error } = await supabase.rpc('obter_pedido_para_pagamento_catalogo', {
+          p_pedido_id: pagarPedidoId,
+          p_slug_catalogo: slug || loja.slug_catalogo || loja.id
+        });
+
+        if (!error && data?.sucesso && data?.pedido) {
+          ped = data.pedido;
+        } else if (error) {
+          console.warn('[CatalogoPublico] RPC obter_pedido_para_pagamento_catalogo retornou aviso:', error);
+        }
+      } catch (rpcErr) {
+        console.warn('[CatalogoPublico] Erro na chamada RPC:', rpcErr);
+      }
+
+      // 2. Fallback resiliente: busca direta na tabela pedidos com relações estruturadas
+      if (!ped) {
+        const { data: pedDb, error: pedErr } = await supabase
+          .from('pedidos')
+          .select(`
+            *,
+            cliente:clientes(*),
+            itens:itens_pedido(*),
+            pedido_entregas:pedido_entregas(*),
+            pagamentos_previstos:pedidos_pagamentos_previstos(*)
+          `)
+          .eq('id', pagarPedidoId)
+          .eq('loja_id', loja.id)
+          .maybeSingle();
+
+        if (pedErr) {
+          console.warn('[CatalogoPublico] Busca direta de pedido falhou:', pedErr);
+        } else if (pedDb) {
+          ped = pedDb;
+        }
+      }
+
+      if (!ped) {
+        console.warn('[CatalogoPublico] Pedido para pagamento não localizado por nenhum método.');
         return;
       }
 
-      const ped = data.pedido;
+      // 3. Normalizar itens e entregas
+      if (!ped.itens && ped.itens_pedido) {
+        ped.itens = ped.itens_pedido;
+      }
+      if (!ped.pedido_entrega && ped.pedido_entregas) {
+        ped.pedido_entrega = Array.isArray(ped.pedido_entregas) ? ped.pedido_entregas[0] : ped.pedido_entregas;
+      }
+
+      // 4. Hidratar cliente no estado e dispensar tela de login inicial
+      if (ped.cliente && !clienteSelecionado?.id) {
+        handleSelecionarCliente(ped.cliente as Cliente);
+      } else if (ped.cliente_id && !clienteSelecionado?.id) {
+        const { data: cliData } = await supabase
+          .from('clientes')
+          .select('*')
+          .eq('id', ped.cliente_id)
+          .maybeSingle();
+        if (cliData) {
+          ped.cliente = cliData;
+          handleSelecionarCliente(cliData as Cliente);
+        }
+      }
+
+      if (ped.cliente_nome_avulso && !nomeCliente) {
+        setNomeCliente(ped.cliente_nome_avulso);
+      }
+      if (ped.cliente_telefone_avulso && !whatsappCliente) {
+        setWhatsappCliente(ped.cliente_telefone_avulso);
+      }
+
+      // 5. Verificar se já quitado ou ainda em pesagem
       if (ped.status_pagamento === 'pago') {
         alert(`O pedido #${ped.numero_pedido} já se encontra quitado e pago!`);
+        limparParametroPagarPedido();
         return;
       }
 
@@ -1194,26 +1288,28 @@ export const CatalogoPublico: React.FC = () => {
         return;
       }
 
+      // Fecha qualquer modal de onboarding / login para dispensar a tela inicial
+      setModalOnboardingAberto(false);
+
+      // Abre imediatamente o ModalPagamentoFechamentoCatalogo com os dados atualizados do pedido
       setPedidoParaPagamento(ped);
       setModalPagamentoPedidoPesadoAberto(true);
       setPedidoIdPendentePagar(null);
     } catch (err) {
       console.error('[CatalogoPublico] Erro ao carregar pedido para pagamento:', err);
     }
-  }, [loja?.id, loja?.slug_catalogo, slug]);
+  }, [loja?.id, loja?.slug_catalogo, slug, clienteSelecionado?.id, nomeCliente, whatsappCliente, handleSelecionarCliente, limparParametroPagarPedido]);
 
   // Tratamento de Deep Link para Pagamento de Pedido Pesado (?pagar_pedido={pedido_id})
   useEffect(() => {
-    const pagarPedidoId = searchParams.get('pagar_pedido');
+    const pagarPedidoId = searchParams.get('pagar_pedido') || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('pagar_pedido') : null);
     if (!pagarPedidoId || !loja?.id) return;
 
     setPedidoIdPendentePagar(pagarPedidoId);
 
-    // Se o cliente já estiver autenticado na sessão, abre imediatamente
-    if (clienteSelecionado?.id) {
-      carregarPedidoParaPagamento(pagarPedidoId);
-    }
-  }, [searchParams, loja?.id, clienteSelecionado?.id, carregarPedidoParaPagamento]);
+    // Carrega o pedido imediatamente sem exigir login prévio
+    carregarPedidoParaPagamento(pagarPedidoId);
+  }, [searchParams, loja?.id, carregarPedidoParaPagamento]);
 
   // 1. Tratar Retorno do Mercado Pago (Redirecionamento pós-checkout)
   useEffect(() => {
@@ -3819,6 +3915,7 @@ Fico no aguardo da confirmação! ✨`;
           onClose={() => {
             setModalPagamentoPedidoPesadoAberto(false);
             setPedidoParaPagamento(null);
+            limparParametroPagarPedido();
           }}
           loja={loja}
           cliente={clienteSelecionado}
@@ -3828,6 +3925,7 @@ Fico no aguardo da confirmação! ✨`;
             const pedFinal = pedAtualizado || pedidoParaPagamento;
             setModalPagamentoPedidoPesadoAberto(false);
             setPedidoParaPagamento(null);
+            limparParametroPagarPedido();
             if (pedFinal) {
               const lojaPhone = (loja.whatsapp || (loja as any).telefone || '').replace(/\D/g, '');
               const phoneFinal = lojaPhone.startsWith('55') ? lojaPhone : `55${lojaPhone}`;
@@ -4075,8 +4173,8 @@ Fico no aguardo da confirmação! ✨`;
         }}
       />
 
-      {/* OVERLAY DE BLOQUEIO DA VITRINE QUANDO NÃO AUTENTICADO */}
-      {!clienteSelecionado?.id && !carregando && !modalOnboardingAberto && (
+      {/* OVERLAY DE BLOQUEIO DA VITRINE QUANDO NÃO AUTENTICADO (DISPENSADO SE HOUVER DEEP LINK OU MODAL DE PAGAMENTO ATIVO) */}
+      {!clienteSelecionado?.id && !carregando && !modalOnboardingAberto && !searchParams.get('pagar_pedido') && !pedidoParaPagamento && !modalPagamentoPedidoPesadoAberto && (
         <div className="fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center">
           <div className="bg-slate-900 border border-emerald-500/40 rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-4 shadow-2xl animate-in zoom-in-95">
             <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto">

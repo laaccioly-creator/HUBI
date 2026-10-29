@@ -1179,6 +1179,17 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
 
   const handleFecharTudo = () => {
     setSucessoModal(false);
+    if (typeof window !== 'undefined' && window.location) {
+      try {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has('pagar_pedido')) {
+          url.searchParams.delete('pagar_pedido');
+          window.history.replaceState({}, document.title, url.pathname + (url.search ? url.search : ''));
+        }
+      } catch {
+        // Ignore
+      }
+    }
     onClose();
   };
 
