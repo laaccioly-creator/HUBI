@@ -19,7 +19,7 @@ import {
   Truck
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { Loja, Produto, VariacaoProduto, Categoria, FormaEntrega, ModoExibicaoCatalogo, Cupom, Cliente, PedidoEntrega } from '../types';
+import { Loja, Produto, VariacaoProduto, Categoria, FormaEntrega, ModoExibicaoCatalogo, Cupom, Cliente, PedidoEntrega, Pedido } from '../types';
 import { LojaShippingConfig, ShippingSelectionResult } from '../types/shipping';
 import { ShippingFulfillmentSelector } from './shipping/ShippingFulfillmentSelector';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
@@ -304,7 +304,6 @@ export const CatalogoPublico: React.FC = () => {
   const [modalNotificacoesAberto, setModalNotificacoesAberto] = useState<boolean>(false);
   const [modalCadernetaAberto, setModalCadernetaAberto] = useState<boolean>(false);
   const [modalMeusDadosAberto, setModalMeusDadosAberto] = useState<boolean>(false);
-  const [modalPagamentoCheckoutAberto, setModalPagamentoCheckoutAberto] = useState<boolean>(false);
   const [modalPagamentoPedidoPesadoAberto, setModalPagamentoPedidoPesadoAberto] = useState<boolean>(false);
   const [pedidoParaPagamento, setPedidoParaPagamento] = useState<any | null>(null);
   const [pedidoIdPendentePagar, setPedidoIdPendentePagar] = useState<string | null>(null);
@@ -1843,17 +1842,18 @@ export const CatalogoPublico: React.FC = () => {
       return;
     }
 
-    // Abre obrigatoriamente a etapa/modal de escolha de forma de pagamento antes de enviar o pedido
-    setModalPagamentoCheckoutAberto(true);
+    // Abre obrigatoriamente o modal unificado oficial de pagamento do catálogo: "Pagamento • Pedido #..."
+    confirmarEnvioPedidoCatalogo({ abrirModalPagamento: true });
   };
 
-  const confirmarEnvioPedidoCatalogo = async (options?: { ehPesagemPrevia?: boolean }) => {
+  const confirmarEnvioPedidoCatalogo = async (options?: { ehPesagemPrevia?: boolean; abrirModalPagamento?: boolean }) => {
     if (!loja?.id || carrinho.length === 0) return;
 
     const ehPesagemPrevia = Boolean(options?.ehPesagemPrevia || exigePesagemPrevia);
+    const abrirModalPagamento = Boolean(options?.abrirModalPagamento);
 
     let opcaoEscolhidaObj = null;
-    if (!ehPesagemPrevia) {
+    if (!ehPesagemPrevia && !abrirModalPagamento) {
       opcaoEscolhidaObj = opcoesPagamentoCatalogoAtivas.find(
         (op) => op.id === formaPagamentoCatalogoEscolhida && !op.desabilitado
       );
@@ -1959,7 +1959,11 @@ export const CatalogoPublico: React.FC = () => {
             : null
       );
 
-      const formaPagamentoEfetiva = ehPesagemPrevia ? 'aguardando_pesagem' : formaPagamentoCatalogoEscolhida;
+      const formaPagamentoEfetiva = ehPesagemPrevia
+        ? 'aguardando_pesagem'
+        : abrirModalPagamento
+        ? 'a_definir'
+        : formaPagamentoCatalogoEscolhida;
       const ehFiado = formaPagamentoEfetiva === 'fiado';
       const ehCaderneta = formaPagamentoEfetiva === 'caderneta';
 
@@ -2098,6 +2102,32 @@ export const CatalogoPublico: React.FC = () => {
         motivo: 'Pedido recebido via catálogo online',
         criado_em: dataOperacaoIso
       })).catch(() => {});
+
+      // Se solicitado abrir o modal unificado de pagamento do catálogo:
+      if (abrirModalPagamento) {
+        setCarrinho([]);
+        setDrawerCarrinhoAberto(false);
+        setPixAprovadoEmTempoReal(false);
+        try {
+          const slugKey = slug || window.location.pathname.split('/').pop() || 'default';
+          sessionStorage.removeItem(`hubi_carrinho_catalogo_${slugKey}`);
+        } catch (e) {}
+        if (loja?.id && clienteSelecionado?.id) {
+          ClienteCatalogoService.limparCarrinho(loja.id, clienteSelecionado.id);
+        }
+
+        const pedidoCompleto = {
+          ...pedidoCriado,
+          cliente: clienteSelecionado || undefined,
+          itens: itensFormatados,
+          pedido_entrega: entregaPayload,
+          pedido_entregas: [entregaPayload]
+        } as unknown as Pedido;
+
+        setPedidoParaPagamento(pedidoCompleto);
+        setModalPagamentoPedidoPesadoAberto(true);
+        return;
+      }
 
       // Tratamento Contábil para Meios a Prazo (Fiado e Caderneta)
       if (ehFiado && clienteFinalId) {
@@ -2303,7 +2333,6 @@ Fico no aguardo da confirmação! ✨`;
       // O envio de resumo é 100% manual acionado se o cliente clicar no botão no modal pós-pedido
 
       setCarrinho([]);
-      setModalPagamentoCheckoutAberto(false);
       setDrawerCarrinhoAberto(false);
       setPixAprovadoEmTempoReal(false);
       try {
@@ -3777,258 +3806,34 @@ Fico no aguardo da confirmação! ✨`;
       {modalPagamentoPedidoPesadoAberto && pedidoParaPagamento && loja && (
         <ModalPagamentoFechamentoCatalogo
           isOpen={modalPagamentoPedidoPesadoAberto}
-          onClose={() => setModalPagamentoPedidoPesadoAberto(false)}
+          onClose={() => {
+            setModalPagamentoPedidoPesadoAberto(false);
+            setPedidoParaPagamento(null);
+          }}
           loja={loja}
+          cliente={clienteSelecionado}
           origem="catalogo"
           pedido={pedidoParaPagamento}
-          onPagamentoConcluido={() => {
+          onPagamentoConcluido={(pedAtualizado) => {
+            const pedFinal = pedAtualizado || pedidoParaPagamento;
             setModalPagamentoPedidoPesadoAberto(false);
+            setPedidoParaPagamento(null);
+            if (pedFinal) {
+              const lojaPhone = (loja.whatsapp || (loja as any).telefone || '').replace(/\D/g, '');
+              const phoneFinal = lojaPhone.startsWith('55') ? lojaPhone : `55${lojaPhone}`;
+              const msgWhatsApp = `🛍️ *PEDIDO ONLINE #${pedFinal.numero_pedido}*\n\nOlá, ${loja.nome_fantasia}! Acabei de confirmar o pagamento/fechamento do meu pedido #${pedFinal.numero_pedido}.\nValor Total: R$ ${Number(pedFinal.valor_total || 0).toFixed(2)}`;
+              const urlWhats = lojaPhone ? `https://api.whatsapp.com/send?phone=${phoneFinal}&text=${encodeURIComponent(msgWhatsApp)}` : '';
+              setPedidoConcluidoModal({
+                numeroPedido: pedFinal.numero_pedido || 0,
+                whatsAppUrl: urlWhats,
+                formaPagamentoEscolhida: pedFinal.status_pagamento
+              });
+            }
           }}
         />
       )}
 
-      {/* MODAL DE ESCOLHA OBRIGATÓRIA DE FORMA DE PAGAMENTO NO CHECKOUT */}
-      {modalPagamentoCheckoutAberto && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !enviandoPedido) {
-              setModalPagamentoCheckoutAberto(false);
-            }
-          }}
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[60] animate-in fade-in"
-        >
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh] text-slate-900 dark:text-white animate-in zoom-in-95 duration-150">
-            {/* Cabeçalho */}
-            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/90 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-2xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/30">
-                  <CreditCard className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-black text-sm sm:text-base leading-tight">
-                    Escolha a Forma de Pagamento
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Selecione como deseja pagar seu pedido antes de enviar
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                disabled={enviandoPedido}
-                onClick={() => setModalPagamentoCheckoutAberto(false)}
-                className="p-2 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            {/* Corpo: Resumo e Opções Ativas */}
-            <div className="p-4 sm:p-5 overflow-y-auto space-y-4">
-              <div className="p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
-                    Total a Pagar
-                  </span>
-                  <span className="text-xs text-slate-600 dark:text-slate-300">
-                    Produtos ({formatarMoeda(subtotal)}) + Entrega ({formatarMoeda(valorFreteEfetivo)})
-                  </span>
-                </div>
-                <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">
-                  {formatarMoeda(total)}
-                </span>
-              </div>
-
-              <div className="space-y-2">
-                <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
-                  Opções de Pagamento Disponíveis
-                </span>
-
-                {opcoesPagamentoCatalogoAtivas.length === 0 ? (
-                  <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 text-xs text-amber-600 dark:text-amber-300 font-semibold">
-                    Nenhuma forma de pagamento ativa foi encontrada nas configurações desta loja.
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {opcoesPagamentoCatalogoAtivas.map((op) => {
-                      const selecionado = formaPagamentoCatalogoEscolhida === op.id;
-                      const desabilitado = Boolean(op.desabilitado);
-                      return (
-                        <button
-                          key={op.id}
-                          type="button"
-                          disabled={desabilitado}
-                          onClick={() => {
-                            if (!desabilitado) setFormaPagamentoCatalogoEscolhida(op.id);
-                          }}
-                          className={`w-full p-3.5 rounded-2xl border text-left transition flex items-start justify-between gap-3 ${
-                            desabilitado
-                              ? 'opacity-50 bg-slate-100 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 cursor-not-allowed'
-                              : selecionado
-                              ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 ring-1 ring-emerald-500 cursor-pointer'
-                              : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-slate-300 dark:hover:border-slate-700 cursor-pointer'
-                          }`}
-                        >
-                          <div className="flex items-start gap-3 min-w-0">
-                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
-                              selecionado
-                                ? 'bg-emerald-600 text-white'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-                            }`}>
-                              {op.tipo === 'pix' ? (
-                                <QrCode className="w-4 h-4" />
-                              ) : op.tipo === 'dinheiro' ? (
-                                <Banknote className="w-4 h-4" />
-                              ) : op.tipo === 'caderneta' || op.tipo === 'fiado' ? (
-                                <FileText className="w-4 h-4" />
-                              ) : (
-                                <CreditCard className="w-4 h-4" />
-                              )}
-                            </div>
-                            <div className="min-w-0">
-                              <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white block">
-                                {op.nome}
-                              </span>
-                              <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
-                                {op.descricao}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-1 ${
-                            selecionado
-                              ? 'border-emerald-600 bg-emerald-600 text-white'
-                              : 'border-slate-300 dark:border-slate-600'
-                          }`}>
-                            {selecionado && <Check className="w-3 h-3" />}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Exibição da chave Pix e instruções caso Pix esteja selecionado */}
-              {formaPagamentoCatalogoEscolhida === 'pix' && (() => {
-                const pagConfig = (loja?.configuracoes_extras as any)?.pagamentos || {};
-                const chavePix = pagConfig.pix_chave || (loja as any)?.chave_pix || '';
-                const orientacoesPix = pagConfig.pix_orientacoes || '';
-                if (!chavePix && !orientacoesPix) return null;
-
-                const codigoPixEmv = chavePix ? gerarPayloadPixEmv({
-                  chavePix,
-                  nomeRecebedor: loja.nome_fantasia || 'HUBI SISTEMAS',
-                  cidade: (loja as any)?.cidade || (loja as any)?.endereco_cidade || 'BRASIL',
-                  valor: total
-                }) : '';
-
-                return (
-                  <div className="p-3 rounded-2xl border border-emerald-500/40 bg-emerald-500/5 space-y-2.5">
-                    {chavePix && (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                          <div className="min-w-0">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 block">
-                              Pix Copia e Cola (BR Code Oficial)
-                            </span>
-                            <span className="text-xs font-mono font-bold text-slate-900 dark:text-white select-all break-all truncate block">
-                              {codigoPixEmv || chavePix}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              try {
-                                await navigator.clipboard.writeText(codigoPixEmv || chavePix);
-                                setPixCopiadoCheckout(true);
-                                setTimeout(() => setPixCopiadoCheckout(false), 2500);
-                              } catch {
-                                // ignore
-                              }
-                            }}
-                            className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1 shrink-0 cursor-pointer transition active:scale-95 shadow-xs"
-                          >
-                            {pixCopiadoCheckout ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                            <span>{pixCopiadoCheckout ? 'Copiado!' : 'Copiar Pix'}</span>
-                          </button>
-                        </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 px-1">
-                          Chave Pix: <strong className="text-slate-700 dark:text-slate-300 select-all">{chavePix}</strong>
-                        </div>
-                      </div>
-                    )}
-                    {orientacoesPix && (
-                      <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed px-1">
-                        {orientacoesPix}
-                      </p>
-                    )}
-                    {/* Campo de anexo do comprovante */}
-                    <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
-                      <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 transition">
-                        <Paperclip className="w-3.5 h-3.5 text-emerald-500" />
-                        <span>{comprovantePixCheckout ? 'Trocar Comprovante' : 'Anexar Comprovante Pix'}</span>
-                        <input
-                          type="file"
-                          accept="image/*,application/pdf"
-                          className="hidden"
-                          onChange={(e) => {
-                            const f = e.target.files?.[0];
-                            if (f) setComprovantePixCheckout(f);
-                          }}
-                        />
-                      </label>
-                      {comprovantePixCheckout && (
-                        <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-300 truncate max-w-[180px]">
-                          <span className="truncate">{comprovantePixCheckout.name}</span>
-                          <button
-                            type="button"
-                            onClick={() => setComprovantePixCheckout(null)}
-                            className="text-rose-500 hover:text-rose-600 p-1"
-                            title="Remover anexo"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-
-            {/* Rodapé com Ações */}
-            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/90 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                disabled={enviandoPedido}
-                onClick={() => setModalPagamentoCheckoutAberto(false)}
-                className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition cursor-pointer"
-              >
-                Voltar ao Carrinho
-              </button>
-              <button
-                type="button"
-                disabled={enviandoPedido || !formaPagamentoCatalogoEscolhida}
-                onClick={() => confirmarEnvioPedidoCatalogo()}
-                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-md shadow-emerald-600/20 transition cursor-pointer active:scale-95"
-              >
-                {enviandoPedido ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Enviando Pedido...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Confirmar e Enviar Pedido</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* MODAL DE SUCESSO / ORIENTAÇÕES PÓS-PEDIDO */}
       {pedidoConcluidoModal && (

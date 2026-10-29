@@ -29,6 +29,7 @@ import { obterDataOperacaoISO } from '../../utils/dataOperacao';
 import { formatarMoeda, formatarValorBRL } from '../../utils/formatters';
 import { ModalDefinirEnvio } from '../pedidos/ModalDefinirEnvio';
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
+import { paymentGatewayService } from '../../services/paymentGatewayService';
 
 interface MoneyInputProps {
   valor: number;
@@ -237,14 +238,25 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
           .eq('ativo', true)
           .order('nome');
 
-        const pagCfg = loja?.configuracoes_extras?.pagamentos;
+        const pagCfg = loja?.configuracoes_extras?.pagamentos as any;
+        const pagDigitais = (loja?.configuracoes_extras as any)?.pagamentos_digitais || {};
+        const mpConfig = pagDigitais?.mercado_pago;
+        const mpAtivo = Boolean(
+          mpConfig?.ativo ||
+          mpConfig?.access_token ||
+          mpConfig?.public_key ||
+          pagCfg?.mercado_pago_ativo ||
+          pagCfg?.provedor_digital === 'mercado_pago' ||
+          pagDigitais?.provedor === 'mercado_pago'
+        );
+
         const cadernetaAtivaLoja = Boolean(loja?.caderneta_ativa ?? pagCfg?.caderneta_ativa);
         const fiadoAtivoLoja = !cadernetaAtivaLoja && Boolean(pagCfg?.permitir_fiado ?? true);
 
         const metodoPermitidoNaLoja = (fp: FormaPagamento) => {
           const t = (fp.tipo || '').toLowerCase();
           if (t === 'pix') return pagCfg?.pix_ativo !== false;
-          if (t === 'mercado_pago') return true;
+          if (t === 'mercado_pago') return mpAtivo;
           if (t === 'mercado_livre') return false; // Proibido no Catálogo
           if (t === 'dinheiro') return pagCfg?.dinheiro_ativo !== false;
           if (t === 'cartao_debito') return pagCfg?.debito_ativo !== false;
@@ -264,6 +276,10 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
             )
             .filter(metodoPermitidoNaLoja);
 
+          if (mpAtivo && !lista.some(f => f.tipo === 'mercado_pago')) {
+            const mpPadrao = FORMAS_PADRAO.find(f => f.tipo === 'mercado_pago');
+            if (mpPadrao) lista = [...lista, mpPadrao];
+          }
           if (fiadoAtivoLoja && !lista.some(f => f.tipo === 'fiado')) {
             const fiadoPadrao = FORMAS_PADRAO.find(f => f.tipo === 'fiado');
             if (fiadoPadrao) lista = [...lista, fiadoPadrao];
@@ -276,12 +292,12 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
         setFormasPagamento(lista);
       } catch (err) {
         console.warn('Fallback formas de pagamento:', err);
-        setFormasPagamento(FORMAS_PADRAO);
+        setFormasPagamento(FORMAS_PADRAO.filter(f => f.tipo !== 'mercado_livre'));
       }
     };
 
     buscarFormas();
-  }, [loja?.id, loja?.caderneta_ativa, loja?.configuracoes_extras?.pagamentos, isOpen]);
+  }, [loja?.id, loja?.caderneta_ativa, loja?.configuracoes_extras?.pagamentos, loja?.configuracoes_extras?.pagamentos_digitais, isOpen]);
 
   // Carrega dados frescos de crédito e caderneta do cliente
   const [dadosClienteFresco, setDadosClienteFresco] = useState<any>(null);
@@ -425,23 +441,31 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
     ? saldoDevedorAvulso
     : Math.max(0, Number(pedSeguro.saldo_devedor ?? (valorTotal - valorJaPago)));
 
-  // Inicializar linhas de pagamento quando abrir
+  // Limpar e redefinir ao fechar
+  useEffect(() => {
+    if (!isOpen) {
+      setLinhasPagamento([]);
+      setErroMsg(null);
+      setSucessoModal(false);
+      setComprovanteArquivo(null);
+    }
+  }, [isOpen]);
+
+  // Inicializar linhas de pagamento quando abrir em estado neutro (sem pré-seleção forçada do Pix)
   useEffect(() => {
     if (isOpen && linhasPagamento.length === 0) {
-      const fps = formasDisponiveis.length > 0 ? formasDisponiveis : FORMAS_PADRAO;
-      const fpInicial = fps.find(f => f.tipo === 'pix') || fps[0];
       setLinhasPagamento([
         {
           id: `linha_${Date.now()}`,
-          forma_pagamento_id: fpInicial.id,
-          forma_tipo: fpInicial.tipo,
-          forma_nome: fpInicial.nome,
+          forma_pagamento_id: '',
+          forma_tipo: '' as any,
+          forma_nome: '',
           valor: Number(saldoDevedorAtual.toFixed(2)),
           parcelas: 1
         }
       ]);
     }
-  }, [isOpen, formasDisponiveis, saldoDevedorAtual, linhasPagamento.length]);
+  }, [isOpen, saldoDevedorAtual, linhasPagamento.length]);
 
   // Sincronizar valor único se não houver split
   useEffect(() => {
@@ -534,13 +558,12 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
   const handleAdicionarLinha = () => {
     const somaAtual = linhasPagamento.reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
     const valorRestanteSugerido = Math.max(0, Number((saldoDevedorAtual - somaAtual).toFixed(2)));
-    const fpPadrao = formasDisponiveis.find((f: FormaPagamento) => f.tipo === 'pix') || formasDisponiveis[0];
 
     const novaLinha: LinhaPagamentoRecebimento = {
       id: `linha_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      forma_pagamento_id: fpPadrao.id,
-      forma_tipo: fpPadrao.tipo,
-      forma_nome: fpPadrao.nome,
+      forma_pagamento_id: '',
+      forma_tipo: '' as any,
+      forma_nome: '',
       valor: valorRestanteSugerido,
       parcelas: 1
     };
@@ -635,6 +658,11 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
     const linhasAtivas = linhasPagamento.filter(l => Number(l.valor) > 0);
     if (linhasAtivas.length === 0) {
       setErroMsg('Informe ao menos uma forma de pagamento com valor válido.');
+      return;
+    }
+
+    if (linhasAtivas.some(l => !l.forma_tipo || !l.forma_pagamento_id)) {
+      setErroMsg('Por favor, selecione uma forma de pagamento para prosseguir.');
       return;
     }
 
@@ -764,6 +792,49 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
       if (erroUpd) throw erroUpd;
 
       audioService.playNewOrderSound();
+
+      // Redirecionamento Mercado Pago se selecionado
+      const temMercadoPago = linhasAtivas.some(l => l.forma_tipo === 'mercado_pago');
+      if (temMercadoPago && loja) {
+        try {
+          const emailEfetivo = clientePedidoMemo?.email || dadosClienteFresco?.email || undefined;
+          const itensPreference = (pedSeguro.itens || []).map((it: any) => ({
+            titulo: it.nome_produto || 'Produto',
+            quantidade: it.quantidade || 1,
+            precoUnitario: it.preco_venda_unitario || 0
+          }));
+
+          if (itensPreference.length === 0) {
+            itensPreference.push({
+              titulo: `Pedido #${pedSeguro.numero_pedido || ''}`,
+              quantidade: 1,
+              precoUnitario: Number(pedSeguro.valor_total || valorTotal || 0)
+            });
+          }
+
+          if (Number(pedSeguro.valor_frete || 0) > 0) {
+            itensPreference.push({
+              titulo: 'Frete / Entrega',
+              quantidade: 1,
+              precoUnitario: Number(pedSeguro.valor_frete || 0)
+            });
+          }
+
+          const linkRes = await paymentGatewayService.gerarLinkMercadoPago({
+            loja,
+            itens: itensPreference,
+            pedidoNumero: pedSeguro.numero_pedido || 0,
+            clienteEmail: emailEfetivo
+          });
+
+          if (linkRes.sucesso && linkRes.linkPagamento) {
+            window.location.href = linkRes.linkPagamento;
+            return;
+          }
+        } catch (mpErr) {
+          console.warn('Aviso ao gerar link Mercado Pago:', mpErr);
+        }
+      }
 
       setSucessoConfig({
         titulo: temFiado
@@ -902,7 +973,10 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
                   {/* Seleção da Forma de Pagamento */}
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                     {formasDisponiveis.map((fp: FormaPagamento) => {
-                      const estaSelecionado = linha.forma_pagamento_id === fp.id || (!linha.forma_pagamento_id && linha.forma_tipo === fp.tipo);
+                      const estaSelecionado = Boolean(
+                        (linha.forma_pagamento_id && linha.forma_pagamento_id === fp.id) ||
+                        (linha.forma_tipo && linha.forma_tipo === fp.tipo)
+                      );
                       const ehPresencial = fp.tipo === 'dinheiro' || fp.tipo === 'cartao_debito' || fp.tipo === 'cartao_credito';
                       const textoContextual = ehPresencial
                         ? (ehRetirada ? 'Pagamento na retirada' : 'Pagamento na entrega')
@@ -1375,7 +1449,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
 
               <button
                 type="submit"
-                disabled={processando || salvando || freteADefinir || totalLinhasPagamento <= 0 || Math.abs(diferencaPagamento) > 0.01 || linhasPagamento.some(l => Number(l.valor) <= 0)}
+                disabled={processando || salvando || freteADefinir || totalLinhasPagamento <= 0 || Math.abs(diferencaPagamento) > 0.01 || linhasPagamento.some(l => Number(l.valor) <= 0 || !l.forma_tipo)}
                 className="flex-[2] py-3 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-98"
               >
                 {processando ? (
