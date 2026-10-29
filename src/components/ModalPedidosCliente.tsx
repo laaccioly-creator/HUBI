@@ -17,7 +17,7 @@ interface ModalPedidosClienteProps {
   onPagarPedido?: (pedido: Pedido) => void;
 }
 
-function obterInfoPagamentoEntregaCliente(ped: Pedido): { ehPresencial: boolean; tipo: 'cartao' | 'dinheiro' | null; label: string } {
+function obterInfoPagamentoEntregaCliente(ped: Pedido): { ehPresencial: boolean; tipo: 'credito' | 'debito' | 'dinheiro' | null; label: string } {
   // Se já concluído, pago ou cancelado, não se aplica
   if (ped.status === 'cancelado' || ped.status_pagamento === 'pago') {
     return { ehPresencial: false, tipo: null, label: '' };
@@ -31,47 +31,68 @@ function obterInfoPagamentoEntregaCliente(ped: Pedido): { ehPresencial: boolean;
       (p.forma_nome || '').toLowerCase().includes('dinheiro')
     );
     if (prevDinheiro) {
-      return { ehPresencial: true, tipo: 'dinheiro', label: '🏷️ Pagar na Entrega (Dinheiro)' };
+      return { ehPresencial: true, tipo: 'dinheiro', label: 'Dinheiro na entrega' };
     }
 
-    const prevCartao = previstos.find((p: any) => 
-      p.forma_tipo === 'cartao_credito' || 
-      p.forma_tipo === 'cartao_debito' ||
-      p.forma_tipo === 'credito' || 
+    const prevDebito = previstos.find((p: any) => 
+      p.forma_tipo === 'cartao_debito' || 
       p.forma_tipo === 'debito' ||
+      (p.forma_nome || '').toLowerCase().includes('débito') ||
+      (p.forma_nome || '').toLowerCase().includes('debito')
+    );
+    if (prevDebito) {
+      return { ehPresencial: true, tipo: 'debito', label: 'Débito na entrega' };
+    }
+
+    const prevCredito = previstos.find((p: any) => 
+      p.forma_tipo === 'cartao_credito' || 
+      p.forma_tipo === 'credito' ||
       (p.forma_nome || '').toLowerCase().includes('crédito') ||
       (p.forma_nome || '').toLowerCase().includes('credito') ||
-      (p.forma_nome || '').toLowerCase().includes('débito') ||
-      (p.forma_nome || '').toLowerCase().includes('debito') ||
       (p.forma_nome || '').toLowerCase().includes('cartão') ||
       (p.forma_nome || '').toLowerCase().includes('cartao')
     );
-    if (prevCartao) {
-      return { ehPresencial: true, tipo: 'cartao', label: '🏷️ Pagar na Entrega (Cartão)' };
+    if (prevCredito) {
+      return { ehPresencial: true, tipo: 'credito', label: 'Crédito na entrega' };
     }
   }
 
   // 2. Inspecionar forma_pagamento_catalogo e metadados
   const fpc = String((ped as any).forma_pagamento_catalogo || (ped.metadados as any)?.forma_pagamento || '').toLowerCase();
   if (fpc === 'dinheiro' || fpc.includes('dinheiro') || fpc === 'dinheiro_entrega') {
-    return { ehPresencial: true, tipo: 'dinheiro', label: '🏷️ Pagar na Entrega (Dinheiro)' };
+    return { ehPresencial: true, tipo: 'dinheiro', label: 'Dinheiro na entrega' };
+  }
+  if (fpc === 'cartao_debito' || fpc === 'debito' || fpc === 'debito_entrega' || fpc.includes('debito') || fpc.includes('débito')) {
+    return { ehPresencial: true, tipo: 'debito', label: 'Débito na entrega' };
   }
   if (
     fpc === 'cartao_credito' || fpc === 'credito' || fpc === 'credito_entrega' ||
-    fpc === 'cartao_debito' || fpc === 'debito' || fpc === 'debito_entrega' ||
-    fpc.includes('cartao') || fpc.includes('cartão') || fpc.includes('credito') || fpc.includes('crédito') || fpc.includes('debito') || fpc.includes('débito')
+    fpc.includes('cartao') || fpc.includes('cartão') || fpc.includes('credito') || fpc.includes('crédito')
   ) {
-    return { ehPresencial: true, tipo: 'cartao', label: '🏷️ Pagar na Entrega (Cartão)' };
+    return { ehPresencial: true, tipo: 'credito', label: 'Crédito na entrega' };
   }
 
-  // 3. Inspecionar observações por menções a troco / pagamento presencial
+  // 3. Inspecionar pagamentos_pedido se houver
+  if (ped.pagamentos && ped.pagamentos.length > 0) {
+    const pagD = ped.pagamentos.find((p: any) => p.forma_tipo === 'dinheiro' || p.forma_pagamento?.tipo === 'dinheiro' || p.forma_pagamento?.nome?.toLowerCase().includes('dinheiro'));
+    const pagB = ped.pagamentos.find((p: any) => p.forma_tipo === 'cartao_debito' || p.forma_pagamento?.tipo === 'cartao_debito' || p.forma_pagamento?.nome?.toLowerCase().includes('débito') || p.forma_pagamento?.nome?.toLowerCase().includes('debito'));
+    const pagC = ped.pagamentos.find((p: any) => p.forma_tipo === 'cartao_credito' || p.forma_pagamento?.tipo === 'cartao_credito' || p.forma_pagamento?.nome?.toLowerCase().includes('crédito') || p.forma_pagamento?.nome?.toLowerCase().includes('credito') || p.forma_pagamento?.nome?.toLowerCase().includes('cartão') || p.forma_pagamento?.nome?.toLowerCase().includes('cartao'));
+    if (pagD) return { ehPresencial: true, tipo: 'dinheiro', label: 'Dinheiro na entrega' };
+    if (pagB) return { ehPresencial: true, tipo: 'debito', label: 'Débito na entrega' };
+    if (pagC) return { ehPresencial: true, tipo: 'credito', label: 'Crédito na entrega' };
+  }
+
+  // 4. Inspecionar observações por menções a troco / pagamento presencial
   if (ped.observacoes) {
     const obs = ped.observacoes.toLowerCase();
     if (obs.includes('troco') || obs.includes('dinheiro na entrega') || obs.includes('pagamento em dinheiro')) {
-      return { ehPresencial: true, tipo: 'dinheiro', label: '🏷️ Pagar na Entrega (Dinheiro)' };
+      return { ehPresencial: true, tipo: 'dinheiro', label: 'Dinheiro na entrega' };
     }
-    if (obs.includes('cartão na entrega') || obs.includes('cartao na entrega') || obs.includes('máquina na entrega') || obs.includes('maquininha')) {
-      return { ehPresencial: true, tipo: 'cartao', label: '🏷️ Pagar na Entrega (Cartão)' };
+    if (obs.includes('débito na entrega') || obs.includes('debito na entrega') || obs.includes('débito') || obs.includes('debito')) {
+      return { ehPresencial: true, tipo: 'debito', label: 'Débito na entrega' };
+    }
+    if (obs.includes('crédito na entrega') || obs.includes('credito na entrega') || obs.includes('cartão na entrega') || obs.includes('cartao na entrega') || obs.includes('máquina na entrega') || obs.includes('maquininha')) {
+      return { ehPresencial: true, tipo: 'credito', label: 'Crédito na entrega' };
     }
   }
 
@@ -326,8 +347,8 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                   {getStatusBadge(ped.status, ped.status_pagamento)}
                 </div>
 
-                <div className="flex items-center justify-between pt-1 border-t border-slate-200 dark:border-slate-800/60 text-xs">
-                  <div>
+                <div className="flex flex-row items-center justify-between gap-2 pt-1 border-t border-slate-200 dark:border-slate-800/60 text-xs">
+                  <div className="shrink-0">
                     <span className="text-slate-700 dark:text-slate-300 text-[11px] font-medium">Total: </span>
                     <strong className="text-slate-900 dark:text-white font-extrabold font-mono">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
@@ -336,10 +357,10 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                     </strong>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-row items-center gap-2 flex-wrap sm:flex-nowrap">
                     {/* Tag informativa de Pagamento na Entrega se definido */}
                     {infoPresencial.ehPresencial && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 whitespace-nowrap shadow-2xs">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-xl text-xs font-medium bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 whitespace-nowrap shadow-2xs">
                         {infoPresencial.label}
                       </span>
                     )}
@@ -365,7 +386,7 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                               setArquivoComprovante(null);
                               setComprovanteEnviadoSucesso(false);
                             }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-xs transition cursor-pointer active:scale-95"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-xs transition cursor-pointer active:scale-95 whitespace-nowrap"
                             title="Enviar comprovante do Pix para o estabelecimento"
                           >
                             <Paperclip className="w-3.5 h-3.5" />
@@ -387,7 +408,7 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                             setPedidoPagamentoModal(ped);
                           }
                         }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition cursor-pointer active:scale-95"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition cursor-pointer active:scale-95 whitespace-nowrap"
                         title="Efetuar pagamento do pedido"
                       >
                         <CreditCard className="w-3.5 h-3.5" />
@@ -416,7 +437,7 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                           setPedidoReciboModal(ped);
                         }
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white font-medium text-xs border border-slate-300 dark:border-slate-600 transition cursor-pointer active:scale-95 shadow-xs"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white font-medium text-xs border border-slate-300 dark:border-slate-600 transition cursor-pointer active:scale-95 shadow-xs whitespace-nowrap"
                       title="Visualizar Recibo do Pedido"
                     >
                       <Receipt className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -427,9 +448,9 @@ export const ModalPedidosCliente: React.FC<ModalPedidosClienteProps> = ({
                       href={`/order-tracking/${ped.id || ped.numero_pedido}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-medium text-xs border border-slate-300 dark:border-slate-600 transition cursor-pointer shadow-xs"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-medium text-xs border border-slate-300 dark:border-slate-600 transition cursor-pointer shadow-xs whitespace-nowrap"
                     >
-                      <span>Rastrear Pedido</span>
+                      <span>Rastrear</span>
                       <ExternalLink className="w-3.5 h-3.5" />
                     </a>
                   </div>
