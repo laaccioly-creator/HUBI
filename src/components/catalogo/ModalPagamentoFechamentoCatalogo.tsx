@@ -30,6 +30,7 @@ import { formatarMoeda, formatarValorBRL } from '../../utils/formatters';
 import { ModalDefinirEnvio } from '../pedidos/ModalDefinirEnvio';
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
 import { paymentGatewayService } from '../../services/paymentGatewayService';
+import { gerarPayloadPixEmv } from '../../utils/pixUtils';
 
 interface MoneyInputProps {
   valor: number;
@@ -157,6 +158,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
   } | null>(null);
   const [pixCopiado, setPixCopiado] = useState<boolean>(false);
   const [chavePixCopiada, setChavePixCopiada] = useState<boolean>(false);
+  const [toastPixMsg, setToastPixMsg] = useState<string | null>(null);
   const [comprovanteArquivo, setComprovanteArquivo] = useState<File | null>(null);
   const [pedidoAtualizado, setPedidoAtualizado] = useState<Pedido | null>(null);
   const [pedidoLocal, setPedidoLocal] = useState<Pedido | null>(pedido);
@@ -505,13 +507,18 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
   const totalLinhasPagamento = linhasPagamento.reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
   const diferencaPagamento = Number((saldoDevedorAtual - totalLinhasPagamento).toFixed(2));
 
+  // Chave Pix da loja bruta
+  const chavePixBruta = (() => {
+    const pagCfg = loja?.configuracoes_extras?.pagamentos as any;
+    return pagCfg?.chave_pix || pagCfg?.pix_chave || (loja as any)?.chave_pix || (loja as any)?.pix_chave || '';
+  })();
+
   // Chave Pix formatada
   const chavePixFormatada = (() => {
+    if (!chavePixBruta) return null;
     const pagCfg = loja?.configuracoes_extras?.pagamentos as any;
-    const chave = pagCfg?.chave_pix || pagCfg?.pix_chave || (loja as any)?.chave_pix || (loja as any)?.pix_chave || '';
-    if (!chave) return null;
     const tipo = (pagCfg?.tipo_chave_pix || (loja as any)?.tipo_chave_pix || '').toLowerCase();
-    const limpo = chave.replace(/\D/g, '');
+    const limpo = chavePixBruta.replace(/\D/g, '');
     if ((tipo === 'telefone' || tipo === 'celular') && (limpo.length === 10 || limpo.length === 11)) {
       return limpo.length === 11
         ? `(${limpo.slice(0, 2)}) ${limpo.slice(2, 7)}-${limpo.slice(7)}`
@@ -523,30 +530,80 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
     if (tipo === 'cpf' && limpo.length === 11) {
       return `${limpo.slice(0, 3)}.${limpo.slice(3, 6)}.${limpo.slice(6, 9)}-${limpo.slice(9)}`;
     }
-    return chave;
+    return chavePixBruta;
   })();
 
-  const pixCopiaCola = (() => {
+  // Código Pix Copia e Cola (BR Code EMV interoperável com qualquer banco com valor embutido)
+  const pixCopiaCola = useMemo(() => {
     const pagCfg = loja?.configuracoes_extras?.pagamentos as any;
-    return pagCfg?.pix_copia_cola || (pedSeguro as any)?.pix_copia_cola || (pedSeguro as any)?.qr_code_pix || null;
-  })();
+    const estatico = pagCfg?.pix_copia_cola || (pedSeguro as any)?.pix_copia_cola || (pedSeguro as any)?.qr_code_pix;
+    if (estatico) return estatico;
+
+    if (chavePixBruta) {
+      try {
+        return gerarPayloadPixEmv({
+          chavePix: chavePixBruta,
+          nomeRecebedor: loja?.nome_fantasia || (loja as any)?.razao_social || 'HUBI SISTEMAS',
+          cidade: (loja as any)?.cidade || (loja as any)?.endereco_cidade || 'BRASIL',
+          valor: Number(saldoDevedorAtual.toFixed(2)),
+          identificador: `PED${pedSeguro.numero_pedido || ''}`.slice(0, 25)
+        });
+      } catch (err) {
+        console.warn('Erro ao gerar código Pix Copia e Cola EMV:', err);
+      }
+    }
+    return null;
+  }, [loja, chavePixBruta, saldoDevedorAtual, pedSeguro.numero_pedido]);
 
   const handleCopiarPix = () => {
     if (!pixCopiaCola) return;
-    navigator.clipboard.writeText(pixCopiaCola).then(() => {
-      setPixCopiado(true);
-      setTimeout(() => setPixCopiado(false), 3000);
-    });
+    const copiarTexto = async () => {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(pixCopiaCola);
+        } else {
+          const textArea = document.createElement('textarea');
+          textArea.value = pixCopiaCola;
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+        }
+        setPixCopiado(true);
+        setToastPixMsg('Código Pix copiado! Cole na opção Pix Copia e Cola do seu app bancário.');
+        setTimeout(() => {
+          setPixCopiado(false);
+          setToastPixMsg(null);
+        }, 4500);
+      } catch (err) {
+        console.warn('Falha ao copiar Pix automaticamente:', err);
+        setToastPixMsg('Copie o código manualmente selecionando os dados.');
+      }
+    };
+    copiarTexto();
   };
 
   const handleCopiarChavePix = () => {
-    const pagCfg = loja?.configuracoes_extras?.pagamentos as any;
-    const chave = pagCfg?.chave_pix || pagCfg?.pix_chave || (loja as any)?.chave_pix || (loja as any)?.pix_chave || '';
-    if (!chave) return;
-    navigator.clipboard.writeText(chave).then(() => {
-      setChavePixCopiada(true);
-      setTimeout(() => setChavePixCopiada(false), 3000);
-    });
+    if (!chavePixBruta) return;
+    const copiarTexto = async () => {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(chavePixBruta);
+        } else {
+          const textArea = document.createElement('textarea');
+          textArea.value = chavePixBruta;
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+        }
+        setChavePixCopiada(true);
+        setTimeout(() => setChavePixCopiada(false), 3000);
+      } catch (err) {
+        console.warn('Falha ao copiar Chave Pix:', err);
+      }
+    };
+    copiarTexto();
   };
 
   const handleAnexarComprovante = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1018,7 +1075,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
                     isDark ? 'border-slate-800' : 'border-slate-200'
                   }`}>
                     <div className="flex items-center gap-2">
-                      <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>Valor a pagar:</span>
+                      <span className={`text-xs sm:text-sm font-extrabold ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>Valor a pagar:</span>
                       {(() => {
                         const somaOutras = linhasPagamento.filter(l => l.id !== linha.id).reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
                         const restanteParaEstaLinha = Number((saldoDevedorAtual - somaOutras).toFixed(2));
@@ -1027,7 +1084,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
                             <button
                               type="button"
                               onClick={() => handleAlterarValorLinha(linha.id, restanteParaEstaLinha)}
-                              className="text-[10px] text-emerald-500 hover:text-emerald-400 underline font-bold cursor-pointer"
+                              className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline font-extrabold cursor-pointer"
                               title="Preencher com o saldo restante"
                             >
                               + Restante ({formatarMoeda(restanteParaEstaLinha)})
@@ -1037,17 +1094,17 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
                         return null;
                       })()}
                     </div>
-                    <div className={`flex items-center gap-1 border rounded-xl px-2.5 py-1.5 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 ${
+                    <div className={`flex items-center gap-1.5 border rounded-xl px-3 py-1.5 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 shadow-2xs ${
                       isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-300'
                     }`}>
-                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">R$</span>
+                      <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">R$</span>
                       <MoneyInput
                         inputRef={idx === 0 ? inputPrimeiroValorRef : undefined}
                         autoFocus={idx === 0}
                         valor={linha.valor}
                         onChange={(novoValor) => handleAlterarValorLinha(linha.id, novoValor)}
                         placeholder="0,00"
-                        className={`w-28 bg-transparent text-right text-xs font-bold focus:outline-none placeholder:text-slate-400 ${
+                        className={`w-32 bg-transparent text-right text-base sm:text-lg font-black focus:outline-none placeholder:text-slate-400 ${
                           isDark ? 'text-white' : 'text-slate-900'
                         }`}
                       />
@@ -1056,20 +1113,20 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
 
                   {/* Dinheiro: Troco */}
                   {linha.forma_tipo === 'dinheiro' && (
-                    <div className={`space-y-1.5 pt-1.5 border-t text-xs ${
+                    <div className={`space-y-2 pt-2 border-t text-xs ${
                       isDark ? 'border-slate-800' : 'border-slate-200'
                     }`}>
                       <div className="flex items-center justify-between gap-2">
-                        <span className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>Valor Entregue pelo Cliente:</span>
-                        <div className={`flex items-center gap-1 border rounded-xl px-2.5 py-1.5 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 ${
+                        <span className={`text-xs sm:text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>Valor Entregue pelo Cliente:</span>
+                        <div className={`flex items-center gap-1.5 border rounded-xl px-3 py-1.5 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 shadow-2xs ${
                           isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-300'
                         }`}>
-                          <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">R$</span>
+                          <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">R$</span>
                           <MoneyInput
                             valor={linha.valor_entregue != null && linha.valor_entregue > 0 ? linha.valor_entregue : 0}
                             onChange={(novoValor) => handleAlterarEntregueLinha(linha.id, novoValor)}
                             placeholder="0,00"
-                            className={`w-28 bg-transparent text-right text-xs font-bold focus:outline-none placeholder:text-slate-400 ${
+                            className={`w-32 bg-transparent text-right text-base sm:text-lg font-black focus:outline-none placeholder:text-slate-400 ${
                               isDark ? 'text-white' : 'text-slate-900'
                             }`}
                           />
@@ -1077,16 +1134,16 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
                       </div>
 
                       {linha.valor_entregue != null && (
-                        <div className={`flex items-center justify-between gap-2 pt-1 border-t ${
+                        <div className={`flex items-center justify-between gap-2 pt-1.5 border-t ${
                           isDark ? 'border-slate-800' : 'border-slate-200'
                         }`}>
-                          <span className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>Troco a devolver:</span>
-                          <div className={`flex items-center gap-1 border rounded-xl px-2.5 py-1.5 ${
+                          <span className={`text-xs sm:text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>Troco a devolver:</span>
+                          <div className={`flex items-center gap-1.5 border rounded-xl px-3 py-1.5 ${
                             isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-300'
                           }`}>
-                            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">R$</span>
-                            <span className={`w-28 text-right text-xs font-bold ${
-                              linha.valor_entregue >= linha.valor ? 'text-emerald-500' : (isDark ? 'text-slate-400' : 'text-slate-500')
+                            <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">R$</span>
+                            <span className={`w-32 text-right text-base sm:text-lg font-black ${
+                              linha.valor_entregue >= linha.valor ? 'text-emerald-600 dark:text-emerald-400' : (isDark ? 'text-slate-400' : 'text-slate-500')
                             }`}>
                               {formatarValorBRL(Math.max(0, linha.valor_entregue - linha.valor))}
                             </span>
@@ -1098,11 +1155,11 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
 
                   {/* PIX: Card Limpo e Ações */}
                   {linha.forma_tipo === 'pix' && (
-                    <div className={`p-3 rounded-2xl border space-y-2.5 text-xs ${
+                    <div className={`p-3.5 rounded-2xl border space-y-3 text-xs ${
                       isDark ? 'bg-slate-900/60 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-800'
                     }`}>
                       <div className="flex items-center justify-between font-bold text-cyan-600 dark:text-cyan-400">
-                        <span className="flex items-center gap-1.5">
+                        <span className="flex items-center gap-1.5 text-xs sm:text-sm font-extrabold">
                           <Zap className="w-4 h-4 shrink-0" />
                           <span>Pagamento via PIX</span>
                         </span>
@@ -1111,30 +1168,45 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
                         </span>
                       </div>
 
-                      {pixCopiaCola && (
-                        <button
-                          type="button"
-                          onClick={handleCopiarPix}
-                          className="w-full py-2.5 px-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer active:scale-98 shadow-sm"
-                        >
-                          <Copy className="w-4 h-4" />
-                          <span>{pixCopiado ? 'Código Pix Copiado!' : 'Copiar Código Pix Copia e Cola'}</span>
-                        </button>
+                      {/* Toast / Alerta de Confirmação de Cópia */}
+                      {toastPixMsg && (
+                        <div className="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center gap-2 animate-in fade-in slide-in-from-top-1 shadow-2xs">
+                          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                          <span>{toastPixMsg}</span>
+                        </div>
                       )}
 
+                      {/* Botão Principal em Destaque: Pix Copia e Cola */}
+                      {pixCopiaCola && (
+                        <div className="space-y-1.5">
+                          <button
+                            type="button"
+                            onClick={handleCopiarPix}
+                            className="w-full py-3 px-4 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer active:scale-98 shadow-md shadow-cyan-600/20"
+                          >
+                            <Copy className="w-4 h-4" />
+                            <span>{pixCopiado ? '✓ Código Pix Copiado!' : 'Copiar Código Pix Copia e Cola'}</span>
+                          </button>
+                          <p className="text-[11px] text-center text-slate-500 dark:text-slate-400 font-medium">
+                            Cole no seu banco na opção <strong>Pix Copia e Cola</strong> (valor já preenchido)
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Botão Secundário: Copiar Chave da Loja */}
                       {chavePixFormatada && (
-                        <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                        <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
                           <div className="truncate">
                             <span className="text-[10px] uppercase font-bold text-slate-400 block">Chave Pix da Loja</span>
-                            <span className="font-bold text-xs text-slate-800 dark:text-slate-200">{chavePixFormatada}</span>
+                            <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 select-all">{chavePixFormatada}</span>
                           </div>
                           <button
                             type="button"
                             onClick={handleCopiarChavePix}
-                            className="shrink-0 px-2.5 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-xs font-bold text-cyan-700 dark:text-cyan-400 flex items-center gap-1 transition cursor-pointer"
+                            className="shrink-0 px-3 py-2 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 transition cursor-pointer active:scale-95"
                           >
                             <Copy className="w-3.5 h-3.5" />
-                            <span>{chavePixCopiada ? 'Copiada!' : 'Copiar Chave'}</span>
+                            <span>{chavePixCopiada ? 'Chave Copiada!' : 'Copiar Chave'}</span>
                           </button>
                         </div>
                       )}
@@ -1313,31 +1385,35 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
             </div>
 
             {/* Resumo de Conferência */}
-            <div className={`p-3.5 rounded-2xl border space-y-2 text-xs ${
+            <div className={`p-4 rounded-2xl border space-y-2.5 shadow-2xs ${
               isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
             }`}>
-              <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
-                <span className="font-medium">Subtotal dos Produtos:</span>
-                <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+              {/* Subtotal dos Produtos */}
+              <div className="flex justify-between items-center">
+                <span className={`text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  Subtotal dos Produtos:
+                </span>
+                <span className={`text-sm sm:text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                   {formatarMoeda(Number(pedSeguro.subtotal || (valorTotal - Number(pedSeguro.valor_frete || 0) + Number(pedSeguro.valor_desconto || 0))))}
                 </span>
               </div>
 
+              {/* Desconto (se houver) */}
               {Number(pedSeguro.valor_desconto || 0) > 0 && (
-                <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
-                  <span className="font-medium">
+                <div className="flex justify-between items-center">
+                  <span className={`text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                     Desconto {pedSeguro.cupom_codigo ? `(Cupom: ${pedSeguro.cupom_codigo})` : 'Aplicado'}:
                   </span>
-                  <span className="font-semibold text-rose-600 dark:text-rose-400">
+                  <span className="text-sm sm:text-base font-bold text-rose-600 dark:text-rose-400">
                     - {formatarMoeda(Number(pedSeguro.valor_desconto || 0))}
                   </span>
                 </div>
               )}
 
               {/* Discriminação do Frete com Botão de Alteração */}
-              <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
-                <span className="flex items-center gap-1.5 font-medium">
-                  <Truck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <div className="flex justify-between items-center">
+                <span className={`flex items-center gap-1.5 text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  <Truck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <span>Taxa de Entrega / Frete:</span>
                 </span>
                 {freteADefinir ? (
@@ -1351,9 +1427,9 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
                   </button>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                    <span className={`text-sm sm:text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                       {Number(pedSeguro.valor_frete || 0) === 0 ? (
-                        <span className="text-emerald-600 dark:text-emerald-400 font-bold">Grátis</span>
+                        <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">Grátis</span>
                       ) : (
                         formatarMoeda(Number(pedSeguro.valor_frete || 0))
                       )}
@@ -1364,52 +1440,70 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
                       className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer"
                       title="Alterar opção de frete"
                     >
-                      <span className="text-[11px]">✏️</span>
+                      <span className="text-xs">✏️</span>
                     </button>
                   </div>
                 )}
               </div>
 
               {/* TOTAL DA VENDA */}
-              <div className={`pt-2 border-t flex justify-between items-center font-bold text-sm ${
+              <div className={`pt-2.5 border-t flex justify-between items-center ${
                 isDark ? 'border-slate-800 text-white' : 'border-slate-200 text-slate-900'
               }`}>
-                <span>Total a Pagar:</span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-black text-base">{formatarMoeda(valorTotal)}</span>
+                <span className="text-sm sm:text-base font-black">Total a Pagar:</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-black text-base sm:text-lg">
+                  {formatarMoeda(valorTotal)}
+                </span>
               </div>
 
+              {/* Já Quitado Anteriormente */}
               {valorJaPago > 0 && (
-                <div className={`flex justify-between items-center pt-1 border-t border-dashed ${
-                  isDark ? 'border-slate-800 text-slate-300' : 'border-slate-200 text-slate-800'
+                <div className={`flex justify-between items-center pt-1.5 border-t border-dashed ${
+                  isDark ? 'border-slate-800' : 'border-slate-200'
                 }`}>
-                  <span className="font-medium">Já Quitado Anteriormente:</span>
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatarMoeda(valorJaPago)}</span>
+                  <span className={`text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Já Quitado Anteriormente:
+                  </span>
+                  <span className="text-sm sm:text-base font-bold text-emerald-600 dark:text-emerald-400">
+                    {formatarMoeda(valorJaPago)}
+                  </span>
                 </div>
               )}
 
               {/* Total Informado */}
-              <div className={`flex justify-between items-center pt-1 border-t border-dashed ${
-                isDark ? 'border-slate-800 text-slate-300' : 'border-slate-200 text-slate-800'
+              <div className={`flex justify-between items-center pt-1.5 border-t border-dashed ${
+                isDark ? 'border-slate-800' : 'border-slate-200'
               }`}>
-                <span className="font-medium">Total dos Meios Informados:</span>
-                <span className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatarMoeda(totalLinhasPagamento)}</span>
+                <span className={`text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  Total dos Meios Informados:
+                </span>
+                <span className={`text-sm sm:text-base font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  {formatarMoeda(totalLinhasPagamento)}
+                </span>
               </div>
 
-              {/* Diferença */}
-              <div className={`flex justify-between items-center font-medium pt-1 border-t ${
-                isDark ? 'border-slate-800/80 text-slate-300' : 'border-slate-200 text-slate-800'
+              {/* Total Conferido / Diferença */}
+              <div className={`flex justify-between items-center pt-1.5 border-t ${
+                isDark ? 'border-slate-800/80' : 'border-slate-200'
               }`}>
                 {Math.abs(diferencaPagamento) < 0.01 ? (
                   <>
-                    <span className="flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" /> Total Conferido (100%):
+                    <span className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      Total Conferido (100%):
                     </span>
-                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">R$ 0,00</span>
+                    <span className="text-sm sm:text-base font-black text-emerald-600 dark:text-emerald-400">
+                      R$ 0,00
+                    </span>
                   </>
                 ) : diferencaPagamento > 0 ? (
                   <>
-                    <span className="text-amber-700 dark:text-amber-400 font-medium">Restante a Definir:</span>
-                    <span className="font-semibold text-amber-700 dark:text-amber-400">{formatarMoeda(diferencaPagamento)}</span>
+                    <span className="text-xs sm:text-sm font-bold text-amber-700 dark:text-amber-400">
+                      Restante a Definir:
+                    </span>
+                    <span className="text-sm sm:text-base font-black text-amber-700 dark:text-amber-400">
+                      {formatarMoeda(diferencaPagamento)}
+                    </span>
                   </>
                 ) : null}
               </div>
