@@ -184,6 +184,12 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
     criado_em: new Date().toISOString()
   } as any;
 
+  const ehModoCaderneta = Boolean(
+    origem === 'caderneta' ||
+    String(pedSeguro.id || '').startsWith('caderneta_') ||
+    (saldoDevedorAvulso != null && saldoDevedorAvulso > 0 && !pedido)
+  );
+
   const recarregarPedido = async () => {
     if (!pedSeguro?.id || !loja?.id || pedSeguro.id.startsWith('caderneta_')) return;
     try {
@@ -346,7 +352,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
     rawPe?.provedor === 'retirada_loja'
   );
 
-  const ehEnvio = !ehRetirada && (
+  const ehEnvio = !ehModoCaderneta && !ehRetirada && (
     peTipo === 'entrega' ||
     metaTipo === 'entrega' ||
     (pedSeguro as any)?.tipo_entrega === 'envio' ||
@@ -402,6 +408,11 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
       .filter((fp: FormaPagamento) => {
         if (!fp.ativo) return false;
         if (fp.tipo === 'mercado_livre') return false; // Não permitido
+
+        // Na liquidação de caderneta, não permitir pagar gerando mais fiado/caderneta
+        if (ehModoCaderneta && (fp.tipo === 'caderneta' || fp.tipo === 'fiado')) {
+          return false;
+        }
 
         if (!presencialPermitido) {
           if (fp.tipo === 'dinheiro' || fp.tipo === 'cartao_debito' || fp.tipo === 'cartao_credito') {
@@ -488,6 +499,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
   if (!isOpen || (!pedido && !saldoDevedorAvulso)) return null;
 
   const isFreteFormalizado = Boolean(
+    ehModoCaderneta ||
     !ehEnvio ||
     (
       rawPe &&
@@ -502,7 +514,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
     pedSeguro.link_rastreio
   );
 
-  const freteADefinir = ehEnvio && !isFreteFormalizado;
+  const freteADefinir = !ehModoCaderneta && ehEnvio && !isFreteFormalizado;
 
   const totalLinhasPagamento = linhasPagamento.reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
   const diferencaPagamento = Number((saldoDevedorAtual - totalLinhasPagamento).toFixed(2));
@@ -672,23 +684,25 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
         await onSalvar(linhasValidas);
       } else {
         const dataIso = obterDataOperacaoISO();
-        await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedSeguro.id);
+        if (!ehModoCaderneta && SyncService.isUuidValido(pedSeguro.id)) {
+          await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedSeguro.id);
 
-        const previstosDb = await Promise.all(linhasValidas.map(async (l) => {
-          const fpRealId = await SyncService.resolverFormaPagamentoId(loja?.id || '', l.forma_pagamento_id, l.forma_tipo);
-          return {
-            pedido_id: pedSeguro.id,
-            forma_pagamento_id: fpRealId,
-            forma_tipo: l.forma_tipo,
-            forma_nome: l.forma_nome,
-            valor: Number(l.valor),
-            parcelas: l.parcelas || 1,
-            data_prevista: dataIso
-          };
-        }));
+          const previstosDb = await Promise.all(linhasValidas.map(async (l) => {
+            const fpRealId = await SyncService.resolverFormaPagamentoId(loja?.id || '', l.forma_pagamento_id, l.forma_tipo);
+            return {
+              pedido_id: pedSeguro.id,
+              forma_pagamento_id: fpRealId,
+              forma_tipo: l.forma_tipo,
+              forma_nome: l.forma_nome,
+              valor: Number(l.valor),
+              parcelas: l.parcelas || 1,
+              data_prevista: dataIso
+            };
+          }));
 
-        const { error: errPag } = await supabase.from('pedidos_pagamentos_previstos').insert(previstosDb);
-        if (errPag) throw errPag;
+          const { error: errPag } = await supabase.from('pedidos_pagamentos_previstos').insert(previstosDb);
+          if (errPag) throw errPag;
+        }
 
         audioService.playBeep();
         onPagamentoConcluido(pedSeguro);
@@ -759,94 +773,121 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
 
       const cliIdEfetivo = pedSeguro.cliente_id || clienteProp?.id;
 
-      // 1. Grava previsão de pagamento detalhada
-      await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedSeguro.id);
-      const previstosDb = await Promise.all(linhasAtivas.map(async (linha) => {
-        let fpRealId = linha.forma_pagamento_id;
-        if (!fpRealId || !SyncService.isUuidValido(fpRealId) || String(fpRealId).startsWith('fp_')) {
-          fpRealId = await SyncService.resolverFormaPagamentoId(loja?.id || '', linha.forma_pagamento_id, linha.forma_tipo);
+      // 1. Grava previsão de pagamento detalhada (apenas para pedidos reais com UUID)
+      if (!ehModoCaderneta && SyncService.isUuidValido(pedSeguro.id)) {
+        await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedSeguro.id);
+        const previstosDb = await Promise.all(linhasAtivas.map(async (linha) => {
+          let fpRealId = linha.forma_pagamento_id;
+          if (!fpRealId || !SyncService.isUuidValido(fpRealId) || String(fpRealId).startsWith('fp_')) {
+            fpRealId = await SyncService.resolverFormaPagamentoId(loja?.id || '', linha.forma_pagamento_id, linha.forma_tipo);
+          }
+          return {
+            pedido_id: pedSeguro.id,
+            forma_pagamento_id: fpRealId,
+            forma_tipo: linha.forma_tipo,
+            forma_nome: linha.forma_nome,
+            valor: linha.valor,
+            parcelas: linha.parcelas || 1,
+            data_prevista: dataIso
+          };
+        }));
+        await supabase.from('pedidos_pagamentos_previstos').insert(previstosDb);
+      }
+
+      // Se for liquidação de caderneta, registra o abatimento/pagamento via CadernetaService
+      if (ehModoCaderneta && cliIdEfetivo && loja?.id) {
+        for (const linha of linhasAtivas) {
+          let fpRealId = linha.forma_pagamento_id;
+          if (!fpRealId || !SyncService.isUuidValido(fpRealId) || String(fpRealId).startsWith('fp_')) {
+            fpRealId = await SyncService.resolverFormaPagamentoId(loja.id, linha.forma_pagamento_id, linha.forma_tipo);
+          }
+          await CadernetaService.registrarPagamentoCaderneta({
+            lojaId: loja.id,
+            clienteId: cliIdEfetivo,
+            valorPago: Number(linha.valor),
+            formaPagamentoId: fpRealId,
+            formaTipo: linha.forma_tipo,
+            usuarioId: usuario?.id,
+            observacoes: `Liquidação de caderneta via Catálogo (${linha.forma_nome})`
+          });
         }
-        return {
-          pedido_id: pedSeguro.id,
-          forma_pagamento_id: fpRealId,
-          forma_tipo: linha.forma_tipo,
-          forma_nome: linha.forma_nome,
-          valor: linha.valor,
-          parcelas: linha.parcelas || 1,
-          data_prevista: dataIso
-        };
-      }));
-      await supabase.from('pedidos_pagamentos_previstos').insert(previstosDb);
-
-      // 2. Se for Fiado ou Caderneta (com limite aprovado), liquida na conta corrente
-      if (temCaderneta && cliIdEfetivo && loja?.id) {
-        await CadernetaService.registrarCompraCaderneta({
-          lojaId: loja.id,
-          clienteId: cliIdEfetivo,
-          pedidoId: pedSeguro.id,
-          valor: valorCadernetaRecebimento,
-          usuarioId: usuario?.id,
-          numeroPedido: pedSeguro.numero_pedido
-        });
       }
 
-      if (temFiado && cliIdEfetivo && loja?.id) {
-        const { data: clienteAtual } = await supabase
-          .from('clientes')
-          .select('saldo_devedor_fiado, limite_credito')
-          .eq('id', cliIdEfetivo)
-          .eq('loja_id', loja.id)
-          .single();
+      // 2. Se for Fiado ou Caderneta (com limite aprovado) na compra de produtos
+      if (!ehModoCaderneta) {
+        if (temCaderneta && cliIdEfetivo && loja?.id) {
+          await CadernetaService.registrarCompraCaderneta({
+            lojaId: loja.id,
+            clienteId: cliIdEfetivo,
+            pedidoId: pedSeguro.id,
+            valor: valorCadernetaRecebimento,
+            usuarioId: usuario?.id,
+            numeroPedido: pedSeguro.numero_pedido
+          });
+        }
 
-        const saldoAnt = Number(clienteAtual?.saldo_devedor_fiado || 0);
-        const limAnt = Number(clienteAtual?.limite_credito || 0);
-        const novoSaldo = Number((saldoAnt + valorFiadoRecebimento).toFixed(2));
-        const novoLim = Math.max(0, Number((limAnt - valorFiadoRecebimento).toFixed(2)));
+        if (temFiado && cliIdEfetivo && loja?.id) {
+          const { data: clienteAtual } = await supabase
+            .from('clientes')
+            .select('saldo_devedor_fiado, limite_credito')
+            .eq('id', cliIdEfetivo)
+            .eq('loja_id', loja.id)
+            .single();
 
-        await supabase
-          .from('clientes')
-          .update({ saldo_devedor_fiado: novoSaldo, limite_credito: novoLim })
-          .eq('id', cliIdEfetivo)
-          .eq('loja_id', loja.id);
+          const saldoAnt = Number(clienteAtual?.saldo_devedor_fiado || 0);
+          const limAnt = Number(clienteAtual?.limite_credito || 0);
+          const novoSaldo = Number((saldoAnt + valorFiadoRecebimento).toFixed(2));
+          const novoLim = Math.max(0, Number((limAnt - valorFiadoRecebimento).toFixed(2)));
 
-        await supabase.from('movimentacoes_saldo_cliente').insert([{
-          loja_id: loja.id,
-          cliente_id: cliIdEfetivo,
-          tipo: 'debito_venda',
-          valor: valorFiadoRecebimento,
-          saldo_anterior: saldoAnt,
-          saldo_posterior: novoSaldo,
-          observacao: `Faturamento Fiado via Catálogo Pedido #${pedSeguro.numero_pedido}`,
-          usuario_id: null
-        }]);
+          await supabase
+            .from('clientes')
+            .update({ saldo_devedor_fiado: novoSaldo, limite_credito: novoLim })
+            .eq('id', cliIdEfetivo)
+            .eq('loja_id', loja.id);
+
+          await supabase.from('movimentacoes_saldo_cliente').insert([{
+            loja_id: loja.id,
+            cliente_id: cliIdEfetivo,
+            tipo: 'debito_venda',
+            valor: valorFiadoRecebimento,
+            saldo_anterior: saldoAnt,
+            saldo_posterior: novoSaldo,
+            observacao: `Faturamento Fiado via Catálogo Pedido #${pedSeguro.numero_pedido}`,
+            usuario_id: null
+          }]);
+        }
       }
 
-      // 3. Atualizar status do pedido
+      // 3. Atualizar status do pedido (somente para pedidos reais com UUID)
       const statusPagamentoFinal: StatusPagamento = temCaderneta
         ? 'caderneta'
         : temFiado
         ? 'fiado'
         : 'aguardando_pagamento'; // NUNCA 'pago' pelo catálogo para meios manuais!
 
-      const lojaIdEfetivo = loja?.id || pedSeguro.loja_id;
-      const { data: pedUpd, error: erroUpd } = await supabase
-        .from('pedidos')
-        .update({
-          status_pagamento: statusPagamentoFinal,
-          atualizado_em: dataIso
-        })
-        .eq('id', pedSeguro.id)
-        .eq('loja_id', lojaIdEfetivo)
-        .select(`
-          *,
-          cliente:clientes(*),
-          vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
-          itens:itens_pedido(*),
-          pagamentos:pagamentos_pedido(*)
-        `)
-        .single();
+      let pedUpd: any = null;
+      if (!ehModoCaderneta && SyncService.isUuidValido(pedSeguro.id)) {
+        const lojaIdEfetivo = loja?.id || pedSeguro.loja_id;
+        const { data, error: erroUpd } = await supabase
+          .from('pedidos')
+          .update({
+            status_pagamento: statusPagamentoFinal,
+            atualizado_em: dataIso
+          })
+          .eq('id', pedSeguro.id)
+          .eq('loja_id', lojaIdEfetivo)
+          .select(`
+            *,
+            cliente:clientes(*),
+            vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
+            itens:itens_pedido(*),
+            pagamentos:pagamentos_pedido(*)
+          `)
+          .single();
 
-      if (erroUpd) throw erroUpd;
+        if (erroUpd) throw erroUpd;
+        pedUpd = data;
+      }
 
       audioService.playNewOrderSound();
 
@@ -863,7 +904,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
 
           if (itensPreference.length === 0) {
             itensPreference.push({
-              titulo: `Pedido #${pedSeguro.numero_pedido || ''}`,
+              titulo: ehModoCaderneta ? 'Liquidação de Caderneta' : `Pedido #${pedSeguro.numero_pedido || ''}`,
               quantidade: 1,
               precoUnitario: Number(pedSeguro.valor_total || valorTotal || 0)
             });
@@ -894,14 +935,20 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
       }
 
       setSucessoConfig({
-        titulo: temFiado
+        titulo: ehModoCaderneta
+          ? 'Liquidação de Caderneta Registrada!'
+          : temFiado
           ? 'Pedido Registrado no Fiado!'
           : temCaderneta
           ? 'Compra na Caderneta Confirmada!'
           : 'Opção de Pagamento Registrada!',
-        mensagem: temPagamentoManualOuPresencial
-          ? 'Sua escolha foi registrada. O pagamento será conferido e confirmado pelo lojista.'
-          : `O valor de ${formatarMoeda(totalLinhasPagamento)} foi lançado na sua conta.`,
+        mensagem: ehModoCaderneta
+          ? (temPagamentoManualOuPresencial
+            ? 'Sua solicitação de pagamento foi registrada e será conferida pelo estabelecimento.'
+            : `O valor de ${formatarMoeda(totalLinhasPagamento)} foi abatido da sua conta caderneta.`)
+          : (temPagamentoManualOuPresencial
+            ? 'Sua escolha foi registrada. O pagamento será conferido e confirmado pelo lojista.'
+            : `O valor de ${formatarMoeda(totalLinhasPagamento)} foi lançado na sua conta.`),
         aguardandoConferencia: temPagamentoManualOuPresencial
       });
 
@@ -966,10 +1013,10 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
                 </div>
                 <div>
                   <h3 className="font-bold text-base leading-tight">
-                    {origem === 'caderneta' ? 'Liquidar Caderneta' : `Pagamento • Pedido #${pedSeguro.numero_pedido || ''}`}
+                    {ehModoCaderneta ? 'Liquidar Caderneta' : `Pagamento • Pedido #${pedSeguro.numero_pedido || ''}`}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Selecione o meio de pagamento para concluir seu pedido
+                    {ehModoCaderneta ? 'Selecione a forma de pagamento para abater seu saldo' : 'Selecione o meio de pagamento para concluir seu pedido'}
                   </p>
                 </div>
               </div>
@@ -1388,18 +1435,18 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
             <div className={`p-4 rounded-2xl border space-y-2.5 shadow-2xs ${
               isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
             }`}>
-              {/* Subtotal dos Produtos */}
+              {/* Subtotal dos Produtos / Saldo Devedor */}
               <div className="flex justify-between items-center">
                 <span className={`text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                  Subtotal dos Produtos:
+                  {ehModoCaderneta ? 'Saldo Devedor na Caderneta:' : 'Subtotal dos Produtos:'}
                 </span>
                 <span className={`text-sm sm:text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                   {formatarMoeda(Number(pedSeguro.subtotal || (valorTotal - Number(pedSeguro.valor_frete || 0) + Number(pedSeguro.valor_desconto || 0))))}
                 </span>
               </div>
 
-              {/* Desconto (se houver) */}
-              {Number(pedSeguro.valor_desconto || 0) > 0 && (
+              {/* Desconto (se houver e não for caderneta) */}
+              {!ehModoCaderneta && Number(pedSeguro.valor_desconto || 0) > 0 && (
                 <div className="flex justify-between items-center">
                   <span className={`text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                     Desconto {pedSeguro.cupom_codigo ? `(Cupom: ${pedSeguro.cupom_codigo})` : 'Aplicado'}:
@@ -1410,41 +1457,43 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
                 </div>
               )}
 
-              {/* Discriminação do Frete com Botão de Alteração */}
-              <div className="flex justify-between items-center">
-                <span className={`flex items-center gap-1.5 text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                  <Truck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span>Taxa de Entrega / Frete:</span>
-                </span>
-                {freteADefinir ? (
-                  <button
-                    type="button"
-                    onClick={() => setModalDefinirEnvioAberto(true)}
-                    className="px-2.5 py-1 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-400 text-xs font-bold border border-amber-500/30 flex items-center gap-1 transition cursor-pointer"
-                  >
-                    <span>Definir Frete</span>
-                    <span className="text-[10px]">✏️</span>
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm sm:text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      {Number(pedSeguro.valor_frete || 0) === 0 ? (
-                        <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">Grátis</span>
-                      ) : (
-                        formatarMoeda(Number(pedSeguro.valor_frete || 0))
-                      )}
-                    </span>
+              {/* Discriminação do Frete com Botão de Alteração (Apenas se não for caderneta) */}
+              {!ehModoCaderneta && (
+                <div className="flex justify-between items-center">
+                  <span className={`flex items-center gap-1.5 text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    <Truck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>Taxa de Entrega / Frete:</span>
+                  </span>
+                  {freteADefinir ? (
                     <button
                       type="button"
                       onClick={() => setModalDefinirEnvioAberto(true)}
-                      className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer"
-                      title="Alterar opção de frete"
+                      className="px-2.5 py-1 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-400 text-xs font-bold border border-amber-500/30 flex items-center gap-1 transition cursor-pointer"
                     >
-                      <span className="text-xs">✏️</span>
+                      <span>Definir Frete</span>
+                      <span className="text-[10px]">✏️</span>
                     </button>
-                  </div>
-                )}
-              </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm sm:text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        {Number(pedSeguro.valor_frete || 0) === 0 ? (
+                          <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">Grátis</span>
+                        ) : (
+                          formatarMoeda(Number(pedSeguro.valor_frete || 0))
+                        )}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setModalDefinirEnvioAberto(true)}
+                        className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer"
+                        title="Alterar opção de frete"
+                      >
+                        <span className="text-xs">✏️</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* TOTAL DA VENDA */}
               <div className={`pt-2.5 border-t flex justify-between items-center ${
@@ -1562,8 +1611,8 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
           </form>
         )}
 
-        {/* Modal de Definição de Envio com modoCatalogo=true */}
-        {modalDefinirEnvioAberto && pedSeguro && (
+        {/* Modal de Definição de Envio com modoCatalogo=true (Apenas para pedidos reais) */}
+        {modalDefinirEnvioAberto && pedSeguro && !ehModoCaderneta && (
           <ModalDefinirEnvio
             isOpen={modalDefinirEnvioAberto}
             modoCatalogo={true}

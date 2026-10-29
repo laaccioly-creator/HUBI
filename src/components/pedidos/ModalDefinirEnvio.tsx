@@ -8,6 +8,7 @@ import { ModalAtualizarEnderecoCliente } from '../shipping/ModalAtualizarEnderec
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
 import { supabase } from '../../lib/supabase';
 import { useTheme } from '../../contexts/ThemeContext';
+import { isUuidValido } from '../../services/syncService';
 
 export interface ModalDefinirEnvioProps {
   isOpen: boolean;
@@ -115,6 +116,17 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
 
     try {
       setSalvando(true);
+
+      // Guarda de Segurança: Ignorar persistência física para caderneta ou IDs virtuais
+      if (!isUuidValido(pedido.id) || String(pedido.id).startsWith('caderneta_')) {
+        console.warn('⚠️ [ModalDefinirEnvio] Ação ignorada para ID não-UUID ou caderneta:', pedido.id);
+        onConfirmarEnvio?.(selecaoPendente);
+        setSelecaoPendente(null);
+        onSucesso();
+        onClose();
+        return;
+      }
+
       if (onConfirmarEnvio) {
         onConfirmarEnvio(selecaoPendente);
         setSelecaoPendente(null);

@@ -663,6 +663,21 @@ export class ShippingOrchestrator {
     pedidoId: string,
     entrega: Partial<PedidoEntrega>
   ): Promise<PedidoEntrega> {
+    // Guarda de Segurança: Ignorar persistência física para liquidações de caderneta ou IDs não-UUID
+    if (!pedidoId || !isUuidValido(pedidoId) || String(pedidoId).startsWith('caderneta_')) {
+      console.warn('⚠️ [ShippingOrchestrator] salvarPedidoEntrega ignorado para caderneta ou ID não-UUID:', pedidoId);
+      return {
+        id: `virtual_${Date.now()}`,
+        pedido_id: pedidoId,
+        tipo_atendimento: 'retirada',
+        provedor: 'retirada_loja',
+        transportadora_nome: 'Liquidação de Caderneta',
+        valor_frete: 0,
+        status_envio: 'entregue',
+        criado_em: new Date().toISOString()
+      } as any;
+    }
+
     const clienteEnderecoIdSanitizado = (entrega.cliente_endereco_id && isUuidValido(entrega.cliente_endereco_id))
       ? entrega.cliente_endereco_id
       : null;
@@ -1903,6 +1918,12 @@ export class ShippingOrchestrator {
     const agora = new Date().toISOString();
     const pe = resultado.pedido_entrega || {};
     const valorFrete = Number(resultado.valor_frete || pe.valor_frete || 0);
+
+    // Guarda de Segurança: Ignorar persistência física para liquidações de caderneta ou IDs não-UUID
+    if (!pedidoId || !isUuidValido(pedidoId) || String(pedidoId).startsWith('caderneta_')) {
+      console.warn('⚠️ [ShippingOrchestrator] definirEnvioPedido ignorado para caderneta ou ID não-UUID:', pedidoId);
+      return;
+    }
 
     // 1. Buscar dados atuais do pedido e cliente
     const { data: pedAtual } = await supabase
