@@ -62,7 +62,7 @@ serve(async (req: Request) => {
     // 2. Consulta dados da loja (saldo atual e dados cadastrais para o pagador)
     const { data: loja, error: erroLoja } = await supabaseAdmin
       .from("lojas")
-      .select("id, nome_fantasia, email, whatsapp_saldo")
+      .select("id, nome_fantasia, email, whatsapp_saldo, configuracoes_extras")
       .eq("id", lojaId)
       .maybeSingle();
 
@@ -72,6 +72,8 @@ serve(async (req: Request) => {
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const tokenFinal = mpAccessToken || loja.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.access_token?.trim() || "";
 
     const saldoAtual = Number(loja.whatsapp_saldo ?? 0);
 
@@ -102,7 +104,7 @@ serve(async (req: Request) => {
 
     const externalReference = `whatsapp_wallet:${loja.id}:${transacaoCriada.id}`;
 
-    if (!mpAccessToken) {
+    if (!tokenFinal) {
       return new Response(
         JSON.stringify({
           error: "Gateway Mercado Pago da plataforma não configurado (MERCADO_PAGO_ACCESS_TOKEN ausente).",
@@ -134,7 +136,7 @@ serve(async (req: Request) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${mpAccessToken}`,
+        Authorization: `Bearer ${tokenFinal}`,
         "X-Idempotency-Key": `hubi-wpp-wallet-${transacaoCriada.id}`,
       },
       body: JSON.stringify(mpPixPayload),

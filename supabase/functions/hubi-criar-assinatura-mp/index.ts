@@ -28,22 +28,14 @@ serve(async (req: Request) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    const mpAccessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN") || Deno.env.get("MERCADOPAGO_ACCESS_TOKEN") || "";
-
-    if (!mpAccessToken) {
-      console.error("[hubi-criar-assinatura-mp] Chave MERCADO_PAGO_ACCESS_TOKEN não configurada nas variáveis de ambiente.");
-      return new Response(
-        JSON.stringify({ error: "Gateway de pagamento em manutenção ou credenciais não configuradas." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const envMpAccessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN") || Deno.env.get("MERCADOPAGO_ACCESS_TOKEN") || "";
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
 
     // 1. Consulta dados cadastrais da loja
     const { data: loja, error: erroLoja } = await supabaseAdmin
       .from("lojas")
-      .select("id, nome_fantasia, email, whatsapp, organizacao_id, slug_catalogo")
+      .select("id, nome_fantasia, email, whatsapp, organizacao_id, slug_catalogo, configuracoes_extras")
       .eq("id", loja_id)
       .maybeSingle();
 
@@ -51,6 +43,17 @@ serve(async (req: Request) => {
       return new Response(
         JSON.stringify({ error: "Loja não encontrada no sistema." }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const storeToken = loja?.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.access_token?.trim();
+    const mpAccessToken = envMpAccessToken?.trim() || storeToken || "";
+
+    if (!mpAccessToken) {
+      console.error("[hubi-criar-assinatura-mp] Chave MERCADO_PAGO_ACCESS_TOKEN não configurada nas variáveis de ambiente nem na loja.");
+      return new Response(
+        JSON.stringify({ error: "Gateway de pagamento em manutenção ou credenciais não configuradas." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -97,7 +100,7 @@ serve(async (req: Request) => {
     const isExplicitTestToken = mpAccessToken.startsWith("TEST-");
     const isSandboxMode = isExplicitTestToken || isCollectorTestUser;
 
-    // 2.2 Payload Estritamente Canônico (eliminação de /fatal/ no Sandbox)
+    // 2.2 Payload Estritamente Canônico (espelhado do checkout do Catálogo, eliminando quebras de secure-fields e /fatal/)
     const preferencePayload: Record<string, any> = {
       items: [
         {
@@ -108,10 +111,6 @@ serve(async (req: Request) => {
           currency_id: "BRL",
         },
       ],
-      payment_methods: {
-        installments: 12,
-        default_installments: 12,
-      },
       external_reference: loja.id,
     };
 
