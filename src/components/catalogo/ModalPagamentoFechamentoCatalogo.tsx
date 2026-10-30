@@ -20,6 +20,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useFeedbackModal } from '../../contexts/FeedbackContext';
 import { Pedido, FormaPagamento, StatusPagamento, TipoPagamento, Loja, Cliente } from '../../types';
 import { PrintService } from '../../services/printService';
 import { SyncService } from '../../services/syncService';
@@ -144,6 +145,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
   const usuario = auth?.usuario;
   const { tema } = useTheme();
   const isDark = tema === 'dark';
+  const { mostrarToast } = useFeedbackModal();
 
   const [formasPagamento, setFormasPagamento] = useState<FormaPagamento[]>([]);
   const [linhasPagamento, setLinhasPagamento] = useState<LinhaPagamentoRecebimento[]>([]);
@@ -1147,6 +1149,28 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
         }
       }
 
+      // Higienização imediata da URL (?pagar_pedido=...) para prevenir reabertura acidental
+      if (typeof window !== 'undefined' && window.location) {
+        try {
+          const url = new URL(window.location.href);
+          if (url.searchParams.has('pagar_pedido')) {
+            url.searchParams.delete('pagar_pedido');
+            window.history.replaceState({}, document.title, url.pathname + (url.search ? url.search : ''));
+          }
+        } catch {
+          // Ignore
+        }
+      }
+
+      const msgFeedback = ehModoCaderneta
+        ? 'Liquidação de caderneta registrada com sucesso!'
+        : temCaderneta
+        ? 'Compra na caderneta confirmada com sucesso!'
+        : temFiado
+        ? 'Pedido registrado no fiado com sucesso!'
+        : 'Opção de pagamento registrada com sucesso!';
+      mostrarToast?.(msgFeedback, 'sucesso');
+
       setSucessoConfig({
         titulo: ehModoCaderneta
           ? 'Liquidação de Caderneta Registrada!'
@@ -1169,6 +1193,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
       setPedidoAtualizado(objAtualizado);
       setSucessoModal(true);
       onPagamentoConcluido(objAtualizado);
+      onClose();
     } catch (err: any) {
       console.error('Erro ao registrar pagamento:', err);
       setErroMsg(err.message || 'Erro ao processar pagamento. Tente novamente.');

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   X,
   Truck,
@@ -101,6 +101,150 @@ function encontrarIdApp(
   return lista[0].id;
 }
 
+export function detectarModalidadeInicial(
+  pedido: Pedido | null,
+  pe: PedidoEntrega | null
+): ModalidadeDespachoManual {
+  if (!pedido && !pe) return 'correios';
+
+  const peEfetiva = (pe?.pedido_id && pedido?.id && pe.pedido_id === pedido.id)
+    ? pe
+    : ((pedido as any)?.pedido_entregas?.[0] || pedido?.pedido_entrega || pe || null);
+
+  const prov = String(
+    peEfetiva?.provedor ||
+    (pedido as any)?.entrega_provedor ||
+    (pedido as any)?.metadados?.provedor_frete ||
+    (pedido as any)?.metadados?.provedor ||
+    ''
+  ).toLowerCase().trim();
+
+  const opTipo = String(
+    peEfetiva?.tipo_operacao ||
+    (pedido as any)?.tipo_operacao ||
+    peEfetiva?.tipo_entrega ||
+    (pedido as any)?.tipo_envio ||
+    ''
+  ).toLowerCase().trim();
+
+  const formaTipo = String(
+    pedido?.forma_entrega?.tipo ||
+    (pedido as any)?.forma_entrega_tipo ||
+    ''
+  ).toLowerCase().trim();
+
+  const formaNome = String(
+    pedido?.forma_entrega?.nome ||
+    (pedido as any)?.forma_entrega_nome ||
+    ''
+  ).toLowerCase().trim();
+
+  const transpNome = String(
+    peEfetiva?.transportadora_nome ||
+    peEfetiva?.nome_transportadora ||
+    pedido?.nome_transportadora ||
+    (pedido as any)?.transportadora_nome ||
+    (pedido as any)?.metadados?.transportadora_nome ||
+    formaNome ||
+    ''
+  ).toLowerCase().trim();
+
+  const appNome = String(
+    peEfetiva?.nome_app ||
+    pedido?.nome_app ||
+    (pedido as any)?.nome_app ||
+    (pedido as any)?.metadados?.nome_app ||
+    ''
+  ).toLowerCase().trim();
+
+  const entNome = String(
+    peEfetiva?.entregador_nome ||
+    pedido?.entregador_nome ||
+    (pedido as any)?.entregador_nome ||
+    ''
+  ).trim();
+
+  const textoConsolidado = `${prov} ${opTipo} ${formaTipo} ${formaNome} ${transpNome} ${appNome}`.toLowerCase();
+
+  // 1. Frete Próprio / Entrega Própria da Loja / Motoboy
+  const ehFreteProprio =
+    prov === 'frete_proprio' ||
+    opTipo === 'frota_propria' ||
+    opTipo === 'motoboy' ||
+    opTipo === 'proprio' ||
+    formaTipo === 'frota_propria' ||
+    formaTipo === 'proprio' ||
+    formaTipo === 'motoboy' ||
+    textoConsolidado.includes('entrega própria') ||
+    textoConsolidado.includes('entrega propria') ||
+    textoConsolidado.includes('frete próprio') ||
+    textoConsolidado.includes('frete proprio') ||
+    textoConsolidado.includes('entrega local') ||
+    textoConsolidado.includes('motoboy') ||
+    (textoConsolidado.includes('própria') && !textoConsolidado.includes('correios')) ||
+    (textoConsolidado.includes('propria') && !textoConsolidado.includes('correios')) ||
+    Boolean(entNome);
+
+  if (ehFreteProprio) {
+    return 'frota_propria';
+  }
+
+  // 2. App de Corrida (Uber Direct, 99, Lalamove, etc.)
+  const ehApp =
+    prov === 'uber' ||
+    prov === 'app_entrega' ||
+    opTipo === 'app_entrega' ||
+    Boolean(peEfetiva?.app_entrega_id) ||
+    Boolean((pedido as any)?.app_entrega_id) ||
+    textoConsolidado.includes('uber') ||
+    textoConsolidado.includes('99') ||
+    textoConsolidado.includes('lalamove') ||
+    textoConsolidado.includes('borzo') ||
+    textoConsolidado.includes('indrive');
+
+  if (ehApp) {
+    return 'app_entrega';
+  }
+
+  // 3. Transportadora Privada (Jadlog, Braspress, Total Express, etc.)
+  const ehTransp =
+    opTipo === 'transportadora' ||
+    prov === 'transportadora' ||
+    Boolean(peEfetiva?.transportadora_id) ||
+    Boolean((pedido as any)?.transportadora_id) ||
+    (!textoConsolidado.includes('correios') && (
+      textoConsolidado.includes('jadlog') ||
+      textoConsolidado.includes('braspress') ||
+      textoConsolidado.includes('total express') ||
+      textoConsolidado.includes('totalexpress') ||
+      textoConsolidado.includes('azul') ||
+      textoConsolidado.includes('latam') ||
+      textoConsolidado.includes('rodonaves') ||
+      textoConsolidado.includes('transportadora')
+    ));
+
+  if (ehTransp) {
+    return 'transportadora';
+  }
+
+  // 4. Correios (PAC / SEDEX)
+  const ehCorreios =
+    prov === 'correios' ||
+    opTipo === 'correios' ||
+    textoConsolidado.includes('correios') ||
+    textoConsolidado.includes('sedex') ||
+    textoConsolidado.includes('pac') ||
+    Boolean(peEfetiva?.servico_correios) ||
+    Boolean((pedido as any)?.servico_correios);
+
+  if (ehCorreios) {
+    return 'correios';
+  }
+
+  // Fallback padrão se não houver definição prévia
+  return 'correios';
+}
+
 interface ModalDespacharPedidoProps {
   isOpen: boolean;
   onClose: () => void;
@@ -121,8 +265,12 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
   const { usuario } = useAuth();
   const { isDark } = useTheme();
 
-  // Modalidade selecionada
-  const [modalidade, setModalidade] = useState<ModalidadeDespachoManual>('correios');
+  // Modalidade selecionada com pré-inicialização inteligente baseada no pedido
+  const [modalidade, setModalidade] = useState<ModalidadeDespachoManual>(() =>
+    detectarModalidadeInicial(pedido, entrega)
+  );
+  const ultimoPedidoIdAbertoRef = useRef<string | null>(null);
+  const usuarioAlterouAbaRef = useRef<boolean>(false);
 
   // Listas relacionais dinâmicas do banco
   const [apps, setApps] = useState<AppEntrega[]>([]);
@@ -167,6 +315,8 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
     if (!isOpen) {
       setResultadoDisparoWpp(null);
       setConfirmacaoSucesso(null);
+      ultimoPedidoIdAbertoRef.current = null;
+      usuarioAlterouAbaRef.current = false;
     }
     setEntregaInterna(entrega);
     if (isOpen && pedido?.id && (!entrega || !entrega.codigo_rastreio)) {
@@ -198,7 +348,11 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
           setTransportadoras(transpsAtivas);
 
           // Casamento inteligente com os dados atuais do pedido/entrega
-          const pe = entregaInterna || entrega || (pedido as any)?.pedido_entregas?.[0] || pedido?.pedido_entrega || null;
+          const pe = (pedido?.id && entregaInterna?.pedido_id === pedido.id ? entregaInterna : null) ||
+            (pedido?.id && entrega?.pedido_id === pedido.id ? entrega : null) ||
+            (pedido as any)?.pedido_entregas?.[0] ||
+            pedido?.pedido_entrega ||
+            null;
           const transpNome = (
             pe?.transportadora_nome ||
             pe?.nome_transportadora ||
@@ -246,7 +400,11 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
     if (!isOpen || !pedido) return;
     setErroMsg(null);
 
-    const pe = entregaInterna || entrega || (pedido as any)?.pedido_entregas?.[0] || pedido?.pedido_entrega || null;
+    const pe = (entregaInterna?.pedido_id === pedido.id ? entregaInterna : null) ||
+      (entrega?.pedido_id === pedido.id ? entrega : null) ||
+      (pedido as any)?.pedido_entregas?.[0] ||
+      pedido?.pedido_entrega ||
+      null;
     const opTipo = pe?.tipo_operacao || (pedido as any)?.tipo_operacao || pe?.tipo_entrega;
 
     const transpNome = (
@@ -305,59 +463,26 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
 
     setCodigoCorrida(codCorrida);
     setLinkRastreioApp(linkRastreio);
+    setEntregadorNome(entNome);
+    setContatoEntregador(entContato);
+    setCodigoRastreioTransp(codRastreio);
+    setValorFreteTransp(valFreteStr);
+    const srvCorreios = (pedido as any)?.servico_correios || pe?.servico_correios;
+    setServicoCorreios(srvCorreios === 'PAC' ? 'PAC' : 'SEDEX');
+    setCodigoRastreioCorreios(codRastreio);
 
-    // Identificação da modalidade
-    const ehTransp =
-      opTipo === 'transportadora' ||
-      Boolean(transpId) ||
-      (Boolean(transpNome) && !transpNome.toLowerCase().includes('correios') && (
-        transpNome.toLowerCase().includes('jadlog') ||
-        transpNome.toLowerCase().includes('transportadora') ||
-        transpNome.toLowerCase().includes('braspress') ||
-        transpNome.toLowerCase().includes('total express') ||
-        transpNome.toLowerCase().includes('azul') ||
-        transpNome.toLowerCase().includes('latam') ||
-        transpNome.toLowerCase().includes('rodonaves')
-      ));
+    // Pré-seleção inteligente e automática da aba com base no pedido
+    const ehNovaAbertura = ultimoPedidoIdAbertoRef.current !== pedido.id;
+    if (ehNovaAbertura || !usuarioAlterouAbaRef.current) {
+      ultimoPedidoIdAbertoRef.current = pedido.id;
+      const modInicial = detectarModalidadeInicial(pedido, pe);
+      setModalidade(modInicial);
 
-    const ehApp =
-      opTipo === 'app_entrega' ||
-      Boolean(appId) ||
-      (Boolean(appNome) && (
-        appNome.toLowerCase().includes('uber') ||
-        appNome.toLowerCase().includes('99') ||
-        appNome.toLowerCase().includes('lalamove')
-      ));
-
-    const ehFrota =
-      opTipo === 'frota_propria' ||
-      opTipo === 'motoboy' ||
-      opTipo === 'proprio' ||
-      Boolean(entNome);
-
-    if (ehApp) {
-      setModalidade('app_entrega');
-      setCodigoCorrida(codCorrida);
-      setLinkRastreioApp(linkRastreio);
-      if (apps.length > 0) {
+      if (modInicial === 'app_entrega' && apps.length > 0) {
         setAppSelecionadoId(encontrarIdApp(apps, appId, appNome));
-      }
-    } else if (ehTransp) {
-      setModalidade('transportadora');
-      setCodigoRastreioTransp(codRastreio);
-      setValorFreteTransp(valFreteStr);
-      if (transportadoras.length > 0) {
+      } else if (modInicial === 'transportadora' && transportadoras.length > 0) {
         setTranspSelecionadaId(encontrarIdTransportadora(transportadoras, transpId, transpNome));
       }
-    } else if (ehFrota) {
-      setModalidade('frota_propria');
-      setEntregadorNome(entNome);
-      setContatoEntregador(entContato);
-    } else {
-      setModalidade('correios');
-      const srvCorreios = (pedido as any)?.servico_correios || pe?.servico_correios;
-      setServicoCorreios(srvCorreios === 'PAC' ? 'PAC' : 'SEDEX');
-      setCodigoRastreioCorreios(codRastreio);
     }
   }, [isOpen, pedido, entrega, entregaInterna, transportadoras.length, apps.length]);
 
@@ -611,7 +736,10 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
             {/* Opção 1: Correios */}
             <button
               type="button"
-              onClick={() => setModalidade('correios')}
+              onClick={() => {
+                usuarioAlterouAbaRef.current = true;
+                setModalidade('correios');
+              }}
               className={`p-3 rounded-2xl border text-center transition flex flex-col items-center gap-1.5 cursor-pointer ${
                 modalidade === 'correios'
                   ? (isDark ? 'bg-[#000000] border-2 border-emerald-500 text-emerald-400 shadow-xs' : 'bg-white border-2 border-emerald-600 text-emerald-800 font-bold shadow-xs')
@@ -625,7 +753,10 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
             {/* Opção 2: App de Corrida */}
             <button
               type="button"
-              onClick={() => setModalidade('app_entrega')}
+              onClick={() => {
+                usuarioAlterouAbaRef.current = true;
+                setModalidade('app_entrega');
+              }}
               className={`p-3 rounded-2xl border text-center transition flex flex-col items-center gap-1.5 cursor-pointer ${
                 modalidade === 'app_entrega'
                   ? (isDark ? 'bg-[#000000] border-2 border-emerald-500 text-emerald-400 shadow-xs' : 'bg-white border-2 border-emerald-600 text-emerald-800 font-bold shadow-xs')
@@ -639,7 +770,10 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
             {/* Opção 3: Transportadora */}
             <button
               type="button"
-              onClick={() => setModalidade('transportadora')}
+              onClick={() => {
+                usuarioAlterouAbaRef.current = true;
+                setModalidade('transportadora');
+              }}
               className={`p-3 rounded-2xl border text-center transition flex flex-col items-center gap-1.5 cursor-pointer ${
                 modalidade === 'transportadora'
                   ? (isDark ? 'bg-[#000000] border-2 border-emerald-500 text-emerald-400 shadow-xs' : 'bg-white border-2 border-emerald-600 text-emerald-800 font-bold shadow-xs')
@@ -653,7 +787,10 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
             {/* Opção 4: Frete Próprio */}
             <button
               type="button"
-              onClick={() => setModalidade('frota_propria')}
+              onClick={() => {
+                usuarioAlterouAbaRef.current = true;
+                setModalidade('frota_propria');
+              }}
               className={`p-3 rounded-2xl border text-center transition flex flex-col items-center gap-1.5 cursor-pointer ${
                 modalidade === 'frota_propria'
                   ? (isDark ? 'bg-[#000000] border-2 border-emerald-500 text-emerald-400 shadow-xs' : 'bg-white border-2 border-emerald-600 text-emerald-800 font-bold shadow-xs')

@@ -1568,6 +1568,7 @@ export const PedidosLista: React.FC = () => {
     if (pe) {
       setEntregaPedido(pe);
     } else {
+      setEntregaPedido(null);
       ShippingOrchestrator.buscarPedidoEntrega(ped.id).then(res => {
         if (res) setEntregaPedido(res);
       }).catch(() => {});

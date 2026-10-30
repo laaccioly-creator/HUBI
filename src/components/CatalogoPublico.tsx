@@ -34,6 +34,7 @@ import { CupomService } from '../services/cupomService';
 import { audioService } from '../services/audioService';
 import { useCart } from '../contexts/CartContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { ModalBuscaClienteCatalogo } from './ModalBuscaClienteCatalogo';
 import { ModalContatoClienteCatalogo, DadosContatoCliente } from './ModalContatoClienteCatalogo';
 import { ModalEnderecoClienteCatalogo, DadosEnderecoCliente } from './ModalEnderecoClienteCatalogo';
@@ -71,12 +72,15 @@ interface PedidoConcluidoInfo {
   linkPagamento?: string | null;
   preferenceId?: string | null;
   formaPagamentoEscolhida?: string;
+  titulo?: string;
+  mensagem?: string;
 }
 
 export const CatalogoPublico: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const cartContext = useCart();
   const { isDark, alternarTema } = useTheme();
+  const { mostrarToast } = useFeedbackModal();
   const [loja, setLoja] = useState<Loja | null>(null);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -313,6 +317,7 @@ export const CatalogoPublico: React.FC = () => {
   const [saldoContaClienteReconciliado, setSaldoContaClienteReconciliado] = useState<number>(0);
   const [menuUsuarioAberto, setMenuUsuarioAberto] = useState<boolean>(false);
   const menuUsuarioRef = useRef<HTMLDivElement>(null);
+  const pedidosProcessadosRef = useRef<Set<string>>(new Set());
 
   const atualizarDadosContaCliente = async () => {
     if (!loja?.id || !clienteSelecionado?.id) {
@@ -1173,11 +1178,15 @@ export const CatalogoPublico: React.FC = () => {
 
   // Função para higienizar a URL removendo ?pagar_pedido após encerramento ou conclusão
   const limparParametroPagarPedido = useCallback(() => {
+    setPedidoIdPendentePagar(null);
     try {
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
-        next.delete('pagar_pedido');
-        return next;
+        if (next.has('pagar_pedido')) {
+          next.delete('pagar_pedido');
+          return next;
+        }
+        return prev;
       }, { replace: true });
     } catch {
       // Ignore
@@ -1276,10 +1285,33 @@ export const CatalogoPublico: React.FC = () => {
         setWhatsappCliente(ped.cliente_telefone_avulso);
       }
 
-      // 5. Verificar se já quitado ou ainda em pesagem
-      if (ped.status_pagamento === 'pago') {
-        alert(`O pedido #${ped.numero_pedido} já se encontra quitado e pago!`);
+      // 5. Verificar se já quitado, registrado na caderneta/fiado/entrega ou ainda em pesagem
+      const jaRegistradoOuPago = ped.status_pagamento === 'pago' ||
+        ped.status_pagamento === 'caderneta' ||
+        ped.status_pagamento === 'fiado' ||
+        Boolean(ped.forma_pagamento_catalogo) ||
+        (Array.isArray(ped.pagamentos_previstos) && ped.pagamentos_previstos.length > 0);
+
+      if (jaRegistradoOuPago) {
+        pedidosProcessadosRef.current.add(pagarPedidoId);
+        if (ped.id) pedidosProcessadosRef.current.add(ped.id);
+
         limparParametroPagarPedido();
+        setPedidoParaPagamento(null);
+        setModalPagamentoPedidoPesadoAberto(false);
+
+        const lojaPhone = (loja.whatsapp || (loja as any).telefone || '').replace(/\D/g, '');
+        const phoneFinal = lojaPhone.startsWith('55') ? lojaPhone : `55${lojaPhone}`;
+        const msgWhatsApp = `🛍️ *PEDIDO ONLINE #${ped.numero_pedido}*\n\nOlá, ${loja.nome_fantasia}! O pagamento/fechamento do meu pedido #${ped.numero_pedido} já se encontra registrado.\nValor Total: R$ ${Number(ped.valor_total || 0).toFixed(2)}`;
+        const urlWhats = lojaPhone ? `https://api.whatsapp.com/send?phone=${phoneFinal}&text=${encodeURIComponent(msgWhatsApp)}` : '';
+
+        setPedidoConcluidoModal({
+          numeroPedido: ped.numero_pedido || 0,
+          whatsAppUrl: urlWhats,
+          formaPagamentoEscolhida: ped.status_pagamento || ped.forma_pagamento_catalogo,
+          titulo: `Pedido #${ped.numero_pedido} com Pagamento Confirmado!`,
+          mensagem: 'A forma de pagamento deste pedido já foi registrada e está em processamento.'
+        });
         return;
       }
 
@@ -1305,11 +1337,16 @@ export const CatalogoPublico: React.FC = () => {
     const pagarPedidoId = searchParams.get('pagar_pedido') || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('pagar_pedido') : null);
     if (!pagarPedidoId || !loja?.id) return;
 
+    if (pedidosProcessadosRef.current.has(pagarPedidoId)) {
+      limparParametroPagarPedido();
+      return;
+    }
+
     setPedidoIdPendentePagar(pagarPedidoId);
 
     // Carrega o pedido imediatamente sem exigir login prévio
     carregarPedidoParaPagamento(pagarPedidoId);
-  }, [searchParams, loja?.id, carregarPedidoParaPagamento]);
+  }, [searchParams, loja?.id, carregarPedidoParaPagamento, limparParametroPagarPedido]);
 
   // 1. Tratar Retorno do Mercado Pago (Redirecionamento pós-checkout)
   useEffect(() => {
@@ -3926,6 +3963,14 @@ Fico no aguardo da confirmação! ✨`;
             setModalPagamentoPedidoPesadoAberto(false);
             setPedidoParaPagamento(null);
             limparParametroPagarPedido();
+            if (pedFinal?.id) {
+              pedidosProcessadosRef.current.add(pedFinal.id);
+            }
+            if (pedidoIdPendentePagar) {
+              pedidosProcessadosRef.current.add(pedidoIdPendentePagar);
+            }
+            mostrarToast?.('Pagamento confirmado com sucesso!', 'sucesso');
+            audioService.playNewOrderSound();
             if (pedFinal) {
               const lojaPhone = (loja.whatsapp || (loja as any).telefone || '').replace(/\D/g, '');
               const phoneFinal = lojaPhone.startsWith('55') ? lojaPhone : `55${lojaPhone}`;
@@ -3934,7 +3979,9 @@ Fico no aguardo da confirmação! ✨`;
               setPedidoConcluidoModal({
                 numeroPedido: pedFinal.numero_pedido || 0,
                 whatsAppUrl: urlWhats,
-                formaPagamentoEscolhida: pedFinal.status_pagamento
+                formaPagamentoEscolhida: pedFinal.status_pagamento,
+                titulo: `Pagamento do Pedido #${pedFinal.numero_pedido} Confirmado!`,
+                mensagem: 'Sua escolha de pagamento foi registrada com sucesso.'
               });
             }
           }}
@@ -3967,10 +4014,10 @@ Fico no aguardo da confirmação! ✨`;
 
             <div>
               <h3 className="text-lg font-black text-slate-100">
-                Pedido #{pedidoConcluidoModal.numeroPedido} Enviado com Sucesso!
+                {pedidoConcluidoModal.titulo || `Pedido #${pedidoConcluidoModal.numeroPedido} Enviado com Sucesso!`}
               </h3>
               <p className="text-xs text-slate-400 mt-1">
-                Seu pedido foi registrado e encaminhado para o estabelecimento.
+                {pedidoConcluidoModal.mensagem || 'Seu pedido foi registrado e encaminhado para o estabelecimento.'}
               </p>
             </div>
 

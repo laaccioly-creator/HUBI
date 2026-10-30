@@ -260,11 +260,17 @@ export const ModalConferenciaPesagemPedido: React.FC<ModalConferenciaPesagemPedi
         'Cliente'
       ).trim();
 
-      const dominioAtual = typeof window !== 'undefined' ? window.location.host : 'hubi.app';
+      const protocolo = typeof window !== 'undefined' && window.location.protocol ? window.location.protocol : 'https:';
+      const host = typeof window !== 'undefined' && window.location.host ? window.location.host : 'hubi.app';
+      const urlBase = `${protocolo}//${host}`;
       const slugLoja = loja.slug_catalogo || loja.id;
-      const deepLinkPagamento = `https://${dominioAtual}/catalog/${slugLoja}?pagar_pedido=${pedido.id}`;
+      const linkRecibo = `${urlBase}/recibo/${pedido.id}`;
+      const deepLinkPagamento = `${urlBase}/catalog/${slugLoja}?pagar_pedido=${pedido.id}`;
 
-      const textoMensagem = `Olá ${nomeCliente}! Seu pedido #${pedido.numero_pedido} já foi pesado e separado na loja ${loja.nome_fantasia}. O valor definitivo ficou em ${formatarMoeda(valorTotalDefinitivo)}. Toque no link abaixo para escolher como pagar: ${deepLinkPagamento}`;
+      const textoMensagem = `Olá ${nomeCliente}! Seu pedido #${pedido.numero_pedido} foi pesado e separado com sucesso na loja ${loja.nome_fantasia}. 🥩⚖️\n\n` +
+        `💵 *Valor definitivo:* ${formatarMoeda(valorTotalDefinitivo)}\n\n` +
+        `📄 *Confira seu recibo detalhado com os pesos aferidos:*\n${linkRecibo}\n\n` +
+        `💳 *Toque no link abaixo para escolher a forma de pagamento:*\n${deepLinkPagamento}`;
 
       let resultadoEnvio: ResultadoDisparoHibrido = {
         sucesso: true,
