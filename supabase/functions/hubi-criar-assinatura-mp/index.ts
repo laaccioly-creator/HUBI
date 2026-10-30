@@ -124,7 +124,6 @@ serve(async (req: Request) => {
       payer: payerPayload,
       payment_methods: {
         installments: 12,
-        default_installments: 12,
       },
       back_urls: {
         success: "https://hubi.app/dashboard?assinatura=sucesso",
