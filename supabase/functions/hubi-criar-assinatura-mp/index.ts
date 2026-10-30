@@ -97,39 +97,44 @@ serve(async (req: Request) => {
     const isExplicitTestToken = mpAccessToken.startsWith("TEST-");
     const isSandboxMode = isExplicitTestToken || isCollectorTestUser;
 
-    // 2.2 Configuração robusta de payer (evita tela /fatal/ no Checkout Pro Sandbox)
-    const payerPayload: Record<string, any> = {
-      name: String(loja.nome_fantasia || "Lojista HUBI").slice(0, 60),
-    };
+    // 2.2 Configuração de payer (eliminação de /fatal/ no Sandbox e conflitos em Produção)
+    let payerPayload: Record<string, any>;
 
     if (isSandboxMode) {
-      // No Sandbox, o Checkout Pro exige um payer.email válido diferente do vendedor para carregar os fluxos sem /fatal/
-      payerPayload.email = "test_user_comprador@testuser.com";
-    } else if (loja.email) {
-      const lojaEmailSanitizado = loja.email.trim().toLowerCase();
-      if (!collectorEmail || lojaEmailSanitizado !== collectorEmail) {
-        payerPayload.email = lojaEmailSanitizado;
-      } else {
-        payerPayload.email = `faturamento+${loja.id.slice(0, 8)}@hubi.app`;
-      }
+      payerPayload = {
+        email: "comprador_teste@testuser.com",
+        name: "Comprador Teste",
+        surname: "HUBI",
+      };
     } else {
-      payerPayload.email = `faturamento+${loja.id.slice(0, 8)}@hubi.app`;
+      let emailPagador = `faturamento+${loja.id.slice(0, 8)}@hubi.app`;
+      if (loja.email) {
+        const lojaEmailSanitizado = loja.email.trim().toLowerCase();
+        if (!collectorEmail || lojaEmailSanitizado !== collectorEmail) {
+          emailPagador = lojaEmailSanitizado;
+        }
+      }
+      payerPayload = {
+        email: emailPagador,
+        name: String(loja.nome_fantasia || "Lojista HUBI").slice(0, 60),
+      };
     }
 
     const preferencePayload = {
       items: [
         {
-          id: "hubi-plano-anual-12m",
-          title: `HUBI PDV - Licença Anual (12 Meses)`,
-          description: `Assinatura anual de 12 meses da unidade: ${loja.nome_fantasia}`,
+          id: "hubi-licenca-anual",
+          title: "HUBI PDV - Licença Anual",
+          description: "Assinatura anual de licença de uso do HUBI",
           quantity: 1,
           currency_id: "BRL",
-          unit_price: Number(valorAnualTotal.toFixed(2)),
+          unit_price: Number(valorAnualTotal || 598.80),
         },
       ],
       payer: payerPayload,
       payment_methods: {
         installments: 12,
+        default_installments: 12,
       },
       back_urls: {
         success: "https://hubi.app/dashboard?assinatura=sucesso",
