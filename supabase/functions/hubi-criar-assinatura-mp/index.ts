@@ -164,8 +164,12 @@ serve(async (req: Request) => {
 
     const prefData = await mpResponse.json();
 
-    // Determina o link correto de acordo com o ambiente
-    const checkoutUrl = isSandboxMode
+    // Determina o link correto de acordo com as especificações do Mercado Pago:
+    // sandbox_init_point só é suportado se o token for explicitamente de teste (TEST-).
+    // Tokens que iniciam com "APP_USR-" (mesmo de usuários de teste de desenvolvedor)
+    // devem utilizar obrigatoriamente "init_point" (https://www.mercadopago.com.br/...),
+    // caso contrário o host sandbox.mercadopago.com.br retorna tela de pane ("Ops, ocorreu um erro").
+    const checkoutUrl = isExplicitTestToken
       ? (prefData.sandbox_init_point || prefData.init_point)
       : prefData.init_point;
 
@@ -204,6 +208,7 @@ serve(async (req: Request) => {
         sandbox_init_point: prefData.sandbox_init_point,
         modo: isSandboxMode ? "sandbox" : "producao",
         is_sandbox: isSandboxMode,
+        conta_coletora_teste: isCollectorTestUser,
         token_prefix: mpAccessToken.startsWith("TEST-") ? "TEST-" : mpAccessToken.startsWith("APP_USR-") ? "APP_USR-" : "OUTRO",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
