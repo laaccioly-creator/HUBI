@@ -102,8 +102,6 @@ serve(async (req: Request) => {
       );
     }
 
-    const externalReference = `whatsapp_wallet:${loja.id}:${transacaoCriada.id}`;
-
     if (!tokenFinal) {
       return new Response(
         JSON.stringify({
@@ -114,17 +112,45 @@ serve(async (req: Request) => {
       );
     }
 
-    // 4. Gera cobrança Pix dinâmica na API v1/payments do Mercado Pago
-    const mpPixPayload = {
-      transaction_amount: Number(valorRecarga.toFixed(2)),
-      description: `HUBI - Recarga Carteira WhatsApp (${loja.nome_fantasia})`,
-      payment_method_id: "pix",
+    // 4. Identificação do perfil do coletor (Produção vs Sandbox)
+    let collectorEmail = "";
+    let isCollectorTestUser = false;
+    try {
+      const meRes = await fetch("https://api.mercadopago.com/users/me", {
+        headers: { Authorization: `Bearer ${tokenFinal}` },
+      });
+      if (meRes.ok) {
+        const meData = await meRes.json();
+        collectorEmail = String(meData.email || "").toLowerCase();
+        const tags: string[] = Array.isArray(meData.tags) ? meData.tags : [];
+        isCollectorTestUser = collectorEmail.endsWith("@testuser.com") || tags.includes("test_user");
+      }
+    } catch (_) {}
+
+    const isExplicitTestToken = tokenFinal.startsWith("TEST-");
+    const isSandboxMode = isExplicitTestToken || isCollectorTestUser;
+
+    const externalRefObj = {
+      loja_id: loja.id,
+      tipo: "recarga_whatsapp",
+      transacao_id: transacaoCriada.id,
+      valor: valorRecarga,
+    };
+    const externalReference = JSON.stringify(externalRefObj);
+
+    // 5. Gera preferência oficial do Mercado Pago Checkout Pro (suporte a Pix, Cartão, etc.)
+    const preferencePayload: Record<string, any> = {
+      items: [
+        {
+          id: `recarga-wpp-${transacaoCriada.id}`,
+          title: `HUBI - Recarga de Créditos WhatsApp (R$ ${valorRecarga.toFixed(2).replace(".", ",")})`,
+          quantity: 1,
+          unit_price: Number(valorRecarga.toFixed(2)),
+          currency_id: "BRL",
+        },
+      ],
       external_reference: externalReference,
       notification_url: `${supabaseUrl}/functions/v1/hubi-webhook-mp`,
-      payer: {
-        email: loja.email || `financeiro+${loja.id.slice(0, 8)}@hubi.app`,
-        first_name: String(loja.nome_fantasia || "Lojista HUBI").slice(0, 40),
-      },
       metadata: {
         loja_id: loja.id,
         transacao_id: transacaoCriada.id,
@@ -132,47 +158,51 @@ serve(async (req: Request) => {
       },
     };
 
-    const mpResponse = await fetch("https://api.mercadopago.com/v1/payments", {
+    const mpResponse = await fetch("https://api.mercadopago.com/checkout/preferences", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${tokenFinal}`,
-        "X-Idempotency-Key": `hubi-wpp-wallet-${transacaoCriada.id}`,
       },
-      body: JSON.stringify(mpPixPayload),
+      body: JSON.stringify(preferencePayload),
     });
 
-    if (!mpResponse.ok) {
-      console.error("[hubi-criar-recarga-whatsapp-mp] Falha ao gerar Pix no Mercado Pago:", mpResponse.status);
+    const respText = await mpResponse.text();
+    let prefData: any = {};
+    try {
+      prefData = JSON.parse(respText);
+    } catch (_) {
+      prefData = { raw: respText };
+    }
+
+    if (!mpResponse.ok || !prefData.id) {
+      console.error("[hubi-criar-recarga-whatsapp-mp] Erro do Mercado Pago:", respText);
       return new Response(
-        JSON.stringify({ error: "Não foi possível gerar o QR Code Pix no Mercado Pago no momento." }),
+        JSON.stringify({ error: "Falha na comunicação com o Mercado Pago ao gerar fatura de recarga." }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const mpData = await mpResponse.json();
-    const mpPaymentId = String(mpData.id || "");
-    const qrCode = String(mpData.point_of_interaction?.transaction_data?.qr_code || "");
-    const qrCodeBase64 = String(mpData.point_of_interaction?.transaction_data?.qr_code_base64 || "");
-    const ticketUrl = String(mpData.point_of_interaction?.transaction_data?.ticket_url || "");
+    const checkoutUrl = isSandboxMode
+      ? (prefData.sandbox_init_point || prefData.init_point)
+      : prefData.init_point;
 
-    // Vincula o mp_payment_id à transação pendente
-    if (mpPaymentId) {
-      await supabaseAdmin
-        .from("loja_whatsapp_transacoes")
-        .update({ mp_payment_id: mpPaymentId })
-        .eq("id", transacaoCriada.id)
-        .eq("loja_id", loja.id);
-    }
+    // Vincula a preferência criada à transação no ledger
+    await supabaseAdmin
+      .from("loja_whatsapp_transacoes")
+      .update({ mp_payment_id: prefData.id })
+      .eq("id", transacaoCriada.id);
 
     return new Response(
       JSON.stringify({
         sucesso: true,
         transacao_id: transacaoCriada.id,
-        mp_payment_id: mpPaymentId,
-        qr_code: qrCode,
-        qr_code_base64: qrCodeBase64,
-        ticket_url: ticketUrl,
+        preference_id: prefData.id,
+        init_point: checkoutUrl,
+        checkout_url: checkoutUrl,
+        sandbox_init_point: prefData.sandbox_init_point,
+        modo: isSandboxMode ? "sandbox" : "producao",
+        is_sandbox: isSandboxMode,
         valor: Number(valorRecarga.toFixed(2)),
         external_reference: externalReference,
       }),
@@ -181,7 +211,7 @@ serve(async (req: Request) => {
   } catch (err) {
     console.error("[hubi-criar-recarga-whatsapp-mp] Erro interno:", err instanceof Error ? err.message : "Erro");
     return new Response(
-      JSON.stringify({ error: "Ocorreu um erro inesperado ao iniciar a recarga via Pix." }),
+      JSON.stringify({ error: "Ocorreu um erro inesperado ao iniciar a recarga via Mercado Pago." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

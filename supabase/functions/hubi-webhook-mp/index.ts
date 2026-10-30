@@ -110,11 +110,35 @@ serve(async (req: Request) => {
     }
     const externalRefStr = String(payment.external_reference || "");
 
-    // 1.5. Fluxo de Recarga de Carteira Pré-Paga WhatsApp (external_reference = "whatsapp_wallet:${loja_id}:${transacao_id}")
-    if (externalRefStr.startsWith("whatsapp_wallet:") || payment.metadata?.tipo_cobranca === "whatsapp_wallet") {
-      const partes = externalRefStr.split(":");
-      const walletLojaId = partes[1] || String(payment.metadata?.loja_id || "");
-      const walletTransacaoId = partes[2] || (payment.metadata?.transacao_id ? String(payment.metadata.transacao_id) : null);
+    // 1.5. Fluxo de Recarga de Carteira Pré-Paga WhatsApp (external_reference JSON ou formato whatsapp_wallet:...)
+    const isWppWallet =
+      externalRefStr.startsWith("whatsapp_wallet:") ||
+      payment.metadata?.tipo_cobranca === "whatsapp_wallet" ||
+      (externalRefStr.startsWith("{") && (externalRefStr.includes("recarga_whatsapp") || externalRefStr.includes("whatsapp_wallet")));
+
+    if (isWppWallet) {
+      let walletLojaId = "";
+      let walletTransacaoId: string | null = null;
+
+      if (externalRefStr.startsWith("{")) {
+        try {
+          const parsed = JSON.parse(externalRefStr);
+          walletLojaId = parsed.loja_id || "";
+          walletTransacaoId = parsed.transacao_id || null;
+        } catch (_) {}
+      } else if (externalRefStr.startsWith("whatsapp_wallet:")) {
+        const partes = externalRefStr.split(":");
+        walletLojaId = partes[1] || "";
+        walletTransacaoId = partes[2] || null;
+      }
+
+      if (!walletLojaId) {
+        walletLojaId = String(payment.metadata?.loja_id || "");
+      }
+      if (!walletTransacaoId && payment.metadata?.transacao_id) {
+        walletTransacaoId = String(payment.metadata.transacao_id);
+      }
+
       const valorRecarga = Number(payment.transaction_amount || 0);
       const mpPaymentIdStr = String(payment.id);
 

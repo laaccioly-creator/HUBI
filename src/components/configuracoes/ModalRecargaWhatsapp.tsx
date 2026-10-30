@@ -3,6 +3,7 @@ import {
   Check,
   CheckCircle2,
   Copy,
+  CreditCard,
   Loader2,
   QrCode,
   RefreshCw,
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Loja } from '../../types';
+import { useTheme } from '../../contexts/ThemeContext';
 import {
   RespostaRecargaPixWhatsapp,
   whatsappWalletService,
@@ -40,9 +42,11 @@ export const ModalRecargaWhatsapp: React.FC<ModalRecargaWhatsappProps> = ({
   valorMinimoRecarga = 10.0,
   aoConcluirRecarga,
 }) => {
+  const { isDark } = useTheme();
   const [valorSelecionado, setValorSelecionado] = useState<number>(30);
   const [valorPersonalizado, setValorPersonalizado] = useState<string>('');
   const [modoPersonalizado, setModoPersonalizado] = useState<boolean>(false);
+  const [iniciandoCheckout, setIniciandoCheckout] = useState<boolean>(false);
   const [gerandoPix, setGerandoPix] = useState<boolean>(false);
   const [verificandoPagamento, setVerificandoPagamento] = useState<boolean>(false);
   const [dadosPix, setDadosPix] = useState<RespostaRecargaPixWhatsapp | null>(null);
@@ -118,6 +122,38 @@ export const ModalRecargaWhatsapp: React.FC<ModalRecargaWhatsappProps> = ({
 
   const disparosEstimados =
     custoDisparo > 0 ? Math.floor(valorEfetivo / custoDisparo) : 0;
+
+  const handleRecarregarMercadoPago = async () => {
+    setErro(null);
+    if (!Number.isFinite(valorEfetivo) || valorEfetivo < valorMinimoRecarga) {
+      setErro(
+        `O valor mínimo para recarga é de ${formatCurrency(valorMinimoRecarga)}.`
+      );
+      return;
+    }
+
+    setIniciandoCheckout(true);
+    try {
+      const res = await whatsappWalletService.criarRecargaMercadoPago(
+        loja,
+        valorEfetivo,
+        usuarioId
+      );
+
+      if (res.checkoutUrl) {
+        window.location.href = res.checkoutUrl;
+      } else {
+        throw new Error('Link de checkout do Mercado Pago não retornado.');
+      }
+    } catch (e) {
+      setErro(
+        e instanceof Error
+          ? e.message
+          : 'Não foi possível iniciar o checkout do Mercado Pago. Tente novamente.'
+      );
+      setIniciandoCheckout(false);
+    }
+  };
 
   const handleGerarPix = async () => {
     setErro(null);
@@ -202,26 +238,42 @@ export const ModalRecargaWhatsapp: React.FC<ModalRecargaWhatsappProps> = ({
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden text-slate-100">
+      <div
+        className={`w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden transition-colors ${
+          isDark
+            ? 'bg-slate-900 border-slate-800 text-slate-100'
+            : 'bg-white border-slate-200 text-slate-800'
+        }`}
+      >
         {/* Cabeçalho */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800 bg-slate-950/60">
+        <div
+          className={`flex items-center justify-between px-5 py-4 border-b ${
+            isDark
+              ? 'bg-slate-950/60 border-slate-800'
+              : 'bg-slate-50 border-slate-200'
+          }`}
+        >
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-500">
               <Wallet size={18} />
             </div>
             <div>
-              <h3 className="text-sm font-black uppercase tracking-wider text-white">
+              <h3 className={`text-sm font-black uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 Adicionar Créditos WhatsApp
               </h3>
-              <p className="text-[11px] text-slate-400">
-                Liberação imediata via Pix • Sem mensalidade fixa
+              <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                Checkout Pro • Pix, Cartão ou Boleto • Sem mensalidade fixa
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={aoFechar}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className={`p-1.5 rounded-lg transition-colors ${
+              isDark
+                ? 'text-slate-400 hover:text-white hover:bg-slate-800'
+                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+            }`}
           >
             <X size={18} />
           </button>
@@ -231,16 +283,16 @@ export const ModalRecargaWhatsapp: React.FC<ModalRecargaWhatsappProps> = ({
         <div className="p-5 space-y-4">
           {pagamentoConfirmado ? (
             <div className="py-6 text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto">
+              <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-500 flex items-center justify-center mx-auto">
                 <CheckCircle2 size={34} />
               </div>
               <div className="space-y-1">
-                <h4 className="text-lg font-black text-white">
+                <h4 className={`text-lg font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
                   Recarga Confirmada com Sucesso!
                 </h4>
-                <p className="text-xs text-slate-300">
+                <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                   O valor de{' '}
-                  <strong className="text-emerald-400">
+                  <strong className="text-emerald-500 font-bold">
                     {formatCurrency(dadosPix?.valor || valorEfetivo)}
                   </strong>{' '}
                   foi creditado na carteira da loja e os envios automáticos já estão ativos.
@@ -257,7 +309,7 @@ export const ModalRecargaWhatsapp: React.FC<ModalRecargaWhatsappProps> = ({
           ) : !dadosPix ? (
             <>
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                <label className={`block text-[11px] font-bold uppercase tracking-wider mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                   Escolha o valor da recarga
                 </label>
                 <div className="grid grid-cols-3 gap-2.5">
@@ -276,14 +328,16 @@ export const ModalRecargaWhatsapp: React.FC<ModalRecargaWhatsappProps> = ({
                         }}
                         className={`p-3 rounded-xl border text-center transition-all ${
                           ativo
-                            ? 'bg-emerald-500/15 border-emerald-500 text-white shadow-lg shadow-emerald-950/30'
-                            : 'bg-slate-950/70 border-slate-800 text-slate-300 hover:border-slate-700'
+                            ? 'bg-emerald-500/15 border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold shadow-md shadow-emerald-500/10'
+                            : isDark
+                            ? 'bg-slate-950/70 border-slate-800 text-slate-300 hover:border-slate-700'
+                            : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300'
                         }`}
                       >
-                        <div className="text-base font-black text-emerald-400">
+                        <div className="text-base font-black text-emerald-600 dark:text-emerald-400">
                           R$ {opcao}
                         </div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">
+                        <div className={`text-[10px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                           ~{qtdDisparos} envios
                         </div>
                       </button>
@@ -297,7 +351,7 @@ export const ModalRecargaWhatsapp: React.FC<ModalRecargaWhatsappProps> = ({
                 <button
                   type="button"
                   onClick={() => setModoPersonalizado((prev) => !prev)}
-                  className="text-xs font-bold text-emerald-400 hover:text-emerald-300 underline underline-offset-4"
+                  className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline underline-offset-4"
                 >
                   {modoPersonalizado
                     ? 'Usar valores rápidos sugeridos'
@@ -306,7 +360,7 @@ export const ModalRecargaWhatsapp: React.FC<ModalRecargaWhatsappProps> = ({
 
                 {modoPersonalizado && (
                   <div className="mt-2.5">
-                    <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                    <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                       Valor personalizado (R$)
                     </label>
                     <input
@@ -316,56 +370,66 @@ export const ModalRecargaWhatsapp: React.FC<ModalRecargaWhatsappProps> = ({
                       placeholder={`Ex: ${valorMinimoRecarga.toFixed(2)}`}
                       value={valorPersonalizado}
                       onChange={(e) => setValorPersonalizado(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm font-bold focus:outline-none focus:border-emerald-500"
+                      className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-bold focus:outline-none focus:border-emerald-500 ${
+                        isDark
+                          ? 'bg-slate-950 border-slate-700 text-white'
+                          : 'bg-white border-slate-300 text-slate-900'
+                      }`}
                     />
                   </div>
                 )}
               </div>
 
               {/* Resumo de conversão */}
-              <div className="rounded-xl bg-slate-950/80 border border-slate-800 p-3.5 flex items-center justify-between">
+              <div
+                className={`rounded-xl border p-3.5 flex items-center justify-between ${
+                  isDark
+                    ? 'bg-slate-950/80 border-slate-800'
+                    : 'bg-slate-50 border-slate-200'
+                }`}
+              >
                 <div className="flex items-center gap-2.5">
-                  <Sparkles size={16} className="text-emerald-400 shrink-0" />
+                  <Sparkles size={16} className="text-emerald-500 shrink-0" />
                   <div>
-                    <div className="text-xs font-bold text-slate-200">
+                    <div className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                       Estimativa de Disparos Ativos
                     </div>
-                    <div className="text-[11px] text-slate-400">
-                      Tarifa por notificação fora da janela de 24h:{' '}
-                      <strong className="text-slate-200">
+                    <div className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Tarifa por notificação fora da janela:{' '}
+                      <strong className={isDark ? 'text-slate-200' : 'text-slate-700'}>
                         {formatCurrency(custoDisparo)}
                       </strong>
                     </div>
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="text-sm font-black text-emerald-400">
+                  <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
                     ~{disparosEstimados} envios
                   </span>
                 </div>
               </div>
 
               {erro && (
-                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 font-medium">
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-500 font-medium">
                   {erro}
                 </div>
               )}
 
               <button
                 type="button"
-                onClick={handleGerarPix}
-                disabled={gerandoPix || valorEfetivo < valorMinimoRecarga}
-                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-950/50"
+                onClick={handleRecarregarMercadoPago}
+                disabled={iniciandoCheckout || valorEfetivo < valorMinimoRecarga}
+                className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-950/20 active:scale-[0.99]"
               >
-                {gerandoPix ? (
+                {iniciandoCheckout ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    Gerando QR Code Pix...
+                    Iniciando Mercado Pago...
                   </>
                 ) : (
                   <>
-                    <QrCode size={16} />
-                    Gerar Pix de {formatCurrency(valorEfetivo)}
+                    <CreditCard size={16} />
+                    Recarregar {formatCurrency(valorEfetivo)} via Mercado Pago
                   </>
                 )}
               </button>
@@ -393,9 +457,11 @@ export const ModalRecargaWhatsapp: React.FC<ModalRecargaWhatsappProps> = ({
                     />
                   </div>
                 ) : (
-                  <div className="w-44 h-44 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col items-center justify-center p-4 text-center gap-2">
-                    <QrCode size={48} className="text-emerald-400" />
-                    <span className="text-[11px] text-slate-400">
+                  <div className={`w-44 h-44 rounded-2xl border flex flex-col items-center justify-center p-4 text-center gap-2 ${
+                    isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+                  }`}>
+                    <QrCode size={48} className="text-emerald-500" />
+                    <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                       Utilize o código Pix Copia e Cola abaixo no aplicativo do seu banco
                     </span>
                   </div>
@@ -404,7 +470,9 @@ export const ModalRecargaWhatsapp: React.FC<ModalRecargaWhatsappProps> = ({
 
               {/* Pix Copia e Cola */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1 ${
+                  isDark ? 'text-slate-400' : 'text-slate-500'
+                }`}>
                   Código Pix Copia e Cola
                 </label>
                 <div className="flex gap-2">
@@ -412,7 +480,11 @@ export const ModalRecargaWhatsapp: React.FC<ModalRecargaWhatsappProps> = ({
                     type="text"
                     readOnly
                     value={dadosPix.qrCode}
-                    className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-300 font-mono truncate"
+                    className={`flex-1 px-3 py-2 rounded-xl border text-[11px] font-mono truncate ${
+                      isDark
+                        ? 'bg-slate-950 border-slate-800 text-slate-300'
+                        : 'bg-slate-50 border-slate-200 text-slate-700'
+                    }`}
                   />
                   <button
                     type="button"
@@ -426,7 +498,7 @@ export const ModalRecargaWhatsapp: React.FC<ModalRecargaWhatsappProps> = ({
               </div>
 
               {erro && (
-                <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300">
+                <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-500">
                   {erro}
                 </div>
               )}
@@ -435,7 +507,11 @@ export const ModalRecargaWhatsapp: React.FC<ModalRecargaWhatsappProps> = ({
                 <button
                   type="button"
                   onClick={() => setDadosPix(null)}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors"
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-colors ${
+                    isDark
+                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  }`}
                 >
                   Alterar Valor
                 </button>

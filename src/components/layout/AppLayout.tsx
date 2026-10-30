@@ -908,7 +908,7 @@ export const AppLayout: React.FC = () => {
                 <span>Aviso de Saldo:</span>
               </span>
               <span>
-                Seu saldo para envios automáticos de WhatsApp está baixo (
+                Seu saldo para envio automático do WhatsApp está baixo (
                 <strong className="font-bold text-amber-600 dark:text-amber-300">
                   {formatCurrency(Number(loja?.whatsapp_saldo ?? 0))}
                 </strong>
@@ -924,7 +924,7 @@ export const AppLayout: React.FC = () => {
                 }`}
               >
                 <Wallet className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Recarregar (Pix)</span>
+                <span>Recarregar Saldo</span>
               </button>
             </div>
 

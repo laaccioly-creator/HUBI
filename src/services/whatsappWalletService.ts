@@ -37,10 +37,12 @@ export interface ResultadoDisparoHibrido {
 export interface RespostaRecargaPixWhatsapp {
   sucesso: boolean;
   transacaoId: string;
-  mpPaymentId: string;
-  qrCode: string;
-  qrCodeBase64: string;
+  mpPaymentId?: string;
+  qrCode?: string;
+  qrCodeBase64?: string;
   ticketUrl?: string;
+  checkoutUrl?: string;
+  preferenceId?: string;
   valor: number;
   erro?: string;
 }
@@ -362,6 +364,55 @@ export const whatsappWalletService = {
     return {
       transacoes: linhasTipadas.map(mapearTransacaoDb),
       total: count ?? linhasTipadas.length,
+    };
+  },
+
+  /**
+   * Inicia a sessão de recarga via Mercado Pago Checkout Pro invocando a Edge Function oficial
+   */
+  async criarRecargaMercadoPago(
+    loja: Loja,
+    valorRecarga: number,
+    usuarioId?: string | null
+  ): Promise<RespostaRecargaPixWhatsapp> {
+    const configPlataforma = await configuracoesPlataformaService.obterParametros();
+    const valorMinimo = Number(configPlataforma.valor_minimo_recarga_whatsapp ?? 10.0);
+
+    if (!Number.isFinite(valorRecarga) || valorRecarga < valorMinimo) {
+      throw new Error(
+        `O valor mínimo para recarga é de R$ ${valorMinimo.toFixed(2).replace('.', ',')}.`
+      );
+    }
+
+    const { data, error } = await supabase.functions.invoke<{
+      sucesso?: boolean;
+      transacao_id?: string;
+      preference_id?: string;
+      init_point?: string;
+      checkout_url?: string;
+      sandbox_init_point?: string;
+      valor?: number;
+      error?: string;
+    }>('hubi-criar-recarga-whatsapp-mp', {
+      body: {
+        loja_id: loja.id,
+        valor_recarga: Number(valorRecarga.toFixed(2)),
+        usuario_id: usuarioId || null,
+      },
+    });
+
+    if (error || !data || !data.sucesso) {
+      throw new Error(data?.error || error?.message || 'Falha ao gerar link do Mercado Pago.');
+    }
+
+    const checkoutUrl = data.checkout_url || data.init_point || data.sandbox_init_point || '';
+
+    return {
+      sucesso: true,
+      transacaoId: data.transacao_id || '',
+      preferenceId: data.preference_id || '',
+      checkoutUrl,
+      valor: Number(data.valor ?? valorRecarga),
     };
   },
 

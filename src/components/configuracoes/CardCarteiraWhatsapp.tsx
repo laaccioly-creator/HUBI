@@ -359,7 +359,7 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
             className="w-full mt-2 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer"
           >
             <PlusCircle size={15} />
-            Adicionar Créditos (Pix)
+            Recarregar Saldo
           </button>
         </div>
 
