@@ -112,6 +112,12 @@ serve(async (req: Request) => {
         },
       ],
       external_reference: loja.id,
+      notification_url: `${supabaseUrl}/functions/v1/hubi-webhook-mp`,
+      metadata: {
+        loja_id: loja.id,
+        organizacao_id: loja.organizacao_id,
+        tipo_cobranca: "anual_licenca",
+      },
     };
 
     // Só anexa payer e back_urls se NÃO estiver em Sandbox (evita conflitos e /fatal/ no Checkout Pro)

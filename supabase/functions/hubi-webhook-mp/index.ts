@@ -74,7 +74,31 @@ serve(async (req: Request) => {
 
     const payment = await mpPaymentRes.json();
     const statusPagamento = payment.status; // 'approved', 'in_process', 'rejected', 'cancelled'
-    const lojaId = payment.external_reference || payment.metadata?.loja_id;
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
+
+    let lojaId = payment.external_reference || payment.metadata?.loja_id;
+    if (lojaId && typeof lojaId === "string" && lojaId.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(lojaId);
+        lojaId = parsed.loja_id || lojaId;
+      } catch (_) {}
+    }
+
+    // Se external_reference não estiver diretamente no pagamento, busca pela preference_id vinculada
+    if (!lojaId && (payment.order?.id || payment.preference_id)) {
+      const prefId = payment.preference_id || payment.order?.id;
+      const { data: fatura } = await supabaseAdmin
+        .from("hubi_assinaturas_pagamentos")
+        .select("loja_id")
+        .eq("mp_preference_id", String(prefId))
+        .order("criado_em", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (fatura?.loja_id) {
+        lojaId = fatura.loja_id;
+      }
+    }
+
     const orgId = payment.metadata?.organizacao_id;
 
     if (!lojaId) {
@@ -84,8 +108,6 @@ serve(async (req: Request) => {
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
     const externalRefStr = String(payment.external_reference || "");
 
     // 1.5. Fluxo de Recarga de Carteira Pré-Paga WhatsApp (external_reference = "whatsapp_wallet:${loja_id}:${transacao_id}")
