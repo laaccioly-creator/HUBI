@@ -97,17 +97,23 @@ serve(async (req: Request) => {
     const isExplicitTestToken = mpAccessToken.startsWith("TEST-");
     const isSandboxMode = isExplicitTestToken || isCollectorTestUser;
 
-    // 2.2 Limpeza de parâmetros conflitantes de payer (anti-rejeição cruzada teste/produção)
+    // 2.2 Configuração robusta de payer (evita tela /fatal/ no Checkout Pro Sandbox)
     const payerPayload: Record<string, any> = {
       name: String(loja.nome_fantasia || "Lojista HUBI").slice(0, 60),
     };
 
-    // Só vincula e-mail no payer se for ambiente de produção e o e-mail não colidir com o próprio vendedor coletor
-    if (!isSandboxMode && loja.email) {
+    if (isSandboxMode) {
+      // No Sandbox, o Checkout Pro exige um payer.email válido diferente do vendedor para carregar os fluxos sem /fatal/
+      payerPayload.email = "test_user_comprador@testuser.com";
+    } else if (loja.email) {
       const lojaEmailSanitizado = loja.email.trim().toLowerCase();
       if (!collectorEmail || lojaEmailSanitizado !== collectorEmail) {
         payerPayload.email = lojaEmailSanitizado;
+      } else {
+        payerPayload.email = `faturamento+${loja.id.slice(0, 8)}@hubi.app`;
       }
+    } else {
+      payerPayload.email = `faturamento+${loja.id.slice(0, 8)}@hubi.app`;
     }
 
     const preferencePayload = {
@@ -118,7 +124,7 @@ serve(async (req: Request) => {
           description: `Assinatura anual de 12 meses da unidade: ${loja.nome_fantasia}`,
           quantity: 1,
           currency_id: "BRL",
-          unit_price: valorAnualTotal,
+          unit_price: Number(valorAnualTotal.toFixed(2)),
         },
       ],
       payer: payerPayload,
@@ -142,6 +148,8 @@ serve(async (req: Request) => {
       },
     };
 
+    console.log("PAYLOAD_PREFERENCE_ENVIADO:", JSON.stringify(preferencePayload, null, 2));
+
     // 3. Chamada à API Oficial do Mercado Pago para gerar a preferência de checkout
     const mpResponse = await fetch("https://api.mercadopago.com/checkout/preferences", {
       method: "POST",
@@ -152,16 +160,24 @@ serve(async (req: Request) => {
       body: JSON.stringify(preferencePayload),
     });
 
+    const respText = await mpResponse.text();
+    let prefData: any = {};
+    try {
+      prefData = JSON.parse(respText);
+    } catch (_) {
+      prefData = { raw: respText };
+    }
+
+    console.log("RESPOSTA_MP_STATUS:", mpResponse.status);
+    console.log("RESPOSTA_MP_BODY:", JSON.stringify(prefData, null, 2));
+
     if (!mpResponse.ok) {
-      const errBody = await mpResponse.text();
-      console.error("[hubi-criar-assinatura-mp] Erro do Mercado Pago:", errBody);
+      console.error("[hubi-criar-assinatura-mp] Erro do Mercado Pago:", respText);
       return new Response(
         JSON.stringify({ error: "Falha na comunicação com o Mercado Pago ao gerar fatura." }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const prefData = await mpResponse.json();
 
     // Determina o link correto de acordo com as diretrizes do Sandbox / Produção:
     // Quando o token for de teste (TEST- ou conta coletora @testuser.com), utilizar estritamente sandbox_init_point

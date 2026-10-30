@@ -307,6 +307,12 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
           ? (data?.sandbox_init_point || data?.checkout_url)
           : (data?.checkout_url || data?.init_point);
 
+        console.log("🔗 REDIRECIONANDO PARA CHECKOUT MP:", {
+          modo: isModoTeste ? 'SANDBOX' : 'PRODUÇÃO',
+          linkFinal: linkCheckout,
+          dadosRetornados: data
+        });
+
         if (linkCheckout) {
           // Redireciona o lojista para o checkout seguro oficial do Mercado Pago (Sandbox estrito ou Produção)
           window.location.href = linkCheckout;
