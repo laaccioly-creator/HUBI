@@ -84,6 +84,7 @@ export const configuracoesPlataformaService = {
     const { data: { user } } = await supabase.auth.getUser();
 
     const payload = {
+      id: 1,
       ...parametros,
       atualizado_em: new Date().toISOString(),
       atualizado_por: user?.id || null,
@@ -91,14 +92,17 @@ export const configuracoesPlataformaService = {
 
     const { data, error } = await supabase
       .from('configuracoes_plataforma')
-      .update(payload)
-      .eq('id', 1)
+      .upsert(payload, { onConflict: 'id' })
       .select('*')
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('[configuracoesPlataformaService] Erro ao salvar parâmetros:', error.message);
       throw new Error('Não foi possível salvar os parâmetros globais da plataforma. Verifique suas permissões ou tente novamente.');
+    }
+
+    if (!data) {
+      return await this.obterParametros();
     }
 
     return {
