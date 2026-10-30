@@ -249,7 +249,7 @@ class PaymentGatewayService {
       return {
         sucesso: true,
         preferenceId: data.id,
-        linkPagamento: data.init_point,
+        linkPagamento: (isModoSandbox && data.sandbox_init_point) ? data.sandbox_init_point : data.init_point,
         mensagem: 'Link de pagamento criado com sucesso!'
       };
     } catch (err: any) {

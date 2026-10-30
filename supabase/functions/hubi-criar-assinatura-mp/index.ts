@@ -28,7 +28,7 @@ serve(async (req: Request) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    const mpAccessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN") || "";
+    const mpAccessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN") || Deno.env.get("MERCADOPAGO_ACCESS_TOKEN") || "";
 
     if (!mpAccessToken) {
       console.error("[hubi-criar-assinatura-mp] Chave MERCADO_PAGO_ACCESS_TOKEN não configurada nas variáveis de ambiente.");
@@ -77,6 +77,39 @@ serve(async (req: Request) => {
       }
     }
 
+    // 2.1 Identificação do perfil do coletor (Produção Real vs Sandbox/Test User)
+    let collectorEmail = "";
+    let isCollectorTestUser = false;
+    try {
+      const meRes = await fetch("https://api.mercadopago.com/users/me", {
+        headers: { Authorization: `Bearer ${mpAccessToken}` },
+      });
+      if (meRes.ok) {
+        const meData = await meRes.json();
+        collectorEmail = String(meData.email || "").toLowerCase();
+        const tags: string[] = Array.isArray(meData.tags) ? meData.tags : [];
+        isCollectorTestUser = collectorEmail.endsWith("@testuser.com") || tags.includes("test_user");
+      }
+    } catch (errPerfil) {
+      console.warn("[hubi-criar-assinatura-mp] Falha ao consultar perfil do coletor:", errPerfil);
+    }
+
+    const isExplicitTestToken = mpAccessToken.startsWith("TEST-");
+    const isSandboxMode = isExplicitTestToken || isCollectorTestUser;
+
+    // 2.2 Limpeza de parâmetros conflitantes de payer (anti-rejeição cruzada teste/produção)
+    const payerPayload: Record<string, any> = {
+      name: String(loja.nome_fantasia || "Lojista HUBI").slice(0, 60),
+    };
+
+    // Só vincula e-mail no payer se for ambiente de produção e o e-mail não colidir com o próprio vendedor coletor
+    if (!isSandboxMode && loja.email) {
+      const lojaEmailSanitizado = loja.email.trim().toLowerCase();
+      if (!collectorEmail || lojaEmailSanitizado !== collectorEmail) {
+        payerPayload.email = lojaEmailSanitizado;
+      }
+    }
+
     const preferencePayload = {
       items: [
         {
@@ -88,10 +121,7 @@ serve(async (req: Request) => {
           unit_price: valorAnualTotal,
         },
       ],
-      payer: {
-        name: loja.nome_fantasia,
-        email: loja.email || "faturamento@hubi.app",
-      },
+      payer: payerPayload,
       payment_methods: {
         installments: parcelasMaximas,
         default_installments: parcelasMaximas,
@@ -109,6 +139,7 @@ serve(async (req: Request) => {
         organizacao_id: loja.organizacao_id,
         tipo_cobranca: "anual_licenca",
         origem: "hubi_saas",
+        modo: isSandboxMode ? "sandbox" : "producao",
       },
     };
 
@@ -133,6 +164,11 @@ serve(async (req: Request) => {
 
     const prefData = await mpResponse.json();
 
+    // Determina o link correto de acordo com o ambiente
+    const checkoutUrl = isSandboxMode
+      ? (prefData.sandbox_init_point || prefData.init_point)
+      : prefData.init_point;
+
     // 4. Registra histórico auditado na tabela public.hubi_assinaturas_pagamentos
     if (loja.organizacao_id) {
       const { error: erroAudit } = await supabaseAdmin
@@ -146,7 +182,7 @@ serve(async (req: Request) => {
           valor_mensal_referencia: valorMensalRef,
           parcelas: parcelasMaximas,
           ciclo_meses: 12,
-          link_checkout: prefData.init_point,
+          link_checkout: checkoutUrl,
         });
 
       if (erroAudit) {
@@ -163,8 +199,12 @@ serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         preference_id: prefData.id,
-        init_point: prefData.init_point,
+        init_point: checkoutUrl,
+        checkout_url: checkoutUrl,
         sandbox_init_point: prefData.sandbox_init_point,
+        modo: isSandboxMode ? "sandbox" : "producao",
+        is_sandbox: isSandboxMode,
+        token_prefix: mpAccessToken.startsWith("TEST-") ? "TEST-" : mpAccessToken.startsWith("APP_USR-") ? "APP_USR-" : "OUTRO",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

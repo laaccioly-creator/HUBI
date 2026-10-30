@@ -37,7 +37,7 @@ serve(async (req: Request) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    const mpAccessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN") || "";
+    const mpAccessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN") || Deno.env.get("MERCADOPAGO_ACCESS_TOKEN") || "";
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
 

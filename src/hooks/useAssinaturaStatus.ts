@@ -302,9 +302,11 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
           throw new Error(error.message || 'Erro ao gerar fatura do Mercado Pago.');
         }
 
-        if (data?.init_point) {
-          // Redireciona o lojista para o checkout seguro oficial do Mercado Pago
-          window.location.href = data.init_point;
+        const linkCheckout = data?.checkout_url || data?.init_point;
+
+        if (linkCheckout) {
+          // Redireciona o lojista para o checkout seguro oficial do Mercado Pago (Sandbox ou Produção)
+          window.location.href = linkCheckout;
         } else {
           throw new Error('Link de pagamento não retornado pelo gateway.');
         }
