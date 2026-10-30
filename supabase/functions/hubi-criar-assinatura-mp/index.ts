@@ -97,29 +97,38 @@ serve(async (req: Request) => {
     const isExplicitTestToken = mpAccessToken.startsWith("TEST-");
     const isSandboxMode = isExplicitTestToken || isCollectorTestUser;
 
-    // 2.2 Payload Minimalista Canônico (eliminação de rejeições e /fatal/ no Sandbox)
-    const emailPayer = isSandboxMode
-      ? "test_user_comprador@testuser.com"
-      : (loja.email && (!collectorEmail || loja.email.toLowerCase() !== collectorEmail) ? loja.email.trim() : `faturamento+${loja.id.slice(0, 8)}@hubi.app`);
-
-    const preferencePayload = {
+    // 2.2 Payload Estritamente Canônico (eliminação de /fatal/ no Sandbox)
+    const preferencePayload: Record<string, any> = {
       items: [
         {
           id: "hubi-licenca-anual",
-          title: "HUBI PDV - Licenca Anual",
+          title: "HUBI PDV - Licença Anual",
           quantity: 1,
           unit_price: Number(valorAnualTotal || 598.80),
           currency_id: "BRL",
         },
       ],
-      payer: {
-        email: emailPayer,
-      },
       payment_methods: {
         installments: 12,
+        default_installments: 12,
       },
       external_reference: loja.id,
     };
+
+    // Só anexa payer e back_urls se NÃO estiver em Sandbox (evita conflitos e /fatal/ no Checkout Pro)
+    if (!isSandboxMode) {
+      if (loja.email && (!collectorEmail || loja.email.toLowerCase() !== collectorEmail)) {
+        preferencePayload.payer = {
+          email: loja.email.trim(),
+        };
+      }
+      preferencePayload.back_urls = {
+        success: "https://hubi.app/dashboard?assinatura=sucesso",
+        failure: "https://hubi.app/dashboard?assinatura=falha",
+        pending: "https://hubi.app/dashboard?assinatura=pendente",
+      };
+      preferencePayload.auto_return = "approved";
+    }
 
     console.log("PAYLOAD_PREFERENCE_ENVIADO:", JSON.stringify(preferencePayload, null, 2));
 
