@@ -123,8 +123,8 @@ serve(async (req: Request) => {
       ],
       payer: payerPayload,
       payment_methods: {
-        installments: parcelasMaximas,
-        default_installments: parcelasMaximas,
+        installments: 12,
+        default_installments: 12,
       },
       back_urls: {
         success: "https://hubi.app/dashboard?assinatura=sucesso",
@@ -164,12 +164,9 @@ serve(async (req: Request) => {
 
     const prefData = await mpResponse.json();
 
-    // Determina o link correto de acordo com as especificações do Mercado Pago:
-    // sandbox_init_point só é suportado se o token for explicitamente de teste (TEST-).
-    // Tokens que iniciam com "APP_USR-" (mesmo de usuários de teste de desenvolvedor)
-    // devem utilizar obrigatoriamente "init_point" (https://www.mercadopago.com.br/...),
-    // caso contrário o host sandbox.mercadopago.com.br retorna tela de pane ("Ops, ocorreu um erro").
-    const checkoutUrl = isExplicitTestToken
+    // Determina o link correto de acordo com as diretrizes do Sandbox / Produção:
+    // Quando o token for de teste (TEST- ou conta coletora @testuser.com), utilizar estritamente sandbox_init_point
+    const checkoutUrl = isSandboxMode
       ? (prefData.sandbox_init_point || prefData.init_point)
       : prefData.init_point;
 
