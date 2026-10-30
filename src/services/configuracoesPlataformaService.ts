@@ -98,7 +98,7 @@ export const configuracoesPlataformaService = {
 
     if (error) {
       console.error('[configuracoesPlataformaService] Erro ao salvar parâmetros:', error.message);
-      throw new Error(error.message || 'Falha ao atualizar parâmetros globais da plataforma.');
+      throw new Error('Não foi possível salvar os parâmetros globais da plataforma. Verifique suas permissões ou tente novamente.');
     }
 
     return {
@@ -115,6 +115,11 @@ export const configuracoesPlataformaService = {
       custo_disparo_whatsapp: Number(data.custo_disparo_whatsapp ?? 0.15),
       valor_minimo_recarga_whatsapp: Number(data.valor_minimo_recarga_whatsapp ?? 10.00),
       credito_bonus_trial_whatsapp: Number(data.credito_bonus_trial_whatsapp ?? 2.00),
+      meta_phone_number_id: data.meta_phone_number_id || null,
+      meta_waba_id: data.meta_waba_id || null,
+      meta_access_token: data.meta_access_token || null,
+      meta_verify_token: data.meta_verify_token || 'hubi_whatsapp_webhook_token',
+      serpapi_key: data.serpapi_key || null,
       atualizado_em: data.atualizado_em,
       atualizado_por: data.atualizado_por,
     };

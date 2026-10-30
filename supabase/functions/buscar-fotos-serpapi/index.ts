@@ -35,23 +35,36 @@ serve(async (req: Request) => {
       num = Math.min(parseInt(url.searchParams.get("num") || "10", 10), 10);
     }
 
-    // Se a chave não foi passada diretamente no payload, tenta recuperá-la pelo lojaId no banco
-    if (!apiKey && lojaId) {
+    // Se a chave não foi passada diretamente no payload, tenta recuperá-la pelo lojaId ou fallback global
+    if (!apiKey) {
       const supabaseAdmin = createClient(
         Deno.env.get("SUPABASE_URL") ?? "",
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
       );
 
-      const { data: loja } = await supabaseAdmin
-        .from("lojas")
-        .select("serpapi_key, configuracoes_extras")
-        .eq("id", lojaId)
-        .single();
+      if (lojaId) {
+        const { data: loja } = await supabaseAdmin
+          .from("lojas")
+          .select("serpapi_key, configuracoes_extras")
+          .eq("id", lojaId)
+          .maybeSingle();
 
-      apiKey =
-        loja?.serpapi_key ||
-        loja?.configuracoes_extras?.ia?.serpapi_key ||
-        "";
+        apiKey =
+          loja?.serpapi_key ||
+          loja?.configuracoes_extras?.ia?.serpapi_key ||
+          "";
+      }
+
+      // Fallback: Chave SerpApi Global da Plataforma HUBI (Super Admin)
+      if (!apiKey) {
+        const { data: configPlataforma } = await supabaseAdmin
+          .from("configuracoes_plataforma")
+          .select("serpapi_key")
+          .eq("id", 1)
+          .maybeSingle();
+
+        apiKey = configPlataforma?.serpapi_key || "";
+      }
     }
 
     if (!apiKey) {
