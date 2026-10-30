@@ -97,60 +97,28 @@ serve(async (req: Request) => {
     const isExplicitTestToken = mpAccessToken.startsWith("TEST-");
     const isSandboxMode = isExplicitTestToken || isCollectorTestUser;
 
-    // 2.2 Configuração de payer (eliminação de /fatal/ no Sandbox e conflitos em Produção)
-    let payerPayload: Record<string, any>;
-
-    if (isSandboxMode) {
-      payerPayload = {
-        email: "comprador_teste@testuser.com",
-        name: "Comprador Teste",
-        surname: "HUBI",
-      };
-    } else {
-      let emailPagador = `faturamento+${loja.id.slice(0, 8)}@hubi.app`;
-      if (loja.email) {
-        const lojaEmailSanitizado = loja.email.trim().toLowerCase();
-        if (!collectorEmail || lojaEmailSanitizado !== collectorEmail) {
-          emailPagador = lojaEmailSanitizado;
-        }
-      }
-      payerPayload = {
-        email: emailPagador,
-        name: String(loja.nome_fantasia || "Lojista HUBI").slice(0, 60),
-      };
-    }
+    // 2.2 Payload Minimalista Canônico (eliminação de rejeições e /fatal/ no Sandbox)
+    const emailPayer = isSandboxMode
+      ? "test_user_comprador@testuser.com"
+      : (loja.email && (!collectorEmail || loja.email.toLowerCase() !== collectorEmail) ? loja.email.trim() : `faturamento+${loja.id.slice(0, 8)}@hubi.app`);
 
     const preferencePayload = {
       items: [
         {
           id: "hubi-licenca-anual",
-          title: "HUBI PDV - Licença Anual",
-          description: "Assinatura anual de licença de uso do HUBI",
+          title: "HUBI PDV - Licenca Anual",
           quantity: 1,
-          currency_id: "BRL",
           unit_price: Number(valorAnualTotal || 598.80),
+          currency_id: "BRL",
         },
       ],
-      payer: payerPayload,
+      payer: {
+        email: emailPayer,
+      },
       payment_methods: {
         installments: 12,
-        default_installments: 12,
       },
-      back_urls: {
-        success: "https://hubi.app/dashboard?assinatura=sucesso",
-        failure: "https://hubi.app/dashboard?assinatura=falha",
-        pending: "https://hubi.app/dashboard?assinatura=pendente",
-      },
-      auto_return: "approved",
       external_reference: loja.id,
-      statement_descriptor: "HUBI*SISTEMA",
-      metadata: {
-        loja_id: loja.id,
-        organizacao_id: loja.organizacao_id,
-        tipo_cobranca: "anual_licenca",
-        origem: "hubi_saas",
-        modo: isSandboxMode ? "sandbox" : "producao",
-      },
     };
 
     console.log("PAYLOAD_PREFERENCE_ENVIADO:", JSON.stringify(preferencePayload, null, 2));
