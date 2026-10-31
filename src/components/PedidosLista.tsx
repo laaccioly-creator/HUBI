@@ -478,6 +478,9 @@ export const PedidosLista: React.FC = () => {
   const { mostrarSucesso, mostrarAviso, mostrarErro, mostrarToast } = useFeedbackModal();
 
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const pedidosRef = useRef<Pedido[]>([]);
+  const primeiraCargaConcluidaRef = useRef<boolean>(false);
+  const [sincronizandoFundo, setSincronizandoFundo] = useState<boolean>(false);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [usuarios, setUsuarios] = useState<UsuarioLoja[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
@@ -1054,8 +1057,13 @@ export const PedidosLista: React.FC = () => {
   const carregarPedidos = async (tocarAlerta = false, silencioso = false) => {
     if (!loja?.id) return;
     try {
-      if (!silencioso && pedidos.length === 0) {
+      const temPedidos = pedidosRef.current.length > 0;
+      const deveSilenciar = silencioso || temPedidos || primeiraCargaConcluidaRef.current;
+
+      if (!deveSilenciar) {
         setCarregando(true);
+      } else {
+        setSincronizandoFundo(true);
       }
 
       supabase.from('clientes').select('*').eq('loja_id', loja.id).then(({ data }) => {
@@ -1169,6 +1177,7 @@ export const PedidosLista: React.FC = () => {
           });
         }
 
+        pedidosRef.current = pedidosNormalizados as unknown as Pedido[];
         setPedidos(pedidosNormalizados as unknown as Pedido[]);
         setPedidoSelecionado((prev) => {
           if (!prev) return null;
@@ -1199,7 +1208,9 @@ export const PedidosLista: React.FC = () => {
     } catch (err) {
       console.error('Erro ao buscar pedidos:', err);
     } finally {
+      primeiraCargaConcluidaRef.current = true;
       setCarregando(false);
+      setSincronizandoFundo(false);
     }
   };
 
@@ -1218,21 +1229,21 @@ export const PedidosLista: React.FC = () => {
               return;
             }
             const isNovo = payload.eventType === 'INSERT';
-            carregarPedidos(isNovo);
+            carregarPedidos(isNovo, true);
           }
         )
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'pedido_entregas', filter: `loja_id=eq.${loja.id}` },
           () => {
-            carregarPedidos(false);
+            carregarPedidos(false, true);
           }
         )
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'pagamentos_pedido', filter: `loja_id=eq.${loja.id}` },
           () => {
-            carregarPedidos(false);
+            carregarPedidos(false, true);
           }
         )
         .subscribe();
@@ -1240,7 +1251,7 @@ export const PedidosLista: React.FC = () => {
       // Recarrega imediatamente quando o operador retorna à aba ou desbloqueia a tela
       const handleVisibilidadeOuFoco = () => {
         if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-          carregarPedidos(false);
+          carregarPedidos(false, true);
         }
       };
       window.addEventListener('focus', handleVisibilidadeOuFoco);
@@ -1249,7 +1260,7 @@ export const PedidosLista: React.FC = () => {
       // Polling de salvaguarda periódico (25s) para monitorar entregas em tempo real sem depender apenas de WebSockets
       const intervalId = setInterval(() => {
         if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-          carregarPedidos(false);
+          carregarPedidos(false, true);
         }
       }, 25000);
 
@@ -3968,8 +3979,18 @@ export const PedidosLista: React.FC = () => {
                   <h1 className={`text-xl md:text-2xl font-black flex items-center gap-2 ${isDark ? 'text-slate-100' : 'text-black'}`}>
                     <span>{pedidosAbertosCount} pedidos abertos</span>
                   </h1>
-                  <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600 font-medium'}`}>
-                    {pedidosFiltrados.length} pedidos listados • Tempo real
+                  <p className={`text-xs mt-0.5 flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-slate-600 font-medium'}`}>
+                    <span>{pedidosFiltrados.length} pedidos listados</span>
+                    <span>•</span>
+                    <span className="inline-flex items-center gap-1 text-[11px]">
+                      <span className="relative flex h-2 w-2">
+                        {sincronizandoFundo && (
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        )}
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      </span>
+                      <span>Tempo real</span>
+                    </span>
                   </p>
                 </div>
               </div>
@@ -4208,7 +4229,7 @@ export const PedidosLista: React.FC = () => {
 
           {/* TABELA DE PEDIDOS (TELA001) */}
           <div className={`flex-1 overflow-auto px-4 md:px-6 pb-4 md:pb-6 ${isDark ? 'bg-[#08131A]' : 'bg-slate-100'}`}>
-            {carregando ? (
+            {carregando && pedidos.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64 text-slate-400 space-y-3">
                 <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
                 <p className="text-sm">Carregando pedidos...</p>

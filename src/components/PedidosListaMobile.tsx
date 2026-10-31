@@ -2500,7 +2500,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
       {/* 4. Lista Agrupada de Pedidos por Data */}
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
-        {carregando ? (
+        {carregando && pedidos.length === 0 ? (
           <div className={`text-center py-16 text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Carregando pedidos...</div>
         ) : gruposPorData.length === 0 ? (
           <div className={`text-center py-16 text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Nenhum pedido encontrado.</div>
