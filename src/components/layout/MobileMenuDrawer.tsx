@@ -232,7 +232,7 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
             </div>
             <div className="min-w-0">
               <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 truncate">{loja?.nome_fantasia || 'HUBI PDV'}</h3>
-              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold truncate">{usuario?.nome_completo || 'Operador'}</p>
+              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold truncate">{(usuario?.nome || usuario?.nome_completo || 'Operador').toUpperCase()}</p>
             </div>
           </div>
           <button

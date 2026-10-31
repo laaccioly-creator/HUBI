@@ -451,6 +451,7 @@ export interface UsuarioLoja {
   loja_id: string;
   usuario_auth_id?: string | null;
   nome_completo: string;
+  nome?: string;
   email: string;
   whatsapp_atendimento?: string | null;
   perfil: PerfilUsuario;

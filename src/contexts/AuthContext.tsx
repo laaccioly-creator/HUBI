@@ -7,6 +7,8 @@ import { gerarEmailSintetico } from '../utils/formatters';
 interface AuthContextType {
   loja: Loja | null;
   usuario: UsuarioLoja | null;
+  usuarioLogado: (UsuarioLoja & { nome: string }) | null;
+  session: any | null;
   organizacao: Organizacao | null;
   lojasDisponiveis: Loja[];
   carregando: boolean;
@@ -49,9 +51,14 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [loja, setLoja] = useState<Loja | null>(null);
   const [usuario, setUsuario] = useState<UsuarioLoja | null>(null);
+  const [session, setSession] = useState<any | null>(null);
   const [organizacao, setOrganizacao] = useState<Organizacao | null>(null);
   const [lojasDisponiveis, setLojasDisponiveis] = useState<Loja[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
+
+  const usuarioLogado = usuario
+    ? ({ ...usuario, nome: usuario.nome || usuario.nome_completo } as UsuarioLoja & { nome: string })
+    : null;
 
   // Helper para resolver e auto-curar nomes genéricos ('Proprietário', 'Operador') para o nome real do usuário
   const resolverNomeRealUsuario = async (
@@ -59,28 +66,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     authEmail: string | null | undefined,
     nomeAtual?: string | null
   ): Promise<string> => {
-    const salvoLocal = localStorage.getItem('hubi_user_real_name')?.trim();
-    const ehGenerico = !nomeAtual || ['proprietario', 'proprietário', 'operador', 'administrador', 'admin', 'user', 'owner'].includes(nomeAtual.trim().toLowerCase());
-    if (!ehGenerico && nomeAtual) {
+    const ehGenerico = (n?: string | null) =>
+      !n || ['proprietario', 'proprietário', 'operador', 'administrador', 'admin', 'user', 'owner'].includes(n.trim().toLowerCase());
+
+    // 1. Se o nome atual do registro já for um nome real e não-genérico, preserva
+    if (nomeAtual && !ehGenerico(nomeAtual)) {
       localStorage.setItem('hubi_user_real_name', nomeAtual.trim());
       return nomeAtual.trim();
     }
-    if (salvoLocal && !['proprietario', 'proprietário', 'operador', 'administrador', 'admin', 'user', 'owner'].includes(salvoLocal.toLowerCase())) {
-      return salvoLocal;
-    }
 
+    // 2. Metadados do usuário autenticado no Supabase Auth (auth.users.raw_user_meta_data)
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const metaName = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name;
-      if (metaName && metaName.trim()) {
+      const { data: { session: s } } = await supabase.auth.getSession();
+      const metaName =
+        s?.user?.user_metadata?.nome_completo ||
+        s?.user?.user_metadata?.full_name ||
+        s?.user?.user_metadata?.name;
+      if (metaName && !ehGenerico(metaName)) {
         const limpo = metaName.trim();
         localStorage.setItem('hubi_user_real_name', limpo);
         return limpo;
       }
-    } catch {
-      // fallback
-    }
+    } catch {}
 
+    // 3. Consulta ao cadastro de usuários da loja
     try {
       if (authUserId) {
         const { data: outrosUsers } = await supabase
@@ -112,11 +121,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return limpo;
         }
       }
-    } catch {
-      // fallback
+    } catch {}
+
+    // 4. Último recurso: cache local ou fallback seguro
+    const salvoLocal = localStorage.getItem('hubi_user_real_name')?.trim();
+    if (salvoLocal && !ehGenerico(salvoLocal)) {
+      return salvoLocal;
     }
 
-    return salvoLocal || nomeAtual?.trim() || 'Usuário';
+    return nomeAtual?.trim() || 'Operador';
   };
 
   // Carregar lojas e identificar se há uma loja ativa salva ou selecionada
@@ -127,8 +140,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const activeUsuarioId = localStorage.getItem(STORAGE_KEY_USUARIO_ID);
 
       // Autocura inicial se houver sessão ativa no Supabase Auth
-      const { data: { session } } = await supabase.auth.getSession();
-      const authUser = session?.user || null;
+      const { data: { session: sessaoAtual } } = await supabase.auth.getSession();
+      setSession(sessaoAtual);
+      const authUser = sessaoAtual?.user || null;
 
       if (authUser) {
         try {
@@ -178,11 +192,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
 
-          // Resolução soberana e consistente do operador ativo da loja
+          // Resolução soberana do operador ativo da loja
           let usuarioAtivo: UsuarioLoja | null = null;
 
-          // 1. Prioridade Soberana: operador registrado localmente na sessão ativa do PDV (activeUsuarioId)
-          if (activeUsuarioId) {
+          // 1. Prioridade Soberana: usuário autenticado na sessão ativa do Supabase Auth (auth.users)
+          if (authUser?.id) {
+            const emailAuthLimpo = (authUser.email || '').trim().toLowerCase();
+            const { data: userAuth } = await supabase
+              .from('usuarios_loja')
+              .select('*')
+              .eq('loja_id', lojaParaAtivar.id)
+              .or(`usuario_auth_id.eq.${authUser.id},email.ilike.${emailAuthLimpo}`)
+              .maybeSingle();
+
+            if (userAuth && userAuth.ativo !== false) {
+              usuarioAtivo = userAuth;
+              if (!userAuth.usuario_auth_id) {
+                await supabase
+                  .from('usuarios_loja')
+                  .update({ usuario_auth_id: authUser.id })
+                  .eq('id', userAuth.id);
+                try {
+                  await supabase.rpc('sincronizar_meu_usuario_auth');
+                } catch {}
+                usuarioAtivo = { ...userAuth, usuario_auth_id: authUser.id };
+              }
+            }
+          }
+
+          // 2. Se não houver operador por authUser na loja ativa, verifica se há operador salvo localmente compatível
+          if (!usuarioAtivo && activeUsuarioId) {
             const { data: userSalvo } = await supabase
               .from('usuarios_loja')
               .select('*')
@@ -191,62 +230,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .maybeSingle();
 
             if (userSalvo && userSalvo.ativo !== false) {
-              const uSalvo = userSalvo as UsuarioLoja;
-              usuarioAtivo = uSalvo;
-
-              // Se o token Supabase Auth em cache pertencer ao mesmo e-mail, vincula se necessário
-              if (authUser?.id) {
-                const emailAuth = (authUser.email || '').trim().toLowerCase();
-                const emailSalvo = (uSalvo.email || '').trim().toLowerCase();
-
-                if (!uSalvo.usuario_auth_id && emailAuth === emailSalvo) {
-                  try {
-                    await supabase
-                      .from('usuarios_loja')
-                      .update({ usuario_auth_id: authUser.id })
-                      .eq('id', uSalvo.id);
-                    await supabase.rpc('sincronizar_meu_usuario_auth');
-                    usuarioAtivo = { ...uSalvo, usuario_auth_id: authUser.id };
-                  } catch (vErr) {
-                    console.warn('Aviso ao vincular usuario_auth_id:', vErr);
-                  }
-                }
-              }
-            }
-          }
-
-          // 2. Se não houver operador ativo salvo no storage, consulta por conta autenticada no Supabase
-          if (!usuarioAtivo && authUser?.id) {
-            const { data: userPorAuthId } = await supabase
-              .from('usuarios_loja')
-              .select('*')
-              .eq('usuario_auth_id', authUser.id)
-              .eq('loja_id', lojaParaAtivar.id)
-              .maybeSingle();
-
-            if (userPorAuthId && userPorAuthId.ativo !== false) {
-              usuarioAtivo = userPorAuthId;
-            } else if (authUser.email) {
-              const emailAuthLimpo = authUser.email.trim().toLowerCase();
-              const { data: userPorEmail } = await supabase
-                .from('usuarios_loja')
-                .select('*')
-                .ilike('email', emailAuthLimpo)
-                .eq('loja_id', lojaParaAtivar.id)
-                .maybeSingle();
-
-              if (userPorEmail && userPorEmail.ativo !== false) {
-                try {
-                  await supabase
-                    .from('usuarios_loja')
-                    .update({ usuario_auth_id: authUser.id })
-                    .eq('id', userPorEmail.id);
-                  await supabase.rpc('sincronizar_meu_usuario_auth');
-                  usuarioAtivo = { ...userPorEmail, usuario_auth_id: authUser.id };
-                } catch (syncErr) {
-                  console.warn('Erro ao atualizar usuario_auth_id no fallback:', syncErr);
-                  usuarioAtivo = userPorEmail;
-                }
+              const emailAuth = (authUser?.email || '').trim().toLowerCase();
+              const emailSalvo = (userSalvo.email || '').trim().toLowerCase();
+              if (!authUser || emailAuth === emailSalvo) {
+                usuarioAtivo = userSalvo as UsuarioLoja;
+              } else {
+                localStorage.removeItem(STORAGE_KEY_USUARIO_ID);
+                localStorage.removeItem('hubi_user_real_name');
               }
             }
           }
@@ -271,8 +261,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               usuarioAtivo = { ...usuarioAtivo, nome_completo: nomeReal };
               supabase.from('usuarios_loja').update({ nome_completo: nomeReal }).eq('id', usuarioAtivo.id).then();
             }
+            (usuarioAtivo as any).nome = usuarioAtivo.nome_completo;
             setUsuario(usuarioAtivo);
             localStorage.setItem(STORAGE_KEY_USUARIO_ID, usuarioAtivo.id);
+            localStorage.setItem('hubi_user_real_name', usuarioAtivo.nome_completo);
           }
         } else {
           setLoja(null);
@@ -567,8 +559,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaAssociada.id);
       }
       if (usuarioEncontrado) {
+        // Limpar caches legados de operadores anteriores do localStorage
+        localStorage.removeItem('hubi_user_real_name');
+        localStorage.removeItem(STORAGE_KEY_USUARIO_ID);
+
+        (usuarioEncontrado as any).nome = usuarioEncontrado.nome_completo;
         setUsuario(usuarioEncontrado);
         localStorage.setItem(STORAGE_KEY_USUARIO_ID, usuarioEncontrado.id);
+        if (usuarioEncontrado.nome_completo) {
+          localStorage.setItem('hubi_user_real_name', usuarioEncontrado.nome_completo.trim());
+        }
         return true;
       }
 
@@ -969,7 +969,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setLoja(null);
     setUsuario(null);
+    setSession(null);
     setOrganizacao(null);
+    localStorage.removeItem('hubi_user_real_name');
+    localStorage.removeItem(STORAGE_KEY_USUARIO_ID);
+    localStorage.removeItem(STORAGE_KEY_LOJA_ID);
 
     // Notificar formulários e componentes da tela de login para limpeza imediata de credenciais
     try {
@@ -1009,22 +1013,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
         if (session?.user?.email) {
+          setSession(session);
           const emailAuth = session.user.email.toLowerCase();
-          const nomeAuth = session.user.user_metadata?.full_name || session.user.user_metadata?.name || emailAuth.split('@')[0];
+          const nomeAuth =
+            session.user.user_metadata?.nome_completo ||
+            session.user.user_metadata?.full_name ||
+            session.user.user_metadata?.name ||
+            emailAuth.split('@')[0];
 
-          if (activeUserLocal && activeLojaLocal) {
+          // Se for login explícito (SIGNED_IN) e o operador salvo em cache pertencia a outro usuário,
+          // limpa o cache do operador anterior para assumir a nova identidade autenticada
+          if (event === 'SIGNED_IN' && activeUserLocal) {
             const { data: checkLocal } = await supabase
               .from('usuarios_loja')
               .select('id, email, loja_id')
               .eq('id', activeUserLocal)
               .maybeSingle();
 
-            if (checkLocal && checkLocal.loja_id === activeLojaLocal) {
+            if (checkLocal) {
               const emailLocal = (checkLocal.email || '').toLowerCase().trim();
               if (emailLocal && emailLocal !== emailAuth) {
-                // Operador do PDV ativo é diferente da conta do Supabase Auth.
-                // Respeita soberania do operador local e não sobrescreve.
-                return;
+                localStorage.removeItem(STORAGE_KEY_USUARIO_ID);
+                localStorage.removeItem('hubi_user_real_name');
               }
             }
           }
@@ -1057,8 +1067,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setLoja(lojaAssoc);
               localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaAssoc.id);
             }
+            (u as any).nome = u.nome_completo;
             setUsuario(u);
             localStorage.setItem(STORAGE_KEY_USUARIO_ID, u.id);
+            if (u.nome_completo) {
+              localStorage.setItem('hubi_user_real_name', u.nome_completo.trim());
+            }
             return;
           }
 
@@ -1083,8 +1097,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .limit(1);
 
             if (userLoja && userLoja.length > 0) {
-              setUsuario(userLoja[0]);
-              localStorage.setItem(STORAGE_KEY_USUARIO_ID, userLoja[0].id);
+              const u = userLoja[0];
+              (u as any).nome = u.nome_completo;
+              setUsuario(u);
+              localStorage.setItem(STORAGE_KEY_USUARIO_ID, u.id);
+              if (u.nome_completo) {
+                localStorage.setItem('hubi_user_real_name', u.nome_completo.trim());
+              }
             }
           } else {
             try {
@@ -1110,6 +1129,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         loja,
         usuario,
+        usuarioLogado,
+        session,
         organizacao,
         lojasDisponiveis,
         carregando,

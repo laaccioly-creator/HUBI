@@ -62,7 +62,7 @@ export const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
   const origemVendas = searchParams.get('origem') === 'sales';
-  const { loja, usuario, carregando, desconectarPdv, selecionarUsuario, lojasDisponiveis, selecionarLoja, recarregarDadosLoja } = useAuth();
+  const { loja, usuario, usuarioLogado, session, carregando, desconectarPdv, selecionarUsuario, lojasDisponiveis, selecionarLoja, recarregarDadosLoja } = useAuth();
   const { status: statusAssinatura, diasRestantesTrial } = useAssinaturaStatus();
   const ehTrial = statusAssinatura === 'TRIAL_ATIVO' || (typeof diasRestantesTrial === 'number' && diasRestantesTrial > 0);
   const [modalAssinaturaManualAberto, setModalAssinaturaManualAberto] = useState<boolean>(false);
@@ -81,13 +81,24 @@ export const AppLayout: React.FC = () => {
   const [listaUsuariosLoja, setListaUsuariosLoja] = useState<UsuarioLoja[]>([]);
 
   const nomeExibicaoUsuario = useMemo(() => {
-    const nomeBruto = (usuario?.nome_completo || '').trim();
+    const nomeOperador = (usuarioLogado?.nome || usuario?.nome_completo || '').trim();
+    const metaNome = (
+      session?.user?.user_metadata?.nome_completo ||
+      session?.user?.user_metadata?.full_name ||
+      session?.user?.user_metadata?.name ||
+      ''
+    ).trim();
     const salvoReal = (localStorage.getItem('hubi_user_real_name') || '').trim();
-    const ehGenerico = !nomeBruto || ['proprietario', 'proprietário', 'operador', 'administrador', 'admin', 'user', 'owner'].includes(nomeBruto.toLowerCase());
-    if (ehGenerico && salvoReal) return salvoReal;
-    if (!ehGenerico) return nomeBruto;
-    return salvoReal || nomeBruto || 'Operador';
-  }, [usuario?.nome_completo]);
+    const ehGenerico = (n: string) =>
+      !n || ['proprietario', 'proprietário', 'operador', 'administrador', 'admin', 'user', 'owner'].includes(n.toLowerCase());
+
+    if (!ehGenerico(nomeOperador)) return nomeOperador;
+    if (!ehGenerico(metaNome)) return metaNome;
+    if (!ehGenerico(salvoReal)) return salvoReal;
+    return nomeOperador || metaNome || salvoReal || 'Operador';
+  }, [usuarioLogado?.nome, usuario?.nome_completo, session?.user?.user_metadata]);
+
+  const inicialAvatar = (nomeExibicaoUsuario || 'O').trim().slice(0, 1).toUpperCase();
 
   const maisMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -708,10 +719,10 @@ export const AppLayout: React.FC = () => {
                     ? 'bg-emerald-600/30 text-white border-emerald-500/40'
                     : 'bg-slate-200 text-slate-900 border-slate-300'
                 }`}>
-                  {nomeExibicaoUsuario.slice(0, 1).toUpperCase()}
+                  {inicialAvatar}
                 </div>
-                <span className={`text-xs font-semibold max-w-[85px] lg:max-w-[100px] truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  {nomeExibicaoUsuario}
+                <span className={`text-xs font-semibold max-w-[85px] lg:max-w-[120px] truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  {nomeExibicaoUsuario.toUpperCase()}
                 </span>
                 <ChevronDown className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-slate-800'}`} />
               </button>
@@ -721,8 +732,8 @@ export const AppLayout: React.FC = () => {
                   isDark ? 'bg-slate-900 border-slate-800 shadow-2xl' : 'bg-white border-[#E2E8F0] shadow-xl'
                 }`}>
                   <div className={`px-3 py-2 mb-1 rounded-xl border ${isDark ? 'border-slate-800 bg-slate-950/50' : 'border-[#E2E8F0] bg-[#F8FAFC]'}`}>
-                    <p className={`text-xs font-bold truncate ${isDark ? 'text-slate-100' : 'text-[#0F172A]'}`}>{nomeExibicaoUsuario}</p>
-                    <p className="text-[10px] text-emerald-600 uppercase font-bold tracking-wider">{usuario?.perfil || 'Comum'}</p>
+                    <p className={`text-xs font-bold truncate ${isDark ? 'text-slate-100' : 'text-[#0F172A]'}`}>{nomeExibicaoUsuario.toUpperCase()}</p>
+                    <p className="text-[10px] text-emerald-600 uppercase font-bold tracking-wider">{usuarioLogado?.perfil || usuario?.perfil || 'Comum'}</p>
                   </div>
 
                   {(permissions.ehOwner || permissions.ehAdmin) && (
