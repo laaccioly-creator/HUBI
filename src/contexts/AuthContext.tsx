@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Loja, UsuarioLoja, Organizacao } from '../types';
 import { authClientIsolado } from '../services/usuarioService';
+import { gerarEmailSintetico } from '../utils/formatters';
 
 interface AuthContextType {
   loja: Loja | null;
@@ -13,7 +14,13 @@ interface AuthContextType {
   selecionarLoja: (lojaId: string) => Promise<boolean>;
   selecionarUsuario: (usuarioId: string) => Promise<boolean>;
   cadastrarPdv: (dadosLoja: Partial<Loja>, dadosUsuario: Partial<UsuarioLoja>) => Promise<Loja>;
-  cadastrarMinimalista: (params: { nome: string; email: string; senha?: string }) => Promise<Loja>;
+  cadastrarMinimalista: (params: {
+    nome: string;
+    email?: string;
+    whatsapp?: string;
+    nomeLoja?: string;
+    senha?: string;
+  }) => Promise<Loja>;
   adicionarNovaFilial: (params: {
     nome: string;
     whatsapp?: string;
@@ -427,10 +434,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Entrar com E-mail e Senha (com suporte resiliente para operadores da loja e proprietários)
+  // Entrar com E-mail ou WhatsApp e Senha (com suporte resiliente para operadores da loja e proprietários)
   const entrarComEmail = async (emailBusca: string, senha?: string): Promise<boolean> => {
     try {
-      const emailTrim = emailBusca.trim().toLowerCase();
+      const inputTrim = emailBusca.trim();
+      const emailTrim = inputTrim.includes('@')
+        ? inputTrim.toLowerCase()
+        : gerarEmailSintetico(inputTrim);
       const senhaInformada = (senha || '').trim();
       let authUserId: string | null = null;
       let usuarioEncontrado: UsuarioLoja | null = null;
@@ -588,16 +598,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return data;
   };
 
-  // Cadastro Minimalista (Estilo Kyte: Nome + Email + Senha)
-  const cadastrarMinimalista = async (params: { nome: string; email: string; senha?: string }): Promise<Loja> => {
+  // Cadastro Minimalista (Nome + WhatsApp + Nome Loja + Senha -> Gera E-mail Sintético)
+  const cadastrarMinimalista = async (params: {
+    nome: string;
+    email?: string;
+    whatsapp?: string;
+    nomeLoja?: string;
+    senha?: string;
+  }): Promise<Loja> => {
     const nomeLimpo = params.nome.trim();
-    const emailLimpo = params.email.trim().toLowerCase();
+    const nomeLojaLimpo = (params.nomeLoja || params.nome).trim();
+    const whatsappLimpo = (params.whatsapp || '').replace(/\D/g, '');
+    const emailLimpo = params.email?.trim().toLowerCase() || (whatsappLimpo ? gerarEmailSintetico(whatsappLimpo) : '');
 
-    // 1. Verificar se já existe uma loja com este e-mail para evitar duplicatas
-    const { data: lojasExistentes } = await supabase
+    if (!emailLimpo) {
+      throw new Error('Por favor, informe um número de WhatsApp válido.');
+    }
+
+    // 1. Verificar se já existe uma loja com este e-mail ou WhatsApp para evitar duplicatas
+    const query = supabase
       .from('lojas')
-      .select('*')
-      .ilike('email', emailLimpo)
+      .select('*');
+
+    const orClauses = [`email.ilike.${emailLimpo}`];
+    if (whatsappLimpo) {
+      orClauses.push(`whatsapp.eq.${whatsappLimpo}`);
+    }
+
+    const { data: lojasExistentes } = await query
+      .or(orClauses.join(','))
       .order('criado_em', { ascending: false });
 
     if (lojasExistentes && lojasExistentes.length > 0) {
@@ -629,7 +658,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return lojaEscolhida;
     }
 
-    const slugBase = nomeLimpo
+    const slugBase = (nomeLojaLimpo || nomeLimpo)
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
@@ -641,10 +670,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const novaLojaPayload: Partial<Loja> = {
       status_assinatura: 'trial',
       trial_fim_em: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      nome_fantasia: nomeLimpo,
-      razao_social: nomeLimpo,
+      nome_fantasia: nomeLojaLimpo,
+      razao_social: nomeLojaLimpo,
       tipo_documento: 'CPF',
-      whatsapp: '00000000000',
+      whatsapp: whatsappLimpo || '00000000000',
       email: emailLimpo,
       slug_catalogo: slugFinal,
       cor_primaria: '#10B981',
@@ -653,7 +682,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       resumo_whatsapp: true,
       tipo_plano: 'GROW',
       valor_minimo_pedido: 0,
-      sobre_loja: `Bem-vindo ao catálogo de ${nomeLimpo}! Faça seus pedidos online aqui.`
+      sobre_loja: `Bem-vindo ao catálogo de ${nomeLojaLimpo}! Faça seus pedidos online aqui.`
     };
 
     const { data: lojaCriada, error: erroLoja } = await supabase
@@ -677,7 +706,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: emailLimpo,
           password: params.senha.trim(),
           options: {
-            data: { full_name: nomeLimpo }
+            data: {
+              nome: nomeLimpo,
+              full_name: nomeLimpo,
+              nome_loja: nomeLojaLimpo,
+              telefone: params.whatsapp || whatsappLimpo,
+            }
           }
         });
         if (!signUpErr && signUpData?.user) {
@@ -694,6 +728,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       usuario_auth_id: authUserId,
       nome_completo: nomeLimpo,
       email: emailLimpo,
+      whatsapp_atendimento: whatsappLimpo || null,
       perfil: 'owner',
       pode_uso_celular_pessoal: true,
       pode_ver_transacoes_outros: true,

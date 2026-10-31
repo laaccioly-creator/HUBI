@@ -17,12 +17,12 @@ import {
   Receipt,
   PieChart,
   ShoppingBag,
-  Sparkles
+  Sparkles,
+  Smartphone,
+  Phone
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-
-// Domínios rápidos para preenchimento de e-mail (como no Kyte)
-const QUICK_DOMAINS = ['@GMAIL.COM', '@HOTMAIL.COM', '@OUTLOOK.COM', '@ICLOUD.COM', '@UOL.COM.BR'];
+import { formatarTelefoneInput } from '../utils/formatters';
 
 type AuthScreen = 'welcome' | 'signup_email' | 'signin' | 'signin_email';
 
@@ -31,7 +31,8 @@ export const CadastroPdv: React.FC = () => {
 
   const [screen, setScreen] = useState<AuthScreen>('welcome');
   const [nome, setNome] = useState('');
-  const [email, setEmail] = useState('');
+  const [nomeLoja, setNomeLoja] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
   const [senha, setSenha] = useState('');
   const [mostrarSenha, setMostrarSenha] = useState(false);
 
@@ -83,9 +84,10 @@ export const CadastroPdv: React.FC = () => {
   // Limpeza total de credenciais e formulário ao desconectar / trocar de PDV
   useEffect(() => {
     const handleLimparFormulario = () => {
-      setEmail('');
+      setWhatsapp('');
       setSenha('');
       setNome('');
+      setNomeLoja('');
       setErroMsg(null);
       setMostrarSenha(false);
       setScreen('signin_email');
@@ -97,33 +99,31 @@ export const CadastroPdv: React.FC = () => {
     };
   }, []);
 
-  // Adicionar domínio rápido ao e-mail
-  const handleAddDomain = (domain: string) => {
-    const domainLower = domain.toLowerCase();
-    if (email.includes('@')) {
-      const prefix = email.split('@')[0];
-      setEmail(`${prefix}${domainLower}`);
-    } else {
-      setEmail(`${email}${domainLower}`);
-    }
-  };
-
-  // Submissão do Cadastro Minimalista
+  // Submissão do Cadastro com WhatsApp
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nome.trim()) {
-      setErroMsg('Por favor, informe seu nome ou o nome do seu negócio.');
+      setErroMsg('Por favor, informe seu nome.');
       return;
     }
-    if (!email.trim() || !email.includes('@')) {
-      setErroMsg('Por favor, informe um e-mail válido.');
+    if (!nomeLoja.trim()) {
+      setErroMsg('Por favor, informe o nome do seu negócio ou loja.');
+      return;
+    }
+    const digitosWhats = whatsapp.replace(/\D/g, '');
+    if (digitosWhats.length < 10) {
+      setErroMsg('Por favor, informe um WhatsApp válido com DDD (ex: 85 99999-9999).');
+      return;
+    }
+    if (senha.length < 6) {
+      setErroMsg('Sua senha precisa ter no mínimo 6 caracteres.');
       return;
     }
 
     try {
       setSalvando(true);
       setErroMsg(null);
-      await cadastrarMinimalista({ nome, email, senha });
+      await cadastrarMinimalista({ nome, nomeLoja, whatsapp, senha });
     } catch (err: any) {
       setErroMsg(err.message || 'Erro ao criar conta. Tente novamente.');
     } finally {
@@ -131,21 +131,25 @@ export const CadastroPdv: React.FC = () => {
     }
   };
 
-  // Submissão do Login com E-mail
+  // Submissão do Login com WhatsApp ou E-mail
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) {
-      setErroMsg('Por favor, informe seu e-mail cadastrado.');
+    if (!whatsapp.trim()) {
+      setErroMsg('Por favor, informe seu número de WhatsApp cadastrado.');
+      return;
+    }
+    if (!senha.trim()) {
+      setErroMsg('Por favor, digite sua senha de acesso.');
       return;
     }
 
     try {
       setSalvando(true);
       setErroMsg(null);
-      await entrarComEmail(email, senha);
+      await entrarComEmail(whatsapp, senha);
     } catch (err: any) {
       console.warn('Falha na autenticação do operador:', err);
-      setErroMsg(err?.message || 'E-mail ou senha incorretos. Por favor, verifique suas credenciais.');
+      setErroMsg(err?.message || 'WhatsApp ou senha incorretos. Por favor, verifique suas credenciais.');
     } finally {
       setSalvando(false);
     }
@@ -232,17 +236,17 @@ export const CadastroPdv: React.FC = () => {
                     <span>Criar com Google</span>
                   </button>
 
-                  {/* E-mail */}
+                  {/* WhatsApp */}
                   <button
                     type="button"
                     onClick={() => {
                       setScreen('signup_email');
                       setErroMsg(null);
                     }}
-                    className="w-full py-3 px-4 rounded-xl border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-slate-200 text-xs font-semibold flex items-center justify-center gap-3 transition shadow-sm cursor-pointer"
+                    className="w-full py-3 px-4 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-3 transition shadow-sm cursor-pointer"
                   >
-                    <Mail className="w-4 h-4 text-emerald-400" />
-                    <span>Criar com E-mail</span>
+                    <Smartphone className="w-4 h-4 text-emerald-400" />
+                    <span>📱 Criar com WhatsApp</span>
                   </button>
 
                   {/* Apple */}
@@ -281,53 +285,53 @@ export const CadastroPdv: React.FC = () => {
             )}
 
             {/* --------------------------------------------------------------------- */}
-            {/* TELA 2: FORMULÁRIO DE CRIAR CONTA COM E-MAIL (ESTILO KYTE MINIMAL)    */}
+            {/* TELA 2: FORMULÁRIO DE CRIAR CONTA COM WHATSAPP (SEM E-MAIL)           */}
             {/* --------------------------------------------------------------------- */}
             {screen === 'signup_email' && (
               <form onSubmit={handleSignUp} className="space-y-4 animate-in fade-in">
                 <div className="text-center space-y-1">
-                  <h1 className="text-xl font-bold text-slate-100">Criar conta com email</h1>
+                  <h1 className="text-xl font-bold text-slate-100">Criar conta com WhatsApp</h1>
+                  <p className="text-xs text-slate-400">Preencha os dados do seu negócio para iniciar</p>
                 </div>
 
                 <div className="space-y-3">
-                  {/* Nome */}
+                  {/* Nome Completo */}
                   <div>
                     <input
                       type="text"
                       required
-                      autoComplete="off"
-                      placeholder="Nome"
+                      autoComplete="name"
+                      placeholder="Seu Nome Completo"
                       value={nome}
                       onChange={(e) => setNome(e.target.value)}
                       className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
                     />
                   </div>
 
-                  {/* E-mail com Chips Rápidos de Domínio */}
-                  <div className="space-y-2">
+                  {/* Nome da Loja / Negócio */}
+                  <div>
                     <input
-                      type="email"
+                      type="text"
                       required
-                      autoComplete="off"
-                      placeholder="E-mail"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      autoComplete="organization"
+                      placeholder="Nome da sua Loja ou Negócio"
+                      value={nomeLoja}
+                      onChange={(e) => setNomeLoja(e.target.value)}
                       className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
                     />
+                  </div>
 
-                    {/* Chips de Domínio */}
-                    <div className="flex flex-wrap gap-1.5 pt-0.5">
-                      {QUICK_DOMAINS.map((domain) => (
-                        <button
-                          key={domain}
-                          type="button"
-                          onClick={() => handleAddDomain(domain)}
-                          className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-emerald-400 border border-slate-700/80 transition"
-                        >
-                          {domain}
-                        </button>
-                      ))}
-                    </div>
+                  {/* WhatsApp com Máscara Dinâmica */}
+                  <div>
+                    <input
+                      type="tel"
+                      required
+                      autoComplete="tel"
+                      placeholder="WhatsApp (ex: 85 99999-9999)"
+                      value={whatsapp}
+                      onChange={(e) => setWhatsapp(formatarTelefoneInput(e.target.value))}
+                      className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500"
+                    />
                   </div>
 
                   {/* Senha */}
@@ -336,7 +340,7 @@ export const CadastroPdv: React.FC = () => {
                       <input
                         type={mostrarSenha ? 'text' : 'password'}
                         autoComplete="new-password"
-                        placeholder="Senha"
+                        placeholder="Senha de acesso"
                         value={senha}
                         onChange={(e) => setSenha(e.target.value)}
                         className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-3 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 pr-10"
@@ -367,7 +371,7 @@ export const CadastroPdv: React.FC = () => {
                       <span>Criando sua conta...</span>
                     </>
                   ) : (
-                    <span>Criar nova conta</span>
+                    <span>Criar nova conta HUBI</span>
                   )}
                 </button>
 
@@ -425,17 +429,17 @@ export const CadastroPdv: React.FC = () => {
                     <span>Entrar com Google</span>
                   </button>
 
-                  {/* E-mail */}
+                  {/* WhatsApp */}
                   <button
                     type="button"
                     onClick={() => {
                       setScreen('signin_email');
                       setErroMsg(null);
                     }}
-                    className="w-full py-3 px-4 rounded-xl border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-slate-200 text-xs font-semibold flex items-center justify-center gap-3 transition shadow-sm cursor-pointer"
+                    className="w-full py-3 px-4 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-3 transition shadow-sm cursor-pointer"
                   >
-                    <Mail className="w-4 h-4 text-emerald-400" />
-                    <span>Entrar com E-mail</span>
+                    <Smartphone className="w-4 h-4 text-emerald-400" />
+                    <span>📱 Entrar com WhatsApp</span>
                   </button>
 
                   {/* Apple */}
@@ -503,13 +507,13 @@ export const CadastroPdv: React.FC = () => {
             )}
 
             {/* --------------------------------------------------------------------- */}
-            {/* TELA 4: ENTRAR COM E-MAIL                                             */}
+            {/* TELA 4: ENTRAR COM WHATSAPP                                           */}
             {/* --------------------------------------------------------------------- */}
             {screen === 'signin_email' && (
               <form onSubmit={handleSignIn} className="space-y-4 animate-in fade-in">
                 <div className="text-center space-y-1">
-                  <h1 className="text-xl font-bold text-slate-100">Entrar com e-mail</h1>
-                  <p className="text-xs text-slate-400">Digite seu e-mail para abrir seu PDV</p>
+                  <h1 className="text-xl font-bold text-slate-100">Entrar com WhatsApp</h1>
+                  <p className="text-xs text-slate-400">Digite seu WhatsApp e senha para acessar seu PDV</p>
                 </div>
 
                 {/* Alerta Visual de Erro na Tela de Login */}
@@ -521,44 +525,33 @@ export const CadastroPdv: React.FC = () => {
                 )}
 
                 <div className="space-y-3">
-                  {/* E-mail */}
-                  <div className="space-y-2">
+                  {/* WhatsApp ou E-mail */}
+                  <div>
                     <input
-                      type="email"
+                      type="text"
                       required
-                      autoComplete="off"
-                      placeholder="E-mail"
-                      value={email}
+                      autoComplete="username"
+                      placeholder="WhatsApp (ou E-mail do Administrador)"
+                      value={whatsapp}
                       onChange={(e) => {
-                        setEmail(e.target.value);
+                        const val = e.target.value;
+                        // Se for e-mail clássico (com @), mantém livre; se for número, formata
+                        if (val.includes('@')) {
+                          setWhatsapp(val);
+                        } else {
+                          setWhatsapp(formatarTelefoneInput(val));
+                        }
                         if (erroMsg) setErroMsg(null);
                       }}
                       className={`w-full bg-slate-800/80 border ${erroMsg ? 'border-rose-500/50' : 'border-slate-700'} rounded-xl px-4 py-3 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 transition`}
                     />
-
-                    {/* Chips de Domínio */}
-                    <div className="flex flex-wrap gap-1.5 pt-0.5">
-                      {QUICK_DOMAINS.map((domain) => (
-                        <button
-                          key={domain}
-                          type="button"
-                          onClick={() => {
-                            handleAddDomain(domain);
-                            if (erroMsg) setErroMsg(null);
-                          }}
-                          className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-emerald-400 border border-slate-700/80 transition"
-                        >
-                          {domain}
-                        </button>
-                      ))}
-                    </div>
                   </div>
 
                   {/* Senha */}
                   <div className="relative">
                     <input
                       type={mostrarSenha ? 'text' : 'password'}
-                      autoComplete="new-password"
+                      autoComplete="current-password"
                       placeholder="Senha de acesso"
                       value={senha}
                       onChange={(e) => {

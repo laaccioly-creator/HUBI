@@ -104,6 +104,26 @@ export const formatarTelefone = (tel?: string | null): string => {
 };
 
 /**
+ * Gera e-mail sintético para autenticação no Supabase Auth a partir do número de telefone / WhatsApp
+ */
+export const gerarEmailSintetico = (telefone: string): string => {
+  const numeros = telefone.replace(/\D/g, '');
+  const ddi = numeros.startsWith('55') ? '' : '55';
+  return `${ddi}${numeros}@hubi.app`;
+};
+
+/**
+ * Aplica máscara dinâmica de telefone/celular: (99) 99999-9999 ou (99) 9999-9999
+ */
+export const formatarTelefoneInput = (valor: string): string => {
+  const digits = valor.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 2) return digits.length > 0 ? `(${digits}` : '';
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+};
+
+/**
  * Limpa e extrai a observação real de um pedido, removendo tags técnicas de sistema
  * ([PAG_PREVISTO:...], [DESCONTO_PERC:...], <!--HUBI_HISTORICO:...-->) e cabeçalhos legados
  * automáticos de cliente gerados pelo catálogo público (ex: "Cliente: Nome (Fone). CPF/CNPJ: ... E-mail: ...").

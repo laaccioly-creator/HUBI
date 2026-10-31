@@ -83,18 +83,43 @@ export const configuracoesPlataformaService = {
   ): Promise<ConfiguracoesPlataformaHubi> {
     const { data: { user } } = await supabase.auth.getUser();
 
-    const payload = {
-      id: 1,
+    const payload: any = {
       ...parametros,
       atualizado_em: new Date().toISOString(),
       atualizado_por: user?.id || null,
     };
 
-    const { data, error } = await supabase
+    // 1. Tenta UPDATE direto no registro singleton id = 1
+    let { data, error } = await supabase
       .from('configuracoes_plataforma')
-      .upsert(payload, { onConflict: 'id' })
+      .update(payload)
+      .eq('id', 1)
       .select('*')
       .maybeSingle();
+
+    // 2. Se falhar com erro de FK ou RLS relacionado ao atualizado_por, retenta sem o campo
+    if (error && payload.atualizado_por) {
+      delete payload.atualizado_por;
+      const retry = await supabase
+        .from('configuracoes_plataforma')
+        .update(payload)
+        .eq('id', 1)
+        .select('*')
+        .maybeSingle();
+      data = retry.data;
+      error = retry.error;
+    }
+
+    // 3. Fallback: se a linha ainda não existia no banco, executa upsert
+    if (!data && !error) {
+      const resUpsert = await supabase
+        .from('configuracoes_plataforma')
+        .upsert({ id: 1, ...payload }, { onConflict: 'id' })
+        .select('*')
+        .maybeSingle();
+      data = resUpsert.data;
+      error = resUpsert.error;
+    }
 
     if (error) {
       console.error('[configuracoesPlataformaService] Erro ao salvar parâmetros:', error.message);

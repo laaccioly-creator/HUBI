@@ -4322,8 +4322,8 @@ export const PedidosLista: React.FC = () => {
                                           {(ehMelhorEnvio || temEtiqueta) && (
                                             <button
                                               type="button"
-                                              onClick={() => {
-                                                setPedidoSelecionado(pedido);
+                                              onClick={(e) => {
+                                                e.stopPropagation();
                                                 setPedidoEtiquetaModal(pedido);
                                               }}
                                               className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer active:scale-95 ${
@@ -4343,7 +4343,10 @@ export const PedidosLista: React.FC = () => {
                                           {ehMelhorEnvio && (
                                             <button
                                               type="button"
-                                              onClick={() => setPedidoRastreioModal(pedido)}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setPedidoRastreioModal(pedido);
+                                              }}
                                               className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold'}`}
                                               title="Acompanhar Rastreamento em Tempo Real"
                                             >
