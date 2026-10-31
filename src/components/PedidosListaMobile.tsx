@@ -65,6 +65,7 @@ import { ModalConferenciaPesagemPedido } from './pedidos/ModalConferenciaPesagem
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import {
   ROTULOS_STATUS_PEDIDO,
+  ROTULOS_STATUS_PAGAMENTO,
   obterAbasStatusVisiveis,
   obterOpcoesStatusAlteracao,
   obterInfoVencimentoFiado,
@@ -601,6 +602,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   const [ouvindoVoz, setOuvindoVoz] = useState<boolean>(false);
   const [modalStatusAberto, setModalStatusAberto] = useState<boolean>(false);
   const [statusSelecionados, setStatusSelecionados] = useState<string[]>(['todos']);
+  const [statusPagamentoSelecionado, setStatusPagamentoSelecionado] = useState<string>('todos');
 
   // Abas de status ativas da loja
   const abasStatus = useMemo(() => {
@@ -737,6 +739,112 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
     }
   };
 
+  // Base de pedidos da listagem mobile (respeitando busca de texto e excluindo concluídos)
+  const pedidosBaseMobile = useMemo(() => {
+    const t = busca.toLowerCase().trim();
+    return pedidos.filter((p) => {
+      if (p.status === 'concluido') return false;
+      if (t) {
+        const numStr = String(p.numero_pedido);
+        const cli = p.cliente_id ? mapaClientes.get(p.cliente_id) : null;
+        const cliNome = cli?.nome.toLowerCase() || '';
+        const itensList = p.itens || p.itens_pedido || [];
+        const temItem = itensList.some((i: any) => i.nome_produto?.toLowerCase().includes(t));
+        if (!numStr.includes(t) && !cliNome.includes(t) && !temItem) return false;
+      }
+      return true;
+    });
+  }, [pedidos, busca, mapaClientes]);
+
+  // Opções dinâmicas de Status do Pedido (somente > 0)
+  const opcoesStatusPedidoMobile = useMemo(() => {
+    const contagens: Record<string, number> = {};
+    pedidosBaseMobile.forEach((p) => {
+      const st = p.status;
+      contagens[st] = (contagens[st] || 0) + 1;
+    });
+
+    const ordemDesejada = [
+      'pendente',
+      'confirmado',
+      'em_separacao',
+      'em_producao',
+      'em_expedicao',
+      'aguardando_envio',
+      'enviado',
+      'pronto_para_retirar',
+      'entregue',
+      'cancelado'
+    ];
+
+    const opcoes: { id: string; label: string; count: number }[] = [];
+    ordemDesejada.forEach((id) => {
+      const count = contagens[id] || 0;
+      if (count > 0) {
+        opcoes.push({
+          id,
+          label: ROTULOS_STATUS_PEDIDO[id] || id,
+          count
+        });
+      }
+    });
+
+    Object.keys(contagens).forEach((id) => {
+      if (!ordemDesejada.includes(id) && contagens[id] > 0) {
+        opcoes.push({
+          id,
+          label: ROTULOS_STATUS_PEDIDO[id] || id,
+          count: contagens[id]
+        });
+      }
+    });
+
+    return opcoes;
+  }, [pedidosBaseMobile]);
+
+  // Opções dinâmicas de Status de Pagamento (somente > 0)
+  const opcoesStatusPagamentoMobile = useMemo(() => {
+    const contagens: Record<string, number> = {};
+    pedidosBaseMobile.forEach((p) => {
+      const sp = p.status_pagamento || 'aguardando_pagamento';
+      contagens[sp] = (contagens[sp] || 0) + 1;
+    });
+
+    const ordemPagamento = [
+      'pago',
+      'aguardando_pagamento',
+      'caderneta',
+      'fiado',
+      'parcialmente_pago',
+      'aguardando_pesagem',
+      'cancelado'
+    ];
+
+    const opcoes: { id: string; label: string; count: number }[] = [];
+    ordemPagamento.forEach((id) => {
+      const count = contagens[id] || 0;
+      if (count > 0) {
+        opcoes.push({
+          id,
+          label: ROTULOS_STATUS_PAGAMENTO[id] || id,
+          count
+        });
+      }
+    });
+
+    Object.keys(contagens).forEach((id) => {
+      if (!ordemPagamento.includes(id) && contagens[id] > 0) {
+        opcoes.push({
+          id,
+          label: ROTULOS_STATUS_PAGAMENTO[id] || id,
+          count: contagens[id]
+        });
+      }
+    });
+
+    return opcoes;
+  }, [pedidosBaseMobile]);
+
   // Contagem de pedidos por status (tudo diferente de 'concluido' é pedido aberto)
   const contagensPorStatus = useMemo(() => {
     const counts: Record<string, number> = {
@@ -752,28 +860,15 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       cancelado: 0
     };
 
-    const t = busca.toLowerCase().trim();
-
-    pedidos.forEach((p) => {
-      if (t) {
-        const numStr = String(p.numero_pedido);
-        const cli = p.cliente_id ? mapaClientes.get(p.cliente_id) : null;
-        const cliNome = cli?.nome.toLowerCase() || '';
-        const itensList = p.itens || p.itens_pedido || [];
-        const temItem = itensList.some((i: any) => i.nome_produto?.toLowerCase().includes(t));
-        if (!numStr.includes(t) && !cliNome.includes(t) && !temItem) return;
-      }
-
-      if (p.status !== 'concluido') {
-        counts.todos += 1;
-      }
+    pedidosBaseMobile.forEach((p) => {
+      counts.todos += 1;
       if (counts[p.status] !== undefined) {
         counts[p.status] += 1;
       }
     });
 
     return counts;
-  }, [pedidos, busca, mapaClientes]);
+  }, [pedidosBaseMobile]);
 
   // Filtros aplicados
   const pedidosFiltrados = useMemo(() => {
@@ -792,7 +887,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         if (!numStr.includes(t) && !cliNome.includes(t) && !temItem) return false;
       }
 
-      // 2. Filtro de Status
+      // 2. Filtro de Status do Pedido
       if (!statusSelecionados.includes('todos')) {
         const matchStatusDireto = statusSelecionados.includes(p.status);
         const querVencido = statusSelecionados.includes('vencido');
@@ -803,13 +898,19 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         if (!matchStatusDireto && !matchVencido) return false;
       }
 
-      // 3. Filtro de Vendedores
+      // 3. Filtro de Status de Pagamento
+      if (statusPagamentoSelecionado !== 'todos') {
+        const sp = p.status_pagamento || 'aguardando_pagamento';
+        if (sp !== statusPagamentoSelecionado) return false;
+      }
+
+      // 4. Filtro de Vendedores
       if (!vendedoresSelecionados.includes('todos')) {
         const pedVendedor = p.vendedor_id || (p.origem === 'catalogo_online' ? 'catalogo_online' : null);
         if (!pedVendedor || !vendedoresSelecionados.includes(pedVendedor)) return false;
       }
 
-      // 4. Filtro de Período (TELA002)
+      // 5. Filtro de Período (TELA002)
       if (dataInicio) {
         const dPed = new Date(p.data_venda);
         const dIni = new Date(dataInicio);
@@ -824,7 +925,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
       return true;
     });
-  }, [pedidos, busca, statusSelecionados, vendedoresSelecionados, dataInicio, dataFim, mapaClientes]);
+  }, [pedidos, busca, statusSelecionados, statusPagamentoSelecionado, vendedoresSelecionados, dataInicio, dataFim, mapaClientes]);
 
   // Agrupamento por Data (ex: Hoje, Ontem, Sexta-feira 21 de Agosto...)
   const gruposPorData = useMemo(() => {
@@ -2354,44 +2455,42 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
       {/* 3. Menus Dropdown: Status e Vendedores */}
       <div className={`px-3 py-2 flex items-center gap-2 shrink-0 ${isDark ? 'bg-[#08131A] border-b border-slate-800' : 'bg-slate-100 border-b border-slate-300'}`}>
-        {/* Dropdown 1: Status */}
+        {/* Dropdown 1: Status Pedido */}
         <div className="relative flex-1 min-w-0">
           <Clock className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <select
             value={statusSelecionados[0] || 'todos'}
             onChange={(e) => setStatusSelecionados([e.target.value])}
-            aria-label="Filtrar por status"
+            aria-label="Filtrar por status do pedido"
             className={`w-full appearance-none rounded-xl pl-8 pr-7 py-2 text-xs font-semibold cursor-pointer truncate focus:outline-none focus:border-emerald-500 ${
               isDark ? 'bg-[#000000] border border-slate-700 text-slate-200' : 'bg-white border-2 border-slate-300 text-black'
             }`}
           >
-            {abasStatus.map((st) => {
-              const count = contagensPorStatus[st.id];
-              return (
-                <option key={st.id} value={st.id}>
-                  {st.label} {count !== undefined ? `(${count})` : ''}
-                </option>
-              );
-            })}
+            <option value="todos">Status Pedido: Todos ({pedidosBaseMobile.length})</option>
+            {opcoesStatusPedidoMobile.map((st) => (
+              <option key={st.id} value={st.id}>
+                Status Pedido: {st.label} ({st.count})
+              </option>
+            ))}
           </select>
           <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
         </div>
 
-        {/* Dropdown 2: Vendedores */}
+        {/* Dropdown 2: Status Pagamento */}
         <div className="relative flex-1 min-w-0">
-          <User className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <DollarSign className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <select
-            value={vendedoresSelecionados[0] || 'todos'}
-            onChange={(e) => setVendedoresSelecionados([e.target.value])}
+            value={statusPagamentoSelecionado}
+            onChange={(e) => setStatusPagamentoSelecionado(e.target.value)}
+            aria-label="Filtrar por status de pagamento"
             className={`w-full appearance-none rounded-xl pl-8 pr-7 py-2 text-xs font-semibold cursor-pointer truncate focus:outline-none focus:border-emerald-500 ${
               isDark ? 'bg-[#000000] border border-slate-700 text-slate-200' : 'bg-white border-2 border-slate-300 text-black'
             }`}
           >
-            <option value="todos">Todos os Vendedores</option>
-            <option value="catalogo_online">Catálogo Online</option>
-            {usuarios.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.nome_completo}
+            <option value="todos">Status Pagamento: Todos ({pedidosBaseMobile.length})</option>
+            {opcoesStatusPagamentoMobile.map((sp) => (
+              <option key={sp.id} value={sp.id}>
+                Status Pagamento: {sp.label} ({sp.count})
               </option>
             ))}
           </select>
@@ -2688,8 +2787,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             </div>
 
             <div className="space-y-2 max-h-64 overflow-y-auto text-xs">
-              {abasStatus.map((st) => {
-                const count = contagensPorStatus[st.id] || 0;
+              {[{ id: 'todos', label: 'Todos os status', count: pedidosBaseMobile.length }, ...opcoesStatusPedidoMobile].map((st) => {
+                const count = st.count || 0;
                 const selecionado = statusSelecionados.includes(st.id);
                 return (
                   <div

@@ -86,6 +86,7 @@ import { ShippingSelectionResult } from '../types/shipping';
 import { PedidosListaMobile } from './PedidosListaMobile';
 import {
   ROTULOS_STATUS_PEDIDO,
+  ROTULOS_STATUS_PAGAMENTO,
   isStatusPedidoAtivo,
   obterAbasStatusVisiveis,
   obterOpcoesStatusAlteracao,
@@ -481,19 +482,37 @@ export const PedidosLista: React.FC = () => {
   const [usuarios, setUsuarios] = useState<UsuarioLoja[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [statusFiltro, setStatusFiltro] = useState<string>('todos');
+  const [statusPagamentoFiltro, setStatusPagamentoFiltro] = useState<string>('todos');
   const [busca, setBusca] = useState<string>('');
 
-  // Abas de status ativas conforme configurações da loja
-  const abasStatus = useMemo(() => {
-    return obterAbasStatusVisiveis(loja);
-  }, [loja]);
+  // Estados dos menus dropdown dinâmicos
+  const [dropdownStatusPedidoAberto, setDropdownStatusPedidoAberto] = useState<boolean>(false);
+  const [dropdownStatusPagamentoAberto, setDropdownStatusPagamentoAberto] = useState<boolean>(false);
+  const refDropdownStatusPedido = useRef<HTMLDivElement>(null);
+  const refDropdownStatusPagamento = useRef<HTMLDivElement>(null);
 
-  // Se o filtro selecionado for desativado nas configurações, reseta para 'todos'
+  // Fecha dropdowns ao clicar fora
   useEffect(() => {
-    if (statusFiltro !== 'todos' && !abasStatus.some((a) => a.id === statusFiltro)) {
-      setStatusFiltro('todos');
-    }
-  }, [abasStatus, statusFiltro]);
+    const handleClickFora = (e: MouseEvent) => {
+      if (
+        refDropdownStatusPedido.current &&
+        !refDropdownStatusPedido.current.contains(e.target as Node)
+      ) {
+        setDropdownStatusPedidoAberto(false);
+      }
+      if (
+        refDropdownStatusPagamento.current &&
+        !refDropdownStatusPagamento.current.contains(e.target as Node)
+      ) {
+        setDropdownStatusPagamentoAberto(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickFora);
+    return () => {
+      document.removeEventListener('mousedown', handleClickFora);
+    };
+  }, []);
   
   // Parâmetros de URL (?id=... ou ?numero=... e ?origem=sales)
   const [searchParams, setSearchParams] = useSearchParams();
@@ -2587,58 +2606,169 @@ export const PedidosLista: React.FC = () => {
     navigate('/pos');
   };
 
-  const contagensPorStatus = useMemo(() => {
-    const counts: Record<string, number> = {
-      todos: 0,
-      pendente: 0,
-      confirmado: 0,
-      em_separacao: 0,
-      em_producao: 0,
-      em_expedicao: 0,
-      aguardando_envio: 0,
-      enviado: 0,
-      entregue: 0,
-      pronto_para_retirar: 0,
-      vencido: 0,
-      cancelado: 0
-    };
-
+  // Base de pedidos da listagem (excluindo concluídos e filtrando por busca de texto)
+  const pedidosBase = useMemo(() => {
     const termo = busca.toLowerCase().trim();
-
-    pedidos.forEach((p) => {
+    return pedidos.filter((p) => {
+      if (p.status === 'concluido') return false;
+      if (!termo) return true;
       const nomeCli = p.cliente?.nome || 'cliente avulso (balcão)';
-      const matchBusca =
-        !termo ||
+      return (
         p.numero_pedido.toString().includes(termo) ||
         nomeCli.toLowerCase().includes(termo) ||
         (p.vendedor?.nome_completo && p.vendedor.nome_completo.toLowerCase().includes(termo)) ||
-        p.itens?.some((i) => i.nome_produto.toLowerCase().includes(termo));
+        p.itens?.some((i) => i.nome_produto.toLowerCase().includes(termo))
+      );
+    });
+  }, [pedidos, busca]);
 
-      if (!matchBusca) return;
+  // Opções dinâmicas de Status do Pedido (apenas com contagem > 0)
+  const opcoesStatusPedido = useMemo(() => {
+    const contagens: Record<string, number> = {};
 
-      // Tudo com status diferente de 'concluido' é pedido aberto / ativo (conta em 'todos')
-      if (p.status !== 'concluido') {
-        counts.todos += 1;
-      }
+    pedidosBase.forEach((p) => {
+      const st = p.status;
+      contagens[st] = (contagens[st] || 0) + 1;
+    });
 
-      // Contagem para Vencido (compras fiado expiradas e não quitadas ou status === 'vencido')
+    // Contagem de vencidos (caso fiado vencido)
+    let vencidosCount = 0;
+    pedidosBase.forEach((p) => {
       const infoVenc = obterInfoVencimentoFiado(p);
-      const temFiado = (p.pagamentos || []).some((pag: any) => pag.eh_pagamento_fiado || pag.forma_pagamento?.tipo === 'fiado');
-      if (p.status === 'vencido' || (temFiado && !p.fiado_quitado && infoVenc.estaVencido && p.status !== 'cancelado' && p.status !== 'concluido')) {
-        counts.vencido += 1;
+      const temFiado = (p.pagamentos || []).some(
+        (pag: any) => pag.eh_pagamento_fiado || pag.forma_pagamento?.tipo === 'fiado'
+      );
+      if (
+        p.status === 'vencido' ||
+        (temFiado && !p.fiado_quitado && infoVenc.estaVencido && p.status !== 'cancelado')
+      ) {
+        vencidosCount += 1;
       }
+    });
+    if (vencidosCount > 0 && !contagens['vencido']) {
+      contagens['vencido'] = vencidosCount;
+    }
 
-      if (counts[p.status] !== undefined) {
-        counts[p.status] += 1;
-      } else if (p.status === 'saiu_para_entrega') {
-        counts.enviado += 1;
-      } else if (p.status === 'envio_pendente') {
-        counts.aguardando_envio += 1;
+    const ordemDesejada = [
+      'pendente',
+      'confirmado',
+      'em_separacao',
+      'em_producao',
+      'em_expedicao',
+      'aguardando_envio',
+      'enviado',
+      'pronto_para_retirar',
+      'entregue',
+      'vencido',
+      'cancelado'
+    ];
+
+    const opcoes: { id: string; label: string; count: number }[] = [];
+
+    ordemDesejada.forEach((id) => {
+      const count = contagens[id] || 0;
+      if (count > 0) {
+        opcoes.push({
+          id,
+          label: ROTULOS_STATUS_PEDIDO[id] || id,
+          count
+        });
       }
     });
 
-    return counts;
-  }, [pedidos, busca]);
+    Object.keys(contagens).forEach((id) => {
+      if (!ordemDesejada.includes(id) && contagens[id] > 0) {
+        opcoes.push({
+          id,
+          label: ROTULOS_STATUS_PEDIDO[id] || id,
+          count: contagens[id]
+        });
+      }
+    });
+
+    return opcoes;
+  }, [pedidosBase]);
+
+  // Opções dinâmicas de Status de Pagamento (apenas com contagem > 0)
+  const opcoesStatusPagamento = useMemo(() => {
+    const contagens: Record<string, number> = {};
+
+    pedidosBase.forEach((p) => {
+      const sp = p.status_pagamento || 'aguardando_pagamento';
+      contagens[sp] = (contagens[sp] || 0) + 1;
+    });
+
+    const ordemPagamento = [
+      'pago',
+      'aguardando_pagamento',
+      'caderneta',
+      'fiado',
+      'parcialmente_pago',
+      'aguardando_pesagem',
+      'cancelado'
+    ];
+
+    const opcoes: { id: string; label: string; count: number }[] = [];
+
+    ordemPagamento.forEach((id) => {
+      const count = contagens[id] || 0;
+      if (count > 0) {
+        opcoes.push({
+          id,
+          label: ROTULOS_STATUS_PAGAMENTO[id] || id,
+          count
+        });
+      }
+    });
+
+    Object.keys(contagens).forEach((id) => {
+      if (!ordemPagamento.includes(id) && contagens[id] > 0) {
+        opcoes.push({
+          id,
+          label: ROTULOS_STATUS_PAGAMENTO[id] || id,
+          count: contagens[id]
+        });
+      }
+    });
+
+    return opcoes;
+  }, [pedidosBase]);
+
+  // Se o filtro selecionado não existir mais na listagem atual, reseta suavemente para 'todos'
+  useEffect(() => {
+    if (statusFiltro !== 'todos' && !opcoesStatusPedido.some((o) => o.id === statusFiltro)) {
+      setStatusFiltro('todos');
+    }
+  }, [opcoesStatusPedido, statusFiltro]);
+
+  useEffect(() => {
+    if (statusPagamentoFiltro !== 'todos' && !opcoesStatusPagamento.some((o) => o.id === statusPagamentoFiltro)) {
+      setStatusPagamentoFiltro('todos');
+    }
+  }, [opcoesStatusPagamento, statusPagamentoFiltro]);
+
+  // Rótulos dinâmicos para exibição nos botões seletores
+  const rotuloStatusPedidoBotao = useMemo(() => {
+    if (statusFiltro === 'todos') {
+      return `Todos (${pedidosBase.length})`;
+    }
+    const op = opcoesStatusPedido.find((o) => o.id === statusFiltro);
+    if (op) {
+      return `${op.label} (${op.count})`;
+    }
+    return `Todos (${pedidosBase.length})`;
+  }, [statusFiltro, opcoesStatusPedido, pedidosBase.length]);
+
+  const rotuloStatusPagamentoBotao = useMemo(() => {
+    if (statusPagamentoFiltro === 'todos') {
+      return `Todos (${pedidosBase.length})`;
+    }
+    const op = opcoesStatusPagamento.find((o) => o.id === statusPagamentoFiltro);
+    if (op) {
+      return `${op.label} (${op.count})`;
+    }
+    return `Todos (${pedidosBase.length})`;
+  }, [statusPagamentoFiltro, opcoesStatusPagamento, pedidosBase.length]);
 
   const pedidosAbertosCount = useMemo(() => {
     return pedidos.filter((p) =>
@@ -2646,30 +2776,30 @@ export const PedidosLista: React.FC = () => {
     ).length;
   }, [pedidos]);
 
+  // Filtragem cruzada da tabela (Status Pedido + Status Pagamento + Busca)
   const pedidosFiltrados = useMemo(() => {
-    return pedidos
+    return pedidosBase
       .filter((p) => {
-        if (p.status === 'concluido') return false;
-
+        // 1. Filtro Status Pedido
         let matchStatus = true;
         if (statusFiltro === 'vencido') {
           const infoVenc = obterInfoVencimentoFiado(p);
-          const temFiado = (p.pagamentos || []).some((pag: any) => pag.eh_pagamento_fiado || pag.forma_pagamento?.tipo === 'fiado');
+          const temFiado = (p.pagamentos || []).some(
+            (pag: any) => pag.eh_pagamento_fiado || pag.forma_pagamento?.tipo === 'fiado'
+          );
           matchStatus = p.status === 'vencido' || (temFiado && !p.fiado_quitado && infoVenc.estaVencido);
         } else if (statusFiltro !== 'todos') {
           matchStatus = p.status === statusFiltro;
         }
 
-        const termo = busca.toLowerCase().trim();
-        const nomeCli = p.cliente?.nome || 'cliente avulso (balcão)';
-        const matchBusca =
-          !termo ||
-          p.numero_pedido.toString().includes(termo) ||
-          nomeCli.toLowerCase().includes(termo) ||
-          (p.vendedor?.nome_completo && p.vendedor.nome_completo.toLowerCase().includes(termo)) ||
-          p.itens?.some((i) => i.nome_produto.toLowerCase().includes(termo));
+        // 2. Filtro Status Pagamento
+        let matchPagamento = true;
+        if (statusPagamentoFiltro !== 'todos') {
+          const sp = p.status_pagamento || 'aguardando_pagamento';
+          matchPagamento = sp === statusPagamentoFiltro;
+        }
 
-        return matchStatus && matchBusca;
+        return matchStatus && matchPagamento;
       })
       .sort((a, b) => {
         let valA: any = 0;
@@ -2690,7 +2820,7 @@ export const PedidosLista: React.FC = () => {
         if (valA > valB) return direcaoOrdenacao === 'asc' ? 1 : -1;
         return 0;
       });
-  }, [pedidos, statusFiltro, busca, campoOrdenacao, direcaoOrdenacao]);
+  }, [pedidosBase, statusFiltro, statusPagamentoFiltro, campoOrdenacao, direcaoOrdenacao]);
 
   const toggleOrdenacao = (campo: OrdenacaoCampo) => {
     if (campoOrdenacao === campo) {
@@ -3861,67 +3991,218 @@ export const PedidosLista: React.FC = () => {
               </div>
             </div>
 
-            {/* Barra de Pesquisa e Filtros Rápidos (TELA001) */}
-            <div className="flex flex-col md:flex-row items-stretch md:items-start gap-2.5">
-              <div className="relative w-full md:w-48 lg:w-56 shrink-0 mt-0.5">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            {/* Barra de Pesquisa e Dropdowns Dinâmicos de Filtro */}
+            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2.5 flex-wrap">
+              {/* CAMPO DE BUSCA */}
+              <div className="relative w-full md:w-56 lg:w-64 shrink-0">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Item ou cliente..."
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
-                  className={`w-full rounded-xl pl-9 pr-8 py-1.5 text-xs focus:outline-none focus:border-emerald-500 ${isDark ? 'bg-[#000000] border border-slate-700 text-slate-100 placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 font-medium'}`}
+                  className={`w-full rounded-xl pl-9 pr-8 py-2 text-xs focus:outline-none focus:border-emerald-500 transition ${isDark ? 'bg-[#000000] border border-slate-700 text-slate-100 placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 font-medium'}`}
                 />
                 {busca && (
                   <button
+                    type="button"
                     onClick={() => setBusca('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 p-0.5"
+                    title="Limpar busca"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
 
-              {(() => {
-                const temMaisDeDez = abasStatus.length > 10;
-                const primeiraFileira = temMaisDeDez ? abasStatus.slice(0, 6) : abasStatus;
-                const segundaFileira = temMaisDeDez ? abasStatus.slice(6) : [];
+              {/* DROPDOWN 1: STATUS PEDIDO */}
+              <div className="relative shrink-0" ref={refDropdownStatusPedido}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDropdownStatusPedidoAberto((prev) => !prev);
+                    setDropdownStatusPagamentoAberto(false);
+                  }}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer border ${
+                    statusFiltro !== 'todos'
+                      ? isDark
+                        ? 'bg-emerald-500/15 border-emerald-500 text-emerald-400 shadow-xs'
+                        : 'bg-emerald-50 border-2 border-emerald-600 text-emerald-800 shadow-xs'
+                      : isDark
+                        ? 'bg-[#000000] hover:bg-slate-900 border-slate-700 text-slate-200'
+                        : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold'
+                  }`}
+                >
+                  <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span>
+                    Status Pedido: {rotuloStatusPedidoBotao}
+                  </span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${dropdownStatusPedidoAberto ? 'rotate-180' : ''}`} />
+                </button>
 
-                const renderBotaoFiltro = (f: { id: string; label: string }) => {
-                  const count = contagensPorStatus[f.id] || 0;
-                  const isActive = statusFiltro === f.id;
-                  return (
+                {dropdownStatusPedidoAberto && (
+                  <div className={`absolute top-full left-0 mt-1.5 w-60 rounded-2xl shadow-2xl border p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100 ${
+                    isDark ? 'bg-[#0B151B] border-slate-700 text-slate-100' : 'bg-white border-2 border-slate-300 text-black'
+                  }`}>
+                    {/* Opção fixa: Todos os status */}
                     <button
-                      key={f.id}
-                      onClick={() => setStatusFiltro(f.id)}
-                      className={`px-3.5 py-1.5 rounded-xl text-xs whitespace-nowrap transition cursor-pointer shrink-0 flex items-center justify-center gap-1.5 ${
-                        isActive
+                      type="button"
+                      onClick={() => {
+                        setStatusFiltro('todos');
+                        setDropdownStatusPedidoAberto(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition cursor-pointer font-semibold ${
+                        statusFiltro === 'todos'
                           ? isDark
-                            ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold shadow-xs'
-                            : 'bg-emerald-600 hover:bg-emerald-700 text-white font-bold border border-emerald-700 shadow-sm'
+                            ? 'bg-emerald-600 text-white font-bold'
+                            : 'bg-emerald-600 text-white font-bold'
                           : isDark
-                            ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-300 hover:text-white font-medium'
-                            : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold shadow-xs'
+                            ? 'hover:bg-slate-800 text-slate-200'
+                            : 'hover:bg-slate-100 text-black font-semibold'
                       }`}
                     >
-                      <span>{f.label} {count}</span>
+                      <span>Todos os status</span>
+                      <span className="text-[11px] opacity-80">({pedidosBase.length})</span>
                     </button>
-                  );
-                };
 
-                return (
-                  <div className="flex-1 flex flex-col gap-2 items-center">
-                    <div className="flex flex-wrap items-center justify-center gap-2">
-                      {primeiraFileira.map(renderBotaoFiltro)}
+                    <div className={`my-1 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`} />
+
+                    {/* Opções dinâmicas (> 0) */}
+                    <div className="max-h-60 overflow-y-auto space-y-0.5">
+                      {opcoesStatusPedido.map((op) => {
+                        const isSelected = statusFiltro === op.id;
+                        return (
+                          <button
+                            key={op.id}
+                            type="button"
+                            onClick={() => {
+                              setStatusFiltro(op.id);
+                              setDropdownStatusPedidoAberto(false);
+                            }}
+                            className={`w-full text-left px-3 py-1.5 rounded-xl text-xs flex items-center justify-between transition cursor-pointer ${
+                              isSelected
+                                ? isDark
+                                  ? 'bg-emerald-600 text-white font-bold'
+                                  : 'bg-emerald-600 text-white font-bold'
+                                : isDark
+                                  ? 'hover:bg-slate-800 text-slate-300 hover:text-white'
+                                  : 'hover:bg-slate-100 text-black font-medium'
+                            }`}
+                          >
+                            <span>{op.label}</span>
+                            <span className="text-[11px] opacity-80">({op.count})</span>
+                          </button>
+                        );
+                      })}
                     </div>
-                    {segundaFileira.length > 0 && (
-                      <div className="flex flex-wrap items-center justify-center gap-2">
-                        {segundaFileira.map(renderBotaoFiltro)}
-                      </div>
-                    )}
                   </div>
-                );
-              })()}
+                )}
+              </div>
+
+              {/* DROPDOWN 2: STATUS PAGAMENTO */}
+              <div className="relative shrink-0" ref={refDropdownStatusPagamento}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDropdownStatusPagamentoAberto((prev) => !prev);
+                    setDropdownStatusPedidoAberto(false);
+                  }}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer border ${
+                    statusPagamentoFiltro !== 'todos'
+                      ? isDark
+                        ? 'bg-emerald-500/15 border-emerald-500 text-emerald-400 shadow-xs'
+                        : 'bg-emerald-50 border-2 border-emerald-600 text-emerald-800 shadow-xs'
+                      : isDark
+                        ? 'bg-[#000000] hover:bg-slate-900 border-slate-700 text-slate-200'
+                        : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold'
+                  }`}
+                >
+                  <DollarSign className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span>
+                    Status Pagamento: {rotuloStatusPagamentoBotao}
+                  </span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${dropdownStatusPagamentoAberto ? 'rotate-180' : ''}`} />
+                </button>
+
+                {dropdownStatusPagamentoAberto && (
+                  <div className={`absolute top-full left-0 mt-1.5 w-60 rounded-2xl shadow-2xl border p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100 ${
+                    isDark ? 'bg-[#0B151B] border-slate-700 text-slate-100' : 'bg-white border-2 border-slate-300 text-black'
+                  }`}>
+                    {/* Opção fixa: Todos os pagamentos */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStatusPagamentoFiltro('todos');
+                        setDropdownStatusPagamentoAberto(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition cursor-pointer font-semibold ${
+                        statusPagamentoFiltro === 'todos'
+                          ? isDark
+                            ? 'bg-emerald-600 text-white font-bold'
+                            : 'bg-emerald-600 text-white font-bold'
+                          : isDark
+                            ? 'hover:bg-slate-800 text-slate-200'
+                            : 'hover:bg-slate-100 text-black font-semibold'
+                      }`}
+                    >
+                      <span>Todos os pagamentos</span>
+                      <span className="text-[11px] opacity-80">({pedidosBase.length})</span>
+                    </button>
+
+                    <div className={`my-1 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`} />
+
+                    {/* Opções dinâmicas (> 0) */}
+                    <div className="max-h-60 overflow-y-auto space-y-0.5">
+                      {opcoesStatusPagamento.map((op) => {
+                        const isSelected = statusPagamentoFiltro === op.id;
+                        return (
+                          <button
+                            key={op.id}
+                            type="button"
+                            onClick={() => {
+                              setStatusPagamentoFiltro(op.id);
+                              setDropdownStatusPagamentoAberto(false);
+                            }}
+                            className={`w-full text-left px-3 py-1.5 rounded-xl text-xs flex items-center justify-between transition cursor-pointer ${
+                              isSelected
+                                ? isDark
+                                  ? 'bg-emerald-600 text-white font-bold'
+                                  : 'bg-emerald-600 text-white font-bold'
+                                : isDark
+                                  ? 'hover:bg-slate-800 text-slate-300 hover:text-white'
+                                  : 'hover:bg-slate-100 text-black font-medium'
+                            }`}
+                          >
+                            <span>{op.label}</span>
+                            <span className="text-[11px] opacity-80">({op.count})</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* BOTÃO LIMPAR FILTROS (SE ATIVO) */}
+              {(statusFiltro !== 'todos' || statusPagamentoFiltro !== 'todos' || busca) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatusFiltro('todos');
+                    setStatusPagamentoFiltro('todos');
+                    setBusca('');
+                  }}
+                  className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
+                    isDark
+                      ? 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                      : 'text-slate-600 hover:text-black hover:bg-slate-200'
+                  }`}
+                  title="Limpar todos os filtros"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Limpar filtros</span>
+                </button>
+              )}
             </div>
           </div>
 

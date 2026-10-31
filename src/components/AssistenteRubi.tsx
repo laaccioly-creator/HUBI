@@ -12,7 +12,8 @@ import {
   Minimize2,
   Mic,
   MicOff,
-  RotateCcw
+  RotateCcw,
+  Volume2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -23,6 +24,7 @@ import { processarPerguntaRubiIA, DadosLojaRubi } from '../services/tutoriaisHub
 import { rubiChatService, MensagemRubi } from '../services/rubiChatService';
 import { rubiRouterService } from '../services/rubiRouterService';
 import { obterDataOperacao } from '../utils/dataOperacao';
+import { falarComGeminiTTS, pararGeminiTTS } from '../services/geminiTtsService';
 
 export const AssistenteRubi: React.FC = () => {
   const { loja, usuario } = useAuth();
@@ -43,6 +45,31 @@ export const AssistenteRubi: React.FC = () => {
   const [alturaTeclado, setAlturaTeclado] = useState<number>(0);
   const endRef = useRef<HTMLDivElement>(null);
   const endMobileRef = useRef<HTMLDivElement>(null);
+
+  // Síntese de Voz Natural (Gemini 3.8 Flash TTS)
+  const [msgIdFalando, setMsgIdFalando] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      pararGeminiTTS();
+    };
+  }, []);
+
+  const handleOuvirResposta = (msg: MensagemRubi) => {
+    if (msgIdFalando === msg.id) {
+      pararGeminiTTS();
+      setMsgIdFalando(null);
+      return;
+    }
+
+    setMsgIdFalando(msg.id);
+    falarComGeminiTTS(msg.texto, {
+      loja,
+      voiceName: 'Aoede',
+      onEnd: () => setMsgIdFalando(null),
+      onError: () => setMsgIdFalando(null)
+    });
+  };
 
   // Reconhecimento de Voz (Microfone em Tela Cheia)
   const [escutandoVoz, setEscutandoVoz] = useState<boolean>(false);
@@ -262,14 +289,27 @@ export const AssistenteRubi: React.FC = () => {
                   </div>
                 )}
 
-                <div
-                  className={`max-w-[82%] rounded-2xl p-3.5 text-xs leading-relaxed ${
-                    ehUsuario
-                      ? 'bg-emerald-600 text-white rounded-br-none shadow-xs font-medium'
-                      : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none shadow-xs whitespace-pre-line'
-                  }`}
-                >
-                  {msg.texto}
+                <div className="flex flex-col items-start gap-1 max-w-[82%]">
+                  <div
+                    className={`rounded-2xl p-3.5 text-xs leading-relaxed ${
+                      ehUsuario
+                        ? 'bg-emerald-600 text-white rounded-br-none shadow-xs font-medium'
+                        : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none shadow-xs whitespace-pre-line'
+                    }`}
+                  >
+                    {msg.texto}
+                  </div>
+                  {!ehUsuario && (
+                    <button
+                      type="button"
+                      onClick={() => handleOuvirResposta(msg)}
+                      className="text-[10px] flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-bold px-2 py-0.5 rounded-full hover:bg-indigo-50 transition cursor-pointer select-none"
+                      title="Ouvir resposta com voz natural Gemini 3.8"
+                    >
+                      <Volume2 className={`w-3 h-3 ${msgIdFalando === msg.id ? 'animate-pulse text-indigo-600' : ''}`} />
+                      <span>{msgIdFalando === msg.id ? '🔊 Falando...' : '🔊 Ouvir'}</span>
+                    </button>
+                  )}
                 </div>
 
                 {ehUsuario && (
@@ -438,14 +478,27 @@ export const AssistenteRubi: React.FC = () => {
                 </div>
               )}
 
-              <div
-                className={`max-w-lg rounded-2xl p-4 text-xs leading-relaxed ${
-                  ehUsuario
-                    ? 'bg-emerald-600 text-white rounded-br-none shadow-md'
-                    : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none shadow-sm whitespace-pre-line'
-                }`}
-              >
-                {msg.texto}
+              <div className="flex flex-col items-start gap-1 max-w-lg">
+                <div
+                  className={`rounded-2xl p-4 text-xs leading-relaxed ${
+                    ehUsuario
+                      ? 'bg-emerald-600 text-white rounded-br-none shadow-md'
+                      : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none shadow-sm whitespace-pre-line'
+                  }`}
+                >
+                  {msg.texto}
+                </div>
+                {!ehUsuario && (
+                  <button
+                    type="button"
+                    onClick={() => handleOuvirResposta(msg)}
+                    className="text-[10px] flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300 font-bold px-2 py-0.5 rounded-full hover:bg-slate-800 transition cursor-pointer select-none"
+                    title="Ouvir resposta com voz natural Gemini 3.8 Flash TTS"
+                  >
+                    <Volume2 className={`w-3 h-3 ${msgIdFalando === msg.id ? 'animate-pulse text-indigo-400' : ''}`} />
+                    <span>{msgIdFalando === msg.id ? '🔊 Falando...' : '🔊 Ouvir com voz natural'}</span>
+                  </button>
+                )}
               </div>
 
               {ehUsuario && (

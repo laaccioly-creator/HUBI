@@ -11,7 +11,8 @@ import {
   DollarSign,
   Mic,
   MicOff,
-  ExternalLink
+  ExternalLink,
+  Volume2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -19,6 +20,7 @@ import { processarPerguntaRubiIA, DadosLojaRubi } from '../services/tutoriaisHub
 import { rubiChatService, MensagemRubi } from '../services/rubiChatService';
 import { rubiRouterService } from '../services/rubiRouterService';
 import { obterDataOperacao } from '../utils/dataOperacao';
+import { falarComGeminiTTS, pararGeminiTTS } from '../services/geminiTtsService';
 
 export const ChatAjudaIA: React.FC = () => {
   const navigate = useNavigate();
@@ -33,6 +35,31 @@ export const ChatAjudaIA: React.FC = () => {
   const [alturaTeclado, setAlturaTeclado] = useState<number>(0);
   const [isMobile, setIsMobile] = useState<boolean>(() => typeof window !== 'undefined' && window.innerWidth < 768);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Síntese de Voz Natural (Gemini 3.8 Flash TTS)
+  const [msgIdFalando, setMsgIdFalando] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      pararGeminiTTS();
+    };
+  }, []);
+
+  const handleOuvirResposta = (msg: MensagemRubi) => {
+    if (msgIdFalando === msg.id) {
+      pararGeminiTTS();
+      setMsgIdFalando(null);
+      return;
+    }
+
+    setMsgIdFalando(msg.id);
+    falarComGeminiTTS(msg.texto, {
+      loja,
+      voiceName: 'Aoede',
+      onEnd: () => setMsgIdFalando(null),
+      onError: () => setMsgIdFalando(null)
+    });
+  };
 
   // Monitora redimensionamento de viewport móvel e teclado virtual
   useEffect(() => {
@@ -379,14 +406,27 @@ export const ChatAjudaIA: React.FC = () => {
                     <Bot className="w-4 h-4" />
                   </div>
                 )}
-                <div
-                  className={`max-w-[82%] rounded-2xl p-3.5 text-xs leading-relaxed ${
-                    msg.remetente === 'usuario'
-                      ? 'bg-emerald-600 text-white rounded-br-none shadow-xs font-medium'
-                      : 'bg-white md:bg-slate-800 border border-slate-200 md:border-slate-700 text-slate-800 md:text-slate-100 rounded-bl-none shadow-xs whitespace-pre-line'
-                  }`}
-                >
-                  {msg.texto}
+                <div className="flex flex-col items-start gap-1 max-w-[82%]">
+                  <div
+                    className={`rounded-2xl p-3.5 text-xs leading-relaxed ${
+                      msg.remetente === 'usuario'
+                        ? 'bg-emerald-600 text-white rounded-br-none shadow-xs font-medium'
+                        : 'bg-white md:bg-slate-800 border border-slate-200 md:border-slate-700 text-slate-800 md:text-slate-100 rounded-bl-none shadow-xs whitespace-pre-line'
+                    }`}
+                  >
+                    {msg.texto}
+                  </div>
+                  {msg.remetente === 'ia' && (
+                    <button
+                      type="button"
+                      onClick={() => handleOuvirResposta(msg)}
+                      className="text-[10px] flex items-center gap-1 text-indigo-600 md:text-indigo-400 hover:text-indigo-800 md:hover:text-indigo-200 font-bold px-2 py-0.5 rounded-full hover:bg-indigo-50 md:hover:bg-slate-800 transition cursor-pointer select-none"
+                      title="Ouvir resposta com voz natural Gemini 3.8"
+                    >
+                      <Volume2 className={`w-3 h-3 ${msgIdFalando === msg.id ? 'animate-pulse text-indigo-600 md:text-indigo-400' : ''}`} />
+                      <span>{msgIdFalando === msg.id ? '🔊 Falando...' : '🔊 Ouvir'}</span>
+                    </button>
+                  )}
                 </div>
                 {msg.remetente === 'usuario' && (
                   <div className="w-7 h-7 rounded-xl bg-slate-200 md:bg-slate-800 flex items-center justify-center text-slate-700 md:text-slate-300 shrink-0 mt-0.5">

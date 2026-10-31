@@ -23,6 +23,7 @@ import {
   Radio
 } from 'lucide-react';
 import { audioService } from '../services/audioService';
+import { falarComGeminiTTS, pararGeminiTTS } from '../services/geminiTtsService';
 import {
   responderPerguntaClienteCatalogo,
   ContextoLojaCatalogo,
@@ -591,81 +592,55 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
   };
 
   const falarTexto = (texto: string, forcar: boolean = false) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     if (!audioAtivoRef.current && !forcar) return;
 
     try {
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.resume();
-
-      const textoLimpo = limparTextoParaAudio(texto);
-      if (!textoLimpo) return;
-
-      const utterance = new SpeechSynthesisUtterance(textoLimpo);
-      currentUtteranceRef.current = utterance; // Evita Garbage Collection no Chromium
-      utterance.lang = 'pt-BR';
-      utterance.rate = 1.02; // Ritmo ágil, conversacional e humano
-      utterance.pitch = 1.08; // Timbre acolhedor, simpático e natural
-
-      const voices = vozesDisponiveis.length > 0 ? vozesDisponiveis : window.speechSynthesis.getVoices();
-      const ptVoice = selecionarMelhorVozFeminina(voices);
-      if (ptVoice) {
-        utterance.voice = ptVoice;
-      }
-
-      utterance.onstart = () => {
-        setRubiFalando(true);
-        rubiFalandoRef.current = true;
-        // Pausa temporariamente o microfone para a Rubi não escutar sua própria voz
-        if (recognitionRef.current) {
-          try {
-            recognitionRef.current.stop();
-          } catch {}
+      falarComGeminiTTS(texto, {
+        loja: contexto?.loja,
+        voiceName: 'Aoede', // Voz acolhedora e fluida da Google AI
+        onStart: () => {
+          setRubiFalando(true);
+          rubiFalandoRef.current = true;
+          // Pausa temporariamente o microfone para a Rubi não escutar sua própria voz
+          if (recognitionRef.current) {
+            try {
+              recognitionRef.current.stop();
+            } catch {}
+          }
+        },
+        onEnd: () => {
+          setRubiFalando(false);
+          rubiFalandoRef.current = false;
+          currentUtteranceRef.current = null;
+          ultimoMomentoInteracaoRef.current = Date.now();
+          // Retoma a escuta atenta do Wake Word "Rubi..." assim que terminar de responder
+          if (modoWakeWordRef.current && recognitionRef.current) {
+            setTimeout(() => {
+              if (modoWakeWordRef.current && !rubiFalandoRef.current && !pensandoRef.current) {
+                try {
+                  recognitionRef.current.start();
+                } catch {}
+              }
+            }, 350);
+          }
+        },
+        onError: (err) => {
+          console.warn('[ChatRubi] Falha na síntese de voz Gemini TTS:', err);
+          setRubiFalando(false);
+          rubiFalandoRef.current = false;
+          currentUtteranceRef.current = null;
+          ultimoMomentoInteracaoRef.current = Date.now();
+          if (modoWakeWordRef.current && recognitionRef.current) {
+            setTimeout(() => {
+              if (modoWakeWordRef.current && !rubiFalandoRef.current && !pensandoRef.current) {
+                try {
+                  recognitionRef.current.start();
+                } catch {}
+              }
+            }, 350);
+          }
         }
-      };
-
-      utterance.onend = () => {
-        setRubiFalando(false);
-        rubiFalandoRef.current = false;
-        currentUtteranceRef.current = null;
-        ultimoMomentoInteracaoRef.current = Date.now();
-        // Retoma a escuta atenta do Wake Word "Rubi..." assim que terminar de responder
-        if (modoWakeWordRef.current && recognitionRef.current) {
-          setTimeout(() => {
-            if (modoWakeWordRef.current && !rubiFalandoRef.current && !pensandoRef.current) {
-              try {
-                recognitionRef.current.start();
-              } catch {}
-            }
-          }, 350);
-        }
-      };
-
-      utterance.onerror = () => {
-        setRubiFalando(false);
-        rubiFalandoRef.current = false;
-        currentUtteranceRef.current = null;
-        ultimoMomentoInteracaoRef.current = Date.now();
-        if (modoWakeWordRef.current && recognitionRef.current) {
-          setTimeout(() => {
-            if (modoWakeWordRef.current && !rubiFalandoRef.current && !pensandoRef.current) {
-              try {
-                recognitionRef.current.start();
-              } catch {}
-            }
-          }, 350);
-        }
-      };
-
-      // Pequeno timeout de 50ms para desengasgar o cancel() prévio em navegadores Chromium
-      setTimeout(() => {
-        try {
-          window.speechSynthesis.resume();
-          window.speechSynthesis.speak(utterance);
-        } catch (e) {
-          console.warn('Erro ao reproduzir voz:', e);
-        }
-      }, 50);
+      });
     } catch (err) {
       console.warn('Falha na síntese de voz da Rubi:', err);
       setRubiFalando(false);
@@ -674,11 +649,13 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
   };
 
   const pararFalaRubi = () => {
+    pararGeminiTTS();
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
-      setRubiFalando(false);
-      currentUtteranceRef.current = null;
     }
+    setRubiFalando(false);
+    rubiFalandoRef.current = false;
+    currentUtteranceRef.current = null;
   };
 
   // Parar fala ao fechar chat
@@ -1056,10 +1033,10 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                                 ? 'text-emerald-400 hover:text-emerald-300 bg-slate-950/70 hover:bg-slate-950 border-emerald-500/30'
                                 : 'text-emerald-800 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 border-emerald-300 shadow-2xs'
                             }`}
-                            title="Tocar áudio desta resposta no seu fone"
+                            title="Tocar áudio com voz de estúdio Gemini 3.8"
                           >
-                            <Volume2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                            <span>🔊 Ouvir resposta</span>
+                            <Volume2 className={`w-3 h-3 ${rubiFalando ? 'animate-pulse text-emerald-400' : 'text-emerald-600 dark:text-emerald-400'}`} />
+                            <span>{rubiFalando ? '🔊 Reproduzindo...' : '🔊 Ouvir resposta'}</span>
                           </button>
 
                           <button
@@ -1198,6 +1175,28 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                   <div className="bg-slate-800 border border-slate-700 rounded-2xl px-3.5 py-2 text-[11px]">
                     Rubi está pensando na melhor recomendação...
                   </div>
+                </div>
+              )}
+
+              {/* Indicador visual de voz natural Gemini em reprodução */}
+              {rubiFalando && (
+                <div className="flex items-center justify-between gap-2 p-2.5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-emerald-400 text-xs font-semibold animate-in fade-in">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-2.5 w-2.5 relative">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                    </span>
+                    <Volume2 className="w-4 h-4 text-emerald-400 animate-pulse" />
+                    <span>🔊 Rubi falando com voz natural Gemini...</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={pararFalaRubi}
+                    className="text-[10px] text-slate-400 hover:text-rose-400 underline cursor-pointer"
+                    title="Interromper fala"
+                  >
+                    Parar
+                  </button>
                 </div>
               )}
 
