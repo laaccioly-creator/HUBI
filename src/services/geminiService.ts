@@ -128,8 +128,6 @@ export const getGeminiApiKey = (loja?: any): string => {
   const chave = (
     loja?.gemini_api_key ||
     loja?.configuracoes_extras?.ia?.gemini_api_key ||
-    import.meta.env.VITE_GEMINI_API_KEY ||
-
     ''
   ).trim();
 
@@ -536,14 +534,40 @@ export const SAFETY_SETTINGS_VAREJO = [
 ];
 
 export const executarRequisicaoGemini = async (apiKey: string, requestBody: any): Promise<any> => {
-  const modelos = await obterModelosValidosGemini(apiKey);
-  let primeiroErro: string | null = null;
-  let contador429 = 0;
-
   const payloadCompleto = {
     ...requestBody,
     safetySettings: requestBody.safetySettings || SAFETY_SETTINGS_VAREJO
   };
+
+  // 1. Tentar execução segura via Supabase Edge Function (gemini-proxy) sem expor credenciais
+  try {
+    const { data: edgeData, error: edgeErr } = await supabase.functions.invoke('gemini-proxy', {
+      body: {
+        model: 'gemini-2.0-flash',
+        action: 'generateContent',
+        requestBody: payloadCompleto,
+        api_key: apiKey ? apiKey.trim() : undefined
+      }
+    });
+
+    if (!edgeErr && edgeData && !edgeData.error) {
+      return edgeData;
+    }
+    if (edgeData?.error && !apiKey) {
+      console.warn('[Gemini] Erro retornado pela Edge Function gemini-proxy:', edgeData.error);
+      throw new Error(edgeData.error);
+    }
+  } catch (edgeCallErr: any) {
+    if (!apiKey) {
+      throw edgeCallErr;
+    }
+    console.warn('[Gemini] Aviso ao invocar Edge Function gemini-proxy, acionando contingência direta:', edgeCallErr?.message || edgeCallErr);
+  }
+
+  // 2. Contingência direta caso haja chave BYOK informada
+  const modelos = await obterModelosValidosGemini(apiKey);
+  let primeiroErro: string | null = null;
+  let contador429 = 0;
 
   const temImagem = payloadCompleto.contents?.some((c: any) =>
     c.parts?.some((p: any) => p.inline_data || p.inlineData)

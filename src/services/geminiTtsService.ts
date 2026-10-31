@@ -12,6 +12,7 @@
  * - Blindagem contra vazamento de credenciais (PII/BYOK)
  */
 
+import { supabase } from '../lib/supabase';
 import { getGeminiApiKey, obterOuBuscarGeminiApiKey } from './geminiService';
 
 export interface GeminiTtsConfig {
@@ -295,8 +296,6 @@ const requisitarAudioGemini = async (
   apiKey: string,
   signal: AbortSignal
 ): Promise<{ base64Data: string; mimeType: string } | null> => {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
-
   const payload = {
     contents: [
       {
@@ -315,6 +314,38 @@ const requisitarAudioGemini = async (
       }
     }
   };
+
+  // 1. Tentar execução segura via Supabase Edge Function (gemini-proxy) sem expor credenciais
+  try {
+    const { data: edgeData, error: edgeErr } = await supabase.functions.invoke('gemini-proxy', {
+      body: {
+        model: modelo,
+        action: 'generateContent',
+        requestBody: payload,
+        api_key: apiKey ? apiKey.trim() : undefined
+      }
+    });
+
+    if (!edgeErr && edgeData) {
+      const partComAudio = edgeData?.candidates?.[0]?.content?.parts?.find(
+        (p: any) => p.inlineData && p.inlineData.data
+      );
+      if (partComAudio?.inlineData?.data) {
+        return {
+          base64Data: partComAudio.inlineData.data,
+          mimeType: partComAudio.inlineData.mimeType || 'audio/wav'
+        };
+      }
+    }
+  } catch (err) {
+    if (signal.aborted) return null;
+    console.warn('[GeminiTTS] Aviso ao invocar gemini-proxy, tentando contingência direta:', err);
+  }
+
+  // 2. Se houver chave informada, tenta contingência direta
+  if (!apiKey) return null;
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
 
   const response = await fetch(url, {
     method: 'POST',
@@ -374,19 +405,13 @@ export const falarComGeminiTTS = async (
     return;
   }
 
-  // 2. Resolução da Chave da API do Google AI Studio
+  // 2. Resolução da Chave da API do Google AI Studio (opcional caso a Edge Function possua segredo global)
   let chaveApi = (config?.apiKey || '').trim();
   if (!chaveApi) {
     chaveApi = getGeminiApiKey(config?.loja);
   }
   if (!chaveApi && config?.loja?.id) {
     chaveApi = await obterOuBuscarGeminiApiKey(config?.loja);
-  }
-
-  // Se não houver chave configurada, realiza fallback transparente para Web Speech API
-  if (!chaveApi) {
-    executarFallbackWebSpeech(textoLimpo, config);
-    return;
   }
 
   // 3. Chamada à API com Gemini 3.8 Flash TTS e Auto-Recuperação
