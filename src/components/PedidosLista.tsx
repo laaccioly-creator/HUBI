@@ -3987,7 +3987,8 @@ export const PedidosLista: React.FC = () => {
                     return (
                       <tr
                         key={pedido.id}
-                        className={`transition group border-b ${isDark ? 'hover:bg-slate-900/40 border-slate-800/90' : 'hover:bg-slate-100/60 border-slate-200'} ${isCancelado ? 'opacity-60' : ''}`}
+                        onClick={() => setPedidoSelecionado(pedido)}
+                        className={`transition group border-b cursor-pointer ${isDark ? 'hover:bg-slate-900/40 border-slate-800/90' : 'hover:bg-slate-100/60 border-slate-200'} ${isCancelado ? 'opacity-60' : ''}`}
                       >
                         <td className="py-2.5 px-2 whitespace-nowrap font-medium">
                           <div className="flex items-center gap-1.5">
@@ -4058,7 +4059,10 @@ export const PedidosLista: React.FC = () => {
                         <td className="py-2.5 px-2 whitespace-nowrap text-center">
                           <button
                             type="button"
-                            onClick={() => setPedidoItensModal(pedido)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPedidoItensModal(pedido);
+                            }}
                             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold border transition cursor-pointer shadow-xs ${
                               isDark
                                 ? 'bg-[#000000] border-slate-700 text-slate-200 hover:bg-slate-900'
@@ -4140,7 +4144,10 @@ export const PedidosLista: React.FC = () => {
                                 {podeEditarPedido(pedido) && (
                                   <button
                                     type="button"
-                                    onClick={() => handleEditarPedido(pedido)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditarPedido(pedido);
+                                    }}
                                     className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold'}`}
                                     title="Editar itens e informações do pedido no PDV"
                                   >
@@ -4182,7 +4189,10 @@ export const PedidosLista: React.FC = () => {
                                 {statusPag === 'aguardando_pesagem' ? (
                                    <button
                                      type="button"
-                                     onClick={() => setPedidoParaPesagem(pedido)}
+                                     onClick={(e) => {
+                                       e.stopPropagation();
+                                       setPedidoParaPesagem(pedido);
+                                     }}
                                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-medium shadow-xs transition cursor-pointer active:scale-95 bg-emerald-600 hover:bg-emerald-700 text-white"
                                      title="Aferir peso de balan�a dos itens em kg e liberar pagamento"
                                    >
@@ -4193,7 +4203,10 @@ export const PedidosLista: React.FC = () => {
                                   /* ETAPA 1: Escolher Envio (obrigatório antes do recebimento quando frete a calcular) */
                                   <button
                                     type="button"
-                                    onClick={() => setPedidoEscolherEnvio(pedido)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setPedidoEscolherEnvio(pedido);
+                                    }}
                                     className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold'}`}
                                     title="Definir modalidade de envio do pedido"
                                   >
@@ -4214,7 +4227,8 @@ export const PedidosLista: React.FC = () => {
                                         {!estaPagoOuFiado && (
                                           <button
                                             type="button"
-                                            onClick={() => {
+                                            onClick={(e) => {
+                                              e.stopPropagation();
                                               setPedidoReceberModal(pedido);
                                             }}
                                             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold'}`}
@@ -4257,7 +4271,8 @@ export const PedidosLista: React.FC = () => {
                                 ) : statusPag !== 'pago' && statusPag !== 'fiado' && statusPag !== 'caderneta' ? (
                                   <button
                                     type="button"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       setPedidoReceberModal(pedido);
                                     }}
                                     className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black font-bold'}`}
@@ -4358,7 +4373,10 @@ export const PedidosLista: React.FC = () => {
                                           {ehTranspManual && cod && (
                                             <button
                                               type="button"
-                                              onClick={() => handleRastrearTransportadora(pedido)}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleRastrearTransportadora(pedido);
+                                              }}
                                               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 shadow-xs transition cursor-pointer active:scale-95"
                                               title="Rastrear envio na Transportadora"
                                             >
@@ -4370,7 +4388,8 @@ export const PedidosLista: React.FC = () => {
                                           {ehCorreios && cod && (
                                             <button
                                               type="button"
-                                              onClick={() => {
+                                              onClick={(e) => {
+                                                e.stopPropagation();
                                                 try {
                                                   navigator.clipboard.writeText(cod);
                                                 } catch {}
@@ -4393,6 +4412,7 @@ export const PedidosLista: React.FC = () => {
                                                   target="_blank"
                                                   rel="noopener noreferrer"
                                                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 shadow-xs transition cursor-pointer active:scale-95"
+                                                  onClick={(e) => e.stopPropagation()}
                                                   title="Abrir mapa de rastreio ao vivo da Uber Direct"
                                                 >
                                                   <Navigation className="w-3 h-3" />
@@ -4402,7 +4422,10 @@ export const PedidosLista: React.FC = () => {
                                               )}
                                               <button
                                                 type="button"
-                                                onClick={() => handleCompartilharRastreioUber(pedido)}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleCompartilharRastreioUber(pedido);
+                                                }}
                                                 className="inline-flex items-center gap-1 px-2 py-1 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 shadow-xs transition cursor-pointer active:scale-95"
                                                 title="Enviar link de rastreio da Uber no WhatsApp"
                                               >
@@ -4415,7 +4438,10 @@ export const PedidosLista: React.FC = () => {
                                     })()}
                                     <button
                                       type="button"
-                                      onClick={() => atualizarStatus(pedido.id, 'concluido')}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        atualizarStatus(pedido.id, 'concluido');
+                                      }}
                                       className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
                                       title="Concluir Pedido Entregue"
                                     >
@@ -4426,7 +4452,10 @@ export const PedidosLista: React.FC = () => {
                                 ) : (pedido.status === 'pendente' && statusPag !== 'pago' && statusPag !== 'fiado' && statusPag !== 'caderneta') ? (
                                   <button
                                     type="button"
-                                    onClick={() => atualizarStatus(pedido.id, 'confirmado')}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      atualizarStatus(pedido.id, 'confirmado');
+                                    }}
                                     className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-blue-600 hover:bg-blue-500 text-white border border-blue-500' : 'bg-blue-600 hover:bg-blue-700 text-white border border-blue-700 shadow-sm'}`}
                                     title="Confirmar Pedido (Avançar de Pendente para Confirmado)"
                                   >
@@ -4436,7 +4465,10 @@ export const PedidosLista: React.FC = () => {
                                 ) : (pedido.status === 'pronto_para_retirar' || ((pedido.status === 'confirmado' || pedido.status === 'pendente') && resolverProvedorEntrega(pedido).isRetirada)) ? (
                                   <button
                                     type="button"
-                                    onClick={() => atualizarStatus(pedido.id, 'concluido')}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      atualizarStatus(pedido.id, 'concluido');
+                                    }}
                                     className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
                                     title="Concluir Pedido"
                                   >
@@ -4446,7 +4478,10 @@ export const PedidosLista: React.FC = () => {
                                 ) : pedido.status !== 'concluido' ? (
                                   <button
                                     type="button"
-                                    onClick={() => setPedidoAlterarStatusModal(pedido)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setPedidoAlterarStatusModal(pedido);
+                                    }}
                                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 shadow-xs transition cursor-pointer active:scale-95"
                                     title="Alterar status do pedido"
                                   >
