@@ -51,7 +51,7 @@ export const usePermissions = (): PermissionsState => {
   const ehAdmin = ehOwner || perfil === 'admin';
   const ehGerente = ehAdmin || perfil === 'gerente';
   const ehVendedorOuComum = !ehAdmin && !ehGerente;
-  const podeTrocarLoja = ehOwner || (perfil === 'admin' && Boolean(usuario?.pode_trocar_loja));
+  const podeTrocarLoja = ehOwner || Boolean(usuario?.pode_trocar_loja);
 
   // Permissões Granulares
   const podeUsoCelularPessoal = ehAdmin || (usuario?.pode_uso_celular_pessoal ?? true);

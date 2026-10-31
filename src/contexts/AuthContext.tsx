@@ -322,6 +322,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const selecionarLoja = async (lojaId: string): Promise<boolean> => {
     try {
       setCarregando(true);
+
+      const emailAtual = (session?.user?.email || usuario?.email || '').toLowerCase().trim();
+      const ehSuperAdmin = emailAtual === 'laaccioly@hotmail.com';
+      const podeTrocar = ehSuperAdmin || usuario?.perfil === 'owner' || Boolean(usuario?.pode_trocar_loja);
+
+      if (!podeTrocar) {
+        alert('Você não tem permissão para trocar de unidade.');
+        return false;
+      }
+
       const { data: lojaBuscada, error } = await supabase
         .from('lojas')
         .select('*')
@@ -330,6 +340,96 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error || !lojaBuscada) {
         throw new Error('Não foi possível carregar a loja selecionada.');
+      }
+
+      const { data: { session: sessaoAtiva } } = await supabase.auth.getSession();
+      const authUserId = sessaoAtiva?.user?.id || session?.user?.id || null;
+      const authEmail = (sessaoAtiva?.user?.email || emailAtual).toLowerCase().trim();
+      const ehSuperAdminOuOwner = ehSuperAdmin || usuario?.perfil === 'owner';
+
+      // Buscar usuário específico do operador logado na loja destino
+      let usuarioDestino: UsuarioLoja | null = null;
+
+      if (authUserId) {
+        const { data: userByAuth } = await supabase
+          .from('usuarios_loja')
+          .select('*')
+          .eq('loja_id', lojaBuscada.id)
+          .eq('usuario_auth_id', authUserId)
+          .maybeSingle();
+        if (userByAuth) usuarioDestino = userByAuth as UsuarioLoja;
+      }
+
+      if (!usuarioDestino && authEmail) {
+        const { data: userByEmail } = await supabase
+          .from('usuarios_loja')
+          .select('*')
+          .eq('loja_id', lojaBuscada.id)
+          .ilike('email', authEmail)
+          .maybeSingle();
+        if (userByEmail) {
+          usuarioDestino = userByEmail as UsuarioLoja;
+          if (authUserId && !userByEmail.usuario_auth_id) {
+            try {
+              await supabase
+                .from('usuarios_loja')
+                .update({ usuario_auth_id: authUserId })
+                .eq('id', userByEmail.id);
+              usuarioDestino = { ...usuarioDestino, usuario_auth_id: authUserId } as UsuarioLoja;
+            } catch {}
+          }
+        }
+      }
+
+      // Se não encontrou operador nesta loja:
+      if (!usuarioDestino) {
+        if (ehSuperAdminOuOwner) {
+          const { data: ownerUser } = await supabase
+            .from('usuarios_loja')
+            .select('*')
+            .eq('loja_id', lojaBuscada.id)
+            .eq('perfil', 'owner')
+            .order('criado_em', { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          if (ownerUser) {
+            usuarioDestino = ownerUser;
+          } else {
+            const nomeProprietario = await resolverNomeRealUsuario(authUserId, authEmail, usuario?.nome_completo || 'Proprietário');
+            const { data: novoOwner } = await supabase
+              .from('usuarios_loja')
+              .insert([{
+                loja_id: lojaBuscada.id,
+                usuario_auth_id: authUserId,
+                nome_completo: nomeProprietario,
+                email: authEmail || lojaBuscada.email,
+                perfil: 'owner',
+                pode_uso_celular_pessoal: true,
+                pode_ver_transacoes_outros: true,
+                pode_dar_desconto: true,
+                pode_cadastrar_alterar_produtos: true,
+                pode_gerenciar_estoque: true,
+                pode_ativar_fiado: true,
+                pode_ver_preco_custo: true,
+                pode_exportar_relatorios: true,
+                pode_editar_vendas_passadas: true,
+                pode_trocar_loja: true,
+                ativo: true
+              }])
+              .select()
+              .single();
+            if (novoOwner) usuarioDestino = novoOwner;
+          }
+        } else {
+          alert('Você não tem permissão para acessar esta unidade.');
+          return false;
+        }
+      }
+
+      if (!usuarioDestino) {
+        alert('Não foi possível vincular o seu usuário a esta unidade.');
+        return false;
       }
 
       setLoja(lojaBuscada);
@@ -350,71 +450,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const authUserId = session?.user?.id || null;
+      const nomeReal = await resolverNomeRealUsuario(authUserId, authEmail, usuarioDestino.nome_completo);
+      if (nomeReal && nomeReal !== usuarioDestino.nome_completo) {
+        usuarioDestino = { ...usuarioDestino, nome_completo: nomeReal } as UsuarioLoja;
+        supabase.from('usuarios_loja').update({ nome_completo: nomeReal }).eq('id', usuarioDestino.id).then();
+      }
 
-      const { data: usuarios } = await supabase
-        .from('usuarios_loja')
-        .select('*')
-        .eq('loja_id', lojaBuscada.id)
-        .order('criado_em', { ascending: true });
-
-      if (usuarios && usuarios.length > 0) {
-        let u = usuarios[0];
-        if (authUserId && (!u.usuario_auth_id || u.usuario_auth_id !== authUserId)) {
-          try {
-            await supabase
-              .from('usuarios_loja')
-              .update({ usuario_auth_id: authUserId })
-              .eq('id', u.id);
-            await supabase.rpc('sincronizar_meu_usuario_auth');
-            u = { ...u, usuario_auth_id: authUserId };
-          } catch (syncErr) {
-            console.warn('Aviso ao sincronizar usuario_auth_id na seleção de loja:', syncErr);
-          }
-        }
-        const nomeReal = await resolverNomeRealUsuario(authUserId, session?.user?.email, u.nome_completo);
-        if (nomeReal && nomeReal !== u.nome_completo) {
-          u = { ...u, nome_completo: nomeReal };
-          supabase.from('usuarios_loja').update({ nome_completo: nomeReal }).eq('id', u.id).then();
-        }
-        setUsuario(u);
-        localStorage.setItem(STORAGE_KEY_USUARIO_ID, u.id);
-      } else {
-        const nomeProprietario = await resolverNomeRealUsuario(authUserId, session?.user?.email, 'Proprietário');
-        const { data: novoUser } = await supabase
-          .from('usuarios_loja')
-          .insert([{
-            loja_id: lojaBuscada.id,
-            usuario_auth_id: authUserId,
-            nome_completo: nomeProprietario,
-            email: lojaBuscada.email,
-            perfil: 'owner',
-            pode_uso_celular_pessoal: true,
-            pode_ver_transacoes_outros: true,
-            pode_dar_desconto: true,
-            pode_cadastrar_alterar_produtos: true,
-            pode_gerenciar_estoque: true,
-            pode_ativar_fiado: true,
-            pode_ver_preco_custo: true,
-            pode_exportar_relatorios: true,
-            pode_editar_vendas_passadas: true,
-            ativo: true
-          }])
-          .select()
-          .single();
-
-        if (novoUser) {
-          if (authUserId) {
-            try {
-              await supabase.rpc('sincronizar_meu_usuario_auth');
-            } catch (rpcErr) {
-              console.warn('Aviso ao sincronizar RPC após criar usuário:', rpcErr);
-            }
-          }
-          setUsuario(novoUser);
-          localStorage.setItem(STORAGE_KEY_USUARIO_ID, novoUser.id);
-        }
+      setUsuario(usuarioDestino);
+      localStorage.setItem(STORAGE_KEY_USUARIO_ID, usuarioDestino.id);
+      if (usuarioDestino.nome_completo) {
+        localStorage.setItem('hubi_user_real_name', usuarioDestino.nome_completo);
       }
 
       return true;

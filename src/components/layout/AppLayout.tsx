@@ -80,6 +80,8 @@ export const AppLayout: React.FC = () => {
   const [modalAdicionarLojaAberto, setModalAdicionarLojaAberto] = useState<boolean>(false);
   const [listaUsuariosLoja, setListaUsuariosLoja] = useState<UsuarioLoja[]>([]);
 
+  const podeTrocarLoja = permissions.ehOwner || Boolean(usuario?.pode_trocar_loja || usuarioLogado?.pode_trocar_loja);
+
   const nomeExibicaoUsuario = useMemo(() => {
     const nomeOperador = (usuarioLogado?.nome || usuario?.nome_completo || '').trim();
     const metaNome = (
@@ -510,19 +512,27 @@ export const AppLayout: React.FC = () => {
           <div className="relative shrink-0 min-w-52 lg:min-w-64 max-w-[310px]" ref={storeDropdownRef}>
             <button
               type="button"
-              onClick={() => setStoreDropdownOpen(prev => !prev)}
-              className="flex items-center gap-2.5 group text-left cursor-pointer min-w-0 w-full p-1 -m-1 rounded-xl hover:bg-slate-500/5 transition"
-              title="Clique para alternar de filial / loja"
+              onClick={podeTrocarLoja ? () => setStoreDropdownOpen(prev => !prev) : undefined}
+              className={`flex items-center gap-2.5 group text-left min-w-0 w-full p-1 -m-1 rounded-xl transition ${
+                podeTrocarLoja ? 'cursor-pointer hover:bg-slate-500/5' : 'cursor-default'
+              }`}
+              title={podeTrocarLoja ? "Clique para alternar de filial / loja" : (loja?.nome_fantasia || "HUBI PDV")}
             >
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-black text-white shadow-lg shadow-emerald-500/20 text-sm shrink-0 group-hover:scale-105 transition">
+              <div className={`w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-black text-white shadow-lg shadow-emerald-500/20 text-sm shrink-0 transition ${
+                podeTrocarLoja ? 'group-hover:scale-105' : ''
+              }`}>
                 {loja?.nome_fantasia ? loja.nome_fantasia.slice(0, 2).toUpperCase() : 'HB'}
               </div>
               <div className="hidden sm:block min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
-                  <h1 className={`font-bold text-xs lg:text-sm truncate max-w-[130px] lg:max-w-[160px] leading-tight group-hover:text-emerald-500 transition ${isDark ? 'text-slate-100' : 'text-[#0F172A]'}`}>
+                  <h1 className={`font-bold text-xs lg:text-sm truncate max-w-[130px] lg:max-w-[160px] leading-tight transition ${
+                    isDark ? 'text-slate-100' : 'text-[#0F172A]'
+                  } ${podeTrocarLoja ? 'group-hover:text-emerald-500' : ''}`}>
                     {loja?.nome_fantasia || 'HUBI PDV'}
                   </h1>
-                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-500 transition shrink-0 ${storeDropdownOpen ? 'rotate-180' : ''}`} />
+                  {podeTrocarLoja && (
+                    <ChevronDown className={`w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-500 transition shrink-0 ${storeDropdownOpen ? 'rotate-180' : ''}`} />
+                  )}
                 </div>
                 {ehTrial ? (
                   <div className="flex flex-col mt-0.5" onClick={(e) => e.stopPropagation()}>
@@ -552,7 +562,7 @@ export const AppLayout: React.FC = () => {
             </button>
 
             {/* Menu Suspenso de Troca Rápida de Loja */}
-            {storeDropdownOpen && (
+            {podeTrocarLoja && storeDropdownOpen && (
               <div className={`absolute top-full left-0 mt-2 w-72 rounded-2xl p-2 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-150 border shadow-2xl ${
                 isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-[#E2E8F0] text-slate-900'
               }`}>
