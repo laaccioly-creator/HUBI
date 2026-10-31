@@ -18,5 +18,10 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "vite.config.ts"]
+  "include": [
+    "src",
+    "vite.config.ts",
+    "packages/anti-rea-shield/src",
+    "packages/anti-rea-shield/skills"
+  ]
 }

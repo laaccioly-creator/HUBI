@@ -1,0 +1,27 @@
+{
+  "name": "anti-rea-shield",
+  "version": "2.0.0",
+  "description": "Suíte defensiva contra Engenharia Reversa Automatizada (REAs), Clonagem de UI/DOM e Scraping para aplicações React + Vite + Supabase.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "bin": {
+    "anti-rea-shield": "./bin/cli.mjs"
+  },
+  "scripts": {
+    "audit": "node ./bin/cli.mjs audit",
+    "init": "node ./bin/cli.mjs init",
+    "status": "node ./bin/cli.mjs status"
+  },
+  "keywords": [
+    "security",
+    "anti-clone",
+    "anti-scraping",
+    "supabase",
+    "rls-honeypot",
+    "vite-plugin",
+    "obfuscation",
+    "agent-skills"
+  ],
+  "author": "HUBI Security Team",
+  "license": "MIT"
+}
