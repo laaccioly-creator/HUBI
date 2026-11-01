@@ -965,7 +965,7 @@ export const AppLayout: React.FC = () => {
         )}
 
       {/* ÁREA DE CONTEÚDO PRINCIPAL (BACKGROUND UNIFICADO #F8FAFC NO LIGHT / #020617 NO DARK) */}
-      <main className={`flex-1 overflow-y-auto ${isDark ? 'bg-slate-950 text-slate-100' : (isDashboardRoute || isPosRoute) ? 'bg-slate-100 text-slate-900' : 'bg-slate-50 text-slate-900'} ${isDashboardRoute ? 'pb-16 md:pb-0' : 'pb-0'}`}>
+      <main className={`flex-1 overflow-y-auto ${isDark ? 'bg-slate-950 text-slate-100' : (isDashboardRoute || isPosRoute) ? 'bg-slate-100 text-slate-900' : 'bg-slate-50 text-slate-900'} pb-0`}>
         <ErrorBoundary origem="AppLayoutConteudo">
           <Outlet />
         </ErrorBoundary>
@@ -973,107 +973,6 @@ export const AppLayout: React.FC = () => {
 
       {/* WIDGET FLUTUANTE DE AJUDA & SUPORTE IA */}
       <ChatAjudaIA />
-
-      {/* BOTTOM NAVIGATION BAR MOBILE */}
-      <nav className={`md:hidden fixed bottom-0 left-0 right-0 h-14 ${isDark ? 'bg-slate-900/95 border-slate-800 text-slate-200' : 'bg-white/95 border-slate-200 text-slate-800'} backdrop-blur-xl border-t flex items-center justify-around px-2 z-30 shadow-lg ${isDashboardRoute ? '' : 'hidden'}`}>
-        {permissions.podeAcessarDashboard && (
-          <Link
-            to="/dashboard"
-            className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
-              location.pathname === '/dashboard'
-                ? 'text-emerald-500 font-bold'
-                : isDark
-                ? 'text-slate-400 hover:text-slate-200'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <LayoutDashboard className="w-5 h-5" />
-            <span className="text-[10px] mt-0.5 font-semibold">Dashboard</span>
-          </Link>
-        )}
-
-        {permissions.podeAcessarPdv && (
-          <Link
-            to="/pos"
-            className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
-              location.pathname === '/pos'
-                ? 'text-emerald-500 font-bold'
-                : isDark
-                ? 'text-slate-400 hover:text-slate-200'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <ShoppingCart className="w-5 h-5" />
-            <span className="text-[10px] mt-0.5 font-semibold">Vender</span>
-          </Link>
-        )}
-
-        {permissions.podeAcessarPedidos && (
-          <Link
-            to="/orders"
-            className={`flex flex-col items-center justify-center flex-1 py-1 transition relative ${
-              (location.pathname === '/orders' && !origemVendas)
-                ? 'text-emerald-500 font-bold'
-                : isDark
-                ? 'text-slate-400 hover:text-slate-200'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <div className="relative">
-              <ShoppingBag className="w-5 h-5" />
-            </div>
-            <span className="text-[10px] mt-0.5 font-semibold">Pedidos</span>
-          </Link>
-        )}
-
-        {permissions.podeAcessarVendas && (
-          <Link
-            to="/sales"
-            className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
-              (location.pathname === '/sales' || (location.pathname === '/orders' && origemVendas))
-                ? 'text-emerald-500 font-bold'
-                : isDark
-                ? 'text-slate-400 hover:text-slate-200'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Receipt className="w-5 h-5" />
-            <span className="text-[10px] mt-0.5 font-semibold">Vendas</span>
-          </Link>
-        )}
-
-        {permissions.podeAcessarProdutos && (
-          <Link
-            to="/products"
-            className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
-              location.pathname.startsWith('/products')
-                ? 'text-emerald-500 font-bold'
-                : isDark
-                ? 'text-slate-400 hover:text-slate-200'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Package className="w-5 h-5" />
-            <span className="text-[10px] mt-0.5 font-semibold">Produtos</span>
-          </Link>
-        )}
-
-        {permissions.podeAcessarFinancas && (
-          <Link
-            to="/finances"
-            className={`flex flex-col items-center justify-center flex-1 py-1 transition ${
-              location.pathname === '/finances'
-                ? 'text-emerald-500 font-bold'
-                : isDark
-                ? 'text-slate-400 hover:text-slate-200'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <DollarSign className="w-5 h-5" />
-            <span className="text-[10px] mt-0.5 font-semibold">Finanças</span>
-          </Link>
-        )}
-      </nav>
 
       {/* MODAL DE AJUSTE DA DATA OPERACIONAL (OWNER ONLY) */}
       <ModalSeletorDataOperacao />
