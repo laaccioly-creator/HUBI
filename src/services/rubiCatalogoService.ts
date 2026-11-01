@@ -357,14 +357,19 @@ export const casarProdutoEstritoPorNome = (
         if (palavrasProdSing[0] === tk) {
           score += 35; // Bônus se for o substantivo principal do produto
         }
-      } else if (tk.length >= 4 && palavrasProdSing.some(p => p.startsWith(tk) || tk.startsWith(p))) {
+      } else if (
+        tk.length >= 5 &&
+        palavrasProdSing.some(
+          p => p.length >= 5 && Math.abs(p.length - tk.length) <= 2 && (p.startsWith(tk) || tk.startsWith(p))
+        )
+      ) {
         score += 45;
         matchesNoNome++;
       }
     }
 
-    // Exige que pelo menos a palavra-chave principal esteja no nome do produto
-    if (matchesNoNome > 0 && score > melhorScore && score >= 45) {
+    // Exige que TODOS os tokens significativos buscados estejam no nome do produto (evita trocar "farinha de mandioca" por "farinha de milho")
+    if (matchesNoNome === tokensSing.length && score > melhorScore && score >= 45) {
       melhorScore = score;
       melhorProd = prod;
     }
@@ -417,14 +422,14 @@ export const detectarPedidoListaSacola = (
       tNorm
     );
 
-  // Também aceita "quero 1kg de açaí, 1 abacaxi..." quando menciona quantidades explícitas
-  const temQueroComQuantidade =
-    /\b(quero|preciso\s+de|me\s+manda|manda)\b/.test(tNorm) &&
-    /\b(\d+|um|uma|dois|duas|tres|quatro|cinco)\s*(?:kg|kilos?|quilos?|g|ml|l|litros?|unidades?|pacotes?)?\s+(?:de\s+)?[a-z]{3,}/.test(
+  // Também aceita "quero 1kg de açaí, 1 abacaxi..." ou "quero farinha de mandioca" / "tem açaí"
+  const temQueroOuBuscaDireta =
+    /\b(quero|queria|preciso\s+de|me\s+manda|manda|procuro|procurando|tem|vende)\s+[a-z0-9]{2,}/.test(tNorm) &&
+    !/\b(entrega|frete|pagamento|pagar|atacado|discreta|discreto|embalagem|cupom|desconto|cadastro|cadastrar|pedido|mais\s+vendidos|novidades)\b/.test(
       tNorm
     );
 
-  if (!temVerboCompra && !temQueroComQuantidade) {
+  if (!temVerboCompra && !temQueroOuBuscaDireta) {
     return { ehIntencaoCompra: false, itensEncontrados: [], termosNaoEncontrados: [] };
   }
 
@@ -455,9 +460,10 @@ export const detectarPedidoListaSacola = (
   // Remover verbo de comando no início da frase
   corpoLista = corpoLista
     .replace(
-      /^(?:bota|botar|bote|coloca|colocar|coloque|p[oõ]e|ponha|adiciona|adicionar|adicione|inclui|incluir|separa|separar|me\s+v[eê]|me\s+d[aá]|quero\s+levar|vou\s+levar|vou\s+querer|quero|preciso\s+de|me\s+manda|manda)\s+/i,
+      /^(?:voc[eê]s\s+t[eê]m|voce\s+tem|tem|vende|bota|botar|bote|coloca|colocar|coloque|p[oõ]e|ponha|adiciona|adicionar|adicione|inclui|incluir|separa|separar|me\s+v[eê]|me\s+d[aá]|quero\s+levar|vou\s+levar|vou\s+querer|quero|queria|preciso\s+de|procuro|procurando|me\s+manda|manda)\s+/i,
       ''
     )
+    .replace(/[?!.]+$/g, '')
     .trim();
 
   // Dividir os itens da lista por vírgula, ponto-e-vírgula ou conectivo "e" / "mais"
@@ -632,28 +638,17 @@ export const extrairProdutosDaResposta = (
     }
   }
 
-  // 2. Se a tag não trouxe produtos suficientes, buscar menções aos nomes dos produtos no texto
+  // 2. Se a tag não trouxe produtos suficientes, buscar menções exatas ao nome completo dos produtos no texto
   if (produtosEncontrados.length === 0) {
     const textoNorm = normalizarTexto(textoLimpo);
     for (const prod of produtosCatalogo) {
       if (prod.ativo === false) continue;
       const nomeNorm = normalizarTexto(prod.nome || '');
-      // Match exato por nome completo
       if (nomeNorm.length >= 4 && textoNorm.includes(nomeNorm)) {
         if (!idsAdicionados.has(prod.id)) {
           produtosEncontrados.push(prod);
           idsAdicionados.add(prod.id);
-          if (produtosEncontrados.length >= 3) break;
-        }
-      } else {
-        // Match por palavras-chave principais (ex: "bullet" e "capsula")
-        const palavrasNome = nomeNorm.split(/[\s,.;:!?\-+]+/).filter(w => w.length >= 4);
-        if (palavrasNome.length > 0 && palavrasNome.some(pal => textoNorm.includes(pal))) {
-          if (!idsAdicionados.has(prod.id)) {
-            produtosEncontrados.push(prod);
-            idsAdicionados.add(prod.id);
-            if (produtosEncontrados.length >= 3) break;
-          }
+          if (produtosEncontrados.length >= 4) break;
         }
       }
     }
@@ -724,57 +719,36 @@ export const formatarRespostaEntregaInteligente = async (
     endTexto = ` (${loja.endereco_logradouro}, ${loja.endereco_numero || 'S/N'}${loja.endereco_bairro ? ` - ${loja.endereco_bairro}` : ''})`;
   }
 
-  // 3. Montagem estruturada da resposta
-  let resposta = `🚚 **Como funciona a Entrega & Retirada na ${nomeLoja}:**\n\n`;
-
-  // Item 1: Retirada no Balcão
+  // 3. Montagem direta e concisa da resposta baseada nas configurações reais da loja
+  const opcoesEntrega: string[] = [];
   if (permiteRetirada) {
-    resposta += `• **Retirada no Balcão:** Você pode escolher seus produtos pelo catálogo e retirar diretamente na nossa loja física com **frete grátis**!${endTexto ? `\n  📍 *Local:* ${endTexto.replace(/^\s*\(/, '').replace(/\)$/, '')}` : ''}\n\n`;
+    opcoesEntrega.push(`**Retirada na loja** (grátis)${endTexto}`);
   }
-
-  // Item 2: Entrega no Endereço
-  resposta += `• **Entrega no seu Endereço:**\n`;
-
-  if (temIntegracaoAutomatica) {
-    resposta += `  Ao colocar os itens na sacola e informar seu endereço ou CEP ao finalizar, nosso sistema calcula na hora as opções disponíveis com prazos e valores para a sua região:\n`;
-    if (temUber) {
-      resposta += `  🛵 **Aplicativo de Corrida / Motoboy:** Entrega expressa no mesmo dia via Uber Flash ou motoboy parceiro;\n`;
-    }
-    if (temMelhorEnvio) {
-      resposta += `  📦 **Correios:** PAC e Sedex com código de rastreamento;\n`;
-      resposta += `  🚛 **Transportadoras Parceiras:** Opções de envio seguro com cotação imediata;\n`;
-    }
-    if (freteProprioAtivo) {
-      if (tipoCobrancaProprio === 'fixo' && valorFixoProprio > 0) {
-        resposta += `  🚗 **Frete Próprio da Loja:** Taxa fixa de R$ ${valorFixoProprio.toFixed(2)} para entrega na nossa região;\n`;
-      } else if (tipoCobrancaProprio === 'gratis') {
-        resposta += `  🚗 **Frete Próprio da Loja:** Entrega gratuita para a nossa área de atendimento;\n`;
-      } else {
-        resposta += `  🚗 **Frete Próprio da Loja:** Entrega local personalizada;\n`;
-      }
-    }
-  } else {
-    // Loja SEM integrações ativas de Uber Direct ou Melhor Envio
-    if (freteProprioAtivo && tipoCobrancaProprio === 'fixo' && valorFixoProprio > 0) {
-      resposta += `  Trabalhamos com **Frete Próprio da Loja** com taxa fixa de **R$ ${valorFixoProprio.toFixed(2)}** para entregas na nossa cidade/região!\n`;
-      resposta += `  🛵 Seu pedido sai para entrega assim que for separado e conferido pela nossa equipe.\n`;
+  if (temUber) {
+    opcoesEntrega.push('**Entrega Expressa (Uber/Motoboy)**');
+  }
+  if (temMelhorEnvio) {
+    opcoesEntrega.push('**Correios e Transportadoras**');
+  }
+  if (freteProprioAtivo) {
+    if (tipoCobrancaProprio === 'fixo' && valorFixoProprio > 0) {
+      opcoesEntrega.push(`**Entrega Própria** (taxa fixa de R$ ${valorFixoProprio.toFixed(2)})`);
+    } else if (tipoCobrancaProprio === 'gratis') {
+      opcoesEntrega.push('**Entrega Própria Gratuita**');
     } else {
-      resposta += `  Fazemos **cotação de frete personalizada na hora**! Ao concluir o seu pedido aqui pelo catálogo, **nossa equipe entrará em contato direto pelo seu WhatsApp** para combinar o melhor meio de envio (motoboy, entrega própria ou transportadora) e te informar o valor exato do frete antes do despacho.\n`;
+      opcoesEntrega.push('**Entrega Própria Local**');
     }
   }
+  if (opcoesEntrega.length === 0) {
+    opcoesEntrega.push('**Entrega combinada direto pelo WhatsApp** após fechar o pedido');
+  }
 
-  // Item 3: Frete Grátis Promocional
+  let resposta = `Na **${nomeLoja}** contamos com ${opcoesEntrega.join(', ')}.`;
   if (freteGratisAtivo && freteGratisValorMinimo > 0) {
-    resposta += `\n🎉 **Super Vantagem:** Frete Grátis nas compras a partir de **R$ ${freteGratisValorMinimo.toFixed(2)}**!`;
+    resposta += ` Temos **Frete Grátis** nas compras a partir de **R$ ${freteGratisValorMinimo.toFixed(2)}**!`;
+  } else {
+    resposta += ` Você escolhe como prefere receber ao finalizar sua cesta!`;
   }
-
-  // Item 4: Sigilo e Discrição (Especialmente relevante para sexshop, lingerie ou cosméticos)
-  const segmento = loja.configuracoes_extras?.perfil_negocio?.segmento || 'geral';
-  if (segmento === 'sexshop' || segmento === 'lingerie') {
-    resposta += `\n\n🤫 *Garantia de Sigilo:* Todos os pedidos são enviados em **embalagens 100% discretas, neutras e sem identificação externa**, preservando total privacidade!`;
-  }
-
-  resposta += `\n\nVocê escolhe onde e como prefere receber ao fechar o pedido na sacola! 😊`;
 
   return { texto: resposta };
 };
@@ -863,8 +837,9 @@ export const responderPerguntaClienteCatalogo = async (
     }
   }
 
-  // 3. Busca por match inteligente de palavras-chave do produto na frase (priorizando produtos.nome)
-  if (!produtoAlvo) {
+  // 3. Busca determinística estrita de produto único na frase (exigindo TODOS os tokens presentes no nome)
+  const ehListaMultiplosItens = /(?:,|;|\s+e\s+|\s+mais\s+|\s+tamb[eé]m\s+)/i.test(perguntaCorrigida);
+  if (!produtoAlvo && !ehListaMultiplosItens) {
     const palavrasPergunta = pNorm.split(/[\s,.;:!?\-+]+/).filter(w => w.length >= 3 && !/^\d+$/.test(w));
     const stopWords = new Set([
       'oi', 'ola', 'rubi', 'ruby', 'bom', 'boa', 'dia', 'tarde', 'noite',
@@ -873,7 +848,8 @@ export const responderPerguntaClienteCatalogo = async (
       'foto', 'aqui', 'mim', 'poder', 'ver', 'fazer', 'localizar', 'sistema', 'catalogo', 'loja',
       'olha', 'olhada', 'acho', 'achar', 'gostaria', 'dar', 'uma', 'uns', 'umas', 'dois', 'duas',
       'tres', 'quatro', 'cinco', 'bota', 'botar', 'coloca', 'colocar', 'poe', 'adiciona', 'adicionar',
-      'cesta', 'sacola', 'carrinho', 'hoje', 'por', 'favor', 'quilo', 'quilos', 'kilo', 'kilos', 'litro', 'litros'
+      'cesta', 'sacola', 'carrinho', 'hoje', 'por', 'favor', 'quilo', 'quilos', 'kilo', 'kilos', 'litro', 'litros',
+      'entrega', 'frete', 'pagamento', 'pagar', 'atacado', 'discreta', 'discreto', 'embalagem', 'cupom', 'desconto', 'vendidos'
     ]);
     const palavrasChaveBusca = palavrasPergunta.filter(w => !stopWords.has(w));
     const palavrasChaveSing = palavrasChaveBusca.map(singularizarPalavra);
@@ -889,27 +865,24 @@ export const responderPerguntaClienteCatalogo = async (
         const palavrasNomeSing = palavrasNome.map(singularizarPalavra);
 
         let score = 0;
-        // Match exato do nome inteiro
-        if (nomeProdNorm.length >= 4 && pNorm.includes(nomeProdNorm)) score += 100;
+        let matchesCount = 0;
 
-        // Match das palavras-chave (incluindo singular/plural: ex. "óleos" -> "óleo")
+        if (nomeProdNorm.length >= 4 && pNorm.includes(nomeProdNorm)) {
+          score += 100;
+          matchesCount = palavrasChaveSing.length;
+        }
+
         for (const chaveSing of palavrasChaveSing) {
           if (palavrasNomeSing.includes(chaveSing) || palavrasNome.includes(chaveSing)) {
             score += 45;
+            matchesCount++;
             if (palavrasNomeSing[0] === chaveSing) {
               score += 25;
             }
-          } else if (chaveSing.length >= 4 && palavrasNomeSing.some(p => p.startsWith(chaveSing) || chaveSing.startsWith(p))) {
-            score += 25;
           }
         }
 
-        // Bônus se termo muito característico der match direto (ex: bullet)
-        if (palavrasChaveSing.includes('bullet') && nomeProdNorm.includes('bullet')) {
-          score += 40;
-        }
-
-        if (score > melhorScore && score >= 45) {
+        if (matchesCount === palavrasChaveSing.length && score > melhorScore && score >= 45) {
           melhorScore = score;
           melhorProd = prod;
         }
@@ -956,13 +929,11 @@ export const responderPerguntaClienteCatalogo = async (
     };
   }
 
-  // 2. CHECAGEM DE COMANDO DE VOZ / TEXTO PARA ADICIONAR À CESTA (ITEM ÚNICO OU LISTA DE COMPRAS)
+  // 2. VITRINE ASSISTIDA: BUSCA DETERMINÍSTICA DE ITEM ÚNICO OU LISTA DE COMPRAS (SEM ADIÇÃO CEGA)
   const pedidoLista = detectarPedidoListaSacola(perguntaCorrigida, produtos, produtoAlvo || ultimoProdutoSugerido);
   if (pedidoLista.ehIntencaoCompra) {
     if (pedidoLista.itensEncontrados.length > 0) {
-      const descricoesItens = pedidoLista.itensEncontrados.map(item =>
-        item.quantidade > 1 ? `${item.quantidade}x **${item.produto.nome}**` : `o **${item.produto.nome}**`
-      );
+      const descricoesItens = pedidoLista.itensEncontrados.map(item => `**${item.produto.nome}**`);
       const listaFormatada =
         descricoesItens.length === 1
           ? descricoesItens[0]
@@ -970,36 +941,106 @@ export const responderPerguntaClienteCatalogo = async (
 
       const avisoNaoEncontrados =
         pedidoLista.termosNaoEncontrados.length > 0
-          ? ` Não encontrei ${pedidoLista.termosNaoEncontrados.join(' e ')} no catálogo.`
+          ? ` No momento não temos ${pedidoLista.termosNaoEncontrados.join(' e ')} disponível no catálogo.`
           : '';
 
       return {
-        texto: `Pronto, adicionei ${listaFormatada} na cesta.${avisoNaoEncontrados} Mais alguma coisa?`,
-        produtosSugeridos: pedidoLista.itensEncontrados.map(i => i.produto),
-        comandoSacola: {
-          produto: pedidoLista.itensEncontrados[0].produto,
-          quantidade: pedidoLista.itensEncontrados[0].quantidade
-        },
-        comandosSacola: pedidoLista.itensEncontrados.map(i => ({
-          produto: i.produto,
-          quantidade: i.quantidade
-        }))
+        texto: `Separei ${listaFormatada} logo abaixo!${avisoNaoEncontrados} Toque em **+ Adicionar** no card para confirmar na sua cesta.`,
+        produtosSugeridos: pedidoLista.itensEncontrados.map(i => i.produto)
       };
     }
 
     if (pedidoLista.termosNaoEncontrados.length > 0) {
-      const naoEncontradosStr = pedidoLista.termosNaoEncontrados.join(', ');
-      const exemplosAtivos = produtos.filter(p => p.ativo !== false).slice(0, 3);
-      const nomesExemplos = exemplosAtivos.map(p => `**${p.nome}**`).join(', ');
+      const naoEncontradosStr = pedidoLista.termosNaoEncontrados.join(' e ');
       return {
-        texto: `Não encontrei ${naoEncontradosStr} no catálogo hoje${nomesExemplos ? `, temos ${nomesExemplos}` : ''}. Gostaria de algum desses?`,
-        produtosSugeridos: exemplosAtivos.length > 0 ? exemplosAtivos : undefined
+        texto: `No momento não temos ${naoEncontradosStr} disponível no catálogo da **${nomeLoja}**. Gostaria de buscar outro item?`
       };
     }
   }
 
-  // 3. TRIAGEM OPERACIONAL INSTANTÂNEA VIA JEV (SYSTEM ONE - FASE 3)
-  // Rastreio de pedidos, validação de comprovantes Pix, atacado e reclamações urgentes em < 300ms
+  // 3. RESPOSTAS LOCAIS INSTANTÂNEAS PARA FAQ (ENTREGA, PAGAMENTO, ATACADO, EMBALAGEM, CUPOM, MAIS VENDIDOS)
+  // A. Atacado / Distribuidor
+  const termosAtacado = ['atacado', 'autoatacado', 'distribuidor', 'comprar no atacado', 'minimo atacado', 'tabela atacado', 'preco atacado', 'desconto atacado'];
+  if (termosAtacado.some(t => pNorm.includes(t))) {
+    const isAtacadoAtivo = Boolean(regrasAtivas.descontoAtacado > 0 || regrasAtivas.valorMinimoAtacado > 0 || regrasAtivas.qtdTotalMinimaAtacado > 0);
+    const isAutoAtivo = Boolean(regrasAtivas.descontoAutoatacado > 0 || regrasAtivas.valorMinimoAutoatacado > 0 || regrasAtivas.qtdTotalMinimaAutoatacado > 0);
+
+    if (!isAtacadoAtivo && !isAutoAtivo) {
+      return {
+        texto: `Na **${nomeLoja}** já praticamos preços especiais direto no varejo! Para lotes maiores, fale conosco pelo WhatsApp **${loja.whatsapp || loja.telefone || 'no botão do catálogo'}**.`
+      };
+    }
+
+    const partesAtacado: string[] = [];
+    if (isAtacadoAtivo) {
+      const tipo = loja.tipo_minimo_padrao_atacado || 'valor';
+      partesAtacado.push(
+        tipo === 'quantidade'
+          ? `**Atacado** a partir de **${regrasAtivas.qtdTotalMinimaAtacado} peças**`
+          : `**Atacado** a partir de **R$ ${regrasAtivas.valorMinimoAtacado.toFixed(2)}**`
+      );
+    }
+    if (isAutoAtivo) {
+      const tipo = loja.tipo_minimo_padrao_autoatacado || 'valor';
+      partesAtacado.push(
+        tipo === 'quantidade'
+          ? `**Distribuidor** a partir de **${regrasAtivas.qtdTotalMinimaAutoatacado} peças**`
+          : `**Distribuidor** a partir de **R$ ${regrasAtivas.valorMinimoAutoatacado.toFixed(2)}**`
+      );
+    }
+    return {
+      texto: `Na **${nomeLoja}** temos ${partesAtacado.join(' e ')}. O desconto é aplicado automaticamente na sua cesta!`
+    };
+  }
+
+  // B. Pagamentos
+  const termosPagamento = ['pagamento', 'pagar', 'pix', 'cartao', 'credito', 'debito', 'dinheiro', 'parcelamento', 'mercado pago'];
+  if (termosPagamento.some(t => pNorm.includes(t)) && !pNorm.includes('comprovante')) {
+    const mpAtivo = Boolean(loja.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.ativo);
+    const formas: string[] = [];
+    if (mpAtivo) formas.push('Pix com confirmação imediata');
+    formas.push('Cartão de crédito e débito');
+    formas.push('Dinheiro');
+    formas.push('Chave Pix da loja');
+
+    return {
+      texto: `Na **${nomeLoja}** aceitamos ${formas.slice(0, -1).join(', ')} e ${formas[formas.length - 1]}. Você escolhe a forma de pagamento ao fechar a cesta!`
+    };
+  }
+
+  // C. Entrega e Frete
+  const termosEntrega = ['entrega', 'frete', 'entregar', 'taxa de entrega', 'retirada', 'retirar', 'buscar', 'onde fica', 'endereco'];
+  if (termosEntrega.some(t => pNorm.includes(t))) {
+    return await formatarRespostaEntregaInteligente(contexto);
+  }
+
+  // D. Dúvidas sobre Embalagem Discreta e Sigilo
+  const termosDiscrecao = ['embalagem', 'discreta', 'discreto', 'sigilo', 'privacidade', 'aparece no pacote', 'da para ver', 'segredo'];
+  if (termosDiscrecao.some(t => pNorm.includes(t))) {
+    return {
+      texto: `Nossas entregas são feitas em **embalagens 100% discretas, neutras e sem identificação externa da loja**. Garantimos total sigilo e privacidade no seu pedido!`
+    };
+  }
+
+  // E. Cupom de Desconto
+  if (pNorm.includes('cupom')) {
+    return {
+      texto: `Para usar um cupom de desconto, adicione os produtos na cesta, abra o **Carrinho** e digite o código no campo de cupom antes de finalizar.`
+    };
+  }
+
+  // F. Produtos Mais Vendidos / Sugestões Rápidas
+  if (pNorm.includes('mais vendidos') || pNorm.includes('mais procurados')) {
+    const destaques = produtos.slice(0, 3);
+    return {
+      texto: destaques.length > 0
+        ? `Estes são os itens de maior destaque na **${nomeLoja}** hoje! Toque em **+ Adicionar** no card para colocar na cesta.`
+        : `No momento não há produtos cadastrados neste filtro.`,
+      produtosSugeridos: destaques.length > 0 ? destaques : undefined
+    };
+  }
+
+  // 4. TRIAGEM OPERACIONAL INSTANTÂNEA VIA JEV (SYSTEM ONE - FASE 3)
   const triagemJev = await rubiCatalogoJevService.classificarIntencao(pergunta, contexto);
 
   if (triagemJev.intencao === 'rastreio_pedido') {
@@ -1026,26 +1067,24 @@ export const responderPerguntaClienteCatalogo = async (
     const dadosCadastro = detectarDadosCadastroNaMensagem(pergunta, nomeClienteEfetivo);
     const telFormatado = dadosCadastro.telefone ? ` (${dadosCadastro.telefone})` : '';
     return {
-      texto: `Perfeito! Já anotei o seu contato de WhatsApp${telFormatado}! ✨\n\nComo posso te ajudar agora? Posso te sugerir os produtos mais procurados ou tirar dúvidas sobre qualquer item do catálogo! 😊`,
+      texto: `Perfeito, já anotei seu WhatsApp${telFormatado}! O que você gostaria de buscar no catálogo agora?`,
       dadosCadastroDetectados: dadosCadastro
     };
   }
 
-  // 4. DETECÇÃO DE DADOS DE CADASTRO NA MENSAGEM
+  // 5. DETECÇÃO DE DADOS DE CADASTRO NA MENSAGEM
   const dadosCadastro = detectarDadosCadastroNaMensagem(pergunta, nomeClienteEfetivo);
   const ehDuvidaDeProduto = Boolean(produtoAlvo);
 
-  // Se o cliente acabou de falar o nome pela primeira vez
   if (dadosCadastro.nome && !nomeClienteEfetivo && !produtoAlvo && !ehDuvidaDeProduto) {
     const nomeDetectado = dadosCadastro.nome;
     return {
-      texto: `Que prazer te conhecer, **${nomeDetectado}**! Seja muito bem-vindo(a) à **${nomeLoja}**! ✨\n\nSou a **Rubi**, sua ${personaInfo.papel.toLowerCase()}. ${especialidade ? `Somos especialistas em ${especialidade}. ` : ''}\n\nPara agilizar suas entregas com discrição e ofertas exclusivas, quer me passar seu WhatsApp e endereço rapidinho? É só falar ou digitar aqui! Ou se preferir, já me conta o que você gostaria de encontrar hoje! 😊`,
+      texto: `Prazer em te atender, **${nomeDetectado}**! O que você gostaria de buscar hoje no catálogo da **${nomeLoja}**?`,
       dadosCadastroDetectados: dadosCadastro
     };
   }
 
-  // 4. SAUDAÇÕES NATURAIS PURAS
-  // NUNCA disparar se a mensagem for uma dúvida sobre produto ou tiver mais perguntas
+  // 6. SAUDAÇÕES NATURAIS PURAS
   const termosPerguntaNaoSaudacao = [
     'duvida', 'produto', 'informac', 'saber', 'preco', 'quanto', 'entrega', 'frete',
     'embalagem', 'como funciona', 'serve', 'usar', 'gostaria', 'indica', 'vende', 'tem', 'posso', 'qual'
@@ -1066,74 +1105,11 @@ export const responderPerguntaClienteCatalogo = async (
     const saudacaoTempo = pNorm.includes('noite') ? 'Boa noite' : pNorm.includes('tarde') ? 'Boa tarde' : 'Olá';
     if (!nomeClienteEfetivo) {
       return {
-        texto: `${saudacaoTempo}! Seja muito bem-vindo(a) à **${nomeLoja}**! ✨\n\nSou a **Rubi**, sua ${personaInfo.papel.toLowerCase()}. Antes de começarmos, **como posso te chamar? Me conta o seu nome!** 😊`
+        texto: `${saudacaoTempo}! Bem-vindo(a) à **${nomeLoja}**, sou a **Rubi**. Como posso te chamar e o que você procura hoje?`
       };
     }
     return {
-      texto: `${saudacaoTempo}, **${nomeClienteEfetivo}**! Que alegria falar com você novamente! ✨\n\nComo posso te ajudar hoje? Está procurando algo especial para curtir a dois, novidades ou quer sugestões dos mais vendidos? 😊`
-    };
-  }
-
-  // 5. DÚVIDAS ESPECÍFICAS DE REGRAS DE NEGÓCIO DA LOJA
-  // A. Atacado / Distribuidor
-  const termosAtacado = ['atacado', 'autoatacado', 'distribuidor', 'comprar no atacado', 'minimo atacado', 'tabela atacado', 'preco atacado', 'desconto atacado'];
-  if (termosAtacado.some(t => pNorm.includes(t))) {
-    const isAtacadoAtivo = Boolean(regrasAtivas.descontoAtacado > 0 || regrasAtivas.valorMinimoAtacado > 0 || regrasAtivas.qtdTotalMinimaAtacado > 0);
-    const isAutoAtivo = Boolean(regrasAtivas.descontoAutoatacado > 0 || regrasAtivas.valorMinimoAutoatacado > 0 || regrasAtivas.qtdTotalMinimaAutoatacado > 0);
-
-    if (!isAtacadoAtivo && !isAutoAtivo) {
-      return {
-        texto: `Aqui na **${nomeLoja}**, nossos preços já são muito especiais e praticamos valor justo para todos os clientes! Se você precisar de um lote grande, fala com a gente pelo WhatsApp: **${loja.whatsapp || loja.telefone || 'no botão do catálogo'}**.`
-      };
-    }
-
-    let resposta = `🛍️ **Como funciona o Atacado na ${nomeLoja}:**\n\n`;
-    if (isAtacadoAtivo) {
-      const tipo = loja.tipo_minimo_padrao_atacado || 'valor';
-      if (tipo === 'quantidade') {
-        resposta += `• **Preço de Atacado:** A partir de **${regrasAtivas.qtdTotalMinimaAtacado} peças** no carrinho;\n`;
-      } else {
-        resposta += `• **Preço de Atacado:** Atingindo **R$ ${regrasAtivas.valorMinimoAtacado.toFixed(2)}** no total da compra;\n`;
-      }
-    }
-    if (isAutoAtivo) {
-      const tipo = loja.tipo_minimo_padrao_autoatacado || 'valor';
-      if (tipo === 'quantidade') {
-        resposta += `• **Distribuidor:** A partir de **${regrasAtivas.qtdTotalMinimaAutoatacado} peças**;\n`;
-      } else {
-        resposta += `• **Distribuidor:** Atingindo **R$ ${regrasAtivas.valorMinimoAutoatacado.toFixed(2)}**.\n`;
-      }
-    }
-    resposta += `\n💡 O desconto entra automaticamente na sacola!`;
-    return { texto: resposta };
-  }
-
-  // B. Pagamentos
-  const termosPagamento = ['pagamento', 'pagar', 'pix', 'cartao', 'credito', 'debito', 'dinheiro', 'parcelamento', 'mercado pago'];
-  if (termosPagamento.some(t => pNorm.includes(t))) {
-    const mpAtivo = Boolean(loja.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.ativo);
-    let formas = [];
-    if (mpAtivo) formas.push('Pix com confirmação imediata');
-    formas.push('Cartão de crédito e débito');
-    formas.push('Dinheiro na entrega ou retirada');
-    formas.push('Chave Pix direta da loja');
-
-    return {
-      texto: `Aqui na **${nomeLoja}** a gente facilita tudo pra você! ✨\n\nAceitamos ${formas.slice(0, -1).join(', ')} e também ${formas[formas.length - 1]}. Na hora de fechar a sua sacola de compras, você escolhe a opção que achar mais prática! Posso te sugerir os produtos mais procurados da loja? 😊`
-    };
-  }
-
-  // C. Entrega e Frete
-  const termosEntrega = ['entrega', 'frete', 'entregar', 'taxa de entrega', 'retirada', 'retirar', 'buscar', 'onde fica', 'endereco'];
-  if (termosEntrega.some(t => pNorm.includes(t))) {
-    return await formatarRespostaEntregaInteligente(contexto);
-  }
-
-  // D. Dúvidas sobre Embalagem Discreta e Sigilo (Especialmente relevante para Sex Shop)
-  const termosDiscrecao = ['embalagem', 'discreta', 'discreto', 'sigilo', 'privacidade', 'aparece no pacote', 'da para ver', 'segredo'];
-  if (termosDiscrecao.some(t => pNorm.includes(t))) {
-    return {
-      texto: `🤫 **Pode ficar com o coração 100% tranquilo(a)!**\n\nNossas entregas são feitas em **embalagens totalmente discretas, neutras e sem nenhuma identificação da loja por fora**. Ninguém sabe o que tem dentro, garantimos sigilo absoluto pra você fazer suas compras com total liberdade e privacidade! ✨`
+      texto: `${saudacaoTempo}, **${nomeClienteEfetivo}**! O que você gostaria de encontrar hoje na **${nomeLoja}**?`
     };
   }
 
@@ -1145,9 +1121,8 @@ export const responderPerguntaClienteCatalogo = async (
     'como cadastrar', 'como se cadastrar', 'preciso me cadastrar', 'fazer o cadastro'
   ];
   if (termosCadastroDuvida.some(t => pNorm.includes(t))) {
-    const saudacaoTratamento = nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : '';
     return {
-      texto: `Se cadastrar é super simples, rápido e discreto${saudacaoTratamento}! ✨\n\nVocê tem duas formas bem práticas:\n\n1. **Comigo agora mesmo:** É só me passar aqui por áudio ou texto o seu **Nome**, **WhatsApp** e **Endereço de entrega** que eu já deixo seu cadastro prontinho no sistema!\n\n2. **Ao fechar o pedido:** Escolha seus produtos no catálogo e toque na sacola. No momento de concluir, você preenche seus dados em poucos segundos!\n\nSe quiser, já pode me ditar ou digitar seus dados por aqui agora mesmo! Como você prefere? 😊`
+      texto: `Você pode informar seu **Nome**, **WhatsApp** e **Endereço** aqui mesmo no chat ou preencher rapidinho ao finalizar a sua sacola.`
     };
   }
 
@@ -1160,20 +1135,18 @@ export const responderPerguntaClienteCatalogo = async (
     'fechar a sacola', 'vou querer esses', 'quero fechar', 'pode fechar', 'quero finalizar'
   ];
   if (termosIntencaoPedido.some(t => pNorm.includes(t))) {
-    const saudacaoTratamento = nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : '';
     return {
-      texto: `Que maravilha${saudacaoTratamento}! Vamos preparar seu pedido com todo carinho e total discrição! 🎉\n\nPara eu já deixar seu cadastro pronto e organizar a sua entrega, por favor me envie:\n\n• Seu **Nome completo**\n• Seu **WhatsApp**\n• Seu **Endereço com número e bairro**\n\nVocê pode me ditar falando no microfone 🎙️ ou digitar aqui! Se já colocou os produtos na sacola, após me passar os dados é só tocar na **Sacola** no topo da tela para confirmar! ✨`
+      texto: `Para finalizar seu pedido, toque no botão **Carrinho** no topo da vitrine, confira seus itens e confirme a forma de entrega e pagamento!`
     };
   }
 
-  // 6. BUSCA PRELIMINAR DE PRODUTOS RECOMENDADOS (Fallback local)
+  // 7. BUSCA PRELIMINAR DE PRODUTOS RECOMENDADOS (Fallback local)
   const produtosSugeridosPre = buscarProdutosPorIntencao(perguntaCorrigida, produtos, 3, produtosJaSugeridosIds, segmento);
 
-  // 7. CONSULTA À IA GENERATIVA GEMINI (SE HOUVER CHAVE CONFIGURADA)
+  // 8. CONSULTA À IA GENERATIVA GEMINI (SE HOUVER CHAVE CONFIGURADA)
   const apiKey = getGeminiApiKey(loja);
   if (apiKey) {
     try {
-      // SELEÇÃO INTELIGENTE DE PRODUTOS RELEVANTES PARA O GEMINI
       const prodsRelevantes = buscarProdutosPorIntencao(perguntaCorrigida, produtos, 30, [], segmento);
       const catalogoMap = new Map<string, Produto>();
 
@@ -1189,7 +1162,6 @@ export const responderPerguntaClienteCatalogo = async (
         }
       }
 
-      // Completar até 50 produtos com itens ativos do catálogo
       const produtosAtivos = produtos.filter(p => p.ativo !== false);
       for (const p of produtosAtivos) {
         if (catalogoMap.size >= 50) break;
@@ -1225,12 +1197,12 @@ ${produtoAlvo.promocao_ativa && produtoAlvo.preco_promocional ? `- Preço Promoc
 ${produtoAlvo.tem_variacoes && produtoAlvo.variacoes?.length ? `- Variações: ${produtoAlvo.variacoes.map(v => `${v.valor_variacao_1}${v.valor_variacao_2 ? ` / ${v.valor_variacao_2}` : ''}`).join(', ')}` : ''}
 
 INSTRUÇÃO CRÍTICA PARA ESTE PRODUTO:
-Responda em no máximo 1 a 2 frases curtas dizendo o valor atual de R$ ${Number(produtoAlvo.preco_promocional || produtoAlvo.preco_venda_varejo || 0).toFixed(2)} e pergunte se deseja colocar na cesta.
+Responda em no máximo 2 frases curtas dizendo o valor atual de R$ ${Number(produtoAlvo.preco_promocional || produtoAlvo.preco_venda_varejo || 0).toFixed(2)} e convide o cliente a tocar em "+ Adicionar" no card abaixo.
 OBRIGATÓRIO: Na última linha isolada adicione: [PRODUTOS_RECOMENDADOS: ${produtoAlvo.id}]
 ` : '';
 
       const prompt = `
-Você é a **Rubi**, atendente da loja **${nomeLoja}** no catálogo online.
+Você é a **Rubi**, consultora visual da loja **${nomeLoja}** no catálogo online.
 ISOLAMENTO ESTRITO DE LOJA E SEGMENTO:
 - loja_id: "${loja.id}"
 - nome_loja: "${nomeLoja}"
@@ -1249,15 +1221,12 @@ ${infoProdutoAlvo}
 CATÁLOGO REAL DA LOJA ATIVA (${nomeLoja}):
 ${JSON.stringify(catalogoResumo)}
 
-🚨 DIRETRIZ DE VOZ OBRIGATÓRIA (ESTILO ALEXA): Suas respostas devem ser ULTRA-SUCINTAS, com no máximo 1 a 2 frases curtas e diretas. NUNCA gere parágrafos longos, explicações prolixas ou adjetivos excessivos.
-
-🚨 REGRA DE SAUDAÇÃO ÚNICA: Diga saudações ('Olá!', 'Tudo bem?') APENAS na primeira mensagem. A partir da segunda mensagem, vá DIRETO ao ponto sem repetir apresentações ou o nome do cliente.
-
-🚨 AÇÃO DIRETA NO CARRINHO: Ao receber pedidos (ex: 'coloque 1kg de açaí e 2 cafés'), adicione os itens diretamente à cesta e confirme em poucas palavras (ex: 'Pronto, adicionei o açaí e os 2 cafés na cesta. Mais alguma coisa?'). Se pedirem o carrinho, apenas resuma os itens e o total.
-
-🚨 REGRAS ADICIONAIS DE ZERO ALUCINAÇÃO:
-1. Cite APENAS produtos reais listados em "CATÁLOGO REAL DA LOJA ATIVA" com seus preços exatos. Se não houver o item pedido na loja "${nomeLoja}", diga diretamente que não encontrou no catálogo hoje.
-2. Quando citar ou recomendar 1 ou 2 produtos do catálogo, adicione na última linha isolada: [PRODUTOS_RECOMENDADOS: id1, id2].
+🚨 REGRA DA VITRINE ASSISTIDA (CONSULTORA VISUAL):
+1. Responda sempre em texto curto e direto (no máximo 2 frases curtas).
+2. Diga saudações APENAS na primeira mensagem. A partir da segunda mensagem, vá direto ao ponto sem repetir saudações ou o nome do cliente.
+3. NUNCA diga que adicionou produtos sozinha ao carrinho. Quando o cliente buscar produtos ou recomendações, apresente os itens encontrados em até 2 frases e oriente o cliente a tocar em "+ Adicionar" nos cards exibidos abaixo.
+4. Se algum item pedido NÃO existir em "CATÁLOGO REAL DA LOJA ATIVA", informe claramente que aquele item não está disponível no momento, sem inventar substitutos aleatórios.
+5. OBRIGATÓRIO: Quando apresentar produtos reais do catálogo da loja ativa, adicione na última linha isolada: [PRODUTOS_RECOMENDADOS: id1, id2].
 
 PERGUNTA ATUAL DO CLIENTE:
 "${perguntaCorrigida}"

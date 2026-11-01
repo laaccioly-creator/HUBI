@@ -62,10 +62,16 @@ export const DashboardCockpit: React.FC = () => {
   // Escopo de Loja: 'todas' (Visão Consolidada do Conglomerado) ou id da loja selecionada
   const ehGestorConglomerado = permissions.ehOwner || permissions.ehAdmin || permissions.ehGerente;
   const temMultiplasLojas = Boolean(lojasDisponiveis && lojasDisponiveis.length > 1);
-  const podeTrocarLoja = Boolean(
-    (usuario?.pode_trocar_loja === true || usuario?.perfil === 'owner' || permissions.ehOwner) &&
-    temMultiplasLojas
-  );
+  const podeTrocarLoja =
+    usuario?.pode_trocar_loja === false
+      ? false
+      : Boolean(usuario?.pode_trocar_loja === true || usuario?.perfil === 'owner' || permissions.ehOwner);
+  const listaLojasTroca =
+    lojasDisponiveis && lojasDisponiveis.length > 0
+      ? lojasDisponiveis
+      : loja
+      ? [loja]
+      : [];
   const [escopoLojaId, setEscopoLojaId] = useState<string>(
     temMultiplasLojas && ehGestorConglomerado ? 'todas' : (loja?.id || 'todas')
   );
@@ -321,7 +327,7 @@ export const DashboardCockpit: React.FC = () => {
                       <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                         Alternar Loja Ativa
                       </div>
-                      {lojasDisponiveis.map((l) => {
+                      {listaLojasTroca.map((l) => {
                         const isAtiva = loja?.id === l.id;
                         return (
                           <button
@@ -350,6 +356,22 @@ export const DashboardCockpit: React.FC = () => {
                           </button>
                         );
                       })}
+                      {permissions.ehOwner && (
+                        <>
+                          <div className="my-1 border-t border-slate-200 dark:border-slate-800/80" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDropdownTrocaLojaHeaderAberto(false);
+                              setModalAdicionarLojaAberto(true);
+                            }}
+                            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Adicionar Nova Loja</span>
+                          </button>
+                        </>
+                      )}
                     </div>
                   </>
                 )}
@@ -616,9 +638,10 @@ export const DashboardCockpit: React.FC = () => {
                 Dashboard Executivo
               </h1>
             </div>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-              Olá, <span className="font-semibold text-slate-800 dark:text-slate-200">{nomeUsuario}</span> • Acompanhe o desempenho e as metas da sua operação em tempo real.
-            </p>
+            <div className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-1.5 pl-0.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+              <span className="truncate">{loja?.nome_fantasia || 'Loja Ativa'}</span>
+            </div>
           </div>
 
           {/* Seletor de Período Padronizado & Ações Rápidas */}

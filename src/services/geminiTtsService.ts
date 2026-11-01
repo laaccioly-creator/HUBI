@@ -287,94 +287,20 @@ export const limparCacheGeminiTTS = (): void => {
 };
 
 /**
- * Dispara uma requisição de áudio para o Google AI Studio (Gemini 3.8 Flash TTS)
+ * Síntese de Voz na Nuvem Desativada (Consumo ZERO de cota de áudio)
  */
 const requisitarAudioGemini = async (
-  modelo: string,
-  texto: string,
-  voiceName: string,
-  apiKey: string,
-  signal: AbortSignal
+  _modelo: string,
+  _texto: string,
+  _voiceName: string,
+  _apiKey: string,
+  _signal: AbortSignal
 ): Promise<{ base64Data: string; mimeType: string } | null> => {
-  const payload = {
-    contents: [
-      {
-        role: 'user',
-        parts: [{ text: texto }]
-      }
-    ],
-    generationConfig: {
-      responseModalities: ['AUDIO'],
-      speechConfig: {
-        voiceConfig: {
-          prebuiltVoiceConfig: {
-            voiceName
-          }
-        }
-      }
-    }
-  };
-
-  // 1. Tentar execução segura via Supabase Edge Function (gemini-proxy) sem expor credenciais
-  try {
-    const { data: edgeData, error: edgeErr } = await supabase.functions.invoke('gemini-proxy', {
-      body: {
-        model: modelo,
-        action: 'generateContent',
-        requestBody: payload,
-        api_key: apiKey ? apiKey.trim() : undefined
-      }
-    });
-
-    if (!edgeErr && edgeData) {
-      const partComAudio = edgeData?.candidates?.[0]?.content?.parts?.find(
-        (p: any) => p.inlineData && p.inlineData.data
-      );
-      if (partComAudio?.inlineData?.data) {
-        return {
-          base64Data: partComAudio.inlineData.data,
-          mimeType: partComAudio.inlineData.mimeType || 'audio/wav'
-        };
-      }
-    }
-  } catch (err) {
-    if (signal.aborted) return null;
-    console.warn('[GeminiTTS] Aviso ao invocar gemini-proxy, tentando contingência direta:', err);
-  }
-
-  // 2. Se houver chave informada, tenta contingência direta
-  if (!apiKey) return null;
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-    signal
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-  }
-
-  const json = await response.json();
-  const partComAudio = json?.candidates?.[0]?.content?.parts?.find(
-    (p: any) => p.inlineData && p.inlineData.data
-  );
-
-  if (!partComAudio?.inlineData?.data) {
-    return null;
-  }
-
-  return {
-    base64Data: partComAudio.inlineData.data,
-    mimeType: partComAudio.inlineData.mimeType || 'audio/wav'
-  };
+  return null;
 };
 
 /**
- * Função Principal: Síntese de Voz Humana com Gemini 3.8 Flash TTS
+ * Função Principal: Síntese de Voz Desativada por Padrão (Modo Visual Instantâneo)
  *
  * @param texto Texto a ser falado
  * @param config Configurações opcionais de voz, callbacks e contexto de loja
@@ -383,95 +309,15 @@ export const falarComGeminiTTS = async (
   texto: string,
   config?: GeminiTtsConfig
 ): Promise<void> => {
-  const textoLimpo = limparTextoParaAudio(texto);
-  if (!textoLimpo) return;
-
-  // Interrompe qualquer áudio prévio antes de começar novo playback
   pararGeminiTTS();
 
-  const voiceName = config?.voiceName || 'Aoede'; // Aoede: voz acolhedora e natural em Português
-  const cacheKey = `${voiceName}:${textoLimpo}`;
-
-  // Se o usuário optou por forçar Web Speech API diretamente
   if (config?.forcarWebSpeech) {
-    executarFallbackWebSpeech(textoLimpo, config);
-    return;
-  }
-
-  // 1. Verificação de Cache em Memória
-  if (cacheAudioUrls.has(cacheKey)) {
-    const cachedUrl = cacheAudioUrls.get(cacheKey)!;
-    await reproduzirBlobAudio(cachedUrl, config);
-    return;
-  }
-
-  // 2. Resolução da Chave da API do Google AI Studio (opcional caso a Edge Function possua segredo global)
-  let chaveApi = (config?.apiKey || '').trim();
-  if (!chaveApi) {
-    chaveApi = getGeminiApiKey(config?.loja);
-  }
-  if (!chaveApi && config?.loja?.id) {
-    chaveApi = await obterOuBuscarGeminiApiKey(config?.loja);
-  }
-
-  // 3. Chamada à API com Gemini 3.8 Flash TTS e Auto-Recuperação
-  const abortController = new AbortController();
-  abortControllerAtivo = abortController;
-
-  const modelosParaTentar = [MODELO_PRIMARIO, ...MODELOS_FALLBACK];
-  let audioData: { base64Data: string; mimeType: string } | null = null;
-
-  for (const modelo of modelosParaTentar) {
-    if (abortController.signal.aborted) break;
-
-    try {
-      audioData = await requisitarAudioGemini(
-        modelo,
-        textoLimpo,
-        voiceName,
-        chaveApi,
-        abortController.signal
-      );
-      if (audioData) break;
-    } catch (err: any) {
-      if (abortController.signal.aborted) return;
-      // Se for 404 (modelo não suportado pelo endpoint atual), tenta próximo modelo na lista
-      const is404 = String(err?.message || '').includes('404');
-      if (!is404) {
-        console.warn(`[GeminiTTS] Falha temporária com modelo ${modelo}:`, err?.message || err);
-      }
-    }
-  }
-
-  // 4. Se obteve o áudio com sucesso, converte para Blob e reproduz
-  if (audioData && !abortController.signal.aborted) {
-    try {
-      const blobUrl = base64AudioToBlobUrl(audioData.base64Data, audioData.mimeType);
-
-      // Armazena no cache para frases repetidas
-      if (cacheAudioUrls.size >= LIMITE_MAX_CACHE) {
-        const primeiraChave = cacheAudioUrls.keys().next().value;
-        if (primeiraChave) {
-          const urlAntiga = cacheAudioUrls.get(primeiraChave);
-          if (urlAntiga) {
-            try {
-              URL.revokeObjectURL(urlAntiga);
-            } catch {}
-          }
-          cacheAudioUrls.delete(primeiraChave);
-        }
-      }
-      cacheAudioUrls.set(cacheKey, blobUrl);
-
-      await reproduzirBlobAudio(blobUrl, config);
+    const textoLimpo = limparTextoParaAudio(texto);
+    if (textoLimpo) {
+      executarFallbackWebSpeech(textoLimpo, config);
       return;
-    } catch (blobErr) {
-      console.warn('[GeminiTTS] Erro ao decodificar dados de áudio Base64:', blobErr);
     }
   }
 
-  // 5. Fallback silencioso para Web Speech API em caso de erro na API do Gemini
-  if (!abortController.signal.aborted) {
-    executarFallbackWebSpeech(textoLimpo, config);
-  }
+  config?.onEnd?.();
 };
