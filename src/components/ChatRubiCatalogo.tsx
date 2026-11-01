@@ -165,6 +165,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
   const deveContinuarOuvindoRef = useRef<boolean>(false);
   const silencioTimerRef = useRef<any>(null);
   const textoCapturadoRef = useRef<string>('');
+  const finalTranscritoRef = useRef<string>('');
 
   // Manter textoCapturadoRef sincronizado
   useEffect(() => {
@@ -245,8 +246,11 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
     if (enviarSeTiverTexto && textoCapturadoRef.current.trim()) {
       const aEnviar = textoCapturadoRef.current.trim();
       textoCapturadoRef.current = '';
+      finalTranscritoRef.current = '';
       setInputTexto('');
       enviarMensagem(aEnviar);
+    } else {
+      finalTranscritoRef.current = '';
     }
   };
 
@@ -268,19 +272,22 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
         };
 
         recognition.onresult = (event: any) => {
-          let finalTranscript = '';
-          let interimTranscript = '';
+          let transcriptFinal = '';
+          let transcriptInterim = '';
 
-          for (let i = 0; i < event.results.length; i++) {
-            const item = event.results[i];
-            if (item.isFinal) {
-              finalTranscript += (finalTranscript && !finalTranscript.endsWith(' ') ? ' ' : '') + item[0].transcript.trim();
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              transcriptFinal += event.results[i][0].transcript;
             } else {
-              interimTranscript += (interimTranscript && !interimTranscript.endsWith(' ') ? ' ' : '') + item[0].transcript.trim();
+              transcriptInterim += event.results[i][0].transcript;
             }
           }
 
-          const textoCompleto = [finalTranscript, interimTranscript].filter(Boolean).join(' ').trim();
+          if (transcriptFinal) {
+            finalTranscritoRef.current = (finalTranscritoRef.current ? `${finalTranscritoRef.current} ` : '') + transcriptFinal.trim();
+          }
+
+          const textoCompleto = (finalTranscritoRef.current + (transcriptInterim ? ` ${transcriptInterim.trim()}` : '')).trim();
           if (!textoCompleto) return;
 
           // Se a própria Rubi estiver falando ou processando, ignora captação para evitar eco
@@ -306,7 +313,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
               textoCapturadoRef.current = comando;
               setInputTexto(comando);
 
-              // Reiniciar timer de silêncio: 2 segundos de pausa após terminar a fala enviam a mensagem
+              // Reiniciar timer de silêncio: 1.8s de pausa após terminar a fala pausa microfone e envia imediatamente
               if (silencioTimerRef.current) {
                 clearTimeout(silencioTimerRef.current);
               }
@@ -314,16 +321,16 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                 const aEnviar = textoCapturadoRef.current.trim();
                 if (aEnviar.length >= 2 && !rubiFalandoRef.current && !pensandoRef.current) {
                   textoCapturadoRef.current = '';
+                  finalTranscritoRef.current = '';
                   setInputTexto('');
                   try {
                     recognitionRef.current?.stop();
                   } catch {}
                   enviarMensagem(aEnviar);
                 }
-              }, 2000);
+              }, 1800);
             } else {
               // O usuário disse apenas "Rubi" (ou ainda está no início da frase)
-              // Concede 1.4s para verificar se ele vai complementar a frase ou se chamou só por "Rubi"
               if (silencioTimerRef.current) {
                 clearTimeout(silencioTimerRef.current);
               }
@@ -349,6 +356,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                   }
                   ultimoMomentoInteracaoRef.current = Date.now();
                   textoCapturadoRef.current = '';
+                  finalTranscritoRef.current = '';
                   setInputTexto('');
                   try {
                     recognitionRef.current?.stop();
@@ -363,7 +371,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
           textoCapturadoRef.current = textoCompleto;
           setInputTexto(textoCompleto);
 
-          // Reiniciar timer de silêncio: concede 2 segundos de pausa após terminar a fala para enviar automaticamente
+          // Reiniciar timer de silêncio: 1.8s de pausa após terminar a fala pausa microfone e envia imediatamente
           if (silencioTimerRef.current) {
             clearTimeout(silencioTimerRef.current);
           }
@@ -371,13 +379,14 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
             const aEnviar = textoCapturadoRef.current.trim();
             if (aEnviar.length >= 2 && !rubiFalandoRef.current && !pensandoRef.current) {
               textoCapturadoRef.current = '';
+              finalTranscritoRef.current = '';
               setInputTexto('');
               try {
                 recognitionRef.current?.stop();
               } catch {}
               enviarMensagem(aEnviar);
             }
-          }, 2000);
+          }, 1800);
         };
 
         recognition.onerror = (event: any) => {
@@ -405,6 +414,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
               silencioTimerRef.current = null;
             }
             textoCapturadoRef.current = '';
+            finalTranscritoRef.current = '';
             setInputTexto('');
             enviarMensagem(textoPendente);
             return;
@@ -477,6 +487,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
       pararFalaRubi();
       deveContinuarOuvindoRef.current = true;
       textoCapturadoRef.current = '';
+      finalTranscritoRef.current = '';
       setInputTexto('');
       setEscutandoVoz(true);
       try {
@@ -689,6 +700,8 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
     pensandoRef.current = true;
     pararFalaRubi();
     pararGravacaoVoz(false);
+    textoCapturadoRef.current = '';
+    finalTranscritoRef.current = '';
 
     if (produtoAlvo) {
       setUltimoProdutoSugerido(produtoAlvo);

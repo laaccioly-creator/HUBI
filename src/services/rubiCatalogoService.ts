@@ -653,7 +653,7 @@ export const responderPerguntaClienteCatalogo = async (
     const precoStr = `R$ ${precoEfetivo.toFixed(2)}${temPromocao ? ' (oferta especial!)' : ''}`;
 
     return {
-      texto: `Com certeza! Já separei e estou exibindo o card com a foto, o preço e os detalhes do **${produtoParaFoto.nome}** por apenas **${precoStr}** logo aqui embaixo para você ver! ✨\n\nVocê pode tocar na foto ou no botão com o ícone de olho para abrir e ver em tamanho maior, ou tocar no botão **+** para colocar direto na sua sacola de compras! O que achou? 😊`,
+      texto: `Com certeza! Já separei o card do **${produtoParaFoto.nome}** por **${precoStr}** logo abaixo para você ver a foto e detalhes. Deseja colocar na sacola? ✨`,
       produtosSugeridos: [produtoParaFoto]
     };
   }
@@ -666,7 +666,7 @@ export const responderPerguntaClienteCatalogo = async (
   ];
   if (termosAudioProblema.some(t => pNorm.includes(t))) {
     return {
-      texto: `Ah, me perdoe${nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : ''}! Para me ouvir no seu fone ou alto-falante:\n\n1. Verifique se o **botão de som 🔊** no topo do nosso chat está verde/ativado;\n2. Devido à segurança do navegador, você pode tocar no botão **"🔊 Ouvir no fone"** logo abaixo da minha mensagem para liberar minha voz instantaneamente;\n3. Dê uma olhadinha no volume do seu fone e do aparelho.\n\nProntinho! Me diga se conseguiu me ouvir! O que você gostaria de explorar hoje? 😊`
+      texto: `Para me ouvir, ative o botão de som 🔊 no topo do chat ou toque no botão "🔊 Ouvir no fone" logo abaixo da mensagem. Conseguiu me ouvir? 😊`
     };
   }
 
@@ -676,7 +676,7 @@ export const responderPerguntaClienteCatalogo = async (
     const { produto, quantidade } = comandoSacola;
     const nomeTratamento = nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : '';
     return {
-      texto: `Prontinho${nomeTratamento}! Já adicionei **${quantidade > 1 ? `${quantidade}x ` : ''}${produto.nome}** à sua sacola de compras! 🛍️✨\n\nVocê pode ver os itens tocando na sacola no topo da tela. Quer que eu te mostre mais algum produto ou precisa de mais alguma coisa?`,
+      texto: `Prontinho${nomeTratamento}! Adicionei o **${produto.nome}** à sua sacola de compras! 🛍️ Deseja mais algum item?`,
       produtosSugeridos: [produto],
       comandoSacola
     };
@@ -907,13 +907,12 @@ ${sanitizarCaixaTexto(produtoAlvo.descricao || 'Produto de alta qualidade e muit
 """
 ${produtoAlvo.tem_variacoes && produtoAlvo.variacoes?.length ? `- Variações/Opções: ${produtoAlvo.variacoes.map(v => `${v.valor_variacao_1}${v.valor_variacao_2 ? ` / ${v.valor_variacao_2}` : ''}`).join(', ')}` : ''}
 
-INSTRUÇÃO CRÍTICA PARA ESTE PRODUTO:
+INSTRUÇÃO CRÍTICA PARA ESTE PRODUTO (RESPOSTA POR VOZ CONCISA ESTILO ALEXA):
 O cliente está com dúvida sobre este produto específico!
-1. Responda IMEDIATAMENTE explicando para que serve, sensações, modo de uso ou diferenciais com base na descrição acima.
-2. Destaque o valor atual do produto de forma convidativa e natural (R$ ${Number(produtoAlvo.preco_promocional || produtoAlvo.preco_venda_varejo || 0).toFixed(2)}).
-3. NUNCA dê apenas uma saudação genérica de boas-vindas pedindo o nome do cliente! Responda a dúvida primeiro. Ao final, de forma simpática, você pode perguntar como chamá-lo ou convidá-lo a colocar na sacola.
-4. IMPORTANTE: Escreva todas as frases completas com pontuação final (. ou !). NUNCA pare no meio de uma frase.
-5. OBRIGATÓRIO: Conclua todo o texto e somente na última linha, isolada, adicione a tag: [PRODUTOS_RECOMENDADOS: ${produtoAlvo.id}]
+1. Responda IMEDIATAMENTE em no máximo 2 a 3 frases curtas explicando para que serve ou diferenciais com base na descrição acima, destacando o valor atual de R$ ${Number(produtoAlvo.preco_promocional || produtoAlvo.preco_venda_varejo || 0).toFixed(2)}.
+2. Pergunte de forma leve se deseja colocar na sacola ou se quer saber mais detalhes.
+3. NUNCA escreva textos longos ou parágrafos extensos. Frases curtas e completas com pontuação final (. ou !).
+4. OBRIGATÓRIO: Conclua todo o texto e somente na última linha, isolada, adicione a tag: [PRODUTOS_RECOMENDADOS: ${produtoAlvo.id}]
 ` : '';
 
       const prompt = `
@@ -931,27 +930,26 @@ ${infoProdutoAlvo}
 CATÁLOGO REAL DA LOJA (Produtos efetivamente disponíveis no estoque):
 ${JSON.stringify(catalogoResumo)}
 
+🚨 DIRETRIZ DE VOZ OBRIGATÓRIA:
+Você é uma assistente de vendas por voz (estilo Alexa). Responda sempre de forma extremamente concisa, empática e direta, em no máximo 2 a 3 frases curtas. Nunca escreva textos longos ou parágrafos extensos. Se o cliente quiser mais detalhes, pergunte se ele deseja saber mais.
+
 🚨 DIRETRIZES INVIOLÁVEIS DE ATENDIMENTO E ZERO ALUCINAÇÃO:
 1. PROIBIDO INVENTAR PRODUTOS OU PREÇOS: Você SÓ PODE recomendar, descrever ou citar produtos que constam LITERALMENTE na lista "CATÁLOGO REAL DA LOJA" acima! NUNCA invente nomes de modelos fictícios (como "Discreet", "Velvet Touch", etc.) e NUNCA invente preços. Use rigorosamente o valor que está no campo "preco" de cada produto listado. Se o produto custa 6.50, fale "6 e 50". Jamais fale 69 e 90 ou outros valores não existentes!
 2. VISUALIZAÇÃO E FOTOS DE PRODUTOS:
    - NUNCA diga que "não pode mandar fotos por aqui" ou que "por ser chat de texto não consegue mostrar fotos"! O sistema do catálogo exibe automaticamente o card com a foto do produto, valor e botão de sacola logo abaixo da sua mensagem!
    - Quando o cliente pedir foto ou quiser ver o produto, confirme com entusiasmo que já está mostrando o card com a foto e os detalhes dele logo abaixo para ele ver e tocar.
    - OBRIGATÓRIO: Adicione na última linha isolada a tag [PRODUTOS_RECOMENDADOS: id] para que a foto do produto apareça na tela!
-3. HUMANIZAÇÃO TOTAL (CONVERSA NATURAL ENTRE DOIS HUMANOS):
-   - Converse com entusiasmo acolhedor, empatia e espontaneidade — como uma excelente consultora ou vendedora atenciosa conversando cara a cara no balcão da loja física ou em um áudio descontraído de WhatsApp.
-   - Fale em parágrafos contínuos, calorosos e vivos (evite listas mecânicas de bullets).
-   - Use expressões naturais e afetuosas do dia a dia brasileiro: "Olha só", "Com certeza!", "Ah, excelente escolha!", "Pode deixar comigo", "Temos sim!", "Fica super à vontade", "Você vai adorar!".
-4. DÚVIDAS SOBRE PRODUTOS TÊM PRIORIDADE TOTAL: Se a pergunta for sobre um produto específico, responda com detalhes acolhedores e envolventes imediatamente. Jamais bloqueie o atendimento exigindo o nome do cliente.
+3. RESPOSTAS CURTAS E DIRETAS (ESTILO ALEXA):
+   - Fale sempre em no máximo 2 a 3 frases curtas, naturais e bem pontuadas.
+   - NUNCA use marcadores, bullets ou múltiplos parágrafos. O cliente está ouvindo sua voz no alto-falante ou fone de ouvido.
+4. DÚVIDAS SOBRE PRODUTOS TÊM PRIORIDADE TOTAL: Se a pergunta for sobre um produto específico, responda com detalhes acolhedores e envolventes em 2 frases curtas e pergunte se quer colocar na sacola.
 5. IDENTIFICAÇÃO DO CLIENTE: Somente quando o cliente fizer uma saudação simples e isolada (sem perguntas nem produtos), dê as boas-vindas e pergunte: "Antes de começarmos, como posso te chamar? Me conta seu nome!"
-6. SEJA CONCISA E FLUIDA: O cliente pode estar ouvindo sua voz no fone de ouvido ou viva-voz! Responda em 2 a 3 parágrafos curtos, bem pontuados e agradáveis de ouvir.
-7. CADASTRO E PEDIDO:
-   - Se o cliente perguntar como se cadastrar, explique de maneira leve que ele pode me ditar os dados (Nome, WhatsApp, Endereço de entrega) por aqui mesmo ou preencher na sacola ao fechar.
-   - Se o cliente demonstrar intenção de fazer o pedido ou finalizar a compra, peça os dados de entrega com carinho para organizar o envio e cadastro.
-8. PRODUTOS RECOMENDADOS:
-   - Apresente no máximo 2 a 3 produtos APENAS quando o cliente pedir indicações, novidades ou itens específicos.
+6. PRODUTOS RECOMENDADOS:
+   - Apresente no máximo 1 ou 2 produtos de destaque APENAS quando o cliente pedir indicações, novidades ou itens específicos.
    - CITE APENAS PRODUTOS REAIS DO CATÁLOGO com seus nomes exatos e preços exatos.
    - OBRIGATÓRIO PARA SINCRONIA: Na última linha isolada da resposta, adicione os IDs dos produtos que você citou no formato exato: [PRODUTOS_RECOMENDADOS: id1, id2]. Se você NÃO recomendou produtos nesta mensagem, NÃO adicione essa tag!
-9. Se o cliente perguntar por algo que não temos no catálogo, seja transparente e gentil: informe que no momento não temos esse modelo específico e ofereça as melhores opções que realmente temos no catálogo.
+7. CADASTRO E PEDIDO:
+   - Se o cliente perguntar como se cadastrar ou fechar pedido, explique de maneira direta em 2 frases que ele pode me ditar os dados por aqui ou preencher ao fechar a sacola.
 
 PERGUNTA ATUAL DO CLIENTE:
 "${perguntaCorrigida}"
@@ -959,7 +957,7 @@ PERGUNTA ATUAL DO CLIENTE:
 
       const requestBody = {
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 1000 }
+        generationConfig: { temperature: 0.3, maxOutputTokens: 200 }
       };
 
       const resData = await executarRequisicaoGemini(apiKey, requestBody);

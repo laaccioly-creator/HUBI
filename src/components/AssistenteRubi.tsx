@@ -94,11 +94,17 @@ export const AssistenteRubi: React.FC = () => {
         };
 
         recognition.onresult = (event: any) => {
-          let transcricao = '';
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            transcricao += event.results[i][0].transcript;
+          let transcriptFinal = '';
+          let transcriptInterim = '';
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              transcriptFinal += event.results[i][0].transcript;
+            } else {
+              transcriptInterim += event.results[i][0].transcript;
+            }
           }
-          if (transcricao.trim()) {
+          const transcricao = (transcriptFinal || transcriptInterim).trim();
+          if (transcricao) {
             setInputTexto(transcricao);
           }
         };
