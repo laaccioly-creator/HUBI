@@ -486,6 +486,8 @@ export interface Categoria {
   icone?: string | null;
   ordem_exibicao: number;
   ativo: boolean;
+  categoria_pai_id?: string | null;
+  subcategorias?: Categoria[];
   criado_em?: string;
 }
 
@@ -510,6 +512,9 @@ export interface Produto {
   id: string;
   loja_id: string;
   categoria_id?: string | null;
+  subcategoria_id?: string | null;
+  categoria_nome?: string | null;
+  subcategoria_nome?: string | null;
   fornecedor_id?: string | null;
   nome: string;
   tipo_item?: TipoItem;
@@ -554,6 +559,7 @@ export interface Produto {
   atualizado_em?: string;
   variacoes?: VariacaoProduto[];
   categoria?: Categoria | null;
+  subcategoria?: Categoria | null;
 }
 
 export interface VariacaoProduto {

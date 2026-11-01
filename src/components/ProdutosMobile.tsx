@@ -59,6 +59,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { Produto, Categoria, VariacaoProduto, TipoUnidade } from '../types';
+import {
+  obterArvoreCategorias,
+  obterSubcategoriasDe,
+  obterSubcategoriaIdProduto,
+  salvarVinculoSubcategoriaProdutoLocal
+} from '../utils/categoriasHierarquia';
 import { audioService } from '../services/audioService';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { MobileHeader } from './layout/MobileHeader';
@@ -455,6 +461,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     precoAutoatacado: string;
     qtdMinimaAutoatacado: number;
     categoriaId: string;
+    subcategoriaId?: string;
     descricao: string;
     codigoBarras: string;
     tipoUnidade: TipoUnidade;
@@ -485,6 +492,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     precoAutoatacado: '',
     qtdMinimaAutoatacado: 0,
     categoriaId: '',
+    subcategoriaId: '',
     descricao: '',
     codigoBarras: '',
     tipoUnidade: 'un',
@@ -815,6 +823,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       precoAutoatacado: '',
       qtdMinimaAutoatacado: 24,
       categoriaId: '',
+      subcategoriaId: '',
       descricao: '',
       codigoBarras: '',
       tipoUnidade: 'un' as TipoUnidade,
@@ -1063,6 +1072,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       precoAutoatacado: p.preco_venda_autoatacado ? String(p.preco_venda_autoatacado) : '',
       qtdMinimaAutoatacado: Number(p.qtd_minima_autoatacado) > 0 && Number(p.qtd_minima_autoatacado) !== 24 ? Number(p.qtd_minima_autoatacado) : 0,
       categoriaId: p.categoria_id || '',
+      subcategoriaId: obterSubcategoriaIdProduto(p, loja?.id) || '',
       descricao: p.descricao || '',
       codigoBarras: p.codigo_barras || '',
       tipoUnidade: p.tipo_unidade || 'un',
@@ -1128,6 +1138,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         loja_id: loja.id,
         nome: formData.nome.trim().toUpperCase(),
         categoria_id: formData.categoriaId || null,
+        subcategoria_id: formData.subcategoriaId || null,
         preco_venda_varejo: precoVendaNum,
         preco_promocional: precoPromoNum,
         promocao_ativa: Boolean(precoPromoNum && precoPromoNum > 0 && precoPromoNum < precoVendaNum),
@@ -1179,6 +1190,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           .eq('id', produtoEditando.id);
 
         if (error && (
+          error.message?.includes('subcategoria_id') ||
           error.message?.includes('tipo_item') || 
           error.message?.includes('peso_kg') || 
           error.message?.includes('altura_cm') ||
@@ -1186,7 +1198,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           (error as any).details?.includes('peso_kg')
         )) {
           console.warn('Colunas novas ausentes no schema de produtos. Tentando atualizar sem elas...');
-          const { tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, unidade_medida, ...payloadBase } = payload;
+          const { subcategoria_id, tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, unidade_medida, ...payloadBase } = payload;
           const retry = await supabase
             .from('produtos')
             .update({
@@ -1198,6 +1210,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         }
 
         if (error) throw error;
+        salvarVinculoSubcategoriaProdutoLocal(loja.id, produtoEditando.id, formData.subcategoriaId || null);
         await persistirCorProdutoSupabase(produtoEditando.id, formData.corEtiqueta);
         setMensagemFeedback({ texto: 'Produto atualizado com sucesso!', tipo: 'sucesso' });
       } else {
@@ -1213,6 +1226,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           .single();
 
         if (error && (
+          error.message?.includes('subcategoria_id') ||
           error.message?.includes('tipo_item') || 
           error.message?.includes('peso_kg') || 
           error.message?.includes('altura_cm') ||
@@ -1220,7 +1234,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           (error as any).details?.includes('peso_kg')
         )) {
           console.warn('Colunas novas ausentes no schema de produtos. Tentando cadastrar sem elas...');
-          const { tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, unidade_medida, ...payloadBase } = payload;
+          const { subcategoria_id, tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, unidade_medida, ...payloadBase } = payload;
           const retry = await supabase
             .from('produtos')
             .insert([{
@@ -1236,7 +1250,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
         if (error && (error.message?.includes('tipo_item') || (error as any).details?.includes('tipo_item'))) {
           console.warn('Coluna tipo_item ausente no schema de produtos. Tentando cadastrar sem ela...');
-          const { tipo_item, ...payloadSemTipoItem } = payload;
+          const { subcategoria_id, tipo_item, ...payloadSemTipoItem } = payload;
           const retry = await supabase
             .from('produtos')
             .insert([{
@@ -1253,6 +1267,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         if (error) throw error;
         if (prodCriado?.id) {
           produtoSalvoId = prodCriado.id;
+          salvarVinculoSubcategoriaProdutoLocal(loja.id, prodCriado.id, formData.subcategoriaId || null);
           await persistirCorProdutoSupabase(prodCriado.id, formData.corEtiqueta);
         }
         setMensagemFeedback({ texto: 'Produto cadastrado com sucesso!', tipo: 'sucesso' });
@@ -2453,7 +2468,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   // TELA 016: SELETOR DE CATEGORIAS
   // -------------------------------------------------------------------------
   if (modalCategoriasAberto) {
-    const categoriasFiltradasModal = categorias.filter(c =>
+    const categoriasPrincipais = obterArvoreCategorias(categorias, loja?.id);
+    const categoriasFiltradasModal = categoriasPrincipais.filter(c =>
       c.nome.toLowerCase().includes(buscaCategoria.toLowerCase().trim())
     );
 
@@ -2517,7 +2533,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           <button
             type="button"
             onClick={() => {
-              setFormData(prev => ({ ...prev, categoriaId: '' }));
+              setFormData(prev => ({ ...prev, categoriaId: '', subcategoriaId: '' }));
               setModalCategoriasAberto(false);
             }}
             className="w-full px-4 py-3.5 text-left text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] rounded-xl hover:bg-slate-50 dark:hover:bg-[#0D111A] transition flex items-center justify-between cursor-pointer"
@@ -2531,7 +2547,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               key={cat.id}
               type="button"
               onClick={() => {
-                setFormData(prev => ({ ...prev, categoriaId: cat.id }));
+                setFormData(prev => ({
+                  ...prev,
+                  categoriaId: cat.id,
+                  subcategoriaId: prev.categoriaId === cat.id ? prev.subcategoriaId : ''
+                }));
                 setModalCategoriasAberto(false);
               }}
               className="w-full px-4 py-3.5 text-left text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 uppercase bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] rounded-xl hover:bg-slate-50 dark:hover:bg-[#0D111A] transition flex items-center justify-between cursor-pointer"
@@ -3320,19 +3340,49 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     </p>
                   </div>
 
-                  {/* Seletor de Categoria (TELA016) */}
-                  <div
-                    onClick={() => setModalCategoriasAberto(true)}
-                    className="p-3.5 rounded-xl border flex items-center justify-between cursor-pointer transition"
-                    style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
-                  >
-                    <div>
-                      <span className="text-xs font-semibold uppercase tracking-wider block" style={{ color: temaCores.textoSecundario }}>Categoria</span>
-                      <span className="text-xs sm:text-sm font-bold uppercase" style={{ color: temaCores.textoPrincipal }}>
-                        {mapaCategorias.get(formData.categoriaId) || 'Selecione uma categoria'}
-                      </span>
+                  {/* Seletor de Categoria (TELA016) + Subcategoria Condicional */}
+                  <div className="space-y-2.5">
+                    <div
+                      onClick={() => setModalCategoriasAberto(true)}
+                      className="p-3.5 rounded-xl border flex items-center justify-between cursor-pointer transition"
+                      style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
+                    >
+                      <div>
+                        <span className="text-xs font-semibold uppercase tracking-wider block" style={{ color: temaCores.textoSecundario }}>Categoria</span>
+                        <span className="text-xs sm:text-sm font-bold uppercase" style={{ color: temaCores.textoPrincipal }}>
+                          {mapaCategorias.get(formData.categoriaId) || 'Selecione uma categoria'}
+                        </span>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-slate-400" />
                     </div>
-                    <ChevronRight className="w-5 h-5 text-slate-400" />
+
+                    {(() => {
+                      const subcategoriasFilhas = obterSubcategoriasDe(categorias, formData.categoriaId, loja?.id);
+                      if (subcategoriasFilhas.length === 0) return null;
+                      return (
+                        <div
+                          className="p-3.5 rounded-xl border space-y-1.5 animate-in fade-in"
+                          style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
+                        >
+                          <label className="text-xs font-semibold uppercase tracking-wider block" style={{ color: temaCores.textoSecundario }}>
+                            Subcategoria (Opcional)
+                          </label>
+                          <select
+                            value={formData.subcategoriaId || ''}
+                            onChange={(e) => setFormData(prev => ({ ...prev, subcategoriaId: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-xl border text-xs sm:text-sm font-bold focus:outline-none focus:border-emerald-500"
+                            style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
+                          >
+                            <option value="">Todas / Sem subcategoria específica</option>
+                            {subcategoriasFilhas.map((sub) => (
+                              <option key={sub.id} value={sub.id}>
+                                {sub.nome}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Seletor de Descrição (TELA017) */}

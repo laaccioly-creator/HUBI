@@ -73,6 +73,12 @@ import { PosCheckoutMobile, SubTelaMobile } from './PosCheckoutMobile';
 import { obterOpcoesStatusAlteracao, isStatusPedidoAtivo, obterInfoVencimentoFiado, podeEditarPedido } from '../utils/statusPedidoUtils';
 import { ReceiptPdfService } from '../services/receiptPdfService';
 import { obterInfoEntregaRecibo } from '../services/printService';
+import { SeletorCategoriasHibrido } from './ui/SeletorCategoriasHibrido';
+import {
+  produtoPertenceAoFiltroCategoria,
+  agruparProdutosPorBlocosDeCategoria,
+  obterTextoBadgeCategoriaProduto
+} from '../utils/categoriasHierarquia';
 
 /**
  * Retorna o peso de prioridade da categoria para ordenação no PDV:
@@ -2106,8 +2112,8 @@ export const PosCheckout: React.FC = () => {
     const termo = buscaProduto.toLowerCase().trim();
 
     const filtrados = produtos.filter(p => {
-      // Filtro de categoria selecionada no dropdown
-      if (categoriaSelecionada !== 'todas' && p.categoria_id !== categoriaSelecionada) {
+      // Filtro de categoria ou subcategoria selecionada
+      if (!produtoPertenceAoFiltroCategoria(p, categoriaSelecionada, categorias, loja?.id)) {
         return false;
       }
 
@@ -2135,7 +2141,21 @@ export const PosCheckout: React.FC = () => {
       if (pesoA !== pesoB) return pesoA - pesoB;
       return a.nome.localeCompare(b.nome, 'pt-BR');
     });
-  }, [produtos, buscaProduto, categoriaSelecionada, apenasEmEstoque, mapaCategorias]);
+  }, [produtos, buscaProduto, categoriaSelecionada, apenasEmEstoque, mapaCategorias, categorias, loja?.id]);
+
+  const blocosProdutosPDV = useMemo(() => {
+    if (categoriaSelecionada === 'todas') {
+      return agruparProdutosPorBlocosDeCategoria(produtosFiltrados, categoriasOrdenadas, loja?.id);
+    }
+    return [
+      {
+        categoriaId: categoriaSelecionada,
+        categoriaNome: '',
+        emoji: '',
+        produtos: produtosFiltrados
+      }
+    ];
+  }, [produtosFiltrados, categoriaSelecionada, categoriasOrdenadas, loja?.id]);
 
   const trocoCalculado = Math.max(0, (Number(valorRecebidoDinheiro) || 0) - total);
 
@@ -2217,28 +2237,20 @@ export const PosCheckout: React.FC = () => {
           </div>
 
           <div className="flex flex-col sm:flex-row items-center gap-2">
-            {/* Seletor Dropdown de Categorias */}
+            {/* Seletor Híbrido de Categorias / Subcategorias (Hover Flyout no Desktop) */}
             <div className="relative w-full sm:w-56 shrink-0">
-              <Layers className="w-4 h-4 text-emerald-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <select
-                value={categoriaSelecionada}
-                onChange={(e) => setCategoriaSelecionada(e.target.value)}
-                className={`w-full ${isDark ? 'bg-[#000000] border border-slate-700 text-slate-100 hover:border-slate-600' : 'bg-white border-2 border-slate-300 text-slate-900 hover:border-slate-400'} focus:border-emerald-500 rounded-xl pl-9 pr-8 py-2 text-xs font-semibold focus:outline-none transition appearance-none cursor-pointer`}
-                title="Filtrar produtos por categoria"
-              >
-                <option value="todas" className={isDark ? 'bg-[#000000] text-slate-200' : 'bg-white text-slate-900'}>
-                  Todas as Categorias ({(produtos || []).length})
-                </option>
-                {categoriasOrdenadas.map((cat) => {
-                  const totalCat = (produtos || []).filter(p => p.categoria_id === cat.id).length;
-                  return (
-                    <option key={cat.id} value={cat.id} className={isDark ? 'bg-[#000000] text-slate-200' : 'bg-white text-slate-900'}>
-                      {cat.nome} ({totalCat})
-                    </option>
-                  );
-                })}
-              </select>
-              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <SeletorCategoriasHibrido
+                categorias={categoriasOrdenadas}
+                produtos={produtos}
+                valorSelecionado={categoriaSelecionada}
+                aoSelecionar={setCategoriaSelecionada}
+                valorTodas="todas"
+                rotuloTodas="Todas as Categorias"
+                lojaId={loja?.id}
+                isDark={isDark}
+                exibirContagem={true}
+                idOverlay="pdv-desktop-categorias-popover"
+              />
             </div>
 
             {/* Toggle Filtro de Produtos em Estoque */}
@@ -2309,107 +2321,139 @@ export const PosCheckout: React.FC = () => {
           </div>
         </div>
 
-        {/* Grid de Produtos */}
+        {/* Grid de Produtos (Agrupado em Blocos de Categoria quando Todas as Categorias) */}
         <div className="flex-1 overflow-y-auto p-3.5">
           {carregando ? (
             <div className="flex items-center justify-center h-full text-slate-500 text-sm">Carregando catálogo de produtos...</div>
           ) : (produtosFiltrados || []).length === 0 ? (
             <div className="flex items-center justify-center h-full text-slate-500 text-sm">Nenhum produto encontrado.</div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-2">
-              {produtosFiltrados.map((produto) => {
-                const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
-                const estoqueQtd = produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0
-                  ? produto.variacoes.reduce((acc, v) => acc + Number(v.quantidade_estoque || 0), 0)
-                  : Number(produto.quantidade_estoque ?? 0);
-                const isEsgotado = estoqueQtd <= 0;
-                const temEstoqueBaixo = estoqueQtd > 0 && estoqueQtd <= Number(produto.estoque_minimo_alerta || 0);
-
-                let precoFinal = produto.preco_venda_varejo;
-                if (tabelaPrecoCalculada === 'atacado' && produto.preco_venda_atacado) {
-                  precoFinal = produto.preco_venda_atacado;
-                } else if (tabelaPrecoCalculada === 'autoatacado' && produto.preco_venda_autoatacado) {
-                  precoFinal = produto.preco_venda_autoatacado;
-                } else if (produto.promocao_ativa && Number(produto.preco_promocional) > 0) {
-                  precoFinal = Number(produto.preco_promocional);
-                }
-                const precoOriginal = (produto.promocao_ativa && Number(produto.preco_promocional) > 0 && precoFinal !== produto.preco_venda_varejo)
-                  ? produto.preco_venda_varejo
-                  : null;
-
-                return (
-                  <div
-                    key={produto.id}
-                    onClick={() => {
-                      if (isEdicaoTravada) {
-                        mostrarAviso('Alteração de itens bloqueada para pedidos com status diferente de pendente.');
-                        return;
-                      }
-                      if (produto?.tem_variacoes && produto?.variacoes && (produto.variacoes?.length || 0) > 0) {
-                        setProdutoModalVariacao(produto);
-                      } else if (ehProdutoFracionado(produto)) {
-                        setItemPesagemModal({ produto, quantidadeAtual: 1 });
-                      } else {
-                        adicionarItem(produto);
-                      }
-                    }}
-                    className={`p-2 cursor-pointer transition-all duration-150 flex flex-col justify-between group shadow-sm active:scale-[0.98] rounded-xl ${
-                      isDark
-                        ? 'bg-[#000000] hover:bg-slate-950 border border-slate-700 hover:border-emerald-400'
-                        : 'bg-white hover:bg-slate-50 border-2 border-slate-300 hover:border-slate-400'
-                    }`}
-                  >
-                    <div>
-                      <div className={`relative aspect-square rounded-lg overflow-hidden ${isDark ? 'bg-slate-950' : 'bg-slate-100'} mb-1.5`}>
-                        <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
-                        {isEsgotado ? (
-                          <div className="absolute inset-0 bg-black/65 backdrop-blur-[1px] flex items-center justify-center p-1">
-                            <span className="bg-rose-600 text-white font-black text-[9px] px-1.5 py-0.5 rounded shadow uppercase tracking-wider">
-                              Esgotado
-                            </span>
-                          </div>
-                        ) : (
-                          <>
-                            {produto.promocao_ativa && Number(produto.preco_promocional) > 0 && (
-                              <span className="absolute top-1 left-1 bg-rose-600 text-white font-black text-[8px] px-1.5 py-0.5 rounded shadow uppercase tracking-wider">
-                                PROMO
-                              </span>
-                            )}
-                            {temEstoqueBaixo ? (
-                              <span className="absolute top-1 right-1 bg-amber-500/90 text-slate-950 font-black text-[8px] px-1 py-0.2 rounded shadow">
-                                Est: {estoqueQtd}
-                              </span>
-                            ) : null}
-                          </>
-                        )}
-                      </div>
-
-                      <h3 className={`font-bold text-[11px] sm:text-xs line-clamp-2 leading-tight ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-                        {produto.nome}
-                      </h3>
-                      {produto.codigo_interno && (
-                        <span className="text-[9px] text-slate-500 block mt-0.5 font-mono">#{produto.codigo_interno}</span>
-                      )}
-                    </div>
-
-                    <div className={`mt-1.5 pt-1.5 border-t flex items-center justify-between ${isDark ? 'border-slate-800/80' : 'border-slate-200'}`}>
-                      <div className="flex items-baseline gap-1.5 overflow-hidden">
-                        <span className={`font-black text-xs ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
-                          R$ {Number(precoFinal).toFixed(2)}{ehProdutoFracionado(produto) ? `/${obterSiglaUnidade(produto)}` : ''}
-                        </span>
-                        {precoOriginal && (
-                          <span className="text-[10px] text-slate-400 line-through">
-                            R$ {Number(precoOriginal).toFixed(2)}
-                          </span>
-                        )}
-                      </div>
-                      <span className={`w-5 h-5 rounded-md flex items-center justify-center transition shrink-0 ${isDark ? 'bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white' : 'bg-emerald-50 text-emerald-700 border border-emerald-300 group-hover:bg-emerald-600 group-hover:text-white'}`}>
-                        <Plus className="w-3 h-3" />
+            <div className="space-y-5">
+              {blocosProdutosPDV.map((bloco) => (
+                <section key={bloco.categoriaId} className="space-y-2.5">
+                  {categoriaSelecionada === 'todas' && bloco.categoriaNome && (
+                    <div className={`flex items-center gap-2 pt-1 pb-1 border-b ${
+                      isDark ? 'border-slate-800' : 'border-slate-300'
+                    }`}>
+                      <span className="text-base leading-none" aria-hidden="true">
+                        {bloco.emoji}
+                      </span>
+                      <h2 className={`text-xs sm:text-sm font-black uppercase tracking-wider ${
+                        isDark ? 'text-slate-200' : 'text-slate-900'
+                      }`}>
+                        {bloco.categoriaNome}
+                      </h2>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-700'
+                      }`}>
+                        {bloco.produtos.length}
                       </span>
                     </div>
+                  )}
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+                    {bloco.produtos.map((produto) => {
+                      const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
+                      const estoqueQtd = produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0
+                        ? produto.variacoes.reduce((acc, v) => acc + Number(v.quantidade_estoque || 0), 0)
+                        : Number(produto.quantidade_estoque ?? 0);
+                      const isEsgotado = estoqueQtd <= 0;
+                      const temEstoqueBaixo = estoqueQtd > 0 && estoqueQtd <= Number(produto.estoque_minimo_alerta || 0);
+                      const badgeCatTexto = obterTextoBadgeCategoriaProduto(produto, categorias, loja?.id);
+
+                      let precoFinal = produto.preco_venda_varejo;
+                      if (tabelaPrecoCalculada === 'atacado' && produto.preco_venda_atacado) {
+                        precoFinal = produto.preco_venda_atacado;
+                      } else if (tabelaPrecoCalculada === 'autoatacado' && produto.preco_venda_autoatacado) {
+                        precoFinal = produto.preco_venda_autoatacado;
+                      } else if (produto.promocao_ativa && Number(produto.preco_promocional) > 0) {
+                        precoFinal = Number(produto.preco_promocional);
+                      }
+                      const precoOriginal = (produto.promocao_ativa && Number(produto.preco_promocional) > 0 && precoFinal !== produto.preco_venda_varejo)
+                        ? produto.preco_venda_varejo
+                        : null;
+
+                      return (
+                        <div
+                          key={produto.id}
+                          onClick={() => {
+                            if (isEdicaoTravada) {
+                              mostrarAviso('Alteração de itens bloqueada para pedidos com status diferente de pendente.');
+                              return;
+                            }
+                            if (produto?.tem_variacoes && produto?.variacoes && (produto.variacoes?.length || 0) > 0) {
+                              setProdutoModalVariacao(produto);
+                            } else if (ehProdutoFracionado(produto)) {
+                              setItemPesagemModal({ produto, quantidadeAtual: 1 });
+                            } else {
+                              adicionarItem(produto);
+                            }
+                          }}
+                          className={`p-2 cursor-pointer transition-all duration-150 flex flex-col justify-between group shadow-sm active:scale-[0.98] rounded-xl ${
+                            isDark
+                              ? 'bg-[#000000] hover:bg-slate-950 border border-slate-700 hover:border-emerald-400'
+                              : 'bg-white hover:bg-slate-50 border-2 border-slate-300 hover:border-slate-400'
+                          }`}
+                        >
+                          <div>
+                            <div className={`relative aspect-square rounded-lg overflow-hidden ${isDark ? 'bg-slate-950' : 'bg-slate-100'} mb-1.5`}>
+                              <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+                              {badgeCatTexto && (
+                                <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 shadow-sm backdrop-blur-xs uppercase tracking-wider z-10 max-w-[68%] truncate">
+                                  {badgeCatTexto}
+                                </span>
+                              )}
+                              {isEsgotado ? (
+                                <div className="absolute inset-0 bg-black/65 backdrop-blur-[1px] flex items-center justify-center p-1">
+                                  <span className="bg-rose-600 text-white font-black text-[9px] px-1.5 py-0.5 rounded shadow uppercase tracking-wider">
+                                    Esgotado
+                                  </span>
+                                </div>
+                              ) : (
+                                <>
+                                  {produto.promocao_ativa && Number(produto.preco_promocional) > 0 && (
+                                    <span className="absolute bottom-1 left-1 bg-rose-600 text-white font-black text-[8px] px-1.5 py-0.5 rounded shadow uppercase tracking-wider">
+                                      PROMO
+                                    </span>
+                                  )}
+                                  {temEstoqueBaixo ? (
+                                    <span className="absolute top-1 right-1 z-10 bg-amber-500/90 text-slate-950 font-black text-[8px] px-1 py-0.2 rounded shadow">
+                                      Est: {estoqueQtd}
+                                    </span>
+                                  ) : null}
+                                </>
+                              )}
+                            </div>
+
+                            <h3 className={`font-bold text-[11px] sm:text-xs line-clamp-2 leading-tight ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                              {produto.nome}
+                            </h3>
+                            {produto.codigo_interno && (
+                              <span className="text-[9px] text-slate-500 block mt-0.5 font-mono">#{produto.codigo_interno}</span>
+                            )}
+                          </div>
+
+                          <div className={`mt-1.5 pt-1.5 border-t flex items-center justify-between ${isDark ? 'border-slate-800/80' : 'border-slate-200'}`}>
+                            <div className="flex items-baseline gap-1.5 overflow-hidden">
+                              <span className={`font-black text-xs ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                                R$ {Number(precoFinal).toFixed(2)}{ehProdutoFracionado(produto) ? `/${obterSiglaUnidade(produto)}` : ''}
+                              </span>
+                              {precoOriginal && (
+                                <span className="text-[10px] text-slate-400 line-through">
+                                  R$ {Number(precoOriginal).toFixed(2)}
+                                </span>
+                              )}
+                            </div>
+                            <span className={`w-5 h-5 rounded-md flex items-center justify-center transition shrink-0 ${isDark ? 'bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white' : 'bg-emerald-50 text-emerald-700 border border-emerald-300 group-hover:bg-emerald-600 group-hover:text-white'}`}>
+                              <Plus className="w-3 h-3" />
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                </section>
+              ))}
             </div>
           )}
         </div>

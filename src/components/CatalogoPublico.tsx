@@ -58,6 +58,12 @@ import { obterDataOperacaoISO, obterDataOperacaoISOParaLoja, definirDataOperacao
 import { isUuidValido } from '../services/syncService';
 import { formatarMoeda, ehProdutoFracionado, formatarQuantidadeUnidade, obterSiglaUnidade, formatarLinhaCalculoItem } from '../utils/formatters';
 import { ModalInputPesoFracionado } from './ui/ModalInputPesoFracionado';
+import { SeletorCategoriasHibrido } from './ui/SeletorCategoriasHibrido';
+import {
+  produtoPertenceAoFiltroCategoria,
+  agruparProdutosPorBlocosDeCategoria,
+  obterTextoBadgeCategoriaProduto
+} from '../utils/categoriasHierarquia';
 
 interface ItemCarrinhoPublico {
   id: string;
@@ -2620,7 +2626,7 @@ Fico no aguardo da confirmação! ✨`;
 
     const filtrados = produtos.filter(p => {
       const matchBusca = !termo || p.nome.toLowerCase().includes(termo) || (p.codigo_interno && p.codigo_interno.toLowerCase().includes(termo));
-      const matchCat = categoriaSelecionada === 'todas' || p.categoria_id === categoriaSelecionada;
+      const matchCat = produtoPertenceAoFiltroCategoria(p, categoriaSelecionada, categorias, loja?.id);
       if (!matchCat) return false;
 
       // Regra de produtos sem estoque: Ocultar produtos sem estoque ou esgotados
@@ -2645,7 +2651,21 @@ Fico no aguardo da confirmação! ✨`;
       if (pesoA !== pesoB) return pesoA - pesoB;
       return a.nome.localeCompare(b.nome, 'pt-BR');
     });
-  }, [produtos, busca, categoriaSelecionada, semEstoqueModo, exibirSemFoto, mapaCategorias]);
+  }, [produtos, busca, categoriaSelecionada, semEstoqueModo, exibirSemFoto, mapaCategorias, categorias, loja?.id]);
+
+  const blocosProdutosCatalogo = useMemo(() => {
+    if (categoriaSelecionada === 'todas') {
+      return agruparProdutosPorBlocosDeCategoria(produtosFiltrados, categoriasOrdenadas, loja?.id);
+    }
+    return [
+      {
+        categoriaId: categoriaSelecionada,
+        categoriaNome: '',
+        emoji: '',
+        produtos: produtosFiltrados
+      }
+    ];
+  }, [produtosFiltrados, categoriaSelecionada, categoriasOrdenadas, loja?.id]);
 
   if (carregando) {
     return (
@@ -2977,27 +2997,21 @@ Fico no aguardo da confirmação! ✨`;
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             {/* Linha Dividida: Seletor de Categorias (50%) | Botão de Carrinho (50%) */}
             <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:items-center shrink-0 order-2 sm:order-1">
-              {/* Coluna Esquerda (50%): Seletor Dropdown de Categorias */}
+              {/* Coluna Esquerda (50%): Seletor Híbrido de Categorias (Desktop Flyout / Mobile Gaveta Lateral) */}
               <div className="relative w-full sm:w-52 md:w-60">
-                <Layers
-                  className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 dark:text-slate-300"
+                <SeletorCategoriasHibrido
+                  categorias={categoriasOrdenadas}
+                  produtos={produtos}
+                  valorSelecionado={categoriaSelecionada}
+                  aoSelecionar={setCategoriaSelecionada}
+                  valorTodas="todas"
+                  rotuloTodas="Todas as Categorias"
+                  lojaId={loja?.id}
+                  isDark={isDark}
+                  exibirContagem={false}
+                  idOverlay="catalogo-categorias-drawer"
+                  classNameBotao="w-full flex items-center justify-between gap-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-2 dark:border-slate-400 hover:border-slate-400 dark:hover:border-emerald-400 focus:border-emerald-500 rounded-2xl pl-9 pr-3 py-2.5 sm:py-3 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none transition cursor-pointer shadow-xs relative text-left"
                 />
-                <select
-                  value={categoriaSelecionada}
-                  onChange={(e) => setCategoriaSelecionada(e.target.value)}
-                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-2 dark:border-slate-400 hover:border-slate-400 dark:hover:border-emerald-400 focus:border-emerald-500 rounded-2xl pl-9 pr-8 py-2.5 sm:py-3 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none transition appearance-none cursor-pointer shadow-xs truncate"
-                  title="Filtrar produtos por categoria"
-                >
-                  <option value="todas" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
-                    Todas as Categorias
-                  </option>
-                  {categoriasOrdenadas.map((cat) => (
-                    <option key={cat.id} value={cat.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
-                      {cat.nome}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-300 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
 
               {/* Coluna Direita (50%): Botão Proeminente de Carrinho de Compras */}
@@ -3068,339 +3082,379 @@ Fico no aguardo da confirmação! ✨`;
 
       <div className="max-w-6xl mx-auto w-full p-4 space-y-4 flex-1">
 
-        {/* LISTAGEM DE PRODUTOS NOS 3 MODOS */}
+        {/* LISTAGEM DE PRODUTOS NOS 3 MODOS (COM AGRUPAMENTO EM BLOCOS E BADGE NOS CARDS) */}
         {carregando ? (
           <div className="text-center py-20 text-slate-500 text-sm">Carregando catálogo...</div>
         ) : produtosFiltrados.length === 0 ? (
           <div className="text-center py-20 text-slate-500 text-sm">Nenhum produto disponível no momento.</div>
-        ) : modoExibicaoPublico === 'lista' ? (
-          /* ================= MODO LISTA ================= */
-          <div className="space-y-2.5 pt-2">
-            {produtosFiltrados.map((produto) => {
-              const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
-              const esgotado = isProdutoEsgotado(produto);
-
-              return (
-                <div
-                  key={produto.id}
-                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      onClick={() => setProdutoDetalhesModal(produto)}
-                      className="relative w-16 h-16 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-950 shrink-0 cursor-pointer hover:opacity-90 transition group/photo"
-                      title="Clique para ver fotos e detalhes"
-                    >
-                      <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover group-hover/photo:scale-105 transition duration-200" />
-                      {esgotado && (
-                        <span className="absolute inset-0 bg-black/70 flex items-center justify-center text-[9px] font-black text-rose-300">
-                          ESGOTADO
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="min-w-0">
-                      <h3
-                        onClick={() => setProdutoDetalhesModal(produto)}
-                        className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 truncate cursor-pointer hover:underline"
-                        title="Ver detalhes do produto"
-                      >
-                        {produto.nome}
-                      </h3>
-                      {produto.descricao && (
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">{formatarResumoDescricao(produto.descricao)}</p>
-                      )}
-                      <div className="flex items-baseline gap-2 mt-1">
-                        <span className="font-black text-sm text-slate-950 dark:text-white">
-                          R$ {Number(produto.promocao_ativa && produto.preco_promocional ? produto.preco_promocional : produto.preco_venda_varejo).toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleToggleFavorito(produto.id);
-                      }}
-                      className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition cursor-pointer text-slate-400 hover:text-amber-500"
-                      title={favoritosIds.has(produto.id) ? 'Remover dos favoritos' : 'Favoritar produto'}
-                    >
-                      <Star
-                        className={`w-4 h-4 ${
-                          favoritosIds.has(produto.id) ? 'text-amber-500 fill-amber-500 dark:text-amber-400 dark:fill-amber-400' : 'text-slate-400'
-                        }`}
-                      />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setProdutoDetalhesModal(produto)}
-                      className="p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs"
-                      title="Ver Detalhes do Produto"
-                    >
-                      <Eye className="w-3.5 h-3.5 text-slate-700 dark:text-slate-200 shrink-0" />
-                      <span className="hidden sm:inline">Detalhar</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      disabled={esgotado}
-                      onClick={() => {
-                        if (esgotado) return;
-                        if (produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0) {
-                          setProdutoModalVariacao(produto);
-                        } else {
-                          adicionarAoCarrinho(produto);
-                        }
-                      }}
-                      className={`px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition shadow-xs ${
-                        esgotado
-                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 font-semibold cursor-not-allowed opacity-60'
-                          : 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 dark:border-2 dark:border-emerald-400 cursor-pointer active:scale-95'
-                      }`}
-                    >
-                      {esgotado ? (
-                        <span>Esgotado</span>
-                      ) : (
-                        <>
-                          <Plus className="w-3.5 h-3.5 text-white" />
-                          <span className="hidden sm:inline">Adicionar</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : modoExibicaoPublico === 'instaview' ? (
-          /* ================= MODO INSTAVIEW (FEED) ================= */
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2 max-w-4xl mx-auto">
-            {produtosFiltrados.map((produto) => {
-              const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=700&auto=format&fit=crop&q=80';
-              const esgotado = isProdutoEsgotado(produto);
-
-              return (
-                <div
-                  key={produto.id}
-                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm flex flex-col justify-between"
-                >
-                  <div
-                    onClick={() => setProdutoDetalhesModal(produto)}
-                    className="relative aspect-square w-full bg-slate-100 dark:bg-slate-950 cursor-pointer hover:opacity-95 transition group/photo"
-                    title="Clique para ver fotos e detalhes"
-                  >
-                    <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover group-hover/photo:scale-102 transition duration-300" />
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleToggleFavorito(produto.id);
-                      }}
-                      className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full bg-white/90 dark:bg-slate-900/80 backdrop-blur-xs flex items-center justify-center border border-slate-200 dark:border-slate-700/60 shadow transition hover:scale-110 active:scale-95 cursor-pointer"
-                      title={favoritosIds.has(produto.id) ? 'Remover dos favoritos' : 'Favoritar produto'}
-                    >
-                      <Star
-                        className={`w-4 h-4 transition-colors ${
-                          favoritosIds.has(produto.id)
-                            ? 'text-amber-500 fill-amber-500 dark:text-amber-400 dark:fill-amber-400'
-                            : 'text-slate-400 hover:text-amber-500'
-                        }`}
-                      />
-                    </button>
-                    {esgotado && (
-                      <div className="absolute inset-0 bg-black/75 flex items-center justify-center">
-                        <span className="bg-rose-600 text-white font-black text-xs px-4 py-1 rounded-full shadow-lg">
-                          ESGOTADO
-                        </span>
-                      </div>
-                    )}
-                    {produto.destaque && (
-                      <span className="absolute top-3 left-3 bg-amber-500 text-slate-950 font-black text-[10px] px-2.5 py-0.5 rounded-full shadow">
-                        ★ Destaque
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="p-4 space-y-3">
-                    <div>
-                      <h3
-                        onClick={() => setProdutoDetalhesModal(produto)}
-                        className="font-bold text-sm text-slate-900 dark:text-slate-100 cursor-pointer hover:underline"
-                        title="Ver detalhes"
-                      >
-                        {produto.nome}
-                      </h3>
-                      {produto.descricao && (
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">{formatarResumoDescricao(produto.descricao)}</p>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
-                      <div>
-                        <span className="text-base font-black text-slate-950 dark:text-white">
-                          R$ {Number(produto.promocao_ativa && produto.preco_promocional ? produto.preco_promocional : produto.preco_venda_varejo).toFixed(2)}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setProdutoDetalhesModal(produto)}
-                          className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs"
-                          title="Ver detalhes do produto"
-                        >
-                          <Eye className="w-4 h-4 text-slate-700 dark:text-slate-200 shrink-0" />
-                          <span>Detalhar</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          disabled={esgotado}
-                          onClick={() => {
-                            if (esgotado) return;
-                            if (produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0) {
-                              setProdutoModalVariacao(produto);
-                            } else {
-                              adicionarAoCarrinho(produto);
-                            }
-                          }}
-                          className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-xs transition ${
-                            esgotado
-                              ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 font-semibold cursor-not-allowed opacity-60'
-                              : 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 dark:border-2 dark:border-emerald-400 cursor-pointer active:scale-95'
-                          }`}
-                        >
-                          {esgotado ? (
-                            <span>Esgotado</span>
-                          ) : (
-                            <>
-                              <ShoppingBag className="w-4 h-4 text-white" />
-                              <span>Adicionar</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         ) : (
-          /* ================= MODO GRADE (DEFAULT) ================= */
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4 pt-2">
-            {produtosFiltrados.map((produto) => {
-              const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
-              const esgotado = isProdutoEsgotado(produto);
+          <div className="space-y-6 pt-2">
+            {blocosProdutosCatalogo.map((bloco) => (
+              <section key={bloco.categoriaId} className="space-y-3">
+                {categoriaSelecionada === 'todas' && bloco.categoriaNome && (
+                  <div className="flex items-center gap-2.5 pt-2 pb-1 border-b border-slate-200 dark:border-slate-800">
+                    <span className="text-base leading-none" aria-hidden="true">
+                      {bloco.emoji}
+                    </span>
+                    <h2 className="text-sm sm:text-base font-black tracking-tight text-slate-900 dark:text-slate-100">
+                      {bloco.categoriaNome}
+                    </h2>
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                      {bloco.produtos.length}
+                    </span>
+                  </div>
+                )}
 
-              return (
-                <div
-                  key={produto.id}
-                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 flex flex-col justify-between shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition group"
-                >
-                  <div>
-                    <div
-                      onClick={() => setProdutoDetalhesModal(produto)}
-                      className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-950 mb-2.5 cursor-pointer hover:opacity-95 transition group/photo"
-                      title="Clique para ver fotos e detalhes"
-                    >
-                      <img
-                        src={fotoUrl}
-                        alt={produto.nome}
-                        className="w-full h-full object-cover group-hover/photo:scale-105 transition duration-300"
-                      />
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleToggleFavorito(produto.id);
-                        }}
-                        className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-white/90 dark:bg-slate-900/80 backdrop-blur-xs flex items-center justify-center border border-slate-200 dark:border-slate-700/60 shadow transition hover:scale-110 active:scale-95 cursor-pointer"
-                        title={favoritosIds.has(produto.id) ? 'Remover dos favoritos' : 'Favoritar produto'}
-                      >
-                        <Star
-                          className={`w-3.5 h-3.5 transition-colors ${
-                            favoritosIds.has(produto.id)
-                              ? 'text-amber-500 fill-amber-500 dark:text-amber-400 dark:fill-amber-400'
-                              : 'text-slate-400 hover:text-amber-500'
-                          }`}
-                        />
-                      </button>
-                      {esgotado ? (
-                        <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
-                          <span className="bg-rose-600 text-white font-black text-[9px] px-2 py-0.5 rounded shadow">
-                            ESGOTADO
-                          </span>
+                {modoExibicaoPublico === 'lista' ? (
+                  /* ================= MODO LISTA ================= */
+                  <div className="space-y-2.5">
+                    {bloco.produtos.map((produto) => {
+                      const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
+                      const esgotado = isProdutoEsgotado(produto);
+                      const badgeCatTexto = obterTextoBadgeCategoriaProduto(produto, categorias, loja?.id);
+
+                      return (
+                        <div
+                          key={produto.id}
+                          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div
+                              onClick={() => setProdutoDetalhesModal(produto)}
+                              className="relative w-16 h-16 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-950 shrink-0 cursor-pointer hover:opacity-90 transition group/photo"
+                              title="Clique para ver fotos e detalhes"
+                            >
+                              <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover group-hover/photo:scale-105 transition duration-200" />
+                              {esgotado && (
+                                <span className="absolute inset-0 bg-black/70 flex items-center justify-center text-[9px] font-black text-rose-300">
+                                  ESGOTADO
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="min-w-0">
+                              {badgeCatTexto && (
+                                <span className="inline-block mb-0.5 px-1.5 py-0.2 rounded text-[9px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                                  {badgeCatTexto}
+                                </span>
+                              )}
+                              <h3
+                                onClick={() => setProdutoDetalhesModal(produto)}
+                                className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 truncate cursor-pointer hover:underline"
+                                title="Ver detalhes do produto"
+                              >
+                                {produto.nome}
+                              </h3>
+                              {produto.descricao && (
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">{formatarResumoDescricao(produto.descricao)}</p>
+                              )}
+                              <div className="flex items-baseline gap-2 mt-1">
+                                <span className="font-black text-sm text-slate-950 dark:text-white">
+                                  R$ {Number(produto.promocao_ativa && produto.preco_promocional ? produto.preco_promocional : produto.preco_venda_varejo).toFixed(2)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleFavorito(produto.id);
+                              }}
+                              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition cursor-pointer text-slate-400 hover:text-amber-500"
+                              title={favoritosIds.has(produto.id) ? 'Remover dos favoritos' : 'Favoritar produto'}
+                            >
+                              <Star
+                                className={`w-4 h-4 ${
+                                  favoritosIds.has(produto.id) ? 'text-amber-500 fill-amber-500 dark:text-amber-400 dark:fill-amber-400' : 'text-slate-400'
+                                }`}
+                              />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setProdutoDetalhesModal(produto)}
+                              className="p-2 sm:px-2.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs"
+                              title="Ver Detalhes do Produto"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-slate-700 dark:text-slate-200 shrink-0" />
+                              <span className="hidden sm:inline">Detalhar</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={esgotado}
+                              onClick={() => {
+                                if (esgotado) return;
+                                if (produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0) {
+                                  setProdutoModalVariacao(produto);
+                                } else {
+                                  adicionarAoCarrinho(produto);
+                                }
+                              }}
+                              className={`px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition shadow-xs ${
+                                esgotado
+                                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 font-semibold cursor-not-allowed opacity-60'
+                                  : 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 dark:border-2 dark:border-emerald-400 cursor-pointer active:scale-95'
+                              }`}
+                            >
+                              {esgotado ? (
+                                <span>Esgotado</span>
+                              ) : (
+                                <>
+                                  <Plus className="w-3.5 h-3.5 text-white" />
+                                  <span className="hidden sm:inline">Adicionar</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
                         </div>
-                      ) : (
-                        produto.promocao_ativa && produto.preco_promocional && (
-                          <span className="absolute top-2 left-2 bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow">
-                            OFERTA
-                          </span>
-                        )
-                      )}
-                    </div>
-
-                    <h3
-                      onClick={() => setProdutoDetalhesModal(produto)}
-                      className="font-bold text-xs text-slate-900 dark:text-slate-100 line-clamp-2 leading-snug cursor-pointer hover:underline"
-                      title="Ver detalhes do produto"
-                    >
-                      {produto.nome}
-                    </h3>
+                      );
+                    })}
                   </div>
+                ) : modoExibicaoPublico === 'instaview' ? (
+                  /* ================= MODO INSTAVIEW (FEED) ================= */
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-4xl mx-auto">
+                    {bloco.produtos.map((produto) => {
+                      const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=700&auto=format&fit=crop&q=80';
+                      const esgotado = isProdutoEsgotado(produto);
+                      const badgeCatTexto = obterTextoBadgeCategoriaProduto(produto, categorias, loja?.id);
 
-                  <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
-                    <div>
-                      {produto.promocao_ativa && produto.preco_promocional && (
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 line-through block leading-none">
-                          {formatarMoeda(Number(produto.preco_venda_varejo))}
-                        </span>
-                      )}
-                      <span className="font-black text-sm text-slate-950 dark:text-white">
-                        {formatarMoeda(Number(produto.promocao_ativa && produto.preco_promocional ? produto.preco_promocional : produto.preco_venda_varejo))}
-                      </span>
-                    </div>
+                      return (
+                        <div
+                          key={produto.id}
+                          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm flex flex-col justify-between"
+                        >
+                          <div
+                            onClick={() => setProdutoDetalhesModal(produto)}
+                            className="relative aspect-square w-full bg-slate-100 dark:bg-slate-950 cursor-pointer hover:opacity-95 transition group/photo"
+                            title="Clique para ver fotos e detalhes"
+                          >
+                            <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover group-hover/photo:scale-102 transition duration-300" />
+                            {badgeCatTexto && (
+                              <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 shadow-sm backdrop-blur-xs uppercase tracking-wider z-10 max-w-[68%] truncate">
+                                {badgeCatTexto}
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleFavorito(produto.id);
+                              }}
+                              className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full bg-white/90 dark:bg-slate-900/80 backdrop-blur-xs flex items-center justify-center border border-slate-200 dark:border-slate-700/60 shadow transition hover:scale-110 active:scale-95 cursor-pointer"
+                              title={favoritosIds.has(produto.id) ? 'Remover dos favoritos' : 'Favoritar produto'}
+                            >
+                              <Star
+                                className={`w-4 h-4 transition-colors ${
+                                  favoritosIds.has(produto.id)
+                                    ? 'text-amber-500 fill-amber-500 dark:text-amber-400 dark:fill-amber-400'
+                                    : 'text-slate-400 hover:text-amber-500'
+                                }`}
+                              />
+                            </button>
+                            {esgotado && (
+                              <div className="absolute inset-0 bg-black/75 flex items-center justify-center">
+                                <span className="bg-rose-600 text-white font-black text-xs px-4 py-1 rounded-full shadow-lg">
+                                  ESGOTADO
+                                </span>
+                              </div>
+                            )}
+                            {produto.destaque && (
+                              <span className="absolute bottom-3 left-3 bg-amber-500 text-slate-950 font-black text-[10px] px-2.5 py-0.5 rounded-full shadow">
+                                ★ Destaque
+                              </span>
+                            )}
+                          </div>
 
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setProdutoDetalhesModal(produto)}
-                        className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center justify-center cursor-pointer shadow-xs"
-                        title="Ver Detalhes do Produto"
-                      >
-                        <Eye className="w-3.5 h-3.5 text-slate-700 dark:text-slate-200" />
-                      </button>
+                          <div className="p-4 space-y-3">
+                            <div>
+                              <h3
+                                onClick={() => setProdutoDetalhesModal(produto)}
+                                className="font-bold text-sm text-slate-900 dark:text-slate-100 cursor-pointer hover:underline"
+                                title="Ver detalhes"
+                              >
+                                {produto.nome}
+                              </h3>
+                              {produto.descricao && (
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">{formatarResumoDescricao(produto.descricao)}</p>
+                              )}
+                            </div>
 
-                      <button
-                        type="button"
-                        disabled={esgotado}
-                        onClick={() => {
-                          if (esgotado) return;
-                          if (produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0) {
-                            setProdutoModalVariacao(produto);
-                          } else {
-                            adicionarAoCarrinho(produto);
-                          }
-                        }}
-                        className={`w-8 h-8 rounded-xl flex items-center justify-center transition shadow-xs font-bold ${
-                          esgotado
-                            ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 font-semibold cursor-not-allowed opacity-60'
-                            : 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 dark:border-2 dark:border-emerald-400 cursor-pointer active:scale-95'
-                        }`}
-                        title={esgotado ? 'Produto Esgotado' : 'Adicionar ao Pedido'}
-                      >
-                        {esgotado ? <X className="w-4 h-4 text-slate-400" /> : <Plus className="w-4 h-4 text-white" />}
-                      </button>
-                    </div>
+                            <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+                              <div>
+                                <span className="text-base font-black text-slate-950 dark:text-white">
+                                  R$ {Number(produto.promocao_ativa && produto.preco_promocional ? produto.preco_promocional : produto.preco_venda_varejo).toFixed(2)}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setProdutoDetalhesModal(produto)}
+                                  className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center gap-1.5 cursor-pointer text-xs shadow-xs"
+                                  title="Ver detalhes do produto"
+                                >
+                                  <Eye className="w-4 h-4 text-slate-700 dark:text-slate-200 shrink-0" />
+                                  <span>Detalhar</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  disabled={esgotado}
+                                  onClick={() => {
+                                    if (esgotado) return;
+                                    if (produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0) {
+                                      setProdutoModalVariacao(produto);
+                                    } else {
+                                      adicionarAoCarrinho(produto);
+                                    }
+                                  }}
+                                  className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-xs transition ${
+                                    esgotado
+                                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 font-semibold cursor-not-allowed opacity-60'
+                                      : 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 dark:border-2 dark:border-emerald-400 cursor-pointer active:scale-95'
+                                  }`}
+                                >
+                                  {esgotado ? (
+                                    <span>Esgotado</span>
+                                  ) : (
+                                    <>
+                                      <ShoppingBag className="w-4 h-4 text-white" />
+                                      <span>Adicionar</span>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
-              );
-            })}
+                ) : (
+                  /* ================= MODO GRADE (DEFAULT) ================= */
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
+                    {bloco.produtos.map((produto) => {
+                      const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
+                      const esgotado = isProdutoEsgotado(produto);
+                      const badgeCatTexto = obterTextoBadgeCategoriaProduto(produto, categorias, loja?.id);
+
+                      return (
+                        <div
+                          key={produto.id}
+                          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 flex flex-col justify-between shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition group"
+                        >
+                          <div>
+                            <div
+                              onClick={() => setProdutoDetalhesModal(produto)}
+                              className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-950 mb-2.5 cursor-pointer hover:opacity-95 transition group/photo"
+                              title="Clique para ver fotos e detalhes"
+                            >
+                              <img
+                                src={fotoUrl}
+                                alt={produto.nome}
+                                className="w-full h-full object-cover group-hover/photo:scale-105 transition duration-300"
+                              />
+                              {badgeCatTexto && (
+                                <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 shadow-sm backdrop-blur-xs uppercase tracking-wider z-10 max-w-[68%] truncate">
+                                  {badgeCatTexto}
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleFavorito(produto.id);
+                                }}
+                                className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-white/90 dark:bg-slate-900/80 backdrop-blur-xs flex items-center justify-center border border-slate-200 dark:border-slate-700/60 shadow transition hover:scale-110 active:scale-95 cursor-pointer"
+                                title={favoritosIds.has(produto.id) ? 'Remover dos favoritos' : 'Favoritar produto'}
+                              >
+                                <Star
+                                  className={`w-3.5 h-3.5 transition-colors ${
+                                    favoritosIds.has(produto.id)
+                                      ? 'text-amber-500 fill-amber-500 dark:text-amber-400 dark:fill-amber-400'
+                                      : 'text-slate-400 hover:text-amber-500'
+                                  }`}
+                                />
+                              </button>
+                              {esgotado ? (
+                                <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+                                  <span className="bg-rose-600 text-white font-black text-[9px] px-2 py-0.5 rounded shadow">
+                                    ESGOTADO
+                                  </span>
+                                </div>
+                              ) : (
+                                produto.promocao_ativa && produto.preco_promocional && (
+                                  <span className="absolute bottom-2 left-2 bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow">
+                                    OFERTA
+                                  </span>
+                                )
+                              )}
+                            </div>
+
+                            <h3
+                              onClick={() => setProdutoDetalhesModal(produto)}
+                              className="font-bold text-xs text-slate-900 dark:text-slate-100 line-clamp-2 leading-snug cursor-pointer hover:underline"
+                              title="Ver detalhes do produto"
+                            >
+                              {produto.nome}
+                            </h3>
+                          </div>
+
+                          <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                            <div>
+                              {produto.promocao_ativa && produto.preco_promocional && (
+                                <span className="text-[10px] text-slate-400 dark:text-slate-500 line-through block leading-none">
+                                  {formatarMoeda(Number(produto.preco_venda_varejo))}
+                                </span>
+                              )}
+                              <span className="font-black text-sm text-slate-950 dark:text-white">
+                                {formatarMoeda(Number(produto.promocao_ativa && produto.preco_promocional ? produto.preco_promocional : produto.preco_venda_varejo))}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setProdutoDetalhesModal(produto)}
+                                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300/80 text-slate-900 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 dark:text-slate-100 dark:border-2 dark:border-slate-400 font-semibold transition flex items-center justify-center cursor-pointer shadow-xs"
+                                title="Ver Detalhes do Produto"
+                              >
+                                <Eye className="w-3.5 h-3.5 text-slate-700 dark:text-slate-200" />
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={esgotado}
+                                onClick={() => {
+                                  if (esgotado) return;
+                                  if (produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0) {
+                                    setProdutoModalVariacao(produto);
+                                  } else {
+                                    adicionarAoCarrinho(produto);
+                                  }
+                                }}
+                                className={`w-8 h-8 rounded-xl flex items-center justify-center transition shadow-xs font-bold ${
+                                  esgotado
+                                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 font-semibold cursor-not-allowed opacity-60'
+                                    : 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 dark:border-2 dark:border-emerald-400 cursor-pointer active:scale-95'
+                                }`}
+                                title={esgotado ? 'Produto Esgotado' : 'Adicionar ao Pedido'}
+                              >
+                                {esgotado ? <X className="w-4 h-4 text-slate-400" /> : <Plus className="w-4 h-4 text-white" />}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            ))}
           </div>
         )}
       </div>

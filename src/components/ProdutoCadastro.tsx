@@ -44,6 +44,12 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { ProdutoService } from '../services/produtoService';
 import { Categoria, Fornecedor, UnidadeMedida } from '../types';
+import {
+  obterArvoreCategorias,
+  obterSubcategoriasDe,
+  obterSubcategoriaIdProduto,
+  salvarVinculoSubcategoriaProdutoLocal
+} from '../utils/categoriasHierarquia';
 import { UNIDADES_PADRAO } from './CadastrosAuxiliares';
 import { MobileHeader } from './layout/MobileHeader';
 import { MoneyInput } from './ui/MoneyInput';
@@ -413,7 +419,17 @@ export const ProdutoCadastro: React.FC = () => {
   const [codigoInterno, setCodigoInterno] = useState<string>(() => rascunhoSalvo?.codigoInterno || '');
   const [codigoBarras, setCodigoBarras] = useState<string>(() => rascunhoSalvo?.codigoBarras || '');
   const [categoriaId, setCategoriaId] = useState<string>(() => rascunhoSalvo?.categoriaId || '');
+  const [subcategoriaId, setSubcategoriaId] = useState<string>(() => rascunhoSalvo?.subcategoriaId || '');
   const [fornecedorId, setFornecedorId] = useState<string>(() => rascunhoSalvo?.fornecedorId || '');
+
+  const arvoreCategorias = useMemo(
+    () => obterArvoreCategorias(categorias, loja?.id),
+    [categorias, loja?.id]
+  );
+  const subcategoriasDisponiveis = useMemo(
+    () => obterSubcategoriasDe(categorias, categoriaId, loja?.id),
+    [categorias, categoriaId, loja?.id]
+  );
   const [descricao, setDescricao] = useState<string>(() => rascunhoSalvo?.descricao || '');
   const [tipoUnidade, setTipoUnidade] = useState<string>(() => rascunhoSalvo?.tipoUnidade || 'un');
   const [vendaPorPeso, setVendaPorPeso] = useState<boolean>(() => Boolean((rascunhoSalvo as any)?.vendaPorPeso || false));
@@ -646,6 +662,7 @@ export const ProdutoCadastro: React.FC = () => {
     setCodigoInterno('');
     setCodigoBarras('');
     setCategoriaId('');
+    setSubcategoriaId('');
     setFornecedorId('');
     setDescricao('');
     setTipoUnidade('un');
@@ -953,6 +970,7 @@ export const ProdutoCadastro: React.FC = () => {
           setCodigoInterno(prod.codigo_interno || '');
           setCodigoBarras(prod.codigo_barras || '');
           setCategoriaId(prod.categoria_id || '');
+          setSubcategoriaId(obterSubcategoriaIdProduto(prod as any, loja?.id) || '');
           setFornecedorId(prod.fornecedor_id || '');
           setDescricao(prod.descricao || '');
           setTipoUnidade(prod.tipo_unidade || 'un');
@@ -1119,6 +1137,7 @@ export const ProdutoCadastro: React.FC = () => {
 
   const handleSelecionarCategoria = (catId: string) => {
     setCategoriaId(catId);
+    setSubcategoriaId('');
     if (catId) {
       gerarCodigoInternoSugerido(catId);
     }
@@ -1552,6 +1571,7 @@ export const ProdutoCadastro: React.FC = () => {
         codigo_interno: codigoInterno || null,
         codigo_barras: codigoBarras || null,
         categoria_id: categoriaId || null,
+        subcategoria_id: subcategoriaId || null,
         fornecedor_id: fornecedorId || null,
         descricao,
         tipo_unidade: tipoUnidade,
@@ -1594,15 +1614,16 @@ export const ProdutoCadastro: React.FC = () => {
           .update(novoProduto)
           .eq('id', id);
 
-        // Fallback caso colunas de dimensões ou tipo_item ainda não existam no schema do banco
+        // Fallback caso colunas de dimensões, subcategoria_id ou tipo_item ainda não existam no schema do banco
         if (erroUpdate && (
+          erroUpdate.message?.includes('subcategoria_id') ||
           erroUpdate.message?.includes('tipo_item') || 
           erroUpdate.message?.includes('peso_kg') || 
           erroUpdate.message?.includes('altura_cm') ||
           (erroUpdate as any).details?.includes('peso_kg')
         )) {
           console.warn('Colunas novas ausentes no schema de produtos. Tentando atualizar com payload base...');
-          const { tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, ...dadosSemNovasColunas } = novoProduto;
+          const { subcategoria_id, tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, ...dadosSemNovasColunas } = novoProduto;
           const retry = await supabase
             .from('produtos')
             .update(dadosSemNovasColunas)
@@ -1611,6 +1632,9 @@ export const ProdutoCadastro: React.FC = () => {
         }
 
         if (erroUpdate) throw erroUpdate;
+        if (id) {
+          salvarVinculoSubcategoriaProdutoLocal(loja.id, id, subcategoriaId || null);
+        }
 
         const variacoesDelta = opcoesVariacao.map(v => ({
           id: v.id || null,
@@ -1631,15 +1655,16 @@ export const ProdutoCadastro: React.FC = () => {
           .select()
           .single();
 
-        // Fallback caso colunas de dimensões ou tipo_item ainda não existam no schema do banco
+        // Fallback caso colunas de dimensões, subcategoria_id ou tipo_item ainda não existam no schema do banco
         if (erroProd && (
+          erroProd.message?.includes('subcategoria_id') ||
           erroProd.message?.includes('tipo_item') || 
           erroProd.message?.includes('peso_kg') || 
           erroProd.message?.includes('altura_cm') ||
           (erroProd as any).details?.includes('peso_kg')
         )) {
           console.warn('Colunas novas ausentes no schema de produtos. Tentando cadastrar com payload base...');
-          const { tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, ...dadosSemNovasColunas } = novoProduto;
+          const { subcategoria_id, tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, ...dadosSemNovasColunas } = novoProduto;
           const retry = await supabase
             .from('produtos')
             .insert([dadosSemNovasColunas])
@@ -1650,6 +1675,7 @@ export const ProdutoCadastro: React.FC = () => {
         }
 
         if (erroProd || !prodCriado) throw erroProd;
+        salvarVinculoSubcategoriaProdutoLocal(loja.id, prodCriado.id, subcategoriaId || null);
 
         if (temVariacoes && opcoesVariacao.length > 0) {
           const variacoesDelta = opcoesVariacao.map(v => ({
@@ -2096,27 +2122,47 @@ export const ProdutoCadastro: React.FC = () => {
                 />
               </div>
 
-              {/* LINHA 1: Categoria e Unidade de Medida (ANTES do Código) */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Categoria *</label>
-                  <button
-                    type="button"
-                    onClick={() => setModalCategorias(true)}
-                    className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-bold flex items-center gap-1 cursor-pointer"
+              {/* LINHA 1: Categoria, Subcategoria Condicional e Unidade de Medida (ANTES do Código) */}
+              <div className="space-y-2.5">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Categoria *</label>
+                    <button
+                      type="button"
+                      onClick={() => setModalCategorias(true)}
+                      className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <FolderPlus className="w-3.5 h-3.5" />
+                      <span>+ Criar / Gerenciar</span>
+                    </button>
+                  </div>
+                  <select
+                    value={categoriaId}
+                    onChange={(e) => handleSelecionarCategoria(e.target.value)}
+                    className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                   >
-                    <FolderPlus className="w-3.5 h-3.5" />
-                    <span>+ Criar / Gerenciar</span>
-                  </button>
+                    <option value="">Selecione uma Categoria...</option>
+                    {arvoreCategorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                  </select>
                 </div>
-                <select
-                  value={categoriaId}
-                  onChange={(e) => handleSelecionarCategoria(e.target.value)}
-                  className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                >
-                  <option value="">Selecione uma Categoria...</option>
-                  {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                </select>
+
+                {subcategoriasDisponiveis.length > 0 && (
+                  <div className="space-y-1 animate-in fade-in">
+                    <label className="text-xs font-medium text-slate-700 dark:text-slate-300 block">
+                      Subcategoria (Opcional)
+                    </label>
+                    <select
+                      value={subcategoriaId}
+                      onChange={(e) => setSubcategoriaId(e.target.value)}
+                      className="w-full bg-white dark:bg-[#000000] border border-emerald-500/40 dark:border-emerald-500/40 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                    >
+                      <option value="">Todas / Sem subcategoria específica</option>
+                      {subcategoriasDisponiveis.map(sub => (
+                        <option key={sub.id} value={sub.id}>{sub.nome}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1">

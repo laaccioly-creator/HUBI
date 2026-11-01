@@ -63,6 +63,12 @@ import { getCategoriaPeso } from './PosCheckout';
 import { audioService } from '../services/audioService';
 import { formatarMoeda, ehProdutoFracionado, obterSiglaUnidade, formatarLinhaCalculoItem } from '../utils/formatters';
 import { ModalInputPesoFracionado } from './ui/ModalInputPesoFracionado';
+import { SeletorCategoriasHibrido } from './ui/SeletorCategoriasHibrido';
+import {
+  produtoPertenceAoFiltroCategoria,
+  agruparProdutosPorBlocosDeCategoria,
+  obterTextoBadgeCategoriaProduto
+} from '../utils/categoriasHierarquia';
 import { InputQuantidadeCarrinho } from './ui/InputQuantidadeCarrinho';
 import { podeEditarPedido } from '../utils/statusPedidoUtils';
 import { obterRegrasPrecificacao } from '../services/pricingEngine';
@@ -286,7 +292,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
       if (categoriaAtiva === 'destaques') {
         return p.destaque === true;
       } else if (categoriaAtiva !== 'tudo') {
-        return p.categoria_id === categoriaAtiva;
+        return produtoPertenceAoFiltroCategoria(p, categoriaAtiva, categorias, loja?.id);
       }
 
       return true;
@@ -299,7 +305,21 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
       if (pesoA !== pesoB) return pesoA - pesoB;
       return a.nome.localeCompare(b.nome, 'pt-BR');
     });
-  }, [produtos, termoBusca, categoriaAtiva, apenasEmEstoque, mapaCategorias]);
+  }, [produtos, termoBusca, categoriaAtiva, apenasEmEstoque, mapaCategorias, categorias, loja?.id]);
+
+  const blocosProdutosMobile = useMemo(() => {
+    if (categoriaAtiva === 'tudo') {
+      return agruparProdutosPorBlocosDeCategoria(produtosFiltrados, categoriasOrdenadas, loja?.id);
+    }
+    return [
+      {
+        categoriaId: categoriaAtiva,
+        categoriaNome: '',
+        emoji: '',
+        produtos: produtosFiltrados
+      }
+    ];
+  }, [produtosFiltrados, categoriaAtiva, categoriasOrdenadas, loja?.id]);
 
   // Clientes filtrados na tela 003
   const clientesFiltrados = useMemo(() => {
@@ -1927,38 +1947,33 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
         </div>
       )}
 
-      {/* 3. Menu Dropdown Seletor de Categorias */}
+      {/* 3. Seletor de Categorias com Gaveta Lateral Deslizante */}
       <div className={`px-3 py-2 border-b-2 flex items-center gap-2 shrink-0 ${
         isDark ? 'bg-[#08131A] border-slate-800' : 'bg-slate-100 border-slate-300'
       }`}>
         <div className="relative flex-1">
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center">
-            <Tag className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-          </div>
-          <select
-            value={categoriaAtiva}
-            onChange={(e) => setCategoriaAtiva(e.target.value)}
-            className={`w-full rounded-xl pl-9 pr-9 py-2 text-xs font-bold appearance-none focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer shadow-xs transition ${
+          <SeletorCategoriasHibrido
+            categorias={categoriasOrdenadas}
+            produtos={produtos}
+            valorSelecionado={categoriaAtiva}
+            aoSelecionar={setCategoriaAtiva}
+            valorTodas="tudo"
+            rotuloTodas="Todas as Categorias"
+            opcoesExtrasTopo={[{ id: 'destaques', rotulo: '⭐ Destaques' }]}
+            lojaId={loja?.id}
+            isDark={isDark}
+            apenasGavetaMobile={true}
+            idOverlay="pdv-mobile-categorias-drawer"
+            classNameBotao={`w-full flex items-center justify-between gap-2 rounded-xl pl-9 pr-3 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer shadow-xs transition relative text-left ${
               isDark
                 ? 'bg-[#000000] border border-slate-700 text-white'
                 : 'bg-white border-2 border-slate-300 text-black'
             }`}
-          >
-            <option value="tudo" className={isDark ? 'bg-[#000000] text-white' : 'bg-white text-black'}>Todas as Categorias</option>
-            <option value="destaques" className={isDark ? 'bg-[#000000] text-white' : 'bg-white text-black'}>⭐ Destaques</option>
-            {categoriasOrdenadas.map(cat => (
-              <option key={cat.id} value={cat.id} className={isDark ? 'bg-[#000000] text-white' : 'bg-white text-black'}>
-                {cat.nome}
-              </option>
-            ))}
-          </select>
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 flex items-center">
-            <ChevronDown className="w-4 h-4" />
-          </div>
+          />
         </div>
       </div>
 
-      {/* 4. Catálogo de Produtos */}
+      {/* 4. Catálogo de Produtos (Agrupado em Blocos quando Todas as Categorias) */}
       <div className="flex-1 overflow-y-auto p-2 sm:p-3">
         {produtosFiltrados.length === 0 ? (
           <div className={`flex flex-col items-center justify-center h-64 space-y-2 text-xs ${
@@ -1967,189 +1982,231 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             <Package className="w-8 h-8 stroke-1" />
             <p>Nenhum produto encontrado.</p>
           </div>
-        ) : modoVisualizacao === 'grade' ? (
-          // MODO GRADE: 3 COLUNAS COMPACTAS (TELA 001)
-          <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
-            {produtosFiltrados.map((produto) => {
-              const qtdNoCarrinho = mapaQuantidadesCarrinho.get(produto.id) || 0;
-              let precoFinal = produto.preco_venda_varejo;
-              if (tabelaPrecoCalculada === 'atacado' && produto.preco_venda_atacado) {
-                precoFinal = produto.preco_venda_atacado;
-              } else if (tabelaPrecoCalculada === 'autoatacado' && produto.preco_venda_autoatacado) {
-                precoFinal = produto.preco_venda_autoatacado;
-              } else if (produto.promocao_ativa && produto.preco_promocional) {
-                precoFinal = produto.preco_promocional;
-              }
-              const precoOriginal = (produto.promocao_ativa && produto.preco_promocional && precoFinal !== produto.preco_venda_varejo) ? produto.preco_venda_varejo : null;
-              const estoqueQtd = Number(produto.quantidade_estoque ?? 0);
-              const isEsgotado = estoqueQtd <= 0;
-              const temEstoqueBaixo = estoqueQtd > 0 && estoqueQtd <= Number(produto.estoque_minimo_alerta || 0);
-
-              return (
-                <div
-                  key={produto.id}
-                  onClick={() => handleClicarProduto(produto)}
-                  className={`rounded-xl overflow-hidden shadow-xs active:scale-95 transition-all duration-100 flex flex-col h-full cursor-pointer group ${
-                    isDark
-                      ? 'bg-[#000000] border border-slate-700 hover:border-slate-600'
-                      : 'bg-white border-2 border-slate-300 hover:border-slate-400'
-                  }`}
-                >
-                  {/* Wrapper com proporção 1:1 rigorosamente travada */}
-                  <div className={`w-full aspect-square relative flex items-center justify-center overflow-hidden rounded-t-xl shrink-0 ${
-                    isDark ? 'bg-[#08131A]' : 'bg-white'
-                  }`}>
-                    {produto.fotos_urls && produto.fotos_urls[0] ? (
-                      <img
-                        src={produto.fotos_urls[0]}
-                        alt={produto.nome}
-                        className="w-full h-full object-cover pointer-events-none select-none"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-slate-400">
-                        <Package className="w-8 h-8 opacity-40" />
-                      </div>
-                    )}
-
-                    {/* Indicador de Esgotado ou Estoque Baixo */}
-                    {isEsgotado ? (
-                      <div className="absolute inset-0 bg-black/65 backdrop-blur-[1px] flex items-center justify-center p-1">
-                        <span className="bg-rose-600 text-white font-black text-[9px] px-1.5 py-0.5 rounded shadow uppercase tracking-wider">
-                          Esgotado
-                        </span>
-                      </div>
-                    ) : temEstoqueBaixo ? (
-                      <span className="absolute top-1 left-1 bg-amber-500/90 text-slate-950 font-black text-[8px] px-1 py-0.2 rounded shadow">
-                        Est: {estoqueQtd}
-                      </span>
-                    ) : null}
-
-                    {/* Badge Verde de Quantidade Acumulada */}
-                    {qtdNoCarrinho > 0 && (
-                      <span className="absolute top-1 right-1 bg-emerald-600 text-white font-black text-[10px] w-5 h-5 rounded-md flex items-center justify-center shadow-md animate-in zoom-in-75">
-                        {qtdNoCarrinho}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Informações do produto niveladas */}
-                  <div className={`p-2 flex flex-col flex-1 justify-between border-t-2 ${
-                    isDark ? 'border-slate-800 bg-[#000000]' : 'border-slate-200 bg-white'
-                  }`}>
-                    <div className="flex items-start gap-1">
-                      {produto.destaque && (
-                        <span className="text-amber-500 text-[10px] shrink-0">★</span>
-                      )}
-                      <h3
-                        className={`text-[11px] font-bold line-clamp-2 h-[2.25rem] leading-[1.125rem] overflow-hidden select-none uppercase ${
-                          isDark ? 'text-white' : 'text-black'
-                        }`}
-                        title={produto.nome}
-                      >
-                        {produto.nome}
-                      </h3>
-                    </div>
-
-                    <div className="flex items-baseline justify-between pt-1">
-                      <span className="font-black text-xs text-emerald-600 dark:text-emerald-400">
-                        R$ {Number(precoFinal).toFixed(2)}
-                      </span>
-                      {precoOriginal && (
-                        <span className="text-[9px] text-slate-400 line-through">
-                          R$ {Number(precoOriginal).toFixed(2)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         ) : (
-          // MODO LISTA: 1 LINHA POR PRODUTO (TELA 007)
-          <div className={`rounded-2xl overflow-hidden ${
-            isDark ? 'divide-y divide-slate-800 bg-[#000000] border border-slate-700' : 'divide-y-2 divide-slate-200 bg-white border-2 border-slate-300'
-          }`}>
-            {produtosFiltrados.map((produto) => {
-              const qtdNoCarrinho = mapaQuantidadesCarrinho.get(produto.id) || 0;
-              let precoFinal = produto.preco_venda_varejo;
-              if (tabelaPrecoCalculada === 'atacado' && produto.preco_venda_atacado) {
-                precoFinal = produto.preco_venda_atacado;
-              } else if (tabelaPrecoCalculada === 'autoatacado' && produto.preco_venda_autoatacado) {
-                precoFinal = produto.preco_venda_autoatacado;
-              } else if (produto.promocao_ativa && produto.preco_promocional) {
-                precoFinal = produto.preco_promocional;
-              }
-              const precoOriginal = (produto.promocao_ativa && produto.preco_promocional && precoFinal !== produto.preco_venda_varejo) ? produto.preco_venda_varejo : null;
-              const estoqueQtd = Number(produto.quantidade_estoque ?? 0);
-              const isEsgotado = estoqueQtd <= 0;
-              const temEstoqueBaixo = estoqueQtd > 0 && estoqueQtd <= Number(produto.estoque_minimo_alerta || 0);
-
-              return (
-                <div
-                  key={produto.id}
-                  onClick={() => handleClicarProduto(produto)}
-                  className={`p-3 flex items-center justify-between transition cursor-pointer ${
-                    isDark ? 'hover:bg-slate-900 active:bg-slate-800' : 'hover:bg-slate-50 active:bg-slate-100'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`relative w-12 h-12 rounded-xl overflow-hidden shrink-0 border-2 flex items-center justify-center ${
-                      isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-100 border-slate-300'
+          <div className="space-y-4">
+            {blocosProdutosMobile.map((bloco) => (
+              <section key={bloco.categoriaId} className="space-y-2">
+                {categoriaAtiva === 'tudo' && bloco.categoriaNome && (
+                  <div className={`flex items-center gap-2 pt-1 pb-1 border-b ${
+                    isDark ? 'border-slate-800' : 'border-slate-300'
+                  }`}>
+                    <span className="text-sm leading-none" aria-hidden="true">
+                      {bloco.emoji}
+                    </span>
+                    <h2 className={`text-xs font-black uppercase tracking-wider ${
+                      isDark ? 'text-slate-200' : 'text-slate-900'
                     }`}>
-                      {produto.fotos_urls?.[0] ? (
-                        <img
-                          src={produto.fotos_urls[0]}
-                          alt={produto.nome}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                          decoding="async"
-                        />
-                      ) : (
-                        <Package className="w-5 h-5 text-slate-400 opacity-60" />
-                      )}
-                      {isEsgotado ? (
-                        <span className="absolute inset-0 bg-black/65 backdrop-blur-[1px] flex items-center justify-center text-[7px] font-black text-rose-300">
-                          ESGOTADO
-                        </span>
-                      ) : temEstoqueBaixo ? (
-                        <span className="absolute top-0.5 left-0.5 bg-amber-500/90 text-slate-950 font-black text-[7px] px-0.5 rounded shadow leading-none">
-                          {estoqueQtd}
-                        </span>
-                      ) : null}
-                      {qtdNoCarrinho > 0 && (
-                        <span className="absolute top-0.5 right-0.5 bg-emerald-600 text-white font-black text-[9px] w-4 h-4 rounded flex items-center justify-center">
-                          {qtdNoCarrinho}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="space-y-0.5 max-w-[190px]">
-                      <div className="flex items-center gap-1">
-                        {produto.destaque && <span className="text-amber-500 text-xs">★</span>}
-                        <h3 className={`font-bold text-xs uppercase truncate ${isDark ? 'text-white' : 'text-black'}`}>{produto.nome}</h3>
-                      </div>
-                      <span className={`text-[10px] block font-mono ${isDark ? 'text-slate-400' : 'text-slate-600 font-semibold'}`}>
-                        Cód. {produto.codigo_interno || produto.codigo_barras?.slice(-4) || '1000'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    {precoOriginal && (
-                      <span className="text-[10px] text-slate-400 line-through block">
-                        R$ {Number(precoOriginal).toFixed(2)}
-                      </span>
-                    )}
-                    <span className="font-black text-xs text-emerald-600 dark:text-emerald-400">
-                      R$ {Number(precoFinal).toFixed(2)}
+                      {bloco.categoriaNome}
+                    </h2>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
+                      isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-700'
+                    }`}>
+                      {bloco.produtos.length}
                     </span>
                   </div>
-                </div>
-              );
-            })}
+                )}
+
+                {modoVisualizacao === 'grade' ? (
+                  // MODO GRADE: 3 COLUNAS COMPACTAS (TELA 001)
+                  <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                    {bloco.produtos.map((produto) => {
+                      const qtdNoCarrinho = mapaQuantidadesCarrinho.get(produto.id) || 0;
+                      let precoFinal = produto.preco_venda_varejo;
+                      if (tabelaPrecoCalculada === 'atacado' && produto.preco_venda_atacado) {
+                        precoFinal = produto.preco_venda_atacado;
+                      } else if (tabelaPrecoCalculada === 'autoatacado' && produto.preco_venda_autoatacado) {
+                        precoFinal = produto.preco_venda_autoatacado;
+                      } else if (produto.promocao_ativa && produto.preco_promocional) {
+                        precoFinal = produto.preco_promocional;
+                      }
+                      const precoOriginal = (produto.promocao_ativa && produto.preco_promocional && precoFinal !== produto.preco_venda_varejo) ? produto.preco_venda_varejo : null;
+                      const estoqueQtd = Number(produto.quantidade_estoque ?? 0);
+                      const isEsgotado = estoqueQtd <= 0;
+                      const temEstoqueBaixo = estoqueQtd > 0 && estoqueQtd <= Number(produto.estoque_minimo_alerta || 0);
+                      const badgeCatTexto = obterTextoBadgeCategoriaProduto(produto, categorias, loja?.id);
+
+                      return (
+                        <div
+                          key={produto.id}
+                          onClick={() => handleClicarProduto(produto)}
+                          className={`rounded-xl overflow-hidden shadow-xs active:scale-95 transition-all duration-100 flex flex-col h-full cursor-pointer group ${
+                            isDark
+                              ? 'bg-[#000000] border border-slate-700 hover:border-slate-600'
+                              : 'bg-white border-2 border-slate-300 hover:border-slate-400'
+                          }`}
+                        >
+                          {/* Wrapper com proporção 1:1 rigorosamente travada */}
+                          <div className={`w-full aspect-square relative flex items-center justify-center overflow-hidden rounded-t-xl shrink-0 ${
+                            isDark ? 'bg-[#08131A]' : 'bg-white'
+                          }`}>
+                            {produto.fotos_urls && produto.fotos_urls[0] ? (
+                              <img
+                                src={produto.fotos_urls[0]}
+                                alt={produto.nome}
+                                className="w-full h-full object-cover pointer-events-none select-none"
+                                loading="lazy"
+                                decoding="async"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-slate-400">
+                                <Package className="w-8 h-8 opacity-40" />
+                              </div>
+                            )}
+
+                            {/* Badge de Categoria / Subcategoria no canto superior esquerdo */}
+                            {badgeCatTexto && (
+                              <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 shadow-sm backdrop-blur-xs uppercase tracking-wider z-10 max-w-[68%] truncate">
+                                {badgeCatTexto}
+                              </span>
+                            )}
+
+                            {/* Indicador de Esgotado ou Estoque Baixo */}
+                            {isEsgotado ? (
+                              <div className="absolute inset-0 bg-black/65 backdrop-blur-[1px] flex items-center justify-center p-1">
+                                <span className="bg-rose-600 text-white font-black text-[9px] px-1.5 py-0.5 rounded shadow uppercase tracking-wider">
+                                  Esgotado
+                                </span>
+                              </div>
+                            ) : temEstoqueBaixo ? (
+                              <span className="absolute bottom-1 left-1 bg-amber-500/90 text-slate-950 font-black text-[8px] px-1 py-0.2 rounded shadow">
+                                Est: {estoqueQtd}
+                              </span>
+                            ) : null}
+
+                            {/* Badge Verde de Quantidade Acumulada */}
+                            {qtdNoCarrinho > 0 && (
+                              <span className="absolute top-1 right-1 z-10 bg-emerald-600 text-white font-black text-[10px] w-5 h-5 rounded-md flex items-center justify-center shadow-md animate-in zoom-in-75">
+                                {qtdNoCarrinho}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Informações do produto niveladas */}
+                          <div className={`p-2 flex flex-col flex-1 justify-between border-t-2 ${
+                            isDark ? 'border-slate-800 bg-[#000000]' : 'border-slate-200 bg-white'
+                          }`}>
+                            <div className="flex items-start gap-1">
+                              {produto.destaque && (
+                                <span className="text-amber-500 text-[10px] shrink-0">★</span>
+                              )}
+                              <h3
+                                className={`text-[11px] font-bold line-clamp-2 h-[2.25rem] leading-[1.125rem] overflow-hidden select-none uppercase ${
+                                  isDark ? 'text-white' : 'text-black'
+                                }`}
+                                title={produto.nome}
+                              >
+                                {produto.nome}
+                              </h3>
+                            </div>
+
+                            <div className="flex items-baseline justify-between pt-1">
+                              <span className="font-black text-xs text-emerald-600 dark:text-emerald-400">
+                                R$ {Number(precoFinal).toFixed(2)}
+                              </span>
+                              {precoOriginal && (
+                                <span className="text-[9px] text-slate-400 line-through">
+                                  R$ {Number(precoOriginal).toFixed(2)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  // MODO LISTA: 1 LINHA POR PRODUTO (TELA 007)
+                  <div className={`rounded-2xl overflow-hidden ${
+                    isDark ? 'divide-y divide-slate-800 bg-[#000000] border border-slate-700' : 'divide-y-2 divide-slate-200 bg-white border-2 border-slate-300'
+                  }`}>
+                    {bloco.produtos.map((produto) => {
+                      const qtdNoCarrinho = mapaQuantidadesCarrinho.get(produto.id) || 0;
+                      let precoFinal = produto.preco_venda_varejo;
+                      if (tabelaPrecoCalculada === 'atacado' && produto.preco_venda_atacado) {
+                        precoFinal = produto.preco_venda_atacado;
+                      } else if (tabelaPrecoCalculada === 'autoatacado' && produto.preco_venda_autoatacado) {
+                        precoFinal = produto.preco_venda_autoatacado;
+                      } else if (produto.promocao_ativa && produto.preco_promocional) {
+                        precoFinal = produto.preco_promocional;
+                      }
+                      const precoOriginal = (produto.promocao_ativa && produto.preco_promocional && precoFinal !== produto.preco_venda_varejo) ? produto.preco_venda_varejo : null;
+                      const estoqueQtd = Number(produto.quantidade_estoque ?? 0);
+                      const isEsgotado = estoqueQtd <= 0;
+                      const temEstoqueBaixo = estoqueQtd > 0 && estoqueQtd <= Number(produto.estoque_minimo_alerta || 0);
+                      const badgeCatTexto = obterTextoBadgeCategoriaProduto(produto, categorias, loja?.id);
+
+                      return (
+                        <div
+                          key={produto.id}
+                          onClick={() => handleClicarProduto(produto)}
+                          className={`p-3 flex items-center justify-between transition cursor-pointer ${
+                            isDark ? 'hover:bg-slate-900 active:bg-slate-800' : 'hover:bg-slate-50 active:bg-slate-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`relative w-12 h-12 rounded-xl overflow-hidden shrink-0 border-2 flex items-center justify-center ${
+                              isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-100 border-slate-300'
+                            }`}>
+                              {produto.fotos_urls?.[0] ? (
+                                <img
+                                  src={produto.fotos_urls[0]}
+                                  alt={produto.nome}
+                                  className="w-full h-full object-cover"
+                                  loading="lazy"
+                                  decoding="async"
+                                />
+                              ) : (
+                                <Package className="w-5 h-5 text-slate-400 opacity-60" />
+                              )}
+                              {isEsgotado ? (
+                                <span className="absolute inset-0 bg-black/65 backdrop-blur-[1px] flex items-center justify-center text-[7px] font-black text-rose-300">
+                                  ESGOTADO
+                                </span>
+                              ) : temEstoqueBaixo ? (
+                                <span className="absolute top-0.5 left-0.5 bg-amber-500/90 text-slate-950 font-black text-[7px] px-0.5 rounded shadow leading-none">
+                                  {estoqueQtd}
+                                </span>
+                              ) : null}
+                              {qtdNoCarrinho > 0 && (
+                                <span className="absolute top-0.5 right-0.5 bg-emerald-600 text-white font-black text-[9px] w-4 h-4 rounded flex items-center justify-center">
+                                  {qtdNoCarrinho}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="space-y-0.5 max-w-[190px]">
+                              {badgeCatTexto && (
+                                <span className="inline-block px-1.5 py-0.2 rounded text-[8px] font-semibold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                                  {badgeCatTexto}
+                                </span>
+                              )}
+                              <div className="flex items-center gap-1">
+                                {produto.destaque && <span className="text-amber-500 text-xs">★</span>}
+                                <h3 className={`font-bold text-xs uppercase truncate ${isDark ? 'text-white' : 'text-black'}`}>{produto.nome}</h3>
+                              </div>
+                              <span className={`text-[10px] block font-mono ${isDark ? 'text-slate-400' : 'text-slate-600 font-semibold'}`}>
+                                Cód. {produto.codigo_interno || produto.codigo_barras?.slice(-4) || '1000'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="text-right">
+                            {precoOriginal && (
+                              <span className="text-[10px] text-slate-400 line-through block">
+                                R$ {Number(precoOriginal).toFixed(2)}
+                              </span>
+                            )}
+                            <span className="font-black text-xs text-emerald-600 dark:text-emerald-400">
+                              R$ {Number(precoFinal).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            ))}
           </div>
         )}
       </div>
