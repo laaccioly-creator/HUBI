@@ -143,61 +143,34 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
   const [suporteVozSTT, setSuporteVozSTT] = useState<boolean>(false);
   const recognitionRef = useRef<any>(null);
 
-  // Modo Sempre Atenta (Hands-free como a Alexa: chamada por voz "Rubi...")
-  const [modoWakeWord, setModoWakeWord] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('hubi_rubi_wake_word') === 'true';
-    } catch {
-      return false;
-    }
-  });
-  const modoWakeWordRef = useRef<boolean>(modoWakeWord);
+  // Modo Sempre Atenta (Inicia desligado por padrão para respeitar a política de microfone/gesto do usuário)
+  const [modoWakeWord, setModoWakeWord] = useState<boolean>(false);
+  const modoWakeWordRef = useRef<boolean>(false);
   const rubiFalandoRef = useRef<boolean>(false);
+  const erroAtivoRef = useRef<boolean>(false);
+  const abertoRef = useRef<boolean>(false);
+  const wakeWordTimeoutRef = useRef<any>(null);
 
   useEffect(() => {
     modoWakeWordRef.current = modoWakeWord;
-    try {
-      localStorage.setItem('hubi_rubi_wake_word', modoWakeWord ? 'true' : 'false');
-    } catch {}
   }, [modoWakeWord]);
+
+  useEffect(() => {
+    abertoRef.current = aberto;
+  }, [aberto]);
+
+  // Limpa flag antiga do localStorage para evitar auto-ativação indevida ao recarregar a tela
+  useEffect(() => {
+    try {
+      localStorage.removeItem('hubi_rubi_wake_word');
+    } catch {}
+  }, []);
 
   // Refs para controle resiliente de fala (evita corte abrupto e aguarda término da frase)
   const deveContinuarOuvindoRef = useRef<boolean>(false);
   const silencioTimerRef = useRef<any>(null);
   const textoCapturadoRef = useRef<string>('');
   const finalTranscritoRef = useRef<string>('');
-  const audioStreamRef = useRef<MediaStream | null>(null);
-
-  // Restrições avançadas de hardware: cancelamento de eco, supressão de ruído e ganho automático
-  const AUDIO_CONSTRAINTS: MediaStreamConstraints = {
-    audio: {
-      echoCancellation: true,      // Cancela o som dos alto-falantes/viva-voz
-      noiseSuppression: true,      // Filtra ruído contínuo de fundo (ventilador, trânsito)
-      autoGainControl: true,       // Nivelamento automático da voz
-      channelCount: 1              // Áudio mono focado na fala frontal
-    }
-  };
-
-  const ativarAudioConstraints = async () => {
-    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
-      try {
-        if (!audioStreamRef.current) {
-          audioStreamRef.current = await navigator.mediaDevices.getUserMedia(AUDIO_CONSTRAINTS);
-        }
-      } catch (e) {
-        console.warn('[RubiAudio] Não foi possível ativar restrições avançadas de microfone:', e);
-      }
-    }
-  };
-
-  const desativarAudioConstraints = () => {
-    if (audioStreamRef.current) {
-      try {
-        audioStreamRef.current.getTracks().forEach((track) => track.stop());
-      } catch {}
-      audioStreamRef.current = null;
-    }
-  };
 
   // Manter textoCapturadoRef sincronizado
   useEffect(() => {
@@ -268,9 +241,17 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
       clearTimeout(silencioTimerRef.current);
       silencioTimerRef.current = null;
     }
+    if (wakeWordTimeoutRef.current) {
+      clearTimeout(wakeWordTimeoutRef.current);
+      wakeWordTimeoutRef.current = null;
+    }
     if (recognitionRef.current) {
       try {
-        recognitionRef.current.stop();
+        if (!enviarSeTiverTexto && typeof recognitionRef.current.abort === 'function') {
+          recognitionRef.current.abort();
+        } else {
+          recognitionRef.current.stop();
+        }
       } catch {}
     }
     setEscutandoVoz(false);
@@ -304,6 +285,18 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
         };
 
         recognition.onresult = (event: any) => {
+          // Se o modal estiver fechado, interrompe a escuta imediatamente
+          if (!abertoRef.current) {
+            try {
+              if (typeof recognition.abort === 'function') {
+                recognition.abort();
+              } else {
+                recognition.stop();
+              }
+            } catch {}
+            return;
+          }
+
           let transcriptFinal = '';
           let transcriptInterim = '';
 
@@ -312,30 +305,21 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
             const item = resItem?.[0];
             if (!item) continue;
 
-            // Filtro de confiança: se confidence estiver disponível (> 0) e for inferior a 0.60, descarte ruídos
-            if (typeof item.confidence === 'number' && item.confidence > 0 && item.confidence < 0.60) {
-              continue;
-            }
-
-            const textoPedaco = (item.transcript || '').trim();
-
-            // Rejeição de ruídos leves e sílabas soltas (palavras isoladas de 1 ou 2 letras captadas sozinhas)
-            if (textoPedaco.length <= 2 && !resItem.isFinal) {
-              continue;
-            }
+            const textoPedaco = item.transcript || '';
+            if (!textoPedaco.trim()) continue;
 
             if (resItem.isFinal) {
-              transcriptFinal += (transcriptFinal ? ' ' : '') + textoPedaco;
+              transcriptFinal += (transcriptFinal ? ' ' : '') + textoPedaco.trim();
             } else {
-              transcriptInterim += (transcriptInterim ? ' ' : '') + textoPedaco;
+              transcriptInterim += (transcriptInterim ? ' ' : '') + textoPedaco.trim();
             }
           }
 
           if (transcriptFinal) {
-            finalTranscritoRef.current = (finalTranscritoRef.current ? `${finalTranscritoRef.current} ` : '') + transcriptFinal.trim();
+            finalTranscritoRef.current = (finalTranscritoRef.current ? `${finalTranscritoRef.current} ` : '') + transcriptFinal;
           }
 
-          const textoCompleto = (finalTranscritoRef.current + (transcriptInterim ? ` ${transcriptInterim.trim()}` : '')).trim();
+          const textoCompleto = (finalTranscritoRef.current + (transcriptInterim ? ` ${transcriptInterim}` : '')).trim();
           if (!textoCompleto) return;
 
           // Se a própria Rubi estiver falando ou processando, ignora captação para evitar eco
@@ -356,7 +340,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
             const fimWake = (matchWake.index || 0) + matchWake[0].length;
             const comando = textoCompleto.slice(fimWake).replace(/^[,:\s]+/, '').trim();
 
-            if (comando.length >= 3) {
+            if (comando.length >= 2) {
               // Usuário emendou o comando logo após dizer Rubi (ex: "Rubi, quais os produtos em promoção?")
               textoCapturadoRef.current = comando;
               setInputTexto(comando);
@@ -367,13 +351,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
               }
               silencioTimerRef.current = setTimeout(() => {
                 const aEnviar = textoCapturadoRef.current.trim();
-                if (aEnviar.length <= 2) {
-                  textoCapturadoRef.current = '';
-                  finalTranscritoRef.current = '';
-                  setInputTexto('');
-                  return;
-                }
-                if (aEnviar.length >= 3 && !rubiFalandoRef.current && !pensandoRef.current) {
+                if (aEnviar.length >= 2 && !rubiFalandoRef.current && !pensandoRef.current) {
                   textoCapturadoRef.current = '';
                   finalTranscritoRef.current = '';
                   setInputTexto('');
@@ -390,7 +368,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
               }
               silencioTimerRef.current = setTimeout(() => {
                 const comandoPendente = textoCapturadoRef.current.trim();
-                if (!comandoPendente || comandoPendente.length < 3) {
+                if (!comandoPendente || comandoPendente.length < 2) {
                   const tempoDecorrido = Date.now() - ultimoMomentoInteracaoRef.current;
                   const estavaDormindo = tempoDecorrido > 18000; // Mais de 18s em repouso
 
@@ -431,13 +409,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
           }
           silencioTimerRef.current = setTimeout(() => {
             const aEnviar = textoCapturadoRef.current.trim();
-            if (aEnviar.length <= 2) {
-              textoCapturadoRef.current = '';
-              finalTranscritoRef.current = '';
-              setInputTexto('');
-              return;
-            }
-            if (aEnviar.length >= 3 && !rubiFalandoRef.current && !pensandoRef.current) {
+            if (aEnviar.length >= 2 && !rubiFalandoRef.current && !pensandoRef.current) {
               textoCapturadoRef.current = '';
               finalTranscritoRef.current = '';
               setInputTexto('');
@@ -450,25 +422,33 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
         };
 
         recognition.onerror = (event: any) => {
-          console.warn('Aviso no microfone Rubi IA:', event.error);
+          console.warn('[Rubi Voice Error]:', event.error);
           if (event.error === 'no-speech') {
             return;
           }
+          erroAtivoRef.current = true;
+          deveContinuarOuvindoRef.current = false;
+          setModoWakeWord(false);
+          setEscutandoVoz(false);
+
           if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-            deveContinuarOuvindoRef.current = false;
-            setModoWakeWord(false);
-            setEscutandoVoz(false);
-            mostrarToastFeedback('Permissão de microfone negada. Ative o microfone nas permissões do navegador.');
-            return;
+            mostrarToastFeedback('Permissão de microfone negada. Toque no microfone e autorize no navegador.');
+          } else if (event.error === 'audio-capture') {
+            mostrarToastFeedback('Microfone indisponível ou em uso por outro aplicativo.');
           }
         };
 
         recognition.onend = () => {
           setEscutandoVoz(false);
+          // Se o modal estiver fechado ou o modo sempre atenta foi desligado, NUNCA reinicia
+          if (!abertoRef.current || !modoWakeWordRef.current) {
+            return;
+          }
+
           const textoPendente = textoCapturadoRef.current.trim();
 
-          // Se o recognition encerrou e tínhamos comando falado pendente (mínimo 3 letras):
-          if (textoPendente.length >= 3 && !rubiFalandoRef.current && !pensandoRef.current) {
+          // Se o recognition encerrou e tínhamos comando falado pendente:
+          if (textoPendente.length >= 2 && !rubiFalandoRef.current && !pensandoRef.current) {
             if (silencioTimerRef.current) {
               clearTimeout(silencioTimerRef.current);
               silencioTimerRef.current = null;
@@ -480,41 +460,43 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
             return;
           }
 
-          if (deveContinuarOuvindoRef.current) {
+          if (deveContinuarOuvindoRef.current && !erroAtivoRef.current) {
             try {
               recognition.start();
             } catch {}
-          } else if (modoWakeWordRef.current && !rubiFalandoRef.current && !pensandoRef.current) {
-            // No modo sempre atenta, reinicia a escuta de fundo em loop contínuo
-            setTimeout(() => {
-              if (modoWakeWordRef.current && !rubiFalandoRef.current && !pensandoRef.current) {
+          } else if (modoWakeWordRef.current && !erroAtivoRef.current && !rubiFalandoRef.current && !pensandoRef.current) {
+            // No modo sempre atenta acionado pelo usuário, reinicia escuta de fundo com intervalo seguro
+            if (wakeWordTimeoutRef.current) {
+              clearTimeout(wakeWordTimeoutRef.current);
+            }
+            wakeWordTimeoutRef.current = setTimeout(() => {
+              if (abertoRef.current && modoWakeWordRef.current && !erroAtivoRef.current && !rubiFalandoRef.current && !pensandoRef.current) {
                 try {
                   recognition.start();
                 } catch {}
               }
-            }, 300);
+            }, 400);
           }
         };
 
         recognitionRef.current = recognition;
-
-        // Se o modo wake word já estiver salvo como ativo, inicia a escuta com restrições de cancelamento de eco
-        if (modoWakeWordRef.current) {
-          ativarAudioConstraints();
-          try {
-            recognition.start();
-          } catch {}
-        }
       } catch (err) {
         console.warn('Falha ao instanciar SpeechRecognition:', err);
       }
     }
 
     return () => {
-      desativarAudioConstraints();
+      if (wakeWordTimeoutRef.current) {
+        clearTimeout(wakeWordTimeoutRef.current);
+        wakeWordTimeoutRef.current = null;
+      }
       if (recognitionRef.current) {
         try {
-          recognitionRef.current.stop();
+          if (typeof recognitionRef.current.abort === 'function') {
+            recognitionRef.current.abort();
+          } else {
+            recognitionRef.current.stop();
+          }
         } catch {}
       }
     };
@@ -533,17 +515,18 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
       try {
         recognitionRef.current.stop();
       } catch {}
-      desativarAudioConstraints();
       mostrarToastFeedback('Modo Viva-Voz ("Rubi...") desativado.');
     } else {
+      erroAtivoRef.current = false;
       setModoWakeWord(true);
       modoWakeWordRef.current = true;
-      ativarAudioConstraints();
       audioService.playRubiWakeWordSound();
-      mostrarToastFeedback('Modo Sempre Atenta ativado! Basta dizer "Rubi..." a qualquer momento.');
+      mostrarToastFeedback('Modo Sempre Atenta ativado! Diga "Rubi..." para falar.');
       try {
         recognitionRef.current.start();
-      } catch {}
+      } catch (e) {
+        console.warn('Erro ao iniciar escuta contínua:', e);
+      }
     }
   };
 
@@ -555,10 +538,9 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
 
     if (escutandoVoz) {
       pararGravacaoVoz(true);
-      desativarAudioConstraints();
     } else {
       pararFalaRubi();
-      ativarAudioConstraints();
+      erroAtivoRef.current = false;
       deveContinuarOuvindoRef.current = true;
       textoCapturadoRef.current = '';
       finalTranscritoRef.current = '';
@@ -699,9 +681,12 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
           currentUtteranceRef.current = null;
           ultimoMomentoInteracaoRef.current = Date.now();
           // Retoma a escuta atenta do Wake Word "Rubi..." assim que terminar de responder
-          if (modoWakeWordRef.current && recognitionRef.current) {
-            setTimeout(() => {
-              if (modoWakeWordRef.current && !rubiFalandoRef.current && !pensandoRef.current) {
+          if (abertoRef.current && modoWakeWordRef.current && recognitionRef.current) {
+            if (wakeWordTimeoutRef.current) {
+              clearTimeout(wakeWordTimeoutRef.current);
+            }
+            wakeWordTimeoutRef.current = setTimeout(() => {
+              if (abertoRef.current && modoWakeWordRef.current && !rubiFalandoRef.current && !pensandoRef.current) {
                 try {
                   recognitionRef.current.start();
                 } catch {}
@@ -715,9 +700,12 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
           rubiFalandoRef.current = false;
           currentUtteranceRef.current = null;
           ultimoMomentoInteracaoRef.current = Date.now();
-          if (modoWakeWordRef.current && recognitionRef.current) {
-            setTimeout(() => {
-              if (modoWakeWordRef.current && !rubiFalandoRef.current && !pensandoRef.current) {
+          if (abertoRef.current && modoWakeWordRef.current && recognitionRef.current) {
+            if (wakeWordTimeoutRef.current) {
+              clearTimeout(wakeWordTimeoutRef.current);
+            }
+            wakeWordTimeoutRef.current = setTimeout(() => {
+              if (abertoRef.current && modoWakeWordRef.current && !rubiFalandoRef.current && !pensandoRef.current) {
                 try {
                   recognitionRef.current.start();
                 } catch {}
@@ -743,14 +731,64 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
     currentUtteranceRef.current = null;
   };
 
-  // Parar fala e microfone ao fechar chat
+  // Função explícita de parada geral: microfone, áudio, timers e wake word
+  const pararEscutaEAudio = () => {
+    // 1. Desativar flags de continuidade e modo Wake Word
+    deveContinuarOuvindoRef.current = false;
+    modoWakeWordRef.current = false;
+    setModoWakeWord(false);
+    erroAtivoRef.current = false;
+
+    // 2. Limpar timers ativos de silêncio e reinício de wake word
+    if (silencioTimerRef.current) {
+      clearTimeout(silencioTimerRef.current);
+      silencioTimerRef.current = null;
+    }
+    if (wakeWordTimeoutRef.current) {
+      clearTimeout(wakeWordTimeoutRef.current);
+      wakeWordTimeoutRef.current = null;
+    }
+
+    // 3. Forçar parada imediata do microfone liberando hardware
+    if (recognitionRef.current) {
+      try {
+        if (typeof recognitionRef.current.abort === 'function') {
+          recognitionRef.current.abort();
+        } else {
+          recognitionRef.current.stop();
+        }
+      } catch {}
+    }
+    setEscutandoVoz(false);
+
+    // 4. Interromper áudio e síntese de voz (TTS)
+    pararFalaRubi();
+
+    // 5. Limpar buffers de texto transcrito
+    textoCapturadoRef.current = '';
+    finalTranscritoRef.current = '';
+    setInputTexto('');
+  };
+
+  const handleCloseModal = () => {
+    pararEscutaEAudio();
+    setAberto(false);
+    if (onFecharExterno) onFecharExterno();
+  };
+
+  // Parada geral ao fechar o chat
   useEffect(() => {
     if (!aberto) {
-      pararFalaRubi();
-      pararGravacaoVoz(false);
-      desativarAudioConstraints();
+      pararEscutaEAudio();
     }
   }, [aberto]);
+
+  // Cleanup obrigatório ao desmontar o componente
+  useEffect(() => {
+    return () => {
+      pararEscutaEAudio();
+    };
+  }, []);
 
   const mostrarToastFeedback = (msg: string) => {
     setToastNotificacao(msg);
@@ -876,8 +914,10 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
   const ultimaMsgExternaProcessadaRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (abertoExterno) {
+    if (abertoExterno === true) {
       setAberto(true);
+    } else if (abertoExterno === false && aberto) {
+      handleCloseModal();
     }
   }, [abertoExterno]);
 
@@ -951,7 +991,14 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
 
       {/* MODAL / DRAWER DE CHAT (JANELA OU TELA CHEIA) */}
       {aberto && (
-        <div className={`fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:justify-start ${telaCheia ? 'p-0' : 'sm:pl-6 bg-black/60 backdrop-blur-xs p-0 sm:p-4'} animate-in fade-in`}>
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              handleCloseModal();
+            }
+          }}
+          className={`fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:justify-start ${telaCheia ? 'p-0' : 'sm:pl-6 bg-black/60 backdrop-blur-xs p-0 sm:p-4'} animate-in fade-in`}
+        >
           <div
             className={`w-full shadow-2xl flex flex-col overflow-hidden transition-all duration-300 border ${
               isDark ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900'
@@ -1037,10 +1084,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                 {/* Fechar */}
                 <button
                   type="button"
-                  onClick={() => {
-                    setAberto(false);
-                    if (onFecharExterno) onFecharExterno();
-                  }}
+                  onClick={handleCloseModal}
                   className={`p-2 rounded-xl transition cursor-pointer ${
                     isDark ? 'text-slate-400 hover:text-slate-100 hover:bg-slate-800' : 'text-slate-600 hover:text-slate-950 hover:bg-slate-200/70'
                   }`}
