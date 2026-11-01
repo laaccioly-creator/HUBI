@@ -75,6 +75,38 @@ export const AssistenteRubi: React.FC = () => {
   const [escutandoVoz, setEscutandoVoz] = useState<boolean>(false);
   const [suporteVoz, setSuporteVoz] = useState<boolean>(false);
   const recognitionRef = useRef<any>(null);
+  const audioStreamRef = useRef<MediaStream | null>(null);
+
+  // Restrições de hardware: cancelamento de eco, supressão de ruído e controle de ganho
+  const AUDIO_CONSTRAINTS: MediaStreamConstraints = {
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+      channelCount: 1
+    }
+  };
+
+  const ativarAudioConstraints = async () => {
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+      try {
+        if (!audioStreamRef.current) {
+          audioStreamRef.current = await navigator.mediaDevices.getUserMedia(AUDIO_CONSTRAINTS);
+        }
+      } catch (e) {
+        console.warn('[RubiAudio] Falha ao ativar cancelamento de eco:', e);
+      }
+    }
+  };
+
+  const desativarAudioConstraints = () => {
+    if (audioStreamRef.current) {
+      try {
+        audioStreamRef.current.getTracks().forEach(t => t.stop());
+      } catch {}
+      audioStreamRef.current = null;
+    }
+  };
 
   // Inicializar Web Speech API
   useEffect(() => {
@@ -97,14 +129,28 @@ export const AssistenteRubi: React.FC = () => {
           let transcriptFinal = '';
           let transcriptInterim = '';
           for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) {
-              transcriptFinal += event.results[i][0].transcript;
+            const resItem = event.results[i];
+            const item = resItem?.[0];
+            if (!item) continue;
+
+            // Filtro de confiança: descarta ruídos com índice inferior a 0.60
+            if (typeof item.confidence === 'number' && item.confidence > 0 && item.confidence < 0.60) {
+              continue;
+            }
+
+            const textoPedaco = (item.transcript || '').trim();
+            if (textoPedaco.length <= 2 && !resItem.isFinal) {
+              continue;
+            }
+
+            if (resItem.isFinal) {
+              transcriptFinal += (transcriptFinal ? ' ' : '') + textoPedaco;
             } else {
-              transcriptInterim += event.results[i][0].transcript;
+              transcriptInterim += (transcriptInterim ? ' ' : '') + textoPedaco;
             }
           }
           const transcricao = (transcriptFinal || transcriptInterim).trim();
-          if (transcricao) {
+          if (transcricao.length >= 3) {
             setInputTexto(transcricao);
           }
         };
@@ -112,10 +158,12 @@ export const AssistenteRubi: React.FC = () => {
         recognition.onerror = (event: any) => {
           console.warn('Erro no microfone Rubi IA:', event.error);
           setEscutandoVoz(false);
+          desativarAudioConstraints();
         };
 
         recognition.onend = () => {
           setEscutandoVoz(false);
+          desativarAudioConstraints();
         };
 
         recognitionRef.current = recognition;
@@ -123,6 +171,15 @@ export const AssistenteRubi: React.FC = () => {
         console.warn('Falha ao instanciar SpeechRecognition na tela cheia:', err);
       }
     }
+
+    return () => {
+      desativarAudioConstraints();
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {}
+      }
+    };
   }, []);
 
   const alternarGravacaoVoz = () => {
@@ -133,7 +190,9 @@ export const AssistenteRubi: React.FC = () => {
         recognitionRef.current.stop();
       } catch {}
       setEscutandoVoz(false);
+      desativarAudioConstraints();
     } else {
+      ativarAudioConstraints();
       try {
         recognitionRef.current.start();
       } catch (e) {
