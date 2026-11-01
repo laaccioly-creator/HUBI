@@ -212,7 +212,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
         {
           id: '1',
           remetente: 'rubi',
-          texto: `Olá, **${nomeInicial}**! Que alegria ter você aqui na **${nomeLoja}**! ✨\n\nSou a **Rubi**, sua ${personaInfo.papel.toLowerCase()}. O que você gostaria de ver hoje? Pode me pedir produtos, novidades ou tirar qualquer dúvida por texto ou por voz!`,
+          texto: `Olá, **${nomeInicial}**! Sou a **Rubi** da **${nomeLoja}**, o que você gostaria de pedir hoje?`,
           data: new Date()
         }
       ];
@@ -221,7 +221,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
       {
         id: '1',
         remetente: 'rubi',
-        texto: `Olá! Seja muito bem-vindo(a) à **${nomeLoja}**! ✨\n\nSou a **Rubi**, sua ${personaInfo.papel.toLowerCase()}. Antes de começarmos, **como posso te chamar? Me diz o seu nome!** 😊\n\n*(Você pode falar tocando no microfone ou digitar aqui embaixo!)*`,
+        texto: `Olá! Bem-vindo à **${nomeLoja}**, sou a **Rubi**! Como posso te chamar e o que você gostaria de pedir hoje?`,
         data: new Date()
       }
     ];
@@ -351,7 +351,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
           textoCapturadoRef.current = textoLimpo;
           setInputTexto(textoLimpo);
 
-          // Reiniciar timer de silêncio: 2.0s ininterruptos de silêncio após a última palavra falada
+          // Reiniciar timer de silêncio: 2.5s ininterruptos de silêncio após a última palavra falada
           if (silencioTimerRef.current) {
             clearTimeout(silencioTimerRef.current);
           }
@@ -373,7 +373,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
 
               enviarMensagem(textoFinal);
             }
-          }, 2000);
+          }, 2500);
         };
 
         recognition.onerror = (event: any) => {

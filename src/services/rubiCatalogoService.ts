@@ -18,6 +18,10 @@ export interface ContextoLojaCatalogo {
   historicoMensagens?: Array<{ autor: 'rubi' | 'cliente'; texto: string }>;
   produtosJaSugeridosIds?: string[];
   configShippingLoja?: LojaShippingConfig | null;
+  resumoCarrinho?: {
+    itens: Array<{ nome: string; quantidade: number }>;
+    total: number;
+  };
 }
 
 export interface RespostaRubiCatalogo {
@@ -785,7 +789,7 @@ export const responderPerguntaClienteCatalogo = async (
   const {
     loja,
     categorias,
-    produtos,
+    produtos: produtosBrutos = [],
     formasEntrega,
     regrasAtivas,
     clienteAtual,
@@ -793,11 +797,19 @@ export const responderPerguntaClienteCatalogo = async (
     ultimoProdutoSugerido,
     produtoConsultado,
     historicoMensagens = [],
-    produtosJaSugeridosIds = []
+    produtosJaSugeridosIds = [],
+    resumoCarrinho
   } = contexto;
+
+  // Isolamento estrito multi-tenant: considerar apenas produtos ativos da loja atual
+  const produtos = produtosBrutos.filter(
+    p => p.ativo !== false && (!p.loja_id || p.loja_id === loja.id)
+  );
+
   const perguntaCorrigida = corrigirTranscricaoVoz(pergunta);
   const pNorm = normalizarTexto(perguntaCorrigida);
   const nomeLoja = loja.nome_fantasia || 'nossa loja';
+  const ehPrimeiraMensagem = historicoMensagens.filter(m => m.autor === 'cliente').length === 0;
 
   // Configuração do Perfil do Negócio e Persona
   const perfilNegocio = loja.configuracoes_extras?.perfil_negocio || {};
@@ -806,6 +818,26 @@ export const responderPerguntaClienteCatalogo = async (
   const personaInfo = PERSONAS_SEGMENTO[segmento] || PERSONAS_SEGMENTO.geral;
 
   const nomeClienteEfetivo = nomeClienteAtual || clienteAtual?.nome || '';
+
+  // 0. CHECAGEM DIRETA DE CONSULTA AO CARRINHO / RESUMO DA CESTA
+  const termosVerCarrinho = [
+    'ver carrinho', 'meu carrinho', 'o que tem no carrinho', 'o que tem na cesta',
+    'o que tem na sacola', 'resumo do carrinho', 'resumo da cesta', 'quanto deu o carrinho',
+    'quanto ta o carrinho', 'qual o total do carrinho', 'ver minha cesta', 'ver minha sacola'
+  ];
+  if (termosVerCarrinho.some(t => pNorm.includes(t))) {
+    if (!resumoCarrinho || resumoCarrinho.itens.length === 0) {
+      return {
+        texto: `Sua cesta ainda está vazia. O que gostaria de adicionar?`
+      };
+    }
+    const resumoItens = resumoCarrinho.itens
+      .map(i => `${i.quantidade}x **${i.nome}**`)
+      .join(', ');
+    return {
+      texto: `Na sua cesta tem ${resumoItens}, totalizando **R$ ${resumoCarrinho.total.toFixed(2)}**. Deseja mais alguma coisa ou fechar o pedido?`
+    };
+  }
 
   // IDENTIFICAÇÃO DE PRODUTO ALVO EM CONSULTA / DÚVIDA / FOTO
   let produtoAlvo: Produto | null = produtoConsultado || null;
@@ -927,8 +959,6 @@ export const responderPerguntaClienteCatalogo = async (
   // 2. CHECAGEM DE COMANDO DE VOZ / TEXTO PARA ADICIONAR À CESTA (ITEM ÚNICO OU LISTA DE COMPRAS)
   const pedidoLista = detectarPedidoListaSacola(perguntaCorrigida, produtos, produtoAlvo || ultimoProdutoSugerido);
   if (pedidoLista.ehIntencaoCompra) {
-    const nomeTratamento = nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : '';
-
     if (pedidoLista.itensEncontrados.length > 0) {
       const descricoesItens = pedidoLista.itensEncontrados.map(item =>
         item.quantidade > 1 ? `${item.quantidade}x **${item.produto.nome}**` : `o **${item.produto.nome}**`
@@ -940,11 +970,11 @@ export const responderPerguntaClienteCatalogo = async (
 
       const avisoNaoEncontrados =
         pedidoLista.termosNaoEncontrados.length > 0
-          ? ` Não encontrei ${pedidoLista.termosNaoEncontrados.join(' e ')} no catálogo hoje.`
+          ? ` Não encontrei ${pedidoLista.termosNaoEncontrados.join(' e ')} no catálogo.`
           : '';
 
       return {
-        texto: `Prontinho${nomeTratamento}! Coloquei ${listaFormatada} na sua cesta.${avisoNaoEncontrados} Precisa de mais alguma coisa?`,
+        texto: `Pronto, adicionei ${listaFormatada} na cesta.${avisoNaoEncontrados} Mais alguma coisa?`,
         produtosSugeridos: pedidoLista.itensEncontrados.map(i => i.produto),
         comandoSacola: {
           produto: pedidoLista.itensEncontrados[0].produto,
@@ -1180,6 +1210,10 @@ export const responderPerguntaClienteCatalogo = async (
         ? historicoMensagens.slice(-4).map(m => `${m.autor === 'rubi' ? 'Rubi' : 'Cliente'}: ${m.texto}`).join('\n')
         : '';
 
+      const infoCarrinhoTexto = resumoCarrinho && resumoCarrinho.itens.length > 0
+        ? `CARRINHO ATUAL DO CLIENTE: ${resumoCarrinho.itens.map(i => `${i.quantidade}x ${i.nome}`).join(', ')} (Total: R$ ${resumoCarrinho.total.toFixed(2)})`
+        : 'CARRINHO ATUAL DO CLIENTE: Vazio';
+
       const infoProdutoAlvo = produtoAlvo ? `
 PRODUTO ESPECÍFICO EM CONSULTA / DÚVIDA DO CLIENTE:
 - ID: "${produtoAlvo.id}"
@@ -1187,58 +1221,43 @@ PRODUTO ESPECÍFICO EM CONSULTA / DÚVIDA DO CLIENTE:
 - Categoria: "${produtoAlvo.categoria?.nome || 'Geral'}"
 - Preço Normal: R$ ${Number(produtoAlvo.preco_venda_varejo || 0).toFixed(2)}
 ${produtoAlvo.promocao_ativa && produtoAlvo.preco_promocional ? `- Preço Promocional Atual: R$ ${Number(produtoAlvo.preco_promocional).toFixed(2)} (OFERTA ESPECIAL ATIVA)` : ''}
-- Descrição Completa e Diferenciais:
-"""
-${sanitizarCaixaTexto(produtoAlvo.descricao || 'Produto de alta qualidade e muita procura no catálogo.')}
-"""
-${produtoAlvo.tem_variacoes && produtoAlvo.variacoes?.length ? `- Variações/Opções: ${produtoAlvo.variacoes.map(v => `${v.valor_variacao_1}${v.valor_variacao_2 ? ` / ${v.valor_variacao_2}` : ''}`).join(', ')}` : ''}
+- Descrição: "${sanitizarCaixaTexto(produtoAlvo.descricao || '').slice(0, 140)}"
+${produtoAlvo.tem_variacoes && produtoAlvo.variacoes?.length ? `- Variações: ${produtoAlvo.variacoes.map(v => `${v.valor_variacao_1}${v.valor_variacao_2 ? ` / ${v.valor_variacao_2}` : ''}`).join(', ')}` : ''}
 
-INSTRUÇÃO CRÍTICA PARA ESTE PRODUTO (RESPOSTA POR VOZ CONCISA ESTILO ALEXA):
-O cliente está com dúvida sobre este produto específico!
-1. Responda IMEDIATAMENTE em no máximo 2 a 3 frases curtas explicando para que serve ou diferenciais com base na descrição acima, destacando o valor atual de R$ ${Number(produtoAlvo.preco_promocional || produtoAlvo.preco_venda_varejo || 0).toFixed(2)}.
-2. Pergunte de forma leve se deseja colocar na sacola ou se quer saber mais detalhes.
-3. NUNCA escreva textos longos ou parágrafos extensos. Frases curtas e completas com pontuação final (. ou !).
-4. OBRIGATÓRIO: Conclua todo o texto e somente na última linha, isolada, adicione a tag: [PRODUTOS_RECOMENDADOS: ${produtoAlvo.id}]
+INSTRUÇÃO CRÍTICA PARA ESTE PRODUTO:
+Responda em no máximo 1 a 2 frases curtas dizendo o valor atual de R$ ${Number(produtoAlvo.preco_promocional || produtoAlvo.preco_venda_varejo || 0).toFixed(2)} e pergunte se deseja colocar na cesta.
+OBRIGATÓRIO: Na última linha isolada adicione: [PRODUTOS_RECOMENDADOS: ${produtoAlvo.id}]
 ` : '';
 
       const prompt = `
-Você é a **Rubi**, a ${personaInfo.papel} da loja **${nomeLoja}** no catálogo online.
-SEGMENTO: ${segmento} - ${personaInfo.diretriz}
-${especialidade ? `Especialidade: "${especialidade}".` : ''}
+Você é a **Rubi**, atendente da loja **${nomeLoja}** no catálogo online.
+ISOLAMENTO ESTRITO DE LOJA E SEGMENTO:
+- loja_id: "${loja.id}"
+- nome_loja: "${nomeLoja}"
+- segmento: "${segmento}"
+${especialidade ? `- especialidade: "${especialidade}"` : ''}
+PROIBIÇÃO ABSOLUTA MULTI-TENANT: Atenda estritamente como "${nomeLoja}" (segmento "${segmento}"). É terminantemente proibido mencionar itens, categorias ou nomes de outras lojas ou outros segmentos.
 
-CLIENTE: ${nomeClienteEfetivo ? `"${nomeClienteEfetivo}"` : 'Não informado'}
+CLIENTE: ${nomeClienteEfetivo ? `"${nomeClienteEfetivo}"` : 'Não informado'} | PRIMEIRA MENSAGEM DA CONVERSA: ${ehPrimeiraMensagem ? 'SIM' : 'NÃO'}
+${infoCarrinhoTexto}
 
 HISTÓRICO RECENTE:
 ${historicoTexto || '(Início)'}
 
 ${infoProdutoAlvo}
 
-CATÁLOGO REAL DA LOJA (Produtos efetivamente disponíveis no estoque):
+CATÁLOGO REAL DA LOJA ATIVA (${nomeLoja}):
 ${JSON.stringify(catalogoResumo)}
 
-🚨 DIRETRIZ DE VOZ OBRIGATÓRIA:
-Você é uma assistente de vendas por voz (estilo Alexa). Responda sempre de forma extremamente concisa, empática e direta, em no máximo 2 a 3 frases curtas. Nunca escreva textos longos ou parágrafos extensos. Se o cliente quiser mais detalhes, pergunte se ele deseja saber mais.
+🚨 DIRETRIZ DE VOZ OBRIGATÓRIA (ESTILO ALEXA): Suas respostas devem ser ULTRA-SUCINTAS, com no máximo 1 a 2 frases curtas e diretas. NUNCA gere parágrafos longos, explicações prolixas ou adjetivos excessivos.
 
-🚨 COMPORTAMENTO DE COMPRA ÁGIL:
-Quando o cliente pedir produtos (seja um item ou uma lista com vários, ex: 'bota 1kg de açaí, 2 açúcares e 1 abacaxi'), identifique os produtos solicitados e ADICIONE-OS DIRETAMENTE à cesta. NÃO fique descrevendo produtos, dando preços unitários ou perguntando se ele quer adicionar. Aja como um atendente humano prático de balcão. Responda apenas confirmando o que foi colocado na cesta em uma única frase amigável (ex: 'Prontinho! Coloquei o açaí, o abacaxi e os 2 açúcares na sua cesta. Precisa de mais alguma coisa?'). Se o produto solicitado pelo cliente não existir no catálogo da loja ativa, NUNCA adicione ou recomende itens aleatórios como se fossem o que ele pediu (ex: se não encontrar 'açaí', diga 'Não encontrei açaí no catálogo hoje, temos...').
+🚨 REGRA DE SAUDAÇÃO ÚNICA: Diga saudações ('Olá!', 'Tudo bem?') APENAS na primeira mensagem. A partir da segunda mensagem, vá DIRETO ao ponto sem repetir apresentações ou o nome do cliente.
 
-🚨 DIRETRIZES INVIOLÁVEIS DE ATENDIMENTO E ZERO ALUCINAÇÃO:
-1. PROIBIDO INVENTAR PRODUTOS OU PREÇOS: Você SÓ PODE recomendar, descrever ou citar produtos que constam LITERALMENTE na lista "CATÁLOGO REAL DA LOJA" acima! NUNCA invente nomes de modelos fictícios (como "Discreet", "Velvet Touch", etc.) e NUNCA invente preços. Use rigorosamente o valor que está no campo "preco" de cada produto listado. Se o produto custa 6.50, fale "6 e 50". Jamais fale 69 e 90 ou outros valores não existentes!
-2. VISUALIZAÇÃO E FOTOS DE PRODUTOS:
-   - NUNCA diga que "não pode mandar fotos por aqui" ou que "por ser chat de texto não consegue mostrar fotos"! O sistema do catálogo exibe automaticamente o card com a foto do produto, valor e botão de sacola logo abaixo da sua mensagem!
-   - Quando o cliente pedir foto ou quiser ver o produto, confirme com entusiasmo que já está mostrando o card com a foto e os detalhes dele logo abaixo para ele ver e tocar.
-   - OBRIGATÓRIO: Adicione na última linha isolada a tag [PRODUTOS_RECOMENDADOS: id] para que a foto do produto apareça na tela!
-3. RESPOSTAS CURTAS E DIRETAS (ESTILO ALEXA):
-   - Fale sempre em no máximo 2 a 3 frases curtas, naturais e bem pontuadas.
-   - NUNCA use marcadores, bullets ou múltiplos parágrafos. O cliente está ouvindo sua voz no alto-falante ou fone de ouvido.
-4. DÚVIDAS SOBRE PRODUTOS TÊM PRIORIDADE TOTAL: Se a pergunta for sobre um produto específico, responda com detalhes acolhedores e envolventes em 2 frases curtas e pergunte se quer colocar na sacola.
-5. IDENTIFICAÇÃO DO CLIENTE: Somente quando o cliente fizer uma saudação simples e isolada (sem perguntas nem produtos), dê as boas-vindas e pergunte: "Antes de começarmos, como posso te chamar? Me conta seu nome!"
-6. PRODUTOS RECOMENDADOS:
-   - Apresente no máximo 1 ou 2 produtos de destaque APENAS quando o cliente pedir indicações, novidades ou itens específicos.
-   - CITE APENAS PRODUTOS REAIS DO CATÁLOGO com seus nomes exatos e preços exatos.
-   - OBRIGATÓRIO PARA SINCRONIA: Na última linha isolada da resposta, adicione os IDs dos produtos que você citou no formato exato: [PRODUTOS_RECOMENDADOS: id1, id2]. Se você NÃO recomendou produtos nesta mensagem, NÃO adicione essa tag!
-7. CADASTRO E PEDIDO:
-   - Se o cliente perguntar como se cadastrar ou fechar pedido, explique de maneira direta em 2 frases que ele pode me ditar os dados por aqui ou preencher ao fechar a sacola.
+🚨 AÇÃO DIRETA NO CARRINHO: Ao receber pedidos (ex: 'coloque 1kg de açaí e 2 cafés'), adicione os itens diretamente à cesta e confirme em poucas palavras (ex: 'Pronto, adicionei o açaí e os 2 cafés na cesta. Mais alguma coisa?'). Se pedirem o carrinho, apenas resuma os itens e o total.
+
+🚨 REGRAS ADICIONAIS DE ZERO ALUCINAÇÃO:
+1. Cite APENAS produtos reais listados em "CATÁLOGO REAL DA LOJA ATIVA" com seus preços exatos. Se não houver o item pedido na loja "${nomeLoja}", diga diretamente que não encontrou no catálogo hoje.
+2. Quando citar ou recomendar 1 ou 2 produtos do catálogo, adicione na última linha isolada: [PRODUTOS_RECOMENDADOS: id1, id2].
 
 PERGUNTA ATUAL DO CLIENTE:
 "${perguntaCorrigida}"
@@ -1246,7 +1265,7 @@ PERGUNTA ATUAL DO CLIENTE:
 
       const requestBody = {
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 200 }
+        generationConfig: { temperature: 0.25, maxOutputTokens: 120 }
       };
 
       const resData = await executarRequisicaoGemini(apiKey, requestBody);
@@ -1270,41 +1289,13 @@ PERGUNTA ATUAL DO CLIENTE:
   }
 
   // 8. MOTOR LOCAL INTELIGENTE (QUANDO GEMINI NÃO ESTÁ ATIVO OU FALHA)
-  // A. Resposta Rápida e Detalhada sobre Produto Específico
+  // A. Resposta Rápida e Sucinta sobre Produto Específico
   if (produtoAlvo) {
     const precoNormal = Number(produtoAlvo.preco_venda_varejo || 0);
     const temPromocao = Boolean(produtoAlvo.promocao_ativa && produtoAlvo.preco_promocional && Number(produtoAlvo.preco_promocional) > 0);
     const precoFinal = temPromocao ? Number(produtoAlvo.preco_promocional) : precoNormal;
-    const descFormatada = produtoAlvo.descricao ? sanitizarCaixaTexto(produtoAlvo.descricao) : '';
 
-    let textoResposta = `O **${produtoAlvo.nome}** é uma excelente escolha! ✨\n\n`;
-
-    if (descFormatada) {
-      // Extrair até 2 primeiros parágrafos limpos da descrição
-      const paragrafos = descFormatada
-        .split(/\n+/)
-        .map(p => p.trim())
-        .filter(p => p.length > 10);
-      const resumoDesc = paragrafos.slice(0, 2).join('\n\n');
-      textoResposta += `${resumoDesc || descFormatada}\n\n`;
-    } else {
-      textoResposta += `É um item super especial e de alta qualidade do nosso catálogo!\n\n`;
-    }
-
-    textoResposta += `💰 **Valor:** R$ ${precoFinal.toFixed(2)}${temPromocao ? ' *(em oferta especial!)*' : ''}\n`;
-
-    if (produtoAlvo.tem_variacoes && produtoAlvo.variacoes && produtoAlvo.variacoes.length > 0) {
-      const varsTexto = produtoAlvo.variacoes
-        .map(v => `${v.valor_variacao_1}${v.valor_variacao_2 ? ` / ${v.valor_variacao_2}` : ''}`)
-        .join(', ');
-      textoResposta += `📦 **Opções:** ${varsTexto}\n`;
-    }
-
-    textoResposta += `\nQuer que eu adicione ele na sua sacola de compras? É só tocar no botão **"+ Adicionar"** aqui no card ou me pedir por voz! 🛍️`;
-
-    if (!nomeClienteEfetivo) {
-      textoResposta += `\n\n*(A propósito, como posso te chamar? Me conta o seu nome!)* 😊`;
-    }
+    const textoResposta = `O **${produtoAlvo.nome}** está saindo por **R$ ${precoFinal.toFixed(2)}**${temPromocao ? ' em oferta' : ''}. Deseja adicionar na sua cesta?`;
 
     return {
       texto: textoResposta,
@@ -1319,7 +1310,7 @@ PERGUNTA ATUAL DO CLIENTE:
   if (querApimentar) {
     const prodsCasal = buscarProdutosPorIntencao('massagem oleo estimulador lubrificante', produtos, 3, produtosJaSugeridosIds, segmento);
     return {
-      texto: `Adoro essa ideia${nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : ''}! 🔥 Separei opções perfeitas para vocês curtirem a dois e saírem da rotina. Dá uma olhadinha nas opções logo abaixo! Qual delas você gostaria de conhecer melhor ou já colocar na sua sacola?`,
+      texto: `Separei opções especiais logo abaixo para vocês curtirem a dois. Qual delas você quer adicionar na cesta?`,
       produtosSugeridos: prodsCasal
     };
   }
@@ -1331,7 +1322,7 @@ PERGUNTA ATUAL DO CLIENTE:
     const prodsNovos = buscarProdutosPorIntencao('destaque novidade', produtos, 3, produtosJaSugeridosIds, segmento);
     if (prodsNovos.length > 0) {
       return {
-        texto: `Temos muito mais opções sim${nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : ''}! Separei outras novidades maravilhosas do nosso catálogo para você. Dá uma olhada nas opções logo abaixo! Se gostar de alguma, me avisa que já coloco na sua sacola!`,
+        texto: `Separei outras opções do nosso catálogo logo abaixo. Gostaria de colocar alguma na cesta?`,
         produtosSugeridos: prodsNovos
       };
     }
@@ -1340,15 +1331,15 @@ PERGUNTA ATUAL DO CLIENTE:
   // D. Produtos gerais encontrados por relevância
   if (produtosSugeridosPre.length > 0) {
     return {
-      texto: `Separei estas recomendações especiais para você${nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : ''}! ✨ Dê uma olhadinha nos produtos logo abaixo. Você pode me pedir para colocar algum na sua sacola ou tocar no botão de adicionar!`,
+      texto: `Separei estas opções do catálogo logo abaixo. Quer que eu adicione alguma na sua cesta?`,
       produtosSugeridos: produtosSugeridosPre,
       dadosCadastroDetectados: Object.keys(dadosCadastro).length > 0 ? dadosCadastro : undefined
     };
   }
 
-  // E. Resposta aberta sucinta
+  // E. Resposta aberta ultra-sucinta
   return {
-    texto: `Estou aqui com você${nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : ''}! 😊\n\nMe conta: o que você gostaria de ver hoje? Posso te sugerir itens para curtir a dois, relaxamento ou mostrar nossas novidades!`,
+    texto: `O que você gostaria de pedir hoje na **${nomeLoja}**?`,
     dadosCadastroDetectados: Object.keys(dadosCadastro).length > 0 ? dadosCadastro : undefined
   };
 };

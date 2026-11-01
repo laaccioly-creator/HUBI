@@ -46,7 +46,7 @@ import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { supabase } from '../lib/supabase';
 
 export const DashboardCockpit: React.FC = () => {
-  const { loja, usuario, lojasDisponiveis } = useAuth();
+  const { loja, usuario, lojasDisponiveis, selecionarLoja } = useAuth();
   const permissions = usePermissions();
   const { tema } = useTheme();
   const { abrirMenuMobile } = useMenu();
@@ -61,12 +61,17 @@ export const DashboardCockpit: React.FC = () => {
 
   // Escopo de Loja: 'todas' (Visão Consolidada do Conglomerado) ou id da loja selecionada
   const ehGestorConglomerado = permissions.ehOwner || permissions.ehAdmin || permissions.ehGerente;
-  const temMultiplasLojas = lojasDisponiveis && lojasDisponiveis.length > 1;
+  const temMultiplasLojas = Boolean(lojasDisponiveis && lojasDisponiveis.length > 1);
+  const podeTrocarLoja = Boolean(
+    (usuario?.pode_trocar_loja === true || usuario?.perfil === 'owner' || permissions.ehOwner) &&
+    temMultiplasLojas
+  );
   const [escopoLojaId, setEscopoLojaId] = useState<string>(
     temMultiplasLojas && ehGestorConglomerado ? 'todas' : (loja?.id || 'todas')
   );
   const [dropdownLojasAberto, setDropdownLojasAberto] = useState<boolean>(false);
   const [dropdownLojasMobileAberto, setDropdownLojasMobileAberto] = useState<boolean>(false);
+  const [dropdownTrocaLojaHeaderAberto, setDropdownTrocaLojaHeaderAberto] = useState<boolean>(false);
   const [modalAdicionarLojaAberto, setModalAdicionarLojaAberto] = useState<boolean>(false);
 
   // Estados principais do seletor de período padronizado
@@ -282,8 +287,80 @@ export const DashboardCockpit: React.FC = () => {
       {/* ========================================================================= */}
       <div className="block md:hidden shrink-0">
         <MobileHeader
+          className="z-30"
           titulo="Dashboard Executivo"
-          subtitulo={`Olá, ${nomeUsuario} • Desempenho em tempo real`}
+          subtitulo={
+            podeTrocarLoja ? (
+              <div className="relative inline-block max-w-full mt-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDropdownTrocaLojaHeaderAberto(prev => !prev);
+                    setDropdownLojasMobileAberto(false);
+                    setDropdownPeriodoMobileAberto(false);
+                  }}
+                  className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-1.5 cursor-pointer max-w-full"
+                  title="Alternar loja ativa"
+                >
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                  <span className="truncate">{loja?.nome_fantasia || 'Loja Ativa'}</span>
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 text-slate-500 dark:text-slate-300 shrink-0 transition-transform ${
+                      dropdownTrocaLojaHeaderAberto ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+
+                {dropdownTrocaLojaHeaderAberto && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setDropdownTrocaLojaHeaderAberto(false)}
+                    />
+                    <div className="absolute top-full left-0 mt-1.5 w-64 bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-[#1E293B] rounded-xl shadow-2xl p-1.5 z-50 text-left space-y-0.5 animate-in fade-in zoom-in-95">
+                      <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Alternar Loja Ativa
+                      </div>
+                      {lojasDisponiveis.map((l) => {
+                        const isAtiva = loja?.id === l.id;
+                        return (
+                          <button
+                            key={l.id}
+                            type="button"
+                            onClick={async () => {
+                              setDropdownTrocaLojaHeaderAberto(false);
+                              if (!isAtiva) {
+                                await selecionarLoja(l.id);
+                                if (escopoLojaId !== 'todas') {
+                                  setEscopoLojaId(l.id);
+                                }
+                              }
+                            }}
+                            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs transition cursor-pointer ${
+                              isAtiva
+                                ? 'bg-emerald-50 border border-emerald-300 text-emerald-800 font-bold dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30'
+                                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1E293B]'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 truncate">
+                              <Store className={`w-3.5 h-3.5 shrink-0 ${isAtiva ? 'text-emerald-500' : 'text-slate-400'}`} />
+                              <span className="truncate">{l.nome_fantasia}</span>
+                            </div>
+                            {isAtiva && <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-1.5 mt-0.5 truncate">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                <span className="truncate">{loja?.nome_fantasia || 'Loja Ativa'}</span>
+              </div>
+            )
+          }
           mostrarVoltar={false}
           iconeTitulo={
             <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 shrink-0">

@@ -1518,17 +1518,27 @@ export const CatalogoPublico: React.FC = () => {
 
   const contextoRubi = useMemo(() => {
     if (!loja) return null;
+    const produtosDaLojaAtiva = produtos.filter(
+      p => p.ativo !== false && (!p.loja_id || p.loja_id === loja.id)
+    );
     return {
       loja,
       categorias,
-      produtos,
+      produtos: produtosDaLojaAtiva,
       formasEntrega,
       regrasAtivas,
       clienteAtual: clienteSelecionado,
       nomeClienteAtual: nomeCliente,
-      configShippingLoja
+      configShippingLoja,
+      resumoCarrinho: {
+        itens: carrinho.map(item => ({
+          nome: item.produto.nome,
+          quantidade: item.quantidade
+        })),
+        total: avaliacaoCarrinho.totalFinal
+      }
     };
-  }, [loja, categorias, produtos, formasEntrega, regrasAtivas, clienteSelecionado, nomeCliente, configShippingLoja]);
+  }, [loja, categorias, produtos, formasEntrega, regrasAtivas, clienteSelecionado, nomeCliente, configShippingLoja, carrinho, avaliacaoCarrinho.totalFinal]);
 
   const totalItens = avaliacaoCarrinho.totalPecas;
   const subtotal = avaliacaoCarrinho.totalFinal;
