@@ -94,25 +94,43 @@ export const AssistenteRubi: React.FC = () => {
         };
 
         recognition.onresult = (event: any) => {
-          let transcriptFinal = '';
-          let transcriptInterim = '';
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            const resItem = event.results[i];
-            const item = resItem?.[0];
-            if (!item) continue;
+          let finalTranscript = '';
+          let interimTranscript = '';
+          for (let i = 0; i < event.results.length; ++i) {
+            const item = event.results[i];
+            const pedaco = (item?.[0]?.transcript || '').trim();
+            if (!pedaco) continue;
 
-            const textoPedaco = (item.transcript || '').trim();
-            if (!textoPedaco) continue;
-
-            if (resItem.isFinal) {
-              transcriptFinal += (transcriptFinal ? ' ' : '') + textoPedaco;
+            if (item.isFinal) {
+              if (!finalTranscript) {
+                finalTranscript = pedaco;
+              } else if (pedaco.toLowerCase().startsWith(finalTranscript.toLowerCase())) {
+                finalTranscript = pedaco;
+              } else if (!finalTranscript.toLowerCase().endsWith(pedaco.toLowerCase())) {
+                finalTranscript += ' ' + pedaco;
+              }
             } else {
-              transcriptInterim += (transcriptInterim ? ' ' : '') + textoPedaco;
+              if (!interimTranscript) {
+                interimTranscript = pedaco;
+              } else if (pedaco.toLowerCase().startsWith(interimTranscript.toLowerCase())) {
+                interimTranscript = pedaco;
+              } else if (!interimTranscript.toLowerCase().endsWith(pedaco.toLowerCase())) {
+                interimTranscript += ' ' + pedaco;
+              }
             }
           }
-          const transcricao = (transcriptFinal || transcriptInterim).trim();
-          if (transcricao) {
-            setInputTexto(transcricao);
+
+          if (
+            finalTranscript &&
+            interimTranscript &&
+            interimTranscript.toLowerCase().startsWith(finalTranscript.toLowerCase())
+          ) {
+            interimTranscript = interimTranscript.slice(finalTranscript.length).trim();
+          }
+
+          const textoLimpo = (finalTranscript + ' ' + interimTranscript).replace(/\s+/g, ' ').trim();
+          if (textoLimpo) {
+            setInputTexto(textoLimpo);
           }
         };
 

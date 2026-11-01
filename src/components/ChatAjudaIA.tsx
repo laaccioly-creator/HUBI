@@ -116,12 +116,43 @@ export const ChatAjudaIA: React.FC = () => {
         };
 
         recognition.onresult = (event: any) => {
-          let transcricao = '';
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            transcricao += event.results[i][0].transcript;
+          let finalTranscript = '';
+          let interimTranscript = '';
+          for (let i = 0; i < event.results.length; ++i) {
+            const item = event.results[i];
+            const pedaco = (item?.[0]?.transcript || '').trim();
+            if (!pedaco) continue;
+
+            if (item.isFinal) {
+              if (!finalTranscript) {
+                finalTranscript = pedaco;
+              } else if (pedaco.toLowerCase().startsWith(finalTranscript.toLowerCase())) {
+                finalTranscript = pedaco;
+              } else if (!finalTranscript.toLowerCase().endsWith(pedaco.toLowerCase())) {
+                finalTranscript += ' ' + pedaco;
+              }
+            } else {
+              if (!interimTranscript) {
+                interimTranscript = pedaco;
+              } else if (pedaco.toLowerCase().startsWith(interimTranscript.toLowerCase())) {
+                interimTranscript = pedaco;
+              } else if (!interimTranscript.toLowerCase().endsWith(pedaco.toLowerCase())) {
+                interimTranscript += ' ' + pedaco;
+              }
+            }
           }
-          if (transcricao.trim()) {
-            setInputMensagem(transcricao);
+
+          if (
+            finalTranscript &&
+            interimTranscript &&
+            interimTranscript.toLowerCase().startsWith(finalTranscript.toLowerCase())
+          ) {
+            interimTranscript = interimTranscript.slice(finalTranscript.length).trim();
+          }
+
+          const textoLimpo = (finalTranscript + ' ' + interimTranscript).replace(/\s+/g, ' ').trim();
+          if (textoLimpo) {
+            setInputMensagem(textoLimpo);
           }
         };
 
