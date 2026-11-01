@@ -28,6 +28,11 @@ export interface RespostaRubiCatalogo {
     quantidade: number;
     variacaoId?: string;
   };
+  comandosSacola?: Array<{
+    produto: Produto;
+    quantidade: number;
+    variacaoId?: string;
+  }>;
   dadosCadastroDetectados?: {
     nome?: string;
     telefone?: string;
@@ -41,6 +46,27 @@ export const normalizarTexto = (str: string): string => {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
+};
+
+export const singularizarPalavra = (palavra: string): string => {
+  const p = normalizarTexto(palavra);
+  if (p.length <= 3) return p;
+  if (p === 'paes') return 'pao';
+  if (p.endsWith('oes') || p.endsWith('aes')) return p.slice(0, -3) + 'ao';
+  if (p.endsWith('ais') && p.length > 4) return p.slice(0, -3) + 'al';
+  if (p.endsWith('eis') && p.length > 4) return p.slice(0, -3) + 'el';
+  if (p.endsWith('ois') && p.length > 4) return p.slice(0, -3) + 'ol';
+  if (p.endsWith('ns') && p.length > 3) return p.slice(0, -2) + 'm';
+  if (p.endsWith('res') && p.length > 4) return p.slice(0, -2);
+  if (p.endsWith('zes') && p.length > 4) return p.slice(0, -2);
+  if (
+    p.endsWith('s') &&
+    !p.endsWith('ss') &&
+    !['lapis', 'tenis', 'oasis', 'virus', 'onibus', 'pires', 'simples', 'gratis'].includes(p)
+  ) {
+    return p.slice(0, -1);
+  }
+  return p;
 };
 
 /**
@@ -196,44 +222,72 @@ export const buscarProdutosPorIntencao = (
       .slice(0, limite);
   }
 
-  // 2. Extrair palavras e expandir sinônimos de acordo com o nicho
-  const palavrasTermo = pNorm.split(/\s+/).filter(w => w.length >= 3);
-  const palavrasExpandidas = new Set<string>(palavrasTermo);
+  // 2. Extrair palavras relevantes (filtrando saudações e verbos genéricos) e expandir sinônimos
+  const stopWordsBusca = new Set([
+    'oi', 'ola', 'rubi', 'ruby', 'bom', 'boa', 'dia', 'tarde', 'noite', 'quero', 'queria',
+    'gostaria', 'saber', 'mais', 'sobre', 'tem', 'voce', 'voces', 'bota', 'botar', 'coloca',
+    'colocar', 'poe', 'adiciona', 'adicionar', 'cesta', 'sacola', 'carrinho', 'para', 'pra',
+    'mim', 'por', 'favor', 'hoje', 'catalogo', 'loja', 'qual', 'quais', 'como', 'onde',
+    'esse', 'essa', 'este', 'esta', 'isso', 'aquilo', 'uma', 'uns', 'umas', 'dois', 'duas',
+    'tres', 'quatro', 'cinco', 'quilo', 'quilos', 'kilo', 'kilos', 'litro', 'litros', 'unidade', 'unidades'
+  ]);
+
+  const palavrasTermo = pNorm
+    .split(/[\s,.;:!?\-+]+/)
+    .filter(w => w.length >= 3 && !stopWordsBusca.has(w) && !/^\d+$/.test(w));
+  const palavrasExpandidas = new Set<string>();
+  palavrasTermo.forEach(w => {
+    palavrasExpandidas.add(w);
+    palavrasExpandidas.add(singularizarPalavra(w));
+  });
 
   const mapaSinonimos = MAPA_SINONIMOS_SEGMENTO[segmento] || {};
   for (const [chave, sinonimos] of Object.entries(mapaSinonimos)) {
     if (pNorm.includes(chave)) {
-      sinonimos.forEach(s => palavrasExpandidas.add(s));
+      sinonimos.forEach(s => {
+        palavrasExpandidas.add(s);
+        palavrasExpandidas.add(singularizarPalavra(s));
+      });
     }
   }
 
+  const ehBuscaGenericaDestaque = /\b(destaque|sugestao|sugestoes|indica|indicacao|mais\s+vendido|recomend)\b/.test(pNorm);
+
   if (palavrasExpandidas.size === 0) {
-    return produtosDisponiveis.slice(0, limite);
+    return ehBuscaGenericaDestaque ? produtosDisponiveis.slice(0, limite) : [];
   }
 
   const pontuados = produtosDisponiveis.map(prod => {
     const nomeNorm = normalizarTexto(prod.nome || '');
+    const palavrasNome = nomeNorm.split(/[\s,.;:!?\-+()\/]+/).filter(Boolean);
+    const palavrasNomeSing = palavrasNome.map(singularizarPalavra);
     const descNorm = normalizarTexto(prod.descricao || '');
     const catNorm = normalizarTexto(prod.categoria?.nome || '');
 
     let score = 0;
 
-    // Match exato do termo completo no nome
-    if (nomeNorm.includes(pNorm)) score += 50;
-    if (catNorm.includes(pNorm)) score += 30;
-
-    // Match palavra por palavra e sinônimos
+    // Prioridade máxima para o nome do produto na loja ativa (produtos.nome)
     for (const word of palavrasExpandidas) {
-      if (nomeNorm.includes(word)) score += 15;
-      if (catNorm.includes(word)) score += 10;
-      if (descNorm.includes(word)) score += 5;
+      const wordSing = singularizarPalavra(word);
+      if (palavrasNome.includes(word) || palavrasNomeSing.includes(wordSing)) {
+        score += 45;
+        if (palavrasNomeSing[0] === wordSing) {
+          score += 25;
+        }
+      } else if (wordSing.length >= 4 && nomeNorm.includes(wordSing)) {
+        score += 20;
+      } else if (wordSing.length >= 4 && catNorm.includes(wordSing)) {
+        score += 12;
+      } else if (wordSing.length >= 5 && descNorm.includes(wordSing)) {
+        score += 4;
+      }
     }
 
     return { prod, score };
   });
 
   const filtrados = pontuados
-    .filter(item => item.score > 0)
+    .filter(item => item.score >= 20)
     .sort((a, b) => b.score - a.score)
     .map(item => item.prod);
 
@@ -241,65 +295,257 @@ export const buscarProdutosPorIntencao = (
     return filtrados.slice(0, limite);
   }
 
-  return produtosDisponiveis.slice(0, limite);
+  // Sem fallback de produtos aleatórios quando o termo buscado não existir na loja
+  return ehBuscaGenericaDestaque ? produtosDisponiveis.slice(0, limite) : [];
 };
 
 /**
- * Detecta comando de voz/texto para adicionar produto à sacola
+ * Casa estritamente um termo falado pelo cliente contra os nomes dos produtos da loja ativa (produtos.nome).
+ * Retorna null se não encontrar correspondência segura (evitando adicionar produto errado).
+ */
+export const casarProdutoEstritoPorNome = (
+  termoFalado: string,
+  produtosLoja: Produto[]
+): Produto | null => {
+  const ativos = (produtosLoja || []).filter(p => p.ativo !== false);
+  if (ativos.length === 0) return null;
+
+  const stopWordsItem = new Set([
+    'de', 'do', 'da', 'dos', 'das', 'com', 'sem', 'um', 'uma', 'uns', 'umas',
+    'kg', 'kilo', 'kilos', 'quilo', 'quilos', 'g', 'grama', 'gramas', 'ml', 'l',
+    'litro', 'litros', 'un', 'und', 'unidade', 'unidades', 'pacote', 'pacotes',
+    'pct', 'caixa', 'caixas', 'cx', 'fardo', 'fardos', 'garrafa', 'garrafas',
+    'lata', 'latas', 'pote', 'potes', 'saco', 'sacos', 'item', 'itens', 'produto', 'produtos'
+  ]);
+
+  const tokens = normalizarTexto(termoFalado)
+    .split(/[\s,.;:!?\-+()\/]+/)
+    .filter(t => t.length >= 2 && !stopWordsItem.has(t) && !/^\d+(?:kg|g|ml|l)?$/.test(t));
+
+  if (tokens.length === 0) return null;
+
+  const tokensSing = tokens.map(singularizarPalavra);
+  const termoUnidoSing = tokensSing.join(' ');
+
+  let melhorProd: Produto | null = null;
+  let melhorScore = 0;
+
+  for (const prod of ativos) {
+    const nomeNorm = normalizarTexto(prod.nome || '');
+    if (!nomeNorm) continue;
+
+    const palavrasProd = nomeNorm.split(/[\s,.;:!?\-+()\/]+/).filter(Boolean);
+    const palavrasProdSing = palavrasProd.map(singularizarPalavra);
+    const nomeUnidoSing = palavrasProdSing.join(' ');
+
+    let score = 0;
+    let matchesNoNome = 0;
+
+    if (nomeUnidoSing === termoUnidoSing || nomeNorm === normalizarTexto(termoFalado)) {
+      score += 200;
+      matchesNoNome = tokensSing.length;
+    }
+
+    for (const tk of tokensSing) {
+      if (palavrasProdSing.includes(tk) || palavrasProd.includes(tk)) {
+        score += 80;
+        matchesNoNome++;
+        if (palavrasProdSing[0] === tk) {
+          score += 35; // Bônus se for o substantivo principal do produto
+        }
+      } else if (tk.length >= 4 && palavrasProdSing.some(p => p.startsWith(tk) || tk.startsWith(p))) {
+        score += 45;
+        matchesNoNome++;
+      }
+    }
+
+    // Exige que pelo menos a palavra-chave principal esteja no nome do produto
+    if (matchesNoNome > 0 && score > melhorScore && score >= 45) {
+      melhorScore = score;
+      melhorProd = prod;
+    }
+  }
+
+  return melhorProd;
+};
+
+const MAPA_NUMEROS_EXTENSO: Record<string, number> = {
+  um: 1,
+  uma: 1,
+  dois: 2,
+  duas: 2,
+  tres: 3,
+  quatro: 4,
+  cinco: 5,
+  seis: 6,
+  sete: 7,
+  oito: 8,
+  nove: 9,
+  dez: 10
+};
+
+/**
+ * Analisa pedidos diretos ou listas de compras faladas pelo cliente
+ * Ex: "Oi Rubi, bota 1kg de açaí, 1 abacaxi, dois açúcar"
+ */
+export const detectarPedidoListaSacola = (
+  texto: string,
+  produtosLoja: Produto[],
+  ultimoSugerido?: Produto | null
+): {
+  ehIntencaoCompra: boolean;
+  itensEncontrados: Array<{ produto: Produto; quantidade: number; termoOriginal: string }>;
+  termosNaoEncontrados: string[];
+} => {
+  const tNorm = normalizarTexto(texto);
+
+  // Não tratar como compra direta se for uma pergunta informativa ("gostaria de saber mais", "qual o preço", "como funciona")
+  const ehPerguntaInformativa =
+    /\b(gostaria\s+de\s+saber|quero\s+saber|queria\s+saber|saber\s+mais|me\s+fala|me\s+explica|como\s+funciona|para\s+que\s+serve|pra\s+que\s+serve|qual\s+o\s+preco|quanto\s+custa|quanto\s+ta|tem\s+foto|mostra\s+a\s+foto|quais\s+sao|quais\s+os)\b/.test(
+      tNorm
+    );
+  if (ehPerguntaInformativa) {
+    return { ehIntencaoCompra: false, itensEncontrados: [], termosNaoEncontrados: [] };
+  }
+
+  const temVerboCompra =
+    /\b(bota|botar|bote|coloca|colocar|coloque|poe|ponha|adiciona|adicionar|adicione|inclui|incluir|separa|separar|me\s+ve|me\s+da|quero\s+levar|vou\s+levar|vou\s+querer|compra\s+esse|na\s+cesta|na\s+sacola|no\s+carrinho)\b/.test(
+      tNorm
+    );
+
+  // Também aceita "quero 1kg de açaí, 1 abacaxi..." quando menciona quantidades explícitas
+  const temQueroComQuantidade =
+    /\b(quero|preciso\s+de|me\s+manda|manda)\b/.test(tNorm) &&
+    /\b(\d+|um|uma|dois|duas|tres|quatro|cinco)\s*(?:kg|kilos?|quilos?|g|ml|l|litros?|unidades?|pacotes?)?\s+(?:de\s+)?[a-z]{3,}/.test(
+      tNorm
+    );
+
+  if (!temVerboCompra && !temQueroComQuantidade) {
+    return { ehIntencaoCompra: false, itensEncontrados: [], termosNaoEncontrados: [] };
+  }
+
+  // 1. Checar referência anafórica simples ("adiciona esse", "coloca ele na cesta", "quero esse")
+  const ehAnaforico =
+    /\b(esse|este|essa|esta|ele|ela|desse|deste|primeiro|primeira|segundo|segunda|terceiro|terceira)\b/.test(tNorm) &&
+    !/\b(acai|abacaxi|acucar|arroz|feijao|oleo|gel|vibrador|lubrificante|cerveja|refrigerante)\b/.test(tNorm);
+
+  if (ehAnaforico && ultimoSugerido) {
+    let qtdAnaforica = 1;
+    const mNum = tNorm.match(/\b(\d+|um|uma|dois|duas|tres|quatro|cinco)\b/);
+    if (mNum && mNum[1]) {
+      qtdAnaforica = MAPA_NUMEROS_EXTENSO[mNum[1]] || parseInt(mNum[1], 10) || 1;
+    }
+    return {
+      ehIntencaoCompra: true,
+      itensEncontrados: [{ produto: ultimoSugerido, quantidade: qtdAnaforica, termoOriginal: ultimoSugerido.nome }],
+      termosNaoEncontrados: []
+    };
+  }
+
+  // 2. Limpar saudações iniciais ("Oi Rubi", "Olá Rubi") e sufixos de cesta/carrinho
+  let corpoLista = texto
+    .replace(/^(?:oi|ol[aá]|ei|bom\s+dia|boa\s+tarde|boa\s+noite)?[\s,.:!]*?(?:rubi|ruby|rubie|rubee)?[\s,.:!]+/i, '')
+    .replace(/\b(?:na\s+minha\s+cesta|na\s+cesta|na\s+minha\s+sacola|na\s+sacola|no\s+meu\s+carrinho|no\s+carrinho|de\s+compras|ai\s+pra\s+mim|pra\s+mim|para\s+mim|por\s+favor)\b/gi, '')
+    .trim();
+
+  // Remover verbo de comando no início da frase
+  corpoLista = corpoLista
+    .replace(
+      /^(?:bota|botar|bote|coloca|colocar|coloque|p[oõ]e|ponha|adiciona|adicionar|adicione|inclui|incluir|separa|separar|me\s+v[eê]|me\s+d[aá]|quero\s+levar|vou\s+levar|vou\s+querer|quero|preciso\s+de|me\s+manda|manda)\s+/i,
+      ''
+    )
+    .trim();
+
+  // Dividir os itens da lista por vírgula, ponto-e-vírgula ou conectivo "e" / "mais"
+  const segmentos = corpoLista
+    .split(/(?:,|;|\s+e\s+|\s+mais\s+|\s+tamb[eé]m\s+)/i)
+    .map(s => s.trim())
+    .filter(s => s.length >= 2);
+
+  const itensEncontrados: Array<{ produto: Produto; quantidade: number; termoOriginal: string }> = [];
+  const termosNaoEncontrados: string[] = [];
+
+  for (const segBruto of segmentos) {
+    // Limpar verbos repetidos no segmento (ex: "e coloca 1 abacaxi")
+    const seg = segBruto
+      .replace(
+        /^(?:bota|botar|bote|coloca|colocar|coloque|p[oõ]e|ponha|adiciona|adicionar|adicione|inclui|incluir|separa|separar|me\s+v[eê]|me\s+d[aá]|quero)\s+/i,
+        ''
+      )
+      .trim();
+    if (!seg) continue;
+
+    // Extrair quantidade e unidade opcional no início do segmento (ex: "1kg de açaí", "2 açúcares", "dois açúcar")
+    let quantidade = 1;
+    let restoNome = seg;
+
+    const matchQtdInicio = seg.match(
+      /^(\d+|um|uma|dois|duas|tr[eê]s|quatro|cinco|seis|sete|oito|nove|dez)\s*(kg|kilos?|quilos?|g|gramas?|ml|l|litros?|un|und|unidades?|pacotes?|pct|caixas?|fardos?|garrafas?|latas?|potes?)?\s*(?:de\s+)?(.+)$/i
+    );
+
+    if (matchQtdInicio) {
+      const qtdRaw = normalizarTexto(matchQtdInicio[1]);
+      const unidadeRaw = normalizarTexto(matchQtdInicio[2] || '');
+      restoNome = matchQtdInicio[3].trim();
+
+      const numVal = MAPA_NUMEROS_EXTENSO[qtdRaw] || parseInt(qtdRaw, 10) || 1;
+      // Se for medida em gramas/ml (ex: 500g) ou 1kg, adiciona 1 unidade; se for > 1 (ex: 2 pacotes, dois açúcar), usa numVal
+      if (unidadeRaw === 'g' || unidadeRaw === 'grama' || unidadeRaw === 'gramas' || unidadeRaw === 'ml') {
+        quantidade = 1;
+      } else if (numVal > 0 && numVal <= 50) {
+        quantidade = numVal;
+      }
+    } else {
+      // Remover artigo inicial solto ("o açaí", "a cerveja")
+      restoNome = seg.replace(/^(?:o|a|os|as)\s+/i, '').trim();
+    }
+
+    if (!restoNome || restoNome.length < 2) continue;
+
+    const prodMatch = casarProdutoEstritoPorNome(restoNome, produtosLoja);
+    if (prodMatch) {
+      // Se mencionou ex: "2kg" mas o nome do produto já é de "2kg", quantidade = 1
+      const existente = itensEncontrados.find(i => i.produto.id === prodMatch.id);
+      if (existente) {
+        existente.quantidade += quantidade;
+      } else {
+        itensEncontrados.push({
+          produto: prodMatch,
+          quantidade,
+          termoOriginal: restoNome
+        });
+      }
+    } else {
+      termosNaoEncontrados.push(restoNome);
+    }
+  }
+
+  if (itensEncontrados.length === 0 && termosNaoEncontrados.length === 0) {
+    return { ehIntencaoCompra: false, itensEncontrados: [], termosNaoEncontrados: [] };
+  }
+
+  return {
+    ehIntencaoCompra: true,
+    itensEncontrados,
+    termosNaoEncontrados
+  };
+};
+
+/**
+ * Detecta comando de voz/texto para adicionar produto à sacola (compatibilidade)
  */
 export const detectarComandoSacola = (
   texto: string,
   produtosContexto: Produto[],
   ultimoSugerido?: Produto | null
 ): { produto: Produto; quantidade: number } | null => {
-  const tNorm = normalizarTexto(texto);
-
-  const termosAdicionar = [
-    'adiciona', 'adicionar', 'adiciona para mim', 'adiciona pra mim',
-    'coloca na sacola', 'coloca no carrinho', 'poe na sacola', 'poe no carrinho',
-    'gostei desse', 'gostei desse produto', 'quero esse', 'quero levar esse',
-    'vou levar esse', 'adiciona esse', 'quero esse produto', 'compra esse'
-  ];
-
-  const temIntencaoAdicionar = termosAdicionar.some(term => tNorm.includes(term));
-  if (!temIntencaoAdicionar) return null;
-
-  // Detectar quantidade mencionada (ex: "2 unidades", "3 desse")
-  let quantidade = 1;
-  const matchQtd = tNorm.match(/(\d+)\s*(?:unidades?|itens?|pecas?|desse)?/);
-  if (matchQtd && matchQtd[1]) {
-    const qNum = parseInt(matchQtd[1], 10);
-    if (qNum > 0 && qNum <= 50) quantidade = qNum;
+  const resultado = detectarPedidoListaSacola(texto, produtosContexto, ultimoSugerido);
+  if (resultado.ehIntencaoCompra && resultado.itensEncontrados.length > 0) {
+    return {
+      produto: resultado.itensEncontrados[0].produto,
+      quantidade: resultado.itensEncontrados[0].quantidade
+    };
   }
-
-  // 1. Se mencionou "primeiro", "segundo", "terceiro"
-  if (produtosContexto.length > 0) {
-    if (tNorm.includes('primeiro') || tNorm.includes('1')) {
-      return { produto: produtosContexto[0], quantidade };
-    }
-    if (produtosContexto.length > 1 && (tNorm.includes('segundo') || tNorm.includes('2'))) {
-      return { produto: produtosContexto[1], quantidade };
-    }
-    if (produtosContexto.length > 2 && (tNorm.includes('terceiro') || tNorm.includes('3'))) {
-      return { produto: produtosContexto[2], quantidade };
-    }
-  }
-
-  // 2. Se mencionou nome ou parte do nome de algum produto da lista
-  for (const prod of produtosContexto) {
-    const nomeNorm = normalizarTexto(prod.nome);
-    const palavrasNome = nomeNorm.split(/\s+/).filter(p => p.length >= 4);
-    if (palavrasNome.some(pal => tNorm.includes(pal))) {
-      return { produto: prod, quantidade };
-    }
-  }
-
-  // 3. Fallback: usar o último produto sugerido ou o primeiro da lista recente
-  const prodAlvo = ultimoSugerido || (produtosContexto.length > 0 ? produtosContexto[0] : null);
-  if (prodAlvo) {
-    return { produto: prodAlvo, quantidade };
-  }
-
   return null;
 };
 
@@ -585,45 +831,53 @@ export const responderPerguntaClienteCatalogo = async (
     }
   }
 
-  // 3. Busca por match inteligente de palavras-chave do produto na frase
+  // 3. Busca por match inteligente de palavras-chave do produto na frase (priorizando produtos.nome)
   if (!produtoAlvo) {
-    const palavrasPergunta = pNorm.split(/[\s,.;:!?\-+]+/).filter(w => w.length >= 3);
+    const palavrasPergunta = pNorm.split(/[\s,.;:!?\-+]+/).filter(w => w.length >= 3 && !/^\d+$/.test(w));
     const stopWords = new Set([
-      'mais', 'para', 'como', 'onde', 'qual', 'quais', 'esse', 'essa', 'este', 'esta',
-      'sobre', 'quero', 'queria', 'voce', 'tem', 'passa', 'detalhes', 'manda', 'mandar',
-      'foto', 'aqui', 'mim', 'poder', 'ver', 'fazer', 'localizar', 'sistema', 'catalogo',
-      'bom', 'boa', 'olha', 'olhada', 'acho', 'achar', 'gostaria', 'dar', 'uma', 'uns'
+      'oi', 'ola', 'rubi', 'ruby', 'bom', 'boa', 'dia', 'tarde', 'noite',
+      'mais', 'para', 'pra', 'como', 'onde', 'qual', 'quais', 'esse', 'essa', 'este', 'esta',
+      'sobre', 'quero', 'queria', 'voce', 'voces', 'tem', 'passa', 'detalhes', 'manda', 'mandar',
+      'foto', 'aqui', 'mim', 'poder', 'ver', 'fazer', 'localizar', 'sistema', 'catalogo', 'loja',
+      'olha', 'olhada', 'acho', 'achar', 'gostaria', 'dar', 'uma', 'uns', 'umas', 'dois', 'duas',
+      'tres', 'quatro', 'cinco', 'bota', 'botar', 'coloca', 'colocar', 'poe', 'adiciona', 'adicionar',
+      'cesta', 'sacola', 'carrinho', 'hoje', 'por', 'favor', 'quilo', 'quilos', 'kilo', 'kilos', 'litro', 'litros'
     ]);
     const palavrasChaveBusca = palavrasPergunta.filter(w => !stopWords.has(w));
+    const palavrasChaveSing = palavrasChaveBusca.map(singularizarPalavra);
 
-    if (palavrasChaveBusca.length > 0) {
+    if (palavrasChaveSing.length > 0) {
       let melhorScore = 0;
       let melhorProd: Produto | null = null;
 
       for (const prod of produtos) {
         if (prod.ativo === false) continue;
         const nomeProdNorm = normalizarTexto(prod.nome || '');
-        const palavrasNome = nomeProdNorm.split(/[\s,.;:!?\-+]+/).filter(w => w.length >= 3);
+        const palavrasNome = nomeProdNorm.split(/[\s,.;:!?\-+()\/]+/).filter(w => w.length >= 2);
+        const palavrasNomeSing = palavrasNome.map(singularizarPalavra);
 
         let score = 0;
         // Match exato do nome inteiro
-        if (pNorm.includes(nomeProdNorm)) score += 100;
+        if (nomeProdNorm.length >= 4 && pNorm.includes(nomeProdNorm)) score += 100;
 
-        // Match das palavras-chave
-        for (const chave of palavrasChaveBusca) {
-          if (palavrasNome.includes(chave)) {
-            score += 35; // palavra exata presente no nome
-          } else if (nomeProdNorm.includes(chave)) {
-            score += 15;
+        // Match das palavras-chave (incluindo singular/plural: ex. "óleos" -> "óleo")
+        for (const chaveSing of palavrasChaveSing) {
+          if (palavrasNomeSing.includes(chaveSing) || palavrasNome.includes(chaveSing)) {
+            score += 45;
+            if (palavrasNomeSing[0] === chaveSing) {
+              score += 25;
+            }
+          } else if (chaveSing.length >= 4 && palavrasNomeSing.some(p => p.startsWith(chaveSing) || chaveSing.startsWith(p))) {
+            score += 25;
           }
         }
 
         // Bônus se termo muito característico der match direto (ex: bullet)
-        if (palavrasChaveBusca.includes('bullet') && nomeProdNorm.includes('bullet')) {
+        if (palavrasChaveSing.includes('bullet') && nomeProdNorm.includes('bullet')) {
           score += 40;
         }
 
-        if (score > melhorScore && score >= 30) {
+        if (score > melhorScore && score >= 45) {
           melhorScore = score;
           melhorProd = prod;
         }
@@ -670,16 +924,48 @@ export const responderPerguntaClienteCatalogo = async (
     };
   }
 
-  // 2. CHECAGEM DE COMANDO DE VOZ / TEXTO PARA ADICIONAR À SACOLA
-  const comandoSacola = detectarComandoSacola(pergunta, produtos, produtoAlvo || ultimoProdutoSugerido);
-  if (comandoSacola) {
-    const { produto, quantidade } = comandoSacola;
+  // 2. CHECAGEM DE COMANDO DE VOZ / TEXTO PARA ADICIONAR À CESTA (ITEM ÚNICO OU LISTA DE COMPRAS)
+  const pedidoLista = detectarPedidoListaSacola(perguntaCorrigida, produtos, produtoAlvo || ultimoProdutoSugerido);
+  if (pedidoLista.ehIntencaoCompra) {
     const nomeTratamento = nomeClienteEfetivo ? `, ${nomeClienteEfetivo}` : '';
-    return {
-      texto: `Prontinho${nomeTratamento}! Adicionei o **${produto.nome}** à sua sacola de compras! 🛍️ Deseja mais algum item?`,
-      produtosSugeridos: [produto],
-      comandoSacola
-    };
+
+    if (pedidoLista.itensEncontrados.length > 0) {
+      const descricoesItens = pedidoLista.itensEncontrados.map(item =>
+        item.quantidade > 1 ? `${item.quantidade}x **${item.produto.nome}**` : `o **${item.produto.nome}**`
+      );
+      const listaFormatada =
+        descricoesItens.length === 1
+          ? descricoesItens[0]
+          : `${descricoesItens.slice(0, -1).join(', ')} e ${descricoesItens[descricoesItens.length - 1]}`;
+
+      const avisoNaoEncontrados =
+        pedidoLista.termosNaoEncontrados.length > 0
+          ? ` Não encontrei ${pedidoLista.termosNaoEncontrados.join(' e ')} no catálogo hoje.`
+          : '';
+
+      return {
+        texto: `Prontinho${nomeTratamento}! Coloquei ${listaFormatada} na sua cesta.${avisoNaoEncontrados} Precisa de mais alguma coisa?`,
+        produtosSugeridos: pedidoLista.itensEncontrados.map(i => i.produto),
+        comandoSacola: {
+          produto: pedidoLista.itensEncontrados[0].produto,
+          quantidade: pedidoLista.itensEncontrados[0].quantidade
+        },
+        comandosSacola: pedidoLista.itensEncontrados.map(i => ({
+          produto: i.produto,
+          quantidade: i.quantidade
+        }))
+      };
+    }
+
+    if (pedidoLista.termosNaoEncontrados.length > 0) {
+      const naoEncontradosStr = pedidoLista.termosNaoEncontrados.join(', ');
+      const exemplosAtivos = produtos.filter(p => p.ativo !== false).slice(0, 3);
+      const nomesExemplos = exemplosAtivos.map(p => `**${p.nome}**`).join(', ');
+      return {
+        texto: `Não encontrei ${naoEncontradosStr} no catálogo hoje${nomesExemplos ? `, temos ${nomesExemplos}` : ''}. Gostaria de algum desses?`,
+        produtosSugeridos: exemplosAtivos.length > 0 ? exemplosAtivos : undefined
+      };
+    }
   }
 
   // 3. TRIAGEM OPERACIONAL INSTANTÂNEA VIA JEV (SYSTEM ONE - FASE 3)
@@ -932,6 +1218,9 @@ ${JSON.stringify(catalogoResumo)}
 
 🚨 DIRETRIZ DE VOZ OBRIGATÓRIA:
 Você é uma assistente de vendas por voz (estilo Alexa). Responda sempre de forma extremamente concisa, empática e direta, em no máximo 2 a 3 frases curtas. Nunca escreva textos longos ou parágrafos extensos. Se o cliente quiser mais detalhes, pergunte se ele deseja saber mais.
+
+🚨 COMPORTAMENTO DE COMPRA ÁGIL:
+Quando o cliente pedir produtos (seja um item ou uma lista com vários, ex: 'bota 1kg de açaí, 2 açúcares e 1 abacaxi'), identifique os produtos solicitados e ADICIONE-OS DIRETAMENTE à cesta. NÃO fique descrevendo produtos, dando preços unitários ou perguntando se ele quer adicionar. Aja como um atendente humano prático de balcão. Responda apenas confirmando o que foi colocado na cesta em uma única frase amigável (ex: 'Prontinho! Coloquei o açaí, o abacaxi e os 2 açúcares na sua cesta. Precisa de mais alguma coisa?'). Se o produto solicitado pelo cliente não existir no catálogo da loja ativa, NUNCA adicione ou recomende itens aleatórios como se fossem o que ele pediu (ex: se não encontrar 'açaí', diga 'Não encontrei açaí no catálogo hoje, temos...').
 
 🚨 DIRETRIZES INVIOLÁVEIS DE ATENDIMENTO E ZERO ALUCINAÇÃO:
 1. PROIBIDO INVENTAR PRODUTOS OU PREÇOS: Você SÓ PODE recomendar, descrever ou citar produtos que constam LITERALMENTE na lista "CATÁLOGO REAL DA LOJA" acima! NUNCA invente nomes de modelos fictícios (como "Discreet", "Velvet Touch", etc.) e NUNCA invente preços. Use rigorosamente o valor que está no campo "preco" de cada produto listado. Se o produto custa 6.50, fale "6 e 50". Jamais fale 69 e 90 ou outros valores não existentes!

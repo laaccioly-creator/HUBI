@@ -351,11 +351,12 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
           textoCapturadoRef.current = textoLimpo;
           setInputTexto(textoLimpo);
 
-          // Reiniciar timer de silêncio: 1.8s de pausa após terminar a fala pausa microfone e envia imediatamente
+          // Reiniciar timer de silêncio: 2.0s ininterruptos de silêncio após a última palavra falada
           if (silencioTimerRef.current) {
             clearTimeout(silencioTimerRef.current);
           }
           silencioTimerRef.current = setTimeout(() => {
+            silencioTimerRef.current = null;
             const textoFinal = textoCapturadoRef.current.trim();
             if (textoFinal.length >= 2 && !rubiFalandoRef.current && !pensandoRef.current) {
               // Zere imediatamente os buffers
@@ -372,7 +373,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
 
               enviarMensagem(textoFinal);
             }
-          }, 1800);
+          }, 2000);
         };
 
         recognition.onerror = (event: any) => {
@@ -401,12 +402,13 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
 
           const textoPendente = textoCapturadoRef.current.trim();
 
-          // Se o recognition encerrou e tínhamos comando falado pendente:
+          // Se o temporizador de 2.0s de silêncio ainda estiver aguardando pausa natural, respeita os 2.0s
+          if (silencioTimerRef.current) {
+            return;
+          }
+
+          // Se o recognition encerrou e tínhamos comando falado pendente sem timer ativo:
           if (textoPendente.length >= 2 && !rubiFalandoRef.current && !pensandoRef.current) {
-            if (silencioTimerRef.current) {
-              clearTimeout(silencioTimerRef.current);
-              silencioTimerRef.current = null;
-            }
             textoCapturadoRef.current = '';
             setInputTexto('');
             deveContinuarOuvindoRef.current = false;
@@ -804,12 +806,22 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
 
       const respostaRubi = await responderPerguntaClienteCatalogo(texto, contextoAtualizado);
 
-      // Se comando de adicionar à sacola foi detectado
-      if (respostaRubi.comandoSacola) {
-        const { produto, quantidade } = respostaRubi.comandoSacola;
-        if (onAdicionarAoCarrinho) {
-          onAdicionarAoCarrinho(produto, null, quantidade);
-          mostrarToastFeedback(`"${produto.nome}" adicionado à sacola! 🛍️`);
+      // Se comando de adicionar à sacola (único ou lista de compras) foi detectado
+      const listaComandosSacola =
+        respostaRubi.comandosSacola && respostaRubi.comandosSacola.length > 0
+          ? respostaRubi.comandosSacola
+          : respostaRubi.comandoSacola
+          ? [respostaRubi.comandoSacola]
+          : [];
+
+      if (listaComandosSacola.length > 0 && onAdicionarAoCarrinho) {
+        for (const itemCmd of listaComandosSacola) {
+          onAdicionarAoCarrinho(itemCmd.produto, null, itemCmd.quantidade);
+        }
+        if (listaComandosSacola.length === 1) {
+          mostrarToastFeedback(`"${listaComandosSacola[0].produto.nome}" adicionado à cesta! 🛍️`);
+        } else {
+          mostrarToastFeedback(`${listaComandosSacola.length} itens adicionados à cesta! 🛍️`);
         }
       }
 
@@ -833,7 +845,7 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
         remetente: 'rubi',
         texto: respostaRubi.texto,
         produtosSugeridos: respostaRubi.produtosSugeridos,
-        adicionadoPorVoz: Boolean(respostaRubi.comandoSacola),
+        adicionadoPorVoz: listaComandosSacola.length > 0,
         data: new Date()
       };
 

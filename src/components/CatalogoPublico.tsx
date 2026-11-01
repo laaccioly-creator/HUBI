@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import {
   ShoppingBag,
+  ShoppingCart,
   Search,
   Plus,
   Minus,
@@ -2964,30 +2965,44 @@ Fico no aguardo da confirmação! ✨`;
       >
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            {/* Seletor Dropdown de Categorias */}
-            <div className="relative w-full sm:w-56 md:w-64 shrink-0 order-2 sm:order-1">
-              <Layers
-                className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 dark:text-slate-300"
-              />
-              <select
-                value={categoriaSelecionada}
-                onChange={(e) => setCategoriaSelecionada(e.target.value)}
-                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-2 dark:border-slate-400 hover:border-slate-400 dark:hover:border-emerald-400 focus:border-emerald-500 rounded-2xl pl-10 pr-9 py-2.5 sm:py-3 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none transition appearance-none cursor-pointer shadow-xs"
-                title="Filtrar produtos por categoria"
-              >
-                <option value="todas" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
-                  Todas as Categorias ({produtos.filter(p => p.tipo_item === 'servico' || getEstoqueTotal(p) > 0).length})
-                </option>
-                {categoriasOrdenadas.map((cat) => {
-                  const totalCat = produtos.filter(p => p.categoria_id === cat.id && (p.tipo_item === 'servico' || getEstoqueTotal(p) > 0)).length;
-                  return (
+            {/* Linha Dividida: Seletor de Categorias (50%) | Botão de Carrinho (50%) */}
+            <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:items-center shrink-0 order-2 sm:order-1">
+              {/* Coluna Esquerda (50%): Seletor Dropdown de Categorias */}
+              <div className="relative w-full sm:w-52 md:w-60">
+                <Layers
+                  className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 dark:text-slate-300"
+                />
+                <select
+                  value={categoriaSelecionada}
+                  onChange={(e) => setCategoriaSelecionada(e.target.value)}
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-2 dark:border-slate-400 hover:border-slate-400 dark:hover:border-emerald-400 focus:border-emerald-500 rounded-2xl pl-9 pr-8 py-2.5 sm:py-3 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none transition appearance-none cursor-pointer shadow-xs truncate"
+                  title="Filtrar produtos por categoria"
+                >
+                  <option value="todas" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
+                    Todas as Categorias
+                  </option>
+                  {categoriasOrdenadas.map((cat) => (
                     <option key={cat.id} value={cat.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200">
-                      {cat.nome} ({totalCat})
+                      {cat.nome}
                     </option>
-                  );
-                })}
-              </select>
-              <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-300 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  ))}
+                </select>
+                <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-300 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+
+              {/* Coluna Direita (50%): Botão Proeminente de Carrinho de Compras */}
+              <button
+                type="button"
+                onClick={() => setDrawerCarrinhoAberto(true)}
+                className="w-full sm:w-auto sm:px-4 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white border border-emerald-500 rounded-2xl px-3 py-2.5 sm:py-3 text-xs font-extrabold flex items-center justify-center gap-2 transition cursor-pointer shadow-xs"
+                title="Abrir Carrinho de Compras"
+              >
+                <ShoppingCart className="w-4 h-4 shrink-0" />
+                <span className="truncate">Carrinho</span>
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-black bg-white text-emerald-700 shadow-xs">
+                  {totalItens}
+                </span>
+              </button>
             </div>
 
             {/* BUSCA E SELETORES DE MODO DE EXIBIÇÃO */}
