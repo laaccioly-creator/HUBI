@@ -91,9 +91,31 @@ export const formatarDataHora = (dataIso?: string | null): string => {
   return new Date(dataIso).toLocaleString('pt-BR');
 };
 
+/**
+ * Normaliza número de telefone armazenando apenas dígitos com DDI 55 (ex: 5585997374372)
+ */
+export const normalizarTelefoneComDDI = (tel?: string | null): string => {
+  if (!tel) return '';
+  const digits = tel.replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
+    return digits;
+  }
+  if (digits.length === 10 || digits.length === 11) {
+    return `55${digits}`;
+  }
+  return digits;
+};
+
 export const formatarTelefone = (tel?: string | null): string => {
   if (!tel) return '';
   const digits = tel.replace(/\D/g, '');
+  if (digits.length === 13 && digits.startsWith('55')) {
+    return `+55 (${digits.slice(2, 4)}) ${digits.slice(4, 9)}-${digits.slice(9)}`;
+  }
+  if (digits.length === 12 && digits.startsWith('55')) {
+    return `+55 (${digits.slice(2, 4)}) ${digits.slice(4, 8)}-${digits.slice(8)}`;
+  }
   if (digits.length === 11) {
     return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
   }
@@ -104,12 +126,11 @@ export const formatarTelefone = (tel?: string | null): string => {
 };
 
 /**
- * Gera e-mail sintético para autenticação no Supabase Auth a partir do número de telefone / WhatsApp
+ * Gera e-mail sintético determinístico para autenticação de operadores no Supabase Auth
  */
 export const gerarEmailSintetico = (telefone: string): string => {
-  const numeros = telefone.replace(/\D/g, '');
-  const ddi = numeros.startsWith('55') ? '' : '55';
-  return `${ddi}${numeros}@hubi.app`;
+  const norm = normalizarTelefoneComDDI(telefone);
+  return `${norm}@hubi.app`;
 };
 
 /**

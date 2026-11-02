@@ -36,7 +36,7 @@ import { MobileHeader } from './layout/MobileHeader';
 import { ModalHistoricoFiadoCliente } from './ModalHistoricoFiadoCliente';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
-import { formatarMoeda } from '../utils/formatters';
+import { formatarMoeda, formatarTelefone, normalizarTelefoneComDDI } from '../utils/formatters';
 import { ModalExtratoCadernetaCliente } from './ModalExtratoCadernetaCliente';
 import { ModalImportarClientes } from './ModalImportarClientes';
 import { CadernetaService } from '../services/cadernetaService';
@@ -167,8 +167,9 @@ export const ClientesFiado: React.FC = () => {
         const clientesSemTelefone: Cliente[] = [];
 
         for (const cli of clientesComSaldo) {
-          const telChave = String(cli.whatsapp || cli.telefone || '').replace(/\D/g, '');
-          if (telChave.length >= 8) {
+          const telBruto = cli.whatsapp || cli.telefone || '';
+          const telChave = normalizarTelefoneComDDI(telBruto);
+          if (telChave && telChave.length >= 10) {
             const lista = gruposPorTelefone.get(telChave) || [];
             lista.push(cli);
             gruposPorTelefone.set(telChave, lista);
@@ -177,7 +178,36 @@ export const ClientesFiado: React.FC = () => {
           }
         }
 
-        const clientesUnificados: Cliente[] = [...clientesSemTelefone];
+        // Tenta mesclar registros órfãos sem telefone com registros principais existentes
+        const clientesFinaisSemTelefone: Cliente[] = [];
+        for (const semTel of clientesSemTelefone) {
+          const nomeNormSemTel = (semTel.nome || '').trim().toLowerCase();
+          const emailSemTel = (semTel.email || '').trim().toLowerCase();
+
+          let grupoEncontradoKey: string | null = null;
+          for (const [key, grupo] of gruposPorTelefone.entries()) {
+            const temMatch = grupo.some(g => {
+              const gNome = (g.nome || '').trim().toLowerCase();
+              const gEmail = (g.email || '').trim().toLowerCase();
+              return (
+                (emailSemTel && !emailSemTel.endsWith('@hubi.app') && gEmail === emailSemTel) ||
+                (nomeNormSemTel.length > 3 && (gNome === nomeNormSemTel || gNome.includes(nomeNormSemTel) || nomeNormSemTel.includes(gNome)))
+              );
+            });
+            if (temMatch) {
+              grupoEncontradoKey = key;
+              break;
+            }
+          }
+
+          if (grupoEncontradoKey) {
+            gruposPorTelefone.get(grupoEncontradoKey)!.push(semTel);
+          } else {
+            clientesFinaisSemTelefone.push(semTel);
+          }
+        }
+
+        const clientesUnificados: Cliente[] = [...clientesFinaisSemTelefone];
 
         for (const [, grupo] of gruposPorTelefone.entries()) {
           if (grupo.length === 1) {
@@ -257,7 +287,9 @@ export const ClientesFiado: React.FC = () => {
                   permite_fiado: principal.permite_fiado,
                   limite_caderneta: principal.limite_caderneta,
                   limite_credito: principal.limite_credito,
-                  email: principal.email || null,
+                  whatsapp: normalizarTelefoneComDDI(principal.whatsapp || principal.telefone) || principal.whatsapp || null,
+                  telefone: normalizarTelefoneComDDI(principal.telefone || principal.whatsapp) || principal.telefone || null,
+                  email: principal.email && !principal.email.endsWith('@hubi.app') ? principal.email : null,
                   numero_documento: principal.numero_documento || null,
                   endereco_principal: principal.endereco_principal || null
                 })
@@ -364,8 +396,8 @@ export const ClientesFiado: React.FC = () => {
       const phoneDestino = clienteQuitar.whatsapp || clienteQuitar.telefone;
       if (phoneDestino) {
         const msg = `🧾 *COMPROVANTE DE PAGAMENTO DE FIADO - ${loja.nome_fantasia}*\n\nOlá, *${clienteQuitar.nome}*!\nConfirmamos o recebimento de *R$ ${valor.toFixed(2)}* referente à quitação do seu débito.\n\n💰 *Novo Saldo Devedor Restante:* R$ ${novoSaldo.toFixed(2)}\n\nAgradecemos a sua preferência! ✨`;
-        const phone = phoneDestino.replace(/\D/g, '');
-        window.open(`https://api.whatsapp.com/send?phone=55${phone}&text=${encodeURIComponent(msg)}`, '_blank');
+        const phone = normalizarTelefoneComDDI(phoneDestino);
+        window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`, '_blank');
       }
 
       setClienteQuitar(null);
@@ -1058,13 +1090,13 @@ export const ClientesFiado: React.FC = () => {
                         <td className="py-3 px-4">
                           {phoneWhatsapp ? (
                             <a
-                              href={`https://api.whatsapp.com/send?phone=55${phoneWhatsapp.replace(/\D/g, '')}`}
+                              href={`https://api.whatsapp.com/send?phone=${normalizarTelefoneComDDI(phoneWhatsapp)}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className={`inline-flex items-center gap-1.5 font-bold hover:underline transition ${isDark ? 'text-slate-200 hover:text-emerald-400' : 'text-black hover:text-emerald-700'}`}
                             >
                               <MessageCircle className={`w-3.5 h-3.5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
-                              <span>+55 {phoneWhatsapp}</span>
+                              <span>{formatarTelefone(phoneWhatsapp)}</span>
                             </a>
                           ) : (
                             <span className={isDark ? 'text-slate-500 font-bold' : 'text-slate-400 font-bold'}>-</span>
@@ -1073,7 +1105,7 @@ export const ClientesFiado: React.FC = () => {
 
                         {/* Coluna 3: E-mail */}
                         <td className={`py-3 px-4 hidden md:table-cell truncate max-w-[200px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
-                          {cliente.email || '-'}
+                          {cliente.email && !cliente.email.endsWith('@hubi.app') ? cliente.email : '-'}
                         </td>
 
                         {/* Coluna 4 Única Contextual: VALOR CADERNETA ou VALOR FIADO */}

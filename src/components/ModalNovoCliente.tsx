@@ -24,7 +24,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { Cliente, TabelaPreco } from '../types';
-import { formatarMoeda, formatarValorBRL } from '../utils/formatters';
+import { formatarMoeda, formatarValorBRL, normalizarTelefoneComDDI } from '../utils/formatters';
 
 interface ModalNovoClienteProps {
   isOpen: boolean;
@@ -622,18 +622,17 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
       enderecoPrincipalFormatado = clienteEditar.endereco_principal;
     }
 
-    // Definir número principal para WhatsApp
-    // Definir número principal para WhatsApp (normalizado apenas dígitos) e validar unicidade
-    const tel1Digitos = telefone1.replace(/\D/g, '');
-    const tel2Digitos = telefone2.replace(/\D/g, '');
-    const celularChave = (telefone1IsWhatsapp && tel1Digitos) ? tel1Digitos : (telefone2IsWhatsapp && tel2Digitos) ? tel2Digitos : tel1Digitos;
-    if (celularChave.length >= 8) {
+    // Definir número principal para WhatsApp (normalizado com DDI 55) e validar unicidade
+    const tel1Norm = normalizarTelefoneComDDI(telefone1);
+    const tel2Norm = normalizarTelefoneComDDI(telefone2);
+    const celularChave = (telefone1IsWhatsapp && tel1Norm) ? tel1Norm : (telefone2IsWhatsapp && tel2Norm) ? tel2Norm : tel1Norm;
+    if (celularChave && celularChave.length >= 10) {
       const { data: clientesLoja } = await supabase.from('clientes').select('id, nome, telefone, whatsapp').eq('loja_id', loja.id);
       const clienteDuplicado = (clientesLoja || []).find((c: any) => {
         if (clienteEditar?.id && c.id === clienteEditar.id) return false;
-        const cTel = String(c.telefone || '').replace(/\D/g, '');
-        const cWhats = String(c.whatsapp || '').replace(/\D/g, '');
-        return (cTel.length >= 8 && (cTel === celularChave || cTel === tel1Digitos)) || (cWhats.length >= 8 && (cWhats === celularChave || cWhats === tel1Digitos));
+        const cTelNorm = normalizarTelefoneComDDI(c.telefone);
+        const cWhatsNorm = normalizarTelefoneComDDI(c.whatsapp);
+        return (cTelNorm && cTelNorm === celularChave) || (cWhatsNorm && cWhatsNorm === celularChave);
       });
       if (clienteDuplicado) {
         const msgDuplicidade = `O número de celular informado já está cadastrado para o cliente "${clienteDuplicado.nome}". Como o celular é a chave única de identificação do cliente, edite o registro existente em vez de incluir um novo.`;
@@ -644,12 +643,12 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
       }
     }
     let whatsappPrincipal = '';
-    if (telefone1IsWhatsapp && telefone1.trim()) {
-      whatsappPrincipal = telefone1.replace(/\D/g, '');
-    } else if (telefone2IsWhatsapp && telefone2.trim()) {
-      whatsappPrincipal = telefone2.replace(/\D/g, '');
-    } else if (telefone1.trim()) {
-      whatsappPrincipal = telefone1.replace(/\D/g, '');
+    if (telefone1IsWhatsapp && tel1Norm) {
+      whatsappPrincipal = tel1Norm;
+    } else if (telefone2IsWhatsapp && tel2Norm) {
+      whatsappPrincipal = tel2Norm;
+    } else if (tel1Norm) {
+      whatsappPrincipal = tel1Norm;
     }
 
     // Converter limite de crédito do formato pt-BR para número
@@ -661,9 +660,9 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
       nome: nome.trim(),
       numero_documento: cpfCnpj.trim() || null,
       data_aniversario: dataAniversario || null,
-      email: email.trim() || null,
-      telefone: telefone1.trim() || null,
-      telefone2: telefone2.trim() || null,
+      email: email.trim() && !email.trim().endsWith('@hubi.app') ? email.trim() : null,
+      telefone: tel1Norm || telefone1.trim() || null,
+      telefone2: tel2Norm || telefone2.trim() || null,
       telefone_is_whatsapp: telefone1IsWhatsapp,
       telefone2_is_whatsapp: telefone2IsWhatsapp,
       whatsapp: whatsappPrincipal || null,

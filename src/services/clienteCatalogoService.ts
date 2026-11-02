@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { Cliente, ClienteFavorito, ClienteNotificacao, ClienteCarrinhoItem, Pedido } from '../types';
+import { normalizarTelefoneComDDI } from '../utils/formatters';
 
 /**
  * Utilitário seguro para gerar hash de senha usando Web Crypto API nativa do navegador
@@ -41,17 +42,20 @@ export const ClienteCatalogoService = {
     senha: string
   ): Promise<{ sucesso: boolean; cliente?: Cliente; erro?: string; precisaDefinirSenha?: boolean }> {
     try {
-      const telLimpo = telefone.replace(/\D/g, '');
-      if (telLimpo.length < 10) {
+      const telDigitos = telefone.replace(/\D/g, '');
+      if (telDigitos.length < 10) {
         return { sucesso: false, erro: 'Informe um número de celular válido com DDD (mínimo 10 dígitos).' };
       }
+
+      const telDDI = normalizarTelefoneComDDI(telefone);
+      const telSemDDI = telDDI.startsWith('55') ? telDDI.slice(2) : telDDI;
 
       // Consulta multitenant obrigatória com .eq('loja_id', lojaId)
       const { data: clientesEncontrados, error } = await supabase
         .from('clientes')
         .select('*')
         .eq('loja_id', lojaId)
-        .or(`telefone.eq.${telLimpo},whatsapp.eq.${telLimpo}`)
+        .or(`telefone.eq.${telDDI},whatsapp.eq.${telDDI},telefone.eq.${telSemDDI},whatsapp.eq.${telSemDDI}`)
         .limit(2);
 
       if (error) {
@@ -67,22 +71,37 @@ export const ClienteCatalogoService = {
 
       // Se o cliente foi pré-cadastrado no PDV e ainda não tem senha configurada
       if (!cliente.senha_hash) {
-        // Gera o hash e define a primeira senha para este cliente
-        const salt = `${lojaId}:${telLimpo}`;
+        // Gera o hash e define a primeira senha para este cliente com telefone normalizado
+        const salt = `${lojaId}:${telDDI}`;
         const novoHash = await gerarHashSenhaCliente(senha, salt);
         await supabase
           .from('clientes')
-          .update({ senha_hash: novoHash })
+          .update({
+            senha_hash: novoHash,
+            telefone: telDDI,
+            whatsapp: telDDI,
+            telefone_is_whatsapp: true,
+            email: cliente.email && cliente.email.includes('@hubi.app') ? null : cliente.email
+          })
           .eq('loja_id', lojaId)
           .eq('id', cliente.id);
 
-        return { sucesso: true, cliente: { ...cliente, senha_hash: novoHash } };
+        return { sucesso: true, cliente: { ...cliente, senha_hash: novoHash, telefone: telDDI, whatsapp: telDDI } };
       }
 
-      const salt = `${lojaId}:${telLimpo}`;
-      const hashEsperado = await gerarHashSenhaCliente(senha, salt);
+      // Validação com salt normalizado ou legado para garantir compatibilidade
+      const saltDDI = `${lojaId}:${telDDI}`;
+      const saltSemDDI = `${lojaId}:${telSemDDI}`;
+      const [hashDDI, hashSemDDI] = await Promise.all([
+        gerarHashSenhaCliente(senha, saltDDI),
+        gerarHashSenhaCliente(senha, saltSemDDI)
+      ]);
 
-      if (cliente.senha_hash !== hashEsperado && cliente.senha_hash !== senha.trim()) {
+      if (
+        cliente.senha_hash !== hashDDI &&
+        cliente.senha_hash !== hashSemDDI &&
+        cliente.senha_hash !== senha.trim()
+      ) {
         return { sucesso: false, erro: 'Senha incorreta. Verifique e tente novamente.' };
       }
 
@@ -100,15 +119,15 @@ export const ClienteCatalogoService = {
     lojaId: string,
     identificacao: DadosCadastroIdentificacao,
     endereco: DadosCadastroEndereco
-  ): Promise<{ sucesso: boolean; cliente?: Cliente; erro?: string }> {
+  ): Promise<{ sucesso: boolean; cliente?: Cliente; erro?: string; jaCadastrado?: boolean }> {
     try {
-      const telLimpo = identificacao.telefone.replace(/\D/g, '');
+      const telDigitos = identificacao.telefone.replace(/\D/g, '');
       const cepLimpo = endereco.cep.replace(/\D/g, '');
 
       if (!identificacao.nome.trim()) {
         return { sucesso: false, erro: 'Por favor, informe seu nome completo.' };
       }
-      if (telLimpo.length < 10) {
+      if (telDigitos.length < 10) {
         return { sucesso: false, erro: 'Celular inválido. Informe o DDD e o número completo.' };
       }
       if (!identificacao.senha || identificacao.senha.trim().length < 6) {
@@ -121,33 +140,49 @@ export const ClienteCatalogoService = {
         return { sucesso: false, erro: 'Por favor, preencha todos os campos obrigatórios do endereço.' };
       }
 
-      // 1. Verificar se já existe cliente com este telefone nesta loja
+      const telDDI = normalizarTelefoneComDDI(identificacao.telefone);
+      const telSemDDI = telDDI.startsWith('55') ? telDDI.slice(2) : telDDI;
+
+      // 1. Regra de Chave Única: Bloquear tentativas de cadastro com número já existente
       const { data: existente } = await supabase
         .from('clientes')
-        .select('id, nome, senha_hash')
+        .select('id, nome, senha_hash, telefone, whatsapp')
         .eq('loja_id', lojaId)
-        .or(`telefone.eq.${telLimpo},whatsapp.eq.${telLimpo}`)
+        .or(`telefone.eq.${telDDI},whatsapp.eq.${telDDI},telefone.eq.${telSemDDI},whatsapp.eq.${telSemDDI}`)
+        .limit(1)
         .maybeSingle();
 
-      const salt = `${lojaId}:${telLimpo}`;
+      if (existente?.id) {
+        return {
+          sucesso: false,
+          erro: `O celular informado já possui cadastro na loja (${existente.nome || 'Cliente'}). Por favor, clique em "Entrar" com sua senha ou solicite redefinição.`,
+          jaCadastrado: true
+        };
+      }
+
+      const salt = `${lojaId}:${telDDI}`;
       const hashSenha = await gerarHashSenhaCliente(identificacao.senha, salt);
 
       const enderecoFormatado = `${endereco.logradouro.trim()}, ${endereco.numero.trim()}${
         endereco.complemento?.trim() ? ` (${endereco.complemento.trim()})` : ''
       } - ${endereco.bairro.trim()}, ${endereco.cidade.trim()}/${endereco.uf.trim().toUpperCase()} - CEP: ${cepLimpo}`;
 
-      let clienteSalvo: Cliente;
-
-      if (existente?.id) {
-        // Atualiza cadastro existente com a nova senha e dados de endereço
-        const { data: atualizado, error: errUpd } = await supabase
-          .from('clientes')
-          .update({
+      // 2. Insere novo cliente com número único e sem e-mails dummy @hubi.app
+      const { data: inserido, error: errIns } = await supabase
+        .from('clientes')
+        .insert([
+          {
+            loja_id: lojaId,
             nome: identificacao.nome.trim(),
-            telefone: telLimpo,
-            whatsapp: telLimpo,
+            telefone: telDDI,
+            whatsapp: telDDI,
             telefone_is_whatsapp: true,
+            email: null,
             senha_hash: hashSenha,
+            tabela_preco_padrao: 'varejo',
+            permite_fiado: false,
+            limite_credito: 0,
+            saldo_devedor_fiado: 0,
             endereco_cep: cepLimpo,
             endereco_logradouro: endereco.logradouro.trim(),
             endereco_numero: endereco.numero.trim(),
@@ -156,46 +191,13 @@ export const ClienteCatalogoService = {
             endereco_cidade: endereco.cidade.trim(),
             endereco_estado: endereco.uf.trim().toUpperCase(),
             endereco_principal: enderecoFormatado
-          })
-          .eq('loja_id', lojaId)
-          .eq('id', existente.id)
-          .select()
-          .single();
+          }
+        ])
+        .select()
+        .single();
 
-        if (errUpd) throw errUpd;
-        clienteSalvo = atualizado as Cliente;
-      } else {
-        // Insere novo cliente
-        const { data: inserido, error: errIns } = await supabase
-          .from('clientes')
-          .insert([
-            {
-              loja_id: lojaId,
-              nome: identificacao.nome.trim(),
-              telefone: telLimpo,
-              whatsapp: telLimpo,
-              telefone_is_whatsapp: true,
-              senha_hash: hashSenha,
-              tabela_preco_padrao: 'varejo',
-              permite_fiado: false,
-              limite_credito: 0,
-              saldo_devedor_fiado: 0,
-              endereco_cep: cepLimpo,
-              endereco_logradouro: endereco.logradouro.trim(),
-              endereco_numero: endereco.numero.trim(),
-              endereco_complemento: endereco.complemento?.trim() || null,
-              endereco_bairro: endereco.bairro.trim(),
-              endereco_cidade: endereco.cidade.trim(),
-              endereco_estado: endereco.uf.trim().toUpperCase(),
-              endereco_principal: enderecoFormatado
-            }
-          ])
-          .select()
-          .single();
-
-        if (errIns) throw errIns;
-        clienteSalvo = inserido as Cliente;
-      }
+      if (errIns) throw errIns;
+      const clienteSalvo: Cliente = inserido as Cliente;
 
       // 2. Persistência direta em cliente_enderecos com is_principal = true
       try {

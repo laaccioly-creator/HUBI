@@ -24,12 +24,12 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { formatarTelefoneInput } from '../utils/formatters';
 
-type AuthScreen = 'welcome' | 'signup_email' | 'signin' | 'signin_email';
+type AuthScreen = 'welcome' | 'signup_email' | 'signin_email';
 
 export const CadastroPdv: React.FC = () => {
-  const { cadastrarMinimalista, entrarComEmail, entrarComGoogle, selecionarLoja, lojasDisponiveis } = useAuth();
+  const { cadastrarMinimalista, entrarComEmail, selecionarLoja, lojasDisponiveis } = useAuth();
 
-  const [screen, setScreen] = useState<AuthScreen>('welcome');
+  const [screen, setScreen] = useState<AuthScreen>('signin_email');
   const [nome, setNome] = useState('');
   const [nomeLoja, setNomeLoja] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
@@ -155,25 +155,6 @@ export const CadastroPdv: React.FC = () => {
     }
   };
 
-  // Login com Google Oficial via Supabase OAuth (Abre tela para escolher conta do Google)
-  const handleGoogleAuth = async () => {
-    try {
-      setSalvando(true);
-      setErroMsg(null);
-      await entrarComGoogle();
-    } catch (err: any) {
-      console.warn('Erro ao conectar com Google:', err);
-      if (err.message && (err.message.includes('provider is not enabled') || err.message.includes('Unsupported provider'))) {
-        setErroMsg('O login OAuth do Google precisa ser ativado no painel do Supabase (Authentication > Providers > Google). Enquanto isso, você pode entrar ou criar conta digitando seu e-mail do Google!');
-        setScreen('signup_email');
-      } else {
-        setErroMsg(err.message || 'Erro ao abrir janela de autenticação do Google.');
-      }
-    } finally {
-      setSalvando(false);
-    }
-  };
-
   return (
     <div className="min-h-screen w-full bg-slate-950 flex items-center justify-center p-0 sm:p-4 md:p-6 lg:p-8 font-sans">
       <div className="w-full max-w-6xl min-h-[90vh] bg-slate-900 border border-slate-800/80 rounded-none sm:rounded-3xl shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12">
@@ -198,96 +179,9 @@ export const CadastroPdv: React.FC = () => {
             )}
 
             {/* --------------------------------------------------------------------- */}
-            {/* TELA 1: BOAS-VINDAS / OPÇÕES DE CADASTRO                              */}
+            {/* TELA 1: FORMULÁRIO DE CRIAR CONTA COM WHATSAPP (SEM E-MAIL)           */}
             {/* --------------------------------------------------------------------- */}
-            {screen === 'welcome' && (
-              <div className="space-y-6 animate-in fade-in">
-                <div className="text-center space-y-1">
-                  <h1 className="text-2xl font-bold text-slate-100">Boas-vindas!</h1>
-                  <p className="text-xs text-slate-400">Como você gostaria de criar sua conta?</p>
-                </div>
-
-                <div className="space-y-3">
-                  {/* Google */}
-                  <button
-                    type="button"
-                    disabled={salvando}
-                    onClick={handleGoogleAuth}
-                    className="w-full py-3 px-4 rounded-xl border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-slate-200 text-xs font-semibold flex items-center justify-center gap-3 transition shadow-sm cursor-pointer disabled:opacity-50"
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24">
-                      <path
-                        fill="#4285F4"
-                        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
-                      />
-                      <path
-                        fill="#34A853"
-                        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z"
-                      />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
-                      />
-                      <path
-                        fill="#EA4335"
-                        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
-                      />
-                    </svg>
-                    <span>Criar com Google</span>
-                  </button>
-
-                  {/* WhatsApp */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setScreen('signup_email');
-                      setErroMsg(null);
-                    }}
-                    className="w-full py-3 px-4 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-3 transition shadow-sm cursor-pointer"
-                  >
-                    <Smartphone className="w-4 h-4 text-emerald-400" />
-                    <span>📱 Criar com WhatsApp</span>
-                  </button>
-
-                  {/* Apple */}
-                  <button
-                    type="button"
-                    disabled={salvando}
-                    onClick={handleGoogleAuth}
-                    className="w-full py-3 px-4 rounded-xl border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-slate-200 text-xs font-semibold flex items-center justify-center gap-3 transition shadow-sm cursor-pointer disabled:opacity-50"
-                  >
-                    <svg className="w-4 h-4 fill-current text-white" viewBox="0 0 170 170">
-                      <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-5.14.23-10.05-1.9-14.74-6.39-3.26-3.04-7.14-7.79-11.64-14.23-6.53-9.37-11.75-20.2-15.66-32.48-3.9-12.28-5.87-24.16-5.87-35.63 0-14.8 3.7-27.27 11.09-37.42 7.4-10.15 17.07-15.36 29.02-15.65 4.36 0 9.4 1.15 15.13 3.44 5.73 2.29 9.4 3.48 11.01 3.56 1.83-.23 5.75-1.49 11.75-3.79 6-2.3 11.09-3.32 15.26-3.06 13.97.83 24.64 5.92 32.02 15.27-12.16 7.4-18.15 17.51-17.97 30.34.19 10.02 4.09 18.49 11.7 25.43 7.62 6.94 16.71 10.95 27.29 12.03-2.36 7.15-5.59 14.86-9.69 23.13zM119.22 31.84c0-7.39 2.66-14.37 7.98-20.94 5.32-6.57 11.83-10.6 19.53-12.09.28 1.16.42 2.26.42 3.3 0 7.39-2.82 14.61-8.47 21.66-5.64 7.04-12.35 11.08-20.12 12.11-.2-.84-.34-2.18-.34-4.04z" />
-                    </svg>
-                    <span>Criar com Apple</span>
-                  </button>
-                </div>
-
-                <div className="text-center pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setScreen('signin');
-                      setErroMsg(null);
-                    }}
-                    className="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition"
-                  >
-                    Já tenho conta
-                  </button>
-                </div>
-
-                <p className="text-[10px] text-slate-500 text-center leading-relaxed">
-                  Ao criar sua conta você concorda com os{' '}
-                  <span className="text-emerald-400 hover:underline cursor-pointer">Termos de uso</span> e{' '}
-                  <span className="text-emerald-400 hover:underline cursor-pointer">Política de privacidade</span>
-                </p>
-              </div>
-            )}
-
-            {/* --------------------------------------------------------------------- */}
-            {/* TELA 2: FORMULÁRIO DE CRIAR CONTA COM WHATSAPP (SEM E-MAIL)           */}
-            {/* --------------------------------------------------------------------- */}
-            {screen === 'signup_email' && (
+            {(screen === 'signup_email' || screen === 'welcome') && (
               <form onSubmit={handleSignUp} className="space-y-4 animate-in fade-in">
                 <div className="text-center space-y-1">
                   <h1 className="text-xl font-bold text-slate-100">Criar conta com WhatsApp</h1>
@@ -379,135 +273,19 @@ export const CadastroPdv: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      setScreen('signin');
+                      setScreen('signin_email');
                       setErroMsg(null);
                     }}
                     className="text-xs font-bold text-slate-400 hover:text-emerald-400 transition"
                   >
-                    Já tenho conta
+                    Já tenho conta? Entrar
                   </button>
                 </div>
               </form>
             )}
 
             {/* --------------------------------------------------------------------- */}
-            {/* TELA 3: ENTRAR / OPÇÕES DE LOGIN                                      */}
-            {/* --------------------------------------------------------------------- */}
-            {screen === 'signin' && (
-              <div className="space-y-6 animate-in fade-in">
-                <div className="text-center space-y-1">
-                  <h1 className="text-2xl font-bold text-slate-100">Entrar</h1>
-                  <p className="text-xs text-slate-400">Como deseja acessar sua conta?</p>
-                </div>
-
-                <div className="space-y-2.5">
-                  {/* Google */}
-                  <button
-                    type="button"
-                    disabled={salvando}
-                    onClick={handleGoogleAuth}
-                    className="w-full py-3 px-4 rounded-xl border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-slate-200 text-xs font-semibold flex items-center justify-center gap-3 transition shadow-sm cursor-pointer disabled:opacity-50"
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24">
-                      <path
-                        fill="#4285F4"
-                        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
-                      />
-                      <path
-                        fill="#34A853"
-                        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z"
-                      />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
-                      />
-                      <path
-                        fill="#EA4335"
-                        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
-                      />
-                    </svg>
-                    <span>Entrar com Google</span>
-                  </button>
-
-                  {/* WhatsApp */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setScreen('signin_email');
-                      setErroMsg(null);
-                    }}
-                    className="w-full py-3 px-4 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-3 transition shadow-sm cursor-pointer"
-                  >
-                    <Smartphone className="w-4 h-4 text-emerald-400" />
-                    <span>📱 Entrar com WhatsApp</span>
-                  </button>
-
-                  {/* Apple */}
-                  <button
-                    type="button"
-                    disabled={salvando}
-                    onClick={handleGoogleAuth}
-                    className="w-full py-3 px-4 rounded-xl border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-slate-200 text-xs font-semibold flex items-center justify-center gap-3 transition shadow-sm cursor-pointer disabled:opacity-50"
-                  >
-                    <svg className="w-4 h-4 fill-current text-white" viewBox="0 0 170 170">
-                      <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-5.14.23-10.05-1.9-14.74-6.39-3.26-3.04-7.14-7.79-11.64-14.23-6.53-9.37-11.75-20.2-15.66-32.48-3.9-12.28-5.87-24.16-5.87-35.63 0-14.8 3.7-27.27 11.09-37.42 7.4-10.15 17.07-15.36 29.02-15.65 4.36 0 9.4 1.15 15.13 3.44 5.73 2.29 9.4 3.48 11.01 3.56 1.83-.23 5.75-1.49 11.75-3.79 6-2.3 11.09-3.32 15.26-3.06 13.97.83 24.64 5.92 32.02 15.27-12.16 7.4-18.15 17.51-17.97 30.34.19 10.02 4.09 18.49 11.7 25.43 7.62 6.94 16.71 10.95 27.29 12.03-2.36 7.15-5.59 14.86-9.69 23.13zM119.22 31.84c0-7.39 2.66-14.37 7.98-20.94 5.32-6.57 11.83-10.6 19.53-12.09.28 1.16.42 2.26.42 3.3 0 7.39-2.82 14.61-8.47 21.66-5.64 7.04-12.35 11.08-20.12 12.11-.2-.84-.34-2.18-.34-4.04z" />
-                    </svg>
-                    <span>Entrar com Apple</span>
-                  </button>
-
-                  {/* Facebook */}
-                  <button
-                    type="button"
-                    disabled={salvando}
-                    onClick={handleGoogleAuth}
-                    className="w-full py-3 px-4 rounded-xl border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-slate-200 text-xs font-semibold flex items-center justify-center gap-3 transition shadow-sm cursor-pointer disabled:opacity-50"
-                  >
-                    <svg className="w-4 h-4 fill-[#1877F2]" viewBox="0 0 24 24">
-                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                    </svg>
-                    <span>Entrar com Facebook</span>
-                  </button>
-                </div>
-
-                {/* Se houver lojas disponíveis cadastradas */}
-                {lojasDisponiveis.length > 0 && (
-                  <div className="pt-2 border-t border-slate-800">
-                    <span className="text-[11px] text-slate-400 block mb-2 font-medium text-center">
-                      Ou acesse direto seu PDV salvo:
-                    </span>
-                    <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                      {lojasDisponiveis.slice(0, 3).map((l) => (
-                        <button
-                          key={l.id}
-                          type="button"
-                          onClick={() => selecionarLoja(l.id)}
-                          className="w-full p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-left flex items-center justify-between text-xs text-slate-200 transition"
-                        >
-                          <span className="font-bold truncate">{l.nome_fantasia}</span>
-                          <span className="text-[10px] text-emerald-400 font-bold shrink-0">Acessar →</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="text-center pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setScreen('welcome');
-                      setErroMsg(null);
-                    }}
-                    className="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition"
-                  >
-                    Criar nova conta
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* --------------------------------------------------------------------- */}
-            {/* TELA 4: ENTRAR COM WHATSAPP                                           */}
+            {/* TELA 2: ENTRAR COM WHATSAPP                                           */}
             {/* --------------------------------------------------------------------- */}
             {screen === 'signin_email' && (
               <form onSubmit={handleSignIn} className="space-y-4 animate-in fade-in">
@@ -531,7 +309,7 @@ export const CadastroPdv: React.FC = () => {
                       type="text"
                       required
                       autoComplete="username"
-                      placeholder="WhatsApp (ou E-mail do Administrador)"
+                      placeholder="WhatsApp (ex: 85 99999-9999)"
                       value={whatsapp}
                       onChange={(e) => {
                         const val = e.target.value;
@@ -586,28 +364,40 @@ export const CadastroPdv: React.FC = () => {
                   )}
                 </button>
 
-                <div className="flex items-center justify-between text-xs pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setScreen('signin');
-                      setErroMsg(null);
-                    }}
-                    className="text-slate-400 hover:text-slate-300"
-                  >
-                    ← Voltar
-                  </button>
+                <div className="text-center pt-2">
                   <button
                     type="button"
                     onClick={() => {
                       setScreen('signup_email');
                       setErroMsg(null);
                     }}
-                    className="font-bold text-emerald-400 hover:text-emerald-300"
+                    className="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition"
                   >
-                    Criar nova conta
+                    Não tem uma conta? Criar conta com WhatsApp
                   </button>
                 </div>
+
+                {/* Se houver lojas disponíveis cadastradas */}
+                {lojasDisponiveis.length > 0 && (
+                  <div className="pt-2 border-t border-slate-800">
+                    <span className="text-[11px] text-slate-400 block mb-2 font-medium text-center">
+                      Ou acesse direto seu PDV salvo:
+                    </span>
+                    <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                      {lojasDisponiveis.slice(0, 3).map((l) => (
+                        <button
+                          key={l.id}
+                          type="button"
+                          onClick={() => selecionarLoja(l.id)}
+                          className="w-full p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-left flex items-center justify-between text-xs text-slate-200 transition"
+                        >
+                          <span className="font-bold truncate">{l.nome_fantasia}</span>
+                          <span className="text-[10px] text-emerald-400 font-bold shrink-0">Acessar →</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </form>
             )}
           </div>
