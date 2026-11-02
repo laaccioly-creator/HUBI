@@ -197,17 +197,15 @@ export const whatsappWalletService = {
       };
     }
 
-    // Trava instantânea em memória caso o objeto loja tenha sido passado na chamada
-    if (params.loja && !verificarPermissaoGatilhoWhatsapp(params.loja, params.eventoGatilho)) {
+    // Passo 1 (Disjuntor Geral): Se a loja estiver com a automação desativada, retorna manual_link imediatamente
+    if (params.loja && !params.loja.whatsapp_auto_ativo) {
       return {
         sucesso: true,
         modoEnvio: 'manual_link',
         custoAplicado: 0,
         saldoAtual: Number(params.loja.whatsapp_saldo ?? 0),
         manualUrl: manualUrlPadrao,
-        motivoFallback: !params.loja.whatsapp_auto_ativo
-          ? 'Envio automático via WhatsApp desativado nas configurações da loja.'
-          : `Disparo automático para o gatilho '${params.eventoGatilho}' desativado pelo lojista.`,
+        motivoFallback: 'Envio automático via WhatsApp desativado nas configurações da loja.',
       };
     }
 
@@ -263,28 +261,27 @@ export const whatsappWalletService = {
         };
       }
 
-      // Validação do gatilho específico na avaliação local
-      if (!verificarPermissaoGatilhoWhatsapp(lojaRow as unknown as Loja, params.eventoGatilho)) {
+      let saldoAtual = Number(lojaRow.whatsapp_saldo ?? 0);
+      const autoAtivo = Boolean(lojaRow.whatsapp_auto_ativo);
+
+      // PASSO 1: Disjuntor Geral da Loja
+      if (!autoAtivo) {
         return {
           sucesso: true,
           modoEnvio: 'manual_link',
           custoAplicado: 0,
-          saldoAtual: Number(lojaRow.whatsapp_saldo ?? 0),
+          saldoAtual,
           manualUrl: manualUrlPadrao,
-          motivoFallback: !lojaRow.whatsapp_auto_ativo
-            ? 'Envio automático via WhatsApp desativado nas configurações da loja.'
-            : `Disparo automático para o gatilho '${params.eventoGatilho}' desativado pelo lojista.`,
+          motivoFallback: 'Envio automático via WhatsApp desativado nas configurações da loja.',
         };
       }
 
-      let saldoAtual = Number(lojaRow.whatsapp_saldo ?? 0);
-      const autoAtivo = Boolean(lojaRow.whatsapp_auto_ativo);
       const bonusExpiraEm = lojaRow.whatsapp_bonus_expira_em
         ? new Date(String(lojaRow.whatsapp_bonus_expira_em))
         : null;
       const tarifaDisparo = Number(configPlataforma.custo_disparo_whatsapp ?? 0.15);
 
-      // Passo 1: Expiração do Bônus de 7 Dias
+      // Expiração do Bônus de 7 Dias
       if (saldoAtual > 0 && bonusExpiraEm && new Date() > bonusExpiraEm) {
         const { data: recargasPagas } = await supabase
           .from('loja_whatsapp_transacoes')
@@ -309,36 +306,85 @@ export const whatsappWalletService = {
         }
       }
 
-      // Verifica se há janela de 24h aberta para o cliente
-      let janela24hAberta = false;
-      if (params.clienteId) {
+      // PASSO 2: Validação da Janela Gratuita de 24 Horas
+      let dentroDaJanela24h = false;
+      let clienteIdConsultar = params.clienteId;
+
+      if (!clienteIdConsultar && params.pedidoId) {
+        const { data: pedDb } = await supabase
+          .from('pedidos')
+          .select('cliente_id')
+          .eq('id', params.pedidoId)
+          .eq('loja_id', params.lojaId)
+          .maybeSingle();
+        if (pedDb?.cliente_id) clienteIdConsultar = pedDb.cliente_id;
+      }
+
+      if (!clienteIdConsultar && fone) {
+        const digitosTelefone = fone.replace(/^55/, '');
+        const { data: cliBusca } = await supabase
+          .from('clientes')
+          .select('id, whatsapp_ultima_interacao_cliente_em')
+          .eq('loja_id', params.lojaId)
+          .or(`whatsapp.ilike.%${digitosTelefone}%,telefone.ilike.%${digitosTelefone}%`)
+          .limit(1)
+          .maybeSingle();
+        if (cliBusca?.whatsapp_ultima_interacao_cliente_em) {
+          dentroDaJanela24h =
+            Date.now() - new Date(String(cliBusca.whatsapp_ultima_interacao_cliente_em)).getTime() <
+            24 * 60 * 60 * 1000;
+        }
+      } else if (clienteIdConsultar) {
         const { data: cli } = await supabase
           .from('clientes')
           .select('whatsapp_ultima_interacao_cliente_em')
-          .eq('id', params.clienteId)
+          .eq('id', clienteIdConsultar)
           .eq('loja_id', params.lojaId)
           .maybeSingle();
 
         if (cli?.whatsapp_ultima_interacao_cliente_em) {
-          const diffMs = Date.now() - new Date(String(cli.whatsapp_ultima_interacao_cliente_em)).getTime();
-          if (diffMs >= 0 && diffMs <= 24 * 60 * 60 * 1000) {
-            janela24hAberta = true;
-          }
+          dentroDaJanela24h =
+            Date.now() - new Date(String(cli.whatsapp_ultima_interacao_cliente_em)).getTime() <
+            24 * 60 * 60 * 1000;
         }
       }
 
-      // Se a Edge Function da Meta Cloud API não respondeu mas a janela de 24h ou saldo existem,
-      // retornamos manual_link para garantir que o cliente não fique sem a notificação
+      // PASSO 3: Fora da Janela de 24h (Disparo Tarifado)
+      // Se a janela estiver fechada, aplica as travas de economia de saldo
+      if (!dentroDaJanela24h) {
+        const flagAutorizada = verificarPermissaoGatilhoWhatsapp(lojaRow as unknown as Loja, params.eventoGatilho);
+        if (!flagAutorizada) {
+          return {
+            sucesso: true,
+            modoEnvio: 'manual_link',
+            custoAplicado: 0,
+            saldoAtual,
+            manualUrl: manualUrlPadrao,
+            motivoFallback: `Disparo automático para o gatilho '${params.eventoGatilho}' desativado pelo lojista.`,
+          };
+        }
+
+        if (saldoAtual < tarifaDisparo) {
+          return {
+            sucesso: true,
+            modoEnvio: 'manual_link',
+            custoAplicado: 0,
+            saldoAtual,
+            manualUrl: manualUrlPadrao,
+            motivoFallback: 'Saldo insuficiente na carteira pré-paga de WhatsApp.',
+          };
+        }
+      }
+
+      // Se a Edge Function da Meta Cloud API não respondeu, retornamos manual_link como contingência
       return {
         sucesso: true,
         modoEnvio: 'manual_link',
         custoAplicado: 0,
         saldoAtual,
         manualUrl: manualUrlPadrao,
-        motivoFallback: !autoAtivo
-          ? 'Envio automático via WhatsApp desativado nas configurações da loja.'
-          : !janela24hAberta && saldoAtual < tarifaDisparo
-          ? 'Saldo insuficiente na carteira pré-paga de WhatsApp.'
+        motivoFallback: dentroDaJanela24h
+          ? 'Janela de 24h aberta (custo R$ 0,00); envio manual gerado como contingência da rede.'
           : 'Credenciais da Meta Cloud API pendentes no servidor; link manual gerado gratuitamente.',
       };
     } catch {

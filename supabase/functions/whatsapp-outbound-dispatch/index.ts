@@ -157,13 +157,14 @@ serve(async (req: Request) => {
     const tarifaDisparo = Number(configPlat?.custo_disparo_whatsapp ?? 0.15);
     let saldoAtual = Number(loja.whatsapp_saldo ?? 0);
 
-    // 2. Trava de autorização por gatilho da loja (evita chamada Meta Cloud API e débito de saldo)
-    if (!verificarPermissaoGatilhoWhatsapp(loja, evento_gatilho)) {
+    // PASSO 1: Disjuntor Geral da Loja (whatsapp_auto_ativo)
+    // Se a automação estiver desligada, retorna fallback manual gratuito imediatamente
+    if (!loja.whatsapp_auto_ativo) {
       return new Response(
         JSON.stringify({
           sucesso: true,
           modoEnvio: "manual_link",
-          motivo: !loja.whatsapp_auto_ativo ? "automacao_desligada" : "gatilho_desativado",
+          motivo: "automacao_desligada",
           custoDebitado: 0,
           saldoRestante: saldoAtual,
           urlManual,
@@ -172,7 +173,7 @@ serve(async (req: Request) => {
       );
     }
 
-    // 3. Verificação de Expiração do Bônus de 7 Dias
+    // Expiração do Bônus de 7 Dias
     if (loja.whatsapp_bonus_expira_em && saldoAtual > 0) {
       const expiraTimestamp = new Date(loja.whatsapp_bonus_expira_em).getTime();
       if (Date.now() > expiraTimestamp) {
@@ -211,14 +212,42 @@ serve(async (req: Request) => {
     const metaAccessToken = (loja.meta_access_token || Deno.env.get("META_ACCESS_TOKEN") || "").trim();
     const possuiCredenciaisCloudApi = Boolean(phoneNumberId && metaAccessToken);
 
-    // 3. Verificar Janela Receptiva de 24 Horas do Cliente (Custo Zero)
+    // PASSO 2: Validação da Janela Gratuita de 24 Horas
+    // Verifica a última interação do cliente armazenada na coluna relacional clientes.whatsapp_ultima_interacao_cliente_em
     let janela24hAberta = false;
-    if (cliente_id) {
+    let clienteIdConsultar = cliente_id;
+
+    if (!clienteIdConsultar && pedido_id) {
+      const { data: pedDb } = await supabaseAdmin
+        .from("pedidos")
+        .select("cliente_id")
+        .eq("id", pedido_id)
+        .eq("loja_id", loja_id)
+        .maybeSingle();
+      if (pedDb?.cliente_id) {
+        clienteIdConsultar = pedDb.cliente_id;
+      }
+    }
+
+    if (!clienteIdConsultar && telefone_destino) {
+      const digitosTelefone = normalizarTelefoneBrasil(telefone_destino).replace(/^55/, "");
+      const { data: cliBusca } = await supabaseAdmin
+        .from("clientes")
+        .select("id, whatsapp_ultima_interacao_cliente_em")
+        .eq("loja_id", loja_id)
+        .or(`whatsapp.ilike.%${digitosTelefone}%,telefone.ilike.%${digitosTelefone}%`)
+        .limit(1)
+        .maybeSingle();
+      if (cliBusca?.whatsapp_ultima_interacao_cliente_em) {
+        const diffMs = Date.now() - new Date(cliBusca.whatsapp_ultima_interacao_cliente_em).getTime();
+        janela24hAberta = diffMs >= 0 && diffMs < 24 * 60 * 60 * 1000;
+      }
+    } else if (clienteIdConsultar) {
       const { data: cli } = await supabaseAdmin
         .from("clientes")
         .select("whatsapp_ultima_interacao_cliente_em")
         .eq("loja_id", loja_id)
-        .eq("id", cliente_id)
+        .eq("id", clienteIdConsultar)
         .maybeSingle();
 
       if (cli?.whatsapp_ultima_interacao_cliente_em) {
@@ -228,7 +257,9 @@ serve(async (req: Request) => {
     }
 
     // ROTA 1: Janela de 24 Horas Aberta (Custo Zero via Service Conversation)
-    if (janela24hAberta && loja.whatsapp_auto_ativo && possuiCredenciaisCloudApi) {
+    // SE dentroDaJanela24h for true: LIBERA O DISPARO AUTOMÁTICO em 2º plano sem cobrar tarifa da carteira,
+    // mesmo se alguma flag individual wpp_auto_* estiver desligada (pois o envio é gratuito para a loja dentro dessa janela).
+    if (janela24hAberta && possuiCredenciaisCloudApi) {
       const metaRes = await fetch(
         `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
         {
@@ -264,8 +295,42 @@ serve(async (req: Request) => {
       }
     }
 
-    // ROTA 2: Fora da Janela de 24h com Automação Ativa e Saldo Disponível (Disparo Tarifado)
-    if (loja.whatsapp_auto_ativo && saldoAtual >= tarifaDisparo && possuiCredenciaisCloudApi) {
+    // PASSO 3: Fora da Janela de 24h (Disparo Tarifado)
+    // SE a janela de 24h estiver fechada:
+    // 1. Verifica se a flag específica do gatilho está autorizada na tabela lojas
+    // 2. Verifica se a loja possui saldo suficiente (saldoAtual >= tarifaDisparo)
+    const flagGatilhoAutorizada = verificarPermissaoGatilhoWhatsapp(loja, evento_gatilho);
+
+    if (!flagGatilhoAutorizada) {
+      return new Response(
+        JSON.stringify({
+          sucesso: true,
+          modoEnvio: "manual_link",
+          motivo: "gatilho_desativado",
+          custoDebitado: 0,
+          saldoRestante: saldoAtual,
+          urlManual,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (saldoAtual < tarifaDisparo) {
+      return new Response(
+        JSON.stringify({
+          sucesso: true,
+          modoEnvio: "manual_link",
+          motivo: "saldo_insuficiente",
+          custoDebitado: 0,
+          saldoRestante: saldoAtual,
+          urlManual,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ROTA 2: Disparo Tarifado via Meta Cloud API
+    if (possuiCredenciaisCloudApi) {
       const payloadMeta = template_nome
         ? {
             messaging_product: "whatsapp",

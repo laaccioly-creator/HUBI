@@ -20,12 +20,13 @@ import { Loja, LojaWhatsappTransacao } from '../../types';
 import { whatsappWalletService } from '../../services/whatsappWalletService';
 import { formatarMoeda as formatCurrency } from '../../utils/formatters';
 import { ModalRecargaWhatsapp } from './ModalRecargaWhatsapp';
+import { PainelGatilhosWhatsapp } from './PainelGatilhosWhatsapp';
 import { useTheme } from '../../contexts/ThemeContext';
 
 interface CardCarteiraWhatsappProps {
   loja: Loja;
   usuarioId?: string | null;
-  aoAtualizarLoja?: (parcial: Partial<Loja>) => void;
+  aoAtualizarLoja?: (parcial?: Partial<Loja>) => void;
 }
 
 const ITENS_POR_PAGINA = 6;
@@ -322,6 +323,13 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
           {mensagemFeedback}
         </div>
       )}
+
+      {/* Painel de Controle de Disparos Automáticos (Quais avisos enviar automaticamente com seu saldo?) */}
+      <PainelGatilhosWhatsapp
+        loja={loja}
+        autoAtivoGeral={autoAtivo}
+        aoAtualizarLoja={aoAtualizarLoja}
+      />
 
       {/* Cards de Métricas da Carteira */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

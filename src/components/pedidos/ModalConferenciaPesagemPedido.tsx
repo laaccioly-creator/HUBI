@@ -289,7 +289,7 @@ export const ModalConferenciaPesagemPedido: React.FC<ModalConferenciaPesagemPedi
             mensagem: textoMensagem,
             eventoGatilho: 'liberacao_pagamento_pesagem',
             pedidoId: pedido.id,
-            clienteId: pedido.cliente_id || null,
+            clienteId: pedido.cliente_id || pedido.cliente?.id || null,
             usuarioId: usuarioId || null
           });
         } catch (errWpp) {
