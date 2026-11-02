@@ -1137,7 +1137,10 @@ export const ProdutoCadastro: React.FC = () => {
 
   const handleSelecionarCategoria = (catId: string) => {
     setCategoriaId(catId);
-    setSubcategoriaId('');
+    const filhasDaNovaCat = obterSubcategoriasDe(categorias, catId, loja?.id);
+    if (!filhasDaNovaCat.some(sub => sub.id === subcategoriaId)) {
+      setSubcategoriaId('');
+    }
     if (catId) {
       gerarCodigoInternoSugerido(catId);
     }
@@ -2122,47 +2125,27 @@ export const ProdutoCadastro: React.FC = () => {
                 />
               </div>
 
-              {/* LINHA 1: Categoria, Subcategoria Condicional e Unidade de Medida (ANTES do Código) */}
-              <div className="space-y-2.5">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Categoria *</label>
-                    <button
-                      type="button"
-                      onClick={() => setModalCategorias(true)}
-                      className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-bold flex items-center gap-1 cursor-pointer"
-                    >
-                      <FolderPlus className="w-3.5 h-3.5" />
-                      <span>+ Criar / Gerenciar</span>
-                    </button>
-                  </div>
-                  <select
-                    value={categoriaId}
-                    onChange={(e) => handleSelecionarCategoria(e.target.value)}
-                    className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              {/* LINHA 1: Categoria * ao lado de Unidade de Medida */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Categoria *</label>
+                  <button
+                    type="button"
+                    onClick={() => setModalCategorias(true)}
+                    className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-bold flex items-center gap-1 cursor-pointer"
                   >
-                    <option value="">Selecione uma Categoria...</option>
-                    {arvoreCategorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                  </select>
+                    <FolderPlus className="w-3.5 h-3.5" />
+                    <span>+ Criar / Gerenciar</span>
+                  </button>
                 </div>
-
-                {subcategoriasDisponiveis.length > 0 && (
-                  <div className="space-y-1 animate-in fade-in">
-                    <label className="text-xs font-medium text-slate-700 dark:text-slate-300 block">
-                      Subcategoria (Opcional)
-                    </label>
-                    <select
-                      value={subcategoriaId}
-                      onChange={(e) => setSubcategoriaId(e.target.value)}
-                      className="w-full bg-white dark:bg-[#000000] border border-emerald-500/40 dark:border-emerald-500/40 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                    >
-                      <option value="">Todas / Sem subcategoria específica</option>
-                      {subcategoriasDisponiveis.map(sub => (
-                        <option key={sub.id} value={sub.id}>{sub.nome}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                <select
+                  value={categoriaId}
+                  onChange={(e) => handleSelecionarCategoria(e.target.value)}
+                  className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                >
+                  <option value="">Selecione uma Categoria...</option>
+                  {arvoreCategorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
               </div>
 
               <div className="space-y-1">
@@ -2195,6 +2178,25 @@ export const ProdutoCadastro: React.FC = () => {
                   ))}
                 </select>
               </div>
+
+              {/* LOGO ABAIXO DESSA LINHA: Subcategoria Condicional */}
+              {subcategoriasDisponiveis.length > 0 && (
+                <div className="md:col-span-2 space-y-1 animate-in fade-in">
+                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300 block">
+                    Subcategoria (Opcional)
+                  </label>
+                  <select
+                    value={subcategoriaId}
+                    onChange={(e) => setSubcategoriaId(e.target.value)}
+                    className="w-full bg-white dark:bg-[#000000] border border-emerald-500/40 dark:border-emerald-500/40 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                  >
+                    <option value="">[ Nenhuma subcategoria selecionada ]</option>
+                    {subcategoriasDisponiveis.map(sub => (
+                      <option key={sub.id} value={sub.id}>{sub.nome}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Configuração de Balança e Fracionamento */}
               <div className="sm:col-span-2 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">

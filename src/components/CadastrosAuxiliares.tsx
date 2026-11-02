@@ -32,14 +32,22 @@ import {
   MessageSquare,
   Store,
   PackageCheck,
-  Box
+  Box,
+  CornerDownRight,
+  Tags
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { Categoria, Fornecedor, UnidadeMedida, FormaPagamento, TipoPagamento, FormaEntrega, TipoEntrega } from '../types';
+import { Categoria, Fornecedor, UnidadeMedida, FormaPagamento, TipoPagamento, FormaEntrega, TipoEntrega, Produto } from '../types';
+import {
+  obterArvoreCategorias,
+  obterCategoriaPaiId,
+  salvarVinculoCategoriaPaiLocal,
+  obterSubcategoriaIdProduto
+} from '../utils/categoriasHierarquia';
 import { AppEntrega, Transportadora } from '../types/shipping';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import { SyncService } from '../services/syncService';
@@ -148,6 +156,9 @@ export const CadastrosAuxiliares: React.FC = () => {
   const [catEditando, setCatEditando] = useState<Categoria | null>(null);
   const [catNome, setCatNome] = useState<string>('');
   const [catIcone, setCatIcone] = useState<string>('📦');
+  const [inputSubcategoria, setInputSubcategoria] = useState<string>('');
+  const [subcategoriasForm, setSubcategoriasForm] = useState<{ id?: string; nome: string }[]>([]);
+  const [idsSubcategoriasExcluidas, setIdsSubcategoriasExcluidas] = useState<string[]>([]);
 
   const [modalUnidadeAberta, setModalUnidadeAberta] = useState<boolean>(false);
   const [unidadeEditando, setUnidadeEditando] = useState<UnidadeMedida | null>(null);
@@ -253,16 +264,30 @@ export const CadastrosAuxiliares: React.FC = () => {
         if (dados.formasPagamento) setFormasPagamento(dados.formasPagamento);
       }
 
-      // Contagem de produtos por categoria
-      const { data: prods } = await supabase
-        .from('produtos')
-        .select('categoria_id')
-        .eq('loja_id', loja.id);
+      // Contagem de produtos por categoria e subcategoria
+      let prods: any[] | null = null;
+      try {
+        const resProds = await supabase
+          .from('produtos')
+          .select('id, categoria_id, subcategoria_id')
+          .eq('loja_id', loja.id);
+        prods = resProds.data;
+      } catch {
+        const resProdsFallback = await supabase
+          .from('produtos')
+          .select('id, categoria_id')
+          .eq('loja_id', loja.id);
+        prods = resProdsFallback.data;
+      }
       if (prods) {
         const contagem: Record<string, number> = {};
         prods.forEach((p) => {
           if (p.categoria_id) {
             contagem[p.categoria_id] = (contagem[p.categoria_id] || 0) + 1;
+          }
+          const subId = p.subcategoria_id || (loja?.id ? obterSubcategoriaIdProduto(p as Produto, loja.id) : null);
+          if (subId && subId !== p.categoria_id) {
+            contagem[subId] = (contagem[subId] || 0) + 1;
           }
         });
         setContagemProdutosCat(contagem);
@@ -453,20 +478,73 @@ export const CadastrosAuxiliares: React.FC = () => {
   };
 
   // ============================================================================
-  // FUNÇÕES DE CATEGORIAS
+  // FUNÇÕES DE CATEGORIAS & SUBCATEGORIAS
   // ============================================================================
+  const adicionarSubcategoriaChip = (e?: React.MouseEvent | React.KeyboardEvent) => {
+    if (e) e.preventDefault();
+    const raw = inputSubcategoria.trim();
+    if (!raw) return;
+    const nomes = raw.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+    setSubcategoriasForm(prev => {
+      const novos = [...prev];
+      for (const n of nomes) {
+        if (!novos.some(item => item.nome.toUpperCase() === n)) {
+          novos.push({ nome: n });
+        }
+      }
+      return novos;
+    });
+    setInputSubcategoria('');
+  };
+
+  const removerSubcategoriaChip = (idx: number) => {
+    setSubcategoriasForm(prev => {
+      const alvo = prev[idx];
+      if (alvo?.id) {
+        setIdsSubcategoriasExcluidas(ex => [...ex, alvo.id!]);
+      }
+      return prev.filter((_, i) => i !== idx);
+    });
+  };
+
+  const abrirModalNovaCategoria = () => {
+    setCatEditando(null);
+    setCatNome('');
+    setCatIcone('📦');
+    setSubcategoriasForm([]);
+    setInputSubcategoria('');
+    setIdsSubcategoriasExcluidas([]);
+    setModalCategoriaAberta(true);
+  };
+
+  const abrirModalEditarCategoria = (cat: Categoria) => {
+    setCatEditando(cat);
+    setCatNome(cat.nome);
+    setCatIcone(cat.icone || '📦');
+    const filhas = categorias.filter(
+      (c) => c.categoria_pai_id === cat.id || obterCategoriaPaiId(c, loja?.id) === cat.id
+    );
+    setSubcategoriasForm(filhas.map((f) => ({ id: f.id, nome: f.nome })));
+    setInputSubcategoria('');
+    setIdsSubcategoriasExcluidas([]);
+    setModalCategoriaAberta(true);
+  };
+
   const salvarCategoria = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!catNome.trim() || !loja?.id) return;
 
     try {
       setSalvando(true);
+      let categoriaPaiId = catEditando?.id;
+
       if (catEditando) {
         const { error } = await supabase
           .from('categorias')
           .update({
             nome: catNome.trim().toUpperCase(),
-            icone: catIcone.trim() || '📦'
+            icone: catIcone.trim() || '📦',
+            categoria_pai_id: null
           })
           .eq('id', catEditando.id);
         if (error) throw error;
@@ -481,21 +559,67 @@ export const CadastrosAuxiliares: React.FC = () => {
             nome: catNome.trim().toUpperCase(),
             icone: catIcone.trim() || '📦',
             ordem_exibicao: maxOrdem,
-            ativo: true
+            ativo: true,
+            categoria_pai_id: null
           }])
           .select()
           .single();
         if (error) throw error;
         if (novaCat?.id) {
+          categoriaPaiId = novaCat.id;
           sessionStorage.setItem('hubi_recem_criado_categoria', novaCat.id);
         }
         exibirAlertaSucesso('Nova categoria criada com sucesso!');
+      }
+
+      // Deletar do banco as subcategorias que foram excluídas dos chips durante edição
+      if (idsSubcategoriasExcluidas.length > 0) {
+        await supabase
+          .from('categorias')
+          .delete()
+          .in('id', idsSubcategoriasExcluidas)
+          .eq('loja_id', loja.id);
+      }
+
+      // Salvar subcategorias vinculadas à categoria pai
+      if (categoriaPaiId && subcategoriasForm.length > 0) {
+        for (const sub of subcategoriasForm) {
+          if (sub.id) {
+            await supabase
+              .from('categorias')
+              .update({
+                nome: sub.nome.trim().toUpperCase(),
+                categoria_pai_id: categoriaPaiId
+              })
+              .eq('id', sub.id)
+              .eq('loja_id', loja.id);
+            if (loja?.id) salvarVinculoCategoriaPaiLocal(loja.id, sub.id, categoriaPaiId);
+          } else {
+            const { data: subCriada } = await supabase
+              .from('categorias')
+              .insert([{
+                loja_id: loja.id,
+                nome: sub.nome.trim().toUpperCase(),
+                icone: catIcone.trim() || '📦',
+                categoria_pai_id: categoriaPaiId,
+                ativo: true
+              }])
+              .select()
+              .single();
+            if (subCriada?.id && loja?.id) {
+              salvarVinculoCategoriaPaiLocal(loja.id, subCriada.id, categoriaPaiId);
+            }
+          }
+        }
       }
 
       setModalCategoriaAberta(false);
       setCatEditando(null);
       setCatNome('');
       setCatIcone('📦');
+      setSubcategoriasForm([]);
+      setInputSubcategoria('');
+      setIdsSubcategoriasExcluidas([]);
       setModalSecaoAberta('categorias');
       carregarDados();
     } catch (err: any) {
@@ -508,18 +632,67 @@ export const CadastrosAuxiliares: React.FC = () => {
 
   const excluirCategoria = (cat: Categoria) => {
     if (!loja?.id) return;
-    const totalProds = contagemProdutosCat[cat.id] || 0;
+    const filhas = categorias.filter(
+      (c) => c.categoria_pai_id === cat.id || (loja?.id ? obterCategoriaPaiId(c, loja.id) === cat.id : false)
+    );
+    const totalProdsProprios = contagemProdutosCat[cat.id] || 0;
+    const totalProdsFilhas = filhas.reduce((sum, f) => sum + (contagemProdutosCat[f.id] || 0), 0);
+    const totalProds = totalProdsProprios + totalProdsFilhas;
+
     if (totalProds > 0) {
-      mostrarAviso(`Não é possível excluir a categoria "${cat.nome}" pois ela possui ${totalProds} produto(s) vinculado(s). Reclassifique os produtos antes de excluir.`, 'Categoria em Uso');
+      mostrarAviso(
+        `Não é possível excluir a categoria "${cat.nome}" pois ela ou suas subcategorias possuem ${totalProds} produto(s) vinculado(s). Reclassifique os produtos antes de excluir.`,
+        'Categoria em Uso'
+      );
       return;
     }
 
     setModalExclusaoConfig({
       aberto: true,
-      titulo: 'Excluir Categoria',
+      titulo: filhas.length > 0 ? 'Excluir Categoria e Subcategorias' : 'Excluir Categoria',
       itemNome: cat.nome,
-      mensagem: `Deseja realmente excluir a categoria "${cat.nome}"?`,
+      mensagem: `Deseja realmente excluir a categoria "${cat.nome}"${filhas.length > 0 ? ` e suas ${filhas.length} subcategoria(s)?` : '?' }`,
       descricao: 'Esta ação removerá a categoria do catálogo. Esta operação não poderá ser desfeita.',
+      carregando: false,
+      onConfirmar: async () => {
+        try {
+          setModalExclusaoConfig(prev => ({ ...prev, carregando: true }));
+          const idsParaExcluir = [cat.id, ...filhas.map(f => f.id)];
+          const { error } = await supabase
+            .from('categorias')
+            .delete()
+            .in('id', idsParaExcluir)
+            .eq('loja_id', loja.id);
+          if (error) throw error;
+          exibirAlertaSucesso('Categoria removida com sucesso.');
+          setCategorias(prev => prev.filter(c => !idsParaExcluir.includes(c.id)));
+          fecharModalExclusao();
+          setModalSecaoAberta('categorias');
+        } catch (err: any) {
+          mostrarErro(err.message, 'Erro ao excluir categoria');
+          fecharModalExclusao();
+        }
+      }
+    });
+  };
+
+  const excluirSubcategoriaIndividual = (sub: Categoria, nomePai: string) => {
+    if (!loja?.id) return;
+    const totalProds = contagemProdutosCat[sub.id] || 0;
+    if (totalProds > 0) {
+      mostrarAviso(
+        `Não é possível excluir a subcategoria "${sub.nome}" pois ela possui ${totalProds} produto(s) vinculado(s). Reclassifique os produtos antes de excluir.`,
+        'Subcategoria em Uso'
+      );
+      return;
+    }
+
+    setModalExclusaoConfig({
+      aberto: true,
+      titulo: 'Excluir Subcategoria',
+      itemNome: sub.nome,
+      mensagem: `Deseja realmente excluir a subcategoria "${sub.nome}" vinculada a "${nomePai}"?`,
+      descricao: 'Esta ação desvinculará a subcategoria do catálogo permanentemente.',
       carregando: false,
       onConfirmar: async () => {
         try {
@@ -527,15 +700,15 @@ export const CadastrosAuxiliares: React.FC = () => {
           const { error } = await supabase
             .from('categorias')
             .delete()
-            .eq('id', cat.id)
+            .eq('id', sub.id)
             .eq('loja_id', loja.id);
           if (error) throw error;
-          exibirAlertaSucesso('Categoria removida com sucesso.');
-          setCategorias(prev => prev.filter(c => c.id !== cat.id));
+          exibirAlertaSucesso('Subcategoria removida com sucesso.');
+          setCategorias(prev => prev.filter(c => c.id !== sub.id));
           fecharModalExclusao();
           setModalSecaoAberta('categorias');
         } catch (err: any) {
-          mostrarErro(err.message, 'Erro ao excluir categoria');
+          mostrarErro(err.message, 'Erro ao excluir subcategoria');
           fecharModalExclusao();
         }
       }
@@ -1311,6 +1484,9 @@ export const CadastrosAuxiliares: React.FC = () => {
       setCatEditando(null);
       setCatNome('');
       setCatIcone('📦');
+      setSubcategoriasForm([]);
+      setInputSubcategoria('');
+      setIdsSubcategoriasExcluidas([]);
       setModalSecaoAberta('categorias');
     };
     if (isDirtyCategoria) {
@@ -1485,6 +1661,19 @@ export const CadastrosAuxiliares: React.FC = () => {
   useRegisterOverlay(Boolean(modalSecaoAberta && !temModalFilhoAberto), fecharModalSecao, 'modal-secao-aux');
 
   // Filtros de busca
+  const arvoreCategorias = useMemo(
+    () => obterArvoreCategorias(categorias, loja?.id),
+    [categorias, loja?.id]
+  );
+  const categoriasPrincipaisFiltradas = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    if (!q) return arvoreCategorias;
+    return arvoreCategorias.filter((pai) => {
+      const matchPai = pai.nome.toLowerCase().includes(q);
+      const matchFilhas = (pai.subcategorias || []).some((f) => f.nome.toLowerCase().includes(q));
+      return matchPai || matchFilhas;
+    });
+  }, [arvoreCategorias, busca]);
   const categoriasFiltradas = categorias.filter(c =>
     c.nome.toLowerCase().includes(busca.toLowerCase())
   );
@@ -1751,12 +1940,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 {modalSecaoAberta === 'categorias' && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setCatEditando(null);
-                      setCatNome('');
-                      setCatIcone('📦');
-                      setModalCategoriaAberta(true);
-                    }}
+                    onClick={abrirModalNovaCategoria}
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
@@ -1947,7 +2131,7 @@ export const CadastrosAuxiliares: React.FC = () => {
               {modalSecaoAberta === 'categorias' && (
                 carregando ? (
                   <div className="py-12 flex justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin text-emerald-500" /></div>
-                ) : categoriasFiltradas.length === 0 ? (
+                ) : categoriasPrincipaisFiltradas.length === 0 ? (
                   <div className={`text-center py-12 border border-dashed rounded-2xl text-xs font-semibold ${
                     isDark ? 'border-slate-800 text-slate-400' : 'border-slate-300 text-slate-600'
                   }`}>
@@ -1955,64 +2139,123 @@ export const CadastrosAuxiliares: React.FC = () => {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    {categoriasFiltradas.map((cat) => {
-                      const qtdProds = contagemProdutosCat[cat.id] || 0;
+                    {categoriasPrincipaisFiltradas.map((cat) => {
+                      const qtdProdsProprios = contagemProdutosCat[cat.id] || 0;
+                      const qtdProdsFilhas = (cat.subcategorias || []).reduce(
+                        (sum, f) => sum + (contagemProdutosCat[f.id] || 0),
+                        0
+                      );
+                      const qtdProdsTotal = qtdProdsProprios + qtdProdsFilhas;
+
                       return (
                         <div
                           key={cat.id}
-                          className={`p-3.5 rounded-2xl border flex items-center justify-between transition group shadow-2xs ${
+                          className={`p-3.5 rounded-2xl border flex flex-col justify-between transition group shadow-2xs ${
                             isDark
                               ? 'bg-[#000000] border-slate-700 hover:border-slate-600'
                               : 'bg-white border-2 border-slate-300 hover:border-slate-400'
                           }`}
                         >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className={`w-10 h-10 rounded-xl border flex items-center justify-center text-lg shrink-0 ${
-                              isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-100 border-slate-200'
-                            }`}>
-                              {cat.icone || '📦'}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className={`w-10 h-10 rounded-xl border flex items-center justify-center text-lg shrink-0 ${
+                                isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-100 border-slate-200'
+                              }`}>
+                                {cat.icone || '📦'}
+                              </div>
+                              <div className="min-w-0">
+                                <h3 className={`font-bold text-xs group-hover:text-emerald-500 transition truncate ${
+                                  isDark ? 'text-white' : 'text-black'
+                                }`}>
+                                  {cat.nome}
+                                </h3>
+                                <span className={`text-xs font-semibold ${
+                                  isDark ? 'text-slate-400' : 'text-slate-600'
+                                }`}>
+                                  {qtdProdsTotal} {qtdProdsTotal === 1 ? 'produto' : 'produtos'}
+                                  {(cat.subcategorias || []).length > 0 && (
+                                    <span className="text-[10px] text-emerald-500 font-bold ml-1.5">
+                                      • {(cat.subcategorias || []).length} subcat(s)
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
                             </div>
-                            <div className="min-w-0">
-                              <h3 className={`font-bold text-xs group-hover:text-emerald-500 transition truncate ${
-                                isDark ? 'text-white' : 'text-black'
-                              }`}>
-                                {cat.nome}
-                              </h3>
-                              <span className={`text-xs font-semibold ${
-                                isDark ? 'text-slate-400' : 'text-slate-600'
-                              }`}>
-                                {qtdProds} {qtdProds === 1 ? 'produto' : 'produtos'}
-                              </span>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => abrirModalEditarCategoria(cat)}
+                                className={`p-1.5 rounded-lg transition cursor-pointer ${
+                                  isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-500 hover:text-black hover:bg-slate-100'
+                                }`}
+                                title="Editar Categoria e Subcategorias"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => excluirCategoria(cat)}
+                                className={`p-1.5 rounded-lg text-rose-500 transition cursor-pointer ${
+                                  isDark ? 'hover:bg-rose-500/10' : 'hover:bg-rose-50'
+                                }`}
+                                title="Excluir Categoria"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setCatEditando(cat);
-                                setCatNome(cat.nome);
-                                setCatIcone(cat.icone || '📦');
-                                setModalCategoriaAberta(true);
-                              }}
-                              className={`p-1.5 rounded-lg transition cursor-pointer ${
-                                isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-500 hover:text-black hover:bg-slate-100'
-                              }`}
-                              title="Editar Categoria"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => excluirCategoria(cat)}
-                              className={`p-1.5 rounded-lg text-rose-500 transition cursor-pointer ${
-                                isDark ? 'hover:bg-rose-500/10' : 'hover:bg-rose-50'
-                              }`}
-                              title="Excluir Categoria"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
+                          {/* SUBCATEGORIAS ANINHADAS/RECUADAS */}
+                          {cat.subcategorias && cat.subcategorias.length > 0 && (
+                            <div className={`mt-3 pt-2.5 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'} space-y-1.5`}>
+                              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-0.5">
+                                Subcategorias:
+                              </span>
+                              <div className="space-y-1 pl-2 border-l-2 border-emerald-500/40">
+                                {cat.subcategorias.map((sub) => {
+                                  const qtdSub = contagemProdutosCat[sub.id] || 0;
+                                  return (
+                                    <div
+                                      key={sub.id}
+                                      className={`flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs transition ${
+                                        isDark ? 'bg-slate-900/60 hover:bg-slate-800/80' : 'bg-slate-50 hover:bg-slate-100'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-1.5 min-w-0">
+                                        <CornerDownRight className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                        <span className={`font-semibold truncate ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                                          {sub.nome}
+                                        </span>
+                                        <span className="text-[10px] font-medium text-slate-400 shrink-0">
+                                          ({qtdSub})
+                                        </span>
+                                      </div>
+
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        <button
+                                          type="button"
+                                          onClick={() => abrirModalEditarCategoria(cat)}
+                                          className="p-1 rounded text-slate-400 hover:text-emerald-400 transition cursor-pointer"
+                                          title={`Editar subcategoria em "${cat.nome}"`}
+                                        >
+                                          <Edit2 className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => excluirSubcategoriaIndividual(sub, cat.nome)}
+                                          className="p-1 rounded text-slate-400 hover:text-rose-500 transition cursor-pointer"
+                                          title={`Excluir subcategoria "${sub.nome}"`}
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -3111,6 +3354,74 @@ export const CadastrosAuxiliares: React.FC = () => {
                   }`}
                   placeholder="Ex: 📦, 🧴, 🥤, 👗, 🍔"
                 />
+              </div>
+
+              {/* SEÇÃO DE SUBCATEGORIAS VINCULADAS (OPCIONAL) */}
+              <div className={`pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className={`text-xs font-bold flex items-center gap-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    <Tags className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Subcategorias vinculadas (Opcional)</span>
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    {subcategoriasForm.length} vinculada(s)
+                  </span>
+                </div>
+
+                <div className="flex gap-1.5">
+                  <input
+                    type="text"
+                    value={inputSubcategoria}
+                    onChange={(e) => setInputSubcategoria(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        adicionarSubcategoriaChip();
+                      }
+                    }}
+                    placeholder="Ex: Cervejas, Destilados, Águas..."
+                    className={`flex-1 rounded-xl px-3 py-2 text-xs font-medium uppercase focus:outline-none transition border ${
+                      isDark
+                        ? 'bg-[#08131A] border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500'
+                        : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-500'
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={adicionarSubcategoriaChip}
+                    className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center gap-1 cursor-pointer shrink-0"
+                    title="Adicionar subcategoria à lista"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Adicionar</span>
+                  </button>
+                </div>
+
+                {/* Lista de tags/chips com botão X */}
+                {subcategoriasForm.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2.5 max-h-28 overflow-y-auto p-1">
+                    {subcategoriasForm.map((sub, idx) => (
+                      <span
+                        key={sub.id || `chip_${idx}_${sub.nome}`}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border animate-in zoom-in-95 duration-150 ${
+                          isDark
+                            ? 'bg-slate-800/90 text-emerald-300 border-emerald-500/30'
+                            : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                        }`}
+                      >
+                        <span className="truncate max-w-[140px]">{sub.nome}</span>
+                        <button
+                          type="button"
+                          onClick={() => removerSubcategoriaChip(idx)}
+                          className="hover:text-rose-400 p-0.5 rounded transition cursor-pointer"
+                          title={`Remover subcategoria "${sub.nome}"`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-2 pt-2">

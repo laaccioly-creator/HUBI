@@ -2550,10 +2550,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               key={cat.id}
               type="button"
               onClick={() => {
+                const subcategoriasDaNova = obterSubcategoriasDe(categorias, cat.id, loja?.id);
                 setFormData(prev => ({
                   ...prev,
                   categoriaId: cat.id,
-                  subcategoriaId: prev.categoriaId === cat.id ? prev.subcategoriaId : ''
+                  subcategoriaId: subcategoriasDaNova.some(s => s.id === prev.subcategoriaId) ? prev.subcategoriaId : ''
                 }));
                 setModalCategoriasAberto(false);
               }}
@@ -3376,7 +3377,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                             className="w-full px-3 py-2 rounded-xl border text-xs sm:text-sm font-bold focus:outline-none focus:border-emerald-500"
                             style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
                           >
-                            <option value="">Todas / Sem subcategoria específica</option>
+                            <option value="">[ Nenhuma subcategoria selecionada ]</option>
                             {subcategoriasFilhas.map((sub) => (
                               <option key={sub.id} value={sub.id}>
                                 {sub.nome}
