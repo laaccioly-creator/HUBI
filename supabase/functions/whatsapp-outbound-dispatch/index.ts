@@ -37,6 +37,54 @@ function construirUrlManualWhatsApp(telefone: string, mensagem: string): string 
   return `https://api.whatsapp.com/send?phone=${foneNormalizado}&text=${encodeURIComponent(mensagem)}`;
 }
 
+interface LojaPermissaoGatilhos {
+  whatsapp_auto_ativo?: boolean | null;
+  wpp_auto_pedido_confirmado?: boolean | null;
+  wpp_auto_pesagem_concluida?: boolean | null;
+  wpp_auto_status_separacao?: boolean | null;
+  wpp_auto_pronto_retirada?: boolean | null;
+  wpp_auto_despacho_rastreio?: boolean | null;
+  wpp_auto_pedido_entregue?: boolean | null;
+  wpp_auto_recibo_venda?: boolean | null;
+  wpp_auto_comprovante_fiado?: boolean | null;
+}
+
+function verificarPermissaoGatilhoWhatsapp(
+  loja: LojaPermissaoGatilhos | null | undefined,
+  eventoGatilho: string
+): boolean {
+  if (!loja || !loja.whatsapp_auto_ativo) {
+    return false;
+  }
+
+  switch (eventoGatilho) {
+    case 'pedido_confirmado':
+      return loja.wpp_auto_pedido_confirmado ?? true;
+    case 'liberacao_pagamento_pesagem':
+      return loja.wpp_auto_pesagem_concluida ?? true;
+    case 'status_andamento_pedido':
+    case 'status_pedido':
+      return loja.wpp_auto_status_separacao ?? false;
+    case 'pedido_pronto_retirada':
+      return loja.wpp_auto_pronto_retirada ?? true;
+    case 'despacho_e_rastreio':
+    case 'rastreio_despacho':
+      return loja.wpp_auto_despacho_rastreio ?? true;
+    case 'pedido_entregue_concluido':
+      return loja.wpp_auto_pedido_entregue ?? false;
+    case 'comprovante_recibo_venda':
+    case 'recibo_venda':
+      return loja.wpp_auto_recibo_venda ?? false;
+    case 'comprovante_fiado_caderneta':
+    case 'comprovante_caderneta':
+    case 'cobranca_fiado':
+    case 'cobranca_caderneta':
+      return loja.wpp_auto_comprovante_fiado ?? true;
+    default:
+      return true;
+  }
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders, status: 200 });
@@ -82,7 +130,7 @@ serve(async (req: Request) => {
       supabaseAdmin
         .from("lojas")
         .select(
-          "id, nome_fantasia, whatsapp_auto_ativo, whatsapp_saldo, whatsapp_bonus_expira_em, meta_phone_number_id, meta_access_token"
+          "id, nome_fantasia, whatsapp_auto_ativo, whatsapp_saldo, whatsapp_bonus_expira_em, meta_phone_number_id, meta_access_token, wpp_auto_pedido_confirmado, wpp_auto_pesagem_concluida, wpp_auto_status_separacao, wpp_auto_pronto_retirada, wpp_auto_despacho_rastreio, wpp_auto_pedido_entregue, wpp_auto_recibo_venda, wpp_auto_comprovante_fiado"
         )
         .eq("id", loja_id)
         .maybeSingle(),
@@ -109,7 +157,22 @@ serve(async (req: Request) => {
     const tarifaDisparo = Number(configPlat?.custo_disparo_whatsapp ?? 0.15);
     let saldoAtual = Number(loja.whatsapp_saldo ?? 0);
 
-    // 2. Verificação de Expiração do Bônus de 7 Dias
+    // 2. Trava de autorização por gatilho da loja (evita chamada Meta Cloud API e débito de saldo)
+    if (!verificarPermissaoGatilhoWhatsapp(loja, evento_gatilho)) {
+      return new Response(
+        JSON.stringify({
+          sucesso: true,
+          modoEnvio: "manual_link",
+          motivo: !loja.whatsapp_auto_ativo ? "automacao_desligada" : "gatilho_desativado",
+          custoDebitado: 0,
+          saldoRestante: saldoAtual,
+          urlManual,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // 3. Verificação de Expiração do Bônus de 7 Dias
     if (loja.whatsapp_bonus_expira_em && saldoAtual > 0) {
       const expiraTimestamp = new Date(loja.whatsapp_bonus_expira_em).getTime();
       if (Date.now() > expiraTimestamp) {

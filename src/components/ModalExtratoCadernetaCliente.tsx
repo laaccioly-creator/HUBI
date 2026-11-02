@@ -105,9 +105,10 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
         whatsappWalletService
           .dispararNotificacaoHibrida({
             lojaId: loja.id,
+            loja,
             telefoneDestino: foneCli,
             mensagem: msgComprovante,
-            eventoGatilho: 'comprovante_caderneta',
+            eventoGatilho: 'comprovante_fiado_caderneta',
             clienteId: cliente.id,
             usuarioId: usuario?.id || null,
           })
@@ -158,9 +159,10 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
 
     const resHibrido = await whatsappWalletService.dispararNotificacaoHibrida({
       lojaId: loja.id,
+      loja,
       telefoneDestino: fone,
       mensagem: texto,
-      eventoGatilho: 'cobranca_caderneta',
+      eventoGatilho: 'comprovante_fiado_caderneta',
       clienteId: cliente.id,
       usuarioId: usuario?.id || null,
     });

@@ -284,6 +284,7 @@ export const ModalConferenciaPesagemPedido: React.FC<ModalConferenciaPesagemPedi
         try {
           resultadoEnvio = await whatsappWalletService.dispararNotificacaoHibrida({
             lojaId: loja.id,
+            loja,
             telefoneDestino: foneCliente,
             mensagem: textoMensagem,
             eventoGatilho: 'liberacao_pagamento_pesagem',

@@ -57,7 +57,7 @@ import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import { UberDirectService } from '../services/uberDirectService';
 import { MelhorEnvioService } from '../services/melhorEnvioService';
 import { mercadoLivreService } from '../services/mercadoLivreService';
-import { Pedido, StatusPedido, StatusPagamento, TabelaPreco, ItemPedido, Produto, Cliente, UsuarioLoja } from '../types';
+import { Pedido, StatusPedido, StatusPagamento, TabelaPreco, ItemPedido, Produto, Cliente, UsuarioLoja, EventoGatilhoWhatsapp } from '../types';
 import { PedidoEntrega, Transportadora } from '../types/shipping';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { whatsappWalletService } from '../services/whatsappWalletService';
@@ -1544,12 +1544,20 @@ export const PedidosLista: React.FC = () => {
             loja.nome_fantasia || 'HUBI'
           }* foi atualizado para: *${rotuloStatus}*.`;
 
+          const eventoGatilhoStatus: EventoGatilhoWhatsapp =
+            novoStatus === 'pronto_para_retirar'
+              ? 'pedido_pronto_retirada'
+              : novoStatus === 'entregue' || novoStatus === 'concluido'
+              ? 'pedido_entregue_concluido'
+              : 'status_andamento_pedido';
+
           whatsappWalletService
             .dispararNotificacaoHibrida({
               lojaId: loja.id,
+              loja,
               telefoneDestino: foneCli,
               mensagem: msgStatus,
-              eventoGatilho: 'status_pedido',
+              eventoGatilho: eventoGatilhoStatus,
               pedidoId,
               clienteId: pedAlvo.cliente_id || pedAlvo.cliente?.id || null,
               usuarioId: usuario?.id || null,
@@ -1723,6 +1731,7 @@ export const PedidosLista: React.FC = () => {
         if (loja?.id && telCliUber) {
           whatsappWalletService.notificarExpedicao({
             lojaId: loja.id,
+            loja,
             pedidoId: ped.id,
             telefoneDestino: telCliUber,
             numeroPedido: ped.numero_pedido || ped.id.slice(0, 6),
@@ -1817,6 +1826,7 @@ export const PedidosLista: React.FC = () => {
         if (loja?.id && telCliME) {
           whatsappWalletService.notificarExpedicao({
             lojaId: loja.id,
+            loja,
             pedidoId: ped.id,
             telefoneDestino: telCliME,
             numeroPedido: ped.numero_pedido || ped.id.slice(0, 6),

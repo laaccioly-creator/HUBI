@@ -12,6 +12,7 @@ export type ModoEnvioWhatsappHibrido = 'auto_janela_24h' | 'auto_tarifado' | 'ma
 
 export interface DisparoHibridoParams {
   lojaId: string;
+  loja?: Partial<Loja> | null;
   telefoneDestino: string;
   mensagem: string;
   eventoGatilho: EventoGatilhoWhatsapp;
@@ -72,6 +73,47 @@ function normalizarTelefoneBr(raw: string): string {
   return digits;
 }
 
+/**
+ * Valida se um gatilho de disparo de WhatsApp está autorizado para a loja.
+ * Verifica primeiro o disjuntor mestre (`loja.whatsapp_auto_ativo`) e,
+ * em seguida, a respectiva flag granular booleana de cada evento.
+ */
+export function verificarPermissaoGatilhoWhatsapp(
+  loja: Partial<Loja> | null | undefined,
+  eventoGatilho: string
+): boolean {
+  if (!loja || !loja.whatsapp_auto_ativo) {
+    return false;
+  }
+
+  switch (eventoGatilho) {
+    case 'pedido_confirmado':
+      return loja.wpp_auto_pedido_confirmado ?? true;
+    case 'liberacao_pagamento_pesagem':
+      return loja.wpp_auto_pesagem_concluida ?? true;
+    case 'status_andamento_pedido':
+    case 'status_pedido':
+      return loja.wpp_auto_status_separacao ?? false;
+    case 'pedido_pronto_retirada':
+      return loja.wpp_auto_pronto_retirada ?? true;
+    case 'despacho_e_rastreio':
+    case 'rastreio_despacho':
+      return loja.wpp_auto_despacho_rastreio ?? true;
+    case 'pedido_entregue_concluido':
+      return loja.wpp_auto_pedido_entregue ?? false;
+    case 'comprovante_recibo_venda':
+    case 'recibo_venda':
+      return loja.wpp_auto_recibo_venda ?? false;
+    case 'comprovante_fiado_caderneta':
+    case 'comprovante_caderneta':
+    case 'cobranca_fiado':
+    case 'cobranca_caderneta':
+      return loja.wpp_auto_comprovante_fiado ?? true;
+    default:
+      return true;
+  }
+}
+
 function mapearTransacaoDb(row: LinhaLojaWhatsappTransacaoDb): LojaWhatsappTransacao {
   const tiposValidos: TipoTransacaoWhatsappWallet[] = [
     'bonus_inicial',
@@ -126,6 +168,13 @@ export const whatsappWalletService = {
   },
 
   /**
+   * Valida permissão de disparo com base no disjuntor mestre e na flag granular do gatilho.
+   */
+  verificarPermissaoGatilho(loja: Partial<Loja> | null | undefined, eventoGatilho: string): boolean {
+    return verificarPermissaoGatilhoWhatsapp(loja, eventoGatilho);
+  },
+
+  /**
    * Aciona a Edge Function `whatsapp-outbound-dispatch` com fallback resiliente local
    * seguindo rigorosamente a árvore de decisão de 4 etapas:
    * 1. Expiração do Bônus de 7 Dias
@@ -145,6 +194,20 @@ export const whatsappWalletService = {
         saldoAtual: 0,
         manualUrl: manualUrlPadrao,
         motivoFallback: 'Telefone do cliente não informado para envio automático.',
+      };
+    }
+
+    // Trava instantânea em memória caso o objeto loja tenha sido passado na chamada
+    if (params.loja && !verificarPermissaoGatilhoWhatsapp(params.loja, params.eventoGatilho)) {
+      return {
+        sucesso: true,
+        modoEnvio: 'manual_link',
+        custoAplicado: 0,
+        saldoAtual: Number(params.loja.whatsapp_saldo ?? 0),
+        manualUrl: manualUrlPadrao,
+        motivoFallback: !params.loja.whatsapp_auto_ativo
+          ? 'Envio automático via WhatsApp desativado nas configurações da loja.'
+          : `Disparo automático para o gatilho '${params.eventoGatilho}' desativado pelo lojista.`,
       };
     }
 
@@ -182,7 +245,7 @@ export const whatsappWalletService = {
       const [resLoja, configPlataforma] = await Promise.all([
         supabase
           .from('lojas')
-          .select('id, whatsapp_auto_ativo, whatsapp_saldo, whatsapp_bonus_expira_em')
+          .select('id, whatsapp_auto_ativo, whatsapp_saldo, whatsapp_bonus_expira_em, wpp_auto_pedido_confirmado, wpp_auto_pesagem_concluida, wpp_auto_status_separacao, wpp_auto_pronto_retirada, wpp_auto_despacho_rastreio, wpp_auto_pedido_entregue, wpp_auto_recibo_venda, wpp_auto_comprovante_fiado')
           .eq('id', params.lojaId)
           .maybeSingle(),
         configuracoesPlataformaService.obterParametros(),
@@ -197,6 +260,20 @@ export const whatsappWalletService = {
           saldoAtual: 0,
           manualUrl: manualUrlPadrao,
           motivoFallback: 'Loja não localizada.',
+        };
+      }
+
+      // Validação do gatilho específico na avaliação local
+      if (!verificarPermissaoGatilhoWhatsapp(lojaRow as unknown as Loja, params.eventoGatilho)) {
+        return {
+          sucesso: true,
+          modoEnvio: 'manual_link',
+          custoAplicado: 0,
+          saldoAtual: Number(lojaRow.whatsapp_saldo ?? 0),
+          manualUrl: manualUrlPadrao,
+          motivoFallback: !lojaRow.whatsapp_auto_ativo
+            ? 'Envio automático via WhatsApp desativado nas configurações da loja.'
+            : `Disparo automático para o gatilho '${params.eventoGatilho}' desativado pelo lojista.`,
         };
       }
 
@@ -593,6 +670,7 @@ export const whatsappWalletService = {
    */
   notificarExpedicao(params: {
     lojaId: string;
+    loja?: Partial<Loja> | null;
     pedidoId: string;
     telefoneDestino: string;
     numeroPedido: number | string;
@@ -606,6 +684,7 @@ export const whatsappWalletService = {
   }): void {
     const {
       lojaId,
+      loja,
       pedidoId,
       telefoneDestino,
       numeroPedido,
@@ -624,9 +703,10 @@ export const whatsappWalletService = {
 
     this.dispararNotificacaoHibrida({
       lojaId,
+      loja,
       telefoneDestino,
       mensagem,
-      eventoGatilho: 'rastreio_despacho',
+      eventoGatilho: 'despacho_e_rastreio',
       pedidoId,
       clienteId: clienteId || null,
       usuarioId: usuarioId || null,

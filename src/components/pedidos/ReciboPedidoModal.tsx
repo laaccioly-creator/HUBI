@@ -66,9 +66,10 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
     whatsappWalletService
       .dispararNotificacaoHibrida({
         lojaId: String(loja.id),
+        loja,
         telefoneDestino: telefoneCliente,
         mensagem: mensagemRecibo,
-        eventoGatilho: 'recibo_venda',
+        eventoGatilho: 'comprovante_recibo_venda',
         pedidoId: pedido.id,
         clienteId: pedido.cliente_id || pedido.cliente?.id || null,
       })

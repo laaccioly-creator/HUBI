@@ -580,9 +580,10 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
         // Disparo assíncrono em segundo plano (Fire-and-Forget) para não travar a interface
         whatsappWalletService.dispararNotificacaoHibrida({
           lojaId: loja.id,
+          loja,
           telefoneDestino: telefoneCliente,
           mensagem: mensagemDespacho,
-          eventoGatilho: 'rastreio_despacho',
+          eventoGatilho: 'despacho_e_rastreio',
           pedidoId: pedido.id,
           clienteId: pedido.cliente_id || pedido.cliente?.id || null,
           usuarioId: usuario?.id || null,

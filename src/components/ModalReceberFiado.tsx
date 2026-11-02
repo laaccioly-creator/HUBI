@@ -370,9 +370,10 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
           const msg = `🧾 *COMPROVANTE DE PAGAMENTO DE FIADO - ${loja.nome_fantasia}*\n\nOlá, *${cliente.nome}*!\nConfirmamos o recebimento de *R$ ${valorRecebido.toFixed(2)}* referente ao pagamento de fiado.\n\n💳 *Limite de Crédito Disponível:* R$ ${novoLimiteCredito.toFixed(2)}\n💰 *Saldo Devedor Restante:* R$ ${novoSaldoDevedorFiado.toFixed(2)}\n\nAgradecemos pela pontualidade! ✨`;
           const resHibrido = await whatsappWalletService.dispararNotificacaoHibrida({
             lojaId: loja.id,
+            loja,
             telefoneDestino: phone,
             mensagem: msg,
-            eventoGatilho: 'comprovante_caderneta',
+            eventoGatilho: 'comprovante_fiado_caderneta',
             pedidoId: pedido?.id || null,
             clienteId: cliente.id,
             usuarioId: usuario?.id || null,
