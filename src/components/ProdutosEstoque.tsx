@@ -103,7 +103,7 @@ export const ProdutosEstoque: React.FC = () => {
           .from('categorias')
           .select('*')
           .eq('loja_id', loja.id)
-          .order('ordem_exibicao');
+          .order('nome');
 
         if (catData) {
           cats = catData;

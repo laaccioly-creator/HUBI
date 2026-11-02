@@ -581,9 +581,22 @@ export const CadastrosAuxiliares: React.FC = () => {
           .eq('loja_id', loja.id);
       }
 
-      // Salvar subcategorias vinculadas à categoria pai
-      if (categoriaPaiId && subcategoriasForm.length > 0) {
-        for (const sub of subcategoriasForm) {
+      // Salvar subcategorias vinculadas à categoria pai (incluindo texto ainda no input)
+      let listaSubsParaSalvar = [...subcategoriasForm];
+      if (inputSubcategoria.trim()) {
+        const nomesExtras = inputSubcategoria
+          .split(',')
+          .map((s) => s.trim().toUpperCase())
+          .filter(Boolean);
+        for (const n of nomesExtras) {
+          if (!listaSubsParaSalvar.some((item) => item.nome.toUpperCase() === n)) {
+            listaSubsParaSalvar.push({ nome: n });
+          }
+        }
+      }
+
+      if (categoriaPaiId && listaSubsParaSalvar.length > 0) {
+        for (const sub of listaSubsParaSalvar) {
           if (sub.id) {
             await supabase
               .from('categorias')

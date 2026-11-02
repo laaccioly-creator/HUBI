@@ -47,6 +47,7 @@ import { Categoria, Fornecedor, UnidadeMedida } from '../types';
 import {
   obterArvoreCategorias,
   obterSubcategoriasDe,
+  obterCategoriaPaiId,
   obterSubcategoriaIdProduto,
   salvarVinculoSubcategoriaProdutoLocal
 } from '../utils/categoriasHierarquia';
@@ -422,14 +423,20 @@ export const ProdutoCadastro: React.FC = () => {
   const [subcategoriaId, setSubcategoriaId] = useState<string>(() => rascunhoSalvo?.subcategoriaId || '');
   const [fornecedorId, setFornecedorId] = useState<string>(() => rascunhoSalvo?.fornecedorId || '');
 
-  const arvoreCategorias = useMemo(
-    () => obterArvoreCategorias(categorias, loja?.id),
-    [categorias, loja?.id]
-  );
-  const subcategoriasDisponiveis = useMemo(
-    () => obterSubcategoriasDe(categorias, categoriaId, loja?.id),
-    [categorias, categoriaId, loja?.id]
-  );
+  // Categorias principais (aquelas onde categoria_pai_id é nulo/vazio)
+  const categoriasPrincipais = useMemo(() => {
+    return categorias
+      .filter(c => !c.categoria_pai_id && !obterCategoriaPaiId(c, loja?.id))
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  }, [categorias, loja?.id]);
+
+  // Subcategorias disponíveis da categoria principal selecionada
+  const subcategoriasDisponiveis = useMemo(() => {
+    if (!categoriaId) return [];
+    return categorias
+      .filter(c => c.categoria_pai_id === categoriaId || (loja?.id ? obterCategoriaPaiId(c, loja.id) === categoriaId : false))
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  }, [categorias, categoriaId, loja?.id]);
   const [descricao, setDescricao] = useState<string>(() => rascunhoSalvo?.descricao || '');
   const [tipoUnidade, setTipoUnidade] = useState<string>(() => rascunhoSalvo?.tipoUnidade || 'un');
   const [vendaPorPeso, setVendaPorPeso] = useState<boolean>(() => Boolean((rascunhoSalvo as any)?.vendaPorPeso || false));
@@ -530,6 +537,7 @@ export const ProdutoCadastro: React.FC = () => {
       codigoInterno: (dados.codigoInterno || '').trim(),
       codigoBarras: (dados.codigoBarras || '').trim(),
       categoriaId: dados.categoriaId || '',
+      subcategoriaId: dados.subcategoriaId || '',
       fornecedorId: dados.fornecedorId || '',
       descricao: (dados.descricao || '').trim(),
       tipoUnidade: dados.tipoUnidade || 'un',
@@ -573,6 +581,7 @@ export const ProdutoCadastro: React.FC = () => {
       codigoInterno,
       codigoBarras,
       categoriaId,
+      subcategoriaId,
       fornecedorId,
       descricao,
       tipoUnidade,
@@ -607,6 +616,7 @@ export const ProdutoCadastro: React.FC = () => {
     codigoInterno,
     codigoBarras,
     categoriaId,
+    subcategoriaId,
     fornecedorId,
     descricao,
     tipoUnidade,
@@ -796,6 +806,7 @@ export const ProdutoCadastro: React.FC = () => {
     codigoInterno,
     codigoBarras,
     categoriaId,
+    subcategoriaId,
     fornecedorId,
     descricao,
     tipoUnidade,
@@ -828,7 +839,11 @@ export const ProdutoCadastro: React.FC = () => {
   const carregarAux = async () => {
     if (!loja?.id) return;
     try {
-      const { data: c } = await supabase.from('categorias').select('*').eq('loja_id', loja.id).order('ordem_exibicao');
+      const { data: c } = await supabase
+        .from('categorias')
+        .select('*')
+        .eq('loja_id', loja.id)
+        .order('nome');
       if (c) {
         setCategorias(c);
         const recemCriadaCat = sessionStorage.getItem('hubi_recem_criado_categoria');
@@ -970,7 +985,7 @@ export const ProdutoCadastro: React.FC = () => {
           setCodigoInterno(prod.codigo_interno || '');
           setCodigoBarras(prod.codigo_barras || '');
           setCategoriaId(prod.categoria_id || '');
-          setSubcategoriaId(obterSubcategoriaIdProduto(prod as any, loja?.id) || '');
+          setSubcategoriaId(prod.subcategoria_id || (loja?.id ? obterSubcategoriaIdProduto(prod as any, loja.id) : '') || '');
           setFornecedorId(prod.fornecedor_id || '');
           setDescricao(prod.descricao || '');
           setTipoUnidade(prod.tipo_unidade || 'un');
@@ -1137,7 +1152,9 @@ export const ProdutoCadastro: React.FC = () => {
 
   const handleSelecionarCategoria = (catId: string) => {
     setCategoriaId(catId);
-    const filhasDaNovaCat = obterSubcategoriasDe(categorias, catId, loja?.id);
+    const filhasDaNovaCat = categorias.filter(
+      c => c.categoria_pai_id === catId || (loja?.id ? obterCategoriaPaiId(c, loja.id) === catId : false)
+    );
     if (!filhasDaNovaCat.some(sub => sub.id === subcategoriaId)) {
       setSubcategoriaId('');
     }
@@ -1145,6 +1162,18 @@ export const ProdutoCadastro: React.FC = () => {
       gerarCodigoInternoSugerido(catId);
     }
   };
+
+  // Se categoriaId for uma subcategoria (ex: produto legado vinculado direto à subcategoria), ajusta pai e filha
+  useEffect(() => {
+    if (!categoriaId || categorias.length === 0) return;
+    const catAtual = categorias.find(c => c.id === categoriaId);
+    if (!catAtual) return;
+    const catPaiId = catAtual.categoria_pai_id || (loja?.id ? obterCategoriaPaiId(catAtual, loja.id) : null);
+    if (catPaiId) {
+      setCategoriaId(catPaiId);
+      setSubcategoriaId(catAtual.id);
+    }
+  }, [categorias, categoriaId, loja?.id]);
 
   // Manipular upload de imagens (Câmera ou Galeria) permitindo até 7 fotos
   const handleProcessarArquivosImagens = async (files: FileList | File[] | null) => {
@@ -2144,7 +2173,7 @@ export const ProdutoCadastro: React.FC = () => {
                   className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                 >
                   <option value="">Selecione uma Categoria...</option>
-                  {arvoreCategorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                  {categoriasPrincipais.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
                 </select>
               </div>
 
