@@ -67,7 +67,7 @@ export const ImportarExportarProdutos: React.FC<ImportarExportarProdutosProps> =
       const [resProd, resCat] = await Promise.all([
         supabase
           .from('produtos')
-          .select('*, categoria:categorias(id, nome)')
+          .select('*, categoria:categorias!categoria_id(id, nome)')
           .eq('loja_id', loja.id)
           .order('nome', { ascending: true }),
         supabase

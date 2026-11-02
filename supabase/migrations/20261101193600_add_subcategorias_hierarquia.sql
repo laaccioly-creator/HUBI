@@ -17,3 +17,6 @@ REFERENCES public.categorias(id) ON DELETE SET NULL;
 
 CREATE INDEX IF NOT EXISTS idx_produtos_subcategoria_id
 ON public.produtos(subcategoria_id);
+
+-- 3. Notificar PostgREST para recarregar o schema cache imediatamente
+NOTIFY pgrst, 'reload schema';

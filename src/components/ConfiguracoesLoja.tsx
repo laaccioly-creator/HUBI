@@ -1658,7 +1658,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       if (exportarProdutos) {
         const { data: prods } = await supabase
           .from('produtos')
-          .select('*, categoria:categorias(*)')
+          .select('*, categoria:categorias!categoria_id(*)')
           .eq('loja_id', loja.id);
         if (prods) feedExportService.exportarCsvRelatorio('produtos', prods, dataInicioExport, dataFimExport);
       }

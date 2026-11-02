@@ -762,7 +762,10 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
     // Filtros de Categorias
     if (categoriasFiltro.length > 0) {
-      list = list.filter(p => p.categoria_id && categoriasFiltro.includes(p.categoria_id));
+      list = list.filter(p => 
+        (p.categoria_id && categoriasFiltro.includes(p.categoria_id)) ||
+        (p.subcategoria_id && categoriasFiltro.includes(p.subcategoria_id))
+      );
     }
 
     // Filtro de Status Ativo / Inativo

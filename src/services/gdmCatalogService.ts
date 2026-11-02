@@ -26,7 +26,7 @@ export class GdmCatalogService {
         .from('produtos')
         .select(`
           *,
-          categoria:categorias(nome),
+          categoria:categorias!categoria_id(nome),
           variacoes:variacoes_produto(*)
         `)
         .eq('loja_id', lojaId)

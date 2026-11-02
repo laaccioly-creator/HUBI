@@ -530,7 +530,7 @@ export const VendasHistorico: React.FC = () => {
       if (item.produto_id) {
         const { data } = await supabase
           .from('produtos')
-          .select('*, categoria:categorias(*), variacoes:variacoes_produto(*)')
+          .select('*, categoria:categorias!categoria_id(*), variacoes:variacoes_produto(*)')
           .eq('id', item.produto_id)
           .maybeSingle();
 

@@ -95,22 +95,72 @@ export const ProdutosEstoque: React.FC = () => {
     if (!loja?.id) return;
     try {
       setCarregando(true);
-      const { data: prodData, error } = await supabase
-        .from('produtos')
-        .select('*, variacoes:variacoes_produto(*), categoria:categorias(*)')
-        .eq('loja_id', loja.id)
-        .order('nome');
 
-      if (error) throw error;
-      if (prodData) setProdutos(prodData as unknown as Produto[]);
+      // 1. Carregar categorias da loja primeiro para cruzar em memória de forma resiliente
+      let cats: Categoria[] = [];
+      try {
+        const { data: catData } = await supabase
+          .from('categorias')
+          .select('*')
+          .eq('loja_id', loja.id)
+          .order('ordem_exibicao');
 
-      const { data: catData } = await supabase
-        .from('categorias')
-        .select('*')
-        .eq('loja_id', loja.id)
-        .order('ordem_exibicao');
+        if (catData) {
+          cats = catData;
+          setCategorias(catData);
+        }
+      } catch (eCat) {
+        console.warn('[ProdutosEstoque] Falha ao carregar categorias:', eCat);
+      }
 
-      if (catData) setCategorias(catData);
+      const mapaCats = new Map(cats.map(c => [c.id, c]));
+
+      // 2. Consulta de produtos: desambiguação explícita de FK (!categoria_id) ou fallback direto
+      let prodData: any[] | null = null;
+      let erroBusca: any = null;
+
+      try {
+        const res = await supabase
+          .from('produtos')
+          .select('*, variacoes:variacoes_produto(*), categoria:categorias!categoria_id(*)')
+          .eq('loja_id', loja.id)
+          .order('nome');
+
+        prodData = res.data;
+        erroBusca = res.error;
+      } catch (e) {
+        erroBusca = e;
+      }
+
+      // Fallback de alta resiliência caso o PostgREST rejeite o join ou schema cache esteja atualizando
+      if (erroBusca || !prodData) {
+        console.warn('[ProdutosEstoque] Ativando fallback seguro sem join embutido:', erroBusca?.message || erroBusca);
+        const resFallback = await supabase
+          .from('produtos')
+          .select('*, variacoes:variacoes_produto(*)')
+          .eq('loja_id', loja.id)
+          .order('nome');
+
+        if (resFallback.error) throw resFallback.error;
+        prodData = resFallback.data;
+      }
+
+      if (prodData) {
+        // Enriquecer em memória para garantir integridade de produto.categoria e subcategoria
+        const produtosEnriquecidos = prodData.map((p: any) => {
+          const cat = p.categoria || (p.categoria_id ? mapaCats.get(p.categoria_id) : null) || null;
+          const subId = p.subcategoria_id || null;
+          const sub = subId ? mapaCats.get(subId) : null;
+          return {
+            ...p,
+            categoria: cat,
+            categoria_nome: cat?.nome || p.categoria_nome || null,
+            subcategoria: sub || null,
+            subcategoria_nome: sub?.nome || p.subcategoria_nome || null
+          };
+        });
+        setProdutos(produtosEnriquecidos as unknown as Produto[]);
+      }
     } catch (err) {
       console.error('Erro ao carregar produtos:', err);
     } finally {
@@ -287,7 +337,8 @@ export const ProdutosEstoque: React.FC = () => {
 
     const matchCategoria =
       categoriasFiltro.length === 0 ||
-      (p.categoria_id && categoriasFiltro.includes(p.categoria_id));
+      (p.categoria_id && categoriasFiltro.includes(p.categoria_id)) ||
+      (p.subcategoria_id && categoriasFiltro.includes(p.subcategoria_id));
 
     const estoqueProduto = getEstoqueReal(p);
     const matchEstoque =
