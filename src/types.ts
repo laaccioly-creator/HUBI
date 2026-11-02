@@ -261,6 +261,14 @@ export type TipoTransacaoWhatsappWallet =
   | 'estorno';
 
 export type EventoGatilhoWhatsapp =
+  | 'pedido_confirmado'
+  | 'liberacao_pagamento_pesagem'
+  | 'status_andamento_pedido'
+  | 'pedido_pronto_retirada'
+  | 'despacho_e_rastreio'
+  | 'pedido_entregue_concluido'
+  | 'comprovante_recibo_venda'
+  | 'comprovante_fiado_caderneta'
   | 'recibo_venda'
   | 'status_pedido'
   | 'rastreio_despacho'
@@ -268,8 +276,7 @@ export type EventoGatilhoWhatsapp =
   | 'comprovante_caderneta'
   | 'cobranca_fiado'
   | 'recarga_carteira_pix'
-  | 'expiracao_trial_7d'
-  | 'liberacao_pagamento_pesagem';
+  | 'expiracao_trial_7d';
 
 export type StatusPagamentoWhatsappWallet = 'pendente' | 'concluido' | 'cancelado';
 
@@ -387,6 +394,14 @@ export interface Loja {
   prompt_personalizado?: string | null;
   mensagem_pausa_humano?: string | null;
   whatsapp_auto_ativo?: boolean;
+  wpp_auto_pedido_confirmado?: boolean;
+  wpp_auto_pesagem_concluida?: boolean;
+  wpp_auto_status_separacao?: boolean;
+  wpp_auto_pronto_retirada?: boolean;
+  wpp_auto_despacho_rastreio?: boolean;
+  wpp_auto_pedido_entregue?: boolean;
+  wpp_auto_recibo_venda?: boolean;
+  wpp_auto_comprovante_fiado?: boolean;
   whatsapp_saldo?: number;
   whatsapp_bonus_expira_em?: string | null;
   whatsapp_alerta_saldo_baixo?: number;
