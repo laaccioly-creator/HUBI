@@ -150,7 +150,9 @@ export const AppLayout: React.FC = () => {
         if (location.pathname !== '/pos' && location.pathname !== '/dashboard' && location.pathname !== '/') {
           e.preventDefault();
           verificarSaidaComConfirmacao(() => {
-            if (typeof window !== 'undefined' && window.history && window.history.length > 1) {
+            if (location.pathname.startsWith('/products/')) {
+              navigate('/products');
+            } else if (typeof window !== 'undefined' && window.history && window.history.length > 1) {
               navigate(-1);
             } else {
               navigate('/pos');

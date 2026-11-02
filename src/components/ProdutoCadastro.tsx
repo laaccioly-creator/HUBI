@@ -668,6 +668,7 @@ export const ProdutoCadastro: React.FC = () => {
       sessionStorage.removeItem('hubi_origem_cadastro_produto');
     } catch {}
 
+    setSnapshotInicial('');
     setNome('');
     setCodigoInterno('');
     setCodigoBarras('');
@@ -730,6 +731,50 @@ export const ProdutoCadastro: React.FC = () => {
       window.removeEventListener('hubi_descartar_alteracoes_pendentes', handleDescarte);
     };
   }, [limparFormularioCompleto]);
+
+  // Saída confirmada para a listagem de produtos
+  const handleVoltarParaProdutos = useCallback(() => {
+    verificarSaidaComConfirmacao(() => {
+      setTemAlteracoesNaoSalvas(false);
+      setSnapshotInicial('');
+      try {
+        sessionStorage.removeItem(CHAVE_RASCUNHO);
+        sessionStorage.removeItem('hubi_origem_cadastro_produto');
+      } catch {}
+      navigate('/products');
+    });
+  }, [verificarSaidaComConfirmacao, setTemAlteracoesNaoSalvas, CHAVE_RASCUNHO, navigate]);
+
+  // Interceptação de ESC para sair do formulário com confirmação de alterações pendentes
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (
+          modalCategorias ||
+          modalFotosInternetAberto ||
+          modalOnboardingSerpApiAberto ||
+          modalCameraAoVivoAberto ||
+          modalDuvidaAberto
+        ) {
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        handleVoltarParaProdutos();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [
+    handleVoltarParaProdutos,
+    modalCategorias,
+    modalFotosInternetAberto,
+    modalOnboardingSerpApiAberto,
+    modalCameraAoVivoAberto,
+    modalDuvidaAberto
+  ]);
 
   // Salva o rascunho em sessionStorage para que, se o usuário for para Cadastros & Tabelas, volte com tudo preenchido
   const salvarRascunhoFormulario = () => {
@@ -1755,14 +1800,7 @@ export const ProdutoCadastro: React.FC = () => {
           titulo={ehEdicao ? 'Alterar Produto' : 'Novo Produto'}
           subtitulo={ehEdicao ? 'Atualize as informações do item' : 'Cadastro de produto'}
           fallbackVoltar="/products"
-          onVoltar={() => verificarSaidaComConfirmacao(() => {
-            limparFormularioCompleto();
-            if (typeof window !== 'undefined' && window.history && window.history.length > 1) {
-              navigate(-1);
-            } else {
-              navigate('/products');
-            }
-          })}
+          onVoltar={handleVoltarParaProdutos}
         />
       </div>
 
@@ -1771,14 +1809,8 @@ export const ProdutoCadastro: React.FC = () => {
         <div className="hidden sm:flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => verificarSaidaComConfirmacao(() => {
-                limparFormularioCompleto();
-                if (typeof window !== 'undefined' && window.history && window.history.length > 1) {
-                  navigate(-1);
-                } else {
-                  navigate('/products');
-                }
-              })}
+              type="button"
+              onClick={handleVoltarParaProdutos}
               className="p-2 rounded-xl bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] text-slate-700 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white transition cursor-pointer"
             >
               <ArrowLeft className="w-5 h-5" />

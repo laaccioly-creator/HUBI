@@ -72,6 +72,7 @@ import { ModalEntradaEstoque } from './ModalEntradaEstoque';
 import { pesquisarPrecosMercadoIA, DadosMercadoIA } from './ProdutoCadastro';
 import { UNIDADES_PADRAO } from './CadastrosAuxiliares';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import {
   identificarProdutoPorFoto,
   identificarProdutoPorTextoOuEan,
@@ -178,6 +179,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const [modalOpcoesFotoAberto, setModalOpcoesFotoAberto] = useState<boolean>(false); // Opções de Foto (Câmera / Galeria / Gerenciar)
   const [modalGaleriaFotosAberto, setModalGaleriaFotosAberto] = useState<boolean>(false); // TELA015
   const [modalCategoriasAberto, setModalCategoriasAberto] = useState<boolean>(false); // TELA016
+  const [modalSubcategoriasAberto, setModalSubcategoriasAberto] = useState<boolean>(false); // Seletor Subcategorias
+  const [buscaSubcategoria, setBuscaSubcategoria] = useState<string>('');
   const [modalDescricaoAberto, setModalDescricaoAberto] = useState<boolean>(false); // TELA017
   const [modalScannerAberto, setModalScannerAberto] = useState<boolean>(false); // TELA018
   const [modalUnidadeMedidaAberto, setModalUnidadeMedidaAberto] = useState<boolean>(false); // Seletor Unidade de Medida
@@ -215,6 +218,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const [fotoTemporariaDuvida, setFotoTemporariaDuvida] = useState<string | null>(null);
   const [modalEntradaAberto, setModalEntradaAberto] = useState<boolean>(false); // Entrada / Ajuste de Estoque
   const [produtoEntradaAlvo, setProdutoEntradaAlvo] = useState<Produto | null>(null);
+
+  useRegisterOverlay(modalCategoriasAberto, () => setModalCategoriasAberto(false), 'modal-categorias-mobile');
+  useRegisterOverlay(modalSubcategoriasAberto, () => setModalSubcategoriasAberto(false), 'modal-subcategorias-mobile');
 
   // =========================================================================
   // ESTADOS DE BUSCA E VOZ (PESQUISA POR VOZ)
@@ -2570,6 +2576,104 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   }
 
   // -------------------------------------------------------------------------
+  // SELETOR DE SUBCATEGORIAS (PADRONIZADO COM CATEGORIAS)
+  // -------------------------------------------------------------------------
+  if (modalSubcategoriasAberto) {
+    const subcategoriasDisponiveis = obterSubcategoriasDe(categorias, formData.categoriaId, loja?.id);
+    const subcategoriasFiltradas = subcategoriasDisponiveis.filter(s =>
+      s.nome.toLowerCase().includes(buscaSubcategoria.toLowerCase().trim())
+    );
+
+    return (
+      <div className="fixed inset-0 z-50 bg-white dark:bg-[#0B0F17] flex flex-col text-slate-900 dark:text-white select-none">
+        {/* Header */}
+        <div className="h-16 border-b border-slate-200 dark:border-[#1E293B] px-4 flex items-center justify-between bg-white dark:bg-[#0B0F17] shrink-0">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setBuscaSubcategoria('');
+                setModalSubcategoriasAberto(false);
+              }}
+              className="p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+            <h1 className="font-extrabold text-base sm:text-lg text-slate-800 dark:text-slate-100">
+              Subcategorias ({subcategoriasDisponiveis.length})
+            </h1>
+          </div>
+        </div>
+
+        {/* Campo de Busca */}
+        <div className="p-3 border-b border-slate-100 dark:border-[#1E293B] bg-white dark:bg-[#0B0F17] shrink-0">
+          <div className="relative flex items-center">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3" />
+            <input
+              type="text"
+              value={buscaSubcategoria}
+              onChange={(e) => setBuscaSubcategoria(e.target.value)}
+              placeholder="Buscar subcategoria ou falar..."
+              className="w-full pl-9 pr-10 py-2.5 text-xs sm:text-sm bg-slate-50 dark:bg-[#000000] border border-slate-200 dark:border-slate-800 rounded-xl text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 font-medium"
+            />
+            <button
+              type="button"
+              onClick={() => alternarPesquisaPorVoz(setBuscaSubcategoria)}
+              className={`absolute right-2.5 p-1.5 rounded-lg transition ${
+                ouvindoVoz ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+              }`}
+              title="Pesquisar por voz"
+            >
+              {ouvindoVoz ? <Mic className="w-4 h-4 animate-bounce" /> : <Mic className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Lista de Subcategorias */}
+        <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-[#1E293B] p-2 space-y-1">
+          <button
+            type="button"
+            onClick={() => {
+              setFormData(prev => ({ ...prev, subcategoriaId: '' }));
+              setBuscaSubcategoria('');
+              setModalSubcategoriasAberto(false);
+            }}
+            className="w-full px-4 py-3.5 text-left text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/50 transition flex items-center justify-between cursor-pointer"
+          >
+            <span>Sem Subcategoria</span>
+            {!formData.subcategoriaId && <Check className="w-5 h-5 text-emerald-500" />}
+          </button>
+
+          {subcategoriasFiltradas.map((sub) => {
+            const selecionada = formData.subcategoriaId === sub.id;
+            return (
+              <button
+                key={sub.id}
+                type="button"
+                onClick={() => {
+                  setFormData(prev => ({ ...prev, subcategoriaId: sub.id }));
+                  setBuscaSubcategoria('');
+                  setModalSubcategoriasAberto(false);
+                }}
+                className="w-full px-4 py-3.5 text-left text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 uppercase bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/50 transition flex items-center justify-between cursor-pointer"
+              >
+                <span>{sub.nome}</span>
+                {selecionada && <Check className="w-5 h-5 text-emerald-500" />}
+              </button>
+            );
+          })}
+
+          {subcategoriasFiltradas.length === 0 && buscaSubcategoria && (
+            <div className="p-6 text-center text-xs text-slate-400 font-medium">
+              Nenhuma subcategoria encontrada para "{buscaSubcategoria}".
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------------------
   // TELA 017: EDITOR DE DESCRIÇÃO COM IA EXCLUSIVA
   // -------------------------------------------------------------------------
   if (modalDescricaoAberto) {
@@ -3363,27 +3467,25 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     {(() => {
                       const subcategoriasFilhas = obterSubcategoriasDe(categorias, formData.categoriaId, loja?.id);
                       if (subcategoriasFilhas.length === 0) return null;
+                      const subAtual = subcategoriasFilhas.find(s => s.id === formData.subcategoriaId);
                       return (
                         <div
-                          className="p-3.5 rounded-xl border space-y-1.5 animate-in fade-in"
+                          onClick={() => {
+                            setBuscaSubcategoria('');
+                            setModalSubcategoriasAberto(true);
+                          }}
+                          className="p-3.5 rounded-xl border flex items-center justify-between cursor-pointer transition animate-in fade-in"
                           style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
                         >
-                          <label className="text-xs font-semibold uppercase tracking-wider block" style={{ color: temaCores.textoSecundario }}>
-                            Subcategoria (Opcional)
-                          </label>
-                          <select
-                            value={formData.subcategoriaId || ''}
-                            onChange={(e) => setFormData(prev => ({ ...prev, subcategoriaId: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-xl border text-xs sm:text-sm font-bold focus:outline-none focus:border-emerald-500"
-                            style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
-                          >
-                            <option value="">[ Nenhuma subcategoria selecionada ]</option>
-                            {subcategoriasFilhas.map((sub) => (
-                              <option key={sub.id} value={sub.id}>
-                                {sub.nome}
-                              </option>
-                            ))}
-                          </select>
+                          <div>
+                            <span className="text-xs font-semibold uppercase tracking-wider block" style={{ color: temaCores.textoSecundario }}>
+                              Subcategoria (Opcional)
+                            </span>
+                            <span className="text-xs sm:text-sm font-bold uppercase" style={{ color: temaCores.textoPrincipal }}>
+                              {subAtual ? subAtual.nome : 'Selecione uma subcategoria'}
+                            </span>
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-slate-400" />
                         </div>
                       );
                     })()}

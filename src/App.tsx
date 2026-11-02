@@ -127,6 +127,7 @@ const AppRotasInternas: React.FC = () => {
         
         {/* Produtos & Estoque */}
         <Route path="products" element={<ProdutosEstoque />} />
+        <Route path="produtos" element={<Navigate to="/products" replace />} />
         <Route
           path="products/create"
           element={
