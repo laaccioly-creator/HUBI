@@ -3082,7 +3082,7 @@ Fico no aguardo da confirmação! ✨`;
 
       <div className="max-w-6xl mx-auto w-full p-4 space-y-4 flex-1">
 
-        {/* LISTAGEM DE PRODUTOS NOS 3 MODOS (COM AGRUPAMENTO EM BLOCOS E BADGE NOS CARDS) */}
+        {/* LISTAGEM DE PRODUTOS NOS 3 MODOS (COM AGRUPAMENTO EM BLOCOS) */}
         {carregando ? (
           <div className="text-center py-20 text-slate-500 text-sm">Carregando catálogo...</div>
         ) : produtosFiltrados.length === 0 ? (
@@ -3220,7 +3220,6 @@ Fico no aguardo da confirmação! ✨`;
                     {bloco.produtos.map((produto) => {
                       const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=700&auto=format&fit=crop&q=80';
                       const esgotado = isProdutoEsgotado(produto);
-                      const badgeCatTexto = obterTextoBadgeCategoriaProduto(produto, categorias, loja?.id);
 
                       return (
                         <div
@@ -3233,11 +3232,6 @@ Fico no aguardo da confirmação! ✨`;
                             title="Clique para ver fotos e detalhes"
                           >
                             <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover group-hover/photo:scale-102 transition duration-300" />
-                            {badgeCatTexto && (
-                              <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 shadow-sm backdrop-blur-xs uppercase tracking-wider z-10 max-w-[68%] truncate">
-                                {badgeCatTexto}
-                              </span>
-                            )}
                             <button
                               type="button"
                               onClick={(e) => {
@@ -3340,7 +3334,6 @@ Fico no aguardo da confirmação! ✨`;
                     {bloco.produtos.map((produto) => {
                       const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
                       const esgotado = isProdutoEsgotado(produto);
-                      const badgeCatTexto = obterTextoBadgeCategoriaProduto(produto, categorias, loja?.id);
 
                       return (
                         <div
@@ -3358,11 +3351,6 @@ Fico no aguardo da confirmação! ✨`;
                                 alt={produto.nome}
                                 className="w-full h-full object-cover group-hover/photo:scale-105 transition duration-300"
                               />
-                              {badgeCatTexto && (
-                                <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 shadow-sm backdrop-blur-xs uppercase tracking-wider z-10 max-w-[68%] truncate">
-                                  {badgeCatTexto}
-                                </span>
-                              )}
                               <button
                                 type="button"
                                 onClick={(e) => {

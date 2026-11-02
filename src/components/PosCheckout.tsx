@@ -76,8 +76,7 @@ import { obterInfoEntregaRecibo } from '../services/printService';
 import { SeletorCategoriasHibrido } from './ui/SeletorCategoriasHibrido';
 import {
   produtoPertenceAoFiltroCategoria,
-  agruparProdutosPorBlocosDeCategoria,
-  obterTextoBadgeCategoriaProduto
+  agruparProdutosPorBlocosDeCategoria
 } from '../utils/categoriasHierarquia';
 
 /**
@@ -2359,7 +2358,6 @@ export const PosCheckout: React.FC = () => {
                         : Number(produto.quantidade_estoque ?? 0);
                       const isEsgotado = estoqueQtd <= 0;
                       const temEstoqueBaixo = estoqueQtd > 0 && estoqueQtd <= Number(produto.estoque_minimo_alerta || 0);
-                      const badgeCatTexto = obterTextoBadgeCategoriaProduto(produto, categorias, loja?.id);
 
                       let precoFinal = produto.preco_venda_varejo;
                       if (tabelaPrecoCalculada === 'atacado' && produto.preco_venda_atacado) {
@@ -2398,11 +2396,6 @@ export const PosCheckout: React.FC = () => {
                           <div>
                             <div className={`relative aspect-square rounded-lg overflow-hidden ${isDark ? 'bg-slate-950' : 'bg-slate-100'} mb-1.5`}>
                               <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
-                              {badgeCatTexto && (
-                                <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 shadow-sm backdrop-blur-xs uppercase tracking-wider z-10 max-w-[68%] truncate">
-                                  {badgeCatTexto}
-                                </span>
-                              )}
                               {isEsgotado ? (
                                 <div className="absolute inset-0 bg-black/65 backdrop-blur-[1px] flex items-center justify-center p-1">
                                   <span className="bg-rose-600 text-white font-black text-[9px] px-1.5 py-0.5 rounded shadow uppercase tracking-wider">

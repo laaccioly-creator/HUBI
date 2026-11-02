@@ -2023,7 +2023,6 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                       const estoqueQtd = Number(produto.quantidade_estoque ?? 0);
                       const isEsgotado = estoqueQtd <= 0;
                       const temEstoqueBaixo = estoqueQtd > 0 && estoqueQtd <= Number(produto.estoque_minimo_alerta || 0);
-                      const badgeCatTexto = obterTextoBadgeCategoriaProduto(produto, categorias, loja?.id);
 
                       return (
                         <div
@@ -2051,13 +2050,6 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                               <div className="w-full h-full flex items-center justify-center text-slate-400">
                                 <Package className="w-8 h-8 opacity-40" />
                               </div>
-                            )}
-
-                            {/* Badge de Categoria / Subcategoria no canto superior esquerdo */}
-                            {badgeCatTexto && (
-                              <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 shadow-sm backdrop-blur-xs uppercase tracking-wider z-10 max-w-[68%] truncate">
-                                {badgeCatTexto}
-                              </span>
                             )}
 
                             {/* Indicador de Esgotado ou Estoque Baixo */}
