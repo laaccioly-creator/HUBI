@@ -1382,10 +1382,16 @@ Implementação de ponta a ponta para negócios com prestação de serviços (ba
    - Isenção automática de frete quando o carrinho contiver exclusivamente serviços prestados na loja física.
    - Revalidação atômica de slots no momento do checkout para prevenção de race conditions / overbooking.
 6. **Autonomia do Cliente via Link Público (`/confirmar-agendamento/:token`):**
-   - Página segura `ConfirmacaoAgendamentoPublico.tsx` acessível via link opaco UUID v4 sem necessidade de login.
-   - Confirmação de presença em um clique, cancelamento justificado e solicitação autônoma de remarcação respeitando o limite e a antecedência mínima configurados pela loja.
-   - Exportação do evento para Google Calendar e download de arquivo `.ics` compatível com Apple Calendar e Outlook.
-   - Acesso direto ao WhatsApp do lojista com mensagem contextualizada.
+   - Página pública autônoma `ConfirmarAgendamentoPublico.tsx` (`src/pages/ConfirmarAgendamentoPublico.tsx`) autenticada por token opaco UUID v4 sem necessidade de login.
+   - Exibe a identidade visual da loja (logo, nome fantasia, WhatsApp) e detalhes do serviço, profissional, horário e endereço de atendimento (loja física ou domicílio).
+   - **3 Botões de Ação Principais:**
+     - **Confirmar Presença:** Chama `processar_acao_cliente_agendamento(token, 'confirmar')`, grava `confirmado_pelo_cliente_em = NOW()` e registra em `historico_pedidos`.
+     - **Remarcar Horário:** Permite escolher colaborador habilitado, nova data e novos horários livres calculados em tempo real, liberando imediatamente o horário anterior no banco.
+     - **Cancelar Atendimento:** Pede confirmação com motivo opcional, grava `cancelado_em = NOW()` e libera a vaga na agenda da loja.
+   - Integração com Google Agenda, download de arquivo `.ics` (Apple/Outlook) e canal direto no WhatsApp da loja.
+7. **Régua e Fila de Lembretes do Dia Anterior (`ModalLembretesPendentesAgenda.tsx`):**
+   - Na retaguarda (`AgendaServicosLoja.tsx`), botão e alerta de topo indicam clientes com atendimento nas próximas horas que ainda não receberam lembrete.
+   - Opção de disparo automático em 1 clique via WhatsApp Wallet ou envio manual gratuito um a um via WhatsApp Web (`wa.me`).
 
 ---
 
@@ -1852,6 +1858,9 @@ O `agendamentoService.ts` opera como motor unificado e centralizado de inteligê
    - Remarcação transacional via RPC `processar_acao_cliente_agendamento` com bloqueio `FOR UPDATE`, prevenindo colisões concorrentes e garantindo respeito estrito aos limites de remarcação e janelas mínimas de antecedência.
 5. **Geração de Templates de Mensagens WhatsApp (`gerarMensagemWhatsappAgendamento`):**
    - Produz mensagens amigáveis em `pt-BR` com o resumo do atendimento, data, horário, colaborador, endereço e deep link opaco do cliente (`/confirmar-agendamento/:token`), acoplado ao motor `whatsappWalletService` para disparos automatizados na criação e na véspera do atendimento.
+6. **Régua de Lembretes Pendentes (`obterLembretesPendentesLoja`, `marcarLembreteComoEnviado` e `processarLembretesPendentesLoja`):**
+   - Localiza clientes com agendamentos ativos na janela configurada de antecedência da loja (`lojas.antecedencia_lembrete_horas`) que ainda não foram notificados.
+   - Executa disparo híbrido automático com a Meta Cloud API (se ativo e com saldo) ou devolve links manuais formatados (`wa.me`) para envio gratuito sem custos.
 
 ---
 

@@ -4,6 +4,7 @@
 // =============================================================================
 
 import { supabase } from '../lib/supabase';
+import { whatsappWalletService } from './whatsappWalletService';
 import type {
   AgendamentoServico,
   ProfissionalHorario,
@@ -658,5 +659,132 @@ Esperamos por você!`.trim();
     }
 
     return data as ResultadoAcaoAgendamento;
+  },
+
+  /**
+   * 12. Obtém a lista de agendamentos pendentes de envio de lembrete dentro da janela configurada da loja
+   */
+  async obterLembretesPendentesLoja(lojaId: string): Promise<AgendamentoServico[]> {
+    if (!lojaId) return [];
+
+    // 1. Busca os parâmetros de antecedência da loja
+    const { data: loja } = await supabase
+      .from('lojas')
+      .select('antecedencia_lembrete_horas')
+      .eq('id', lojaId)
+      .single();
+
+    const horasAntecedencia = loja?.antecedencia_lembrete_horas || 24;
+    const agora = new Date();
+    const limiteHoras = new Date(agora.getTime() + horasAntecedencia * 60 * 60 * 1000);
+
+    const { data, error } = await supabase
+      .from('agendamentos_servicos')
+      .select(`
+        *,
+        produto:produtos(nome, preco_venda_varejo),
+        profissional:usuarios_loja(nome_completo, especialidade_cargo)
+      `)
+      .eq('loja_id', lojaId)
+      .in('status_agendamento', ['agendado', 'confirmado'])
+      .eq('lembrete_enviado', false)
+      .gte('data_hora_inicio', agora.toISOString())
+      .lte('data_hora_inicio', limiteHoras.toISOString())
+      .order('data_hora_inicio', { ascending: true });
+
+    if (error) {
+      console.warn('Erro ao obter lembretes pendentes da loja:', error);
+      return [];
+    }
+
+    return (data || []) as AgendamentoServico[];
+  },
+
+  /**
+   * 13. Marca manualmente um lembrete como enviado
+   */
+  async marcarLembreteComoEnviado(lojaId: string, agendamentoId: string): Promise<void> {
+    const { error } = await supabase
+      .from('agendamentos_servicos')
+      .update({
+        lembrete_enviado: true,
+        lembrete_enviado_em: new Date().toISOString(),
+        atualizado_em: new Date().toISOString()
+      })
+      .eq('id', agendamentoId)
+      .eq('loja_id', lojaId);
+
+    if (error) throw error;
+  },
+
+  /**
+   * 14. Processa em lote ou sob demanda a régua de lembretes via WhatsApp
+   */
+  async processarLembretesPendentesLoja(lojaId: string): Promise<{
+    totalEncontrados: number;
+    totalDisparados: number;
+    itensManuais: Array<{ agendamento: AgendamentoServico; manualUrl: string }>;
+    erros: string[];
+  }> {
+    if (!lojaId) {
+      return { totalEncontrados: 0, totalDisparados: 0, itensManuais: [], erros: ['Loja não informada'] };
+    }
+
+    // 1. Carrega dados completos da loja
+    const { data: loja, error: erroLoja } = await supabase
+      .from('lojas')
+      .select('*')
+      .eq('id', lojaId)
+      .single();
+
+    if (erroLoja || !loja) {
+      return { totalEncontrados: 0, totalDisparados: 0, itensManuais: [], erros: ['Loja não encontrada'] };
+    }
+
+    // 2. Busca os agendamentos pendentes
+    const pendentes = await this.obterLembretesPendentesLoja(lojaId);
+    if (pendentes.length === 0) {
+      return { totalEncontrados: 0, totalDisparados: 0, itensManuais: [], erros: [] };
+    }
+
+    let totalDisparados = 0;
+    const itensManuais: Array<{ agendamento: AgendamentoServico; manualUrl: string }> = [];
+    const erros: string[] = [];
+
+    for (const ag of pendentes) {
+      try {
+        const mensagem = this.gerarMensagemWhatsappAgendamento(ag, loja, 'lembrete');
+        const res = await whatsappWalletService.dispararNotificacaoHibrida({
+          lojaId,
+          loja,
+          telefoneDestino: ag.cliente_whatsapp,
+          mensagem,
+          eventoGatilho: 'lembrete_agendamento',
+          pedidoId: ag.pedido_id,
+          clienteId: ag.cliente_id
+        });
+
+        if (res.modoEnvio === 'auto_janela_24h' || res.modoEnvio === 'auto_tarifado') {
+          await this.marcarLembreteComoEnviado(lojaId, ag.id);
+          totalDisparados++;
+        } else {
+          // Fallback manual link
+          itensManuais.push({
+            agendamento: ag,
+            manualUrl: res.manualUrl || whatsappWalletService.construirLinkManualWhatsApp(ag.cliente_whatsapp, mensagem)
+          });
+        }
+      } catch (err: any) {
+        console.error(`Erro ao disparar lembrete para agendamento ${ag.id}:`, err);
+        erros.push(`Falha no agendamento ${ag.id}: ${err.message || err}`);
+      }
+    }
+
+    return {
+      totalEncontrados: pendentes.length,
+      totalDisparados,
+      itensManuais,
+      erros
+    };
   }
 };

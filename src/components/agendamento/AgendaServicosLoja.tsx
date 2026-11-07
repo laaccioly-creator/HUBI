@@ -29,7 +29,8 @@ import {
   Loader2,
   CalendarClock,
   Sparkles,
-  Scissors
+  Scissors,
+  Bell
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -38,6 +39,7 @@ import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 import { agendamentoService, formatarDataPtBr } from '../../services/agendamentoService';
 import { whatsappWalletService } from '../../services/whatsappWalletService';
 import { supabase } from '../../lib/supabase';
+import { ModalLembretesPendentesAgenda } from './ModalLembretesPendentesAgenda';
 import type {
   AgendamentoServico,
   StatusAgendamento,
@@ -69,10 +71,23 @@ export const AgendaServicosLoja: React.FC = () => {
 
   // 3. Estados de Modais
   const [modalNovoAberto, setModalNovoAberto] = useState<boolean>(false);
+  const [modalLembretesAberto, setModalLembretesAberto] = useState<boolean>(false);
+  const [totalLembretesPendentes, setTotalLembretesPendentes] = useState<number>(0);
   const [agendamentoParaRemarcar, setAgendamentoParaRemarcar] = useState<AgendamentoServico | null>(null);
   const [agendamentoParaCancelar, setAgendamentoParaCancelar] = useState<AgendamentoServico | null>(null);
   const [motivoCancelamento, setMotivoCancelamento] = useState<string>('');
   const [processandoAcaoId, setProcessandoAcaoId] = useState<string | null>(null);
+
+  // Carrega contagem de lembretes pendentes dentro da janela da loja
+  const carregarContadorLembretes = useCallback(async () => {
+    if (!loja?.id) return;
+    try {
+      const pendentes = await agendamentoService.obterLembretesPendentesLoja(loja.id);
+      setTotalLembretesPendentes(pendentes.length);
+    } catch (err) {
+      console.warn('Erro ao carregar contagem de lembretes pendentes:', err);
+    }
+  }, [loja?.id]);
 
   // Carrega lista de profissionais habilitados da loja
   const carregarProfissionais = useCallback(async () => {
@@ -142,7 +157,8 @@ export const AgendaServicosLoja: React.FC = () => {
 
   useEffect(() => {
     carregarAgendamentos();
-  }, [carregarAgendamentos]);
+    carregarContadorLembretes();
+  }, [carregarAgendamentos, carregarContadorLembretes]);
 
   // Navegação de Dias
   const mudarDia = (deltaDias: number) => {
@@ -331,10 +347,13 @@ export const AgendaServicosLoja: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-end md:self-auto">
+        <div className="flex items-center gap-2 self-end md:self-auto flex-wrap">
           <button
             type="button"
-            onClick={carregarAgendamentos}
+            onClick={() => {
+              carregarAgendamentos();
+              carregarContadorLembretes();
+            }}
             disabled={carregando}
             className={`p-2.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
               isDark
@@ -345,6 +364,28 @@ export const AgendaServicosLoja: React.FC = () => {
           >
             <RefreshCw className={`w-4 h-4 ${carregando ? 'animate-spin text-emerald-500' : ''}`} />
             <span className="hidden sm:inline">Atualizar</span>
+          </button>
+
+          {/* Botão de Lembretes Pendentes */}
+          <button
+            type="button"
+            onClick={() => setModalLembretesAberto(true)}
+            className={`px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition cursor-pointer relative ${
+              totalLembretesPendentes > 0
+                ? 'bg-amber-500/15 border-amber-500/30 text-amber-500 hover:bg-amber-500/25'
+                : isDark
+                ? 'border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300'
+                : 'border-slate-300 bg-white hover:bg-slate-100 text-slate-700'
+            }`}
+            title="Lembretes de atendimento via WhatsApp"
+          >
+            <Bell className={`w-4 h-4 ${totalLembretesPendentes > 0 ? 'text-amber-500 animate-bounce' : ''}`} />
+            <span className="hidden sm:inline">Lembretes</span>
+            {totalLembretesPendentes > 0 ? (
+              <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black">
+                {totalLembretesPendentes}
+              </span>
+            ) : null}
           </button>
 
           <button
@@ -492,6 +533,25 @@ export const AgendaServicosLoja: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* ALERTA DE LEMBRETES PENDENTES */}
+      {totalLembretesPendentes > 0 && (
+        <div className="mx-3 sm:mx-4 mt-3 p-3 bg-amber-500/10 border border-amber-500/25 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-600 dark:text-amber-400">
+          <div className="flex items-center gap-2">
+            <Bell className="w-4 h-4 text-amber-500 shrink-0" />
+            <span>
+              Você tem <strong>{totalLembretesPendentes} lembrete(s) pendente(s)</strong> para atendimentos próximos. Notifique seus clientes para garantir presença!
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setModalLembretesAberto(true)}
+            className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shrink-0 cursor-pointer transition shadow-xs self-end sm:self-auto"
+          >
+            Ver Fila de Lembretes ({totalLembretesPendentes})
+          </button>
+        </div>
+      )}
 
       {/* 3. RESUMO RÁPIDO DE CARDS (KPIs) */}
       <div className="px-4 py-3 shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
@@ -837,6 +897,19 @@ export const AgendaServicosLoja: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 8. MODAL: FILA DE LEMBRETES PENDENTES WHATSAPP */}
+      {modalLembretesAberto && loja && (
+        <ModalLembretesPendentesAgenda
+          isOpen={modalLembretesAberto}
+          onClose={() => setModalLembretesAberto(false)}
+          loja={loja}
+          onLembretesAtualizados={() => {
+            carregarAgendamentos();
+            carregarContadorLembretes();
+          }}
+        />
       )}
     </div>
   );

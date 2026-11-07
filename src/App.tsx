@@ -31,7 +31,7 @@ import { ConfiguracaoCatalogo } from './components/ConfiguracaoCatalogo';
 import { CadastrosAuxiliares } from './components/CadastrosAuxiliares';
 import { UsuariosGestao } from './components/UsuariosGestao';
 import { AgendaServicosLoja } from './components/agendamento/AgendaServicosLoja';
-import { ConfirmacaoAgendamentoPublico } from './components/agendamento/ConfirmacaoAgendamentoPublico';
+import { ConfirmarAgendamentoPublico } from './pages/ConfirmarAgendamentoPublico';
 
 interface RotaProtegidaProps {
   permitido: boolean;
@@ -103,8 +103,8 @@ const AppRotasInternas: React.FC = () => {
       <Route path="/recibo-publico/:id" element={<ReciboPublico />} />
 
       {/* Rota Pública de Confirmação, Remarcação e Gestão de Agendamento */}
-      <Route path="/confirmar-agendamento/:token" element={<ConfirmacaoAgendamentoPublico />} />
-      <Route path="/agendamento/:token" element={<ConfirmacaoAgendamentoPublico />} />
+      <Route path="/confirmar-agendamento/:token" element={<ConfirmarAgendamentoPublico />} />
+      <Route path="/agendamento/:token" element={<ConfirmarAgendamentoPublico />} />
 
       {/* Rotas Internas do HUBI */}
       <Route path="/" element={<AppLayout />}>
