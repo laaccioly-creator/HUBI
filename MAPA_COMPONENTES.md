@@ -1,7 +1,7 @@
 # 🗺️ MAPA DE COMPONENTES E ARQUITETURA FRONTEND (HUBI)
 
-> **Versão do Documento:** 1.7.1  
-> **Data de Atualização:** 26/10/2026  
+> **Versão do Documento:** 1.8.0  
+> **Data de Atualização:** 06/11/2026  
 > **Classificação:** Guia de Referência Rápida de Componentes, Hooks, Serviços e Utilitários  
 > **Objetivo:** Localização cirúrgica de arquivos em `src/`, agilizando a navegação de desenvolvedores e agentes de IA com máxima economia de contexto.
 
@@ -22,6 +22,8 @@
 12. [Camada de Estado (Contexts) e Hooks Customizados](#12-camada-de-estado-contexts-e-hooks-customizados)
 13. [Camada de Serviços de Negócio e Infraestrutura (`src/services/`)](#13-camada-de-serviços-de-negócio-e-infraestrutura-srcservices)
 14. [Utilitários, Validações e Schemas (`src/utils/` & `src/lib/validations/`)](#14-utilitários-validações-e-schemas-srcutils--srclibvalidations)
+15. [Suíte de Segurança Anti-REA-Shield v2 (`packages/anti-rea-shield/`)](#15-suíte-de-segurança-anti-rea-shield-v2-packagesanti-rea-shield)
+16. [Serverless Edge Functions do Supabase (`supabase/functions/`)](#16-serverless-edge-functions-do-supabase-supabasefunctions)
 
 ---
 
@@ -32,12 +34,13 @@
 | **Frente de Caixa Desktop** | `src/components/PosCheckout.tsx` | Tela mestre do PDV desktop, leitor ótico/laser, atalhos de teclado (F2-F10), split de pagamento e recibo pós-venda. |
 | **Frente de Caixa Mobile** | `src/components/PosCheckoutMobile.tsx` | Versão tátil para celulares e tablets com teclado numérico ágil, leitor de câmera e finalização rápida. |
 | **Terminal de Venda / Balcão** | `src/components/CadastroPdv.tsx` | Atalho para venda rápida integrada na visão de retaguarda. |
+| **Input de Quantidade no Carrinho** | `src/components/ui/InputQuantidadeCarrinho.tsx` | Componente de entrada numérica para digitação rápida de grandes volumes no carrinho com seleção automática no foco. |
 | **Entrada de Peso Fracionado (Balança)** | `src/components/ui/ModalInputPesoFracionado.tsx` | Modal tátil de digitação rápida de quantidade por peso (Kg, Gramas ou Valor R$) com recálculo automático para itens pesáveis. |
 | **Input Monetário pt-BR** | `src/components/ui/MoneyInput.tsx` | Componente de entrada numérica monetária formatada em tempo real com máscara e tratamento decimal. |
 | **Carrinho de Venda Isolado** | `src/components/vendas/CarrinhoVenda.tsx` | Componente reutilizável de carrinho de compras e cálculo de subtotais. |
 | **Modal de Liquidação / Pagamento** | `src/components/ModalPagamentoFechamento.tsx` | Modal com split de pagamentos (Dinheiro, Cartões, PIX, Fiado) e conferência de troco. |
 | **Leitor de Código de Barras (Câmera)**| `src/components/ModalLeitorCodigoBarras.tsx` | Leitor ótico por câmera de dispositivo móvel para escaneamento instantâneo de EAN/GTIN. |
-| **Recebimento de Pedido Pendente** | `src/components/ModalReceberPagamento.tsx` | Modal para quitação financeira de pedidos pendentes ou com saldo restante. |
+| **Recebimento de Pedido Pendente** | `src/components/ModalReceberPagamento.tsx` | *(Integrado)* Quitação financeira de pedidos pendentes unificada diretamente no fluxo de liquidação do PDV. |
 
 ---
 
@@ -103,7 +106,9 @@
 | **Área do Cliente: Notificações** | `src/components/ModalNotificacoesCliente.tsx` | Central de avisos, promoções e atualizações de entrega da loja para o cliente. |
 | **Área do Cliente: Meus Endereços** | `src/components/ModalEnderecoClienteCatalogo.tsx` | Gerenciamento de múltiplos endereços de entrega pelo próprio cliente final. |
 | **Área do Cliente: Caderneta e Extrato** | `src/components/ModalCadernetaClienteCatalogo.tsx` | Visualização transparente de compras na caderneta, débitos do ciclo mensal, limite disponível e contato com a loja. |
-| **Pagamento de Pedido Pesado na Balança** | `src/components/catalogo/ModalPagamentoPedidoPesado.tsx` | Modal acionado por deep link (`?pagar_pedido=`) para quitação online pós-pesagem via Pix dinâmico Mercado Pago (com Realtime), Pix direto da loja, Caderneta de Mercadinho ou entrega. |
+| **Fechamento e Liquidação do Catálogo v2.0** | `src/components/catalogo/ModalPagamentoFechamentoCatalogo.tsx` | Modal mestre de pagamento do catálogo: Pix MP com Realtime, Pix Direto EMV, Caderneta de Mercadinho, Cartão/Dinheiro na entrega e quitação pós-pesagem. |
+| **Escolha de Meio de Pagamento Online** | `src/components/catalogo/ModalEscolhaPagamento.tsx` | Seletor e roteador de modalidades de pagamento exclusivo do Catálogo Online. |
+| **Meus Dados e Endereços (Catálogo)** | `src/components/catalogo/ModalMeusDadosCliente.tsx` | Painel de autoatendimento para edição de dados pessoais e gestão de múltiplos endereços pelo cliente final. |
 | **Busca Inteligente no Catálogo** | `src/components/ModalBuscaClienteCatalogo.tsx` | Modal de busca instantânea com filtros e sugestões semânticas. |
 | **Detalhes do Produto no Catálogo** | `src/components/ModalDetalhesProdutoCatalogo.tsx` | Modal completo com galeria de fotos, grade de variações, preços por volume e botão de sacola. |
 | **Dúvidas de Produto com IA** | `src/components/ModalDuvidaProdutoIA.tsx` | Esclarecimento de dúvidas técnicas sobre o item usando IA sem alucinação. |
@@ -124,6 +129,7 @@
 | **Detalhes Rápidos do Produto** | `src/components/ModalDetalhesProduto.tsx` | Ficha técnica com estoque de cada variação, SKU e código de barras. |
 | **Entrada Rápida de Estoque** | `src/components/ModalEntradaEstoque.tsx` | Lançamento ágil de compras e ajustes com atualização do custo médio e auditoria de movimentação. |
 | **Gestão de Categorias** | `src/components/ModalGerenciarCategorias.tsx` | Modal para criação, edição e ordenação de categorias da loja. |
+| **Seletor de Categorias Híbrido** | `src/components/ui/SeletorCategoriasHibrido.tsx` | Seletor de categorias e subcategorias em árvore com suporte a dropdown cascata no desktop e gaveta bottom sheet no mobile. |
 | **Renderizador de Descrição** | `src/components/DescricaoFormatadaProduto.tsx` | Exibição de textos com formatação enriquecida, quebras de linha e destaques em negrito. |
 
 ---
@@ -138,7 +144,7 @@
 | **Histórico de Compras Fiado** | `src/components/ModalHistoricoFiadoCliente.tsx` | Modal detalhado de pedidos comprados no fiado com status aberto, parcial e quitado. |
 | **Amortização e Quitação de Fiado** | `src/components/ModalReceberFiado.tsx` | Baixa de débitos de fiado com split de pagamento e envio de comprovante via WhatsApp. |
 | **Extrato da Caderneta de Mercadinho**| `src/components/ModalExtratoCadernetaCliente.tsx` | Painel da caderneta com limite de crédito, saldo devedor, amortização/quitação e envio de comprovante por WhatsApp. |
-| **Quitação Unificada de Caderneta** | `src/components/caderneta/ModalPagamentoCadernetaUnificado.tsx` | Modal unificado para pagamento total ou parcial da Caderneta de Mercadinho no Catálogo e PDV/Admin. |
+| **Quitação Unificada de Caderneta** | `src/components/caderneta/ModalPagamentoCadernetaUnificado.tsx` | *(Integrado)* Quitação da caderneta unificada diretamente nos modais especializados `ModalExtratoCadernetaCliente.tsx` e `ModalPagamentoFechamentoCatalogo.tsx`. |
 | **Importação de Clientes em Lote** | `src/components/ModalImportarClientes.tsx` | Modal universal para upload de CSV/Excel (WhatsApp/Google), prévia com higienização e adoção em lote da Caderneta. |
 | **Guia Didático de Exportação Contatos**| `src/components/ModalGuiaExportacaoWhatsApp.tsx` | Guia com 3 abas ilustradas (Google Contatos, WhatsApp Web e Planilha HUBI) com download de modelos. |
 | **Gestão de Usuários e Permissões** | `src/components/UsuariosGestao.tsx` | Controle de operadores da loja com controle RBAC (Admin, Gerente, Vendedor) e restrições de tela. |
@@ -202,6 +208,7 @@
 | **Painel Carteira Pré-Paga WhatsApp** | `src/components/configuracoes/CardCarteiraWhatsapp.tsx` | Painel de gestão da Carteira Pré-Paga de WhatsApp: switch de automação, saldo em tempo real, estimativa de disparos e histórico auditável paginado. |
 | **Modal Recarga Carteira WhatsApp** | `src/components/configuracoes/ModalRecargaWhatsapp.tsx` | Modal de recarga instantânea de créditos WhatsApp via Pix Mercado Pago com QR Code dinâmico e atualização automática via Supabase Realtime. |
 | **Configurações de WhatsApp e IA** | `src/components/configuracoes/ConfiguracoesWhatsAppIA.tsx` | Painel de configuração de credenciais, prompts e parâmetros da Vendedora e Atendente IA. |
+| **Painel de Gatilhos Granulares WhatsApp** | `src/components/configuracoes/PainelGatilhosWhatsapp.tsx` | Painel de controle individual dos 8 gatilhos de disparo automático via Meta Cloud API com badges e controle de consumo. |
 | **Conexão Mercado Livre** | `src/components/mercadolivre/CardConexaoMercadoLivre.tsx` | Card de integração OAuth 2.0 com Mercado Livre, status em tempo real, dados do vendedor e ações de vínculo. |
 | **Vínculo de Anúncio ML** | `src/components/mercadolivre/ModalVincularAnuncioMl.tsx` | Modal para associação de anúncios/variações do Mercado Livre aos produtos e variações nativas do HUBI. |
 | **Banner de Trial e Renovação Anual** | `src/components/assinatura/BannerAssinaturaTop.tsx` | Tarja superior centralizada em vermelho e branco puro com dias restantes de trial e conversão rápida colada ao valor. |
@@ -248,7 +255,9 @@
 | **printService** | `src/services/printService.ts` | Motor térmico ESC/POS via Web Bluetooth API (58/80mm), fallback HTML e recibo digital WhatsApp. |
 | **receiptPdfService** | `src/services/receiptPdfService.ts` | Geração vetorial de comprovantes e orçamentos em folhas A4 em PDF via `jspdf`. |
 | **audioService** | `src/services/audioService.ts` | Feedback sonoro sintetizado nativamente pela Web Audio API para scanners e finalização de vendas. |
+| **geminiTtsService** | `src/services/geminiTtsService.ts` | Motor de voz conversacional Gemini Studio Voice TTS (`gemini-3.8-flash-tts`) em pt-BR com voz Aoede e cache de áudio. |
 | **overlayStackService** | `src/services/overlayStackService.ts` | Gerenciamento de pilha de overlays, interceptação do evento `popstate` e tecla ESC sem conflitos. |
+| **shieldBootstrap** | `src/services/shieldBootstrap.ts` | Acoplamento e inicialização segura da suíte Anti-REA-Shield v2 em modo simulation no bootstrap do app. |
 
 ### Finanças, Vendas, Estoque e Operações
 | Serviço | Arquivo | Responsabilidade |
@@ -286,7 +295,7 @@
 | **rubiCatalogoService** | `src/services/rubiCatalogoService.ts` | Serviço de orquestração do chat flutuante do catálogo com histórico de mensagens. |
 | **rubiChatService** | `src/services/rubiChatService.ts` | Orquestração do chat administrativo da Rubi IA com histórico e contexto da loja. |
 | **tutoriaisHubiService** | `src/services/tutoriaisHubiService.ts` | Base de conhecimento e guias passo a passo de todas as funcionalidades do HUBI. |
-| **geminiService** | `src/services/geminiService.ts` | Motor gerativo complementar para redação criativa e respostas abertas assistidas. |
+| **geminiService** | `src/services/geminiService.ts` | Motor gerativo complementar integrado via Edge Function proxy `gemini-proxy` para redação e análise com proteção BYOK. |
 | **addressParserJevService**| `src/services/addressParserJevService.ts`| Extração e estruturação inteligente de endereços informados em texto livre ou WhatsApp. |
 | **cashAuditJevService** | `src/services/cashAuditJevService.ts` | Auditoria inteligente de fechamento de turnos e detecção de padrões de quebra/sobra. |
 | **creditRiskJevService**| `src/services/creditRiskJevService.ts`| Avaliação probabilística de risco de crédito para concessão de fiado a clientes. |
@@ -316,6 +325,44 @@
 | **statusPedidoUtils.ts** | `src/utils/statusPedidoUtils.ts` | Rótulos em `pt-BR`, cores e fluxos de transição dos estados de pedidos. |
 | **imageCompressor.ts** | `src/utils/imageCompressor.ts` | Compressor de fotos no cliente via `createObjectURL` e Canvas para prevenir Out-of-Memory (OOM) no mobile. |
 | **gdmMercadoLivreMapper.ts** | `src/utils/gdmMercadoLivreMapper.ts` | Normalizador de atributos e variações de anúncios do Mercado Livre para modelo canônico GDM. |
+| **categoriasHierarquia.ts** | `src/utils/categoriasHierarquia.ts` | Montagem de árvore de categorias/subcategorias, resolução de pais, ordenação e persistência em cache local. |
+| **pixUtils.ts** | `src/utils/pixUtils.ts` | Geração client-side de payload Pix Copia e Cola (BR Code padrão EMV) com cálculo de checksum CRC-16/CCITT-FALSE. |
 | **pesagemSchema.ts** | `src/lib/validations/pesagemSchema.ts` | Validação Zod de quantidades fracionadas (até 3 decimais) e decodificação de código de barras EAN-13 de balança comercial iniciado com 2. |
 | **cadernetaSchema.ts** | `src/lib/validations/cadernetaSchema.ts` | Schemas Zod de validação de crédito, dias de acerto e lançamentos contábeis da Caderneta de Mercadinho. |
 | **checkoutSchema.ts** | `src/lib/validations/checkoutSchema.ts` | Schemas Zod para validação rigorosa de splits de pagamento, endereço e finalização de compras. |
+
+---
+
+## 15. Suíte de Segurança Anti-REA-Shield v2 (`packages/anti-rea-shield/`)
+
+| Módulo / Elemento | Caminho do Arquivo | Resumo da Responsabilidade |
+| :--- | :--- | :--- |
+| **Core & Entrypoint** | `packages/anti-rea-shield/src/index.ts` | Ponto de entrada exportando inicializador de sentinela, motor de risco e manifestos chamarizes. |
+| **Configuração da Suíte** | `packages/anti-rea-shield/src/core/shield.config.ts` | Configurações de modo de execução (`simulation`), sementes de ofuscação e regras de tolerância. |
+| **Motor de Risco** | `packages/anti-rea-shield/src/core/risk-engine.ts` | Avaliação heurística de anomalias, injeções de script no DOM e desvios de integridade de runtime. |
+| **Skill 01: Ofuscação Polimórfica** | `packages/anti-rea-shield/skills/01-polymorphic-obfuscator/` | Plugin Vite (`vite-plugin-rea-poison.ts`) e scrambler de classes CSS (`css-class-scrambler.ts`). |
+| **Skill 02: Sentinela de Runtime** | `packages/anti-rea-shield/skills/02-runtime-sentinel/` | Monitoramento passivo de DOM (`dom-watermark.ts`), trava de domínio (`domain-lock.ts`) e integridade. |
+| **Skill 03: Honeypot Supabase** | `packages/anti-rea-shield/skills/03-supabase-honeypot/` | Manifestos decoys inativos e armadilhas SQL RLS (`sql/02_honeypot_rls_traps.sql`). |
+| **Skill 04: Migrador Zero-Trust** | `packages/anti-rea-shield/skills/04-zero-trust-migrator/` | Scanner AST de queries PostgREST e gerador de templates RPC/Edge Functions protegidas. |
+| **Skill 05: Anti-Scraping Harvest**| `packages/anti-rea-shield/skills/05-anti-scraping-harvest/` | Canários de rastreamento (`canary-watermark.ts`), proteção de paginação e bloqueio OpenAPI. |
+| **CLI do Anti-REA-Shield** | `packages/anti-rea-shield/bin/cli.mjs` | Utilitário de linha de comando para auditoria, inspeção e build com proteções ativas. |
+
+---
+
+## 16. Serverless Edge Functions do Supabase (`supabase/functions/`)
+
+| Função Serverless | Diretório | Resumo da Responsabilidade |
+| :--- | :--- | :--- |
+| **gemini-proxy** | `supabase/functions/gemini-proxy/` | Proxy Zero-Trust para Google Gemini com resolução hierárquica de chaves (BYOK > Loja > Plataforma) e CORS seguro. |
+| **whatsapp-outbound-dispatch** | `supabase/functions/whatsapp-outbound-dispatch/` | Disparo oficial de mensagens Meta Cloud API com checagem de janela 24h, débito na carteira e fallback manual. |
+| **hubi-criar-recarga-whatsapp-mp**| `supabase/functions/hubi-criar-recarga-whatsapp-mp/`| Geração de Pix dinâmico no Mercado Pago para recarga pré-paga da carteira WhatsApp. |
+| **hubi-criar-assinatura-mp** | `supabase/functions/hubi-criar-assinatura-mp/` | Emissão de preferência Checkout Pro Mercado Pago para anuidade de 12 meses (R$ 598,80) por filial. |
+| **hubi-webhook-mp** | `supabase/functions/hubi-webhook-mp/` | Receptor webhook unificado para liquidações de assinaturas anuais e recargas Pix de WhatsApp. |
+| **ml-oauth** | `supabase/functions/ml-oauth/` | Fluxo OAuth 2.0 com Mercado Livre com assinatura anti-CSRF HMAC e callback transacional seguro. |
+| **ml-estoque-sync** | `supabase/functions/ml-estoque-sync/` | Sincronização push automática de saldo de estoque local para anúncios ativos do Mercado Livre. |
+| **ml-webhook** | `supabase/functions/ml-webhook/` | Ingestão resiliente e idempotente de notificações de venda (`orders_v2`) do Mercado Livre. |
+| **ml-etiquetas** | `supabase/functions/ml-etiquetas/` | Proxy autenticado para download direto de etiquetas de expedição em PDF/ZPL do Mercado Livre. |
+| **typesafe-eval** | `supabase/functions/typesafe-eval/` | Proxy blindado para avaliações e classificações calibradas com o modelo System One Jev (TypeSafe AI). |
+| **buscar-fotos-serpapi** | `supabase/functions/buscar-fotos-serpapi/` | Enriquecimento de catálogo com busca de fotos de produtos via Google Imagens (BYOK e fallback de plataforma). |
+| **uber-dispatch** & **webhook** | `supabase/functions/uber-dispatch/` | Cotação e despacho sob demanda ponto a ponto via Uber Direct v1 com acompanhamento de rotas. |
+| **melhor-envio-despacho** | `supabase/functions/melhor-envio-despacho/` | Cotação multi-sedex, emissão de etiquetas e rastreamento GraphQL com o Melhor Rastreio / Correios SRO. |

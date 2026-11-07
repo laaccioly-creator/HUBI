@@ -1,7 +1,7 @@
 # 📘 DOCUMENTAÇÃO TÉCNICA E ARQUITETURAL DO SISTEMA HUBI
 
-> **Versão do Documento:** 1.7.1  
-> **Data de Atualização:** 26/10/2026  
+> **Versão do Documento:** 1.8.0  
+> **Data de Atualização:** 06/11/2026  
 > **Classificação:** Documento Técnico de Arquitetura, Engenharia e Operações  
 > **Público-alvo:** Desenvolvedores, Engenheiros de Software, Arquitetos e Agentes de IA
 
@@ -18,6 +18,8 @@
    - [2.2 Padrões de Escrita de Código e Modularidade](#22-padrões-de-escrita-de-código-e-modularidade)
    - [2.3 Políticas Rígidas de Banco de Dados: Proibição de Metadados JSONB Genéricos](#23-políticas-rígidas-de-banco-de-dados-proibição-de-metadados-jsonb-genéricos)
    - [2.4 Padrões de Nomenclatura e Localização (pt-BR)](#24-padrões-de-nomenclatura-e-localização-pt-br)
+   - [2.5 Desacoplamento Arquitetural Mandatório: PDV vs. Catálogo Online](#25-desacoplamento-arquitetural-mandatório-pdv-vs-catálogo-online)
+   - [2.6 Suíte Anti-REA-Shield v2 e Blindagem Zero-Trust de IA](#26-suíte-anti-rea-shield-v2-e-blindagem-zero-trust-de-ia)
 3. [Modelagem Atual do Banco de Dados (Supabase / PostgreSQL)](#3-modelagem-atual-do-banco-de-dados-supabase--postgresql)
    - [3.1 Visão Relacional Geral](#31-visão-relacional-geral)
    - [3.2 Dicionário Completo de Dados das Tabelas Críticas](#32-dicionário-completo-de-dados-das-tabelas-críticas)
@@ -25,7 +27,7 @@
 4. [Módulos e Fluxos Operacionais Existentes](#4-módulos-e-fluxos-operacionais-existentes)
    - [4.1 Fluxo do PDV (Frente de Caixa e Fechamento)](#41-fluxo-do-pdv-frente-de-caixa-e-fechamento)
    - [4.2 Fluxo de Edição de Pedidos Pendentes](#42-fluxo-de-edição-de-pedidos-pendentes)
-   - [4.3 Fluxo do Catálogo Online Integrado](#43-fluxo-do-catálogo-online-integrado)
+   - [4.3 Fluxo do Catálogo Online Integrado (Arquitetura Desacoplada v2.0)](#43-fluxo-do-catálogo-online-integrado-arquitetura-desacoplada-v20)
    - [4.4 Sistema de Autenticação e Isolamento Multi-tenant](#44-sistema-de-autenticação-e-isolamento-multi-tenant)
    - [4.5 Fluxo de Despacho Manual e Rastreamento dos Correios (PAC e SEDEX)](#45-fluxo-de-despacho-manual-e-rastreamento-dos-correios-pac-e-sedex)
    - [4.6 Arquitetura de Despacho Manual e Rastreamento Multimodal](#46-arquitetura-de-despacho-manual-e-rastreamento-multimodal)
@@ -37,6 +39,9 @@
    - [4.12 Integração Nativa com Mercado Livre (OAuth 2.0, Estoque Local, Vínculo GDM e Expedição)](#412-integração-nativa-com-mercado-livre-oauth-20-estoque-local-vínculo-gdm-e-expedição)
    - [4.13 Módulo Caderneta de Mercadinho (Conta Corrente, Ciclo Mensal e Coexistência com Fiado)](#413-módulo-caderneta-de-mercadinho-conta-corrente-ciclo-mensal-e-coexistência-com-fiado)
    - [4.14 Importação de Clientes em Lote (WhatsApp, Google Contatos e CSV) com Guia Passo a Passo](#414-importação-de-clientes-em-lote-whatsapp-google-contatos-e-csv-com-guia-passo-a-passo)
+   - [4.15 Módulo de Subcategorias e Hierarquia de Árvore no Catálogo e Estoque](#415-módulo-de-subcategorias-e-hierarquia-de-árvore-no-catálogo-e-estoque)
+   - [4.16 Painel de Governança dos 8 Gatilhos Granulares de Disparo WhatsApp](#416-painel-de-governança-dos-8-gatilhos-granulares-de-disparo-whatsapp)
+   - [4.17 Unificação de Identidade via WhatsApp e Saneamento de Duplicados](#417-unificação-de-identidade-via-whatsapp-e-saneamento-de-duplicados)
 5. [Serviços e Utilitários Globais](#5-serviços-e-utilitários-globais)
    - [5.1 Supabase Client e Camada de Acesso a Dados](#51-supabase-client-e-camada-de-acesso-a-dados)
    - [5.2 Orquestrador e Serviços de Logística (Uber Direct, Melhor Envio e Despachos Manuais)](#52-orquestrador-e-serviços-de-logística-uber-direct-melhor-envio-e-despachos-manuais)
@@ -58,6 +63,10 @@
    - [5.18 Higienização Telefônica Brasileira e Parser Multi-Origem (`clientImportExportService.ts`)](#518-higienização-telefônica-brasileira-e-parser-multi-origem-clientimportexportservicets)
    - [5.19 Carteira Pré-Paga (Wallet) e Motor Híbrido de Notificações WhatsApp (`whatsappWalletService.ts`)](#519-carteira-pré-paga-wallet-e-motor-híbrido-de-notificações-whatsapp-whatsappwalletservicets)
    - [5.20 Fluxo Parametrizável de Pedidos com Itens por Quilo / Pesagem Posterior](#520-fluxo-parametrizável-de-pedidos-com-itens-por-quilo--pesagem-posterior)
+   - [5.21 Motor de Geração Pix EMV / BR Code e Checksum CRC-16 (`pixUtils.ts`)](#521-motor-de-geração-pix-emv--br-code-e-checksum-crc-16-pixutilsts)
+   - [5.22 Suíte de Segurança Client-Side Anti-REA-Shield v2 e Bootstrap em Simulação (`packages/anti-rea-shield`)](#522-suíte-de-segurança-client-side-anti-rea-shield-v2-e-bootstrap-em-simulação-packagesanti-rea-shield)
+   - [5.23 Motor de Síntese de Voz Gemini Studio Voice TTS (`geminiTtsService.ts`)](#523-motor-de-síntese-de-voz-gemini-studio-voice-tts-geminittsservicets)
+   - [5.24 Supabase Edge Function `gemini-proxy` (Blindagem Zero-Trust de Credenciais)](#524-supabase-edge-function-gemini-proxy-blindagem-zero-trust-de-credenciais)
 
 ---
 
@@ -104,19 +113,25 @@ O **HUBI** é uma solução completa de Enterprise Resource Planning (ERP), Pont
 - **Manipulação de Datas:** `date-fns` (4.1+) com localização para `pt-BR`.
 - **Geração de Documentos:** `jspdf` (2.5+) para geração client-side de orçamentos e recibos A4.
 - **Leitura e Exportação de Planilhas:** `xlsx` (SheetJS 0.18+) para importação/exportação de catálogo, clientes e pedidos.
-- **Renderização de QR Codes:** `qrcode.react` para pagamento instantâneo PIX na tela.
-- **Áudio do Sistema:** Web Audio API nativa para sinfonias de bipe, feedback de checkout e alertas sonoros de novos pedidos.
+- **Renderização de QR Codes & Pix:** `qrcode.react` e utilitário nativo `pixUtils.ts` para geração de BR Code (EMV) com cálculo matemático de CRC-16.
+- **Áudio e Voz do Sistema:** Web Audio API nativa para sinfonias de bipe do PDV e motor de síntese de voz ultra-realista Gemini Studio Voice (`geminiTtsService.ts` com `gemini-3.8-flash-tts`).
 - **Comunicação de Hardware:** Web Bluetooth API para impressão térmica direta sem drivers intermediários em impressoras ESC/POS (58mm e 80mm).
+- **Hardening Client-Side:** Suíte de proteção `packages/anti-rea-shield` (ofuscação polimórfica, sentinela em runtime, armadilhas honeypot e anti-scraping em modo simulation).
 
 ### 1.4 Stack do Back-end, BaaS e Infraestrutura
 - **Backend as a Service (BaaS):** Supabase Cloud / Self-Hosted.
 - **Banco de Dados Relacional:** PostgreSQL 15 com extensões `uuid-ossp` e `pgcrypto`.
 - **Segurança de Acesso:** Row Level Security (RLS) mandatória em todas as tabelas públicas com isolamento por `loja_id` e verificação de `auth.uid()`.
-- **Sincronização em Tempo Real:** Supabase Realtime (WebSockets) nos canais de `pedidos`, `itens_pedido`, `pedido_entregas` e `caixas`.
+- **Sincronização em Tempo Real:** Supabase Realtime (WebSockets) nos canais de `pedidos`, `itens_pedido`, `pedido_entregas`, `caixas` e `loja_whatsapp_transacoes`.
 - **Serverless Edge Functions:** Deno runtime no Supabase Functions para integrações protegidas que requerem chaves de API restritas e execução server-side:
-  - `buscar-fotos-serpapi`: Busca automatizada de imagens de produtos.
+  - `gemini-proxy`: Proxy Zero-Trust para chamadas ao Google Gemini com resolução hierárquica de chaves (BYOK > Loja no Banco > Plataforma `GEMINI_API_KEY`) sem exposição no bundle front-end.
+  - `whatsapp-outbound-dispatch`: Orquestrador de notificações automáticas via Meta Cloud API com verificação de janela gratuita de 24h, débito atômico na carteira pré-paga e fallback manual.
+  - `hubi-criar-recarga-whatsapp-mp`: Emissão de cobrança Pix dinâmica para recargas da carteira WhatsApp.
+  - `hubi-criar-assinatura-mp` & `hubi-webhook-mp`: Gestão de anuidade do software, checkout Mercado Pago e confirmação em tempo real.
+  - `ml-oauth`, `ml-estoque-sync`, `ml-webhook`, `ml-etiquetas`: Conexão OAuth 2.0 com Mercado Livre, push de estoque, ingestão de pedidos e download de etiquetas.
+  - `buscar-fotos-serpapi`: Busca automatizada de imagens de produtos via SerpApi com fallback global de plataforma.
   - `uber-dispatch` & `uber-webhook`: Despacho e rastreio de entregas expressas ponto a ponto.
-  - `melhor-envio-despacho`: Cotação e emissão de etiquetas multi-transportadoras / Correios.
+  - `melhor-envio-despacho`: Cotação e emissão de etiquetas multi-transportadoras / Correios com sincronização SRO.
   - `typesafe-eval`: Proxy blindado para avaliações e julgamentos com o modelo **Jev (TypeSafe AI / System One)**.
 - **APIs e Gateways Externos:**
   - *Uber Direct REST API v1*: Cotação de entrega expressa ponto a ponto e despacho de entregadores.
@@ -175,6 +190,23 @@ Historicamente, o sistema utilizava uma coluna genérica `metadados JSONB` na ta
 - Tabelas e colunas utilizam rigorosamente o padrão `snake_case` no plural para tabelas (`pedidos`, `produtos`, `formas_pagamento`) e no singular claro para colunas (`preco_venda_varejo`, `quantidade_estoque`).
 - Valores monetários são formatados como `NUMERIC(12,2)` ou `NUMERIC(10,2)` e exibidos no padrão `R$ 0,00`.
 
+### 2.5 Desacoplamento Arquitetural Mandatório: PDV vs. Catálogo Online
+Em conformidade estrita com as diretrizes de governança do HUBI (`atomic-execution-protocol`):
+- **Isolamento Absoluto de Domínios:** O sistema mantém separação arquitetural e de componentes 100% estrita entre a frente de caixa física do lojista (`PosCheckout.tsx`, `ModalPagamentoFechamento.tsx`) e a experiência do consumidor final no Catálogo Online PWA (`CatalogoPublico.tsx`, `ModalPagamentoFechamentoCatalogo.tsx`, `ModalEscolhaPagamento.tsx`, `ModalMeusDadosCliente.tsx`).
+- **Prevenção de Efeitos Colaterais:** Nenhuma refatoração, melhoria visual ou regra de liquidação de autoatendimento na web pode compartilhar diretamente componentes de modal ou fluxos de confirmação de caixa físico, eliminando qualquer risco de quebra operacional no balcão da loja.
+
+### 2.6 Suíte Anti-REA-Shield v2 e Blindagem Zero-Trust de IA
+Para salvaguardar os ativos da aplicação contra engenharia reversa e vazamento de segredos:
+- **Suíte Anti-REA-Shield v2 (`packages/anti-rea-shield`):**
+  1. *Polymorphic Obfuscator:* Embaralhamento e mutação de classes CSS com hashes pseudo-aleatórios derivados de seeds criptográficas.
+  2. *Runtime Sentinel:* Sentinela de integridade em memória operando em modo `simulation`, detectando alterações não-autorizadas no DOM e injeções de scripts sem penalizar a performance no mobile.
+  3. *Supabase Honeypot & RLS Traps:* Tabelas e rotas armadilhas no PostgreSQL para identificação preventiva de scanners automatizados.
+  4. *Zero-Trust Migrator:* Ferramental para validação estática de queries diretas e migração para RPCs e Edge Functions.
+  5. *Anti-Scraping Harvest:* Marcas d'água canário e travas estruturais de paginação.
+- **Blindagem Zero-Trust de IA (`gemini-proxy`):**
+  - Todas as chamadas para a API oficial do Google Gemini são estritamente intermediadas pela Edge Function `gemini-proxy`.
+  - O navegador do cliente jamais recebe ou processa chaves de API cruas em memória ou variáveis de ambiente de build (`VITE_*`), garantindo conformidade rigorosa com o princípio de mínimo privilégio e proteção BYOK.
+
 ---
 
 ## 3. MODELAGEM ATUAL DO BANCO DE DADOS (SUPABASE / POSTGRESQL)
@@ -187,6 +219,8 @@ erDiagram
     lojas ||--o{ usuarios_loja : possui
     lojas ||--o{ produtos : cataloga
     lojas ||--o{ categorias : organiza
+    categorias ||--o{ categorias : subcategorias
+    categorias ||--o{ produtos : subcategoria_id
     lojas ||--o{ fornecedores : gerencia
     lojas ||--o{ clientes : atende
     lojas ||--o{ formas_pagamento : aceita
@@ -196,6 +230,7 @@ erDiagram
     lojas ||--o{ loja_shipping_configs : configura
     lojas ||--o| loja_metas : define_metas
     lojas ||--o{ movimentacoes_estoque : audita_estoque
+    lojas ||--o{ loja_whatsapp_transacoes : transaciona_wallet
     
     produtos ||--o{ variacoes_produto : grade
     produtos ||--o{ itens_combo : compoe
@@ -257,6 +292,14 @@ erDiagram
 | `dia_vencimento_padrao_caderneta` | INTEGER | DEFAULT 10, CHECK (dia >= 1 AND dia <= 31) | Dia padrão de fechamento/acerto da caderneta na loja |
 | `exigir_pesagem_previa_pagamento` | BOOLEAN | NOT NULL DEFAULT FALSE | Quando TRUE, pedidos no catálogo online com itens vendidos por quilo (kg) têm o pagamento bloqueado até o lojista aferir o peso real na balança |
 | `whatsapp_auto_ativo` | BOOLEAN | NOT NULL DEFAULT FALSE | Habilita ou desabilita o envio automático de notificações via WhatsApp Cloud API |
+| `wpp_auto_pedido_confirmado` | BOOLEAN | NOT NULL DEFAULT TRUE | Disparo automático ao confirmar novo pedido do catálogo |
+| `wpp_auto_pesagem_concluida` | BOOLEAN | NOT NULL DEFAULT TRUE | Disparo automático ao liberar pagamento de itens pesáveis |
+| `wpp_auto_status_separacao` | BOOLEAN | NOT NULL DEFAULT FALSE | Disparo automático em mudanças de status do pedido |
+| `wpp_auto_pronto_retirada` | BOOLEAN | NOT NULL DEFAULT TRUE | Disparo automático quando o pedido está pronto para retirada |
+| `wpp_auto_despacho_rastreio` | BOOLEAN | NOT NULL DEFAULT TRUE | Disparo automático com código e link de rastreio de envio |
+| `wpp_auto_pedido_entregue` | BOOLEAN | NOT NULL DEFAULT FALSE | Disparo automático quando a entrega é concluída com sucesso |
+| `wpp_auto_recibo_venda` | BOOLEAN | NOT NULL DEFAULT FALSE | Disparo automático do recibo digital de venda no PDV Balcão |
+| `wpp_auto_comprovante_fiado` | BOOLEAN | NOT NULL DEFAULT TRUE | Disparo automático do comprovante de lançamento na caderneta/fiado |
 | `whatsapp_saldo` | NUMERIC(12,2) | NOT NULL DEFAULT 2.00 | Saldo financeiro pré-pago da carteira de WhatsApp da loja (inicia com R$ 2,00 de degustação) |
 | `whatsapp_bonus_expira_em` | TIMESTAMPTZ | DEFAULT (NOW() + INTERVAL '7 days') | Validade do bônus inicial restrita aos 7 primeiros dias de trial da loja |
 | `whatsapp_alerta_saldo_baixo` | NUMERIC(10,2) | NOT NULL DEFAULT 5.00 | Limite financeiro para disparo de alerta visual de saldo acabando |
@@ -287,7 +330,8 @@ erDiagram
 | :--- | :--- | :--- | :--- |
 | `id` | UUID | PK, DEFAULT gen_random_uuid() | ID do produto |
 | `loja_id` | UUID | FK -> lojas(id) ON DELETE CASCADE | Vínculo tenant |
-| `categoria_id` | UUID | FK -> categorias(id) ON DELETE SET NULL | Categoria do produto |
+| `categoria_id` | UUID | FK -> categorias(id) ON DELETE SET NULL | Categoria principal do produto |
+| `subcategoria_id` | UUID | FK -> categorias(id) ON DELETE SET NULL | Subcategoria do produto na hierarquia |
 | `fornecedor_id` | UUID | FK -> fornecedores(id) ON DELETE SET NULL | Fornecedor de origem |
 | `nome` | VARCHAR(200) | NOT NULL | Nome comercial do produto |
 | `codigo_interno` | VARCHAR(50) | NULL | Código de referência interna do lojista |
@@ -487,6 +531,7 @@ erDiagram
 | `frete_proprio_tipo_cobranca` | VARCHAR(20) | NOT NULL DEFAULT 'fixo' | Tipo de precificação da entrega própria ('fixo', 'por_km', 'faixa_cep') |
 | `frete_proprio_valor_padrao` | NUMERIC(10,2) | NOT NULL DEFAULT 0.00 | Taxa padrão aplicada na entrega própria |
 | `frete_proprio_prazo_estimado` | VARCHAR(80) | NOT NULL DEFAULT 'Entrega hoje (30 a 60 min)' | Prazo estimado exibido ao cliente no seletor |
+| `frete_proprio_raio_maximo_km` | NUMERIC(10,2) | NULL | Raio máximo de cobertura em km para entrega própria da loja |
 | `origem_cep` | VARCHAR(9) | NOT NULL | CEP da loja física de onde saem os despachos |
 | `origem_logradouro` | VARCHAR(255) | NULL | Rua de coleta para transportadoras |
 | `origem_numero` | VARCHAR(20) | NULL | Número |
@@ -722,14 +767,15 @@ Tabela singleton de governança do ecossistema HUBI (`id = 1`), permitindo ao Su
 | `meta_waba_id` | TEXT | NULL | WhatsApp Business Account ID (WABA) global da plataforma |
 | `meta_access_token` | TEXT | NULL | Token permanente de usuário do sistema da Meta Cloud API |
 | `meta_verify_token` | TEXT | DEFAULT 'hubi_whatsapp_webhook_token' | Token de validação de webhooks da Meta Cloud API |
+| `serpapi_key` | TEXT | NULL | Chave SerpApi global da plataforma HUBI utilizada como fallback automático de fotos |
 | `modo_manutencao` | BOOLEAN | NOT NULL DEFAULT FALSE | Flag de bloqueio temporário global para manutenções |
 | `mensagem_manutencao` | TEXT | NULL | Aviso informativo exibido em modo de manutenção |
 | `atualizado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Carimbo de auditoria da última alteração de parâmetros |
 | `atualizado_por` | UUID | NULL, FK -> auth.users(id) | Usuário autenticado que efetuou a alteração |
 
 > **Políticas de RLS da Tabela:**
-> - `SELECT`: Permitido para qualquer usuário autenticado (`auth.role() = 'authenticated'`).
-> - `UPDATE` / `INSERT`: Restrito estritamente a administradores globais autorizados via função `public.eh_super_admin_plataforma()`.
+> - `SELECT`: Permitido para `public` (anon e authenticated) para carregamento inicial transparente de parâmetros comerciais e prazos de trial.
+> - `ALL` / `UPDATE`: Políticas `escrita_config_plataforma` com validação de credencial e gestão pelo Super Admin via painel dedicado (`CardParametrosHubiAdmin.tsx`).
 
 #### 24. Tabela `marketplace_contas` (Conexões OAuth e Credenciais de Marketplaces)
 Gerencia os vínculos OAuth 2.0 multi-lojas com marketplaces externos (Mercado Livre), armazenando tokens de acesso, refresh tokens e flags de automação por filial.
@@ -831,6 +877,11 @@ Centraliza o cadastro unificado de clientes do estabelecimento, limites de créd
 | `ativo` | BOOLEAN | DEFAULT TRUE | Status ativo/inativo |
 | `criado_em` / `atualizado_em` | TIMESTAMPTZ | DEFAULT NOW() | Carimbos de auditoria temporal |
 
+> **Governança Telefônica e Unicidade:**
+> - Normalização determinística via função `public.normalizar_telefone_com_ddi()` que injeta DDI 55 em telefones com DDD (10 ou 11 dígitos).
+> - Índices únicos `uq_clientes_loja_celular_normalizado` e `uq_clientes_loja_telefone` impedindo duplicidade de um mesmo cliente na mesma filial.
+> - Erradicação de e-mails sintéticos `@hubi.app` na base de clientes, unificando a identidade exclusivamente pelo WhatsApp.
+
 #### 28. Tabela `caderneta_lancamentos` (Ledger Contábil da Caderneta de Mercadinho)
 Registra de forma normalizada, auditada e imutável todas as movimentações financeiras da Caderneta de Mercadinho (compras, pagamentos parciais, liquidações totais e estornos).
 | Coluna | Tipo | Restrições | Descrição |
@@ -862,7 +913,7 @@ Registra de forma normalizada, auditada e imutável todas as movimentações fin
 | `pedido_id` | UUID | NULL, FK -> pedidos(id) ON DELETE SET NULL | Pedido disparador da notificação |
 | `cliente_id` | UUID | NULL, FK -> clientes(id) ON DELETE SET NULL | Cliente destinatário da mensagem |
 | `tipo` | VARCHAR(25) | NOT NULL, CHECK ('bonus_inicial', 'recarga_pix', 'consumo_disparo', 'expiracao_bonus', 'estorno') | Natureza da movimentação contábil |
-| `evento_gatilho` | VARCHAR(40) | NULL | Identificador do gatilho (ex: 'liberacao_pagamento_pesagem', 'recarga_manual') |
+| `evento_gatilho` | VARCHAR(40) | NULL | Identificador do gatilho (ex: 'pedido_confirmado', 'recarga_carteira_pix') |
 | `valor` | NUMERIC(12,2) | NOT NULL | Valor financeiro transacionado na carteira (R$) |
 | `saldo_anterior` | NUMERIC(12,2) | NOT NULL | Saldo da carteira imediatamente anterior ao lançamento |
 | `saldo_posterior` | NUMERIC(12,2) | NOT NULL | Saldo resultante da carteira após o lançamento |
@@ -870,6 +921,20 @@ Registra de forma normalizada, auditada e imutável todas as movimentações fin
 | `status_pagamento` | VARCHAR(25) | NOT NULL DEFAULT 'concluido', CHECK ('pendente', 'concluido', 'cancelado') | Estado financeiro da transação |
 | `descricao` | TEXT | NOT NULL | Histórico descritivo em linguagem natural |
 | `criado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Carimbo temporal auditável do evento |
+
+#### 30. Tabela `categorias` (Hierarquia de Categorias e Subcategorias Multi-tenant)
+Estrutura organizacional do catálogo de produtos em árvore hierárquica (categorias pai e subcategorias filhas), com vínculo multi-tenant por loja.
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | ID exclusivo da categoria |
+| `loja_id` | UUID | NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Vínculo tenant obrigatório |
+| `nome` | VARCHAR(100) | NOT NULL | Nome da categoria ou subcategoria |
+| `descricao` | TEXT | NULL | Descrição complementar |
+| `icone` | VARCHAR(50) | NULL | Identificador de ícone Lucide |
+| `ordem_exibicao` | INTEGER | DEFAULT 0 | Ordem de apresentação nos menus e vitrines |
+| `categoria_pai_id` | UUID | NULL, FK -> categorias(id) ON DELETE CASCADE | Auto-relacionamento indicando categoria ascendente (NULL para categorias raiz) |
+| `ativo` | BOOLEAN | DEFAULT TRUE | Ativação da categoria |
+| `criado_em` / `atualizado_em` | TIMESTAMPTZ | DEFAULT NOW() | Carimbos temporais de auditoria |
 
 ### 3.3 Triggers, Automações e Segurança no Banco (RLS)
 1. **Baixa e Reajuste Automático de Estoque (`fn_atualizar_estoque_pedido`):**
@@ -885,10 +950,13 @@ Registra de forma normalizada, auditada e imutável todas as movimentações fin
    - Registra automaticamente o evento na tabela `historico_pedidos` contendo `status_anterior`, `status_novo`, `motivo`, transportadora/app envolvido e descrição humana detalhada.
 4. **Cálculo RPC de Métricas do Cockpit Executivo F1 (`obter_metricas_cockpit_f1`):**
    - Stored procedure otimizada para consolidar faturamento bruto, CMV real, taxas de cartões, volume de pedidos, ticket médio e contas a pagar em uma única chamada de alta performance.
-5. **Funções Security Definer:**
+5. **Funções Security Definer & Utilitários de Banco:**
+   - `public.normalizar_telefone_com_ddi(tel TEXT)`: Função `IMMUTABLE` que sanitiza caracteres não-dígito e adiciona o DDI nacional 55 determinístico para telefones com 10 e 11 dígitos.
    - `public.usuario_pertence_loja(p_loja_id UUID)`: Valida em tempo real se `auth.uid()` possui vínculo ativo com a loja solicitada.
    - `public.eh_gerente_ou_admin(p_loja_id UUID)`: Valida se o usuário tem privilégio gerencial para visualizar relatórios ou alterar parâmetros globais.
    - `public.obter_pedido_para_pagamento_catalogo(p_pedido_id UUID, p_slug_catalogo VARCHAR)`: RPC com `SECURITY DEFINER` liberada para `anon` e `authenticated`, retornando de forma segura e higienizada os dados do pedido pesado, itens (quantidades solicitadas e pesos aferidos na balança) e dados da caderneta com validação estrita de tenant (`loja_id`).
+   - `public.debitar_saldo_whatsapp_atomico(...)`: RPC com bloqueio pessimista (`SELECT ... FOR UPDATE`) que abate a tarifa de disparo do saldo pré-pago e insere o evento no ledger auditável `loja_whatsapp_transacoes`.
+   - `public.creditar_recarga_whatsapp_atomico(...)`: RPC idempotente invocada via webhook do Mercado Pago para creditar saldo e ativar automações após aprovação de recarga Pix.
    - `public.debitar_saldo_whatsapp_atomico(...)`: RPC com bloqueio pessimista (`SELECT ... FOR UPDATE`) que abate a tarifa de disparo do saldo pré-pago e insere o evento no ledger auditável `loja_whatsapp_transacoes`.
    - `public.creditar_recarga_whatsapp_atomico(...)`: RPC idempotente invocada via webhook do Mercado Pago para creditar saldo e ativar automações após aprovação de recarga Pix.
 
@@ -963,13 +1031,18 @@ O catálogo online (`CatalogoPublico.tsx`) é a frente de vendas digital públic
      - O cliente pode cadastrar quantos endereços secundários distintos desejar (armazenados via `INSERT` relacional puro na tabela `cliente_enderecos`).
      - **Validação contra duplicidade:** O sistema impede cadastros redundantes se já houver um endereço na lista com o mesmo CEP e Número (e complemento se existente), emitindo aviso claro: *"Este endereço já está cadastrado na sua lista."*.
      - Ao cadastrar um novo endereço, o modal confirma a seleção, fecha automaticamente e dispara o recálculo imediato de cotação para o novo destino, sem reverter para o endereço principal ao re-renderizar.
-5. **Identificação do Cliente:** Modal simples com validação de telefone (WhatsApp), nome completo e endereço de entrega.
-6. **Gravação e Notificação:**
-   - O pedido é gravado na tabela `pedidos` com `origem = 'catalogo_online'`, `status = 'pendente'` e seus itens em `itens_pedido`.
-   - Um registro é gravado em `pedido_entregas` com o snapshot do endereço e a transportadora escolhida.
-   - **Retenção de Pagamento para Itens por Quilo (`lojas.exigir_pesagem_previa_pagamento = true`):** Quando o carrinho possui produtos vendidos por peso (`tipo_unidade = 'kg'`), a emissão de cobrança imediata é retida, marcando `status_pagamento = 'aguardando_pesagem'`. O cliente recebe notificação orientando que a loja aferirá o peso na balança antes do envio do link definitivo de pagamento (vide detalhamento na Subseção 5.20).
-   - Uma mensagem formatada com todos os itens, valores e link de acompanhamento é montada e o cliente é redirecionado via `https://wa.me/...` para enviar o pedido diretamente no WhatsApp do lojista.
-   - Em lojas com integração de pagamentos digitais ativa (Mercado Pago / Asaas) e pedidos sem retenção de pesagem, é gerado na tela um QR Code PIX com confirmação via webhook.
+5. **Identificação e Gestão de Dados Cadastrais (`ModalMeusDadosCliente.tsx`):**
+   - Modal com abas para dados pessoais (Nome, WhatsApp, E-mail) e gestão de múltiplos endereços de entrega com validação em tempo real.
+   - Sincronização automática com a sessão do cliente no catálogo e histórico de compras.
+6. **Fechamento e Liquidação Desacoplada v2.0 (`ModalPagamentoFechamentoCatalogo.tsx` & `ModalEscolhaPagamento.tsx`):**
+   - Em conformidade com o `atomic-execution-protocol`, a experiência de fechamento do catálogo online é 100% isolada da frente de caixa física do PDV.
+   - **Opções de Liquidação Suportadas:**
+     - *Pix Dinâmico Mercado Pago:* Geração de cobrança com QR Code na tela e código Copia e Cola. Assinatura ativa no canal WebSocket (`supabase.channel`) detecta a liquidação via webhook em tempo real e avança a interface automaticamente para o estado de sucesso.
+     - *Pix Direto da Loja (EMV BR Code):* Geração com o utilitário nativo `pixUtils.ts`, formatando código Copia e Cola oficial com chave Pix, identificador do pedido e checksum CRC-16.
+     - *Caderneta de Mercadinho:* Para clientes autorizados (`permite_caderneta = true`), permite debitar o valor do pedido na conta corrente mensal com validação de saldo disponível.
+     - *Pagamento Presencial:* Dinheiro (com cálculo de troco) ou Cartão de Débito/Crédito na maquininha móvel na entrega/retirada.
+   - **Retenção de Pagamento para Itens por Quilo (`lojas.exigir_pesagem_previa_pagamento = true`):** Quando o carrinho possui produtos pesáveis (`tipo_unidade = 'kg'`), a emissão de cobrança imediata é retida, marcando `status_pagamento = 'aguardando_pesagem'`. O cliente recebe notificação orientando que a loja aferirá o peso na balança antes do envio do link definitivo de pagamento.
+   - O pedido é gravado na tabela `pedidos` com `origem = 'catalogo_online'` e itens em `itens_pedido`, despachando notificação formatada para o WhatsApp do lojista via `https://wa.me/...`.
 
 ### 4.4 Sistema de Autenticação e Isolamento Multi-tenant
 1. **Sessão do Usuário:** O `AuthContext.tsx` gerencia a conexão com o Supabase Auth (`auth.users`). Ao efetuar login, o sistema busca na tabela `usuarios_loja` quais são as lojas vinculadas àquele e-mail ou UID.
@@ -1180,6 +1253,45 @@ Módulo universal acessível diretamente na tela de Clientes (`ClientesFiado.tsx
 6. **Guia Didático Passo a Passo (`ModalGuiaExportacaoWhatsApp.tsx`):**
    - Modal com 3 abas ilustradas orientando o lojista sobre como extrair contatos do **Google Contatos** (`contacts.google.com`), do **WhatsApp Web/Business** (via extensões do Chrome) e disponibilizando download direto da **Planilha Modelo Simplificada** (Nome, WhatsApp, Endereço e Observações) em `.xlsx` e `.csv`.
 
+### 4.15 Módulo de Subcategorias e Hierarquia de Árvore no Catálogo e Estoque
+Para suportar catálogos extensos e departamentos complexos (ex: Moda > Camisas, Alimentos > Frios e Laticínios):
+1. **Estrutura de Dados Hierárquica no Banco:**
+   - Coluna `categoria_pai_id UUID NULL FK -> categorias(id) ON DELETE CASCADE` na tabela `public.categorias`.
+   - Coluna `subcategoria_id UUID NULL FK -> categorias(id) ON DELETE SET NULL` na tabela `public.produtos`.
+   - Índices de performance `idx_categorias_categoria_pai_id` e `idx_produtos_subcategoria_id`.
+2. **Motor de Árvore e Resiliência (`categoriasHierarquia.ts`):**
+   - Funções utilitárias puras: `obterArvoreCategorias(categorias)`, `obterCategoriaPaiId()`, `obterSubcategoriaIdProduto()`.
+   - Cache resiliente em `localStorage` sob as chaves `hubi_subcategorias_pai_map_${lojaId}` e `hubi_produtos_subcategoria_map_${lojaId}`, permitindo operação contínua e tolerante a contingências offline.
+3. **Componente Visual Unificado (`SeletorCategoriasHibrido.tsx`):**
+   - Atua de forma intercambiável no PDV, Estoque e Catálogo Online.
+   - *Desktop:* Dropdown com navegação em acordeão expansível ou menu cascata flutuante ao passar o cursor (`hover`).
+   - *Mobile:* Bottom sheet / Drawer tátil com acordeão de subcategorias, contadores em tempo real de produtos ativos e suporte total a histórico de navegação via `useRegisterOverlay`.
+
+### 4.16 Painel de Governança dos 8 Gatilhos Granulares de Disparo WhatsApp
+O HUBI introduz controle cirúrgico de notificações automáticas via WhatsApp Cloud API através do painel `PainelGatilhosWhatsapp.tsx` (integrado na aba de Configurações de WhatsApp e IA):
+1. **Oito Gatilhos Parametrizáveis por Filial (`public.lojas`):**
+   - `wpp_auto_pedido_confirmado` *(Essencial)*: Disparo ao registrar novo pedido no catálogo online.
+   - `wpp_auto_pesagem_concluida` *(Essencial)*: Disparo com valor total recalculado e link de pagamento pós-aferição na balança.
+   - `wpp_auto_despacho_rastreio` *(Essencial)*: Disparo de código de rastreamento SRO/link dos Correios, Melhor Envio ou app de corrida.
+   - `wpp_auto_pronto_retirada` *(Recomendado)*: Notificação ao cliente de que a encomenda está pronta para retirada no balcão da loja.
+   - `wpp_auto_comprovante_fiado` *(Recomendado)*: Envio de comprovante de compras e amortizações na Caderneta de Mercadinho ou Fiado.
+   - `wpp_auto_status_separacao` *(Opcional)*: Notificação em transições operacionais intermediárias (`em_separacao`, `em_expedicao`).
+   - `wpp_auto_pedido_entregue` *(Opcional)*: Mensagem de confirmação de entrega concluída com link de avaliação.
+   - `wpp_auto_recibo_venda` *(Opcional)*: Disparo automático de recibo digital de vendas físicas efetuadas no PDV Balcão.
+2. **Otimização Financeira da Carteira Pré-Paga:**
+   - O lojista pode ativar ou desativar cada gatilho individualmente com switches visuais reativos, preservando créditos da carteira para eventos de maior impacto comercial.
+
+### 4.17 Unificação de Identidade via WhatsApp e Saneamento de Duplicados
+Para assegurar integridade no relacionamento com clientes e evitar furos contábeis de crediário:
+1. **Função Imutável de Normalização (`normalizar_telefone_com_ddi`):**
+   - Converte e formata qualquer entrada telefônica para o padrão canônico com DDI nacional `55` (`55 + DDD + 8 ou 9 dígitos`).
+2. **Erradicação de E-mails Sintéticos na Base de Clientes:**
+   - E-mails transitórios com formato `@hubi.app` foram definitivamente expurgados da tabela `public.clientes`, consolidando a chave natural unificada no número de WhatsApp.
+3. **Consolidação e Mesclagem de Registros Duplicados:**
+   - Rotina automatizada que agrupa clientes repetidos na mesma loja pelo telefone normalizado, transferindo pedidos, lançamentos de caderneta, débitos de fiado e endereços para o registro canônico principal e expurgando cadastros órfãos vazios.
+4. **Blindagem Contra Novas Duplicidades:**
+   - Implantação de constraints e índices únicos `uq_clientes_loja_celular_normalizado` e `uq_clientes_loja_telefone`, bloqueando tentativas de inserção redundante no Supabase.
+
 ---
 
 ## 5. SERVIÇOS E UTILITÁRIOS GLOBAIS
@@ -1368,6 +1480,8 @@ Para garantir governança absoluta, segurança operacional e transparência para
 3. **Erradicação de Modais e Solicitações Secundárias:**
    - Extintos todos os modais, botões flutuantes e prompts secundários de chave em `ProdutoCadastro.tsx` e `ProdutosMobile.tsx`.
    - Consumo transparente: a chave cadastrada na loja é injetada automaticamente para geração de títulos, descrições, assistente Rubi e catálogo online sem que operadores ou clientes finais precisem digitar qualquer chave.
+4. **Proxy Server-Side Zero-Trust (`gemini-proxy`):**
+   - Todas as requisições gerativas são mediadas pela Edge Function oficial `gemini-proxy`, eliminando o tráfego de chaves no bundle e prevenindo exposição no navegador.
 
 ### 5.13 Infraestrutura de Monetização SaaS, Multi-Lojas e Mercado Pago
 A monetização do HUBI adota arquitetura de licença anual autônoma por unidade (`loja_id`), vinculada à camada de organização/conglomerado (`organizacoes`), eliminando qualquer risco de inadimplência cruzada:
@@ -1464,9 +1578,17 @@ A monetização do HUBI adota arquitetura de licença anual autônoma por unidad
    - `downloadModeloSimplificadoXLSX()` e `downloadModeloSimplificadoCSV()` com as 4 colunas essenciais (*Nome*, *WhatsApp*, *Endereço*, *Observações*).
 
 ### 5.19 Carteira Pré-Paga (Wallet) e Motor Híbrido de Notificações WhatsApp (`whatsappWalletService.ts`)
-1. **Modelagem Relacional e Colunas de Governança (`supabase/migrations/20261025_carteira_whatsapp_e_motor_hibrido.sql`):**
+1. **Modelagem Relacional e Colunas de Governança (`supabase/migrations/20261025_carteira_whatsapp_e_motor_hibrido.sql` & `20261102_add_flags_disparo_whatsapp_lojas.sql`):**
    - **Tabela `public.lojas`:**
      - `whatsapp_auto_ativo BOOLEAN NOT NULL DEFAULT FALSE`: Habilita/desabilita o envio automático de notificações via API oficial.
+     - `wpp_auto_pedido_confirmado BOOLEAN NOT NULL DEFAULT TRUE`: Disparo automático ao confirmar novo pedido do catálogo.
+     - `wpp_auto_pesagem_concluida BOOLEAN NOT NULL DEFAULT TRUE`: Disparo automático ao liberar pagamento de itens pesáveis.
+     - `wpp_auto_status_separacao BOOLEAN NOT NULL DEFAULT FALSE`: Disparo automático em mudanças de status do pedido.
+     - `wpp_auto_pronto_retirada BOOLEAN NOT NULL DEFAULT TRUE`: Disparo automático quando o pedido está pronto para retirada.
+     - `wpp_auto_despacho_rastreio BOOLEAN NOT NULL DEFAULT TRUE`: Disparo automático com código e link de rastreio de envio.
+     - `wpp_auto_pedido_entregue BOOLEAN NOT NULL DEFAULT FALSE`: Disparo automático quando a entrega é concluída com sucesso.
+     - `wpp_auto_recibo_venda BOOLEAN NOT NULL DEFAULT FALSE`: Disparo automático do recibo digital de venda no PDV Balcão.
+     - `wpp_auto_comprovante_fiado BOOLEAN NOT NULL DEFAULT TRUE`: Disparo automático do comprovante de lançamento na caderneta/fiado.
      - `whatsapp_saldo NUMERIC(12,2) NOT NULL DEFAULT 2.00`: Saldo financeiro pré-pago da loja (inicia com R$ 2,00 de bônus de degustação).
      - `whatsapp_bonus_expira_em TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '7 days')`: Validade do bônus inicial restrita aos 7 primeiros dias de trial da loja.
      - `whatsapp_alerta_saldo_baixo NUMERIC(10,2) NOT NULL DEFAULT 5.00`: Limite para disparo de alerta visual de saldo acabando no topo do painel.
@@ -1481,8 +1603,8 @@ A monetização do HUBI adota arquitetura de licença anual autônoma por unidad
 2. **Árvore de Decisão do Motor Híbrido (`whatsappWalletService.ts` & Edge Function `whatsapp-outbound-dispatch`):**
    - **Passo 1 — Expiração do Bônus de 7 Dias:** Caso a loja não possua recarga paga (`tipo = 'recarga_pix' AND status_pagamento = 'concluido'`) e `NOW() > loja.whatsapp_bonus_expira_em`, zera o saldo residual de bônus via RPC `debitar_saldo_whatsapp_atomico` (`tipo = 'expiracao_bonus'`).
    - **Passo 2 — Rota 1 (Janela de 24h Aberta — Custo Zero):** Se `clientes.whatsapp_ultima_interacao_cliente_em` ocorreu há menos de 24 horas, dispara a mensagem em segundo plano via Meta Cloud API como mensagem de sessão livre sem debitar saldo (`modoEnvio: 'auto_janela_24h'`).
-   - **Passo 3 — Rota 2 (Fora da Janela de 24h com Automação Ativa e Saldo Disponível — Disparo Tarifado):** Se `loja.whatsapp_auto_ativo === true` e `loja.whatsapp_saldo >= custo_disparo_whatsapp`, dispara via Meta Cloud API e executa débito atômico (`SELECT ... FOR UPDATE`) via RPC `debitar_saldo_whatsapp_atomico` (`modoEnvio: 'auto_tarifado'`).
-   - **Passo 4 — Rota 3 (Fallback Manual Gratuito):** Se `whatsapp_auto_ativo === false` ou saldo insuficiente, retorna `modoEnvio: 'manual_link'` com a URL pré-formatada `https://api.whatsapp.com/send?phone=...&text=...` para abertura manual gratuita pelo operador.
+   - **Passo 3 — Rota 2 (Fora da Janela de 24h com Automação Ativa e Saldo Disponível — Disparo Tarifado):** Se `loja.whatsapp_auto_ativo === true`, a flag específica do evento (`loja[wpp_flag] === true`) e `loja.whatsapp_saldo >= custo_disparo_whatsapp`, dispara via Meta Cloud API e executa débito atômico (`SELECT ... FOR UPDATE`) via RPC `debitar_saldo_whatsapp_atomico` (`modoEnvio: 'auto_tarifado'`).
+   - **Passo 4 — Rota 3 (Fallback Manual Gratuito):** Se `whatsapp_auto_ativo === false`, flag desativada ou saldo insuficiente, retorna `modoEnvio: 'manual_link'` com a URL pré-formatada `https://api.whatsapp.com/send?phone=...&text=...` para abertura manual gratuita pelo operador.
 3. **Recarga Instantânea via Pix Mercado Pago:**
    - **Edge Function `hubi-criar-recarga-whatsapp-mp`:** Valida `valor_recarga >= valor_minimo_recarga_whatsapp`, registra transação pendente em `loja_whatsapp_transacoes` e gera Pix dinâmico na API oficial do Mercado Pago com `external_reference = "whatsapp_wallet:${loja_id}:${transacao_id}"`.
    - **Edge Function `hubi-webhook-mp`:** Detecta notificações com prefixo `whatsapp_wallet:` e, quando `status === 'approved'`, invoca a RPC idempotente `creditar_recarga_whatsapp_atomico`, somando o valor em `lojas.whatsapp_saldo`, ativando `whatsapp_auto_ativo = true` e notificando o front-end via Supabase Realtime.
@@ -1500,7 +1622,7 @@ sequenceDiagram
     participant Ret as Retaguarda / PDV
     participant Bal as ModalConferenciaPesagemPedido
     participant Wpp as whatsappWalletService
-    participant Pay as ModalPagamentoPedidoPesado
+    participant Pay as ModalPagamentoFechamentoCatalogo
 
     Cliente->>Cat: Monta pedido com itens vendidos por kg
     Note over Cat: loja.exigir_pesagem_previa_pagamento = TRUE
@@ -1566,18 +1688,61 @@ sequenceDiagram
         - Monta a mensagem formatada para o cliente com o número do pedido, o valor total definitivo apurado e o deep link único de checkout.
         - Executa o disparo híbrido (janela gratuita de 24h, disparo tarifado pela carteira pré-paga ou fallback manual com link `wa.me`).
 
-4. **Checkout Posterior e Liquidação no Catálogo Online (`ModalPagamentoPedidoPesado.tsx`):**
+4. **Checkout Posterior e Liquidação no Catálogo Online (`ModalPagamentoFechamentoCatalogo.tsx`):**
    - **Deep Link Parametrizado:** O link enviado ao cliente segue o padrão:
      `https://[dominio]/catalog/[slug_loja]?pagar_pedido=[pedido_id]`
    - **RPC Security Definer de Consulta Segura (`obter_pedido_para_pagamento_catalogo`):**
      - Executada no carregamento do catálogo com deep link.
      - Valida a correspondência entre `p_pedido_id` e a loja proprietária (`loja_id`), retornando os dados higienizados do pedido e itens pesados sem expor PII sensível.
-   - **Interface e Modalidades de Pagamento no Modal:**
+   - **Interface e Modalidades de Pagamento no Modal Desacoplado v2.0:**
      - **Quadro Comparativo Transparente:** Exibe para cada item a quantidade originalmente solicitada pelo cliente e o peso exato apurado na balança com o respectivo subtotal ajustado.
      - **Pix Dinâmico Mercado Pago:** Gera cobrança automática via API do Mercado Pago com QR Code e código Copia-e-Cola. Uma subscrição em tempo real (`supabase.channel`) escuta atualizações na tabela `pedidos` via Supabase Realtime; quando o webhook confirma o Pix (`status_pagamento = 'pago'`), a tela do cliente atualiza instantaneamente para o estado de concluído.
-     - **Pix Direto da Loja:** Exibe chave Pix cadastrada pelo lojista com botão de cópia e instruções para envio de comprovante.
+     - **Pix Direto da Loja (BR Code EMV):** Gera string oficial via `pixUtils.ts` com chave Pix da loja e checksum CRC-16 com botão de cópia e instruções para envio de comprovante.
      - **Caderneta de Mercadinho:** Caso o cliente possua autorização (`cliente.permite_caderneta = true`), o modal exibe o saldo devedor e limite disponível, permitindo debitar o valor do pedido pesado na conta corrente com 1 clique através de `CadernetaService.registrarCompraCaderneta`.
      - **Pagamento Presencial na Entrega/Retirada:** Opção para pagar na entrega em dinheiro (com campo de troco) ou cartão de débito/crédito na maquininha móvel do entregador.
+
+### 5.21 Motor de Geração Pix EMV / BR Code e Checksum CRC-16 (`pixUtils.ts`)
+Para garantir independência de intermediários bancários na cobrança direta:
+1. **Geração Client-Side Nativa:**
+   - O utilitário `src/utils/pixUtils.ts` formata o payload padrão BR Code (EMV QR Code) definido pelo Banco Central do Brasil.
+2. **Cálculo de Checksum CRC-16/CCITT-FALSE:**
+   - Algoritmo matemático estrito com polinômio `0x1021` e valor inicial `0xFFFF`, garantindo compatibilidade e leitura instantânea em 100% dos aplicativos bancários brasileiros (Nubank, Itaú, Bradesco, Santander, Banco do Brasil, Inter, Caixa, etc.).
+3. **Funções Principais:**
+   - `gerarPayloadPixEmv({ chavePix, nomeRecebedor, cidade, valor, identificador })`: Monta a string do código Pix Copia e Cola.
+   - `calcularCrc16(payload)`: Calcula e anexa os 4 dígitos hexadecimais de integridade.
+   - `formatarCampoEmv(id, valor)`: Formata estruturas Tag-Length-Value (TLV).
+
+### 5.22 Suíte de Segurança Client-Side Anti-REA-Shield v2 e Bootstrap em Simulação (`packages/anti-rea-shield`)
+Para proteção ativa dos ativos do software contra clonagem, scraping e ataques de injeção:
+1. **Estrutura Modular no Monorepo (`packages/anti-rea-shield/`):**
+   - `01-polymorphic-obfuscator`: Scrambler de classes CSS que muta seletores para nomes pseudo-aleatórios em tempo de compilação.
+   - `02-runtime-sentinel`: Sentinela de integridade em tempo de execução (`sentinel-core.ts`, `dom-watermark.ts`, `domain-lock.ts`).
+   - `03-supabase-honeypot`: Tabelas e colunas chamariz no PostgreSQL (`02_honeypot_rls_traps.sql`) para capturar tentativas de enumeração via PostgREST.
+   - `04-zero-trust-migrator`: Verificador de conformidade estática de consultas diretas.
+   - `05-anti-scraping-harvest`: Proteção contra varreduras em lote e injeção de canários nos feeds de dados.
+2. **Bootstrap Passivo em Modo Simulação (`shieldBootstrap.ts`):**
+   - Inicializado de forma não-bloqueante no entrypoint (`src/main.tsx`) via `inicializarAntiReaShield()`.
+   - Opera por padrão em modo `'simulation'`, emitindo diagnósticos passivos no console sem interrupção de fluxo para lojistas ou clientes legítimos em redes lentas ou dispositivos móveis.
+
+### 5.23 Motor de Síntese de Voz Gemini Studio Voice TTS (`geminiTtsService.ts`)
+O HUBI introduz experiência conversacional auditiva humana com o motor Gemini Studio Voice TTS:
+1. **Modelos de Alta Fidelidade e Vozes Naturais:**
+   - Modelo primário: `gemini-3.8-flash-tts` no Google AI Studio, gerando entonação humana ultra-realista em Português do Brasil (`pt-BR`).
+   - Vozes pré-configuradas: `Aoede` (melodiosa/acolhedora para atendimento), `Puck`, `Charon`.
+   - Fallback de contingência em múltiplos níveis: `gemini-2.0-flash` -> `gemini-2.5-flash-preview` -> `Web Speech API` nativa do navegador.
+2. **Otimização de Quota e Latência:**
+   - Cache em memória com limite dinâmico (`cacheAudioUrls` até 80 entradas) indexado por hash da voz + texto.
+   - Sanitização fonética automática (`limparTextoParaAudio`): expansão de moedas (`R$ 15,90` -> "15 reais e 90 centavos"), descarte de formatações markdown, URLs e tags internas.
+
+### 5.24 Supabase Edge Function `gemini-proxy` (Blindagem Zero-Trust de Credenciais)
+1. **Ponto Único de Saída para o Google Gemini:**
+   - Endpoint seguro server-side em Deno (`supabase/functions/gemini-proxy/index.ts`).
+2. **Resolução Hierárquica e Autônoma de Chaves:**
+   - **Prioridade 1:** Chave BYOK explicitamente repassada pelo usuário.
+   - **Prioridade 2:** Chave configurada na loja física (`lojas.gemini_api_key`) consultada no banco via Service Role.
+   - **Prioridade 3:** Segredo global da plataforma armazenado no cofre do Supabase (`GEMINI_API_KEY`).
+3. **CORS e Sanitização de Erros:**
+   - Tratamento completo de preflight `OPTIONS` e devolução de erros amigáveis em `pt-BR` sem vazamento de chaves ou metadados de infraestrutura.
 
 ---
 

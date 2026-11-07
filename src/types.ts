@@ -1,4 +1,5 @@
 import type { PedidoEntrega, FormaEntrega, TipoOperacaoEnvio } from './types/shipping';
+import type { LocalPrestacaoServico } from './types/agendamento';
 
 export type TipoDocumento = 'CPF' | 'CNPJ';
 export type PerfilUsuario = 'owner' | 'admin' | 'gerente' | 'vendedor' | 'comum';
@@ -402,6 +403,11 @@ export interface Loja {
   wpp_auto_pedido_entregue?: boolean;
   wpp_auto_recibo_venda?: boolean;
   wpp_auto_comprovante_fiado?: boolean;
+  wpp_auto_agendamento_criado?: boolean;
+  wpp_auto_lembrete_agendamento?: boolean;
+  antecedencia_lembrete_horas?: number;
+  limite_remarcacoes_cliente?: number;
+  antecedencia_minima_remarcacao_horas?: number;
   whatsapp_saldo?: number;
   whatsapp_bonus_expira_em?: string | null;
   whatsapp_alerta_saldo_baixo?: number;
@@ -484,6 +490,8 @@ export interface UsuarioLoja {
   senha_hash?: string | null;
   ultimo_login?: string | null;
   ativo: boolean;
+  presta_servicos?: boolean;
+  especialidade_cargo?: string | null;
   tela_inicial?: 'dashboard' | 'pos' | 'pedidos' | 'vendas' | string;
   criado_em?: string;
 
@@ -533,6 +541,9 @@ export interface Produto {
   fornecedor_id?: string | null;
   nome: string;
   tipo_item?: TipoItem;
+  requer_agendamento?: boolean;
+  duracao_estimada_minutos?: number;
+  local_prestacao_servico?: LocalPrestacaoServico;
   codigo_interno?: string | null;
   codigo_barras?: string | null;
   descricao?: string | null;
@@ -1150,5 +1161,7 @@ export interface SistemaLog {
 }
 
 export * from './types/gdm';
+export * from './types/agendamento';
+
 
 
