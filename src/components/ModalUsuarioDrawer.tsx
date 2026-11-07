@@ -68,6 +68,8 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
   const [podeFiado, setPodeFiado] = useState<boolean>(false);
   const [podeCaixa, setPodeCaixa] = useState<boolean>(false);
   const [podeTrocarLoja, setPodeTrocarLoja] = useState<boolean>(false);
+  const [prestaServicos, setPrestaServicos] = useState<boolean>(false);
+  const [especialidadeCargo, setEspecialidadeCargo] = useState<string>('');
   const permissions = usePermissions();
 
   const { confirmar } = useFeedbackModal();
@@ -94,7 +96,9 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       podeEstoque: usuarioEdicao ? (isAdmin ? true : (usuarioEdicao.pode_gerenciar_estoque ?? false)) : false,
       podeFiado: usuarioEdicao ? (isAdmin ? true : (usuarioEdicao.pode_ativar_fiado ?? false)) : false,
       podeCaixa: usuarioEdicao ? (isAdmin ? true : (usuarioEdicao.pode_abrir_fechar_caixa ?? false)) : false,
-      podeTrocarLoja: usuarioEdicao ? (isAdmin ? Boolean(usuarioEdicao.pode_trocar_loja) : false) : false
+      podeTrocarLoja: usuarioEdicao ? (isAdmin ? Boolean(usuarioEdicao.pode_trocar_loja) : false) : false,
+      prestaServicos: usuarioEdicao ? Boolean(usuarioEdicao.presta_servicos) : false,
+      especialidadeCargo: usuarioEdicao?.especialidade_cargo || ''
     });
   }, [usuarioEdicao, isOpen]);
 
@@ -114,7 +118,9 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       podeEstoque,
       podeFiado,
       podeCaixa,
-      podeTrocarLoja
+      podeTrocarLoja,
+      prestaServicos,
+      especialidadeCargo
     });
   }, [
     nome,
@@ -131,7 +137,9 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
     podeEstoque,
     podeFiado,
     podeCaixa,
-    podeTrocarLoja
+    podeTrocarLoja,
+    prestaServicos,
+    especialidadeCargo
   ]);
 
   const temAlteracoesForm = snapshotAtual !== snapshotInicial;
@@ -181,6 +189,8 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
         setPodeCaixa(isAdmin ? true : (usuarioEdicao.pode_abrir_fechar_caixa ?? false));
       }
       setPodeTrocarLoja(Boolean(usuarioEdicao.pode_trocar_loja));
+      setPrestaServicos(Boolean(usuarioEdicao.presta_servicos));
+      setEspecialidadeCargo(usuarioEdicao.especialidade_cargo || '');
       const ehGestor = p === 'owner' || p === 'admin' || p === 'gerente';
       setTelaInicial(usuarioEdicao.tela_inicial || (ehGestor ? 'dashboard' : 'pos'));
     } else {
@@ -200,6 +210,8 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       setPodeFiado(false);
       setPodeCaixa(false);
       setPodeTrocarLoja(false);
+      setPrestaServicos(false);
+      setEspecialidadeCargo('');
     }
     setErro(null);
   }, [usuarioEdicao, isOpen]);
@@ -319,6 +331,8 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
         podeVerPrecoCusto: ehOwner || ehAdmin,
         podeExportarRelatorios: ehOwner || ehAdmin,
         podeEditarVendasPassadas: ehOwner || ehAdmin,
+        prestaServicos,
+        especialidadeCargo: especialidadeCargo.trim() || null,
         telaInicial: (ehOwner || ehAdmin || perfilFinal === 'gerente') ? telaInicial : (telaInicial === 'dashboard' ? 'pos' : telaInicial)
       });
 
@@ -637,6 +651,47 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
               <span className={`text-[11px] block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                 Define qual módulo será aberto automaticamente ao fazer login ou abrir a aplicação.
               </span>
+            </div>
+
+            {/* SEÇÃO 1.1: AGENDAMENTO DE SERVIÇOS & ESPECIALIDADE */}
+            <div className={`pt-3 border-t space-y-3 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <span className={`text-xs font-bold block ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>
+                    Este funcionário presta serviços agendáveis
+                  </span>
+                  <span className={`text-[11px] block ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    Habilita este colaborador a receber agendamentos na agenda da loja e no catálogo online.
+                  </span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={prestaServicos}
+                    onChange={(e) => setPrestaServicos(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className={`w-9 h-5 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 ${isDark ? 'bg-slate-700' : 'bg-slate-300'}`}></div>
+                </label>
+              </div>
+
+              {prestaServicos && (
+                <div className="space-y-1.5 pt-1 animate-in fade-in duration-200">
+                  <label className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                    Cargo / Especialidade no Catálogo
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Barbeiro Master, Manicure, Técnico de Manutenção"
+                    value={especialidadeCargo}
+                    onChange={(e) => setEspecialidadeCargo(e.target.value)}
+                    className={`w-full rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none transition border ${isDark ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-500'}`}
+                  />
+                  <span className={`text-[11px] block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    Especialidade exibida para o cliente final ao escolher o profissional na página pública.
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 

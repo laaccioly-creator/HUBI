@@ -52,13 +52,18 @@ import {
   Zap,
   TrendingUp,
   Truck,
-  Layers
+  Layers,
+  Calendar,
+  Clock,
+  MapPin,
+  UserCheck
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { Produto, Categoria, VariacaoProduto, TipoUnidade } from '../types';
+import { Produto, Categoria, VariacaoProduto, TipoUnidade, UsuarioLoja, LocalPrestacaoServico } from '../types';
+import { agendamentoService } from '../services/agendamentoService';
 import {
   obterArvoreCategorias,
   obterSubcategoriasDe,
@@ -488,6 +493,10 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     alturaCm?: string;
     larguraCm?: string;
     comprimentoCm?: string;
+    requerAgendamento?: boolean;
+    duracaoEstimadaMinutos?: number;
+    localPrestacaoServico?: LocalPrestacaoServico;
+    profissionaisHabilitadosIds?: string[];
   }>({
     nome: '',
     precoVenda: '',
@@ -518,8 +527,28 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     pesoKg: '',
     alturaCm: '',
     larguraCm: '',
-    comprimentoCm: ''
+    comprimentoCm: '',
+    requerAgendamento: false,
+    duracaoEstimadaMinutos: 30,
+    localPrestacaoServico: 'loja',
+    profissionaisHabilitadosIds: []
   });
+
+  const [colaboradoresPrestadoresLoja, setColaboradoresPrestadoresLoja] = useState<UsuarioLoja[]>([]);
+
+  useEffect(() => {
+    if (!loja?.id) return;
+    supabase
+      .from('usuarios_loja')
+      .select('*')
+      .eq('loja_id', loja.id)
+      .eq('ativo', true)
+      .eq('presta_servicos', true)
+      .order('nome_completo', { ascending: true })
+      .then(({ data: users }) => {
+        if (users) setColaboradoresPrestadoresLoja(users as UsuarioLoja[]);
+      });
+  }, [loja?.id]);
 
   const { confirmar } = useFeedbackModal();
   const [snapshotInicialForm, setSnapshotInicialForm] = useState<string>('');
@@ -852,7 +881,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       pesoKg: '',
       alturaCm: '',
       larguraCm: '',
-      comprimentoCm: ''
+      comprimentoCm: '',
+      requerAgendamento: false,
+      duracaoEstimadaMinutos: 30,
+      localPrestacaoServico: 'loja' as LocalPrestacaoServico,
+      profissionaisHabilitadosIds: []
     };
     setRotuloVariacao1('Tamanho');
     setRotuloVariacao2('');
@@ -1101,8 +1134,23 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       pesoKg: (p as any).peso_kg != null ? String((p as any).peso_kg) : '',
       alturaCm: (p as any).altura_cm != null ? String((p as any).altura_cm) : '',
       larguraCm: (p as any).largura_cm != null ? String((p as any).largura_cm) : '',
-      comprimentoCm: (p as any).comprimento_cm != null ? String((p as any).comprimento_cm) : ''
+      comprimentoCm: (p as any).comprimento_cm != null ? String((p as any).comprimento_cm) : '',
+      requerAgendamento: Boolean(p.requer_agendamento),
+      duracaoEstimadaMinutos: p.duracao_estimada_minutos || 30,
+      localPrestacaoServico: p.local_prestacao_servico || 'loja',
+      profissionaisHabilitadosIds: []
     };
+    if (p.tipo_item === 'servico' && p.id && loja?.id) {
+      supabase
+        .from('servico_profissionais')
+        .select('usuario_id')
+        .eq('loja_id', loja.id)
+        .eq('produto_id', p.id)
+        .eq('ativo', true)
+        .then(({ data: vincs }) => {
+          if (vincs) setFormData(prev => ({ ...prev, profissionaisHabilitadosIds: vincs.map(v => v.usuario_id) }));
+        });
+    }
     setRotuloVariacao1(p.rotulo_variacao_1 || 'Tamanho');
     setRotuloVariacao2(p.rotulo_variacao_2 || '');
     setFormData(initialEditData);
@@ -1183,7 +1231,10 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         peso_kg: formData.pesoKg ? Number(formData.pesoKg.replace(',', '.')) : null,
         altura_cm: formData.alturaCm ? Number(formData.alturaCm.replace(',', '.')) : null,
         largura_cm: formData.larguraCm ? Number(formData.larguraCm.replace(',', '.')) : null,
-        comprimento_cm: formData.comprimentoCm ? Number(formData.comprimentoCm.replace(',', '.')) : null
+        comprimento_cm: formData.comprimentoCm ? Number(formData.comprimentoCm.replace(',', '.')) : null,
+        requer_agendamento: formData.tipoItem === 'servico' ? Boolean(formData.requerAgendamento) : false,
+        duracao_estimada_minutos: formData.tipoItem === 'servico' ? (formData.duracaoEstimadaMinutos || 30) : 30,
+        local_prestacao_servico: formData.tipoItem === 'servico' ? (formData.localPrestacaoServico || 'loja') : 'loja'
       };
 
       let produtoSalvoId = produtoEditando?.id;
@@ -1284,6 +1335,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
       // Persistência relacional em variacoes_produto (SEM JSONB) via sincronização Delta inteligente (preservando PKs)
       if (produtoSalvoId) {
+        if (formData.tipoItem === 'servico' && formData.requerAgendamento) {
+          await agendamentoService.salvarProfissionaisDoServico(
+            loja.id,
+            produtoSalvoId,
+            formData.profissionaisHabilitadosIds || []
+          );
+        }
+
         const variacoesDelta = (formData.variacoes || []).map(v => {
           const rot1 = (v.valor_variacao_1 || '').trim();
           const rot2 = (v.valor_variacao_2 || '').trim();
@@ -3730,19 +3789,185 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     </p>
                   </div>
 
-                  {/* Seção 4: Controle de Estoque & Entrada Inicial */}
+                  {/* Seção 4: Controle de Estoque & Agendamento */}
                   {formData.tipoItem === 'servico' ? (
-                    <div
-                      className="p-4 border rounded-2xl space-y-1"
-                      style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
-                    >
-                      <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
-                        <Wrench className="w-4 h-4" />
-                        <span>Controle de Estoque (Dispensado para Serviços / Taxas)</span>
+                    <div className="space-y-3.5">
+                      <div
+                        className="p-4 border rounded-2xl space-y-1"
+                        style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
+                      >
+                        <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
+                          <Wrench className="w-4 h-4" />
+                          <span>Controle de Estoque (Dispensado para Serviços / Taxas)</span>
+                        </div>
+                        <p className="text-[11px]" style={{ color: temaCores.textoSecundario }}>
+                          Itens de serviço não movimentam estoque físico. Vendas são ilimitadas e não bloqueiam por falta de saldo.
+                        </p>
                       </div>
-                      <p className="text-[11px]" style={{ color: temaCores.textoSecundario }}>
-                        Itens de serviço não movimentam estoque físico. Vendas são ilimitadas e não bloqueiam por falta de saldo.
-                      </p>
+
+                      {/* Card Dedicado de Agendamento */}
+                      <div
+                        className="p-4 border rounded-2xl space-y-4 shadow-sm"
+                        style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
+                      >
+                        <div>
+                          <h4 className="text-xs font-bold flex items-center gap-1.5" style={{ color: temaCores.textoPrincipal }}>
+                            <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                            <span>Agendamento e Execução do Serviço</span>
+                          </h4>
+                          <p className="text-[11px] mt-0.5" style={{ color: temaCores.textoSecundario }}>
+                            Configure a grade de horários e os atendentes habilitados para este serviço.
+                          </p>
+                        </div>
+
+                        {/* Switch Hora Marcada */}
+                        <div
+                          className="flex items-center justify-between p-3 rounded-xl border"
+                          style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput }}
+                        >
+                          <div className="space-y-0.5 pr-2">
+                            <span className="text-xs font-bold block" style={{ color: temaCores.textoPrincipal }}>
+                              Serviço com Hora Marcada
+                            </span>
+                            <span className="text-[10px] block" style={{ color: temaCores.textoSecundario }}>
+                              Exige agendamento prévio de data/hora no catálogo ou PDV
+                            </span>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(formData.requerAgendamento)}
+                              onChange={(e) => setFormData(prev => ({ ...prev, requerAgendamento: e.target.checked }))}
+                              className="sr-only peer"
+                            />
+                            <div className="w-9 h-5 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 bg-slate-300 dark:bg-slate-700"></div>
+                          </label>
+                        </div>
+
+                        {formData.requerAgendamento && (
+                          <div className="space-y-4 animate-in fade-in duration-200">
+                            {/* Duração Estimada */}
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <label className="text-[11px] font-bold flex items-center gap-1" style={{ color: temaCores.textoPrincipal }}>
+                                  <Clock className="w-3.5 h-3.5 text-emerald-500" />
+                                  <span>Duração Estimada:</span>
+                                </label>
+                                <span className="text-xs font-mono font-black text-emerald-600 dark:text-emerald-400">
+                                  {formData.duracaoEstimadaMinutos || 30} min
+                                </span>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {[15, 30, 45, 60, 90, 120].map((min) => (
+                                  <button
+                                    key={min}
+                                    type="button"
+                                    onClick={() => setFormData(prev => ({ ...prev, duracaoEstimadaMinutos: min }))}
+                                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition cursor-pointer ${
+                                      formData.duracaoEstimadaMinutos === min
+                                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                                        : 'bg-transparent border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                                    }`}
+                                  >
+                                    {min}m
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Local de Prestação */}
+                            <div className="space-y-1.5">
+                              <label className="text-[11px] font-bold flex items-center gap-1" style={{ color: temaCores.textoPrincipal }}>
+                                <MapPin className="w-3.5 h-3.5 text-emerald-500" />
+                                <span>Local de Prestação:</span>
+                              </label>
+                              <div className="grid grid-cols-1 gap-1.5">
+                                {[
+                                  { id: 'loja', rotulo: 'Na Própria Loja' },
+                                  { id: 'externo', rotulo: 'No Endereço do Cliente (Domicílio)' },
+                                  { id: 'ambos', rotulo: 'Ambos (Cliente Escolhe)' }
+                                ].map((loc) => (
+                                  <button
+                                    key={loc.id}
+                                    type="button"
+                                    onClick={() => setFormData(prev => ({ ...prev, localPrestacaoServico: loc.id as LocalPrestacaoServico }))}
+                                    className={`p-2 rounded-xl border text-left text-xs font-bold transition cursor-pointer flex items-center justify-between ${
+                                      formData.localPrestacaoServico === loc.id
+                                        ? 'bg-emerald-500/10 border-emerald-500 text-emerald-950 dark:text-white ring-1 ring-emerald-500/30'
+                                        : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'
+                                    }`}
+                                  >
+                                    <span>{loc.rotulo}</span>
+                                    {formData.localPrestacaoServico === loc.id && (
+                                      <Check className="w-3.5 h-3.5 text-emerald-500" />
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Profissionais Habilitados */}
+                            <div className="space-y-2 pt-1 border-t border-slate-200 dark:border-slate-800">
+                              <label className="text-[11px] font-bold flex items-center gap-1" style={{ color: temaCores.textoPrincipal }}>
+                                <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
+                                <span>Profissionais Habilitados:</span>
+                              </label>
+
+                              {colaboradoresPrestadoresLoja.length === 0 ? (
+                                <p className="text-[11px] text-amber-500 p-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10">
+                                  Nenhum colaborador com serviços agendáveis ativo na loja.
+                                </p>
+                              ) : (
+                                <div className="space-y-1.5">
+                                  {colaboradoresPrestadoresLoja.map((colab) => {
+                                    const checked = (formData.profissionaisHabilitadosIds || []).includes(colab.id);
+                                    return (
+                                      <label
+                                        key={colab.id}
+                                        className={`flex items-center gap-2.5 p-2 rounded-xl border transition cursor-pointer select-none ${
+                                          checked
+                                            ? 'bg-emerald-500/10 border-emerald-500/50 text-slate-900 dark:text-white'
+                                            : 'border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'
+                                        }`}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={checked}
+                                          onChange={(e) => {
+                                            if (e.target.checked) {
+                                              setFormData(prev => ({
+                                                ...prev,
+                                                profissionaisHabilitadosIds: [...(prev.profissionaisHabilitadosIds || []), colab.id]
+                                              }));
+                                            } else {
+                                              setFormData(prev => ({
+                                                ...prev,
+                                                profissionaisHabilitadosIds: (prev.profissionaisHabilitadosIds || []).filter(id => id !== colab.id)
+                                              }));
+                                            }
+                                          }}
+                                          className="rounded border-slate-300 dark:border-slate-700 text-emerald-600 focus:ring-emerald-500"
+                                        />
+                                        <div className="min-w-0">
+                                          <span className="text-xs font-bold block truncate">
+                                            {colab.nome_completo || colab.nome}
+                                          </span>
+                                          {colab.especialidade_cargo && (
+                                            <span className="text-[10px] text-slate-400 block truncate">
+                                              {colab.especialidade_cargo}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <div

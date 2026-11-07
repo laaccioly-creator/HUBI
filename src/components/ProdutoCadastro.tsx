@@ -36,14 +36,19 @@ import {
   Zap,
   RefreshCw,
   Lock,
-  Globe
+  Globe,
+  Clock,
+  Calendar,
+  MapPin,
+  UserCheck
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { ProdutoService } from '../services/produtoService';
-import { Categoria, Fornecedor, UnidadeMedida } from '../types';
+import { agendamentoService } from '../services/agendamentoService';
+import { Categoria, Fornecedor, UnidadeMedida, UsuarioLoja, LocalPrestacaoServico } from '../types';
 import {
   obterArvoreCategorias,
   obterSubcategoriasDe,
@@ -423,6 +428,13 @@ export const ProdutoCadastro: React.FC = () => {
   const [subcategoriaId, setSubcategoriaId] = useState<string>(() => rascunhoSalvo?.subcategoriaId || '');
   const [fornecedorId, setFornecedorId] = useState<string>(() => rascunhoSalvo?.fornecedorId || '');
 
+  // Estados do Módulo de Agendamento de Serviços
+  const [requerAgendamento, setRequerAgendamento] = useState<boolean>(() => Boolean((rascunhoSalvo as any)?.requerAgendamento || false));
+  const [duracaoEstimadaMinutos, setDuracaoEstimadaMinutos] = useState<number>(() => Number((rascunhoSalvo as any)?.duracaoEstimadaMinutos) || 30);
+  const [localPrestacaoServico, setLocalPrestacaoServico] = useState<LocalPrestacaoServico>(() => (rascunhoSalvo as any)?.localPrestacaoServico || 'loja');
+  const [profissionaisHabilitadosIds, setProfissionaisHabilitadosIds] = useState<string[]>([]);
+  const [colaboradoresPrestadoresLoja, setColaboradoresPrestadoresLoja] = useState<UsuarioLoja[]>([]);
+
   // Categorias principais (aquelas onde categoria_pai_id é nulo/vazio)
   const categoriasPrincipais = useMemo(() => {
     return categorias
@@ -710,6 +722,10 @@ export const ProdutoCadastro: React.FC = () => {
     setDataValidade('');
     setExibirCatalogo(true);
     setDestaque(false);
+    setRequerAgendamento(false);
+    setDuracaoEstimadaMinutos(30);
+    setLocalPrestacaoServico('loja');
+    setProfissionaisHabilitadosIds([]);
     setTemVariacoes(false);
     setNomeTipoVariacao('');
     setEtapaVariacao(1);
@@ -1012,6 +1028,21 @@ export const ProdutoCadastro: React.FC = () => {
     }
   };
 
+  // Carregar colaboradores habilitados a prestar serviços na loja
+  useEffect(() => {
+    if (!loja?.id) return;
+    supabase
+      .from('usuarios_loja')
+      .select('*')
+      .eq('loja_id', loja.id)
+      .eq('ativo', true)
+      .eq('presta_servicos', true)
+      .order('nome_completo', { ascending: true })
+      .then(({ data: users }) => {
+        if (users) setColaboradoresPrestadoresLoja(users as UsuarioLoja[]);
+      });
+  }, [loja?.id]);
+
   // Carregar dados do produto para edição se houver ID na rota
   useEffect(() => {
     const carregarProdutoEdicao = async () => {
@@ -1037,6 +1068,21 @@ export const ProdutoCadastro: React.FC = () => {
           setVendaPorPeso(Boolean(prod.venda_por_peso || prod.permite_fracionado || ['kg', 'g', 'l', 'ml', 'm'].includes((prod.tipo_unidade || '').toLowerCase())));
           setCodigoBalanca(prod.codigo_balanca != null ? String(prod.codigo_balanca) : '');
           setTipoItem((prod.tipo_item as any) || 'produto');
+
+          if (prod.tipo_item === 'servico') {
+            setRequerAgendamento(Boolean((prod as any).requer_agendamento));
+            setDuracaoEstimadaMinutos(Number((prod as any).duracao_estimada_minutos) || 30);
+            setLocalPrestacaoServico(((prod as any).local_prestacao_servico as any) || 'loja');
+            supabase
+              .from('servico_profissionais')
+              .select('usuario_id')
+              .eq('loja_id', loja.id)
+              .eq('produto_id', prod.id)
+              .eq('ativo', true)
+              .then(({ data: vincs }) => {
+                if (vincs) setProfissionaisHabilitadosIds(vincs.map(v => v.usuario_id));
+              });
+          }
 
           setPrecoCusto(prod.preco_custo ? Number(prod.preco_custo).toFixed(2) : '0.00');
           setPrecoVendaVarejo(prod.preco_venda_varejo ? Number(prod.preco_venda_varejo).toFixed(2) : '');
@@ -1682,7 +1728,10 @@ export const ProdutoCadastro: React.FC = () => {
         peso_kg: pesoKg.trim() ? Number(pesoKg.replace(',', '.')) : null,
         altura_cm: alturaCm.trim() ? Number(alturaCm.replace(',', '.')) : null,
         largura_cm: larguraCm.trim() ? Number(larguraCm.replace(',', '.')) : null,
-        comprimento_cm: comprimentoCm.trim() ? Number(comprimentoCm.replace(',', '.')) : null
+        comprimento_cm: comprimentoCm.trim() ? Number(comprimentoCm.replace(',', '.')) : null,
+        requer_agendamento: tipoItem === 'servico' ? requerAgendamento : false,
+        duracao_estimada_minutos: tipoItem === 'servico' ? duracaoEstimadaMinutos : 30,
+        local_prestacao_servico: tipoItem === 'servico' ? localPrestacaoServico : 'loja'
       };
 
       if (ehEdicao) {
@@ -1711,6 +1760,9 @@ export const ProdutoCadastro: React.FC = () => {
         if (erroUpdate) throw erroUpdate;
         if (id) {
           salvarVinculoSubcategoriaProdutoLocal(loja.id, id, subcategoriaId || null);
+          if (tipoItem === 'servico' && requerAgendamento) {
+            await agendamentoService.salvarProfissionaisDoServico(loja.id, id, profissionaisHabilitadosIds);
+          }
         }
 
         const variacoesDelta = opcoesVariacao.map(v => ({
@@ -1753,6 +1805,9 @@ export const ProdutoCadastro: React.FC = () => {
 
         if (erroProd || !prodCriado) throw erroProd;
         salvarVinculoSubcategoriaProdutoLocal(loja.id, prodCriado.id, subcategoriaId || null);
+        if (tipoItem === 'servico' && requerAgendamento) {
+          await agendamentoService.salvarProfissionaisDoServico(loja.id, prodCriado.id, profissionaisHabilitadosIds);
+        }
 
         if (temVariacoes && opcoesVariacao.length > 0) {
           const variacoesDelta = opcoesVariacao.map(v => ({
@@ -2641,16 +2696,206 @@ export const ProdutoCadastro: React.FC = () => {
             })()}
           </div>
 
-          {/* SEÇÃO 4: ESTOQUE & VALIDADE */}
+          {/* SEÇÃO 4: CONFIGURAÇÕES DE AGENDAMENTO E EXECUÇÃO DO SERVIÇO */}
           {tipoItem === 'servico' ? (
-            <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-500/30 rounded-2xl p-4 sm:p-6 md:p-8 space-y-2 shadow-sm">
-              <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-400 font-bold text-sm">
-                <Wrench className="w-4 h-4" />
-                <span>4. Controle de Estoque (Dispensado para Serviços / Taxas)</span>
+            <div className="space-y-4">
+              <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-500/30 rounded-2xl p-4 sm:p-5 space-y-1.5 shadow-xs">
+                <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-400 font-bold text-sm">
+                  <Wrench className="w-4 h-4" />
+                  <span>4. Controle de Estoque (Dispensado para Serviços / Taxas)</span>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-300">
+                  Itens do tipo Serviço / Taxa não movimentam saldo de estoque físico. Vendas são ilimitadas e não bloqueiam no PDV ou carrinho por falta de quantidade.
+                </p>
               </div>
-              <p className="text-xs text-slate-600 dark:text-slate-300">
-                Itens do tipo Serviço / Taxa não movimentam saldo de estoque físico. Vendas são ilimitadas e não bloqueiam no PDV ou carrinho por falta de quantidade.
-              </p>
+
+              {/* Card Dedicado de Agendamento */}
+              <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl p-4 sm:p-6 md:p-8 space-y-6 shadow-sm">
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <span>Configurações de Agendamento e Execução do Serviço</span>
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Defina se este serviço exige reserva de horário na grade de atendimentos e quais colaboradores estão habilitados.
+                  </p>
+                </div>
+
+                {/* Switch: Serviço com Hora Marcada */}
+                <div className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                      Serviço com Hora Marcada (Exige Agendamento)
+                    </span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                      Habilita o fluxo de escolha de profissional, data e horário no catálogo e no PDV.
+                    </span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={requerAgendamento}
+                      onChange={(e) => setRequerAgendamento(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 bg-slate-300 dark:bg-slate-700"></div>
+                  </label>
+                </div>
+
+                {requerAgendamento && (
+                  <div className="space-y-6 animate-in fade-in duration-200 pt-1">
+                    {/* Duração Estimada & Atalhos */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-900 dark:text-slate-200 flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>Duração Estimada do Atendimento</span>
+                        </label>
+                        <span className="text-xs font-mono font-black text-emerald-600 dark:text-emerald-400">
+                          {duracaoEstimadaMinutos} minutos
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        {[15, 30, 45, 60, 90, 120].map((min) => (
+                          <button
+                            key={min}
+                            type="button"
+                            onClick={() => setDuracaoEstimadaMinutos(min)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer border ${
+                              duracaoEstimadaMinutos === min
+                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                                : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+                            }`}
+                          >
+                            {min}m
+                          </button>
+                        ))}
+                        <div className="flex items-center gap-1.5 ml-2">
+                          <span className="text-xs text-slate-400">Outro:</span>
+                          <input
+                            type="number"
+                            min="5"
+                            max="720"
+                            step="5"
+                            value={duracaoEstimadaMinutos}
+                            onChange={(e) => setDuracaoEstimadaMinutos(Math.max(5, parseInt(e.target.value || '30', 10)))}
+                            className="w-20 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent text-xs font-bold focus:outline-none focus:border-emerald-500"
+                          />
+                          <span className="text-xs text-slate-400">min</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Local de Prestação do Serviço */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-900 dark:text-slate-200 flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Local de Prestação do Serviço</span>
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        {[
+                          { id: 'loja', rotulo: 'Na Própria Loja', desc: 'Atendimento presencial no balcão da loja' },
+                          { id: 'externo', rotulo: 'No Endereço do Cliente', desc: 'Atendimento a domicílio ou empresa' },
+                          { id: 'ambos', rotulo: 'Ambos (Cliente Escolhe)', desc: 'Cliente define na contratação' }
+                        ].map((loc) => (
+                          <button
+                            key={loc.id}
+                            type="button"
+                            onClick={() => setLocalPrestacaoServico(loc.id as LocalPrestacaoServico)}
+                            className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
+                              localPrestacaoServico === loc.id
+                                ? 'bg-emerald-500/10 border-emerald-500 text-emerald-950 dark:text-white ring-1 ring-emerald-500/30'
+                                : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+                            }`}
+                          >
+                            <span className="text-xs font-bold">{loc.rotulo}</span>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">{loc.desc}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Colaboradores Habilitados */}
+                    <div className="space-y-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-900 dark:text-slate-200 flex items-center gap-1.5">
+                          <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>Profissionais Habilitados para este Serviço</span>
+                        </label>
+                        {colaboradoresPrestadoresLoja.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (profissionaisHabilitadosIds.length === colaboradoresPrestadoresLoja.length) {
+                                setProfissionaisHabilitadosIds([]);
+                              } else {
+                                setProfissionaisHabilitadosIds(colaboradoresPrestadoresLoja.map(c => c.id));
+                              }
+                            }}
+                            className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                          >
+                            {profissionaisHabilitadosIds.length === colaboradoresPrestadoresLoja.length
+                              ? 'Desmarcar todos'
+                              : 'Selecionar todos'}
+                          </button>
+                        )}
+                      </div>
+
+                      {colaboradoresPrestadoresLoja.length === 0 ? (
+                        <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300 text-xs flex items-start gap-2.5">
+                          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-bold block">Nenhum colaborador com serviços agendáveis ativo</span>
+                            <span className="text-[11px] block mt-0.5">
+                              Acesse a aba <strong>Usuários</strong> e ative a opção <em>"Este funcionário presta serviços agendáveis"</em> nos colaboradores que executam serviços.
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {colaboradoresPrestadoresLoja.map((colab) => {
+                            const checked = profissionaisHabilitadosIds.includes(colab.id);
+                            return (
+                              <label
+                                key={colab.id}
+                                className={`flex items-center gap-3 p-3 rounded-xl border transition cursor-pointer select-none ${
+                                  checked
+                                    ? 'bg-emerald-500/10 border-emerald-500/50 text-slate-900 dark:text-white'
+                                    : 'bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setProfissionaisHabilitadosIds(prev => [...prev, colab.id]);
+                                    } else {
+                                      setProfissionaisHabilitadosIds(prev => prev.filter(id => id !== colab.id));
+                                    }
+                                  }}
+                                  className="rounded border-slate-300 dark:border-slate-700 text-emerald-600 focus:ring-emerald-500"
+                                />
+                                <div className="min-w-0">
+                                  <span className="text-xs font-bold block truncate">
+                                    {colab.nome_completo || colab.nome}
+                                  </span>
+                                  {colab.especialidade_cargo && (
+                                    <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate">
+                                      {colab.especialidade_cargo}
+                                    </span>
+                                  )}
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl p-4 sm:p-6 md:p-8 space-y-4 shadow-sm">

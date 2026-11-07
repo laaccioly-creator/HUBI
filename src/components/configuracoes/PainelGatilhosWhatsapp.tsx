@@ -13,6 +13,8 @@ import {
   Check,
   Loader2,
   LucideIcon,
+  Calendar,
+  BellRing,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Loja } from '../../types';
@@ -33,7 +35,9 @@ type ChaveFlagWhatsapp =
   | 'wpp_auto_status_separacao'
   | 'wpp_auto_pedido_entregue'
   | 'wpp_auto_comprovante_fiado'
-  | 'wpp_auto_recibo_venda';
+  | 'wpp_auto_recibo_venda'
+  | 'wpp_auto_agendamento_criado'
+  | 'wpp_auto_lembrete_agendamento';
 
 interface ItemGatilhoConfig {
   chave: ChaveFlagWhatsapp;
@@ -62,7 +66,17 @@ export const PainelGatilhosWhatsapp: React.FC<PainelGatilhosWhatsappProps> = ({
     wpp_auto_pedido_entregue: loja.wpp_auto_pedido_entregue ?? false,
     wpp_auto_comprovante_fiado: loja.wpp_auto_comprovante_fiado ?? true,
     wpp_auto_recibo_venda: loja.wpp_auto_recibo_venda ?? false,
+    wpp_auto_agendamento_criado: loja.wpp_auto_agendamento_criado ?? true,
+    wpp_auto_lembrete_agendamento: loja.wpp_auto_lembrete_agendamento ?? true,
   });
+
+  const [antecedenciaLembreteHoras, setAntecedenciaLembreteHoras] = useState<number>(
+    loja.antecedencia_lembrete_horas ?? 24
+  );
+  const [limiteRemarcacoesCliente, setLimiteRemarcacoesCliente] = useState<number>(
+    loja.limite_remarcacoes_cliente ?? 2
+  );
+  const [salvandoParametro, setSalvandoParametro] = useState<string | null>(null);
 
   const [salvandoChave, setSalvandoChave] = useState<ChaveFlagWhatsapp | null>(null);
   const [feedback, setFeedback] = useState<{ tipo: 'sucesso' | 'erro'; mensagem: string } | null>(null);
@@ -77,7 +91,11 @@ export const PainelGatilhosWhatsapp: React.FC<PainelGatilhosWhatsappProps> = ({
       wpp_auto_pedido_entregue: loja.wpp_auto_pedido_entregue ?? false,
       wpp_auto_comprovante_fiado: loja.wpp_auto_comprovante_fiado ?? true,
       wpp_auto_recibo_venda: loja.wpp_auto_recibo_venda ?? false,
+      wpp_auto_agendamento_criado: loja.wpp_auto_agendamento_criado ?? true,
+      wpp_auto_lembrete_agendamento: loja.wpp_auto_lembrete_agendamento ?? true,
     });
+    setAntecedenciaLembreteHoras(loja.antecedencia_lembrete_horas ?? 24);
+    setLimiteRemarcacoesCliente(loja.limite_remarcacoes_cliente ?? 2);
   }, [
     loja.wpp_auto_pesagem_concluida,
     loja.wpp_auto_pedido_confirmado,
@@ -87,7 +105,49 @@ export const PainelGatilhosWhatsapp: React.FC<PainelGatilhosWhatsappProps> = ({
     loja.wpp_auto_pedido_entregue,
     loja.wpp_auto_comprovante_fiado,
     loja.wpp_auto_recibo_venda,
+    loja.wpp_auto_agendamento_criado,
+    loja.wpp_auto_lembrete_agendamento,
+    loja.antecedencia_lembrete_horas,
+    loja.limite_remarcacoes_cliente,
   ]);
+
+  const handleSalvarParametroAgenda = async (campo: 'antecedencia_lembrete_horas' | 'limite_remarcacoes_cliente', valor: number) => {
+    if (!loja?.id || salvandoParametro) return;
+    setSalvandoParametro(campo);
+    setFeedback(null);
+
+    if (campo === 'antecedencia_lembrete_horas') {
+      setAntecedenciaLembreteHoras(valor);
+    } else {
+      setLimiteRemarcacoesCliente(valor);
+    }
+
+    try {
+      const { error } = await supabase
+        .from('lojas')
+        .update({ [campo]: valor })
+        .eq('id', loja.id);
+
+      if (error) throw error;
+
+      aoAtualizarLoja?.({ [campo]: valor });
+      recarregarDadosLoja?.();
+
+      setFeedback({
+        tipo: 'sucesso',
+        mensagem: 'Parâmetro de agenda atualizado com sucesso!',
+      });
+      setTimeout(() => setFeedback(null), 3000);
+    } catch {
+      setFeedback({
+        tipo: 'erro',
+        mensagem: 'Erro ao salvar parâmetro. Tente novamente.',
+      });
+      setTimeout(() => setFeedback(null), 4000);
+    } finally {
+      setSalvandoParametro(null);
+    }
+  };
 
   const handleToggle = async (chave: ChaveFlagWhatsapp, novoValor: boolean) => {
     if (!loja?.id || salvandoChave) return;
@@ -303,6 +363,27 @@ export const PainelGatilhosWhatsapp: React.FC<PainelGatilhosWhatsappProps> = ({
     },
   ];
 
+  const blocoD: ItemGatilhoConfig[] = [
+    {
+      chave: 'wpp_auto_agendamento_criado',
+      titulo: 'Comprovante de Serviço Agendado',
+      descricao: 'Disparo ao confirmar novo agendamento com data, hora, profissional e local.',
+      badge: 'recomendado',
+      badgeTexto: 'Recomendado',
+      icone: Calendar,
+      defaultVal: true,
+    },
+    {
+      chave: 'wpp_auto_lembrete_agendamento',
+      titulo: 'Lembrete de Confirmação de Agendamento',
+      descricao: 'Disparo prévio com link para o cliente Confirmar, Remarcar ou Cancelar.',
+      badge: 'recomendado',
+      badgeTexto: 'Recomendado',
+      icone: BellRing,
+      defaultVal: true,
+    },
+  ];
+
   return (
     <div
       className={`rounded-2xl border p-5 space-y-6 transition-all ${
@@ -384,6 +465,88 @@ export const PainelGatilhosWhatsapp: React.FC<PainelGatilhosWhatsappProps> = ({
             </h4>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{blocoC.map(renderItem)}</div>
+        </div>
+
+        {/* Bloco D: Agendamento de Serviços & Atendimentos */}
+        <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+            <h4 className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+              Bloco D: Agendamento de Serviços & Atendimentos
+            </h4>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{blocoD.map(renderItem)}</div>
+
+          {/* Parametrização Granular de Agendamentos */}
+          <div className={`p-4 rounded-xl border space-y-3.5 transition-colors ${
+            isDark ? 'bg-slate-800/40 border-slate-800' : 'bg-slate-50/80 border-slate-200'
+          }`}>
+            <span className={`text-xs font-bold block ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+              Parâmetros de Disparo e Regras de Remarcação:
+            </span>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Antecedência do Lembrete */}
+              <div className="space-y-1.5">
+                <label className={`text-[11px] font-semibold block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  Antecedência do Lembrete Automático:
+                </label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[
+                    { horas: 12, rotulo: '12h antes' },
+                    { horas: 24, rotulo: '24h (1 dia)' },
+                    { horas: 48, rotulo: '48h (2 dias)' }
+                  ].map((opt) => (
+                    <button
+                      key={opt.horas}
+                      type="button"
+                      disabled={Boolean(salvandoParametro)}
+                      onClick={() => handleSalvarParametroAgenda('antecedencia_lembrete_horas', opt.horas)}
+                      className={`px-2 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer text-center ${
+                        antecedenciaLembreteHoras === opt.horas
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                          : isDark
+                          ? 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-600'
+                          : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                      }`}
+                    >
+                      {opt.rotulo}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Limite de Remarcações pelo Cliente */}
+              <div className="space-y-1.5">
+                <label className={`text-[11px] font-semibold block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  Limite de Remarcações Diretas pelo Cliente:
+                </label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[
+                    { qtd: 1, rotulo: '1 vez' },
+                    { qtd: 2, rotulo: '2 vezes' },
+                    { qtd: 3, rotulo: '3 vezes' }
+                  ].map((opt) => (
+                    <button
+                      key={opt.qtd}
+                      type="button"
+                      disabled={Boolean(salvandoParametro)}
+                      onClick={() => handleSalvarParametroAgenda('limite_remarcacoes_cliente', opt.qtd)}
+                      className={`px-2 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer text-center ${
+                        limiteRemarcacoesCliente === opt.qtd
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                          : isDark
+                          ? 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-600'
+                          : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                      }`}
+                    >
+                      {opt.rotulo}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

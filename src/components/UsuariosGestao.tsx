@@ -7,13 +7,15 @@ import {
   Loader2,
   Shield,
   Crown,
-  ArrowLeft
+  ArrowLeft,
+  Calendar
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { UsuarioLoja, MetricasUsuario } from '../types';
 import { ModalUsuarioDrawer } from './ModalUsuarioDrawer';
+import { ModalExpedienteProfissional } from './agendamento/ModalExpedienteProfissional';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { MobileHeader } from './layout/MobileHeader';
 import { useTheme } from '../contexts/ThemeContext';
@@ -49,6 +51,7 @@ export const UsuariosGestao: React.FC = () => {
   const [modalDrawerAberto, setModalDrawerAberto] = useState<boolean>(false);
   const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
   const [usuarioSelecionadoEdicao, setUsuarioSelecionadoEdicao] = useState<UsuarioLoja | null>(null);
+  const [usuarioExpediente, setUsuarioExpediente] = useState<UsuarioLoja | null>(null);
   const [hoveredUserId, setHoveredUserId] = useState<string | null>(null);
 
   // Métricas dos últimos 30 dias gerais da loja
@@ -449,11 +452,27 @@ export const UsuariosGestao: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="text-right shrink-0">
-                      <span className={`font-black text-xs sm:text-sm block ${isDark ? 'text-white' : 'text-black'}`}>
-                        R$ {fat.toFixed(2)}
-                      </span>
-                      <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600 font-bold'}`}>30 dias</span>
+                    <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
+                      <div>
+                        <span className={`font-black text-xs sm:text-sm block ${isDark ? 'text-white' : 'text-black'}`}>
+                          R$ {fat.toFixed(2)}
+                        </span>
+                        <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600 font-bold'}`}>30 dias</span>
+                      </div>
+                      {u.presta_servicos && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setUsuarioExpediente(u);
+                          }}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 active:scale-95 cursor-pointer"
+                          title="Configurar Expediente de Atendimento"
+                        >
+                          <Calendar className="w-3 h-3" />
+                          <span>Expediente</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -638,6 +657,21 @@ export const UsuariosGestao: React.FC = () => {
                                 INATIVO
                               </span>
                             )}
+
+                            {user.presta_servicos && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setUsuarioExpediente(user);
+                                }}
+                                className="inline-flex items-center gap-1 text-[10px] bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-black uppercase tracking-wider hover:bg-emerald-500/25 transition cursor-pointer"
+                                title="Configurar Grade de Expediente / Agenda deste Colaborador"
+                              >
+                                <Calendar className="w-2.5 h-2.5" />
+                                <span>Expediente / Agenda</span>
+                              </button>
+                            )}
                           </div>
                           <span className={`text-xs truncate block mt-0.5 font-semibold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                             {user.email}
@@ -678,6 +712,17 @@ export const UsuariosGestao: React.FC = () => {
         lojaId={loja?.id || ''}
         onSalvo={carregarUsuariosEMetricas}
       />
+
+      {/* MODAL DE CONFIGURAÇÃO DE EXPEDIENTE DO PROFISSIONAL */}
+      {usuarioExpediente && loja?.id && (
+        <ModalExpedienteProfissional
+          isOpen={Boolean(usuarioExpediente)}
+          onClose={() => setUsuarioExpediente(null)}
+          lojaId={loja.id}
+          profissional={usuarioExpediente}
+          onSalvo={carregarUsuariosEMetricas}
+        />
+      )}
     </div>
   );
 };
