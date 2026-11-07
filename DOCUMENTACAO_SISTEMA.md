@@ -42,6 +42,7 @@
    - [4.15 Módulo de Subcategorias e Hierarquia de Árvore no Catálogo e Estoque](#415-módulo-de-subcategorias-e-hierarquia-de-árvore-no-catálogo-e-estoque)
    - [4.16 Painel de Governança dos 8 Gatilhos Granulares de Disparo WhatsApp](#416-painel-de-governança-dos-8-gatilhos-granulares-de-disparo-whatsapp)
    - [4.17 Unificação de Identidade via WhatsApp e Saneamento de Duplicados](#417-unificação-de-identidade-via-whatsapp-e-saneamento-de-duplicados)
+   - [4.18 Módulo de Agendamento de Serviços Omnichannel (PDV, Retaguarda e Catálogo Online PWA)](#418-módulo-de-agendamento-de-serviços-omnichannel-pdv-retaguarda-e-catálogo-online-pwa)
 5. [Serviços e Utilitários Globais](#5-serviços-e-utilitários-globais)
    - [5.1 Supabase Client e Camada de Acesso a Dados](#51-supabase-client-e-camada-de-acesso-a-dados)
    - [5.2 Orquestrador e Serviços de Logística (Uber Direct, Melhor Envio e Despachos Manuais)](#52-orquestrador-e-serviços-de-logística-uber-direct-melhor-envio-e-despachos-manuais)
@@ -67,6 +68,7 @@
    - [5.22 Suíte de Segurança Client-Side Anti-REA-Shield v2 e Bootstrap em Simulação (`packages/anti-rea-shield`)](#522-suíte-de-segurança-client-side-anti-rea-shield-v2-e-bootstrap-em-simulação-packagesanti-rea-shield)
    - [5.23 Motor de Síntese de Voz Gemini Studio Voice TTS (`geminiTtsService.ts`)](#523-motor-de-síntese-de-voz-gemini-studio-voice-tts-geminittsservicets)
    - [5.24 Supabase Edge Function `gemini-proxy` (Blindagem Zero-Trust de Credenciais)](#524-supabase-edge-function-gemini-proxy-blindagem-zero-trust-de-credenciais)
+   - [5.25 Motor de Agendamento e Gestão de Capacidade (`agendamentoService.ts`)](#525-motor-de-agendamento-e-gestão-de-capacidade-agendamentoservicets)
 
 ---
 
@@ -936,6 +938,69 @@ Estrutura organizacional do catálogo de produtos em árvore hierárquica (categ
 | `ativo` | BOOLEAN | DEFAULT TRUE | Ativação da categoria |
 | `criado_em` / `atualizado_em` | TIMESTAMPTZ | DEFAULT NOW() | Carimbos temporais de auditoria |
 
+#### 31. Tabela `servico_profissionais` (Vínculo Especializado Serviço <-> Colaborador)
+Associação relacional entre produtos agendáveis e os colaboradores habilitados para a prestação, permitindo durações específicas e comissões customizadas.
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | Identificador exclusivo do vínculo |
+| `loja_id` | UUID | NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Vínculo multi-tenant obrigatório |
+| `produto_id` | UUID | NOT NULL, FK -> produtos(id) ON DELETE CASCADE | Serviço agendável vinculado |
+| `usuario_id` | UUID | NOT NULL, FK -> usuarios_loja(id) ON DELETE CASCADE | Colaborador habilitado para o atendimento |
+| `duracao_customizada_minutos` | INTEGER | NULL | Duração específica do serviço para este profissional (sobrepõe a padrão) |
+| `comissao_percentual` | NUMERIC(5,2) | NULL DEFAULT 0.00 | Percentual de comissão negociado |
+| `ativo` | BOOLEAN | NOT NULL DEFAULT TRUE | Indica se o profissional está ativo para este serviço |
+| `criado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Carimbo temporal auditável de criação |
+*Constraint UNIQUE:* `(loja_id, produto_id, usuario_id)`.
+
+#### 32. Tabela `profissional_horarios` (Grade Semanal de Expediente dos Profissionais)
+Definição dos expedientes de trabalho de cada colaborador nos 7 dias da semana, com horários de início/fim e intervalo de almoço.
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | Identificador da regra de horário |
+| `loja_id` | UUID | NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Vínculo multi-tenant obrigatório |
+| `usuario_id` | UUID | NOT NULL, FK -> usuarios_loja(id) ON DELETE CASCADE | Profissional proprietário da grade |
+| `dia_semana` | SMALLINT | NOT NULL, CHECK (0 a 6) | Dia da semana (0 = Domingo a 6 = Sábado) |
+| `trabalha` | BOOLEAN | NOT NULL DEFAULT TRUE | Indica se o profissional atende neste dia da semana |
+| `hora_inicio` | TIME | NOT NULL DEFAULT '08:00:00' | Horário de início do turno |
+| `hora_fim` | TIME | NOT NULL DEFAULT '18:00:00' | Horário de encerramento do turno |
+| `tem_intervalo` | BOOLEAN | NOT NULL DEFAULT TRUE | Indica se há intervalo de descanso/almoço |
+| `intervalo_inicio`| TIME | NULL DEFAULT '12:00:00' | Início do intervalo |
+| `intervalo_fim` | TIME | NULL DEFAULT '13:00:00' | Término do intervalo |
+| `criado_em` / `atualizado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Carimbos temporais auditáveis |
+*Constraint UNIQUE:* `(loja_id, usuario_id, dia_semana)`.
+
+#### 33. Tabela `agendamentos_servicos` (Ledger e Agenda Operacional Omnichannel)
+Registro relacional imutável de todas as reservas e atendimentos marcados via PDV ou Catálogo Online PWA, com proteção contra overbooking e links públicos seguros com UUID v4.
+| Coluna | Tipo | Restrições | Descrição |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | Identificador exclusivo do agendamento |
+| `loja_id` | UUID | NOT NULL, FK -> lojas(id) ON DELETE CASCADE | Vínculo multi-tenant obrigatório |
+| `pedido_id` | UUID | NULL, FK -> pedidos(id) ON DELETE SET NULL | Pedido comercial de origem da venda |
+| `item_pedido_id` | UUID | NULL, FK -> itens_pedido(id) ON DELETE SET NULL | Item de serviço faturado |
+| `produto_id` | UUID | NOT NULL, FK -> produtos(id) ON DELETE RESTRICT | Serviço agendado |
+| `profissional_id`| UUID | NOT NULL, FK -> usuarios_loja(id) ON DELETE RESTRICT | Profissional alocado para a execução |
+| `cliente_id` | UUID | NULL, FK -> clientes(id) ON DELETE SET NULL | Cliente titular do agendamento |
+| `cliente_nome` | VARCHAR(150) | NOT NULL | Nome do cliente no momento da reserva |
+| `cliente_whatsapp`| VARCHAR(25) | NOT NULL | WhatsApp de contato para notificações e link público |
+| `data_agendamento`| DATE | NOT NULL | Data do atendimento (`YYYY-MM-DD`) |
+| `hora_inicio` / `hora_fim` | TIME | NOT NULL | Janela horária calculada (`HH:MM:SS`) |
+| `data_hora_inicio` / `data_hora_fim` | TIMESTAMPTZ | NOT NULL | Carimbo absoluto em UTC para checagens de colisão |
+| `duracao_minutos`| INTEGER | NOT NULL DEFAULT 30 | Duração total reservada na agenda |
+| `modalidade_local`| VARCHAR(20) | NOT NULL DEFAULT 'loja', CHECK ('loja', 'externo') | Local de prestação: na loja ou a domicílio |
+| `cliente_endereco_id` | UUID | NULL, FK -> cliente_enderecos(id) | Endereço cadastrado (caso externo) |
+| `endereco_prestacao_snapshot` | TEXT | NULL | Snapshot textual imutável do endereço da prestação externa |
+| `status_agendamento` | VARCHAR(25) | NOT NULL DEFAULT 'agendado', CHECK ('agendado', 'confirmado', 'em_atendimento', 'concluido', 'cancelado', 'nao_compareceu') | Status do ciclo de vida |
+| `token_confirmacao` | UUID | NOT NULL UNIQUE DEFAULT gen_random_uuid() | Identificador opaco de link público do cliente |
+| `lembrete_enviado`| BOOLEAN | NOT NULL DEFAULT FALSE | Flag de controle do cron/rotina de lembrete WhatsApp |
+| `confirmado_pelo_cliente_em` | TIMESTAMPTZ | NULL | Carimbo de quando o cliente confirmou via link público |
+| `cancelado_em` | TIMESTAMPTZ | NULL | Carimbo de cancelamento |
+| `motivo_cancelamento` | TEXT | NULL | Justificativa do cancelamento |
+| `qtd_remarcacoes`| INTEGER | NOT NULL DEFAULT 0 | Contador de vezes remarcado pelo cliente |
+| `data_hora_anterior` | TIMESTAMPTZ | NULL | Carimbo do horário anterior antes da última remarcação |
+| `remarcado_em` | TIMESTAMPTZ | NULL | Carimbo temporal da remarcação |
+| `observacoes` | TEXT | NULL | Notas adicionais |
+| `criado_em` / `atualizado_em` | TIMESTAMPTZ | NOT NULL DEFAULT NOW() | Carimbos temporais de auditoria |
+
 ### 3.3 Triggers, Automações e Segurança no Banco (RLS)
 1. **Baixa e Reajuste Automático de Estoque (`fn_atualizar_estoque_pedido`):**
    - Disparado em `AFTER INSERT` na tabela `itens_pedido`.
@@ -1291,6 +1356,36 @@ Para assegurar integridade no relacionamento com clientes e evitar furos contáb
    - Rotina automatizada que agrupa clientes repetidos na mesma loja pelo telefone normalizado, transferindo pedidos, lançamentos de caderneta, débitos de fiado e endereços para o registro canônico principal e expurgando cadastros órfãos vazios.
 4. **Blindagem Contra Novas Duplicidades:**
    - Implantação de constraints e índices únicos `uq_clientes_loja_celular_normalizado` e `uq_clientes_loja_telefone`, bloqueando tentativas de inserção redundante no Supabase.
+
+### 4.18 Módulo de Agendamento de Serviços Omnichannel (PDV, Retaguarda e Catálogo Online PWA)
+Implementação de ponta a ponta para negócios com prestação de serviços (barbearias, salões, clínicas, oficinas, estúdios, consultorias e técnicos):
+1. **Configuração Granular de Produtos do Tipo Serviço:**
+   - Switch `requer_agendamento` na criação/edição de produtos com `tipo_item === 'servico'`.
+   - Duração estimada parametrizável em minutos (ex: 30, 45, 60 min).
+   - Local de execução estrito: `loja` (atendimento presencial), `externo` (domicílio do cliente) ou `ambos` (cliente escolhe no momento da reserva).
+2. **Habilitação e Expediente de Profissionais:**
+   - Na gestão de funcionários (`UsuariosGestao.tsx`), switch para habilitar colaboradores que prestam serviços (`presta_servicos`) e cargo/especialidade.
+   - Grade semanal de 7 dias (`ModalExpedienteProfissional.tsx`) para cada colaborador, configurando dias de trabalho, turnos de atendimento e horários de intervalo/almoço gravados em `public.profissional_horarios`.
+3. **Agendamento no PDV Físico:**
+   - Ao adicionar um serviço agendável no caixa físico (`PosCheckout.tsx` / `PosCheckoutMobile.tsx`), o operador é direcionado ao `ModalSelecionarAgendamentoPdv.tsx`.
+   - Seleção orientada de local (loja vs domicílio), colaborador habilitado, data e slot livre calculado em tempo real.
+   - O item no carrinho ganha um badge visual informativo com data, horário e profissional.
+   - Ao concluir a venda, o registro é inserido atomicamente em `public.agendamentos_servicos` com `status_agendamento = 'confirmado'`.
+4. **Painel Visual de Controle da Agenda (`/agenda`):**
+   - Rota e tela responsiva `AgendaServicosLoja.tsx` com visão em grade temporal ou cartões.
+   - Filtros por data (Hoje, Amanhã, seletor de calendário), profissional e status.
+   - Resumo rápido de KPIs do dia: Total do Dia, Confirmados, Aguardando Confirmação e Horários Livres.
+   - Ações rápidas de gestão: Confirmar, Iniciar Atendimento, Concluir, Cancelar e Remarcar com recálculo imediato de conflitos.
+5. **Experiência do Consumidor no Catálogo Online PWA:**
+   - Botão **"Agendar Horário"** nos modos de vitrine e no modal de detalhes do produto, acionando o `ModalAgendarServicoCatalogo.tsx` (desacoplado arquiteturalmente do PDV).
+   - Validação mandatória de endereço do cliente caso a modalidade seja externa/domicílio.
+   - Isenção automática de frete quando o carrinho contiver exclusivamente serviços prestados na loja física.
+   - Revalidação atômica de slots no momento do checkout para prevenção de race conditions / overbooking.
+6. **Autonomia do Cliente via Link Público (`/confirmar-agendamento/:token`):**
+   - Página segura `ConfirmacaoAgendamentoPublico.tsx` acessível via link opaco UUID v4 sem necessidade de login.
+   - Confirmação de presença em um clique, cancelamento justificado e solicitação autônoma de remarcação respeitando o limite e a antecedência mínima configurados pela loja.
+   - Exportação do evento para Google Calendar e download de arquivo `.ics` compatível com Apple Calendar e Outlook.
+   - Acesso direto ao WhatsApp do lojista com mensagem contextualizada.
 
 ---
 
@@ -1743,6 +1838,20 @@ O HUBI introduz experiência conversacional auditiva humana com o motor Gemini S
    - **Prioridade 3:** Segredo global da plataforma armazenado no cofre do Supabase (`GEMINI_API_KEY`).
 3. **CORS e Sanitização de Erros:**
    - Tratamento completo de preflight `OPTIONS` e devolução de erros amigáveis em `pt-BR` sem vazamento de chaves ou metadados de infraestrutura.
+
+### 5.25 Motor de Agendamento e Gestão de Capacidade (`agendamentoService.ts`)
+O `agendamentoService.ts` opera como motor unificado e centralizado de inteligência temporal e integridade da agenda:
+1. **Listagem e Vínculo de Profissionais (`listarProfissionaisHabilitadosPorServico` & `salvarProfissionaisDoServico`):**
+   - Retorna os colaboradores habilitados para o serviço especificado com fallback resiliente para todos os usuários com `presta_servicos = true` quando não houver restrição configurada.
+2. **Expediente Semanal e Intervalos (`obterExpedienteProfissional` & `salvarExpedienteProfissional`):**
+   - Gerencia a matriz de 7 dias com turnos de atendimento e horários de descanso em `public.profissional_horarios` (com fallback seguro padrão Seg-Sex 08:00 às 18:00 com almoço 12:00-13:00).
+3. **Cálculo de Slots Disponíveis em Tempo Real (`calcularSlotsDisponiveis`):**
+   - Cruza a grade de trabalho do colaborador para o dia da semana desejado, consulta os blocos ocupados via RPC otimizada `obter_horarios_ocupados_profissional`, subdivide o turno em janelas respeitando a duração do serviço e descarta blocos coincidentes com o almoço, agendamentos ativos ou horários já expirados no dia corrente.
+4. **Reserva e Governança de Ciclo de Vida (`criarAgendamento`, `alterarStatusAgendamento` e `remarcarAgendamento`):**
+   - Transições de estado controladas (`agendado`, `confirmado`, `em_atendimento`, `concluido`, `cancelado`).
+   - Remarcação transacional via RPC `processar_acao_cliente_agendamento` com bloqueio `FOR UPDATE`, prevenindo colisões concorrentes e garantindo respeito estrito aos limites de remarcação e janelas mínimas de antecedência.
+5. **Geração de Templates de Mensagens WhatsApp (`gerarMensagemWhatsappAgendamento`):**
+   - Produz mensagens amigáveis em `pt-BR` com o resumo do atendimento, data, horário, colaborador, endereço e deep link opaco do cliente (`/confirmar-agendamento/:token`), acoplado ao motor `whatsappWalletService` para disparos automatizados na criação e na véspera do atendimento.
 
 ---
 

@@ -24,6 +24,7 @@
 14. [Utilitários, Validações e Schemas (`src/utils/` & `src/lib/validations/`)](#14-utilitários-validações-e-schemas-srcutils--srclibvalidations)
 15. [Suíte de Segurança Anti-REA-Shield v2 (`packages/anti-rea-shield/`)](#15-suíte-de-segurança-anti-rea-shield-v2-packagesanti-rea-shield)
 16. [Serverless Edge Functions do Supabase (`supabase/functions/`)](#16-serverless-edge-functions-do-supabase-supabasefunctions)
+17. [Módulo de Agendamento de Serviços Omnichannel](#17-módulo-de-agendamento-de-serviços-omnichannel)
 
 ---
 
@@ -281,6 +282,7 @@
 | **mercadoLivreService** | `src/services/mercadoLivreService.ts` | Conexão OAuth com refresh preventivo de sessão, gestão de anúncios, vínculo de grades e download de etiquetas. |
 | **configuracoesPlataformaService** | `src/services/configuracoesPlataformaService.ts` | Singleton de governança com cache em memória para parâmetros de trial, valores base, tarifas da Carteira WhatsApp e Super Admin. |
 | **whatsappWalletService** | `src/services/whatsappWalletService.ts` | Motor híbrido de notificações WhatsApp (Janela 24h gratuita, Disparo Tarifado Cloud API e Fallback Manual Gratuito), extrato e recarga Pix da carteira pré-paga. |
+| **agendamentoService** | `src/services/agendamentoService.ts` | Motor de cálculo de slots disponíveis sem overbooking, gestão de expedientes, vínculo serviço-profissionais, remarcação atômica e templates de mensagens WhatsApp. |
 
 ### Inteligência Artificial e Família TypeSafe AI / Jev
 | Serviço | Arquivo | Responsabilidade |
@@ -366,3 +368,17 @@
 | **buscar-fotos-serpapi** | `supabase/functions/buscar-fotos-serpapi/` | Enriquecimento de catálogo com busca de fotos de produtos via Google Imagens (BYOK e fallback de plataforma). |
 | **uber-dispatch** & **webhook** | `supabase/functions/uber-dispatch/` | Cotação e despacho sob demanda ponto a ponto via Uber Direct v1 com acompanhamento de rotas. |
 | **melhor-envio-despacho** | `supabase/functions/melhor-envio-despacho/` | Cotação multi-sedex, emissão de etiquetas e rastreamento GraphQL com o Melhor Rastreio / Correios SRO. |
+
+---
+
+## 17. Módulo de Agendamento de Serviços Omnichannel
+
+| Componente | Arquivo | Rota / Localização | Resumo da Responsabilidade |
+| :--- | :--- | :--- | :--- |
+| **AgendaServicosLoja** | `src/components/agendamento/AgendaServicosLoja.tsx` | `/agenda` | Painel visual de controle da agenda: visão em grade horária / slots, filtros por data e profissional, KPIs do dia e ações operacionais (iniciar, concluir, cancelar e remarcar). |
+| **ModalSelecionarAgendamentoPdv** | `src/components/agendamento/ModalSelecionarAgendamentoPdv.tsx` | PDV (`PosCheckout.tsx` e `PosCheckoutMobile.tsx`) | Modal obrigatório ao adicionar itens do tipo serviço agendável no caixa físico. Permite selecionar local (loja/externo), profissional, data e slot livre em tempo real. |
+| **ModalExpedienteProfissional** | `src/components/agendamento/ModalExpedienteProfissional.tsx` | Usuários (`UsuariosGestao.tsx`) | Configuração semanal de grade de horários de expediente de cada funcionário (7 dias da semana, horários de entrada/saída e intervalo de almoço). |
+| **ModalAgendarServicoCatalogo** | `src/components/catalogo/ModalAgendarServicoCatalogo.tsx` | Catálogo (`CatalogoPublico.tsx`) | Experiência de agendamento mobile-first para o consumidor final na vitrine pública. Etapas de escolha de modalidade (loja/domicílio), profissional, carrossel de datas e grade de horários. |
+| **ConfirmacaoAgendamentoPublico** | `src/components/agendamento/ConfirmacaoAgendamentoPublico.tsx` | `/confirmar-agendamento/:token` | Tela pública e autônoma do cliente (sem necessidade de login) para confirmar presença, solicitar remarcação de horários livres, cancelar atendimento e exportar para Google Calendar / .ics. |
+| **PainelGatilhosWhatsapp** | `src/components/configuracoes/PainelGatilhosWhatsapp.tsx` | Configurações da Loja | Parametrização dos gatilhos de criação e lembrete de agendamento (antecedência em horas, limite de remarcações pelo cliente e antecedência mínima). |
+
