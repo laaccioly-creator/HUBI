@@ -29,7 +29,7 @@ import {
   avaliarNivelCarrinho,
   calcularPrecoUnitarioPorTabela
 } from '../services/pricingEngine';
-import { LayoutGrid, List, Scale, Smartphone, Info, Copy, QrCode, ExternalLink, Ticket, Check, Loader2, User, Phone, MapPin, UserCheck, Edit2, Banknote, CreditCard, Eye, Store, Bell, Star, Clock, Package, LogOut, ArrowRight, Sun, Moon, FileText, Paperclip } from 'lucide-react';
+import { LayoutGrid, List, Scale, Smartphone, Info, Copy, QrCode, ExternalLink, Ticket, Check, Loader2, User, Phone, MapPin, UserCheck, Edit2, Banknote, CreditCard, Eye, Store, Bell, Star, Clock, Package, LogOut, ArrowRight, Sun, Moon, FileText, Paperclip, Calendar } from 'lucide-react';
 import { paymentGatewayService, PixDinamicoResponse } from '../services/paymentGatewayService';
 import { CupomService } from '../services/cupomService';
 import { audioService } from '../services/audioService';
@@ -47,6 +47,10 @@ import { ModalNotificacoesCliente } from './ModalNotificacoesCliente';
 import { ModalCadernetaClienteCatalogo } from './ModalCadernetaClienteCatalogo';
 import { ModalPagamentoFechamentoCatalogo } from './catalogo/ModalPagamentoFechamentoCatalogo';
 import { ModalMeusDadosCliente } from './catalogo/ModalMeusDadosCliente';
+import { ModalAgendarServicoCatalogo } from './catalogo/ModalAgendarServicoCatalogo';
+import { agendamentoService, formatarDataPtBr } from '../services/agendamentoService';
+import { whatsappWalletService } from '../services/whatsappWalletService';
+import type { ItemAgendamentoInfo } from '../types/agendamento';
 import { calcularDistanciaKm } from '../utils/geoUtils';
 import { gerarPayloadPixEmv } from '../utils/pixUtils';
 import { CadernetaService } from '../services/cadernetaService';
@@ -70,6 +74,7 @@ interface ItemCarrinhoPublico {
   produto: Produto;
   variacao?: VariacaoProduto | null;
   quantidade: number;
+  agendamento?: ItemAgendamentoInfo | null;
 }
 
 interface PedidoConcluidoInfo {
@@ -315,6 +320,7 @@ export const CatalogoPublico: React.FC = () => {
   const [modalNotificacoesAberto, setModalNotificacoesAberto] = useState<boolean>(false);
   const [modalCadernetaAberto, setModalCadernetaAberto] = useState<boolean>(false);
   const [modalMeusDadosAberto, setModalMeusDadosAberto] = useState<boolean>(false);
+  const [servicoParaAgendamento, setServicoParaAgendamento] = useState<Produto | null>(null);
   const [modalPagamentoPedidoPesadoAberto, setModalPagamentoPedidoPesadoAberto] = useState<boolean>(false);
   const [pedidoParaPagamento, setPedidoParaPagamento] = useState<any | null>(null);
   const [pedidoIdPendentePagar, setPedidoIdPendentePagar] = useState<string | null>(null);
@@ -1436,6 +1442,10 @@ export const CatalogoPublico: React.FC = () => {
   const totalItens = avaliacaoCarrinho.totalPecas;
   const subtotal = avaliacaoCarrinho.totalFinal;
 
+  const apenasServicosNaLoja = carrinho.length > 0 && carrinho.every(
+    it => it.produto.tipo_item === 'servico' && (!it.agendamento || it.agendamento.modalidade_local === 'loja')
+  );
+
   const freteGratisAtivoLoja = Boolean(configShippingLoja?.frete_gratis_ativo ?? loja?.frete_gratis_ativo ?? cartContext?.freteGratisAtivo);
   const freteGratisMinimoLoja = Number(configShippingLoja?.frete_gratis_valor_minimo ?? loja?.frete_gratis_valor_minimo ?? cartContext?.freteGratisValorMinimo ?? 0);
   const elegivelFreteGratisLoja = freteGratisAtivoLoja && freteGratisMinimoLoja > 0 && subtotal >= freteGratisMinimoLoja;
@@ -1448,7 +1458,9 @@ export const CatalogoPublico: React.FC = () => {
     ? valorFrete 
     : (elegivelFreteGratisLoja ? 0 : valorFrete);
 
-  const valorFreteEfetivo = (freteGratisCupom || (elegivelFreteGratisLoja && (!pedidoEntrega || pedidoEntrega.is_frete_gratis || pedidoEntrega.valor_frete === 0))) 
+  const valorFreteEfetivo = apenasServicosNaLoja
+    ? 0
+    : (freteGratisCupom || (elegivelFreteGratisLoja && (!pedidoEntrega || pedidoEntrega.is_frete_gratis || pedidoEntrega.valor_frete === 0))) 
     ? 0 
     : valorFreteBase;
 
@@ -1518,10 +1530,21 @@ export const CatalogoPublico: React.FC = () => {
     indexCarrinho?: number;
   } | null>(null);
 
-  const adicionarAoCarrinho = (produto: Produto, variacao?: VariacaoProduto | null, quantidade: number = 1, pesoConfirmado: boolean = false) => {
+  const adicionarAoCarrinho = (
+    produto: Produto,
+    variacao?: VariacaoProduto | null,
+    quantidade: number = 1,
+    pesoConfirmado: boolean = false,
+    agendamento?: ItemAgendamentoInfo | null
+  ) => {
     if (!clienteSelecionado?.id) {
       setModalOnboardingMotivo('carrinho');
       setModalOnboardingAberto(true);
+      return;
+    }
+
+    if (produto.tipo_item === 'servico' && produto.requer_agendamento && !agendamento) {
+      setServicoParaAgendamento(produto);
       return;
     }
 
@@ -1537,7 +1560,9 @@ export const CatalogoPublico: React.FC = () => {
       return;
     }
 
-    const key = variacao ? `${produto.id}-${variacao.id}` : `${produto.id}`;
+    const key = agendamento
+      ? `${produto.id}-agendamento-${agendamento.data_agendamento}-${agendamento.hora_inicio}`
+      : (variacao ? `${produto.id}-${variacao.id}` : `${produto.id}`);
     
     setCarrinho(prev => {
       const idx = prev.findIndex(i => i.id === key);
@@ -1545,7 +1570,8 @@ export const CatalogoPublico: React.FC = () => {
         const cp = [...prev];
         cp[idx] = {
           ...cp[idx],
-          quantidade: Number((cp[idx].quantidade + quantidade).toFixed(3))
+          quantidade: Number((cp[idx].quantidade + quantidade).toFixed(3)),
+          agendamento: agendamento || cp[idx].agendamento
         };
         return cp;
       } else {
@@ -1555,7 +1581,8 @@ export const CatalogoPublico: React.FC = () => {
             id: key,
             produto,
             variacao,
-            quantidade: Number(quantidade.toFixed(3))
+            quantidade: Number(quantidade.toFixed(3)),
+            agendamento: agendamento || null
           }
         ];
       }
@@ -1857,10 +1884,42 @@ export const CatalogoPublico: React.FC = () => {
       return;
     }
 
+    const temServicoExterno = carrinho.some(
+      (it) => it.agendamento?.modalidade_local === 'externo'
+    );
+    if (temServicoExterno) {
+      const temEndereco = Boolean(
+        enderecoEntrega ||
+        dadosEndereco?.rua ||
+        clienteSelecionado?.endereco_logradouro ||
+        pedidoEntrega?.destino_logradouro
+      );
+      if (!temEndereco) {
+        alert('Seu pedido contém serviço com atendimento a domicílio. Por favor, cadastre ou selecione o endereço de atendimento no botão "Endereço".');
+        setModalEnderecoAberto(true);
+        return;
+      }
+    }
+
     if (!pedidoEntrega) {
-      alert('Por favor, selecione a Forma de Entrega (Retirada ou Entrega) no carrinho antes de finalizar seu pedido.');
-      setModalShippingAberto(true);
-      return;
+      if (apenasServicosNaLoja) {
+        setPedidoEntrega({
+          pedido_id: '',
+          tipo_atendimento: 'retirada',
+          transportadora_nome: 'Atendimento na Loja',
+          provedor: 'retirada_loja',
+          servico_codigo: 'retirada',
+          valor_frete: 0,
+          valor_original: 0,
+          valor_subsidio: 0,
+          is_frete_gratis: true,
+          status_envio: 'pendente'
+        });
+      } else {
+        alert('Por favor, selecione a Forma de Entrega (Retirada ou Entrega) no carrinho antes de finalizar seu pedido.');
+        setModalShippingAberto(true);
+        return;
+      }
     }
 
     // Seleciona primeira opção válida se ainda não houver seleção válida
@@ -1902,6 +1961,38 @@ export const CatalogoPublico: React.FC = () => {
 
     try {
       setEnviandoPedido(true);
+
+      // Validação de concorrência dos agendamentos no carrinho
+      for (const it of carrinho) {
+        if (it.agendamento) {
+          try {
+            const slotsLivres = await agendamentoService.calcularSlotsDisponiveis(
+              loja.id,
+              it.produto.id,
+              it.agendamento.profissional_id,
+              it.agendamento.data_agendamento,
+              it.produto.duracao_estimada_minutos || 30
+            );
+            const slotContinuaLivre = slotsLivres.some(
+              (s) => s.hora_inicio === it.agendamento?.hora_inicio && s.disponivel
+            );
+            if (!slotContinuaLivre) {
+              alert(
+                `⚠️ O horário das ${it.agendamento.hora_inicio} em ${formatarDataPtBr(
+                  it.agendamento.data_agendamento
+                )} para o serviço "${it.produto.nome}" com ${
+                  it.agendamento.profissional_nome
+                } não está mais disponível. Por favor, escolha outro horário.`
+              );
+              setServicoParaAgendamento(it.produto);
+              setEnviandoPedido(false);
+              return;
+            }
+          } catch (slotCheckErr) {
+            console.warn('Erro ao checar concorrência do slot:', slotCheckErr);
+          }
+        }
+      }
 
       // 1. Criar ou Atualizar Cliente na base de dados do HUBI
       let clienteFinalId = clienteSelecionado?.id || null;
@@ -2123,10 +2214,85 @@ export const CatalogoPublico: React.FC = () => {
       };
 
       // Disparar inserções essenciais em batch simultâneo
-      await Promise.all([
-        supabase.from('itens_pedido').insert(itensFormatados),
+      const [itensResult] = await Promise.all([
+        supabase.from('itens_pedido').insert(itensFormatados).select(),
         ShippingOrchestrator.salvarPedidoEntrega(pedidoCriado.id, entregaPayload)
       ]);
+      const itensInseridos = itensResult?.data;
+
+      // Gravação dos agendamentos de serviços
+      try {
+        const agendamentosParaGravar: any[] = [];
+        carrinho.forEach((cartItem, idx) => {
+          if (cartItem.agendamento && itensInseridos && itensInseridos[idx]) {
+            const itemDb = itensInseridos[idx];
+            const tokenUnico = typeof crypto !== 'undefined' && crypto.randomUUID
+              ? crypto.randomUUID()
+              : `tok_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+            const duracaoEstimada = cartItem.produto.duracao_estimada_minutos || 30;
+            const dataHoraInicio = new Date(`${cartItem.agendamento.data_agendamento}T${cartItem.agendamento.hora_inicio}:00`).toISOString();
+            const dataHoraFim = new Date(`${cartItem.agendamento.data_agendamento}T${cartItem.agendamento.hora_fim}:00`).toISOString();
+
+            agendamentosParaGravar.push({
+              loja_id: loja.id,
+              pedido_id: pedidoCriado.id,
+              item_pedido_id: itemDb.id,
+              cliente_id: (clienteFinalId && isUuidValido(clienteFinalId)) ? clienteFinalId : null,
+              produto_id: cartItem.produto.id,
+              usuario_id: cartItem.agendamento.profissional_id,
+              cliente_nome: nomeCliente.trim() || 'Cliente',
+              cliente_whatsapp: whatsappCliente.trim(),
+              data_agendamento: cartItem.agendamento.data_agendamento,
+              hora_inicio: cartItem.agendamento.hora_inicio,
+              hora_fim: cartItem.agendamento.hora_fim,
+              data_hora_inicio: dataHoraInicio,
+              data_hora_fim: dataHoraFim,
+              duracao_minutos: duracaoEstimada,
+              modalidade_local: cartItem.agendamento.modalidade_local,
+              cliente_endereco_id: cartItem.agendamento.modalidade_local === 'externo'
+                ? (cartItem.agendamento.cliente_endereco_id || null)
+                : null,
+              endereco_prestacao_snapshot: cartItem.agendamento.modalidade_local === 'externo'
+                ? (enderecoEntrega || pedidoEntrega?.destino_logradouro || null)
+                : null,
+              status_agendamento: 'confirmado',
+              observacoes_internas: cartItem.agendamento.observacoes || null,
+              token_confirmacao: tokenUnico
+            });
+          }
+        });
+
+        if (agendamentosParaGravar.length > 0) {
+          const { data: agsGravados, error: erroAgs } = await supabase
+            .from('agendamentos_servicos')
+            .insert(agendamentosParaGravar)
+            .select('*, produto:produtos(nome), profissional:usuarios_loja(nome_completo)');
+
+          if (erroAgs) {
+            console.error('Erro ao gravar agendamentos no catálogo:', erroAgs);
+          } else if (agsGravados && loja.wpp_auto_agendamento_criado && loja.whatsapp_auto_ativo) {
+            for (const ag of agsGravados) {
+              try {
+                const msgWpp = agendamentoService.gerarMensagemWhatsappAgendamento(ag as any, loja, 'confirmacao_criacao');
+                await whatsappWalletService.dispararNotificacaoHibrida({
+                  lojaId: loja.id,
+                  loja,
+                  telefoneDestino: whatsappCliente,
+                  mensagem: msgWpp,
+                  eventoGatilho: 'agendamento_criado',
+                  pedidoId: pedidoCriado.id,
+                  clienteId: clienteFinalId
+                });
+              } catch (errWpp) {
+                console.warn('Erro ao disparar WhatsApp de agendamento criado:', errWpp);
+              }
+            }
+          }
+        }
+      } catch (errAgendamentoDb) {
+        console.error('Exceção ao persistir agendamentos do catálogo:', errAgendamentoDb);
+      }
 
       // Registro não-bloqueante de auditoria em segundo plano (resiliente a RLS anon 401)
       try {
@@ -2323,7 +2489,10 @@ export const CatalogoPublico: React.FC = () => {
             regrasAtivas
           );
           const subtotalItem = precoUnitario * i.quantidade;
-          return `▫️ *${i.quantidade}x* ${i.produto.nome} ${i.variacao ? `(${i.variacao.valor_variacao_1})` : ''} - R$ ${subtotalItem.toFixed(2)}`;
+          const infoAg = i.agendamento
+            ? `\n   📅 *Agendado:* ${formatarDataPtBr(i.agendamento.data_agendamento)} às ${i.agendamento.hora_inicio} • Profissional: ${i.agendamento.profissional_nome} (${i.agendamento.modalidade_local === 'externo' ? 'A Domicílio' : 'Na Loja'})`
+            : '';
+          return `▫️ *${i.quantidade}x* ${i.produto.nome} ${i.variacao ? `(${i.variacao.valor_variacao_1})` : ''} - R$ ${subtotalItem.toFixed(2)}${infoAg}`;
         })
         .join('\n');
 
@@ -3077,6 +3246,8 @@ Fico no aguardo da confirmação! ✨`;
                                 if (esgotado) return;
                                 if (produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0) {
                                   setProdutoModalVariacao(produto);
+                                } else if (produto.tipo_item === 'servico' && produto.requer_agendamento) {
+                                  setServicoParaAgendamento(produto);
                                 } else {
                                   adicionarAoCarrinho(produto);
                                 }
@@ -3089,6 +3260,11 @@ Fico no aguardo da confirmação! ✨`;
                             >
                               {esgotado ? (
                                 <span>Esgotado</span>
+                              ) : produto.tipo_item === 'servico' && produto.requer_agendamento ? (
+                                <>
+                                  <Calendar className="w-3.5 h-3.5 text-white" />
+                                  <span>Agendar Horário</span>
+                                </>
                               ) : (
                                 <>
                                   <Plus className="w-3.5 h-3.5 text-white" />
@@ -3189,6 +3365,8 @@ Fico no aguardo da confirmação! ✨`;
                                     if (esgotado) return;
                                     if (produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0) {
                                       setProdutoModalVariacao(produto);
+                                    } else if (produto.tipo_item === 'servico' && produto.requer_agendamento) {
+                                      setServicoParaAgendamento(produto);
                                     } else {
                                       adicionarAoCarrinho(produto);
                                     }
@@ -3201,6 +3379,11 @@ Fico no aguardo da confirmação! ✨`;
                                 >
                                   {esgotado ? (
                                     <span>Esgotado</span>
+                                  ) : produto.tipo_item === 'servico' && produto.requer_agendamento ? (
+                                    <>
+                                      <Calendar className="w-4 h-4 text-white" />
+                                      <span>Agendar Horário</span>
+                                    </>
                                   ) : (
                                     <>
                                       <ShoppingBag className="w-4 h-4 text-white" />
@@ -3308,6 +3491,8 @@ Fico no aguardo da confirmação! ✨`;
                                   if (esgotado) return;
                                   if (produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0) {
                                     setProdutoModalVariacao(produto);
+                                  } else if (produto.tipo_item === 'servico' && produto.requer_agendamento) {
+                                    setServicoParaAgendamento(produto);
                                   } else {
                                     adicionarAoCarrinho(produto);
                                   }
@@ -3317,9 +3502,15 @@ Fico no aguardo da confirmação! ✨`;
                                     ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 font-semibold cursor-not-allowed opacity-60'
                                     : 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 dark:border-2 dark:border-emerald-400 cursor-pointer active:scale-95'
                                 }`}
-                                title={esgotado ? 'Produto Esgotado' : 'Adicionar ao Pedido'}
+                                title={esgotado ? 'Produto Esgotado' : produto.tipo_item === 'servico' && produto.requer_agendamento ? 'Agendar Horário' : 'Adicionar ao Pedido'}
                               >
-                                {esgotado ? <X className="w-4 h-4 text-slate-400" /> : <Plus className="w-4 h-4 text-white" />}
+                                {esgotado ? (
+                                  <X className="w-4 h-4 text-slate-400" />
+                                ) : produto.tipo_item === 'servico' && produto.requer_agendamento ? (
+                                  <Calendar className="w-4 h-4 text-white" />
+                                ) : (
+                                  <Plus className="w-4 h-4 text-white" />
+                                )}
                               </button>
                             </div>
                           </div>
@@ -3628,48 +3819,61 @@ Fico no aguardo da confirmação! ✨`;
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
 
-                          <div className="flex items-center border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-lg overflow-hidden">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const passo = ehProdutoFracionado(item.produto) ? 0.1 : 1;
-                                atualizarQtdCarrinho(idx, Number((item.quantidade - passo).toFixed(3)));
-                              }}
-                              className="p-1 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer"
-                            >
-                              <Minus className="w-3.5 h-3.5" />
-                            </button>
-                            <span
-                              onClick={() => {
-                                if (ehProdutoFracionado(item.produto)) {
-                                  setItemPesagemCatalogo({
-                                    produto: item.produto,
-                                    variacao: item.variacao,
-                                    quantidadeAtual: item.quantidade,
-                                    indexCarrinho: idx
-                                  });
-                                }
-                              }}
-                              title={ehProdutoFracionado(item.produto) ? "Clique para informar o peso (kg)" : undefined}
-                              className={`px-2 text-xs font-bold text-slate-900 dark:text-slate-100 min-w-[20px] text-center ${
-                                ehProdutoFracionado(item.produto) ? 'cursor-pointer hover:text-emerald-400 underline decoration-dotted' : ''
-                              }`}
-                            >
-                              {formatarQuantidadeUnidade(item.quantidade, obterSiglaUnidade(item.produto))}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const passo = ehProdutoFracionado(item.produto) ? 0.1 : 1;
-                                atualizarQtdCarrinho(idx, Number((item.quantidade + passo).toFixed(3)));
-                              }}
-                              className="p-1 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer"
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                          {item.agendamento ? (
+                            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 px-2">1 vaga</span>
+                          ) : (
+                            <div className="flex items-center border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-lg overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const passo = ehProdutoFracionado(item.produto) ? 0.1 : 1;
+                                  atualizarQtdCarrinho(idx, Number((item.quantidade - passo).toFixed(3)));
+                                }}
+                                className="p-1 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer"
+                              >
+                                <Minus className="w-3.5 h-3.5" />
+                              </button>
+                              <span
+                                onClick={() => {
+                                  if (ehProdutoFracionado(item.produto)) {
+                                    setItemPesagemCatalogo({
+                                      produto: item.produto,
+                                      variacao: item.variacao,
+                                      quantidadeAtual: item.quantidade,
+                                      indexCarrinho: idx
+                                    });
+                                  }
+                                }}
+                                title={ehProdutoFracionado(item.produto) ? "Clique para informar o peso (kg)" : undefined}
+                                className={`px-2 text-xs font-bold text-slate-900 dark:text-slate-100 min-w-[20px] text-center ${
+                                  ehProdutoFracionado(item.produto) ? 'cursor-pointer hover:text-emerald-400 underline decoration-dotted' : ''
+                                }`}
+                              >
+                                {formatarQuantidadeUnidade(item.quantidade, obterSiglaUnidade(item.produto))}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const passo = ehProdutoFracionado(item.produto) ? 0.1 : 1;
+                                  atualizarQtdCarrinho(idx, Number((item.quantidade + passo).toFixed(3)));
+                                }}
+                                className="p-1 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
+
+                      {item.agendamento && (
+                        <div className="pt-2 border-t border-slate-200 dark:border-slate-700/60 flex items-center gap-2 text-[11px] text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 px-2.5 py-1.5 rounded-lg">
+                          <Calendar className="w-3.5 h-3.5 shrink-0 text-teal-600 dark:text-teal-400" />
+                          <span className="truncate">
+                            <strong>{formatarDataPtBr(item.agendamento.data_agendamento)}</strong> às <strong>{item.agendamento.hora_inicio}</strong> • {item.agendamento.profissional_nome} ({item.agendamento.modalidade_local === 'loja' ? 'Na Loja' : 'A Domicílio'})
+                          </span>
+                        </div>
+                      )}
                     </div>
                   );
                 })
@@ -4316,6 +4520,25 @@ Fico no aguardo da confirmação! ✨`;
           isEsgotado={isProdutoEsgotado(produtoDetalhesModal)}
           isFavorito={Boolean(produtoDetalhesModal && favoritosIds.has(produtoDetalhesModal.id))}
           onToggleFavorito={handleToggleFavorito}
+          onAgendarServico={(prod) => {
+            setProdutoDetalhesModal(null);
+            setServicoParaAgendamento(prod);
+          }}
+        />
+      )}
+
+      {/* MODAL DE AGENDAMENTO DE SERVIÇO NO CATÁLOGO */}
+      {servicoParaAgendamento && loja && (
+        <ModalAgendarServicoCatalogo
+          isOpen={Boolean(servicoParaAgendamento)}
+          onClose={() => setServicoParaAgendamento(null)}
+          produto={servicoParaAgendamento}
+          lojaId={loja.id}
+          onConfirmarAgendamento={(dadosAgendamento) => {
+            adicionarAoCarrinho(servicoParaAgendamento, null, 1, false, dadosAgendamento);
+            setServicoParaAgendamento(null);
+            setDrawerCarrinhoAberto(true);
+          }}
         />
       )}
 

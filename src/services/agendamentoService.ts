@@ -12,7 +12,10 @@ import type {
   HorarioOcupado,
   StatusAgendamento,
   DiaSemana,
-  ModalidadeLocalPrestacao
+  ModalidadeLocalPrestacao,
+  AgendamentoPublicoDetalhes,
+  ParametrosProcessarAcaoAgendamento,
+  ResultadoAcaoAgendamento
 } from '../types/agendamento';
 import type { UsuarioLoja, Loja, Produto } from '../types';
 
@@ -614,5 +617,46 @@ Por favor, confirme ou remarque seu atendimento pelo link abaixo:
 ${linkPublico}
 
 Esperamos por você!`.trim();
+  },
+
+  /**
+   * 10. Carrega detalhes do agendamento para a página pública do cliente via token opaco
+   */
+  async obterAgendamentoPorTokenPublico(token: string): Promise<AgendamentoPublicoDetalhes | null> {
+    if (!token) return null;
+    const { data, error } = await supabase.rpc('obter_agendamento_por_token_publico', {
+      p_token: token
+    });
+
+    if (error) {
+      console.warn('Erro ao obter agendamento por token público:', error);
+      return null;
+    }
+
+    if (!data || (Array.isArray(data) && data.length === 0)) {
+      return null;
+    }
+
+    return (Array.isArray(data) ? data[0] : data) as AgendamentoPublicoDetalhes;
+  },
+
+  /**
+   * 11. Processa ação pública do cliente (confirmar presença, solicitar cancelamento ou remarcar)
+   */
+  async processarAcaoCliente(params: ParametrosProcessarAcaoAgendamento): Promise<ResultadoAcaoAgendamento> {
+    const { data, error } = await supabase.rpc('processar_acao_cliente_agendamento', {
+      p_token: params.p_token,
+      p_acao: params.p_acao,
+      p_nova_data: params.p_nova_data || null,
+      p_nova_hora_inicio: params.p_nova_hora_inicio || null,
+      p_novo_profissional_id: params.p_novo_profissional_id || null,
+      p_motivo: params.p_motivo || null
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return data as ResultadoAcaoAgendamento;
   }
 };

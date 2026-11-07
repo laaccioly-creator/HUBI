@@ -11,7 +11,8 @@ import {
   Check,
   Tag,
   FileText,
-  Star
+  Star,
+  Calendar
 } from 'lucide-react';
 import { DescricaoFormatadaProduto } from './DescricaoFormatadaProduto';
 import { Produto, VariacaoProduto } from '../types';
@@ -23,6 +24,7 @@ interface ModalDetalhesProdutoCatalogoProps {
   categoriaNome?: string;
   corTema?: string;
   onAdicionarAoCarrinho: (produto: Produto, variacao?: VariacaoProduto | null, quantidade?: number) => void;
+  onAgendarServico?: (produto: Produto) => void;
   onAbrirModalVariacao?: (produto: Produto) => void;
   onPerguntarRubi: (produto: Produto) => void;
   onVerCarrinho: () => void;
@@ -39,6 +41,7 @@ export const ModalDetalhesProdutoCatalogo: React.FC<ModalDetalhesProdutoCatalogo
   produto,
   categoriaNome,
   onAdicionarAoCarrinho,
+  onAgendarServico,
   onAbrirModalVariacao,
   onPerguntarRubi,
   onVerCarrinho,
@@ -98,6 +101,12 @@ export const ModalDetalhesProdutoCatalogo: React.FC<ModalDetalhesProdutoCatalogo
 
   const handleAdicionar = () => {
     if (isEsgotado) return;
+
+    if (produto.tipo_item === 'servico' && produto.requer_agendamento && onAgendarServico) {
+      onClose();
+      onAgendarServico(produto);
+      return;
+    }
 
     if (produto.tem_variacoes && (!variacaoSelecionada || !produto.variacoes?.length)) {
       if (onAbrirModalVariacao) {
@@ -330,6 +339,11 @@ export const ModalDetalhesProdutoCatalogo: React.FC<ModalDetalhesProdutoCatalogo
           >
             {isEsgotado ? (
               <span>Produto Esgotado</span>
+            ) : produto.tipo_item === 'servico' && produto.requer_agendamento ? (
+              <>
+                <Calendar className="w-4 h-4" />
+                <span>Agendar Horário • R$ {(precoFinal * quantidade).toFixed(2)}</span>
+              </>
             ) : adicionadoSucesso ? (
               <>
                 <Check className="w-4 h-4" />

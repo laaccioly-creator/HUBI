@@ -15,7 +15,10 @@ import {
   Truck,
   BookOpen,
   Copy,
-  Upload
+  Upload,
+  Calendar,
+  Clock,
+  MapPin
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -26,6 +29,7 @@ import { PrintService } from '../../services/printService';
 import { SyncService } from '../../services/syncService';
 import { audioService } from '../../services/audioService';
 import { CadernetaService } from '../../services/cadernetaService';
+import { formatarDataPtBr } from '../../services/agendamentoService';
 import { obterDataOperacaoISO } from '../../utils/dataOperacao';
 import { formatarMoeda, formatarValorBRL } from '../../utils/formatters';
 import { ModalDefinirEnvio } from '../pedidos/ModalDefinirEnvio';
@@ -203,7 +207,8 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
           vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
           itens:itens_pedido(*),
           pedido_entregas(*),
-          pagamentos:pagamentos_pedido(*)
+          pagamentos:pagamentos_pedido(*),
+          agendamentos:agendamentos_servicos(*, produto:produtos(nome), profissional:usuarios_loja(nome_completo))
         `)
         .eq('loja_id', loja.id)
         .eq('id', pedSeguro.id)
@@ -1072,7 +1077,8 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
             cliente:clientes(*),
             vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
             itens:itens_pedido(*),
-            pagamentos:pagamentos_pedido(*)
+            pagamentos:pagamentos_pedido(*),
+            agendamentos:agendamentos_servicos(*, produto:produtos(nome), profissional:usuarios_loja(nome_completo))
           `)
           .single();
 
@@ -1241,6 +1247,45 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
             {sucessoConfig?.aguardandoConferencia && (
               <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[11px] text-amber-700 dark:text-amber-300 font-medium max-w-sm mx-auto">
                 ⏳ Pedido aguardando conferência do pagamento pelo estabelecimento.
+              </div>
+            )}
+
+            {/* Bloco de Agendamentos no Modal de Sucesso */}
+            {(((pedidoAtualizado as any)?.agendamentos || pedSeguro.agendamentos || [])).length > 0 && (
+              <div className="p-3.5 bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/60 rounded-2xl text-left space-y-2 max-w-sm mx-auto">
+                <div className="flex items-center gap-2 text-xs font-bold text-teal-800 dark:text-teal-300">
+                  <Calendar className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                  <span>Horário(s) Agendado(s) com Sucesso</span>
+                </div>
+                {(((pedidoAtualizado as any)?.agendamentos || pedSeguro.agendamentos || [])).map((ag: any) => (
+                  <div key={ag.id} className="text-[11px] text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900/80 p-2.5 rounded-xl border border-teal-100 dark:border-teal-900/50 space-y-1">
+                    <p className="font-bold text-slate-900 dark:text-white truncate">
+                      {ag.produto?.nome || 'Serviço Agendado'}
+                    </p>
+                    <div className="flex items-center gap-1.5 text-teal-700 dark:text-teal-300 font-medium">
+                      <Clock className="w-3 h-3 shrink-0" />
+                      <span>{formatarDataPtBr(ag.data_agendamento)} às {ag.hora_inicio}</span>
+                    </div>
+                    {ag.profissional?.nome_completo && (
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                        Profissional: {ag.profissional.nome_completo}
+                      </p>
+                    )}
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                      Local: {ag.modalidade_local === 'loja' ? '🏪 Na Loja' : '🏠 A Domicílio (Externo)'}
+                    </p>
+                    {ag.token_confirmacao && (
+                      <a
+                        href={`/confirmar-agendamento/${ag.token_confirmacao}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-block mt-1 text-[10px] text-teal-600 dark:text-teal-400 underline font-semibold hover:text-teal-700"
+                      >
+                        Abrir comprovante do agendamento ↗
+                      </a>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
 
@@ -1761,6 +1806,37 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
                       </button>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Discriminação de Agendamentos (se houver) */}
+              {pedSeguro.agendamentos && pedSeguro.agendamentos.length > 0 && (
+                <div className="pt-2.5 border-t border-slate-200 dark:border-slate-800 space-y-2">
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-teal-700 dark:text-teal-400">
+                    <Calendar className="w-3.5 h-3.5 shrink-0" />
+                    <span>Horário(s) de Atendimento Vinculado(s):</span>
+                  </span>
+                  <div className="space-y-1.5">
+                    {pedSeguro.agendamentos.map((ag) => (
+                      <div
+                        key={ag.id}
+                        className="p-2 rounded-xl bg-teal-500/10 border border-teal-500/20 text-xs space-y-0.5"
+                      >
+                        <div className="flex items-center justify-between font-bold text-slate-800 dark:text-slate-100">
+                          <span className="truncate">{ag.produto?.nome || 'Serviço'}</span>
+                          <span className="text-[10px] text-teal-700 dark:text-teal-400 font-semibold">
+                            {ag.modalidade_local === 'loja' ? 'Na Loja' : 'A Domicílio'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[11px] text-slate-600 dark:text-slate-400">
+                          <span>📅 {formatarDataPtBr(ag.data_agendamento)} às {ag.hora_inicio}</span>
+                          {ag.profissional?.nome_completo && (
+                            <span>• Prof.: {ag.profissional.nome_completo}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 

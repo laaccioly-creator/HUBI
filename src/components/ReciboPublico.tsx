@@ -116,7 +116,8 @@ export const ReciboPublico: React.FC = () => {
             itens:itens_pedido(*),
             pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*)),
             pedido_entregas:pedido_entregas(*),
-            pagamentos_previstos:pedidos_pagamentos_previstos(*)
+            pagamentos_previstos:pedidos_pagamentos_previstos(*),
+            agendamentos:agendamentos_servicos(*, produto:produtos(nome), profissional:usuarios_loja(nome_completo))
           `);
 
         query = aplicarFiltroIdentificador(query);
@@ -134,12 +135,13 @@ export const ReciboPublico: React.FC = () => {
 
           if (simplePed && !simpleErr) {
             pedData = simplePed;
-            const [itensRes, clienteRes, pagRes, entregaRes, prevRes] = await Promise.allSettled([
+            const [itensRes, clienteRes, pagRes, entregaRes, prevRes, agendRes] = await Promise.allSettled([
               supabase.from('itens_pedido').select('*').eq('pedido_id', simplePed.id),
               simplePed.cliente_id ? supabase.from('clientes').select('*').eq('id', simplePed.cliente_id).maybeSingle() : Promise.resolve({ data: null }),
               supabase.from('pagamentos_pedido').select('*, forma_pagamento:formas_pagamento(*)').eq('pedido_id', simplePed.id),
               supabase.from('pedido_entregas').select('*').eq('pedido_id', simplePed.id),
-              supabase.from('pedidos_pagamentos_previstos').select('*').eq('pedido_id', simplePed.id)
+              supabase.from('pedidos_pagamentos_previstos').select('*').eq('pedido_id', simplePed.id),
+              supabase.from('agendamentos_servicos').select('*, produto:produtos(nome), profissional:usuarios_loja(nome_completo)').eq('pedido_id', simplePed.id)
             ]);
 
             if (itensRes.status === 'fulfilled' && (itensRes.value as any)?.data) {
@@ -156,6 +158,9 @@ export const ReciboPublico: React.FC = () => {
             }
             if (prevRes.status === 'fulfilled' && (prevRes.value as any)?.data) {
               (pedData as any).pagamentos_previstos = (prevRes.value as any).data;
+            }
+            if (agendRes.status === 'fulfilled' && (agendRes.value as any)?.data) {
+              (pedData as any).agendamentos = (agendRes.value as any).data;
             }
           } else {
             throw new Error('Pedido não encontrado no sistema.');
@@ -369,6 +374,42 @@ export const ReciboPublico: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Horários de Agendamento do Serviço */}
+          {((pedido as any).agendamentos || []).length > 0 && (
+            <div className="p-2.5 rounded-xl bg-teal-50 border border-teal-200 border-dashed text-[11px] space-y-1.5">
+              <div className="flex items-center justify-between font-black text-teal-900 uppercase">
+                <span className="flex items-center gap-1">
+                  📅 Horário(s) de Atendimento Agendado:
+                </span>
+                <span className="text-[10px] bg-teal-200/80 text-teal-800 px-1.5 py-0.5 rounded font-bold">
+                  Agendamento
+                </span>
+              </div>
+              {((pedido as any).agendamentos as any[]).map((ag) => (
+                <div key={ag.id} className="pt-1 border-t border-teal-200/60 text-slate-800 space-y-0.5">
+                  <div className="font-bold flex justify-between">
+                    <span>{ag.produto?.nome || 'Serviço'}</span>
+                    <span className="text-teal-700 font-semibold">{ag.modalidade_local === 'loja' ? 'Na Loja' : 'A Domicílio'}</span>
+                  </div>
+                  <div className="text-slate-600 text-[10px]">
+                    <strong>{formatarDataRecibo(ag.data_agendamento)}</strong> às <strong>{ag.hora_inicio}</strong>
+                    {ag.profissional?.nome_completo ? ` • Profissional: ${ag.profissional.nome_completo}` : ''}
+                  </div>
+                  {ag.token_confirmacao && (
+                    <a
+                      href={`/confirmar-agendamento/${ag.token_confirmacao}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-block text-[10px] text-teal-700 font-bold underline hover:text-teal-900"
+                    >
+                      Gerenciar Agendamento / Confirmar Presença ↗
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Resumo de itens */}
           <div className="font-bold text-slate-600 text-[10px] uppercase tracking-wider">

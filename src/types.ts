@@ -1,5 +1,5 @@
 import type { PedidoEntrega, FormaEntrega, TipoOperacaoEnvio } from './types/shipping';
-import type { LocalPrestacaoServico } from './types/agendamento';
+import type { LocalPrestacaoServico, AgendamentoServico } from './types/agendamento';
 
 export type TipoDocumento = 'CPF' | 'CNPJ';
 export type PerfilUsuario = 'owner' | 'admin' | 'gerente' | 'vendedor' | 'comum';
@@ -784,6 +784,7 @@ export interface Pedido {
   vendedor?: UsuarioLoja | null;
   itens?: ItemPedido[];
   itens_pedido?: ItemPedido[];
+  agendamentos?: AgendamentoServico[];
   pagamentos?: PagamentoPedido[];
   pagamentos_previstos?: PedidoPagamentoPrevisto[];
   historico?: HistoricoPedido[];
