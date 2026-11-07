@@ -16,6 +16,7 @@ import {
 } from '../services/pricingEngine';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import { DadosEnderecoCliente } from '../components/ModalEnderecoClienteCatalogo';
+import { ItemAgendamentoInfo } from '../types/agendamento';
 
 import { supabase } from '../lib/supabase';
 import { podeEditarPedido, podeEditarItensPedido, podeEditarDescontoPedido } from '../utils/statusPedidoUtils';
@@ -30,6 +31,7 @@ export interface CartItem {
   precoUnitario: number;
   subtotal: number;
   observacoes?: string;
+  agendamento?: ItemAgendamentoInfo | null;
 }
 
 interface CartContextType {
@@ -53,7 +55,8 @@ interface CartContextType {
   temAlteracoesPedido: boolean;
   isHydrated: boolean;
   resetarSnapshotPedido: () => void;
-  adicionarItem: (produto: Produto, variacao?: VariacaoProduto | null, quantidade?: number, observacoes?: string) => void;
+  adicionarItem: (produto: Produto, variacao?: VariacaoProduto | null, quantidade?: number, observacoes?: string, agendamento?: ItemAgendamentoInfo | null) => void;
+  atualizarAgendamentoItem: (cartId: string, agendamento: ItemAgendamentoInfo | null) => void;
   removerItem: (cartId: string) => void;
   atualizarQuantidade: (cartId: string, quantidade: number, listaProdutosAtualizada?: Produto[]) => void;
   sincronizarEstoqueCarrinho: (produtosAtualizados: Produto[]) => void;
@@ -364,7 +367,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     produto: Produto,
     variacao?: VariacaoProduto | null,
     quantidade: number = 1,
-    observacoes?: string
+    observacoes?: string,
+    agendamento?: ItemAgendamentoInfo | null
   ) => {
     if (pedidoEmEdicao && !podeEditarPedido(pedidoEmEdicao)) {
       alert(`⚠️ Pedidos com status "${pedidoEmEdicao.status}" não permitem adicionar itens.`);
@@ -409,7 +413,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           precoUnitario: preco,
           tabelaPrecoUtilizada: tabelaPrecoCalculada,
           subtotal: preco * novaQtd,
-          observacoes: observacoes !== undefined ? observacoes : atualizados[index].observacoes
+          observacoes: observacoes !== undefined ? observacoes : atualizados[index].observacoes,
+          agendamento: agendamento !== undefined ? agendamento : atualizados[index].agendamento
         };
         return atualizados;
       } else {
@@ -425,11 +430,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             precoUnitario: preco,
             tabelaPrecoUtilizada: tabelaPrecoCalculada,
             subtotal: preco * quantidade,
-            observacoes
+            observacoes,
+            agendamento: agendamento || null
           }
         ];
       }
     });
+  };
+
+  const atualizarAgendamentoItem = (cartId: string, agendamento: ItemAgendamentoInfo | null) => {
+    setItens(prev =>
+      prev.map(item => (item.id === cartId ? { ...item, agendamento } : item))
+    );
   };
 
   const removerItem = (cartId: string) => {
@@ -952,6 +964,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isHydrated,
         resetarSnapshotPedido,
         adicionarItem,
+        atualizarAgendamentoItem,
         removerItem,
         atualizarQuantidade,
         sincronizarEstoqueCarrinho,

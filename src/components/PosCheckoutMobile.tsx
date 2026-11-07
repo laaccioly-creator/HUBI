@@ -63,6 +63,8 @@ import { getCategoriaPeso } from './PosCheckout';
 import { audioService } from '../services/audioService';
 import { formatarMoeda, ehProdutoFracionado, obterSiglaUnidade, formatarLinhaCalculoItem } from '../utils/formatters';
 import { ModalInputPesoFracionado } from './ui/ModalInputPesoFracionado';
+import { formatarDataPtBr } from '../services/agendamentoService';
+import type { ItemAgendamentoInfo } from '../types/agendamento';
 import { SeletorCategoriasHibrido } from './ui/SeletorCategoriasHibrido';
 import {
   produtoPertenceAoFiltroCategoria,
@@ -84,6 +86,7 @@ interface PosCheckoutMobileProps {
   salvandoPendente?: boolean;
   onAbrirNovoCliente: () => void;
   onAbrirVariacoesModal: (produto: Produto) => void;
+  onAgendarServico?: (produto: Produto, cartId?: string, agendamentoExistente?: ItemAgendamentoInfo | null) => void;
   onAbrirFormaEntrega?: () => void;
   isOnline?: boolean;
   pendentesCount?: number;
@@ -103,6 +106,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   salvandoPendente = false,
   onAbrirNovoCliente,
   onAbrirVariacoesModal,
+  onAgendarServico,
   onAbrirFormaEntrega,
   isOnline = true,
   pendentesCount = 0,
@@ -339,6 +343,8 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
       onAbrirVariacoesModal(produto);
     } else if (ehProdutoFracionado(produto)) {
       setItemPesagemModal({ produto, quantidadeAtual: multiplicadorQtd > 1 ? multiplicadorQtd : 1 });
+    } else if (produto.tipo_item === 'servico' && produto.requer_agendamento && onAgendarServico) {
+      onAgendarServico(produto);
     } else {
       adicionarItem(produto, null, multiplicadorQtd);
       if (multiplicadorQtd > 1) {
@@ -1263,6 +1269,35 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                     }
                     return null;
                   })()}
+
+                  {it.produto.tipo_item === 'servico' && it.produto.requer_agendamento && (
+                    <div className="pt-1">
+                      {it.agendamento ? (
+                        <div className="flex items-center gap-1.5 text-emerald-500 dark:text-emerald-400 text-[10px] font-bold">
+                          <span className="truncate">📅 {formatarDataPtBr(it.agendamento.data_agendamento)} às {it.agendamento.hora_inicio} • {it.agendamento.profissional_nome} ({it.agendamento.modalidade_local === 'externo' ? 'Externo' : 'Na Loja'})</span>
+                          {onAgendarServico && (
+                            <button
+                              type="button"
+                              onClick={() => onAgendarServico(it.produto, it.id, it.agendamento)}
+                              className="underline text-emerald-400 hover:text-white shrink-0"
+                            >
+                              Alterar
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        onAgendarServico && (
+                          <button
+                            type="button"
+                            onClick={() => onAgendarServico(it.produto, it.id, null)}
+                            className="inline-flex items-center gap-1 text-[10px] text-amber-500 dark:text-amber-400 font-bold bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-lg"
+                          >
+                            <span>📅 Agendar Horário Obrigatório</span>
+                          </button>
+                        )
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2.5 shrink-0">

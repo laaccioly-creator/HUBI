@@ -95,6 +95,7 @@ export interface AgendamentoServico {
   data_agendamento: string; // Formato 'YYYY-MM-DD'
   hora_inicio: string; // Formato 'HH:MM' ou 'HH:MM:SS'
   hora_fim: string; // Formato 'HH:MM' ou 'HH:MM:SS'
+  duracao_minutos?: number;
   data_hora_inicio: string; // ISO 8601
   data_hora_fim: string; // ISO 8601
   modalidade_local: ModalidadeLocalPrestacao;
@@ -221,4 +222,19 @@ export interface ConfiguracaoAgendaLoja {
   antecedencia_lembrete_horas: number;
   limite_remarcacoes_cliente: number;
   antecedencia_minima_remarcacao_horas: number;
+}
+
+/**
+ * Metadados de agendamento acoplados a um item do carrinho no PDV
+ */
+export interface ItemAgendamentoInfo {
+  profissional_id: string;
+  profissional_nome: string;
+  data_agendamento: string; // 'YYYY-MM-DD'
+  hora_inicio: string; // 'HH:MM'
+  hora_fim: string; // 'HH:MM'
+  modalidade_local: ModalidadeLocalPrestacao; // 'loja' | 'externo'
+  cliente_endereco_id?: string | null;
+  endereco_prestacao_snapshot?: string | null;
+  observacoes?: string | null;
 }

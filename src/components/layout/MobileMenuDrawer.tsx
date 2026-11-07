@@ -150,6 +150,13 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
       badge: undefined
     },
     {
+      nome: 'Agenda de Serviços',
+      caminho: '/agenda',
+      icone: Calendar,
+      visivel: true,
+      badge: undefined
+    },
+    {
       nome: 'Produtos & Estoque',
       caminho: '/products',
       icone: Package,

@@ -7,6 +7,7 @@ import { logger } from './loggerService';
 import { mercadoLivreService } from './mercadoLivreService';
 import { Cliente, Pedido, StatusPedido, StatusPagamento, FormaPagamento } from '../types';
 import { PedidoEntrega } from '../types/shipping';
+import { ItemAgendamentoInfo } from '../types/agendamento';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
 
 export interface ItemVendaInput {
@@ -16,6 +17,9 @@ export interface ItemVendaInput {
     preco_custo?: number | null;
     tipo_unidade?: string | null;
     unidade_medida?: string | null;
+    tipo_item?: string | null;
+    requer_agendamento?: boolean | null;
+    duracao_estimada_minutos?: number | null;
   };
   variacao?: {
     id: string;
@@ -33,6 +37,7 @@ export interface ItemVendaInput {
   quantidade_solicitada?: number | null;
   peso_solicitado_kg?: number | null;
   observacoes?: string | null;
+  agendamento?: ItemAgendamentoInfo | null;
 }
 
 export interface LinhaPagamentoInput {
@@ -357,7 +362,11 @@ export class VendaService {
       };
     });
 
-    const { error: erroItens } = await supabase.from('itens_pedido').insert(itensFormatados);
+    const { data: itensInseridos, error: erroItens } = await supabase
+      .from('itens_pedido')
+      .insert(itensFormatados)
+      .select();
+
     if (erroItens) {
       logger.error('VendaService', 'inserir_itens', erroItens, { loja_id: lojaId });
       // Previne pedido órfão cancelando o cabeçalho criado
@@ -372,6 +381,49 @@ export class VendaService {
           .eq('loja_id', lojaId);
       }
       throw new Error(`Falha ao registrar itens do pedido: ${erroItens.message}`);
+    }
+
+    // 2.1 Gravar agendamentos de serviços caso existam itens com agendamento
+    try {
+      const itensComAgendamento: any[] = [];
+      itens.forEach((it, idx) => {
+        if (it.agendamento && itensInseridos && itensInseridos[idx]) {
+          const itemInserido = itensInseridos[idx];
+          const duracaoEstimada = it.produto.duracao_estimada_minutos || 30;
+          const tokenUnico = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `tok_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+          itensComAgendamento.push({
+            loja_id: lojaId,
+            pedido_id: pedidoId,
+            item_pedido_id: itemInserido.id,
+            cliente_id: clienteIdSanitizado || null,
+            produto_id: it.produto.id,
+            usuario_id: it.agendamento.profissional_id,
+            data_agendamento: it.agendamento.data_agendamento,
+            hora_inicio: it.agendamento.hora_inicio,
+            hora_fim: it.agendamento.hora_fim,
+            duracao_minutos: duracaoEstimada,
+            modalidade_local: it.agendamento.modalidade_local || 'loja',
+            cliente_endereco_id: it.agendamento.cliente_endereco_id || null,
+            endereco_prestacao_snapshot: it.agendamento.endereco_prestacao_snapshot || null,
+            status_agendamento: 'confirmado',
+            observacoes_internas: it.agendamento.observacoes || null,
+            token_confirmacao: tokenUnico
+          });
+        }
+      });
+
+      if (itensComAgendamento.length > 0) {
+        const { error: erroAgendamentos } = await supabase
+          .from('agendamentos_servicos')
+          .insert(itensComAgendamento);
+
+        if (erroAgendamentos) {
+          logger.error('VendaService', 'inserir_agendamentos', erroAgendamentos, { loja_id: lojaId });
+          console.warn('[VendaService] Erro ao registrar agendamentos vinculados:', erroAgendamentos);
+        }
+      }
+    } catch (errAgendamento) {
+      console.warn('[VendaService] Exceção ao persistir agendamentos:', errAgendamento);
     }
 
     // 3. Gravar pagamentos na tabela public.pagamentos_pedido

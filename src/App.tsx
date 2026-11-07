@@ -30,6 +30,7 @@ import { ReciboPublico } from './components/ReciboPublico';
 import { ConfiguracaoCatalogo } from './components/ConfiguracaoCatalogo';
 import { CadastrosAuxiliares } from './components/CadastrosAuxiliares';
 import { UsuariosGestao } from './components/UsuariosGestao';
+import { AgendaServicosLoja } from './components/agendamento/AgendaServicosLoja';
 
 interface RotaProtegidaProps {
   permitido: boolean;
@@ -115,6 +116,7 @@ const AppRotasInternas: React.FC = () => {
           }
         />
         <Route path="pos" element={<PosCheckout />} />
+        <Route path="agenda" element={<AgendaServicosLoja />} />
         <Route path="orders" element={<PedidosLista />} />
         <Route
           path="sales"

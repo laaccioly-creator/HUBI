@@ -277,7 +277,9 @@ export type EventoGatilhoWhatsapp =
   | 'comprovante_caderneta'
   | 'cobranca_fiado'
   | 'recarga_carteira_pix'
-  | 'expiracao_trial_7d';
+  | 'expiracao_trial_7d'
+  | 'agendamento_criado'
+  | 'lembrete_agendamento';
 
 export type StatusPagamentoWhatsappWallet = 'pendente' | 'concluido' | 'cancelado';
 

@@ -38,7 +38,8 @@ import {
   AlertTriangle,
   AlertOctagon,
   Sparkles,
-  Ticket
+  Ticket,
+  Calendar
 } from 'lucide-react';
 import { creditRiskJevService, AvaliacaoRiscoCredito } from '../services/creditRiskJevService';
 import { useNavigate } from 'react-router-dom';
@@ -61,6 +62,9 @@ import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import { ShippingSelectionResult, LojaShippingConfig } from '../types/shipping';
 import { extrairObservacaoLimpa, formatarMoeda, formatarValorBRL, ehProdutoFracionado, obterSiglaUnidade, formatarLinhaCalculoItem } from '../utils/formatters';
 import { ModalInputPesoFracionado } from './ui/ModalInputPesoFracionado';
+import { ModalSelecionarAgendamentoPdv } from './agendamento/ModalSelecionarAgendamentoPdv';
+import { formatarDataPtBr } from '../services/agendamentoService';
+import type { ItemAgendamentoInfo } from '../types/agendamento';
 import { InputQuantidadeCarrinho } from './ui/InputQuantidadeCarrinho';
 import { caixaService } from '../services/caixaService';
 import { SyncService } from '../services/syncService';
@@ -235,6 +239,7 @@ export const PosCheckout: React.FC = () => {
     isHydrated,
     resetarSnapshotPedido,
     adicionarItem,
+    atualizarAgendamentoItem,
     removerItem,
     atualizarQuantidade,
     sincronizarEstoqueCarrinho,
@@ -353,6 +358,12 @@ export const PosCheckout: React.FC = () => {
 
   const [produtoModalVariacao, setProdutoModalVariacao] = useState<Produto | null>(null);
   const [itemPesagemModal, setItemPesagemModal] = useState<{ produto: Produto; variacao?: VariacaoProduto | null; quantidadeAtual?: number; cartId?: string } | null>(null);
+  const [agendamentoModal, setAgendamentoModal] = useState<{
+    aberto: boolean;
+    produto: Produto;
+    cartId?: string;
+    agendamentoExistente?: ItemAgendamentoInfo | null;
+  } | null>(null);
   const [modalFechamento, setModalFechamento] = useState<boolean>(false);
   const [formaPagamentoEscolhida, setFormaPagamentoEscolhida] = useState<FormaPagamento | null>(null);
   const [valorRecebidoDinheiro, setValorRecebidoDinheiro] = useState<string>('');
@@ -763,6 +774,17 @@ export const PosCheckout: React.FC = () => {
   const handleAbrirFechamento = () => {
     if ((itens?.length || 0) === 0) return;
 
+    const itemSemAgendamento = itens.find(
+      it => it.produto.tipo_item === 'servico' && it.produto.requer_agendamento && !it.agendamento
+    );
+    if (itemSemAgendamento) {
+      mostrarAviso(
+        `O serviço "${itemSemAgendamento.produto.nome}" exige agendamento de data e horário. Por favor, clique em "Agendar Horário Obrigatório" no carrinho antes de prosseguir com o pagamento.`,
+        'Horário Obrigatório'
+      );
+      return;
+    }
+
     if (!pedidoEntrega) {
       mostrarAviso(
         'Por favor, selecione a Forma de Entrega (Retirada ou Entrega) no carrinho antes de prosseguir com o pagamento.',
@@ -969,6 +991,12 @@ export const PosCheckout: React.FC = () => {
       }
       if (produtoEncontrado.tem_variacoes && !variacaoEncontrada) {
         setProdutoModalVariacao(produtoEncontrado);
+      } else if (produtoEncontrado.tipo_item === 'servico' && produtoEncontrado.requer_agendamento) {
+        setAgendamentoModal({
+          aberto: true,
+          produto: produtoEncontrado,
+          agendamentoExistente: null
+        });
       } else {
         adicionarItem(produtoEncontrado, variacaoEncontrada);
       }
@@ -2178,6 +2206,14 @@ export const PosCheckout: React.FC = () => {
           salvandoPendente={salvandoPendente}
           onAbrirNovoCliente={() => setModalNovoCliente(true)}
           onAbrirVariacoesModal={(produto) => setProdutoModalVariacao(produto)}
+          onAgendarServico={(produto, cartId, agendamentoExistente) => {
+            setAgendamentoModal({
+              aberto: true,
+              produto,
+              cartId,
+              agendamentoExistente
+            });
+          }}
           onAbrirFormaEntrega={handleClicarFormaEntrega}
           isOnline={isOnline}
           pendentesCount={pendentesCount}
@@ -2383,6 +2419,12 @@ export const PosCheckout: React.FC = () => {
                               setProdutoModalVariacao(produto);
                             } else if (ehProdutoFracionado(produto)) {
                               setItemPesagemModal({ produto, quantidadeAtual: 1 });
+                            } else if (produto.tipo_item === 'servico' && produto.requer_agendamento) {
+                              setAgendamentoModal({
+                                aberto: true,
+                                produto,
+                                agendamentoExistente: null
+                              });
                             } else {
                               adicionarItem(produto);
                             }
@@ -2947,6 +2989,45 @@ export const PosCheckout: React.FC = () => {
                       )}
                     </div>
                   </div>
+
+                  {item.produto.tipo_item === 'servico' && item.produto.requer_agendamento && (
+                    <div className="mt-2 pt-1.5 border-t border-dashed border-slate-700/60 flex flex-wrap items-center justify-between gap-1 text-[11px]">
+                      {item.agendamento ? (
+                        <div className="flex items-center gap-1.5 text-emerald-400 min-w-0">
+                          <Calendar className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+                          <span className="font-semibold truncate">
+                            📅 {formatarDataPtBr(item.agendamento.data_agendamento)} às {item.agendamento.hora_inicio} • {item.agendamento.profissional_nome} ({item.agendamento.modalidade_local === 'externo' ? 'Externo' : 'Na Loja'})
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setAgendamentoModal({
+                              aberto: true,
+                              produto: item.produto,
+                              cartId: item.id,
+                              agendamentoExistente: item.agendamento
+                            })}
+                            className="text-[10px] text-emerald-300 hover:text-white underline ml-1 cursor-pointer font-bold"
+                          >
+                            Alterar
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setAgendamentoModal({
+                            aberto: true,
+                            produto: item.produto,
+                            cartId: item.id,
+                            agendamentoExistente: null
+                          })}
+                          className="flex items-center gap-1.5 text-amber-400 hover:text-amber-300 font-bold bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2 py-1 rounded-lg cursor-pointer transition"
+                        >
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          <span>📅 Agendar Horário Obrigatório</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })
@@ -3141,6 +3222,26 @@ export const PosCheckout: React.FC = () => {
               adicionarItem(itemPesagemModal.produto, itemPesagemModal.variacao, pesoKg);
             }
             setItemPesagemModal(null);
+          }}
+        />
+      )}
+
+      {/* MODAL SELEÇÃO DE AGENDAMENTO NO PDV */}
+      {agendamentoModal && (
+        <ModalSelecionarAgendamentoPdv
+          isOpen={agendamentoModal.aberto}
+          onClose={() => setAgendamentoModal(null)}
+          produto={agendamentoModal.produto}
+          lojaId={loja?.id || ''}
+          cliente={clienteSelecionado}
+          agendamentoExistente={agendamentoModal.agendamentoExistente}
+          onConfirmar={(dadosAgendamento) => {
+            if (agendamentoModal.cartId) {
+              atualizarAgendamentoItem(agendamentoModal.cartId, dadosAgendamento);
+            } else {
+              adicionarItem(agendamentoModal.produto, null, 1, undefined, dadosAgendamento);
+            }
+            setAgendamentoModal(null);
           }}
         />
       )}

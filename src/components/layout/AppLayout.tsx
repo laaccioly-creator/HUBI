@@ -382,6 +382,13 @@ export const AppLayout: React.FC = () => {
       visivel: permissions.podeAcessarVendas
     },
     {
+      name: 'Agenda',
+      path: '/agenda',
+      icon: Calendar,
+      badge: undefined,
+      visivel: true
+    },
+    {
       name: 'Produtos & Estoque',
       path: '/products',
       icon: Package,
@@ -622,10 +629,10 @@ export const AppLayout: React.FC = () => {
             )}
           </div>
 
-          {/* GRID CENTRAL EM EXATAMENTE 2 FILEIRAS BALANCEADAS (LINHA 1: 6 BOTÕES | LINHA 2: 7 BOTÕES) */}
+          {/* GRID CENTRAL EM EXATAMENTE 2 FILEIRAS BALANCEADAS (LINHA 1: 7 BOTÕES | LINHA 2: 7 BOTÕES) */}
           <nav className="flex flex-col gap-1.5 flex-1 max-w-5xl min-w-0 justify-center">
-            {/* FILEIRA 1 (6 BOTÕES) */}
-            <div className="grid grid-cols-6 gap-1 lg:gap-1.5 w-full">
+            {/* FILEIRA 1 (7 BOTÕES) */}
+            <div className="grid grid-cols-7 gap-1 lg:gap-1.5 w-full">
               {row1Buttons.map((item) => {
                 const Icon = item.icon;
                 const isActive = (() => {
