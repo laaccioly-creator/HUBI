@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Loja, UsuarioLoja, Organizacao } from '../types';
 import { authClientIsolado } from '../services/usuarioService';
@@ -14,6 +14,8 @@ interface AuthContextType {
   carregando: boolean;
   setLoja: (loja: Loja | null) => void;
   selecionarLoja: (lojaId: string) => Promise<boolean>;
+  trocarLoja: (lojaId: string) => Promise<boolean>;
+  setLojaAtiva: (lojaId: string) => Promise<boolean>;
   selecionarUsuario: (usuarioId: string) => Promise<boolean>;
   cadastrarPdv: (dadosLoja: Partial<Loja>, dadosUsuario: Partial<UsuarioLoja>) => Promise<Loja>;
   cadastrarMinimalista: (params: {
@@ -54,6 +56,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<any | null>(null);
   const [organizacao, setOrganizacao] = useState<Organizacao | null>(null);
   const [lojasDisponiveis, setLojasDisponiveis] = useState<Loja[]>([]);
+  const lojasDisponiveisRef = useRef<Loja[]>([]);
+  lojasDisponiveisRef.current = lojasDisponiveis;
   const [carregando, setCarregando] = useState<boolean>(true);
 
   const usuarioLogado = usuario
@@ -164,12 +168,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (todasLojas && todasLojas.length > 0) {
         setLojasDisponiveis(todasLojas);
 
+        const savedLojaId = localStorage.getItem(STORAGE_KEY_LOJA_ID) || activeLojaId;
         let lojaParaAtivar: Loja | null = null;
-        if (activeLojaId) {
-          lojaParaAtivar = todasLojas.find(l => l.id === activeLojaId) || null;
+        if (savedLojaId) {
+          lojaParaAtivar = todasLojas.find(l => l.id === savedLojaId) || null;
         }
 
-        if (!lojaParaAtivar && todasLojas.length === 1) {
+        // Se a loja salva for válida e pertencer à lista carregada, OBRIGATORIAMENTE usamos ela.
+        // NUNCA force o fallback para lojas[0] se a loja salva no localStorage for válida.
+        if (!lojaParaAtivar && todasLojas.length > 0) {
           lojaParaAtivar = todasLojas[0];
         }
 
@@ -321,6 +328,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Selecionar uma loja existente
   const selecionarLoja = async (lojaId: string): Promise<boolean> => {
     try {
+      // 1. Atualiza e persiste a chave no localStorage imediatamente
+      localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaId);
+
+      // 2. Atualiza o estado da loja imediatamente se ela já estiver disponível em memória
+      const lojaPrevia = lojasDisponiveisRef.current.find(l => l.id === lojaId) || lojasDisponiveis.find(l => l.id === lojaId);
+      if (lojaPrevia) {
+        setLoja(lojaPrevia);
+      }
+
       setCarregando(true);
 
       const emailAtual = (session?.user?.email || usuario?.email || '').toLowerCase().trim();
@@ -1096,61 +1112,92 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.warn('Aviso ao sincronizar usuarios_loja no onAuthStateChange:', syncErr);
           }
 
-          // 1. Verificar se este usuário autenticado já é um operador/administrador cadastrado em alguma loja
+          // 1. Obter todos os usuários_loja associados a este usuário autenticado (sem .limit(1))
           const { data: usersLoja } = await supabase
             .from('usuarios_loja')
             .select('*, loja:lojas(*)')
             .or(`usuario_auth_id.eq.${session.user.id},email.ilike.${emailAuth}`)
-            .order('criado_em', { ascending: true })
-            .limit(1);
+            .order('criado_em', { ascending: true });
 
-          if (usersLoja && usersLoja.length > 0) {
-            const uRaw = usersLoja[0] as any;
-            const u = uRaw as UsuarioLoja;
-            const lojaAssoc = (uRaw.loja || null) as Loja | null;
-            if (lojaAssoc) {
-              setLoja(lojaAssoc);
-              localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaAssoc.id);
-            }
-            (u as any).nome = u.nome_completo;
-            setUsuario(u);
-            localStorage.setItem(STORAGE_KEY_USUARIO_ID, u.id);
-            if (u.nome_completo) {
-              localStorage.setItem('hubi_user_real_name', u.nome_completo.trim());
-            }
-            return;
-          }
-
-          // 2. Verificar se já existe uma loja diretamente para este e-mail (proprietário)
+          // 2. Obter todas as lojas associadas diretamente a este e-mail (proprietário) (sem .limit(1))
           const { data: lojasExistentes } = await supabase
             .from('lojas')
             .select('*')
             .ilike('email', emailAuth)
-            .limit(1);
+            .order('criado_em', { ascending: true });
 
-          if (lojasExistentes && lojasExistentes.length > 0) {
-            setLoja(lojasExistentes[0]);
-            localStorage.setItem(STORAGE_KEY_LOJA_ID, lojasExistentes[0].id);
+          // Agregar todas as lojas disponíveis para o usuário
+          const mapaLojas = new Map<string, Loja>();
+          (lojasExistentes || []).forEach(l => mapaLojas.set(l.id, l));
+          (usersLoja || []).forEach(u => {
+            const l = (u as any).loja as Loja | null;
+            if (l && l.id) mapaLojas.set(l.id, l);
+          });
+          const listaLojasUsuario = Array.from(mapaLojas.values());
+          if (listaLojasUsuario.length > 0) {
+            setLojasDisponiveis(listaLojasUsuario);
+          }
 
-            // Carregar o usuário da loja correspondente
-            const { data: userLoja } = await supabase
-              .from('usuarios_loja')
-              .select('*')
-              .eq('loja_id', lojasExistentes[0].id)
-              .or(`usuario_auth_id.eq.${session.user.id},email.ilike.${emailAuth}`)
-              .order('criado_em', { ascending: true })
-              .limit(1);
+          const savedLojaId = localStorage.getItem(STORAGE_KEY_LOJA_ID) || activeLojaLocal;
 
-            if (userLoja && userLoja.length > 0) {
-              const u = userLoja[0];
-              (u as any).nome = u.nome_completo;
-              setUsuario(u);
-              localStorage.setItem(STORAGE_KEY_USUARIO_ID, u.id);
-              if (u.nome_completo) {
-                localStorage.setItem('hubi_user_real_name', u.nome_completo.trim());
+          // Se houver uma loja salva no localStorage e ela pertencer à lista do usuário,
+          // selecione OBRIGATORIAMENTE essa loja salva!
+          let lojaEscolhida: Loja | null = null;
+          if (savedLojaId) {
+            lojaEscolhida = listaLojasUsuario.find(l => l.id === savedLojaId) || null;
+            if (!lojaEscolhida) {
+              const { data: lojaSalvaDb } = await supabase
+                .from('lojas')
+                .select('*')
+                .eq('id', savedLojaId)
+                .maybeSingle();
+              if (lojaSalvaDb) {
+                lojaEscolhida = lojaSalvaDb;
               }
             }
-          } else {
+          }
+
+          // NUNCA force o fallback para lojas[0] se a loja salva no localStorage for válida.
+          // Só use fallback para o primeiro índice se realmente não houver loja salva válida.
+          if (!lojaEscolhida && listaLojasUsuario.length > 0) {
+            lojaEscolhida = listaLojasUsuario[0];
+          }
+
+          if (lojaEscolhida) {
+            setLoja(lojaEscolhida);
+            localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaEscolhida.id);
+
+            // Carregar o operador correspondente à loja escolhida
+            let uFinal: UsuarioLoja | null = null;
+            if (usersLoja && usersLoja.length > 0) {
+              const uMatch = usersLoja.find(u => u.loja_id === lojaEscolhida!.id);
+              if (uMatch) uFinal = uMatch as UsuarioLoja;
+            }
+
+            if (!uFinal) {
+              const { data: userLojaDb } = await supabase
+                .from('usuarios_loja')
+                .select('*')
+                .eq('loja_id', lojaEscolhida.id)
+                .or(`usuario_auth_id.eq.${session.user.id},email.ilike.${emailAuth}`)
+                .order('criado_em', { ascending: true })
+                .limit(1)
+                .maybeSingle();
+              if (userLojaDb) uFinal = userLojaDb as UsuarioLoja;
+            }
+
+            if (uFinal) {
+              (uFinal as any).nome = uFinal.nome_completo;
+              setUsuario(uFinal);
+              localStorage.setItem(STORAGE_KEY_USUARIO_ID, uFinal.id);
+              if (uFinal.nome_completo) {
+                localStorage.setItem('hubi_user_real_name', uFinal.nome_completo.trim());
+              }
+            }
+            return;
+          }
+
+          if (listaLojasUsuario.length === 0) {
             try {
               await cadastrarMinimalista({
                 nome: nomeAuth,
@@ -1164,8 +1211,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
+    // Listener de foco e visibilidade da janela:
+    // Garante que, ao retornar de outra aba ou janela, a loja salva seja mantida sem perda de contexto
+    const handleRevalidarFoco = () => {
+      const savedLojaId = localStorage.getItem(STORAGE_KEY_LOJA_ID);
+      if (!savedLojaId) return;
+
+      const lojaSalva = lojasDisponiveisRef.current.find(l => l.id === savedLojaId);
+      if (lojaSalva) {
+        setLoja((lojaAtual) => {
+          if (!lojaAtual || lojaAtual.id !== savedLojaId) {
+            return lojaSalva;
+          }
+          return lojaAtual;
+        });
+      }
+    };
+
+    window.addEventListener('focus', handleRevalidarFoco);
+    document.addEventListener('visibilitychange', handleRevalidarFoco);
+
     return () => {
       authListener.subscription.unsubscribe();
+      window.removeEventListener('focus', handleRevalidarFoco);
+      document.removeEventListener('visibilitychange', handleRevalidarFoco);
     };
   }, []);
 
@@ -1181,6 +1250,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         carregando,
         setLoja,
         selecionarLoja,
+        trocarLoja: selecionarLoja,
+        setLojaAtiva: selecionarLoja,
         selecionarUsuario,
         cadastrarPdv,
         cadastrarMinimalista,

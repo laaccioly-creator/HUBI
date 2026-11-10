@@ -386,13 +386,13 @@ export const ProdutosEstoque: React.FC = () => {
             <div>
               <h1 className={`text-2xl font-black flex items-center gap-2 ${isDark ? 'text-white' : 'text-black'}`}>
                 <Package className="w-6 h-6 text-emerald-500" />
-                <span>Produtos & Estoque</span>
+                <span>Produtos & Serviços</span>
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-emerald-100 text-emerald-900 border-2 border-emerald-400'}`}>
                   {produtos.length}
                 </span>
               </h1>
               <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
-                Gerencie seus produtos, dê entrada em compras, controle custos e inventário
+                Gerencie seus produtos e serviços, dê entrada em compras, controle custos e agendamentos
               </p>
             </div>
           </div>
@@ -418,7 +418,7 @@ export const ProdutosEstoque: React.FC = () => {
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs shadow-md transition cursor-pointer border border-emerald-500"
               >
                 <Plus className="w-4 h-4" />
-                <span>+ Novo Produto</span>
+                <span>+ Novo Produto / Serviço</span>
               </Link>
             )}
           </div>
@@ -625,7 +625,7 @@ export const ProdutosEstoque: React.FC = () => {
               className="inline-flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 font-bold underline"
             >
               <Plus className="w-4 h-4" />
-              <span>Cadastrar Primeiro Produto</span>
+              <span>+ Cadastrar Primeiro Produto ou Serviço</span>
             </Link>
           </div>
         ) : (
