@@ -157,7 +157,7 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
       badge: undefined
     },
     {
-      nome: 'Produtos & Estoque',
+      nome: 'Produtos & Serviços',
       caminho: '/products',
       icone: Package,
       visivel: permissions.podeAcessarProdutos,

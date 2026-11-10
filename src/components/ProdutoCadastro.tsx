@@ -1664,7 +1664,7 @@ export const ProdutoCadastro: React.FC = () => {
     }
 
     // Validação de estoque com variações
-    if (temVariacoes && opcoesVariacao.length > 0) {
+    if (tipoItem !== 'servico' && temVariacoes && opcoesVariacao.length > 0) {
       const somaEstoqueVariacoes = opcoesVariacao.reduce((acc, o) => acc + (Number(o.estoque) || 0), 0);
       const estoqueInformado = Number(quantidadeEstoque) || 0;
 
@@ -1692,34 +1692,34 @@ export const ProdutoCadastro: React.FC = () => {
         loja_id: loja.id,
         nome,
         codigo_interno: codigoInterno || null,
-        codigo_barras: codigoBarras || null,
+        codigo_barras: tipoItem === 'servico' ? null : (codigoBarras || null),
         categoria_id: categoriaId || null,
         subcategoria_id: subcategoriaId || null,
-        fornecedor_id: fornecedorId || null,
+        fornecedor_id: tipoItem === 'servico' ? null : (fornecedorId || null),
         descricao,
-        tipo_unidade: tipoUnidade,
-        unidade_medida: tipoUnidade.toUpperCase(),
-        venda_por_peso: vendaPorPeso,
-        permite_fracionado: vendaPorPeso,
-        codigo_balanca: codigoBalanca ? parseInt(codigoBalanca, 10) : null,
+        tipo_unidade: tipoItem === 'servico' ? 'un' : tipoUnidade,
+        unidade_medida: tipoItem === 'servico' ? 'UN' : tipoUnidade.toUpperCase(),
+        venda_por_peso: tipoItem === 'servico' ? false : vendaPorPeso,
+        permite_fracionado: tipoItem === 'servico' ? false : vendaPorPeso,
+        codigo_balanca: tipoItem === 'servico' ? null : (codigoBalanca ? parseInt(codigoBalanca, 10) : null),
         tipo_item: tipoItem,
         fotos_urls: todasFotos.slice(0, 7),
         preco_custo: Number(precoCusto) || 0,
         preco_venda_varejo: Number(precoVendaVarejo),
-        preco_venda_atacado: precoVendaAtacado ? Number(precoVendaAtacado) : null,
-        tipo_minimo_atacado: (regrasPrecificacao.tipoMinimoAtacado === 'minimo_sku' && atacadoMinimoAtivo && Number(qtdMinimaAtacado) > 0) ? 'minimo_sku' : tipoMinimoAtacado,
-        qtd_minima_atacado: (regrasPrecificacao.tipoMinimoAtacado === 'minimo_sku' && atacadoMinimoAtivo && Number(qtdMinimaAtacado) > 0) ? Number(qtdMinimaAtacado) : 0,
-        valor_minimo_atacado: tipoMinimoAtacado === 'valor' && regrasPrecificacao.tipoMinimoAtacado !== 'minimo_sku' ? (Number(valorMinimoAtacado) || 0) : null,
-        preco_venda_autoatacado: precoVendaAutoatacado ? Number(precoVendaAutoatacado) : null,
-        tipo_minimo_autoatacado: (regrasPrecificacao.tipoMinimoAutoatacado === 'minimo_sku' && distribuidorMinimoAtivo && Number(qtdMinimaAutoatacado) > 0) ? 'minimo_sku' : tipoMinimoAutoatacado,
-        qtd_minima_autoatacado: (regrasPrecificacao.tipoMinimoAutoatacado === 'minimo_sku' && distribuidorMinimoAtivo && Number(qtdMinimaAutoatacado) > 0) ? Number(qtdMinimaAutoatacado) : 0,
-        valor_minimo_autoatacado: tipoMinimoAutoatacado === 'valor' && regrasPrecificacao.tipoMinimoAutoatacado !== 'minimo_sku' ? (Number(valorMinimoAutoatacado) || 0) : null,
+        preco_venda_atacado: tipoItem === 'servico' ? null : (precoVendaAtacado ? Number(precoVendaAtacado) : null),
+        tipo_minimo_atacado: tipoItem === 'servico' ? null : ((regrasPrecificacao.tipoMinimoAtacado === 'minimo_sku' && atacadoMinimoAtivo && Number(qtdMinimaAtacado) > 0) ? 'minimo_sku' : tipoMinimoAtacado),
+        qtd_minima_atacado: tipoItem === 'servico' ? 0 : ((regrasPrecificacao.tipoMinimoAtacado === 'minimo_sku' && atacadoMinimoAtivo && Number(qtdMinimaAtacado) > 0) ? Number(qtdMinimaAtacado) : 0),
+        valor_minimo_atacado: tipoItem === 'servico' ? null : (tipoMinimoAtacado === 'valor' && regrasPrecificacao.tipoMinimoAtacado !== 'minimo_sku' ? (Number(valorMinimoAtacado) || 0) : null),
+        preco_venda_autoatacado: tipoItem === 'servico' ? null : (precoVendaAutoatacado ? Number(precoVendaAutoatacado) : null),
+        tipo_minimo_autoatacado: tipoItem === 'servico' ? null : ((regrasPrecificacao.tipoMinimoAutoatacado === 'minimo_sku' && distribuidorMinimoAtivo && Number(qtdMinimaAutoatacado) > 0) ? 'minimo_sku' : tipoMinimoAutoatacado),
+        qtd_minima_autoatacado: tipoItem === 'servico' ? 0 : ((regrasPrecificacao.tipoMinimoAutoatacado === 'minimo_sku' && distribuidorMinimoAtivo && Number(qtdMinimaAutoatacado) > 0) ? Number(qtdMinimaAutoatacado) : 0),
+        valor_minimo_autoatacado: tipoItem === 'servico' ? null : (tipoMinimoAutoatacado === 'valor' && regrasPrecificacao.tipoMinimoAutoatacado !== 'minimo_sku' ? (Number(valorMinimoAutoatacado) || 0) : null),
         preco_promocional: (promocaoAtiva && precoPromocional) ? Number(precoPromocional) : null,
         promocao_ativa: Boolean(promocaoAtiva && precoPromocional && Number(precoPromocional) > 0),
         quantidade_estoque: tipoItem === 'servico' ? 0 : estoqueFinal,
         estoque_minimo_alerta: tipoItem === 'servico' ? 0 : (Number(estoqueMinimoAlerta) || 0),
-        tem_variacoes: temVariacoes && opcoesVariacao.length > 0,
-        rotulo_variacao_1: temVariacoes ? nomeTipoVariacao || 'Opção' : null,
+        tem_variacoes: tipoItem === 'servico' ? false : (temVariacoes && opcoesVariacao.length > 0),
+        rotulo_variacao_1: tipoItem === 'servico' ? null : (temVariacoes ? nomeTipoVariacao || 'Opção' : null),
         rotulo_variacao_2: null,
         data_validade: dataValidade || null,
         exibir_catalogo: exibirCatalogo,
@@ -1852,8 +1852,8 @@ export const ProdutoCadastro: React.FC = () => {
       {/* Header Superior Mobile Unificado */}
       <div className="block sm:hidden shrink-0">
         <MobileHeader
-          titulo={ehEdicao ? 'Alterar Produto' : 'Novo Produto'}
-          subtitulo={ehEdicao ? 'Atualize as informações do item' : 'Cadastro de produto'}
+          titulo={ehEdicao ? 'Editar Produto / Serviço' : 'Cadastrar Produto / Serviço'}
+          subtitulo="Preencha as informações abaixo ou tire uma foto para preenchimento automático por IA"
           fallbackVoltar="/products"
           onVoltar={handleVoltarParaProdutos}
         />
@@ -1872,10 +1872,10 @@ export const ProdutoCadastro: React.FC = () => {
             </button>
             <div>
               <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100">
-                {ehEdicao ? 'Alterar Produto' : 'Cadastrar Novo Produto'}
+                {ehEdicao ? 'Editar Produto / Serviço' : 'Cadastrar Produto / Serviço'}
               </h1>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                {ehEdicao ? 'Atualize as fotos, valores, dados fiscais e estoques do item' : 'Tire uma foto para preenchimento automático por IA ou preencha manualmente'}
+                Preencha as informações abaixo ou tire uma foto para preenchimento automático por IA
               </p>
             </div>
           </div>
@@ -2154,7 +2154,7 @@ export const ProdutoCadastro: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-[#1E293B]">
               <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Tag className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span>2. Identificação do Produto</span>
+                <span>{tipoItem === 'servico' ? '2. Identificação do Serviço' : '2. Identificação do Produto'}</span>
               </h2>
 
               {/* Interruptor (Toggle Switch) Produto Ativo */}
@@ -2213,6 +2213,14 @@ export const ProdutoCadastro: React.FC = () => {
                     setQuantidadeEstoque('0');
                     setEstoqueMinimoAlerta('0');
                     setTemVariacoes(false);
+                    setVendaPorPeso(false);
+                    setCodigoBalanca('');
+                    setCodigoBarras('');
+                    setFornecedorId('');
+                    setPrecoVendaAtacado('');
+                    setPrecoVendaAutoatacado('');
+                    setAtacadoMinimoAtivo(false);
+                    setDistribuidorMinimoAtivo(false);
                   }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                     tipoItem === 'servico'
@@ -2228,13 +2236,19 @@ export const ProdutoCadastro: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-              {/* Nome do Produto */}
+              {/* Nome do Produto / Serviço */}
               <div className="md:col-span-2 space-y-1">
-                <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Nome do Produto *</label>
+                <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                  {tipoItem === 'servico' ? 'Nome do Serviço *' : 'Nome do Produto *'}
+                </label>
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Coca-Cola Lata 350ml ou Camiseta Algodão Básica"
+                  placeholder={
+                    tipoItem === 'servico'
+                      ? 'Ex: Corte Degradê, Troca de Óleo, Consultoria, Mão de Obra...'
+                      : 'Ex: Coca-Cola Lata 350ml ou Camiseta Algodão Básica'
+                  }
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
                   className="w-full h-11 bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-medium"
@@ -2264,40 +2278,43 @@ export const ProdutoCadastro: React.FC = () => {
                 </select>
               </div>
 
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Unidade de Medida</label>
-                  <button
-                    type="button"
-                    onClick={() => handleNavegarParaAuxiliares('unidades')}
-                    className="text-[10px] text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 font-semibold cursor-pointer"
-                    title="Gerenciar Unidades de Medida"
+              {/* Unidade de Medida - Exibido apenas para Produto Físico */}
+              {tipoItem === 'produto' && (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Unidade de Medida</label>
+                    <button
+                      type="button"
+                      onClick={() => handleNavegarParaAuxiliares('unidades')}
+                      className="text-[10px] text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 font-semibold cursor-pointer"
+                      title="Gerenciar Unidades de Medida"
+                    >
+                      + Gerenciar
+                    </button>
+                  </div>
+                  <select
+                    value={tipoUnidade}
+                    onChange={(e) => {
+                      const novaUn = e.target.value;
+                      setTipoUnidade(novaUn);
+                      if (['kg', 'g', 'l', 'ml', 'm'].includes(novaUn.toLowerCase())) {
+                        setVendaPorPeso(true);
+                      }
+                    }}
+                    className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
                   >
-                    + Gerenciar
-                  </button>
+                    {unidadesLista.map(u => (
+                      <option key={u.sigla} value={u.sigla}>
+                        {u.sigla.toUpperCase()} - {u.nome}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <select
-                  value={tipoUnidade}
-                  onChange={(e) => {
-                    const novaUn = e.target.value;
-                    setTipoUnidade(novaUn);
-                    if (['kg', 'g', 'l', 'ml', 'm'].includes(novaUn.toLowerCase())) {
-                      setVendaPorPeso(true);
-                    }
-                  }}
-                  className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
-                >
-                  {unidadesLista.map(u => (
-                    <option key={u.sigla} value={u.sigla}>
-                      {u.sigla.toUpperCase()} - {u.nome}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              )}
 
               {/* LOGO ABAIXO DESSA LINHA: Subcategoria Condicional */}
               {subcategoriasDisponiveis.length > 0 && (
-                <div className="md:col-span-2 space-y-1 animate-in fade-in">
+                <div className={`space-y-1 animate-in fade-in ${tipoItem === 'servico' ? '' : 'md:col-span-2'}`}>
                   <label className="text-xs font-medium text-slate-700 dark:text-slate-300 block">
                     Subcategoria (Opcional)
                   </label>
@@ -2314,56 +2331,58 @@ export const ProdutoCadastro: React.FC = () => {
                 </div>
               )}
 
-              {/* Configuração de Balança e Fracionamento */}
-              <div className="sm:col-span-2 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Scale className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <div>
-                      <span className="text-xs font-bold text-slate-900 dark:text-white block">
-                        Venda por Peso / Fracionado (Balança Comercial)
-                      </span>
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
-                        Permite pesar no PDV (kg/gramas) e ler etiquetas de balança iniciando com 2
-                      </span>
+              {/* Configuração de Balança e Fracionamento - Exibido apenas para Produto Físico */}
+              {tipoItem === 'produto' && (
+                <div className="sm:col-span-2 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Scale className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <div>
+                        <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                          Venda por Peso / Fracionado (Balança Comercial)
+                        </span>
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                          Permite pesar no PDV (kg/gramas) e ler etiquetas de balança iniciando com 2
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={vendaPorPeso}
-                      onChange={(e) => setVendaPorPeso(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-500"></div>
-                  </label>
-                </div>
-
-                {vendaPorPeso && (
-                  <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center gap-3">
-                    <div className="flex-1">
-                      <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                        Código do Produto na Balança (PLU de 4 a 6 dígitos):
-                      </label>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
                       <input
-                        type="number"
-                        min="1"
-                        max="999999"
-                        placeholder="Ex: 104"
-                        value={codigoBalanca}
-                        onChange={(e) => setCodigoBalanca(e.target.value)}
-                        className="w-full bg-white dark:bg-[#000000] border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                        type="checkbox"
+                        checked={vendaPorPeso}
+                        onChange={(e) => setVendaPorPeso(e.target.checked)}
+                        className="sr-only peer"
                       />
-                    </div>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 sm:max-w-xs leading-tight">
-                      Ao ler o código impresso pela balança (ex: 2001040008005), o PDV identifica este produto e o peso/preço automaticamente.
-                    </p>
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-500"></div>
+                    </label>
                   </div>
-                )}
-              </div>
 
-              {/* LINHA 2: Código Interno (Sugerido após Categoria) e Código de Barras */}
-              <div className="space-y-1">
+                  {vendaPorPeso && (
+                    <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center gap-3">
+                      <div className="flex-1">
+                        <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Código do Produto na Balança (PLU de 4 a 6 dígitos):
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="999999"
+                          placeholder="Ex: 104"
+                          value={codigoBalanca}
+                          onChange={(e) => setCodigoBalanca(e.target.value)}
+                          className="w-full bg-white dark:bg-[#000000] border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 sm:max-w-xs leading-tight">
+                        Ao ler o código impresso pela balança (ex: 2001040008005), o PDV identifica este produto e o peso/preço automaticamente.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* LINHA 2: Código Interno (SKU) */}
+              <div className={`space-y-1 ${tipoItem === 'servico' && subcategoriasDisponiveis.length > 0 ? 'md:col-span-2' : ''}`}>
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Código Interno (SKU)</label>
                   {codigoInterno && (
@@ -2379,39 +2398,44 @@ export const ProdutoCadastro: React.FC = () => {
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Código de Barras (EAN / Leitor)</label>
-                <input
-                  type="text"
-                  placeholder="Ex: 789123456789"
-                  value={codigoBarras}
-                  onChange={(e) => setCodigoBarras(e.target.value)}
-                  className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 font-mono"
-                />
-              </div>
-
-              {/* Fornecedor (Opcional) */}
-              <div className="space-y-1 md:col-span-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Fornecedor (Opcional)</label>
-                  <button
-                    type="button"
-                    onClick={() => handleNavegarParaAuxiliares('fornecedores')}
-                    className="text-[10px] text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 font-semibold cursor-pointer"
-                    title="Gerenciar Fornecedores"
-                  >
-                    + Gerenciar
-                  </button>
+              {/* Código de Barras - Exibido apenas para Produto Físico */}
+              {tipoItem === 'produto' && (
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Código de Barras (EAN / Leitor)</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: 789123456789"
+                    value={codigoBarras}
+                    onChange={(e) => setCodigoBarras(e.target.value)}
+                    className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 font-mono"
+                  />
                 </div>
-                <select
-                  value={fornecedorId}
-                  onChange={(e) => setFornecedorId(e.target.value)}
-                  className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
-                >
-                  <option value="">Nenhum Fornecedor Vinculado</option>
-                  {fornecedores.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
-                </select>
-              </div>
+              )}
+
+              {/* Fornecedor (Opcional) - Exibido apenas para Produto Físico */}
+              {tipoItem === 'produto' && (
+                <div className="space-y-1 md:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Fornecedor (Opcional)</label>
+                    <button
+                      type="button"
+                      onClick={() => handleNavegarParaAuxiliares('fornecedores')}
+                      className="text-[10px] text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 font-semibold cursor-pointer"
+                      title="Gerenciar Fornecedores"
+                    >
+                      + Gerenciar
+                    </button>
+                  </div>
+                  <select
+                    value={fornecedorId}
+                    onChange={(e) => setFornecedorId(e.target.value)}
+                    className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
+                  >
+                    <option value="">Nenhum Fornecedor Vinculado</option>
+                    {fornecedores.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                  </select>
+                </div>
+              )}
 
               {/* Descrição Comercial */}
               <div className="md:col-span-2 space-y-1">
@@ -2473,66 +2497,78 @@ export const ProdutoCadastro: React.FC = () => {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <div className={`grid grid-cols-1 sm:grid-cols-2 ${tipoItem === 'servico' ? '' : 'md:grid-cols-4'} gap-4`}>
               <div className="space-y-1">
-                <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Preço de Custo (R$)</label>
+                <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                  {tipoItem === 'servico' ? 'Custo Estimado (R$) (Opcional)' : 'Preço de Custo (R$)'}
+                </label>
                 <MoneyInput
                   value={precoCusto}
                   onChange={(val) => setPrecoCusto(val > 0 ? val.toFixed(2) : '0.00')}
                   placeholder="0,00"
                   className="py-2"
                 />
-                <span className="text-xs text-slate-500 dark:text-slate-400 block">Custo de compra/produção</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 block">
+                  {tipoItem === 'servico' ? 'Custo com insumos ou execução' : 'Custo de compra/produção'}
+                </span>
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Preço Varejo (R$) *</label>
+                <label className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                  {tipoItem === 'servico' ? 'Preço do Serviço (R$) *' : 'Preço Varejo (R$) *'}
+                </label>
                 <MoneyInput
                   value={precoVendaVarejo}
                   onChange={(val) => handlePrecoVarejoChange(val > 0 ? val.toFixed(2) : '')}
                   placeholder="0,00"
                   className="py-2 border-2 border-emerald-500/70 dark:border-emerald-500/50 text-emerald-700 dark:text-emerald-400"
                 />
-                <span className="text-xs text-slate-500 dark:text-slate-400 block">Preço base de balcão</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 block">
+                  {tipoItem === 'servico' ? 'Preço cobrado pelo serviço' : 'Preço base de balcão'}
+                </span>
               </div>
 
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Preço Atacado (R$)</label>
-                  {precoVendaVarejo && (
-                    <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-[#000000] dark:text-emerald-400 dark:border-emerald-800/40 px-1.5 py-0.5 rounded-lg font-bold">
-                      -{regrasPrecificacao.descontoAtacado}%
-                    </span>
-                  )}
+              {tipoItem === 'produto' && (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Preço Atacado (R$)</label>
+                    {precoVendaVarejo && (
+                      <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-[#000000] dark:text-emerald-400 dark:border-emerald-800/40 px-1.5 py-0.5 rounded-lg font-bold">
+                        -{regrasPrecificacao.descontoAtacado}%
+                      </span>
+                    )}
+                  </div>
+                  <MoneyInput
+                    value={precoVendaAtacado}
+                    onChange={(val) => setPrecoVendaAtacado(val > 0 ? val.toFixed(2) : '')}
+                    permitirVazio
+                    placeholder="0,00"
+                    className="py-2"
+                  />
+                  <span className="text-xs text-slate-500 dark:text-slate-400 block">Conforme regra da loja</span>
                 </div>
-                <MoneyInput
-                  value={precoVendaAtacado}
-                  onChange={(val) => setPrecoVendaAtacado(val > 0 ? val.toFixed(2) : '')}
-                  permitirVazio
-                  placeholder="0,00"
-                  className="py-2"
-                />
-                <span className="text-xs text-slate-500 dark:text-slate-400 block">Conforme regra da loja</span>
-              </div>
+              )}
 
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Preço Distribuidor (R$)</label>
-                  {precoVendaVarejo && (
-                    <span className="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-100 dark:bg-[#000000] dark:text-indigo-300 dark:border-indigo-800/40 px-1.5 py-0.5 rounded-lg font-bold">
-                      -{regrasPrecificacao.descontoAutoatacado}%
-                    </span>
-                  )}
+              {tipoItem === 'produto' && (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Preço Distribuidor (R$)</label>
+                    {precoVendaVarejo && (
+                      <span className="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-100 dark:bg-[#000000] dark:text-indigo-300 dark:border-indigo-800/40 px-1.5 py-0.5 rounded-lg font-bold">
+                        -{regrasPrecificacao.descontoAutoatacado}%
+                      </span>
+                    )}
+                  </div>
+                  <MoneyInput
+                    value={precoVendaAutoatacado}
+                    onChange={(val) => setPrecoVendaAutoatacado(val > 0 ? val.toFixed(2) : '')}
+                    permitirVazio
+                    placeholder="0,00"
+                    className="py-2"
+                  />
+                  <span className="text-xs text-slate-500 dark:text-slate-400 block">Conforme regra da loja</span>
                 </div>
-                <MoneyInput
-                  value={precoVendaAutoatacado}
-                  onChange={(val) => setPrecoVendaAutoatacado(val > 0 ? val.toFixed(2) : '')}
-                  permitirVazio
-                  placeholder="0,00"
-                  className="py-2"
-                />
-                <span className="text-xs text-slate-500 dark:text-slate-400 block">Conforme regra da loja</span>
-              </div>
+              )}
             </div>
 
             {/* Linha Horizontal de Chaves: Ativar Preço Promocional | Ativar Atacado | Ativar Distribuidor */}
@@ -2540,11 +2576,11 @@ export const ProdutoCadastro: React.FC = () => {
               const tiposVendaLoja = loja?.tipos_venda || (loja as any)?.configuracoes_extras?.tipos_venda_ativos || {};
               const atacadoLojaAtivo = tiposVendaLoja.atacado === true || (loja as any)?.permite_atacado === true;
               const distribuidorLojaAtivo = tiposVendaLoja.distribuidor === true || (loja as any)?.permite_distribuidor === true;
-              const exibirSwitchAtacado = atacadoLojaAtivo && (regrasPrecificacao.tipoMinimoAtacado === 'minimo_sku' || loja?.tipo_minimo_padrao_atacado === 'minimo_sku');
-              const exibirSwitchDistribuidor = distribuidorLojaAtivo && (regrasPrecificacao.tipoMinimoAutoatacado === 'minimo_sku' || loja?.tipo_minimo_padrao_autoatacado === 'minimo_sku');
+              const exibirSwitchAtacado = tipoItem === 'produto' && atacadoLojaAtivo && (regrasPrecificacao.tipoMinimoAtacado === 'minimo_sku' || loja?.tipo_minimo_padrao_atacado === 'minimo_sku');
+              const exibirSwitchDistribuidor = tipoItem === 'produto' && distribuidorLojaAtivo && (regrasPrecificacao.tipoMinimoAutoatacado === 'minimo_sku' || loja?.tipo_minimo_padrao_autoatacado === 'minimo_sku');
 
               return (
-                <div className="pt-4 border-t border-slate-200 dark:border-slate-800/80 grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
+                <div className={`pt-4 border-t border-slate-200 dark:border-slate-800/80 grid grid-cols-1 ${tipoItem === 'servico' ? 'max-w-md' : 'md:grid-cols-3'} gap-5 items-start`}>
                   {/* 1. Ativar Preço Promocional */}
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
@@ -2696,30 +2732,18 @@ export const ProdutoCadastro: React.FC = () => {
             })()}
           </div>
 
-          {/* SEÇÃO 4: CONFIGURAÇÕES DE AGENDAMENTO E EXECUÇÃO DO SERVIÇO */}
-          {tipoItem === 'servico' ? (
-            <div className="space-y-4">
-              <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-500/30 rounded-2xl p-4 sm:p-5 space-y-1.5 shadow-xs">
-                <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-400 font-bold text-sm">
-                  <Wrench className="w-4 h-4" />
-                  <span>4. Controle de Estoque (Dispensado para Serviços / Taxas)</span>
-                </div>
-                <p className="text-xs text-slate-600 dark:text-slate-300">
-                  Itens do tipo Serviço / Taxa não movimentam saldo de estoque físico. Vendas são ilimitadas e não bloqueiam no PDV ou carrinho por falta de quantidade.
+          {/* CONFIGURAÇÕES DE AGENDAMENTO E EXECUÇÃO DO SERVIÇO */}
+          {tipoItem === 'servico' && (
+            <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl p-4 sm:p-6 md:p-8 space-y-6 shadow-sm">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>Configurações de Agendamento e Execução do Serviço</span>
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Defina se este serviço exige reserva de horário na grade de atendimentos e quais colaboradores estão habilitados.
                 </p>
               </div>
-
-              {/* Card Dedicado de Agendamento */}
-              <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl p-4 sm:p-6 md:p-8 space-y-6 shadow-sm">
-                <div>
-                  <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                    <span>Configurações de Agendamento e Execução do Serviço</span>
-                  </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Defina se este serviço exige reserva de horário na grade de atendimentos e quais colaboradores estão habilitados.
-                  </p>
-                </div>
 
                 {/* Switch: Serviço com Hora Marcada */}
                 <div className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
@@ -2896,8 +2920,10 @@ export const ProdutoCadastro: React.FC = () => {
                   </div>
                 )}
               </div>
-            </div>
-          ) : (
+          )}
+
+          {/* SEÇÃO 4: CONTROLE DE ESTOQUE (PRODUTO FÍSICO) */}
+          {tipoItem === 'produto' && (
             <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl p-4 sm:p-6 md:p-8 space-y-4 shadow-sm">
               <div>
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -2947,7 +2973,8 @@ export const ProdutoCadastro: React.FC = () => {
           )}
 
           {/* SEÇÃO 5: GRADE DE VARIAÇÕES (SIMPLIFICADA E INTUITIVA) */}
-          <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl p-5 md:p-6 space-y-4 shadow-sm">
+          {tipoItem === 'produto' && (
+            <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl p-5 md:p-6 space-y-4 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -3157,6 +3184,7 @@ export const ProdutoCadastro: React.FC = () => {
               </div>
             )}
           </div>
+          )}
 
           {/* SEÇÃO 6: DIMENSÕES E PESO PARA FRETE (IA / CORREIOS / JADLOG) */}
           {tipoItem !== 'servico' && (
@@ -3333,12 +3361,12 @@ export const ProdutoCadastro: React.FC = () => {
             {salvando ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                <span>{ehEdicao ? 'Salvando Alterações no HUBI...' : 'Cadastrando Produto no HUBI...'}</span>
+                <span>{ehEdicao ? 'Salvando Alterações no HUBI...' : (tipoItem === 'servico' ? 'Cadastrando Serviço no HUBI...' : 'Cadastrando Produto no HUBI...')}</span>
               </>
             ) : (
               <>
                 <CheckCircle2 className="w-5 h-5" />
-                <span>{ehEdicao ? 'Salvar Alterações' : 'Salvar Produto'}</span>
+                <span>{tipoItem === 'servico' ? 'Salvar Serviço' : 'Salvar Produto'}</span>
               </>
             )}
           </button>

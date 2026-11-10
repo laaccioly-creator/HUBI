@@ -389,7 +389,7 @@ export const AppLayout: React.FC = () => {
       visivel: true
     },
     {
-      name: 'Produtos & Estoque',
+      name: 'Produtos & Serviços',
       path: '/products',
       icon: Package,
       badge: undefined,
