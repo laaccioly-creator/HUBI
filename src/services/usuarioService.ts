@@ -25,6 +25,7 @@ export interface SalvarOperadorParams {
   lojaId: string;
   nomeCompleto: string;
   email: string;
+  whatsappAtendimento?: string | null;
   senha?: string;
   perfil: PerfilUsuario;
   ativo?: boolean;
@@ -118,6 +119,7 @@ export const usuarioService = {
       loja_id: params.lojaId,
       nome_completo: nomeLimpo,
       email: emailLimpo,
+      whatsapp_atendimento: params.whatsappAtendimento?.trim() || null,
       perfil: params.perfil,
       pode_trocar_loja: ehOwner ? true : (ehAdmin ? Boolean(params.podeTrocarLoja) : false),
       pode_uso_celular_pessoal: ehAdmin ? true : (params.podeUsoCelularPessoal ?? true),

@@ -5,6 +5,7 @@ export interface PermissionsState {
   ehOwner: boolean;
   ehAdmin: boolean;
   ehGerente: boolean;
+  ehProfissional: boolean;
   ehVendedorOuComum: boolean;
   podeTrocarLoja: boolean;
 
@@ -35,6 +36,7 @@ export interface PermissionsState {
   podeAcessarAuxiliares: boolean;
   podeAcessarUsuarios: boolean;
   podeAcessarConfig: boolean;
+  podeAcessarAgenda: boolean;
 
   // Verificação de dispositivo
   bloqueadoPorDispositivoMovel: boolean;
@@ -50,6 +52,7 @@ export const usePermissions = (): PermissionsState => {
   const ehOwner = ehSuperAdmin || perfil === 'owner';
   const ehAdmin = ehOwner || perfil === 'admin';
   const ehGerente = ehAdmin || perfil === 'gerente';
+  const ehProfissional = perfil === 'profissional';
   const ehVendedorOuComum = !ehAdmin && !ehGerente;
   const podeTrocarLoja = ehOwner || Boolean(usuario?.pode_trocar_loja);
 
@@ -95,6 +98,7 @@ export const usePermissions = (): PermissionsState => {
     ehOwner,
     ehAdmin,
     ehGerente,
+    ehProfissional,
     ehVendedorOuComum,
     podeTrocarLoja,
     podeUsoCelularPessoal,
@@ -121,6 +125,7 @@ export const usePermissions = (): PermissionsState => {
     podeAcessarAuxiliares,
     podeAcessarUsuarios,
     podeAcessarConfig,
+    podeAcessarAgenda: true,
     bloqueadoPorDispositivoMovel
   };
 };

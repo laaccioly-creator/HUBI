@@ -27,7 +27,7 @@ import { UsuarioLoja, PerfilUsuario } from '../types';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { usuarioService } from '../services/usuarioService';
-import { formatarMoeda } from '../utils/formatters';
+import { formatarMoeda, formatarTelefoneInput } from '../utils/formatters';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface ModalUsuarioDrawerProps {
@@ -51,7 +51,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
 
   // Campos do formulário
   const [nome, setNome] = useState<string>('');
-  const [email, setEmail] = useState<string>('');
+  const [celular, setCelular] = useState<string>('');
   const [senha, setSenha] = useState<string>('');
   const [mostrarSenha, setMostrarSenha] = useState<boolean>(false);
   const [ativo, setAtivo] = useState<boolean>(true);
@@ -83,7 +83,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
     const telaInicialPadrao = usuarioEdicao?.tela_inicial || (ehGestor ? 'dashboard' : 'pos');
     return JSON.stringify({
       nome: usuarioEdicao?.nome_completo || '',
-      email: usuarioEdicao?.email || '',
+      celular: usuarioEdicao?.whatsapp_atendimento ? formatarTelefoneInput(usuarioEdicao.whatsapp_atendimento) : (usuarioEdicao?.email || ''),
       senha: '',
       perfil: perfilAtivo,
       telaInicial: telaInicialPadrao,
@@ -105,7 +105,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
   const snapshotAtual = useMemo(() => {
     return JSON.stringify({
       nome,
-      email,
+      celular,
       senha,
       perfil,
       telaInicial,
@@ -124,7 +124,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
     });
   }, [
     nome,
-    email,
+    celular,
     senha,
     perfil,
     telaInicial,
@@ -161,7 +161,17 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
   useEffect(() => {
     if (usuarioEdicao) {
       setNome(usuarioEdicao.nome_completo || '');
-      setEmail(usuarioEdicao.email || '');
+      const telInicial = usuarioEdicao.whatsapp_atendimento ||
+        (usuarioEdicao.email && usuarioEdicao.email.includes('@hubi.internal') ? usuarioEdicao.email.replace('@hubi.internal', '') : '') ||
+        (usuarioEdicao.email && usuarioEdicao.email.includes('@hubi.app') ? usuarioEdicao.email.replace('@hubi.app', '') : '') ||
+        usuarioEdicao.email || '';
+      
+      const apenasNums = telInicial.replace(/\D/g, '');
+      if (apenasNums.length === 11 || (apenasNums.length === 13 && apenasNums.startsWith('55'))) {
+        setCelular(formatarTelefoneInput(apenasNums.length === 13 ? apenasNums.slice(2) : apenasNums));
+      } else {
+        setCelular(telInicial);
+      }
       setSenha('');
       setAtivo(usuarioEdicao.ativo ?? true);
       const p = usuarioEdicao.perfil || 'comum';
@@ -196,7 +206,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
     } else {
       // Novo usuário (Padrão: Vendedor com celular pessoal ativado e tela inicial no PDV)
       setNome('');
-      setEmail('');
+      setCelular('');
       setSenha('');
       setAtivo(true);
       setPerfil('vendedor');
@@ -251,7 +261,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       setPodeFiado(false);
       setPodeCaixa(false);
       if (telaInicial === 'dashboard') setTelaInicial('pos');
-    } else {
+    } else if (novoPerfil === 'profissional' || novoPerfil === 'comum') {
       setEhAdmin(false);
       setPodeCelular(true);
       setPodeVerOutros(false);
@@ -260,6 +270,8 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       setPodeEstoque(false);
       setPodeFiado(false);
       setPodeCaixa(false);
+      setPrestaServicos(true);
+      if (telaInicial === 'dashboard' || telaInicial === 'pos') setTelaInicial('agenda');
     }
   };
 
@@ -277,7 +289,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       setPodeFiado(true);
       setPodeCaixa(true);
     } else {
-      setPerfil('comum');
+      setPerfil('vendedor');
     }
   };
 
@@ -289,10 +301,22 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       setErro('Por favor, informe o nome completo do usuário.');
       return;
     }
-    if (!email.trim() || !email.includes('@')) {
-      setErro('Por favor, informe um endereço de e-mail válido.');
+
+    const digitsCelular = celular.replace(/\D/g, '');
+    const ehEmailTradicionalValido = Boolean(usuarioEdicao && celular.includes('@') && celular.includes('.'));
+
+    if (!ehEmailTradicionalValido && digitsCelular.length !== 11) {
+      setErro('Por favor, informe um número de Celular / WhatsApp válido com DDD (11 dígitos).');
       return;
     }
+
+    const emailFinal = digitsCelular.length === 11
+      ? `${digitsCelular}@hubi.internal`
+      : celular.trim().toLowerCase();
+
+    const whatsappFinal = digitsCelular.length === 11
+      ? digitsCelular
+      : (usuarioEdicao?.whatsapp_atendimento || null);
 
     // Validação de senha
     if (!usuarioEdicao && (!senha || senha.length < 6)) {
@@ -315,7 +339,8 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
         id: usuarioEdicao?.id,
         lojaId,
         nomeCompleto: nome,
-        email,
+        email: emailFinal,
+        whatsappAtendimento: whatsappFinal,
         senha: senha.trim() || undefined,
         perfil: perfilFinal,
         ativo: ehOwner ? true : ativo,
@@ -479,13 +504,15 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
               </div>
 
               <div className="space-y-1.5">
-                <label className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-black'}`}>Email *</label>
+                <label className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                  Celular / WhatsApp *
+                </label>
                 <input
-                  type="email"
+                  type="tel"
                   required
-                  placeholder="Ex: jroberto@gmail.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="(00) 00000-0000"
+                  value={celular}
+                  onChange={(e) => setCelular(formatarTelefoneInput(e.target.value))}
                   className={`w-full rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none transition border ${isDark ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-500'}`}
                 />
               </div>
@@ -573,15 +600,15 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => handleMudarPerfil('comum')}
+                    onClick={() => handleMudarPerfil('profissional')}
                     className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between cursor-pointer ${
-                      (!ehAdmin && perfil === 'comum')
+                      (!ehAdmin && (perfil === 'profissional' || perfil === 'comum'))
                         ? (isDark ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500 shadow-sm ring-1 ring-emerald-500/30 font-black' : 'bg-emerald-50 text-emerald-950 border-2 border-emerald-500 shadow-sm ring-1 ring-emerald-500/30 font-black')
                         : (isDark ? 'bg-[#000000] border-slate-700 text-slate-300 hover:border-slate-600 hover:text-white font-bold' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black hover:border-slate-400 font-bold')
                     }`}
                   >
-                    <span className={`text-xs font-black ${(!ehAdmin && perfil === 'comum') ? (isDark ? 'text-emerald-300' : 'text-emerald-950') : (isDark ? 'text-white' : 'text-black')}`}>Comum</span>
-                    <span className={`text-[10px] mt-1 ${(!ehAdmin && perfil === 'comum') ? (isDark ? 'text-emerald-400/80' : 'text-emerald-800') : (isDark ? 'text-slate-400' : 'text-slate-600')}`}>Básico</span>
+                    <span className={`text-xs font-black ${(!ehAdmin && (perfil === 'profissional' || perfil === 'comum')) ? (isDark ? 'text-emerald-300' : 'text-emerald-950') : (isDark ? 'text-white' : 'text-black')}`}>Profissional</span>
+                    <span className={`text-[10px] mt-1 ${(!ehAdmin && (perfil === 'profissional' || perfil === 'comum')) ? (isDark ? 'text-emerald-400/80' : 'text-emerald-800') : (isDark ? 'text-slate-400' : 'text-slate-600')}`}>Serviços & Agenda</span>
                   </button>
                 </div>
               )}
@@ -608,6 +635,19 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
                     <span className={`text-[10px] mt-0.5 ${telaInicial === 'dashboard' ? (isDark ? 'text-emerald-400/80' : 'text-emerald-800') : (isDark ? 'text-slate-400' : 'text-slate-600')}`}>Cockpit F1 & Metas</span>
                   </button>
                 )}
+
+                <button
+                  type="button"
+                  onClick={() => setTelaInicial('agenda')}
+                  className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between cursor-pointer ${
+                    telaInicial === 'agenda'
+                      ? (isDark ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500 shadow-sm ring-1 ring-emerald-500/30 font-black' : 'bg-emerald-50 text-emerald-950 border-2 border-emerald-500 shadow-sm ring-1 ring-emerald-500/30 font-black')
+                      : (isDark ? 'bg-[#000000] border-slate-700 text-slate-300 hover:border-slate-600 hover:text-white font-bold' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black hover:border-slate-400 font-bold')
+                  }`}
+                >
+                  <span className={`text-xs font-black ${telaInicial === 'agenda' ? (isDark ? 'text-emerald-300' : 'text-emerald-950') : (isDark ? 'text-white' : 'text-black')}`}>Agenda</span>
+                  <span className={`text-[10px] mt-0.5 ${telaInicial === 'agenda' ? (isDark ? 'text-emerald-400/80' : 'text-emerald-800') : (isDark ? 'text-slate-400' : 'text-slate-600')}`}>Serviços & Fila</span>
+                </button>
 
                 <button
                   type="button"

@@ -499,11 +499,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let usuarioEncontrado: UsuarioLoja | null = null;
       let lojaAssociada: Loja | null = null;
 
+      const numLimpo = inputTrim.replace(/\D/g, '');
+      const orFiltro = inputTrim.includes('@')
+        ? `email.ilike.${emailTrim}`
+        : (numLimpo.length >= 10
+            ? `email.ilike.${emailTrim},email.ilike.${numLimpo}@hubi.internal,whatsapp_atendimento.eq.${numLimpo}`
+            : `email.ilike.${emailTrim}`);
+
       // 1. Prioridade: verificar se o usuário é um operador/administrador cadastrado em usuarios_loja
       const { data: usersFound } = await supabase
         .from('usuarios_loja')
         .select('*, loja:lojas(*)')
-        .ilike('email', emailTrim);
+        .or(orFiltro);
 
       if (usersFound && usersFound.length > 0) {
         const uCand = (usersFound.find(u => u.ativo !== false) || usersFound[0]) as any;
@@ -537,7 +544,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Sincronização em segundo plano não-bloqueante no Supabase Auth (se GoTrue estiver operante)
         if (senhaInformada.length > 0) {
           supabase.auth.signInWithPassword({
-            email: emailTrim,
+            email: uCand.email || emailTrim,
             password: senhaInformada
           }).then(({ data: authData }) => {
             if (authData?.session?.user && !uCand.usuario_auth_id) {

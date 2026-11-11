@@ -19,7 +19,7 @@ import { ModalExpedienteProfissional } from './agendamento/ModalExpedienteProfis
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { MobileHeader } from './layout/MobileHeader';
 import { useTheme } from '../contexts/ThemeContext';
-import { formatarMoeda } from '../utils/formatters';
+import { formatarMoeda, formatarTelefone } from '../utils/formatters';
 
 const CORES_PALETA = [
   '#10B981', // Emerald
@@ -447,7 +447,7 @@ export const UsuariosGestao: React.FC = () => {
                           )}
                         </div>
                         <span className={`text-[11px] block truncate ${isDark ? 'text-slate-400' : 'text-slate-600 font-semibold'}`}>
-                          {u.email || (isAdmin ? 'Administrador' : 'Vendedor')}
+                          {u.whatsapp_atendimento ? formatarTelefone(u.whatsapp_atendimento) : (u.email?.includes('@hubi.internal') ? formatarTelefone(u.email.split('@')[0]) : (u.email || (isAdmin ? 'Administrador' : 'Vendedor')))}
                         </span>
                       </div>
                     </div>
@@ -646,9 +646,9 @@ export const UsuariosGestao: React.FC = () => {
                               </span>
                             )}
 
-                            {!ehOwner && !ehAdmin && user.perfil !== 'gerente' && user.perfil !== 'vendedor' && (
-                              <span className="text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                                COMUM
+                            {!ehOwner && !ehAdmin && (user.perfil === 'profissional' || user.perfil === 'comum' || (user.perfil !== 'gerente' && user.perfil !== 'vendedor')) && (
+                              <span className="text-[10px] bg-teal-500/15 text-teal-800 dark:text-teal-400 border border-teal-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                                PROFISSIONAL
                               </span>
                             )}
 
@@ -674,7 +674,7 @@ export const UsuariosGestao: React.FC = () => {
                             )}
                           </div>
                           <span className={`text-xs truncate block mt-0.5 font-semibold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                            {user.email}
+                            {user.whatsapp_atendimento ? formatarTelefone(user.whatsapp_atendimento) : (user.email?.includes('@hubi.internal') ? formatarTelefone(user.email.split('@')[0]) : user.email)}
                           </span>
                         </div>
                       </div>

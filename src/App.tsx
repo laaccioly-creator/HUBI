@@ -74,12 +74,20 @@ const RedirecionamentoInicial: React.FC = () => {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Se o perfil for 'vendedor', 'comum' (ou qualquer perfil operacional sem acesso gerencial)
+  // Se o perfil for 'vendedor', 'profissional', 'comum' (ou qualquer perfil operacional sem acesso gerencial)
+  if (telaPref === 'agenda') {
+    return <Navigate to="/agenda" replace />;
+  }
   if (telaPref === 'pedidos' && permissions.podeAcessarPedidos) {
     return <Navigate to="/orders" replace />;
   }
   if (telaPref === 'vendas' && permissions.podeAcessarVendas) {
     return <Navigate to="/sales" replace />;
+  }
+
+  // Se o perfil for profissional e não houver preferência específica, abre diretamente na Agenda
+  if (usuario?.perfil === 'profissional') {
+    return <Navigate to="/agenda" replace />;
   }
 
   // Padrão operacional: PDV / Frente de Caixa
