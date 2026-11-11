@@ -71,9 +71,9 @@ export const ModalDetalhesProdutoCatalogo: React.FC<ModalDetalhesProdutoCatalogo
 
   if (!isOpen || !produto) return null;
 
-  const fotos = produto.fotos_urls && produto.fotos_urls.length > 0
+  const fotos = produto.fotos_urls && produto.fotos_urls.length > 0 && produto.fotos_urls[0]
     ? produto.fotos_urls
-    : ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=700&auto=format&fit=crop&q=80'];
+    : [];
 
   const temMaisDeUmaFoto = fotos.length > 1;
 
@@ -164,11 +164,17 @@ export const ModalDetalhesProdutoCatalogo: React.FC<ModalDetalhesProdutoCatalogo
 
           {/* CONTAINER DA IMAGEM: REDIMENSIONADO PARA H-44 SM:H-52 COM OBJECT-CONTAIN */}
           <div className="relative h-44 sm:h-52 w-full rounded-2xl overflow-hidden bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 select-none shadow-xs group flex items-center justify-center">
-            <img
-              src={fotos[fotoIdx]}
-              alt={`${produto.nome} - Foto ${fotoIdx + 1}`}
-              className="w-full h-full object-contain p-2 transition duration-300"
-            />
+            {fotos.length > 0 && fotos[fotoIdx] ? (
+              <img
+                src={fotos[fotoIdx]}
+                alt={`${produto.nome} - Foto ${fotoIdx + 1}`}
+                className="w-full h-full object-contain p-2 transition duration-300"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center p-2 text-center select-none bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500">
+                <span className="text-[10px] sm:text-xs font-medium text-center leading-tight select-none">Sem foto</span>
+              </div>
+            )}
 
             {/* TAG DE ESGOTADO OU PROMOÇÃO */}
             {isEsgotado ? (

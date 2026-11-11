@@ -988,8 +988,8 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                                 className="w-10 h-10 rounded-lg object-cover bg-slate-100 dark:bg-slate-900 shrink-0 border border-slate-200 dark:border-slate-800"
                               />
                             ) : (
-                              <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-900 flex items-center justify-center text-slate-400 dark:text-slate-500 shrink-0 border border-slate-200 dark:border-slate-800">
-                                <Boxes className="w-5 h-5" />
+                              <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center p-0.5 text-slate-400 dark:text-slate-500 shrink-0 border border-slate-200 dark:border-slate-700 select-none">
+                                <span className="text-[9px] font-medium text-center leading-tight select-none">Sem foto</span>
                               </div>
                             )}
 

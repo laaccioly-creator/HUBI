@@ -129,10 +129,10 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
                         }`}
                       />
                     ) : (
-                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center border shrink-0 ${
-                        isDark ? 'bg-slate-900 border-slate-800 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-400'
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center p-1 border shrink-0 select-none ${
+                        isDark ? 'bg-slate-800 border-slate-700 text-slate-500' : 'bg-slate-100 border-slate-200 text-slate-400'
                       }`}>
-                        <Package className="w-5 h-5" />
+                        <span className="text-[10px] sm:text-xs font-medium text-center leading-tight select-none">Sem foto</span>
                       </div>
                     )}
                   <div className="min-w-0">

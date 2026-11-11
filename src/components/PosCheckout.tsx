@@ -2388,7 +2388,7 @@ export const PosCheckout: React.FC = () => {
 
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-2">
                     {bloco.produtos.map((produto) => {
-                      const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
+                      const fotoUrl = produto.fotos_urls?.[0];
                       const estoqueQtd = produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0
                         ? produto.variacoes.reduce((acc, v) => acc + Number(v.quantidade_estoque || 0), 0)
                         : Number(produto.quantidade_estoque ?? 0);
@@ -2437,7 +2437,15 @@ export const PosCheckout: React.FC = () => {
                         >
                           <div>
                             <div className={`relative aspect-square rounded-lg overflow-hidden ${isDark ? 'bg-slate-950' : 'bg-slate-100'} mb-1.5`}>
-                              <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+                              {fotoUrl ? (
+                                <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+                              ) : (
+                                <div className={`w-full h-full flex items-center justify-center p-1 border select-none ${
+                                  isDark ? 'bg-slate-800 border-slate-700 text-slate-500' : 'bg-slate-100 border-slate-200 text-slate-400'
+                                }`}>
+                                  <span className="text-[10px] sm:text-xs font-medium text-center leading-tight select-none">Sem foto</span>
+                                </div>
+                              )}
                               {isEsgotado ? (
                                 <div className="absolute inset-0 bg-black/65 backdrop-blur-[1px] flex items-center justify-center p-1">
                                   <span className="bg-rose-600 text-white font-black text-[9px] px-1.5 py-0.5 rounded shadow uppercase tracking-wider">

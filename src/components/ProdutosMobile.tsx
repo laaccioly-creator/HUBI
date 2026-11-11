@@ -5813,9 +5813,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                       {p.fotos_urls && p.fotos_urls[0] ? (
                         <img src={p.fotos_urls[0]} alt={p.nome} className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center p-1 bg-slate-100 dark:bg-[#000000] text-slate-400 dark:text-slate-500 text-center select-none">
-                          <ImageOff className="w-4 h-4 opacity-50 mb-0.5" />
-                          <span className="text-[9px] font-medium leading-none tracking-tight">Sem foto</span>
+                        <div className="w-full h-full flex items-center justify-center p-1 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 text-center select-none">
+                          <span className="text-[10px] sm:text-xs font-medium text-center leading-tight select-none">Sem foto</span>
                         </div>
                       )}
                     </div>
@@ -5876,9 +5875,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     {p.fotos_urls && p.fotos_urls[0] ? (
                       <img src={p.fotos_urls[0]} alt={p.nome} className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center p-1 bg-slate-100 dark:bg-[#000000] text-slate-400 dark:text-slate-500 text-center select-none">
-                        <ImageOff className="w-4 h-4 opacity-50 mb-0.5" />
-                        <span className="text-[9px] font-medium leading-none tracking-tight">Sem foto</span>
+                      <div className="w-full h-full flex items-center justify-center p-1 bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 text-center select-none">
+                        <span className="text-[10px] sm:text-xs font-medium text-center leading-tight select-none">Sem foto</span>
                       </div>
                     )}
                   </div>

@@ -193,10 +193,14 @@ export const ModalFavoritosCliente: React.FC<ModalFavoritosClienteProps> = ({
                   <div className={`w-16 h-16 rounded-xl shrink-0 overflow-hidden flex items-center justify-center border ${
                     isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'
                   }`}>
-                    {prod.fotos_urls && prod.fotos_urls.length > 0 ? (
+                    {prod.fotos_urls && prod.fotos_urls.length > 0 && prod.fotos_urls[0] ? (
                       <img src={prod.fotos_urls[0]} alt={prod.nome} className="w-full h-full object-cover" />
                     ) : (
-                      <ShoppingBag className={`w-6 h-6 ${isDark ? 'text-slate-600' : 'text-slate-400'}`} />
+                      <div className={`w-full h-full flex items-center justify-center p-1 text-center select-none ${
+                        isDark ? 'bg-slate-800 text-slate-500' : 'bg-slate-100 text-slate-400'
+                      }`}>
+                        <span className="text-[10px] sm:text-xs font-medium text-center leading-tight select-none">Sem foto</span>
+                      </div>
                     )}
                   </div>
 

@@ -3165,7 +3165,7 @@ Fico no aguardo da confirmação! ✨`;
                   /* ================= MODO LISTA ================= */
                   <div className="space-y-2.5">
                     {bloco.produtos.map((produto) => {
-                      const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
+                      const fotoUrl = produto.fotos_urls?.[0];
                       const esgotado = isProdutoEsgotado(produto);
                       const badgeCatTexto = obterTextoBadgeCategoriaProduto(produto, categorias, loja?.id);
 
@@ -3180,7 +3180,13 @@ Fico no aguardo da confirmação! ✨`;
                               className="relative w-16 h-16 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-950 shrink-0 cursor-pointer hover:opacity-90 transition group/photo"
                               title="Clique para ver fotos e detalhes"
                             >
-                              <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover group-hover/photo:scale-105 transition duration-200" />
+                              {fotoUrl ? (
+                                <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover group-hover/photo:scale-105 transition duration-200" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center p-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 select-none">
+                                  <span className="text-[10px] sm:text-xs font-medium text-center leading-tight select-none">Sem foto</span>
+                                </div>
+                              )}
                               {esgotado && (
                                 <span className="absolute inset-0 bg-black/70 flex items-center justify-center text-[9px] font-black text-rose-300">
                                   ESGOTADO
@@ -3281,7 +3287,7 @@ Fico no aguardo da confirmação! ✨`;
                   /* ================= MODO INSTAVIEW (FEED) ================= */
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-4xl mx-auto">
                     {bloco.produtos.map((produto) => {
-                      const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=700&auto=format&fit=crop&q=80';
+                      const fotoUrl = produto.fotos_urls?.[0];
                       const esgotado = isProdutoEsgotado(produto);
 
                       return (
@@ -3294,7 +3300,13 @@ Fico no aguardo da confirmação! ✨`;
                             className="relative aspect-square w-full bg-slate-100 dark:bg-slate-950 cursor-pointer hover:opacity-95 transition group/photo"
                             title="Clique para ver fotos e detalhes"
                           >
-                            <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover group-hover/photo:scale-102 transition duration-300" />
+                            {fotoUrl ? (
+                              <img src={fotoUrl} alt={produto.nome} className="w-full h-full object-cover group-hover/photo:scale-102 transition duration-300" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center p-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 select-none">
+                                <span className="text-[10px] sm:text-xs font-medium text-center leading-tight select-none">Sem foto</span>
+                              </div>
+                            )}
                             <button
                               type="button"
                               onClick={(e) => {
@@ -3402,7 +3414,7 @@ Fico no aguardo da confirmação! ✨`;
                   /* ================= MODO GRADE (DEFAULT) ================= */
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
                     {bloco.produtos.map((produto) => {
-                      const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
+                      const fotoUrl = produto.fotos_urls?.[0];
                       const esgotado = isProdutoEsgotado(produto);
 
                       return (
@@ -3416,11 +3428,17 @@ Fico no aguardo da confirmação! ✨`;
                               className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-950 mb-2.5 cursor-pointer hover:opacity-95 transition group/photo"
                               title="Clique para ver fotos e detalhes"
                             >
-                              <img
-                                src={fotoUrl}
-                                alt={produto.nome}
-                                className="w-full h-full object-cover group-hover/photo:scale-105 transition duration-300"
-                              />
+                              {fotoUrl ? (
+                                <img
+                                  src={fotoUrl}
+                                  alt={produto.nome}
+                                  className="w-full h-full object-cover group-hover/photo:scale-105 transition duration-300"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center p-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 select-none">
+                                  <span className="text-[10px] sm:text-xs font-medium text-center leading-tight select-none">Sem foto</span>
+                                </div>
+                              )}
                               <button
                                 type="button"
                                 onClick={(e) => {

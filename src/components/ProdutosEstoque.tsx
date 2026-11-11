@@ -648,7 +648,7 @@ export const ProdutosEstoque: React.FC = () => {
               </thead>
               <tbody className={`divide-y ${isDark ? 'divide-slate-800 bg-[#000000]' : 'divide-slate-200 bg-white'}`}>
                   {produtosFiltrados.map((produto) => {
-                    const fotoUrl = produto.fotos_urls?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60';
+                    const fotoUrl = produto.fotos_urls?.[0];
                     const estoqueQtd = getEstoqueReal(produto);
                     const estoqueBaixo = estoqueQtd <= Number(produto.estoque_minimo_alerta || 0);
                     const temVariacoesGrade = Boolean(produto.tem_variacoes && Array.isArray(produto.variacoes) && produto.variacoes.length > 0);
@@ -661,11 +661,23 @@ export const ProdutosEstoque: React.FC = () => {
                             className="flex items-center gap-3 cursor-pointer group/prod select-none"
                             title="Clique para ver ficha completa e detalhes do produto"
                           >
-                            <img
-                              src={fotoUrl}
-                              alt={produto.nome}
-                              className={`w-11 h-11 rounded-xl object-cover shrink-0 group-hover/prod:scale-105 transition duration-150 ${isDark ? 'bg-[#000000] border border-slate-700 group-hover/prod:border-emerald-500' : 'bg-slate-100 border border-slate-300 group-hover/prod:border-emerald-600'}`}
-                            />
+                            {fotoUrl ? (
+                              <img
+                                src={fotoUrl}
+                                alt={produto.nome}
+                                className={`w-11 h-11 rounded-xl object-cover shrink-0 group-hover/prod:scale-105 transition duration-150 ${isDark ? 'bg-[#000000] border border-slate-700 group-hover/prod:border-emerald-500' : 'bg-slate-100 border border-slate-300 group-hover/prod:border-emerald-600'}`}
+                              />
+                            ) : (
+                              <div
+                                className={`w-11 h-11 rounded-xl shrink-0 flex items-center justify-center p-1 group-hover/prod:scale-105 transition duration-150 select-none ${
+                                  isDark
+                                    ? 'bg-slate-800 border border-slate-700 text-slate-500 group-hover/prod:border-emerald-500'
+                                    : 'bg-slate-100 border border-slate-200 text-slate-400 group-hover/prod:border-emerald-600'
+                                }`}
+                              >
+                                <span className="text-[10px] sm:text-xs font-medium text-center leading-tight select-none">Sem foto</span>
+                              </div>
+                            )}
                             <div className="min-w-0">
                               <span className={`font-bold block text-xs group-hover/prod:underline transition truncate ${isDark ? 'text-white group-hover/prod:text-emerald-400' : 'text-black group-hover/prod:text-emerald-700'}`}>
                                 {produto.nome}

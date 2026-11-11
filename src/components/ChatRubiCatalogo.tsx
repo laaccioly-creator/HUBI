@@ -980,10 +980,10 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
                                     }`}
                                   />
                                 ) : (
-                                  <div className={`w-12 h-12 rounded-xl border flex items-center justify-center shrink-0 ${
-                                    isDark ? 'bg-slate-900 border-slate-800 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-400'
+                                  <div className={`w-12 h-12 rounded-xl border flex items-center justify-center p-1 select-none shrink-0 ${
+                                    isDark ? 'bg-slate-800 border-slate-700 text-slate-500' : 'bg-slate-100 border-slate-200 text-slate-400'
                                   }`}>
-                                    <ShoppingBag className="w-5 h-5" />
+                                    <span className="text-[10px] font-medium text-center leading-tight select-none">Sem foto</span>
                                   </div>
                                 )}
                                 <div className="min-w-0 flex-1">
@@ -1161,14 +1161,16 @@ export const ChatRubiCatalogo: React.FC<ChatRubiCatalogoProps> = ({
 
             {/* Foto em destaque */}
             <div className="w-full h-44 rounded-2xl bg-slate-950 overflow-hidden border border-slate-800 flex items-center justify-center relative">
-              {produtoModalDetalhe.fotos_urls && produtoModalDetalhe.fotos_urls.length > 0 ? (
+              {produtoModalDetalhe.fotos_urls && produtoModalDetalhe.fotos_urls.length > 0 && produtoModalDetalhe.fotos_urls[0] ? (
                 <img
                   src={produtoModalDetalhe.fotos_urls[0]}
                   alt={produtoModalDetalhe.nome}
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <ShoppingBag className="w-12 h-12 text-slate-600" />
+                <div className="w-full h-full flex items-center justify-center p-2 text-center select-none bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500">
+                  <span className="text-[10px] sm:text-xs font-medium text-center leading-tight select-none">Sem foto</span>
+                </div>
               )}
             </div>
 

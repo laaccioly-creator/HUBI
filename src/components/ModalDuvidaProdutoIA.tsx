@@ -151,9 +151,8 @@ export const ModalDuvidaProdutoIA: React.FC<ModalDuvidaProdutoIAProps> = ({
                         }}
                       />
                     ) : (
-                      <div className="flex flex-col items-center justify-center text-slate-600 p-1 text-center">
-                        <Package className="w-5 h-5 sm:w-6 sm:h-6 text-slate-600" />
-                        <span className="text-[8px] text-slate-500 mt-0.5 font-medium">Sem foto</span>
+                      <div className="w-full h-full flex items-center justify-center p-1 text-center select-none bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500">
+                        <span className="text-[10px] sm:text-xs font-medium text-center leading-tight select-none">Sem foto</span>
                       </div>
                     )}
                   </div>

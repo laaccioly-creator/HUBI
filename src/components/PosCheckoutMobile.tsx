@@ -2082,8 +2082,10 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                                 decoding="async"
                               />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center text-slate-400">
-                                <Package className="w-8 h-8 opacity-40" />
+                              <div className={`w-full h-full flex items-center justify-center p-1 border select-none ${
+                                isDark ? 'bg-slate-800 border-slate-700 text-slate-500' : 'bg-slate-100 border-slate-200 text-slate-400'
+                              }`}>
+                                <span className="text-[10px] sm:text-xs font-medium text-center leading-tight select-none">Sem foto</span>
                               </div>
                             )}
 
@@ -2183,7 +2185,11 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                                   decoding="async"
                                 />
                               ) : (
-                                <Package className="w-5 h-5 text-slate-400 opacity-60" />
+                                <div className={`w-full h-full flex items-center justify-center p-1 select-none ${
+                                  isDark ? 'bg-slate-800 text-slate-500' : 'bg-slate-100 text-slate-400'
+                                }`}>
+                                  <span className="text-[10px] font-medium text-center leading-tight select-none">Sem foto</span>
+                                </div>
                               )}
                               {isEsgotado ? (
                                 <span className="absolute inset-0 bg-black/65 backdrop-blur-[1px] flex items-center justify-center text-[7px] font-black text-rose-300">

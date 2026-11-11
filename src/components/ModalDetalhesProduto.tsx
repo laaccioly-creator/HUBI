@@ -42,9 +42,9 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
 
   const fotos = produto.fotos_urls && produto.fotos_urls.length > 0
     ? produto.fotos_urls
-    : ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=60'];
+    : [];
 
-  const fotoPrincipal = fotos[fotoSelecionadaIdx] || fotos[0];
+  const fotoPrincipal = fotos[fotoSelecionadaIdx] || fotos[0] || null;
   const temEstoqueBaixo = estoqueReal <= Number(produto.estoque_minimo_alerta || 0);
 
   // MODO EXCLUSIVO DE DETALHAMENTO DE GRADE (ITEM 4)
@@ -201,11 +201,19 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
               <div className={`relative w-full max-w-[220px] sm:max-w-[240px] aspect-square rounded-2xl overflow-hidden border flex items-center justify-center shadow-xs ${
                 isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
               }`}>
-                <img
-                  src={fotoPrincipal}
-                  alt={produto.nome}
-                  className="w-full h-full object-cover"
-                />
+                {fotoPrincipal ? (
+                  <img
+                    src={fotoPrincipal}
+                    alt={produto.nome}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className={`w-full h-full flex items-center justify-center p-2 text-center select-none ${
+                    isDark ? 'bg-slate-800 text-slate-500' : 'bg-slate-100 text-slate-400'
+                  }`}>
+                    <span className="text-[10px] sm:text-xs font-medium text-center leading-tight select-none">Sem foto</span>
+                  </div>
+                )}
                 {produto.destaque && (
                   <span className="absolute top-2 left-2 bg-amber-500 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-full flex items-center gap-1 shadow">
                     <Star className="w-2.5 h-2.5 fill-current" /> Destaque
