@@ -39,7 +39,8 @@ import {
   AlertOctagon,
   Sparkles,
   Ticket,
-  Calendar
+  Calendar,
+  Scissors
 } from 'lucide-react';
 import { creditRiskJevService, AvaliacaoRiscoCredito } from '../services/creditRiskJevService';
 import { useNavigate } from 'react-router-dom';
@@ -2144,8 +2145,8 @@ export const PosCheckout: React.FC = () => {
         return false;
       }
 
-      // Filtro de produtos em estoque
-      if (apenasEmEstoque) {
+      // Filtro de produtos em estoque (serviços nunca são filtrados como esgotados)
+      if (apenasEmEstoque && p.tipo_item !== 'servico') {
         const estoqueTotal = p.tem_variacoes && p.variacoes && p.variacoes.length > 0
           ? p.variacoes.reduce((acc, v) => acc + Number(v.quantidade_estoque || 0), 0)
           : Number(p.quantidade_estoque || 0);
@@ -2389,11 +2390,12 @@ export const PosCheckout: React.FC = () => {
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-2">
                     {bloco.produtos.map((produto) => {
                       const fotoUrl = produto.fotos_urls?.[0];
+                      const ehServico = produto.tipo_item === 'servico';
                       const estoqueQtd = produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0
                         ? produto.variacoes.reduce((acc, v) => acc + Number(v.quantidade_estoque || 0), 0)
                         : Number(produto.quantidade_estoque ?? 0);
-                      const isEsgotado = estoqueQtd <= 0;
-                      const temEstoqueBaixo = estoqueQtd > 0 && estoqueQtd <= Number(produto.estoque_minimo_alerta || 0);
+                      const isEsgotado = !ehServico && estoqueQtd <= 0;
+                      const temEstoqueBaixo = !ehServico && estoqueQtd > 0 && estoqueQtd <= Number(produto.estoque_minimo_alerta || 0);
 
                       let precoFinal = produto.preco_venda_varejo;
                       if (tabelaPrecoCalculada === 'atacado' && produto.preco_venda_atacado) {
@@ -2419,12 +2421,16 @@ export const PosCheckout: React.FC = () => {
                               setProdutoModalVariacao(produto);
                             } else if (ehProdutoFracionado(produto)) {
                               setItemPesagemModal({ produto, quantidadeAtual: 1 });
-                            } else if (produto.tipo_item === 'servico' && produto.requer_agendamento) {
-                              setAgendamentoModal({
-                                aberto: true,
-                                produto,
-                                agendamentoExistente: null
-                              });
+                            } else if (produto.tipo_item === 'servico') {
+                              if (produto.requer_agendamento) {
+                                setAgendamentoModal({
+                                  aberto: true,
+                                  produto,
+                                  agendamentoExistente: null
+                                });
+                              } else {
+                                adicionarItem(produto);
+                              }
                             } else {
                               adicionarItem(produto);
                             }
@@ -2454,6 +2460,12 @@ export const PosCheckout: React.FC = () => {
                                 </div>
                               ) : (
                                 <>
+                                  {ehServico && (
+                                    <span className="absolute top-1 left-1 z-10 bg-emerald-600 text-white font-black text-[8px] px-1.5 py-0.5 rounded shadow uppercase tracking-wider flex items-center gap-1">
+                                      <Scissors className="w-2.5 h-2.5" />
+                                      Serviço
+                                    </span>
+                                  )}
                                   {produto.promocao_ativa && Number(produto.preco_promocional) > 0 && (
                                     <span className="absolute bottom-1 left-1 bg-rose-600 text-white font-black text-[8px] px-1.5 py-0.5 rounded shadow uppercase tracking-wider">
                                       PROMO

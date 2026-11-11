@@ -391,7 +391,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const itemExistente = itens.find(i => i.id === cartId);
     const qtdTotalDesejada = (itemExistente ? itemExistente.quantidade : 0) + quantidade;
 
-    if (controlaEstoque && !permiteNegativo && qtdTotalDesejada > estoqueDisponivel) {
+    if (!isServico && controlaEstoque && !permiteNegativo && qtdTotalDesejada > estoqueDisponivel) {
       alert(`⚠️ Estoque insuficiente para "${produto.nome}${variacao ? ` - ${variacao.valor_variacao_1}` : ''}".\nEstoque disponível: ${estoqueDisponivel} un.`);
       return;
     }
@@ -524,7 +524,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const isServico = prodAtualizado?.tipo_item === 'servico';
     const controlaEstoque = !isServico && loja?.configuracoes_extras?.controlar_estoque !== false && loja?.configuracoes_extras?.geral?.controlar_estoque !== false;
-    if (controlaEstoque) {
+    if (!isServico && controlaEstoque) {
       const permiteNegativo = Boolean(
         (varAtualizada as any)?.permite_estoque_negativo ||
         prodAtualizado.permite_estoque_negativo ||

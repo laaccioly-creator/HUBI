@@ -170,7 +170,7 @@ export const agendamentoService = {
   ): Promise<ProfissionalHorario[]> {
     const { data, error } = await supabase
       .from('profissional_horarios')
-      .select('*')
+      .select('id, loja_id, usuario_id, dia_semana, hora_inicio, hora_fim, tem_intervalo, intervalo_inicio, intervalo_fim, ativo')
       .eq('loja_id', lojaId)
       .eq('usuario_id', usuarioId)
       .order('dia_semana', { ascending: true });
@@ -262,71 +262,96 @@ export const agendamentoService = {
       return [];
     }
 
-    // Calcular dia da semana (0 = Domingo a 6 = Sábado)
+    // 1. Extrair dia da semana com fuso horário seguro pt-BR (forçando meio-dia local)
     const [ano, mes, dia] = dataStr.split('-').map(Number);
-    const dataRef = new Date(ano, mes - 1, dia);
-    const diaSemana = dataRef.getDay() as DiaSemana;
+    const dataLocal = new Date(ano, mes - 1, dia, 12, 0, 0);
+    const diaSemana = dataLocal.getDay() as DiaSemana;
 
-    // 1. Obter expediente do colaborador para este dia
-    const { data: expediente, error: expErr } = await supabase
+    // 2. Consulta de horários configurados do profissional
+    const { data: horarios, error: expErr } = await supabase
       .from('profissional_horarios')
-      .select('*')
+      .select('dia_semana, hora_inicio, hora_fim, tem_intervalo, intervalo_inicio, intervalo_fim, ativo')
       .eq('loja_id', lojaId)
       .eq('usuario_id', profissionalId)
-      .eq('dia_semana', diaSemana)
-      .eq('ativo', true)
-      .maybeSingle();
+      .eq('ativo', true);
 
-    if (expErr || !expediente) {
+    if (expErr) {
+      console.error('Erro ao consultar expediente do profissional:', expErr);
+      return [];
+    }
+
+    const expediente = (horarios || []).find((h) => Number(h.dia_semana) === Number(diaSemana));
+
+    if (!expediente || !expediente.hora_inicio || !expediente.hora_fim) {
       return []; // Profissional não atende neste dia
     }
 
-    // 2. Chamar RPC para obter agendamentos existentes na data (sem vazar PII)
-    const { data: ocupadosData, error: rpcErr } = await supabase.rpc(
-      'obter_horarios_ocupados_profissional',
-      {
-        p_loja_id: lojaId,
-        p_profissional_id: profissionalId,
-        p_data: dataStr
+    // 3. Obter agendamentos existentes na data para evitar conflitos
+    let ocupados: HorarioOcupado[] = [];
+    try {
+      const { data: ocupadosData, error: rpcErr } = await supabase.rpc(
+        'obter_horarios_ocupados_profissional',
+        {
+          p_loja_id: lojaId,
+          p_profissional_id: profissionalId,
+          p_data: dataStr
+        }
+      );
+
+      if (!rpcErr && ocupadosData) {
+        ocupados = ocupadosData as HorarioOcupado[];
+      } else {
+        // Fallback defensivo com consulta direta
+        const { data: directData } = await supabase
+          .from('agendamentos_servicos')
+          .select('hora_inicio, hora_fim, status, id')
+          .eq('loja_id', lojaId)
+          .eq('profissional_id', profissionalId)
+          .eq('data_agendamento', dataStr)
+          .in('status', ['agendado', 'confirmado', 'em_atendimento']);
+
+        if (directData) {
+          ocupados = directData
+            .filter((item) => !ignorarAgendamentoId || item.id !== ignorarAgendamentoId)
+            .map((item) => ({
+              hora_inicio: item.hora_inicio,
+              hora_fim: item.hora_fim,
+              status: item.status
+            }));
+        }
       }
-    );
-
-    if (rpcErr) {
-      console.error('Erro na RPC obter_horarios_ocupados_profissional:', rpcErr);
-      throw rpcErr;
+    } catch (err) {
+      console.warn('Aviso: consulta de agendamentos ocupados em fallback:', err);
     }
 
-    const ocupados: HorarioOcupado[] = (ocupadosData as HorarioOcupado[]) || [];
+    const faixasBloqueadas = ocupados.map((item) => ({
+      inicio: timeStringToMinutes(item.hora_inicio),
+      fim: timeStringToMinutes(item.hora_fim),
+      motivo: 'Horário já reservado'
+    }));
 
-    // 3. Montar faixas de bloqueio em minutos
-    const faixasBloqueadas: Array<{ inicio: number; fim: number; motivo: string }> = [];
-
-    // Intervalo de almoço/descanso
-    if (expediente.tem_intervalo && expediente.intervalo_inicio && expediente.intervalo_fim) {
-      faixasBloqueadas.push({
-        inicio: timeStringToMinutes(expediente.intervalo_inicio),
-        fim: timeStringToMinutes(expediente.intervalo_fim),
-        motivo: 'Intervalo de descanso'
-      });
-    }
-
-    // Agendamentos ocupados do dia
-    ocupados.forEach((item) => {
-      faixasBloqueadas.push({
-        inicio: timeStringToMinutes(item.hora_inicio),
-        fim: timeStringToMinutes(item.hora_fim),
-        motivo: 'Horário já reservado'
-      });
-    });
-
+    // 4. Dividir expediente em períodos úteis de trabalho (respeitando intervalo de almoço)
     const inicioExpediente = timeStringToMinutes(expediente.hora_inicio);
     const fimExpediente = timeStringToMinutes(expediente.hora_fim);
     const duracaoEfetiva = Math.max(duracaoMinutos || 30, 10);
 
-    // Passo de incremento de grade (ex: a cada 30 min ou pela duração do serviço se menor)
-    const passoIncremento = Math.min(duracaoEfetiva, 30);
+    const periodosDeTrabalho: Array<{ inicio: number; fim: number }> = [];
 
-    // Verificação de horários passados caso a data seja hoje
+    if (expediente.tem_intervalo && expediente.intervalo_inicio && expediente.intervalo_fim) {
+      const inicioIntervalo = timeStringToMinutes(expediente.intervalo_inicio);
+      const fimIntervalo = timeStringToMinutes(expediente.intervalo_fim);
+
+      if (inicioIntervalo > inicioExpediente) {
+        periodosDeTrabalho.push({ inicio: inicioExpediente, fim: inicioIntervalo });
+      }
+      if (fimExpediente > fimIntervalo) {
+        periodosDeTrabalho.push({ inicio: fimIntervalo, fim: fimExpediente });
+      }
+    } else {
+      periodosDeTrabalho.push({ inicio: inicioExpediente, fim: fimExpediente });
+    }
+
+    // 5. Verificação de horários passados caso a data seja hoje
     const agora = new Date();
     const hojeStr = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`;
     const ehHoje = dataStr === hojeStr;
@@ -334,40 +359,36 @@ export const agendamentoService = {
 
     const slots: SlotHorarioDisponivel[] = [];
 
-    for (let slotInicio = inicioExpediente; slotInicio + duracaoEfetiva <= fimExpediente; slotInicio += passoIncremento) {
-      const slotFim = slotInicio + duracaoEfetiva;
-      const horaInicioStr = minutesToTimeString(slotInicio);
-      const horaFimStr = minutesToTimeString(slotFim);
+    for (const periodo of periodosDeTrabalho) {
+      for (let slotInicio = periodo.inicio; slotInicio + duracaoEfetiva <= periodo.fim; slotInicio += duracaoEfetiva) {
+        const slotFim = slotInicio + duracaoEfetiva;
+        const horaInicioStr = minutesToTimeString(slotInicio);
+        const horaFimStr = minutesToTimeString(slotFim);
 
-      // Checar se já passou do horário atual no dia de hoje (com margem de 10 min)
-      if (ehHoje && slotInicio <= minutosAtuais + 10) {
-        slots.push({
-          hora_inicio: horaInicioStr,
-          hora_fim: horaFimStr,
-          disponivel: false,
-          motivo_indisponibilidade: 'Horário indisponível (já decorrido)'
-        });
-        continue;
-      }
+        // Se a data selecionada for hoje, descarta horários já decorridos
+        if (ehHoje && slotInicio <= minutosAtuais) {
+          continue;
+        }
 
-      // Checar sobreposição com intervalos ou outros agendamentos
-      const conflito = faixasBloqueadas.find((bloqueio) => {
-        return slotInicio < bloqueio.fim && slotFim > bloqueio.inicio;
-      });
+        // Checar sobreposição com agendamentos ocupados existentes
+        const conflito = faixasBloqueadas.find((bloqueio) => {
+          return slotInicio < bloqueio.fim && slotFim > bloqueio.inicio;
+        });
 
-      if (conflito) {
-        slots.push({
-          hora_inicio: horaInicioStr,
-          hora_fim: horaFimStr,
-          disponivel: false,
-          motivo_indisponibilidade: conflito.motivo
-        });
-      } else {
-        slots.push({
-          hora_inicio: horaInicioStr,
-          hora_fim: horaFimStr,
-          disponivel: true
-        });
+        if (conflito) {
+          slots.push({
+            hora_inicio: horaInicioStr,
+            hora_fim: horaFimStr,
+            disponivel: false,
+            motivo_indisponibilidade: conflito.motivo
+          });
+        } else {
+          slots.push({
+            hora_inicio: horaInicioStr,
+            hora_fim: horaFimStr,
+            disponivel: true
+          });
+        }
       }
     }
 

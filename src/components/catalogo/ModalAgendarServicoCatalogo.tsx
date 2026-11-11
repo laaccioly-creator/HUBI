@@ -420,7 +420,11 @@ export const ModalAgendarServicoCatalogo: React.FC<ModalAgendarServicoCatalogoPr
                 <span>Buscando horários livres com o profissional...</span>
               </div>
             ) : slots.length === 0 ? (
-              <div className="p-4 rounded-2xl border border-dashed border-amber-500/40 text-center text-xs text-amber-500">
+              <div className={`p-4 rounded-2xl border text-center text-xs font-semibold ${
+                isDark
+                  ? 'text-slate-200 bg-slate-800 border border-slate-700'
+                  : 'text-slate-800 bg-slate-100 border border-slate-300'
+              }`}>
                 Nenhum horário livre para este profissional em {formatarDataPtBr(dataSelecionada)}. Selecione outro dia acima.
               </div>
             ) : (
