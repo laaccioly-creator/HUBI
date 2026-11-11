@@ -669,19 +669,33 @@ async function obterMetricasCockpitFallback(
     console.warn('[dashboardService] Falha ao consultar fiados para fallback:', err);
   }
 
-  // 4. Giro de Estoque
+  // 4. Giro de Estoque & Saúde do Estoque (Exclusivo para produtos físicos)
   let giroEstoque = 0;
+  let itensEmRisco = 0;
+  let totalProdutosFisicos = 0;
   try {
     const { data: produtos } = await supabase
       .from('produtos')
-      .select('estoque_atual, preco_venda')
+      .select('quantidade_estoque, estoque_atual, estoque_minimo_alerta, preco_venda, preco_venda_varejo, tipo_item')
       .eq('loja_id', lojaId)
+      .neq('tipo_item', 'servico')
       .eq('ativo', true);
 
     if (produtos && produtos.length > 0) {
+      totalProdutosFisicos = produtos.length;
       const valorTotalEstoque = produtos.reduce((acc, pr) => {
-        return acc + (Number(pr.estoque_atual || 0) * Number(pr.preco_venda || 0));
+        const est = Number(pr.quantidade_estoque ?? pr.estoque_atual ?? 0);
+        const preco = Number(pr.preco_venda_varejo ?? pr.preco_venda ?? 0);
+        return acc + (est * preco);
       }, 0);
+
+      produtos.forEach(pr => {
+        const est = Number(pr.quantidade_estoque ?? pr.estoque_atual ?? 0);
+        const min = Number(pr.estoque_minimo_alerta || 0);
+        if (est <= 0 || (min > 0 && est <= min)) {
+          itensEmRisco++;
+        }
+      });
 
       if (valorTotalEstoque > 0) {
         giroEstoque = Math.round((faturamento / valorTotalEstoque) * 10000) / 100;
@@ -691,6 +705,10 @@ async function obterMetricasCockpitFallback(
     console.warn('[dashboardService] Falha ao consultar estoque para fallback:', err);
   }
 
+  const indiceRuptura = totalProdutosFisicos > 0
+    ? Math.round((itensEmRisco / totalProdutosFisicos) * 1000) / 10
+    : 0;
+
   return {
     faturamento: Math.round(faturamento * 100) / 100,
     pedidos: qtdPedidos,
@@ -699,7 +717,11 @@ async function obterMetricasCockpitFallback(
     despesas: Math.round(despesas * 100) / 100,
     lucro_liquido: lucroLiquido,
     inadimplencia,
-    giro_estoque: giroEstoque
+    giro_estoque: giroEstoque,
+    saude_estoque: indiceRuptura,
+    saude_estoque_itens_risco: itensEmRisco,
+    saude_estoque_itens_total: totalProdutosFisicos,
+    saude_estoque_tag: 'Base: Estoque Mínimo Geral'
   };
 }
 

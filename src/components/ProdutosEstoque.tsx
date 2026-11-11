@@ -298,6 +298,7 @@ export const ProdutosEstoque: React.FC = () => {
 
   // Funções utilitárias de cálculo de estoque por variação
   const getEstoqueReal = (p: Produto): number => {
+    if (p.tipo_item === 'servico') return 0;
     if (p.tem_variacoes && Array.isArray(p.variacoes) && p.variacoes.length > 0) {
       return p.variacoes.reduce((acc, v) => acc + Number(v.quantidade_estoque || 0), 0);
     }
@@ -305,6 +306,7 @@ export const ProdutosEstoque: React.FC = () => {
   };
 
   const getValorVendaEstoque = (p: Produto): number => {
+    if (p.tipo_item === 'servico') return 0;
     if (p.tem_variacoes && Array.isArray(p.variacoes) && p.variacoes.length > 0) {
       return p.variacoes.reduce((acc, v) => {
         const precoVar = Number(v.preco_venda_varejo) || Number(p.preco_venda_varejo) || 0;
@@ -315,6 +317,7 @@ export const ProdutosEstoque: React.FC = () => {
   };
 
   const getValorCustoEstoque = (p: Produto): number => {
+    if (p.tipo_item === 'servico') return 0;
     if (p.tem_variacoes && Array.isArray(p.variacoes) && p.variacoes.length > 0) {
       return p.variacoes.reduce((acc, v) => {
         const custoVar = Number(v.preco_custo) || Number(p.preco_custo) || 0;
@@ -324,10 +327,10 @@ export const ProdutosEstoque: React.FC = () => {
     return Number(p.quantidade_estoque || 0) * Number(p.preco_custo || 0);
   };
 
-  const totalItensEstoque = produtos.reduce((acc, p) => acc + getEstoqueReal(p), 0);
-  const valorTotalEstoque = produtos.reduce((acc, p) => acc + getValorVendaEstoque(p), 0);
-  const valorCustoEstoque = produtos.reduce((acc, p) => acc + getValorCustoEstoque(p), 0);
-  const produtosAlertaEstoque = produtos.filter(p => getEstoqueReal(p) <= Number(p.estoque_minimo_alerta));
+  const totalItensEstoque = produtos.filter(p => p.tipo_item !== 'servico').reduce((acc, p) => acc + getEstoqueReal(p), 0);
+  const valorTotalEstoque = produtos.filter(p => p.tipo_item !== 'servico').reduce((acc, p) => acc + getValorVendaEstoque(p), 0);
+  const valorCustoEstoque = produtos.filter(p => p.tipo_item !== 'servico').reduce((acc, p) => acc + getValorCustoEstoque(p), 0);
+  const produtosAlertaEstoque = produtos.filter(p => p.tipo_item !== 'servico' && getEstoqueReal(p) <= Number(p.estoque_minimo_alerta));
 
   const produtosFiltrados = produtos.filter(p => {
     const matchBusca =
@@ -343,8 +346,8 @@ export const ProdutosEstoque: React.FC = () => {
     const estoqueProduto = getEstoqueReal(p);
     const matchEstoque =
       filtroEstoque === 'todos' ||
-      (filtroEstoque === 'baixo' && estoqueProduto <= Number(p.estoque_minimo_alerta)) ||
-      (filtroEstoque === 'zerado' && estoqueProduto <= 0);
+      (filtroEstoque === 'baixo' && p.tipo_item !== 'servico' && estoqueProduto <= Number(p.estoque_minimo_alerta)) ||
+      (filtroEstoque === 'zerado' && p.tipo_item !== 'servico' && estoqueProduto <= 0);
 
     const matchAtivo =
       filtroAtivo === 'todos' ||
@@ -433,7 +436,7 @@ export const ProdutosEstoque: React.FC = () => {
                 isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
               }`}>
                 <span className={`text-xs font-bold uppercase tracking-wider block text-center ${isDark ? 'text-slate-300' : 'text-black font-extrabold'}`}>
-                  Total de Produtos
+                  Total de Itens
                 </span>
                 <span className={`text-lg sm:text-xl font-black tracking-tight block text-center font-mono ${isDark ? 'text-white' : 'text-black'}`}>
                   {produtos.length} itens
@@ -685,7 +688,9 @@ export const ProdutosEstoque: React.FC = () => {
                         </td>
 
                         <td className={`p-3.5 font-bold font-mono ${isDark ? 'text-white' : 'text-black'}`}>
-                          {produto.preco_venda_atacado ? (
+                          {produto.tipo_item === 'servico' ? (
+                            <span className={isDark ? 'text-slate-500' : 'text-slate-400'}>-</span>
+                          ) : produto.preco_venda_atacado ? (
                             <span className="font-bold font-mono">
                               {formatarMoeda(produto.preco_venda_atacado)}{' '}
                               <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>({produto.qtd_minima_atacado}+ un)</span>
@@ -697,56 +702,70 @@ export const ProdutosEstoque: React.FC = () => {
 
                         {/* Estoque Atual e Botões de Ação Padronizados */}
                         <td className="p-3.5">
-                          <div className="flex items-center gap-1.5 whitespace-nowrap">
-                            <span
-                              className={`px-2.5 py-1 rounded-xl text-[11px] font-extrabold inline-flex items-center gap-1 shrink-0 ${
-                                estoqueQtd <= 0
-                                  ? isDark ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40' : 'bg-rose-50 text-rose-700 border-2 border-rose-300'
-                                  : estoqueBaixo
-                                  ? isDark ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-amber-50 text-amber-800 border-2 border-amber-300'
-                                  : isDark
-                                  ? 'bg-[#000000] text-white border border-slate-700'
-                                  : 'bg-white text-black border-2 border-slate-300'
-                              }`}
-                            >
-                              {estoqueBaixo && <AlertTriangle className="w-3 h-3 text-amber-400" />}
-                              <span>{estoqueQtd} {produto.tipo_unidade || 'un'}</span>
-                            </span>
-
-                            {/* 1. Botão de Entrada Rápida de Estoque (Sempre primeiro) */}
-                            {permissions.podeGerenciarEstoque && (
-                              <button
-                                type="button"
-                                onClick={() => setProdutoEstoqueAlvo(produto)}
-                                className={`px-2 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer shadow-xs shrink-0 ${
+                          {produto.tipo_item === 'servico' ? (
+                            <div className="flex items-center gap-1.5 whitespace-nowrap">
+                              <span
+                                className={`px-2.5 py-1 rounded-xl text-[11px] font-bold inline-flex items-center gap-1 shrink-0 ${
                                   isDark
-                                    ? 'bg-[#000000] hover:bg-slate-900 border border-emerald-500/50 text-emerald-400'
-                                    : 'bg-white hover:bg-slate-50 border-2 border-emerald-300 text-emerald-800'
+                                    ? 'bg-slate-800/60 text-slate-400 border border-slate-700/80'
+                                    : 'bg-slate-100 text-slate-500 border border-slate-200'
                                 }`}
-                                title="Dar entrada por compra ou ajustar estoque"
                               >
-                                <PackagePlus className="w-3 h-3 text-emerald-500" />
-                                <span>Entrada</span>
-                              </button>
-                            )}
+                                Serviço
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 whitespace-nowrap">
+                              <span
+                                className={`px-2.5 py-1 rounded-xl text-[11px] font-extrabold inline-flex items-center gap-1 shrink-0 ${
+                                  estoqueQtd <= 0
+                                    ? isDark ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40' : 'bg-rose-50 text-rose-700 border-2 border-rose-300'
+                                    : estoqueBaixo
+                                    ? isDark ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-amber-50 text-amber-800 border-2 border-amber-300'
+                                    : isDark
+                                    ? 'bg-[#000000] text-white border border-slate-700'
+                                    : 'bg-white text-black border-2 border-slate-300'
+                                }`}
+                              >
+                                {estoqueBaixo && <AlertTriangle className="w-3 h-3 text-amber-400" />}
+                                <span>{estoqueQtd} {produto.tipo_unidade || 'un'}</span>
+                              </span>
 
-                            {/* 2. Botão Grade (Segundo, quando houver variações) */}
-                            {temVariacoesGrade && (
-                              <button
-                                type="button"
-                                onClick={() => setProdutoGradeModal(produto)}
-                                className={`px-2 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer shadow-xs shrink-0 ${
-                                  isDark
-                                    ? 'bg-[#000000] hover:bg-slate-900 border border-indigo-500/50 text-indigo-300'
-                                    : 'bg-white hover:bg-slate-50 border-2 border-indigo-300 text-indigo-900'
-                                }`}
-                                title="Ver estoque detalhado por cor, tamanho ou variação"
-                              >
-                                <Layers className="w-3 h-3 text-indigo-500" />
-                                <span>Grade</span>
-                              </button>
-                            )}
-                          </div>
+                              {/* 1. Botão de Entrada Rápida de Estoque (Sempre primeiro) */}
+                              {permissions.podeGerenciarEstoque && (
+                                <button
+                                  type="button"
+                                  onClick={() => setProdutoEstoqueAlvo(produto)}
+                                  className={`px-2 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer shadow-xs shrink-0 ${
+                                    isDark
+                                      ? 'bg-[#000000] hover:bg-slate-900 border border-emerald-500/50 text-emerald-400'
+                                      : 'bg-white hover:bg-slate-50 border-2 border-emerald-300 text-emerald-800'
+                                  }`}
+                                  title="Dar entrada por compra ou ajustar estoque"
+                                >
+                                  <PackagePlus className="w-3 h-3 text-emerald-500" />
+                                  <span>Entrada</span>
+                                </button>
+                              )}
+
+                              {/* 2. Botão Grade (Segundo, quando houver variações) */}
+                              {temVariacoesGrade && (
+                                <button
+                                  type="button"
+                                  onClick={() => setProdutoGradeModal(produto)}
+                                  className={`px-2 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer shadow-xs shrink-0 ${
+                                    isDark
+                                      ? 'bg-[#000000] hover:bg-slate-900 border border-indigo-500/50 text-indigo-300'
+                                      : 'bg-white hover:bg-slate-50 border-2 border-indigo-300 text-indigo-900'
+                                  }`}
+                                  title="Ver estoque detalhado por cor, tamanho ou variação"
+                                >
+                                  <Layers className="w-3 h-3 text-indigo-500" />
+                                  <span>Grade</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </td>
 
                         {/* Status Ativo: Sim / Não */}

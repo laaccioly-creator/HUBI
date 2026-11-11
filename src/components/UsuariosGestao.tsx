@@ -447,7 +447,7 @@ export const UsuariosGestao: React.FC = () => {
                           )}
                         </div>
                         <span className={`text-[11px] block truncate ${isDark ? 'text-slate-400' : 'text-slate-600 font-semibold'}`}>
-                          {u.whatsapp_atendimento ? formatarTelefone(u.whatsapp_atendimento) : (u.email?.includes('@hubi.internal') ? formatarTelefone(u.email.split('@')[0]) : (u.email || (isAdmin ? 'Administrador' : 'Vendedor')))}
+                          {u.whatsapp_atendimento ? formatarTelefone(u.whatsapp_atendimento) : ((u.email?.includes('@hubi.app') || u.email?.includes('@hubi.internal')) ? formatarTelefone(u.email.split('@')[0]) : (u.email || (isAdmin ? 'Administrador' : 'Vendedor')))}
                         </span>
                       </div>
                     </div>
@@ -674,7 +674,7 @@ export const UsuariosGestao: React.FC = () => {
                             )}
                           </div>
                           <span className={`text-xs truncate block mt-0.5 font-semibold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                            {user.whatsapp_atendimento ? formatarTelefone(user.whatsapp_atendimento) : (user.email?.includes('@hubi.internal') ? formatarTelefone(user.email.split('@')[0]) : user.email)}
+                            {user.whatsapp_atendimento ? formatarTelefone(user.whatsapp_atendimento) : ((user.email?.includes('@hubi.app') || user.email?.includes('@hubi.internal')) ? formatarTelefone(user.email.split('@')[0]) : user.email)}
                           </span>
                         </div>
                       </div>

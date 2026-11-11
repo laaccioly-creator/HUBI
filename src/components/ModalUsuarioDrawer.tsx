@@ -159,6 +159,13 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
   };
 
   useEffect(() => {
+    if (!isOpen) {
+      setSenha('');
+      setMostrarSenha(false);
+      setErro(null);
+      return;
+    }
+
     if (usuarioEdicao) {
       setNome(usuarioEdicao.nome_completo || '');
       const telInicial = usuarioEdicao.whatsapp_atendimento ||
@@ -167,12 +174,13 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
         usuarioEdicao.email || '';
       
       const apenasNums = telInicial.replace(/\D/g, '');
-      if (apenasNums.length === 11 || (apenasNums.length === 13 && apenasNums.startsWith('55'))) {
-        setCelular(formatarTelefoneInput(apenasNums.length === 13 ? apenasNums.slice(2) : apenasNums));
+      if (apenasNums.length === 10 || apenasNums.length === 11 || ((apenasNums.length === 12 || apenasNums.length === 13) && apenasNums.startsWith('55'))) {
+        setCelular(formatarTelefoneInput(apenasNums.startsWith('55') ? apenasNums.slice(2) : apenasNums));
       } else {
         setCelular(telInicial);
       }
       setSenha('');
+      setMostrarSenha(false);
       setAtivo(usuarioEdicao.ativo ?? true);
       const p = usuarioEdicao.perfil || 'comum';
       setPerfil(p);
@@ -208,6 +216,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
       setNome('');
       setCelular('');
       setSenha('');
+      setMostrarSenha(false);
       setAtivo(true);
       setPerfil('vendedor');
       setTelaInicial('pos');
@@ -305,18 +314,28 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
     const digitsCelular = celular.replace(/\D/g, '');
     const ehEmailTradicionalValido = Boolean(usuarioEdicao && celular.includes('@') && celular.includes('.'));
 
-    if (!ehEmailTradicionalValido && digitsCelular.length !== 11) {
-      setErro('Por favor, informe um número de Celular / WhatsApp válido com DDD (11 dígitos).');
+    const ehTelefoneValido = (digitsCelular.length === 10 || digitsCelular.length === 11) ||
+      (digitsCelular.startsWith('55') && (digitsCelular.length === 12 || digitsCelular.length === 13));
+
+    if (!ehEmailTradicionalValido && !ehTelefoneValido) {
+      setErro('Por favor, informe um número de Celular / WhatsApp válido com DDD (ex: 85 99999-1000).');
       return;
     }
 
-    const emailFinal = digitsCelular.length === 11
-      ? `${digitsCelular}@hubi.internal`
-      : celular.trim().toLowerCase();
+    let telefoneNormalizadoCom55 = digitsCelular;
+    if (digitsCelular.length === 10 || digitsCelular.length === 11) {
+      telefoneNormalizadoCom55 = `55${digitsCelular}`;
+    }
 
-    const whatsappFinal = digitsCelular.length === 11
-      ? digitsCelular
-      : (usuarioEdicao?.whatsapp_atendimento || null);
+    const emailFinal = ehEmailTradicionalValido
+      ? celular.trim().toLowerCase()
+      : `${telefoneNormalizadoCom55}@hubi.app`;
+
+    const whatsappFinal = ehEmailTradicionalValido
+      ? (usuarioEdicao?.whatsapp_atendimento || null)
+      : (digitsCelular.startsWith('55') && (digitsCelular.length === 12 || digitsCelular.length === 13)
+          ? digitsCelular.slice(2)
+          : digitsCelular);
 
     // Validação de senha
     if (!usuarioEdicao && (!senha || senha.length < 6)) {
@@ -363,9 +382,10 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
 
       onSalvo();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const msgErro = err instanceof Error ? err.message : 'Erro ao gravar usuário no banco de dados.';
       console.error('Erro ao salvar usuário:', err);
-      setErro(err.message || 'Erro ao gravar usuário no banco de dados.');
+      setErro(msgErro);
     } finally {
       setSalvando(false);
     }
@@ -479,7 +499,7 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
         )}
 
         {/* FORMULÁRIO UNIFICADO EM TELA ÚNICA */}
-        <form onSubmit={handleSalvarUsuario} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+        <form onSubmit={handleSalvarUsuario} autoComplete="off" className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
           
           {/* ========================================================================= */}
           {/* SEÇÃO 1: DADOS DO USUÁRIO & ACESSO                                        */}
@@ -526,10 +546,11 @@ export const ModalUsuarioDrawer: React.FC<ModalUsuarioDrawerProps> = ({
               <div className="relative">
                 <input
                   type={mostrarSenha ? 'text' : 'password'}
-                  placeholder={usuarioEdicao ? 'Deixe em branco para manter a senha atual' : '••••••••'}
+                  autoComplete="new-password"
+                  placeholder={usuarioEdicao ? 'Deixe em branco para manter a senha atual' : 'Digite a senha de acesso (mínimo 6 dígitos)'}
                   value={senha}
                   onChange={(e) => setSenha(e.target.value)}
-                  className={`w-full rounded-xl pl-3.5 pr-10 py-2.5 text-xs font-bold focus:outline-none transition border font-mono ${isDark ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-500'}`}
+                  className={`w-full rounded-xl pl-3.5 pr-10 py-2.5 text-xs font-bold focus:outline-none transition border font-mono placeholder:font-sans ${isDark ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-500'}`}
                 />
                 <button
                   type="button"

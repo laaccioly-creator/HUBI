@@ -450,8 +450,10 @@ export const dashboardJevService = {
       ? Math.round((totalInadimplente / totalDevedor) * 10000) / 100
       : 0;
 
+    // 6. Saúde do Estoque & Ruptura (exclui estritamente itens do tipo serviço)
+    const produtosFisicos = (produtosLoja || []).filter(prod => prod.tipo_item !== 'servico');
     let itensEmRisco = 0;
-    produtosLoja.forEach(prod => {
+    produtosFisicos.forEach(prod => {
       const est = Number(prod.quantidade_estoque || 0);
       const min = Number(prod.estoque_minimo_alerta || 0);
       if (est <= 0 || (min > 0 && est <= min)) {
@@ -459,8 +461,8 @@ export const dashboardJevService = {
       }
     });
 
-    const indiceRuptura = produtosLoja.length > 0
-      ? Math.round((itensEmRisco / produtosLoja.length) * 1000) / 10
+    const indiceRuptura = produtosFisicos.length > 0
+      ? Math.round((itensEmRisco / produtosFisicos.length) * 1000) / 10
       : 0;
 
     return {
@@ -472,7 +474,7 @@ export const dashboardJevService = {
       giro_estoque: indiceRuptura,
       saude_estoque: indiceRuptura,
       saude_estoque_itens_risco: itensEmRisco,
-      saude_estoque_itens_total: produtosLoja.length,
+      saude_estoque_itens_total: produtosFisicos.length,
       saude_estoque_tag: 'Base: Estoque Mínimo Geral',
       cmv: Math.round(cmv * 100) / 100,
       despesas: Math.round(despesas * 100) / 100,
@@ -555,6 +557,7 @@ export const dashboardJevService = {
               .from('produtos')
               .select('*')
               .eq('loja_id', id)
+              .neq('tipo_item', 'servico')
               .eq('ativo', true),
             supabase
               .from('lojas')
@@ -662,11 +665,12 @@ export const dashboardJevService = {
           .eq('loja_id', lojaId)
           .in('tipo', ['sangria', 'despesa']),
 
-        // Produtos ativos do catálogo
+        // Produtos físicos ativos do catálogo (excluindo serviços da auditoria de estoque)
         supabase
           .from('produtos')
           .select('*')
           .eq('loja_id', lojaId)
+          .neq('tipo_item', 'servico')
           .eq('ativo', true),
 
         // Detecção de maturidade da loja (data da primeira venda histórica)
@@ -1129,8 +1133,11 @@ export const dashboardJevService = {
       }
     });
 
-    // Ordenação do catálogo por faturamento acumulado
-    const produtosOrdenados = [...todosProdutos].sort((a, b) => {
+    // Filtro estrito: produtos físicos (exclui serviços de Curva ABC e Ruptura de Estoque)
+    const produtosFisicos = todosProdutos.filter(p => p.tipo_item !== 'servico');
+
+    // Ordenação do catálogo físico por faturamento acumulado
+    const produtosOrdenados = [...produtosFisicos].sort((a, b) => {
       const recA = receitaPorProduto.get(a.id) || 0;
       const recB = receitaPorProduto.get(b.id) || 0;
       return recB - recA;
@@ -1218,11 +1225,11 @@ export const dashboardJevService = {
         ? Math.round((produtosEmRisco.length / totalMonitorados) * 1000) / 10
         : 0;
     } else {
-      // Fase 1: Cold Start / Implantação - Ruptura geral do estoque
+      // Fase 1: Cold Start / Implantação - Ruptura geral do estoque físico
       subtituloTag = 'Base: Estoque Mínimo Geral';
-      totalMonitorados = todosProdutos.length;
+      totalMonitorados = produtosFisicos.length;
 
-      todosProdutos.forEach(p => {
+      produtosFisicos.forEach(p => {
         const estoque = Number(p.quantidade_estoque || 0);
         const minimo = Number(p.estoque_minimo_alerta || 0);
         if (estoque <= 0 || (minimo > 0 && estoque <= minimo)) {

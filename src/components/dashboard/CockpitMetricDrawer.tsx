@@ -846,7 +846,9 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <h4 className="text-xs font-bold text-black dark:text-white uppercase tracking-wider">
-                        {decomposicoes.saudeEstoque.fase === 'fase2'
+                        {decomposicoes.saudeEstoque.totalItensMonitorados === 0
+                          ? 'Catálogo de Serviços / Sem Mercadorias Físicas'
+                          : decomposicoes.saudeEstoque.fase === 'fase2'
                           ? 'Fase 2: Maturidade Operacional (Curva ABC)'
                           : 'Fase 1: Cold Start / Implantação'}
                       </h4>
@@ -855,7 +857,9 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                       </span>
                     </div>
                     <p className="text-xs text-black dark:text-slate-400 leading-relaxed">
-                      {decomposicoes.saudeEstoque.fase === 'fase2'
+                      {decomposicoes.saudeEstoque.totalItensMonitorados === 0
+                        ? 'Esta unidade opera exclusivamente com serviços ou itens sem controle de estoque físico, portanto não possui risco de desabastecimento.'
+                        : decomposicoes.saudeEstoque.fase === 'fase2'
                         ? 'Com mais de 30 dias de operação, o velocímetro protege exclusivamente os produtos da Classe A (responsáveis por 80% da sua receita), evitando perda de faturamento por desabastecimento.'
                         : 'Histórico inicial de vendas (< 30 dias). O indicador monitora todos os produtos cadastrados com estoque zerado ou abaixo do estoque mínimo de alerta.'}
                     </p>
@@ -962,7 +966,9 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                       <CheckCircle2 className="w-8 h-8 text-emerald-600 dark:text-emerald-400 mx-auto" />
                       <h4 className="text-sm font-bold text-black dark:text-white">Nenhum produto em risco de desabastecimento!</h4>
                       <p className="text-xs text-black dark:text-slate-400">
-                        {decomposicoes.saudeEstoque.fase === 'fase2'
+                        {decomposicoes.saudeEstoque.totalItensMonitorados === 0
+                          ? 'Esta unidade opera exclusivamente com serviços ou não possui mercadorias físicas monitoradas.'
+                          : decomposicoes.saudeEstoque.fase === 'fase2'
                           ? 'Todos os produtos da Classe A estão com estoque seguro acima do mínimo.'
                           : 'Todos os produtos ativos estão com níveis saudáveis de estoque.'}
                       </p>

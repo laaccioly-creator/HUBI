@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { UsuarioLoja, PerfilUsuario } from '../types';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://eylpiwynsbnmcacmwiqg.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_SNuv08eSyBClEQWGF3Z3oQ_28nI--9P';
+const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL || 'https://eylpiwynsbnmcacmwiqg.supabase.co';
+const supabaseAnonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY || 'sb_publishable_SNuv08eSyBClEQWGF3Z3oQ_28nI--9P';
 
 // Cliente isolado do Supabase Auth para registrar novos operadores sem sobrescrever a sessão do administrador local
 export const authClientIsolado = createClient(supabaseUrl, supabaseAnonKey, {
@@ -53,7 +53,39 @@ export const usuarioService = {
    */
   async salvarOperador(params: SalvarOperadorParams): Promise<UsuarioLoja> {
     const nomeLimpo = params.nomeCompleto.trim();
-    const emailLimpo = params.email.trim().toLowerCase();
+
+    // Normalização canônica do WhatsApp e E-mail técnico HUBI
+    // Padrão canônico: 55 + DDD + Número + @hubi.app (ex: 5585997374372@hubi.app)
+    const rawDigitsWhats = params.whatsappAtendimento ? params.whatsappAtendimento.replace(/\D/g, '') : '';
+    let emailLimpo = params.email.trim().toLowerCase();
+    let whatsappFinal: string | null = null;
+
+    if (rawDigitsWhats) {
+      const telefoneNormalizadoCom55 = (rawDigitsWhats.length === 10 || rawDigitsWhats.length === 11)
+        ? `55${rawDigitsWhats}`
+        : (rawDigitsWhats.startsWith('55') && (rawDigitsWhats.length === 12 || rawDigitsWhats.length === 13) ? rawDigitsWhats : `55${rawDigitsWhats}`);
+
+      // Se não for um e-mail tradicional externo (ex: @gmail.com), adota estritamente o padrão canônico @hubi.app
+      const ehEmailExterno = emailLimpo.includes('@') && !emailLimpo.includes('@hubi.');
+      if (!ehEmailExterno) {
+        emailLimpo = `${telefoneNormalizadoCom55}@hubi.app`;
+      }
+
+      whatsappFinal = rawDigitsWhats.startsWith('55') && (rawDigitsWhats.length === 12 || rawDigitsWhats.length === 13)
+        ? rawDigitsWhats.slice(2)
+        : rawDigitsWhats;
+    } else if (emailLimpo.includes('@hubi.internal') || emailLimpo.includes('@hubi.app')) {
+      const parteNumerica = emailLimpo.replace(/@hubi\.(internal|app)/, '').replace(/\D/g, '');
+      const telefoneNormalizadoCom55 = (parteNumerica.length === 10 || parteNumerica.length === 11)
+        ? `55${parteNumerica}`
+        : parteNumerica;
+      emailLimpo = `${telefoneNormalizadoCom55}@hubi.app`;
+      whatsappFinal = parteNumerica.startsWith('55') && (parteNumerica.length === 12 || parteNumerica.length === 13)
+        ? parteNumerica.slice(2)
+        : parteNumerica;
+    } else if (params.whatsappAtendimento) {
+      whatsappFinal = params.whatsappAtendimento.trim();
+    }
 
     let authUserId: string | null = params.usuarioAuthId || null;
 
@@ -119,7 +151,7 @@ export const usuarioService = {
       loja_id: params.lojaId,
       nome_completo: nomeLimpo,
       email: emailLimpo,
-      whatsapp_atendimento: params.whatsappAtendimento?.trim() || null,
+      whatsapp_atendimento: whatsappFinal,
       perfil: params.perfil,
       pode_trocar_loja: ehOwner ? true : (ehAdmin ? Boolean(params.podeTrocarLoja) : false),
       pode_uso_celular_pessoal: ehAdmin ? true : (params.podeUsoCelularPessoal ?? true),
