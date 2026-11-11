@@ -543,7 +543,7 @@ export const CadastrosAuxiliares: React.FC = () => {
           .from('categorias')
           .update({
             nome: catNome.trim().toUpperCase(),
-            icone: catIcone.trim() || '📦',
+            icone: catEditando.icone || null,
             categoria_pai_id: null
           })
           .eq('id', catEditando.id);
@@ -557,7 +557,7 @@ export const CadastrosAuxiliares: React.FC = () => {
           .insert([{
             loja_id: loja.id,
             nome: catNome.trim().toUpperCase(),
-            icone: catIcone.trim() || '📦',
+            icone: null,
             ordem_exibicao: maxOrdem,
             ativo: true,
             categoria_pai_id: null
@@ -613,7 +613,7 @@ export const CadastrosAuxiliares: React.FC = () => {
               .insert([{
                 loja_id: loja.id,
                 nome: sub.nome.trim().toUpperCase(),
-                icone: catIcone.trim() || '📦',
+                icone: null,
                 categoria_pai_id: categoriaPaiId,
                 ativo: true
               }])
@@ -1446,8 +1446,8 @@ export const CadastrosAuxiliares: React.FC = () => {
   const isDirtyPrecificacao = Boolean(modalSecaoAberta === 'precificacao' && snapshotPrecificacaoInicial && snapshotPrecificacaoAtual !== snapshotPrecificacaoInicial);
   const isDirtyCategoria = modalCategoriaAberta && Boolean(
     catEditando
-      ? (catNome.trim() !== (catEditando.nome || '').trim() || (catIcone.trim() || '📦') !== (catEditando.icone || '📦'))
-      : (catNome.trim() || (catIcone.trim() && catIcone.trim() !== '📦'))
+      ? catNome.trim() !== (catEditando.nome || '').trim()
+      : Boolean(catNome.trim())
   );
   const isDirtyUnidade = modalUnidadeAberta && Boolean(
     unidadeEditando
@@ -2169,33 +2169,26 @@ export const CadastrosAuxiliares: React.FC = () => {
                               : 'bg-white border-2 border-slate-300 hover:border-slate-400'
                           }`}
                         >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className={`w-10 h-10 rounded-xl border flex items-center justify-center text-lg shrink-0 ${
-                                isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-100 border-slate-200'
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0 text-left">
+                              <h3 className={`font-semibold text-sm leading-snug group-hover:text-emerald-500 transition line-clamp-2 break-words ${
+                                isDark ? 'text-white' : 'text-black'
+                              }`} title={cat.nome}>
+                                {cat.nome}
+                              </h3>
+                              <span className={`text-xs font-medium block mt-0.5 ${
+                                isDark ? 'text-slate-400' : 'text-slate-600'
                               }`}>
-                                {cat.icone || '📦'}
-                              </div>
-                              <div className="min-w-0">
-                                <h3 className={`font-bold text-xs group-hover:text-emerald-500 transition truncate ${
-                                  isDark ? 'text-white' : 'text-black'
-                                }`}>
-                                  {cat.nome}
-                                </h3>
-                                <span className={`text-xs font-semibold ${
-                                  isDark ? 'text-slate-400' : 'text-slate-600'
-                                }`}>
-                                  {qtdProdsTotal} {qtdProdsTotal === 1 ? 'produto' : 'produtos'}
-                                  {(cat.subcategorias || []).length > 0 && (
-                                    <span className="text-[10px] text-emerald-500 font-bold ml-1.5">
-                                      • {(cat.subcategorias || []).length} subcat(s)
-                                    </span>
-                                  )}
-                                </span>
-                              </div>
+                                {qtdProdsTotal} {qtdProdsTotal === 1 ? 'produto' : 'produtos'}
+                                {(cat.subcategorias || []).length > 0 && (
+                                  <span className="text-[10px] text-emerald-500 font-bold ml-1.5">
+                                    • {(cat.subcategorias || []).length} subcat(s)
+                                  </span>
+                                )}
+                              </span>
                             </div>
 
-                            <div className="flex items-center gap-1 shrink-0">
+                            <div className="flex items-center gap-1 shrink-0 pt-0.5">
                               <button
                                 type="button"
                                 onClick={() => abrirModalEditarCategoria(cat)}
@@ -3351,21 +3344,6 @@ export const CadastrosAuxiliares: React.FC = () => {
                       : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-500'
                   }`}
                   required
-                />
-              </div>
-
-              <div>
-                <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Ícone / Emoji:</label>
-                <input
-                  type="text"
-                  value={catIcone}
-                  onChange={(e) => setCatIcone(e.target.value)}
-                  className={`w-full rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none transition border ${
-                    isDark
-                      ? 'bg-[#08131A] border-slate-700 text-white focus:border-emerald-500'
-                      : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-500'
-                  }`}
-                  placeholder="Ex: 📦, 🧴, 🥤, 👗, 🍔"
                 />
               </div>
 
