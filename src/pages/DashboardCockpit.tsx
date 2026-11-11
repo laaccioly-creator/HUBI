@@ -9,6 +9,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  ChevronUp,
+  ArrowRight,
   Check,
   Zap,
   Menu,
@@ -43,6 +45,8 @@ import { ConfiguracoesMetas } from '../components/configuracoes/ConfiguracoesMet
 import { ModalEntradaEstoque } from '../components/ModalEntradaEstoque';
 import { ModalAdicionarLoja } from '../components/lojas/ModalAdicionarLoja';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
+import { useLojaProntidao } from '../hooks/useLojaProntidao';
+import { ModalChecklistConfiguracao } from '../components/configuracoes/ModalChecklistConfiguracao';
 import { supabase } from '../lib/supabase';
 
 export const DashboardCockpit: React.FC = () => {
@@ -92,6 +96,26 @@ export const DashboardCockpit: React.FC = () => {
   const [revalidando, setRevalidando] = useState<boolean>(false);
   const [erroCarregamento, setErroCarregamento] = useState<string | null>(null);
   const [modalMetasAberto, setModalMetasAberto] = useState<boolean>(false);
+
+  // Checklist de Prontidão da Loja (Onboarding Guiado)
+  const { totalConcluidas, percentual, tudoPronto, etapaFoco } = useLojaProntidao();
+  const [modalChecklistAberto, setModalChecklistAberto] = useState<boolean>(false);
+  const storageKeyChecklistMin = `hubi_checklist_min_${loja?.id || 'default'}`;
+  const [checklistMinimizado, setChecklistMinimizado] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem(storageKeyChecklistMin) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleChecklistMinimizado = () => {
+    const novo = !checklistMinimizado;
+    setChecklistMinimizado(novo);
+    try {
+      sessionStorage.setItem(storageKeyChecklistMin, String(novo));
+    } catch {}
+  };
 
   // Estados da Gaveta Lateral e Entrada de Estoque
   const [drawerMetrica, setDrawerMetrica] = useState<TipoMetricaCockpitDrawer | null>(null);
@@ -894,6 +918,89 @@ export const DashboardCockpit: React.FC = () => {
           </div>
         )}
 
+        {/* 🚀 Primeiros Passos: Checklist de Prontidão da Loja */}
+        {!tudoPronto && (
+          checklistMinimizado ? (
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-3.5 sm:p-4 flex items-center justify-between text-xs text-emerald-400 animate-in fade-in">
+              <div className="flex items-center gap-2.5">
+                <Sparkles className="w-4 h-4 text-emerald-500 shrink-0" />
+                <span className="font-bold">Primeiros Passos:</span>
+                <span className="hidden sm:inline">Checklist de Prontidão da Loja:</span>
+                <span className="font-black text-white">{totalConcluidas}/6 etapas ({percentual}%)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setModalChecklistAberto(true)}
+                  className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition cursor-pointer shadow-sm"
+                >
+                  Abrir Guia
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleChecklistMinimizado}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white transition cursor-pointer"
+                  title="Expandir card de primeiros passos"
+                >
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-emerald-500/15 via-teal-500/10 to-indigo-500/5 border-2 border-emerald-500/30 text-left animate-in fade-in duration-200">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3.5">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-emerald-500 text-slate-950 flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/25 font-black mt-0.5">
+                    <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-sm sm:text-base font-black text-emerald-400 flex items-center gap-2">
+                      <span>🚀 Primeiros Passos: Checklist de Prontidão da Loja</span>
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-2xl">
+                      Sua loja está em fase de configuração. Complete os passos essenciais para liberar vendas e agendamentos.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={toggleChecklistMinimizado}
+                  className="text-xs text-slate-400 hover:text-slate-200 p-1 rounded-lg transition cursor-pointer shrink-0 flex items-center gap-1"
+                  title="Recolher card"
+                >
+                  <span className="hidden sm:inline">Recolher</span>
+                  <ChevronUp className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Barra de Progresso e Ação */}
+              <div className="mt-4 pt-3 border-t border-emerald-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-black text-emerald-300">
+                    {totalConcluidas}/6 etapas concluídas ({percentual}%)
+                  </span>
+                  <div className="w-32 sm:w-44 h-2.5 rounded-full bg-slate-800 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500"
+                      style={{ width: `${percentual}%` }}
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setModalChecklistAberto(true)}
+                  className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95 self-start sm:self-auto"
+                >
+                  <span>Abrir Guia de Configuração (Passo {etapaFoco?.ordem || 1})</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )
+        )}
+
         {/* Grid dos 6 Cockpits Esportivos */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
           
@@ -1087,6 +1194,12 @@ export const DashboardCockpit: React.FC = () => {
           dashboardJevService.invalidarCache();
           carregarMetricas(true);
         }}
+      />
+
+      {/* Modal Wizard de Checklist de Configuração Inicial */}
+      <ModalChecklistConfiguracao
+        isOpen={modalChecklistAberto}
+        onClose={() => setModalChecklistAberto(false)}
       />
 
     </div>

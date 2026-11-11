@@ -25,13 +25,13 @@ serve(async (req: Request) => {
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       q = body.q || body.termo || "";
-      apiKey = body.api_key || body.apiKey || "";
+      apiKey = body.serpApiKey || body.api_key || body.apiKey || "";
       lojaId = body.loja_id || body.lojaId || "";
       num = Math.min(body.num || 10, 10);
     } else {
       const url = new URL(req.url);
       q = url.searchParams.get("q") || url.searchParams.get("termo") || "";
-      apiKey = url.searchParams.get("api_key") || url.searchParams.get("apiKey") || "";
+      apiKey = url.searchParams.get("serpApiKey") || url.searchParams.get("api_key") || url.searchParams.get("apiKey") || "";
       lojaId = url.searchParams.get("loja_id") || url.searchParams.get("lojaId") || "";
       num = Math.min(parseInt(url.searchParams.get("num") || "10", 10), 10);
     }
@@ -82,7 +82,7 @@ serve(async (req: Request) => {
     if (!apiKey) {
       return new Response(
         JSON.stringify({
-          error: "Chave de API do Serper não configurada para esta loja.",
+          error: "Chave do Serper.dev não configurada para esta loja.",
           error_type: "auth",
         }),
         {
@@ -131,7 +131,7 @@ serve(async (req: Request) => {
     ) {
       return new Response(
         JSON.stringify({
-          error: "Chave de API do Serper inválida ou não autorizada.",
+          error: "Chave do Serper.dev inválida ou expirada.",
           error_type: "auth",
           details: serperData.message || null,
         }),

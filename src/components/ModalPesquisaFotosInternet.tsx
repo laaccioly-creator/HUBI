@@ -147,10 +147,10 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
       console.error('Erro na busca de fotos:', err);
       if (err instanceof SerpApiQuotaError || err?.name === 'SerpApiQuotaError') {
         setModalQuotaAberta(true);
-        setErro('Limite mensal de 250 buscas atingido na SerpApi. Suas buscas gratuitas renovam no início do próximo mês.');
+        setErro('Limite de cota de pesquisas gratuitas do Serper.dev atingido. Suas buscas gratuitas renovam ou adquira novos créditos.');
       } else if (err instanceof SerpApiAuthError || err?.name === 'SerpApiAuthError') {
         setErroAutenticacao(true);
-        setErro('Chave da SerpApi inválida ou expirada. Clique no botão abaixo para redefinir sua chave.');
+        setErro('Chave do Serper.dev inválida ou expirada. Clique no botão abaixo para redefinir sua chave.');
       } else if (err?.message?.includes('Tempo limite')) {
         setErro('A busca na web demorou mais de 30 segundos para responder. Tente pesquisar novamente ou cole a imagem diretamente com Ctrl+V.');
       } else {
@@ -365,7 +365,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
                   className="mt-2 px-4 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-black text-xs flex items-center gap-2 transition cursor-pointer shadow-lg shadow-teal-500/20"
                 >
                   <Key className="w-4 h-4" />
-                  <span>Configurar Chave SerpApi Agora</span>
+                  <span>Configurar Chave Serper.dev</span>
                 </button>
               )}
               {!erroAutenticacao && (

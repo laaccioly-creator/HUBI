@@ -9,7 +9,8 @@ import {
   Loader2,
   AlertCircle,
   CornerDownRight,
-  Tags
+  Tags,
+  Sparkles
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -34,6 +35,40 @@ interface SubcategoriaChip {
   id?: string;
   nome: string;
 }
+
+interface NichoSugestao {
+  nome: string;
+  categoriaPrincipal: string;
+  subcategorias: string[];
+}
+
+const NICHOS_SUGESTOES: NichoSugestao[] = [
+  {
+    nome: 'Informática / TI',
+    categoriaPrincipal: 'Serviços e Manutenção',
+    subcategorias: ['Formatação', 'Limpeza Física', 'Troca de Peças', 'Suporte Remoto', 'Periféricos']
+  },
+  {
+    nome: 'Barbearia / Salão',
+    categoriaPrincipal: 'Cortes & Barba',
+    subcategorias: ['Corte Masculino', 'Barba Terapia', 'Pezinho / Acabamento', 'Química / Pigmentação', 'Pomadas & Óleos']
+  },
+  {
+    nome: 'Mercadinho / Alimentos',
+    categoriaPrincipal: 'Mercearia & Alimentos',
+    subcategorias: ['Bebidas', 'Laticínios', 'Padaria & Frios', 'Higiene & Limpeza', 'Hortifrúti']
+  },
+  {
+    nome: 'Moda / Vestuário',
+    categoriaPrincipal: 'Roupas & Acessórios',
+    subcategorias: ['Camisetas', 'Bermudas & Calças', 'Vestidos', 'Calçados', 'Acessórios']
+  },
+  {
+    nome: 'Oficina / Mecânica',
+    categoriaPrincipal: 'Peças & Manutenção Automotiva',
+    subcategorias: ['Troca de Óleo', 'Freios & Suspensão', 'Alinhamento & Balanceamento', 'Revisão Geral', 'Baterias']
+  }
+];
 
 export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> = ({
   isOpen,
@@ -60,6 +95,20 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
     aberto: false,
     categoria: null
   });
+
+  // Auxílio da Rubi IA para sugerir categorias do ramo
+  const geminiAtivo = Boolean(
+    loja?.gemini_api_key?.trim() ||
+    loja?.configuracoes_extras?.ia?.gemini_api_key?.trim()
+  );
+  const [mostrarSugestoesNichos, setMostrarSugestoesNichos] = useState(false);
+
+  const aplicarSugestaoNicho = (nicho: NichoSugestao) => {
+    setNovoNome(nicho.categoriaPrincipal);
+    setSubcategoriasForm(nicho.subcategorias.map((nome) => ({ nome })));
+    setMostrarSugestoesNichos(false);
+    setErroMsg(null);
+  };
 
   const arvoreCategorias = useMemo(
     () => obterArvoreCategorias(categorias, loja?.id),
@@ -430,19 +479,71 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
           onSubmit={handleSalvarFormularioCategoria}
           className="space-y-3 bg-white dark:bg-[#050C10] border-2 border-slate-300 dark:border-slate-700 rounded-xl p-3.5 shrink-0"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <label className="text-xs font-extrabold text-black dark:text-white uppercase tracking-wider">
               {categoriaEditando ? `Editando Categoria: ${categoriaEditando.nome}` : 'Nome da Categoria Principal'}
             </label>
-            {categoriaEditando && (
-              <button
-                type="button"
-                onClick={cancelarEdicao}
-                className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
-              >
-                Cancelar edição
-              </button>
-            )}
+
+            <div className="flex items-center gap-2">
+              {geminiAtivo && !categoriaEditando && (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setMostrarSugestoesNichos(!mostrarSugestoesNichos)}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer active:scale-95 shadow-2xs"
+                    title="A Rubi IA sugere categorias e subcategorias recomendadas para o seu ramo"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Sugerir Categorias do meu Ramo</span>
+                  </button>
+
+                  {mostrarSugestoesNichos && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-20"
+                        onClick={() => setMostrarSugestoesNichos(false)}
+                      />
+                      <div className="absolute right-0 top-full mt-1.5 z-30 w-72 p-2 rounded-2xl bg-white dark:bg-slate-900 border-2 border-emerald-500/30 shadow-2xl space-y-1 animate-in fade-in zoom-in-95">
+                        <div className="px-2 py-1 text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-1.5">
+                          <span>Escolha seu Ramo:</span>
+                          <span className="text-[9px] text-emerald-500 font-bold">Rubi IA</span>
+                        </div>
+                        {NICHOS_SUGESTOES.map((nicho) => (
+                          <button
+                            key={nicho.nome}
+                            type="button"
+                            onClick={() => aplicarSugestaoNicho(nicho)}
+                            className="w-full text-left px-2.5 py-2 rounded-xl hover:bg-emerald-500/10 dark:hover:bg-emerald-500/20 text-xs font-semibold flex flex-col gap-0.5 transition cursor-pointer group"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-emerald-500">
+                                {nicho.nome}
+                              </span>
+                              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
+                                Preencher
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                              {nicho.categoriaPrincipal} ({nicho.subcategorias.slice(0, 3).join(', ')}...)
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {categoriaEditando && (
+                <button
+                  type="button"
+                  onClick={cancelarEdicao}
+                  className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
+                >
+                  Cancelar edição
+                </button>
+              )}
+            </div>
           </div>
 
           <input

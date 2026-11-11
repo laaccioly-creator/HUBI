@@ -15,14 +15,14 @@ export interface FotoResultadoSerpApi {
 }
 
 export class SerpApiQuotaError extends Error {
-  constructor(message = 'Limite de cota da SerpApi atingido (250 buscas mensais).') {
+  constructor(message = 'Limite de cota de pesquisas gratuitas do Serper.dev atingido.') {
     super(message);
     this.name = 'SerpApiQuotaError';
   }
 }
 
 export class SerpApiAuthError extends Error {
-  constructor(message = 'Chave de API SerpApi inválida ou não autorizada.') {
+  constructor(message = 'Chave do Serper.dev inválida ou expirada.') {
     super(message);
     this.name = 'SerpApiAuthError';
   }
@@ -354,10 +354,43 @@ export const testarConexaoSerpApi = async (
   }
 
   // -------------------------------------------------------------------------
-  // MÉTODO 1: Supabase RPC (PostgreSQL extensions.http) - Mais Confiável (Sem CORS)
+  // MÉTODO 1: Supabase Edge Function (Serper.dev) - Padrão Canônico
   // -------------------------------------------------------------------------
   try {
-    logSerp('📡 [Método 1/4] Supabase RPC (testar_conexao_serpapi_rpc)...');
+    logSerp('📡 [Método 1/4] Supabase Edge Function Serper.dev (buscar-fotos-serpapi)...');
+    const { data: edgeData, error: edgeError } = await supabase.functions.invoke('buscar-fotos-serpapi', {
+      body: { q: 'teste', api_key: chaveLimpa, num: 1 }
+    });
+
+    if (!edgeError && edgeData && (Array.isArray(edgeData.results) || Array.isArray(edgeData.images))) {
+      logSerpSucesso('Conexão testada com sucesso via Edge Function Serper.dev!', edgeData);
+      return {
+        sucesso: true,
+        mensagem: 'Conexão estabelecida com sucesso com o Serper.dev!',
+        plano: 'Plano Gratuito (2.500 buscas)',
+        buscasRestantes: 2500
+      };
+    }
+    if (edgeError) {
+      let msg = 'Chave do Serper.dev inválida ou expirada.';
+      try {
+        const body = await (edgeError as any)?.context?.json?.();
+        if (body?.error) msg = body.error;
+      } catch {}
+      const status = (edgeError as any)?.context?.status;
+      if (status === 401 || status === 403 || msg.toLowerCase().includes('chave') || msg.toLowerCase().includes('invalid')) {
+        return { sucesso: false, mensagem: msg };
+      }
+    }
+  } catch (e: any) {
+    logSerpAviso('Exceção ao testar Edge Function Serper.dev:', e.message);
+  }
+
+  // -------------------------------------------------------------------------
+  // MÉTODO 2: Supabase RPC (PostgreSQL extensions.http) - Fallback Legado
+  // -------------------------------------------------------------------------
+  try {
+    logSerp('📡 [Método 2/4] Supabase RPC legado (testar_conexao_serpapi_rpc)...');
     const { data: rpcData, error: rpcError } = await supabase.rpc('testar_conexao_serpapi_rpc', {
       p_api_key: chaveLimpa
     });
@@ -728,35 +761,66 @@ export const buscarFotosGoogleImagesSerpApi = async (
             throw new SerpApiQuotaError(rpcData.mensagem);
           }
           if (rpcData.error_type === 'auth' || rpcData.status === 401 || rpcData.status === 403) {
-            throw new SerpApiAuthError(rpcData.mensagem);
+            logSerpAviso('RPC legado SerpApi retornou não autorizado (chave pode ser do Serper.dev):', rpcData.mensagem);
+            return [];
           }
           if (rpcData.sucesso && Array.isArray(rpcData.results) && rpcData.results.length > 0) {
             return formatarResultadosSerpApi(rpcData.results, queryFinal, num);
           }
         }
       } catch (err: any) {
-        if (err instanceof SerpApiQuotaError || err instanceof SerpApiAuthError) throw err;
+        if (err instanceof SerpApiQuotaError) throw err;
       }
       return [];
     })();
 
-    // Canal B: Supabase Edge Function (buscar-fotos-serpapi no Deno Runtime)
+    // Canal B: Supabase Edge Function (buscar-fotos-serpapi no Deno Runtime / Serper.dev)
     const promessaEdge = (async (): Promise<FotoResultadoSerpApi[]> => {
       try {
         const { data: edgeData, error: edgeError } = await supabase.functions.invoke('buscar-fotos-serpapi', {
           body: {
             q: queryFinal,
+            serpApiKey: chaveLimpa || undefined,
             api_key: chaveLimpa || undefined,
             loja_id: lojaId || undefined,
             num
           }
         });
 
-        if (!edgeError && edgeData) {
-          if (edgeData.error_type === 'quota') throw new SerpApiQuotaError(edgeData.error);
-          if (edgeData.error_type === 'auth') throw new SerpApiAuthError(edgeData.error);
-          if (Array.isArray(edgeData.results) && edgeData.results.length > 0) {
-            return formatarResultadosSerpApi(edgeData.results, queryFinal, num);
+        if (edgeError) {
+          let errorMsg = 'Chave do Serper.dev inválida ou expirada.';
+          let isAuth = false;
+          let isQuota = false;
+          try {
+            if ((edgeError as any)?.context?.json) {
+              const bodyJson = await (edgeError as any).context.json();
+              if (bodyJson?.error) errorMsg = bodyJson.error;
+              if (bodyJson?.error_type === 'auth') isAuth = true;
+              if (bodyJson?.error_type === 'quota') isQuota = true;
+            }
+          } catch {
+            // contexto já consumido
+          }
+
+          const status = (edgeError as any)?.context?.status;
+          if (status === 401 || status === 403 || isAuth || errorMsg.toLowerCase().includes('chave')) {
+            throw new SerpApiAuthError(errorMsg);
+          }
+          if (status === 429 || isQuota || errorMsg.toLowerCase().includes('cota') || errorMsg.toLowerCase().includes('quota')) {
+            throw new SerpApiQuotaError(errorMsg);
+          }
+        }
+
+        if (edgeData) {
+          if (edgeData.error_type === 'quota' || edgeData.status === 429) {
+            throw new SerpApiQuotaError(edgeData.error || 'Limite de cota de pesquisas gratuitas do Serper.dev atingido.');
+          }
+          if (edgeData.error_type === 'auth' || edgeData.status === 401 || edgeData.status === 403) {
+            throw new SerpApiAuthError(edgeData.error || 'Chave do Serper.dev inválida ou expirada.');
+          }
+          const listaResultados = edgeData.results || edgeData.images || [];
+          if (Array.isArray(listaResultados) && listaResultados.length > 0) {
+            return formatarResultadosSerpApi(listaResultados, queryFinal, num);
           }
         }
       } catch (e: any) {

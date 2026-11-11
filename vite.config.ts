@@ -145,6 +145,20 @@ function setupBuscaFotosMiddleware(middlewares: any) {
         return;
       }
 
+      if (serperRes.status === 401 || serperRes.status === 403) {
+        res.statusCode = 401;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Chave do Serper.dev inválida ou expirada.', error_type: 'auth' }));
+        return;
+      }
+
+      if (serperRes.status === 429) {
+        res.statusCode = 429;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ error: 'Limite de cota de pesquisas gratuitas do Serper.dev atingido.', error_type: 'quota' }));
+        return;
+      }
+
       // Fallback para SerpApi legado
       const searchParams = new URLSearchParams({
         engine: 'google_images',

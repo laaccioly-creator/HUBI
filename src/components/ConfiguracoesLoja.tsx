@@ -81,6 +81,8 @@ import { useTheme } from '../contexts/ThemeContext';
 import { CardConexaoMercadoLivre } from './mercadolivre/CardConexaoMercadoLivre';
 import { CardParametrosHubiAdmin } from './configuracoes/CardParametrosHubiAdmin';
 import { ModalComoObterGeminiApiKey } from './configuracoes/ModalComoObterGeminiApiKey';
+import { ModalChecklistConfiguracao } from './configuracoes/ModalChecklistConfiguracao';
+import { useLojaProntidao } from '../hooks/useLojaProntidao';
 
 type SubTelaConfig =
   | 'menu'
@@ -329,6 +331,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const location = useLocation();
   const [subTela, setSubTela] = useState<SubTelaConfig>('menu');
   const [salvando, setSalvando] = useState<boolean>(false);
+  const [modalChecklistAberto, setModalChecklistAberto] = useState<boolean>(false);
+  const { totalConcluidas, tudoPronto } = useLojaProntidao();
   const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
   const [mensagemToast, setMensagemToast] = useState<string>('');
   const [copiadoTexto, setCopiadoTexto] = useState<string>('');
@@ -3124,55 +3128,76 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           </div>
         </div>
 
-        {subTela === 'tipos-venda' ? (
-          <button
-            type="button"
-            onClick={handleSalvarTiposVenda}
-            disabled={salvandoTiposVenda || (!tipoVendaVarejo && !tipoVendaAtacado && !tipoVendaDistribuidor)}
-            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50 animate-in fade-in"
-          >
-            {salvandoTiposVenda ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Salvando...</span>
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                <span>Salvar</span>
-              </>
-            )}
-          </button>
-        ) : subTela === 'whatsapp-ia' ? (
-          <button
-            type="button"
-            onClick={() => whatsappIaRef.current?.salvar()}
-            disabled={salvandoWhatsAppIA}
-            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50 animate-in fade-in"
-          >
-            {salvandoWhatsAppIA ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Salvando...</span>
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                <span>Salvar</span>
-              </>
-            )}
-          </button>
-        ) : isDirty ? (
-          <button
-            type="button"
-            onClick={handleSalvarTodasConfiguracoes}
-            disabled={salvando}
-            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50 animate-in fade-in"
-          >
-            <Save className="w-4 h-4" />
-            <span>{salvando ? 'Salvando...' : 'Salvar'}</span>
-          </button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {!tudoPronto && (
+            <button
+              type="button"
+              onClick={() => setModalChecklistAberto(true)}
+              className={`px-3 py-1.5 rounded-xl border flex items-center gap-2 font-bold text-xs transition cursor-pointer shadow-sm active:scale-95 ${
+                isDark
+                  ? 'bg-slate-900 border-slate-700 text-slate-200 hover:bg-slate-800 hover:border-amber-500/50'
+                  : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-amber-500/50'
+              }`}
+              title="Abrir Checklist de Configuração da Loja"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span className="hidden sm:inline">Checklist de Configuração</span>
+              <span className="bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold px-2 py-0.5 rounded-full text-xs">
+                {totalConcluidas}/6
+              </span>
+            </button>
+          )}
+
+          {subTela === 'tipos-venda' ? (
+            <button
+              type="button"
+              onClick={handleSalvarTiposVenda}
+              disabled={salvandoTiposVenda || (!tipoVendaVarejo && !tipoVendaAtacado && !tipoVendaDistribuidor)}
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50 animate-in fade-in"
+            >
+              {salvandoTiposVenda ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Salvando...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  <span>Salvar</span>
+                </>
+              )}
+            </button>
+          ) : subTela === 'whatsapp-ia' ? (
+            <button
+              type="button"
+              onClick={() => whatsappIaRef.current?.salvar()}
+              disabled={salvandoWhatsAppIA}
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50 animate-in fade-in"
+            >
+              {salvandoWhatsAppIA ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Salvando...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  <span>Salvar</span>
+                </>
+              )}
+            </button>
+          ) : isDirty ? (
+            <button
+              type="button"
+              onClick={handleSalvarTodasConfiguracoes}
+              disabled={salvando}
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50 animate-in fade-in"
+            >
+              <Save className="w-4 h-4" />
+              <span>{salvando ? 'Salvando...' : 'Salvar'}</span>
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {/* TOAST FEEDBACK */}
@@ -5672,6 +5697,12 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         isOpen={modalComoObterGeminiApiKeyAberto}
         onClose={() => setModalComoObterGeminiApiKeyAberto(false)}
         onPreencherChave={(chave) => setGeminiApiKey(chave)}
+      />
+
+      {/* MODAL CHECKLIST DE CONFIGURAÇÃO DA LOJA */}
+      <ModalChecklistConfiguracao
+        isOpen={modalChecklistAberto}
+        onClose={() => setModalChecklistAberto(false)}
       />
 
     </div>
