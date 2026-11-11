@@ -24,10 +24,10 @@ export const ModalQuotaExcedidaSerpApi: React.FC<ModalQuotaExcedidaSerpApiProps>
             </div>
             <div>
               <h3 className="text-base font-black text-slate-900 dark:text-slate-100">
-                Limite mensal de 250 buscas atingido!
+                Limite de buscas gratuitas atingido!
               </h3>
               <p className="text-[11px] text-amber-700 dark:text-amber-400/90 font-medium mt-0.5">
-                Cota gratuita mensal da SerpApi
+                Cota de pesquisas do Serper.dev / SerpApi
               </p>
             </div>
           </div>
@@ -44,14 +44,14 @@ export const ModalQuotaExcedidaSerpApi: React.FC<ModalQuotaExcedidaSerpApiProps>
         {/* CORPO */}
         <div className="p-5 space-y-4">
           <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-            A sua cota de <strong>250 pesquisas gratuitas</strong> deste mês na SerpApi foi atingida.
+            A sua cota de pesquisas gratuitas no provedor de imagens (Serper.dev / SerpApi) foi atingida.
           </p>
           <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 leading-relaxed space-y-2">
             <p>
-              ✨ Suas <strong>250 buscas gratuitas serão renovadas automaticamente</strong> no início do próximo mês.
+              ✨ Se você estiver usando o <strong>Serper.dev</strong>, a cota gratuita inicial é de <strong>2.500 buscas</strong>.
             </p>
             <p>
-              Caso precise de buscas adicionais com urgência ainda este mês, você pode assinar um plano diretamente no painel da SerpApi ou subir fotos manualmente do seu aparelho pela Galeria ou Câmera.
+              Caso precise de buscas adicionais com urgência, você pode acessar seu painel do Serper.dev para renovar créditos ou subir fotos manualmente pela Galeria ou Câmera do seu aparelho.
             </p>
           </div>
         </div>
@@ -59,18 +59,18 @@ export const ModalQuotaExcedidaSerpApi: React.FC<ModalQuotaExcedidaSerpApiProps>
         {/* BOTÕES */}
         <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 flex items-center justify-end gap-2.5">
           <a
-            href="https://serpapi.com/dashboard"
+            href="https://serper.dev"
             target="_blank"
             rel="noopener noreferrer"
             className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer border border-slate-200 dark:border-slate-700 shadow-2xs"
           >
-            <span>Acessar Painel SerpApi</span>
+            <span>Painel Serper.dev</span>
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-black flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-sm"
           >
             <Check className="w-3.5 h-3.5" />
             <span>Entendi</span>

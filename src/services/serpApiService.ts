@@ -131,24 +131,47 @@ export const formatarResultadosSerpApi = (
     const item = imagesResults[idx];
     if (!item) continue;
 
-    // Em SerpApi Google Images, original é o link direto do arquivo em alta resolução.
-    // Nunca usar item.link porque é a URL da página web HTML.
+    // Em Serper/SerpApi Google Images, recupera a URL direta da imagem em alta resolução
     const originalUrl =
+      item.url ||
+      item.imageUrl ||
+      item.urlOriginal ||
       item.original ||
       item.original_image?.link ||
       item.thumbnail ||
       '';
 
     const thumbnailUrl =
+      item.urlThumbnail ||
+      item.thumbnailUrl ||
       item.thumbnail ||
+      item.url ||
+      item.imageUrl ||
       item.original ||
       '';
 
     if (!originalUrl || !originalUrl.startsWith('http')) continue;
     if (urlsVistas.has(originalUrl)) continue;
 
-    const largura = typeof item.original_width === 'number' ? item.original_width : undefined;
-    const altura = typeof item.original_height === 'number' ? item.original_height : undefined;
+    const largura = typeof item.largura === 'number'
+      ? item.largura
+      : typeof item.width === 'number'
+      ? item.width
+      : typeof item.imageWidth === 'number'
+      ? item.imageWidth
+      : typeof item.original_width === 'number'
+      ? item.original_width
+      : undefined;
+
+    const altura = typeof item.altura === 'number'
+      ? item.altura
+      : typeof item.height === 'number'
+      ? item.height
+      : typeof item.imageHeight === 'number'
+      ? item.imageHeight
+      : typeof item.original_height === 'number'
+      ? item.original_height
+      : undefined;
 
     // Filtra apenas imagens em alta/média resolução para e-commerce (descarta ícones e miniaturas < 250px)
     if (largura && largura < 250 && altura && altura < 250) {
@@ -177,9 +200,9 @@ export const formatarResultadosSerpApi = (
     fotosFormatadas.push({
       urlOriginal: originalUrl,
       urlThumbnail: thumbnailUrl,
-      titulo: item.title || queryTratada,
-      fonte: item.source || item.domain || 'Google Imagens',
-      posicao: item.position || idx + 1,
+      titulo: item.titulo || item.title || queryTratada,
+      fonte: item.fonte || item.source || item.domain || 'Google Imagens',
+      posicao: item.posicao || item.position || idx + 1,
       largura,
       altura
     });

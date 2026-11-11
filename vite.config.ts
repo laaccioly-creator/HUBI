@@ -117,6 +117,35 @@ function setupBuscaFotosMiddleware(middlewares: any) {
         return;
       }
 
+      // Tenta consultar primeiramente a API oficial do Serper.dev
+      const serperRes = await fetch('https://google.serper.dev/images', {
+        method: 'POST',
+        headers: {
+          'X-API-KEY': apiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          q: q.trim(),
+          gl: 'br',
+          hl: 'pt-br',
+          num: 10
+        })
+      });
+
+      const serperData = await serperRes.json().catch(() => ({}));
+
+      if (serperRes.ok && Array.isArray(serperData.images)) {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({
+          images_results: serperData.images,
+          results: serperData.images,
+          images: serperData.images
+        }));
+        return;
+      }
+
+      // Fallback para SerpApi legado
       const searchParams = new URLSearchParams({
         engine: 'google_images',
         q: q.trim(),
