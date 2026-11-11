@@ -208,7 +208,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
           itens:itens_pedido(*),
           pedido_entregas(*),
           pagamentos:pagamentos_pedido(*),
-          agendamentos:agendamentos_servicos(*, produto:produtos(nome), profissional:usuarios_loja(nome_completo))
+          agendamentos:agendamentos_servicos(*, produto:produtos(nome), profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(nome_completo))
         `)
         .eq('loja_id', loja.id)
         .eq('id', pedSeguro.id)
@@ -1078,7 +1078,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
             vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
             itens:itens_pedido(*),
             pagamentos:pagamentos_pedido(*),
-            agendamentos:agendamentos_servicos(*, produto:produtos(nome), profissional:usuarios_loja(nome_completo))
+            agendamentos:agendamentos_servicos(*, produto:produtos(nome), profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(nome_completo))
           `)
           .single();
 

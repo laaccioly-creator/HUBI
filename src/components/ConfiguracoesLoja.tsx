@@ -933,10 +933,11 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
 
       // Perfil do Negócio & Rubi IA
       const perfilNegocio = extras.perfil_negocio || {};
-      setSegmentoNegocio(perfilNegocio.segmento || 'geral');
+      const iaConfig = extras.ia || {};
+      const segmentoOriginal = perfilNegocio.segmento || iaConfig.segmento || (loja as any)?.segmento || 'geral';
+      setSegmentoNegocio(segmentoOriginal);
       setEspecialidadeNegocio(perfilNegocio.descricao_especialidade || '');
       setTomVozRubi(perfilNegocio.tom_voz || 'consultivo');
-      const iaConfig = extras.ia || {};
       setGeminiApiKey(loja.gemini_api_key || iaConfig.gemini_api_key || '');
       setGoogleSearchApiKey(iaConfig.google_search_api_key || localStorage.getItem('hubi_google_search_api_key') || '');
       setGoogleSearchCx(iaConfig.google_search_cx || localStorage.getItem('hubi_google_search_cx') || '');
@@ -1126,7 +1127,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           controlarEstoque: extras.controlar_estoque ?? geral.controlar_estoque ?? true,
           transacoesCanceladas: geral.transacoes_canceladas || extras.preferencias_gerais?.transacoes_canceladas || 'riscadas',
           ordenarProdutosPdv: geral.ordenar_produtos_pdv || 'cadastro',
-          segmentoNegocio: perfilNegocio.segmento || 'geral',
+          segmentoNegocio: perfilNegocio.segmento || iaConfig.segmento || (loja as any)?.segmento || 'geral',
           especialidadeNegocio: perfilNegocio.descricao_especialidade || '',
           tomVozRubi: perfilNegocio.tom_voz || 'consultivo',
           geminiApiKey: loja.gemini_api_key || iaConfig.gemini_api_key || '',
@@ -1254,6 +1255,11 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
     } catch (err) {
       console.error('Falha ao copiar:', err);
     }
+  };
+
+  const handleSelecionarSegmento = (segId: string) => {
+    setSegmentoNegocio(segId);
+    marcarInteracaoFisica();
   };
 
   const handleSalvarTodasConfiguracoes = async () => {
@@ -1406,6 +1412,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           tom_voz: tomVozRubi
         },
         ia: {
+          segmento: segmentoNegocio,
           gemini_api_key: geminiApiKey.trim(),
           google_search_api_key: googleSearchApiKey.trim(),
           google_search_cx: googleSearchCx.trim(),
@@ -1889,12 +1896,22 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
     tipoVendaDistribuidor
   ]);
 
+  const isSegmentoAlterado = useMemo(() => {
+    const segOriginal =
+      loja?.configuracoes_extras?.perfil_negocio?.segmento ||
+      loja?.configuracoes_extras?.ia?.segmento ||
+      (loja as any)?.segmento ||
+      'geral';
+    return segmentoNegocio !== segOriginal;
+  }, [segmentoNegocio, loja]);
+
   const isDirty = Boolean(
-    houveInteracaoFisica &&
     subTela !== 'menu' &&
     !['metas', 'whatsapp-ia', 'exportar', 'importar-exportar', 'importar-exportar-produtos'].includes(subTela) &&
-    snapshotInicial &&
-    snapshotAtual !== snapshotInicial
+    (
+      (houveInteracaoFisica && snapshotInicial && snapshotAtual !== snapshotInicial) ||
+      isSegmentoAlterado
+    )
   );
 
   useEffect(() => {
@@ -1994,12 +2011,16 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               >
                 {salvandoWhatsAppIA ? 'Salvando...' : 'Salvar'}
               </button>
-            ) : isDirty ? (
+            ) : subTela !== 'menu' && !['metas', 'exportar', 'importar-exportar', 'importar-exportar-produtos'].includes(subTela) ? (
               <button
                 type="button"
                 onClick={handleSalvarTodasConfiguracoes}
-                disabled={salvando}
-                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50"
+                disabled={!isDirty || salvando}
+                className={`px-3.5 py-1.5 rounded-xl font-black text-xs border shadow-md active:scale-95 transition ${
+                  isDirty && !salvando
+                    ? 'bg-emerald-600 hover:bg-emerald-500 border-emerald-500 text-white shadow-emerald-500/20 cursor-pointer'
+                    : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed opacity-60'
+                }`}
               >
                 {salvando ? 'Salvando...' : 'Salvar'}
               </button>
@@ -2188,6 +2209,31 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   onChange={(e) => setEnderecoLogradouro(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:border-emerald-500 focus:bg-white"
                 />
+              </div>
+
+              <div className="pt-2 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={handleSalvarTodasConfiguracoes}
+                  disabled={!isDirty || salvando}
+                  className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition shadow-xs active:scale-95 ${
+                    isDirty && !salvando
+                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/20 cursor-pointer'
+                      : 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-60'
+                  }`}
+                >
+                  {salvando ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Salvando Alterações...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-3.5 h-3.5" />
+                      <span>Salvar Alterações</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           )}
@@ -3186,15 +3232,28 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 </>
               )}
             </button>
-          ) : isDirty ? (
+          ) : subTela !== 'menu' && !['metas', 'exportar', 'importar-exportar', 'importar-exportar-produtos'].includes(subTela) ? (
             <button
               type="button"
               onClick={handleSalvarTodasConfiguracoes}
-              disabled={salvando}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50 animate-in fade-in"
+              disabled={!isDirty || salvando}
+              className={`px-4 py-2 rounded-xl font-black text-xs flex items-center gap-2 border transition ${
+                isDirty && !salvando
+                  ? 'bg-emerald-600 hover:bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer'
+                  : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed opacity-60'
+              }`}
             >
-              <Save className="w-4 h-4" />
-              <span>{salvando ? 'Salvando...' : 'Salvar'}</span>
+              {salvando ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Salvando...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  <span>Salvar Alterações</span>
+                </>
+              )}
             </button>
           ) : null}
         </div>
@@ -4061,7 +4120,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                         <button
                           key={seg.id}
                           type="button"
-                          onClick={() => setSegmentoNegocio(seg.id)}
+                          onClick={() => handleSelecionarSegmento(seg.id)}
                           className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between relative group ${
                             isSelected
                               ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 shadow-sm ring-1 ring-emerald-500'
@@ -4176,6 +4235,32 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 </div>
               </div>
             </div>
+
+            {/* Rodapé do Formulário Dados da Loja - Salvar Alterações */}
+            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end">
+              <button
+                type="button"
+                onClick={handleSalvarTodasConfiguracoes}
+                disabled={!isDirty || salvando}
+                className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition shadow-md active:scale-95 ${
+                  isDirty && !salvando
+                    ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white shadow-emerald-500/20 cursor-pointer'
+                    : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 cursor-not-allowed opacity-60'
+                }`}
+              >
+                {salvando ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Salvando Alterações...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    <span>Salvar Alterações</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         )}
 
@@ -4270,6 +4355,32 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   ))}
                 </div>
               </div>
+            </div>
+
+            {/* Rodapé do Formulário Meu Recibo - Salvar Alterações */}
+            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end">
+              <button
+                type="button"
+                onClick={handleSalvarTodasConfiguracoes}
+                disabled={!isDirty || salvando}
+                className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition shadow-md active:scale-95 ${
+                  isDirty && !salvando
+                    ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white shadow-emerald-500/20 cursor-pointer'
+                    : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 cursor-not-allowed opacity-60'
+                }`}
+              >
+                {salvando ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Salvando Alterações...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    <span>Salvar Alterações</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         )}

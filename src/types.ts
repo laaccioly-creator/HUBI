@@ -226,6 +226,7 @@ export interface ConfiguracoesExtrasLoja {
     google_search_api_key?: string;
     google_search_cx?: string;
     serpapi_key?: string;
+    segmento?: string;
   };
 }
 

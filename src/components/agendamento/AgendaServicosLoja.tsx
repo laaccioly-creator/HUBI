@@ -141,10 +141,19 @@ export const AgendaServicosLoja: React.FC = () => {
         profissionalId: profissionalFiltro !== 'todos' ? profissionalFiltro : undefined,
         status: statusFiltro !== 'todos' ? (statusFiltro as StatusAgendamento) : undefined
       });
-      setAgendamentos(dados);
-    } catch (err: any) {
-      console.error('Erro ao carregar agendamentos:', err);
-      mostrarErro('Não foi possível carregar a lista de agendamentos.', 'Falha de Carregamento');
+      setAgendamentos(dados || []);
+    } catch (err: unknown) {
+      console.warn('Aviso ao carregar agendamentos:', err);
+      setAgendamentos([]);
+      const errMsg = err instanceof Error ? err.message : String(err || '');
+      if (
+        errMsg.toLowerCase().includes('failed to fetch') ||
+        errMsg.toLowerCase().includes('network') ||
+        errMsg.toLowerCase().includes('jwt expired') ||
+        errMsg.toLowerCase().includes('permission denied')
+      ) {
+        mostrarErro('Erro de conexão ou autenticação ao buscar agendamentos.', 'Falha de Conexão');
+      }
     } finally {
       setCarregando(false);
     }

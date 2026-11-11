@@ -87,7 +87,7 @@ export const PedidoAndamentoPublico: React.FC = () => {
             pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*)),
             pedido_entregas:pedido_entregas(*),
             pagamentos_previstos:pedidos_pagamentos_previstos(*),
-            agendamentos:agendamentos_servicos(*, produto:produtos(nome), profissional:usuarios_loja(nome_completo))
+            agendamentos:agendamentos_servicos(*, produto:produtos(nome), profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(nome_completo))
           `);
 
         query = aplicarFiltro(query);
@@ -110,7 +110,7 @@ export const PedidoAndamentoPublico: React.FC = () => {
               supabase.from('pagamentos_pedido').select('*, forma_pagamento:formas_pagamento(*)').eq('pedido_id', simplePed.id),
               supabase.from('pedido_entregas').select('*').eq('pedido_id', simplePed.id),
               supabase.from('pedidos_pagamentos_previstos').select('*').eq('pedido_id', simplePed.id),
-              supabase.from('agendamentos_servicos').select('*, produto:produtos(nome), profissional:usuarios_loja(nome_completo)').eq('pedido_id', simplePed.id)
+              supabase.from('agendamentos_servicos').select('*, produto:produtos(nome), profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(nome_completo)').eq('pedido_id', simplePed.id)
             ]);
 
             if (itensRes.status === 'fulfilled' && (itensRes.value as any)?.data) {
