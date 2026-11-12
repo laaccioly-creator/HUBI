@@ -5,11 +5,13 @@ import {
   obterSerpApiKey,
   obterOuBuscarSerpApiKey,
   buscarFotosGoogleImagesSerpApi,
+  buscarPrecosShoppingSerpApi,
   limparTermoParaBuscaGoogle,
   extrairTermoEnxutoBusca,
   SerpApiQuotaError,
   SerpApiAuthError,
-  FotoResultadoSerpApi
+  FotoResultadoSerpApi,
+  ItemShoppingSerpApi
 } from './serpApiService';
 import { catalogJevService } from './catalogJevService';
 import {
@@ -496,20 +498,164 @@ export const obterModelosValidosGemini = async (apiKey: string): Promise<string[
 };
 
 /**
+ * Sanitiza, repara e faz o parse seguro de strings JSON vindas de LLMs:
+ * - Remove blocos markdown (```json ... ```)
+ * - Repara chaves sem aspas duplas (Expected double-quoted property name)
+ * - Remove vírgulas sobrando antes de } ou ]
+ * - Escapa quebras de linha literais dentro de strings
+ * - Fecha strings e objetos truncados no final (Unterminated string in JSON)
+ */
+const sanitizarERepararJson = (bruto: string): string => {
+  let s = bruto.replace(/```(?:json|JSON)?/g, '').replace(/```/g, '').trim();
+
+  const idxAbreObj = s.indexOf('{');
+  const idxAbreArr = s.indexOf('[');
+  let idxInicio = -1;
+  if (idxAbreObj !== -1 && idxAbreArr !== -1) {
+    idxInicio = Math.min(idxAbreObj, idxAbreArr);
+  } else {
+    idxInicio = Math.max(idxAbreObj, idxAbreArr);
+  }
+  if (idxInicio > 0) {
+    s = s.slice(idxInicio);
+  }
+
+  // Varredura caractere por caractere para escapar quebras de linha dentro de strings e rastrear truncamento
+  let resultado = '';
+  let inString = false;
+  let quoteChar = '"';
+  let escaped = false;
+  const pilha: string[] = [];
+
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+
+    if (inString) {
+      if (escaped) {
+        resultado += ch;
+        escaped = false;
+        continue;
+      }
+      if (ch === '\\') {
+        resultado += ch;
+        escaped = true;
+        continue;
+      }
+      if (ch === quoteChar) {
+        resultado += '"';
+        inString = false;
+        continue;
+      }
+      if (ch === '\n') {
+        resultado += '\\n';
+        continue;
+      }
+      if (ch === '\r') {
+        resultado += '\\r';
+        continue;
+      }
+      if (ch === '\t') {
+        resultado += '\\t';
+        continue;
+      }
+      if (quoteChar === "'" && ch === '"') {
+        resultado += '\\"';
+        continue;
+      }
+      resultado += ch;
+    } else {
+      if (ch === '"' || ch === "'") {
+        inString = true;
+        quoteChar = ch;
+        resultado += '"';
+        continue;
+      }
+      if (ch === '{') {
+        pilha.push('}');
+        resultado += ch;
+        continue;
+      }
+      if (ch === '[') {
+        pilha.push(']');
+        resultado += ch;
+        continue;
+      }
+      if (ch === '}' || ch === ']') {
+        if (pilha.length > 0 && pilha[pilha.length - 1] === ch) {
+          pilha.pop();
+        }
+        resultado += ch;
+        if (pilha.length === 0) {
+          // Objeto raiz fechado com sucesso; descarta lixo posterior
+          break;
+        }
+        continue;
+      }
+      resultado += ch;
+    }
+  }
+
+  // Se terminou com barra invertida pendente dentro de string, remove
+  if (inString && escaped) {
+    resultado = resultado.slice(0, -1);
+  }
+
+  // Se a string ficou aberta por truncamento de tokens, fecha a aspa dupla
+  if (inString) {
+    resultado += '"';
+  }
+
+  // Repara propriedades sem aspas duplas fora de strings: { chave: valor, outra_chave: 10 }
+  resultado = resultado.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
+
+  // Remove casos de chave truncada no final sem valor (ex: , "descricao": ou , "preco")
+  resultado = resultado.replace(/,\s*"[^"]*"\s*:\s*$/g, '');
+  resultado = resultado.replace(/,\s*"[^"]*"\s*$/g, '');
+  resultado = resultado.replace(/:\s*$/g, ': null');
+
+  // Remove vírgulas pendentes no final antes de fechar estruturas
+  resultado = resultado.replace(/,\s*$/g, '');
+
+  // Fecha todas as chaves/colchetes abertos na pilha
+  while (pilha.length > 0) {
+    const fechamento = pilha.pop()!;
+    resultado += fechamento;
+  }
+
+  // Remove vírgulas sobrando antes de } ou ]
+  resultado = resultado.replace(/,\s*([}\]])/g, '$1');
+
+  return resultado;
+};
+
+/**
  * Extrai e parseia de forma segura objetos JSON a partir de respostas de IA,
- * mesmo se a IA incluir texto conversacional, listas com marcadores (* Role:), ou markdown.
+ * mesmo se a IA incluir texto conversacional, markdown, aspas simples, vírgulas extras ou truncamento.
  */
 export const extrairJsonDoTexto = (texto: string): any => {
   if (!texto) return null;
+
+  const limpoInicial = texto.replace(/```(?:json|JSON)?/g, '').replace(/```/g, '').trim();
+
+  // 1. Tentativa direta rápida
   try {
-    const match = texto.match(/\{[\s\S]*\}/);
+    return JSON.parse(limpoInicial);
+  } catch {}
+
+  // 2. Tentativa extraindo bloco { ... }
+  try {
+    const match = limpoInicial.match(/\{[\s\S]*\}/);
     if (match) {
       return JSON.parse(match[0]);
     }
-    const limpo = texto.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(limpo);
+  } catch {}
+
+  // 3. Sanitização robusta e reparo de truncamento / aspas / vírgulas
+  try {
+    const reparado = sanitizarERepararJson(limpoInicial);
+    return JSON.parse(reparado);
   } catch (e) {
-    console.warn('[GeminiService] Falha ao extrair JSON do texto retornado pela IA:', e);
+    console.warn('[GeminiService] Falha ao extrair JSON do texto retornado pela IA após sanitização:', e);
     return null;
   }
 };
@@ -538,12 +684,13 @@ export const executarRequisicaoGemini = async (
   requestBody: any,
   lojaId?: string
 ): Promise<any> => {
+  const { model: modelInBody, ...restRequestBody } = requestBody || {};
   const payloadCompleto = {
-    ...requestBody,
-    safetySettings: requestBody.safetySettings || SAFETY_SETTINGS_VAREJO
+    ...restRequestBody,
+    safetySettings: restRequestBody.safetySettings || SAFETY_SETTINGS_VAREJO
   };
 
-  const modeloDesejado = requestBody?.model || 'gemini-3.8-flash';
+  const modeloDesejado = modelInBody || 'gemini-3.8-flash';
 
   // 1. Tentar execução segura via Supabase Edge Function (gemini-proxy) sem expor credenciais
   try {
@@ -604,16 +751,17 @@ export const executarRequisicaoGemini = async (
     }
 
     let respostaOk = false;
+    let payloadTentativa = payloadCompleto;
     for (let subTentativa = 1; subTentativa <= 2; subTentativa++) {
       try {
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${chaveParaContingencia}`;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
         const response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payloadCompleto),
+          body: JSON.stringify(payloadTentativa),
           signal: controller.signal
         });
         clearTimeout(timeoutId);
@@ -632,8 +780,19 @@ export const executarRequisicaoGemini = async (
             throw new Error('Chave da API do Google Gemini inválida ou não autorizada. Verifique a chave nas configurações.');
           }
 
-          // Se for 400 (Bad Request - formato de imagem/payload inválido), não adianta tentar outro modelo
+          // Se for 400 por incompatibilidade de thinkingConfig ou responseSchema em modelo secundário, remove e tenta novamente
           if (response.status === 400) {
+            if (
+              subTentativa === 1 &&
+              (payloadTentativa.generationConfig?.thinkingConfig || payloadTentativa.generationConfig?.responseSchema)
+            ) {
+              const { thinkingConfig: _tc, responseSchema: _rs, ...restGenConfig } = payloadTentativa.generationConfig;
+              payloadTentativa = {
+                ...payloadTentativa,
+                generationConfig: restGenConfig
+              };
+              continue;
+            }
             console.warn(`[Gemini] Erro 400 no modelo ${modelo}:`, msg);
             if (temImagem) {
               throw new Error('A imagem selecionada não pôde ser interpretada pela IA. Por favor, tente com outra foto ou tire uma foto com a câmera.');
@@ -757,12 +916,13 @@ Se a foto gerar dúvida entre 2 a 3 versões/modelos possíveis, defina "duvida"
       ],
       generationConfig: {
         temperature: 0.2,
-        maxOutputTokens: 380,
-        response_mime_type: 'application/json'
+        maxOutputTokens: 4096,
+        thinkingConfig: { thinkingBudget: 0 },
+        responseMimeType: 'application/json'
       }
     };
 
-    const resData = await executarRequisicaoGemini(apiKey, requestBody);
+    const resData = await executarRequisicaoGemini(apiKey, requestBody, loja?.id);
 
     if (resData) {
       const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -907,16 +1067,24 @@ Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 
 `;
 
   const requestBody = {
+    model: 'gemini-3.8-flash',
     contents: [{ parts: [{ text: promptInstrucao }] }],
-    generationConfig: { temperature: 0.2, maxOutputTokens: 1200, response_mime_type: 'application/json' }
+    generationConfig: {
+      temperature: 0.2,
+      maxOutputTokens: 4096,
+      thinkingConfig: { thinkingBudget: 0 },
+      responseMimeType: 'application/json'
+    }
   };
 
-  const resData = await executarRequisicaoGemini(apiKey, requestBody);
+  const resData = await executarRequisicaoGemini(apiKey, requestBody, loja?.id);
   const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
 
   if (rawText) {
-    const jsonLimpo = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-    const parsed = JSON.parse(jsonLimpo);
+    const parsed = extrairJsonDoTexto(rawText);
+    if (!parsed) {
+      throw new Error('Não foi possível interpretar o JSON retornado pela IA.');
+    }
 
     const extraidos = extrairDimensoesEPesoTexto(`${parsed.nome || valor} ${parsed.descricao || ''}`);
     const pesoKgFinal = Number(parsed.peso_kg) > 0 ? Number(parsed.peso_kg) : extraidos.peso_kg;
@@ -958,7 +1126,7 @@ export const gerarDescricaoExclusivaIA = async (
     apiKey = await obterOuBuscarGeminiApiKey(loja);
   }
 
-  if (apiKey && nomeProduto.trim()) {
+  if (nomeProduto.trim()) {
     try {
       const prompt = `
 Você é um especialista em copy comercial e vendas de alta conversão para varejo, catálogo digital e WhatsApp${segmentoLoja ? ` no segmento de "${segmentoLoja}"` : ''}.
@@ -979,10 +1147,14 @@ DIRETRIZES ESTRITAS:
       const requestBody = {
         model: 'gemini-3.8-flash',
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.6, maxOutputTokens: 500 }
+        generationConfig: {
+          temperature: 0.6,
+          maxOutputTokens: 2048,
+          thinkingConfig: { thinkingBudget: 0 }
+        }
       };
 
-      const resData = await executarRequisicaoGemini(apiKey, requestBody);
+      const resData = await executarRequisicaoGemini(apiKey, requestBody, loja?.id);
       const texto = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (texto && texto.trim()) {
         return texto.trim();
@@ -1296,7 +1468,7 @@ export const atualizarProdutoExistenteComIA = async (dados: {
 }): Promise<ProdutoSugeridoIA> => {
   const termoReferencia = (dados.nome && dados.nome.trim() !== 'Produto') ? dados.nome.trim() : (dados.descricao?.trim() || 'Produto');
 
-  // 1. Otimização Jev (System One) em paralelo: extração de termo canônico, unidade comercial e dimensões logísticas (< 300ms)
+  // 1. Otimização Jev (System One) + SerpApi Shopping em paralelo (< 800ms)
   const termoCanonicoPromise = catalogJevService.extrairTermoCanonicoBusca(termoReferencia, dados.segmentoLoja).catch(() => termoReferencia);
   const unidadeJevPromise = catalogJevService.classificarUnidadeVenda({ nome: termoReferencia, descricao: dados.descricao }).catch(() => 'un');
   const dimensoesJevPromise = catalogJevService.estimarDimensoesComJev(
@@ -1305,15 +1477,33 @@ export const atualizarProdutoExistenteComIA = async (dados: {
     dados.descricao
   ).catch(() => extrairDimensoesEPesoTexto(`${termoReferencia} ${dados.descricao || ''}`));
 
+  const shoppingSerpPromise = Promise.race([
+    buscarPrecosShoppingSerpApi(termoReferencia, dados.loja, 8).catch(() => [] as ItemShoppingSerpApi[]),
+    new Promise<ItemShoppingSerpApi[]>(resolve => setTimeout(() => resolve([]), 2200))
+  ]);
+
   // 2. Consulta de enriquecimento comercial com Gemini 3.8 Flash
   let apiKey = getGeminiApiKey(dados.loja);
   if (!apiKey && dados.loja?.id) {
     apiKey = await obterOuBuscarGeminiApiKey(dados.loja);
   }
   let parsedIA: any = null;
+  let precoMedioSerp = 0;
 
   if (termoReferencia.length >= 2) {
-    const termoCanonico = await termoCanonicoPromise;
+    const [termoCanonico, ofertasSerp] = await Promise.all([termoCanonicoPromise, shoppingSerpPromise]);
+
+    let resumoShopping = '';
+    if (ofertasSerp && ofertasSerp.length > 0) {
+      const precosValidos = ofertasSerp.map(o => o.preco).filter(p => p > 0);
+      if (precosValidos.length > 0) {
+        const soma = precosValidos.reduce((a, b) => a + b, 0);
+        precoMedioSerp = Math.floor(soma / precosValidos.length);
+      }
+      resumoShopping = `\nOFERTAS REAIS ENCONTRADAS NO GOOGLE SHOPPING BRASIL:\n` +
+        ofertasSerp.slice(0, 6).map(o => `- ${o.loja}: R$ ${o.preco.toFixed(2)} ("${o.titulo}")`).join('\n');
+    }
+
     const promptTexto = `
 Você é um especialista sênior em catálogo de produtos, copywriting comercial de alta conversão e inteligência de precificação para o varejo e e-commerce brasileiro${dados.segmentoLoja ? ` no segmento de "${dados.segmentoLoja}"` : ''}.
 O lojista está cadastrando/atualizando o seguinte produto e solicitou o PREENCHIMENTO COMPLETO COM INTELIGÊNCIA ARTIFICIAL:
@@ -1323,33 +1513,23 @@ ${termoCanonico && termoCanonico !== termoReferencia ? `TERMO CANÔNICO IDENTIFI
 ${dados.categoriaNome ? `CATEGORIA ATUAL: "${dados.categoriaNome}"` : ''}
 ${dados.codigoBarras ? `CÓDIGO DE BARRAS / EAN: "${dados.codigoBarras}"` : ''}
 ${dados.precoVendaAtual && dados.precoVendaAtual > 0 ? `PREÇO DE VENDA ATUAL DA LOJA: R$ ${dados.precoVendaAtual.toFixed(2)}` : ''}
-${dados.segmentoLoja ? `SEGMENTO DA LOJA: "${dados.segmentoLoja}"` : ''}
+${dados.segmentoLoja ? `SEGMENTO DA LOJA: "${dados.segmentoLoja}"` : ''}${resumoShopping}
 
 SUAS OBRIGAÇÕES MANDATÓRIAS:
 1. NOME COMERCIAL:
    - Padronize o nome comercial oficial, completo, limpo e atraente em português (sem códigos internos de SKU, lote ou ruídos de ERP).
-2. PREÇO DE VENDA SUGERIDO DE MERCADO (OBRIGATÓRIO):
+2. PREÇO DE VAREJO SUGERIDO DE MERCADO (OBRIGATÓRIO):
    - Estime o preço de venda de varejo realista praticado no mercado brasileiro atual para este item novo e original em reais (R$ BRL).
-   - O campo "preco_venda_estimado" DEVE SER MAIOR QUE ZERO (nunca retorne 0.00).
-   - Se o preço atual já estiver informado e for plausível, utilize-o como base ou calibre-o para a média de mercado.
+   - Preencha "preco_varejo" e "preco_venda_estimado" com valor MAIOR QUE ZERO (nunca retorne 0.00).
+   - Se houver ofertas do Google Shopping listadas acima, calibre o preço pela média das ofertas correspondentes ao modelo exato.
    - Estime também um "preco_custo_estimado" de referência (aproximadamente 40% a 60% do preço de venda sugerido).
 3. CATEGORIA E UNIDADE:
    - Indique a categoria comercial de varejo mais adequada em "categoria_sugerida".
    - Indique a unidade de venda comercial ("un", "kg", "cx", "pct", "par", "m") em "tipo_unidade".
 4. DESCRIÇÃO COMERCIAL DETALHADA PARA CATÁLOGO E WHATSAPP:
-   - Elabore uma descrição comercial completa, estruturada, rica e persuasiva (com apresentação do produto, principais benefícios, características/especificações de materiais e dicas práticas de uso).
+   - Elabore em "descricao_comercial" (e repita em "descricao") uma descrição comercial completa, estruturada, rica e persuasiva (com apresentação do produto, principais benefícios, características/especificações de materiais e dicas práticas de uso).
    - Formate o texto perfeitamente para visualização no Catálogo Online da loja e envio direto no WhatsApp para os clientes.
    - NUNCA retorne frases genéricas ou clichês vazios como "Produto com excelente acabamento e alta durabilidade". Detalhe as qualidades reais deste item específico.
-
-Retorne EXCLUSIVAMENTE um objeto JSON válido no formato abaixo (sem tags markdown de código e sem texto adicional):
-{
-  "nome": "Nome comercial padronizado e atraente",
-  "categoria_sugerida": "Nome da Categoria",
-  "preco_venda_estimado": 0.00,
-  "preco_custo_estimado": 0.00,
-  "tipo_unidade": "un",
-  "descricao": "Apresentação comercial completa do produto, seus benefícios práticos, diferenciais de acabamento/material e recomendações de uso..."
-}
 `;
 
     try {
@@ -1358,8 +1538,34 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido no formato abaixo (sem tags markdo
         contents: [{ parts: [{ text: promptTexto }] }],
         generationConfig: {
           temperature: 0.2,
-          maxOutputTokens: 1200,
-          response_mime_type: 'application/json'
+          maxOutputTokens: 4096,
+          thinkingConfig: {
+            thinkingBudget: 0
+          },
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: 'OBJECT',
+            properties: {
+              nome: { type: 'STRING' },
+              categoria_sugerida: { type: 'STRING' },
+              preco_varejo: { type: 'NUMBER' },
+              preco_venda_estimado: { type: 'NUMBER' },
+              preco_custo_estimado: { type: 'NUMBER' },
+              tipo_unidade: { type: 'STRING' },
+              descricao_comercial: { type: 'STRING' },
+              descricao: { type: 'STRING' }
+            },
+            required: [
+              'nome',
+              'categoria_sugerida',
+              'preco_varejo',
+              'preco_venda_estimado',
+              'preco_custo_estimado',
+              'tipo_unidade',
+              'descricao_comercial',
+              'descricao'
+            ]
+          }
         }
       };
 
@@ -1376,11 +1582,17 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido no formato abaixo (sem tags markdo
   // Aguarda as respostas do Jev em paralelo
   const [dims, unidadeJev] = await Promise.all([dimensoesJevPromise, unidadeJevPromise]);
 
-  const precoEstimado = Number(parsedIA?.preco_venda_estimado) || Number(dados.precoVendaAtual) || 0;
+  const precoEstimado =
+    Number(parsedIA?.preco_varejo) ||
+    Number(parsedIA?.preco_venda_estimado) ||
+    precoMedioSerp ||
+    Number(dados.precoVendaAtual) ||
+    0;
   const precoSemCentavos = precoEstimado > 0 ? Math.floor(precoEstimado) : 0;
 
-  const descricaoFinal = (parsedIA?.descricao && parsedIA.descricao.trim().length > 15)
-    ? parsedIA.descricao.trim()
+  const textoDescricaoIA = (parsedIA?.descricao_comercial || parsedIA?.descricao || '').trim();
+  const descricaoFinal = textoDescricaoIA.length > 15
+    ? textoDescricaoIA
     : (dados.descricao?.trim() || `${termoReferencia} - Produto de alta qualidade selecionado especialmente para oferecer o melhor custo-benefício e praticidade aos nossos clientes.`);
 
   return {

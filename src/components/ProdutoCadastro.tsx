@@ -81,7 +81,7 @@ import {
   executarRequisicaoGemini,
   gerarDescricaoExclusivaIA
 } from '../services/geminiService';
-import { obterSerpApiKey, obterOuBuscarSerpApiKey } from '../services/serpApiService';
+import { obterSerpApiKey, obterOuBuscarSerpApiKey, buscarPrecosShoppingSerpApi } from '../services/serpApiService';
 import { catalogJevService } from '../services/catalogJevService';
 import { comprimirFotoProduto } from '../utils/imageCompressor';
 
@@ -278,9 +278,26 @@ export const pesquisarPrecosMercadoIA = async (
     console.warn('[RadarPrecos] Fallback gracioso Jev:', errJev);
   }
 
+  // 2. Busca ultrarrápida via SerpApi (Google Shopping / Google Search) em <1s com cache em memória/sessão
+  const termoBuscaSerp = barcode && barcode.trim().length >= 8
+    ? `${termoCanônico} ${barcode.trim()}`
+    : termoCanônico;
+  const ofertasSerp = await buscarPrecosShoppingSerpApi(termoBuscaSerp, loja, 15).catch(() => []);
+
+  const blocoOfertasSerp = ofertasSerp.length > 0
+    ? `\nOFERTAS REAIS ENCONTRADAS AGORA NO GOOGLE SHOPPING / SERPAPI (FONTE PRIMÁRIA REAL):\n` +
+      ofertasSerp
+        .map(
+          (it, idx) =>
+            `${idx + 1}. Produto: "${it.titulo}" | Loja: "${it.loja}" | Preço: R$ ${it.preco.toFixed(2)} (${it.precoTexto})${it.url ? ` | URL: ${it.url}` : ''}`
+        )
+        .join('\n') +
+      `\n\nINSTRUÇÃO CRÍTICA SOBRE AS OFERTAS ACIMA: Utilize PRIORITARIAMENTE as ofertas reais listadas acima da SerpApi. Filtre e descarte itens que sejam acessórios avulsos, peças de reposição ou versões diferentes do modelo pesquisado ("${nomeProduto}"), mantendo a URL original de cada oferta válida.`
+    : '';
+
   const promptTexto = `
 Você é um especialista sênior em inteligência de mercado, precificação competitiva e monitoramento de preços no varejo e e-commerce brasileiro${segmento ? ` (segmento da loja: "${segmento}")` : ''}.
-Pesquise e levante com rigor técnico e velocidade máxima os preços reais de varejo praticados atualmente no mercado brasileiro para o seguinte item:
+Analise e estruture com rigor técnico os preços reais de varejo praticados atualmente no mercado brasileiro para o seguinte item:
 
 PRODUTO PESQUISADO: "${nomeProduto}"
 ${termoCanônico !== nomeProduto ? `TERMO CANÔNICO IDENTIFICADO: "${termoCanônico}"` : ''}
@@ -291,11 +308,11 @@ ${opcoesExtras?.descricao ? `DESCRIÇÃO / ESPECIFICAÇÕES TÉCNICAS: "${opcoes
 ${opcoesExtras?.tipoUnidade ? `UNIDADE DE MEDIDA: "${opcoesExtras.tipoUnidade}"` : ''}
 ${opcoesExtras?.precoCusto ? `PREÇO DE CUSTO INFORMADO PELO LOJISTA: R$ ${opcoesExtras.precoCusto.toFixed(2)}` : ''}
 ${opcoesExtras?.precoVendaAtual ? `PREÇO DE VENDA ATUAL DA LOJA: R$ ${opcoesExtras.precoVendaAtual.toFixed(2)}` : ''}
+${blocoOfertasSerp}
 
 DIRETRIZES ESTRITAS CONTRA ALUCINAÇÃO E PRECISÃO DE MODELO:
 1. CONCORRÊNCIA REAL E LOJAS ATIVAS NO BRASIL:
-   - Identifique entre 8 e 12 concorrentes REAIS e ativos no Brasil que comercializam esta categoria.
-   - Inclua os maiores marketplaces (Mercado Livre, Amazon Brasil, Shopee Lojas Oficiais, Magazine Luiza, Kabum, Casas Bahia) e lojas especializadas do nicho.
+   - Se houver ofertas reais da SerpApi acima, selecione todas as ofertas legítimas que correspondam ao produto pesquisado (preservando os nomes reais das lojas, preços exatos e URLs reais).
    - NUNCA invente lojas fictícias.
 2. CORRESPONDÊNCIA EXATA DE MODELO E VERSÃO:
    - Exija correspondência exata com o modelo e versão pesquisados. NUNCA misture versões diferentes (ex: se pesquisar versão padrão, NÃO misture com modelos "Plus", "Pro", "Combo", "Max" ou "Mini").
@@ -303,26 +320,9 @@ DIRETRIZES ESTRITAS CONTRA ALUCINAÇÃO E PRECISÃO DE MODELO:
 3. PREÇOS À VISTA EM REAIS (R$ BRL):
    - Priorize o preço à vista atual (Pix, boleto ou menor valor final à vista) para produto NOVO e original.
 4. LINKS E FONTES:
-   - Para cada concorrente, inclua a URL direta de busca ou da oferta na respectiva loja (ex: "https://lista.mercadolivre.com.br/...", "https://www.amazon.com.br/s?k=...", etc.) no campo "url" para conferência em 1 clique.
+   - Preserve a URL real da oferta no campo "url" para conferência em 1 clique.
 
-Retorne EXCLUSIVAMENTE um objeto JSON válido no seguinte formato (sem tags markdown de código e sem texto extra):
-{
-  "preco_medio": 0.00,
-  "concorrentes": [
-    {
-      "loja": "Mercado Livre",
-      "preco": 0.00,
-      "tipo": "Marketplace",
-      "url": "https://lista.mercadolivre.com.br/..."
-    },
-    {
-      "loja": "Amazon Brasil",
-      "preco": 0.00,
-      "tipo": "Marketplace",
-      "url": "https://www.amazon.com.br/s?k=..."
-    }
-  ]
-}
+Retorne EXCLUSIVAMENTE um objeto JSON válido contendo "preco_medio" e "concorrentes".
 `;
 
   const requestBody: any = {
@@ -333,18 +333,61 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido no seguinte formato (sem tags mark
       }
     ],
     generationConfig: {
-      temperature: 0.15,
-      maxOutputTokens: 1000,
-      response_mime_type: 'application/json'
+      temperature: 0.1,
+      maxOutputTokens: 4096,
+      thinkingConfig: {
+        thinkingBudget: 0
+      },
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: 'OBJECT',
+        properties: {
+          preco_medio: { type: 'NUMBER' },
+          concorrentes: {
+            type: 'ARRAY',
+            items: {
+              type: 'OBJECT',
+              properties: {
+                loja: { type: 'STRING' },
+                preco: { type: 'NUMBER' },
+                tipo: { type: 'STRING' },
+                url: { type: 'STRING' }
+              },
+              required: ['loja', 'preco', 'tipo']
+            }
+          }
+        },
+        required: ['preco_medio', 'concorrentes']
+      }
     }
   };
 
-  const resData = await executarRequisicaoGemini(apiKey, requestBody, loja?.id);
+  let parsed: any = null;
+  try {
+    const resData = await executarRequisicaoGemini(apiKey, requestBody, loja?.id);
+    const parts = resData?.candidates?.[0]?.content?.parts || [];
+    const rawText = parts.map((p: any) => p?.text || '').join('\n').trim();
+    if (rawText) {
+      parsed = extrairJsonDoTexto(rawText);
+    }
+  } catch (errIa) {
+    console.warn('[RadarPrecos] Erro na chamada Gemini, verificando fallback SerpApi direto:', errIa);
+  }
 
-  const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!rawText) throw new Error('Resposta vazia da IA.');
+  // Fallback imediato com os dados reais da SerpApi caso o parse/chamada da IA falhe
+  if (!parsed && ofertasSerp.length > 0) {
+    const soma = ofertasSerp.reduce((acc, cur) => acc + cur.preco, 0);
+    parsed = {
+      preco_medio: Number((soma / ofertasSerp.length).toFixed(2)),
+      concorrentes: ofertasSerp.map((it) => ({
+        loja: it.loja,
+        preco: it.preco,
+        tipo: it.tipo || 'Marketplace',
+        url: it.url
+      }))
+    };
+  }
 
-  const parsed = extrairJsonDoTexto(rawText);
   if (!parsed) throw new Error('Não foi possível interpretar a resposta da IA.');
 
   const termoBuscaLinks = termoCanônico || nomeProduto;
@@ -365,7 +408,10 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido no seguinte formato (sem tags mark
     rawList = rawList.map((item: any) => {
       let itemUrl = item.url || item.link || item.uri;
       if (!itemUrl || !String(itemUrl).startsWith('http')) {
-        itemUrl = gerarUrlConcorrenteFallback(item.loja || '');
+        const matchSerp = ofertasSerp.find(
+          (s) => s.loja.toLowerCase() === String(item.loja || '').toLowerCase() && s.url
+        );
+        itemUrl = matchSerp?.url || gerarUrlConcorrenteFallback(item.loja || '');
       }
       return {
         ...item,

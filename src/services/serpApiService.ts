@@ -900,3 +900,322 @@ export const buscarFotosGoogleImagesSerpApi = async (
   logSerpErro('Nenhum método conseguiu localizar fotos para o termo.');
   return [];
 };
+
+export interface ItemShoppingSerpApi {
+  titulo: string;
+  loja: string;
+  preco: number;
+  precoTexto: string;
+  url: string;
+  tipo: string;
+  entrega?: string;
+}
+
+const cacheShoppingSerpMemoria = new Map<string, { timestamp: number; itens: ItemShoppingSerpApi[] }>();
+
+export const obterCacheShoppingSerp = (termo: string): ItemShoppingSerpApi[] | null => {
+  const chave = `hubi_serp_shopping_cache_${termo.toLowerCase().trim()}`;
+  const emMemoria = cacheShoppingSerpMemoria.get(chave);
+  if (emMemoria && Date.now() - emMemoria.timestamp < 1000 * 60 * 60 * 6) {
+    return emMemoria.itens;
+  }
+  try {
+    const salvo = sessionStorage.getItem(chave);
+    if (salvo) {
+      const item = JSON.parse(salvo);
+      if (Date.now() - item.timestamp < 1000 * 60 * 60 * 6 && Array.isArray(item.itens)) {
+        cacheShoppingSerpMemoria.set(chave, item);
+        return item.itens;
+      }
+    }
+  } catch {}
+  return null;
+};
+
+export const salvarCacheShoppingSerp = (termo: string, itens: ItemShoppingSerpApi[]) => {
+  if (!itens || itens.length === 0) return;
+  const chave = `hubi_serp_shopping_cache_${termo.toLowerCase().trim()}`;
+  const item = { timestamp: Date.now(), itens };
+  cacheShoppingSerpMemoria.set(chave, item);
+  try {
+    sessionStorage.setItem(chave, JSON.stringify(item));
+  } catch {}
+};
+
+/**
+ * Converte strings monetárias brasileiras ("R$ 3.499,90", "R$ 45,00") ou números para float
+ */
+export const extrairPrecoNumericoBr = (valor: any): number => {
+  if (typeof valor === 'number' && !Number.isNaN(valor) && valor > 0) {
+    return valor;
+  }
+  if (!valor) return 0;
+  const str = String(valor).trim();
+  const match = str.match(/(?:R\$\s*)?(\d{1,3}(?:\.\d{3})+,\d{1,2}|\d+,\d{1,2}|\d{1,3}(?:\.\d{3})+|\d+\.\d{1,2}|\d+)/i);
+  if (!match || !match[1]) return 0;
+  let numStr = match[1];
+  if (numStr.includes(',')) {
+    numStr = numStr.replace(/\./g, '').replace(',', '.');
+  } else if (/^\d{1,3}(\.\d{3})+$/.test(numStr)) {
+    numStr = numStr.replace(/\./g, '');
+  }
+  const parsed = parseFloat(numStr);
+  return !Number.isNaN(parsed) && parsed > 0 ? parsed : 0;
+};
+
+const classificarTipoLojaShopping = (nomeLoja: string): string => {
+  const lower = (nomeLoja || '').toLowerCase();
+  if (
+    lower.includes('mercado livre') ||
+    lower.includes('mercadolivre') ||
+    lower.includes('amazon') ||
+    lower.includes('shopee') ||
+    lower.includes('magalu') ||
+    lower.includes('magazine luiza') ||
+    lower.includes('aliexpress') ||
+    lower.includes('americanas') ||
+    lower.includes('casas bahia')
+  ) {
+    return 'Marketplace';
+  }
+  if (lower.includes('oficial') || lower.includes('store') || lower.includes('brasil')) {
+    return 'Loja Oficial';
+  }
+  return 'E-commerce Especializado';
+};
+
+const formatarItensShoppingBrutos = (rawItems: any[], queryPadrao: string): ItemShoppingSerpApi[] => {
+  if (!Array.isArray(rawItems)) return [];
+  const resultados: ItemShoppingSerpApi[] = [];
+
+  for (const item of rawItems) {
+    const precoNum =
+      extrairPrecoNumericoBr(item.extracted_price) ||
+      extrairPrecoNumericoBr(item.price) ||
+      extrairPrecoNumericoBr(item.snippet);
+
+    if (precoNum <= 0) continue;
+
+    const loja = String(
+      item.source ||
+      item.merchant ||
+      item.seller ||
+      item.store ||
+      (item.link ? (() => { try { return new URL(item.link).hostname.replace(/^www\./, ''); } catch { return ''; } })() : '') ||
+      'Varejo Online'
+    ).trim();
+
+    const titulo = String(item.title || item.titulo || queryPadrao).trim();
+    const url = String(item.link || item.product_link || item.url || '').trim();
+
+    resultados.push({
+      titulo,
+      loja,
+      preco: precoNum,
+      precoTexto: String(item.price || `R$ ${precoNum.toFixed(2)}`),
+      url,
+      tipo: classificarTipoLojaShopping(loja),
+      entrega: item.delivery ? String(item.delivery) : undefined
+    });
+  }
+
+  return resultados;
+};
+
+/**
+ * Busca rápida (<1s) de preços reais de mercado via SerpApi / Serper.dev (engine: 'google_shopping' e fallback 'google')
+ * com cache em memória e sessionStorage idêntico ao de imagens.
+ */
+export const buscarPrecosShoppingSerpApi = async (
+  termo: string,
+  loja?: any,
+  numResultados = 15
+): Promise<ItemShoppingSerpApi[]> => {
+  const queryFinal = limparTermoParaBuscaGoogle(termo) || (termo || '').trim();
+  if (!queryFinal) return [];
+
+  // 1. Verificação instantânea no Cache Local (0ms)
+  const emCache = obterCacheShoppingSerp(queryFinal);
+  if (emCache && emCache.length > 0) {
+    logSerpSucesso(`⚡ [CACHE SHOPPING 0ms] Recuperadas ${emCache.length} ofertas para "${queryFinal}"`);
+    return emCache;
+  }
+
+  let chaveLimpa = obterSerpApiKey(loja);
+  if (!chaveLimpa && loja?.id) {
+    try {
+      chaveLimpa = await obterOuBuscarSerpApiKey(loja);
+    } catch {}
+  }
+
+  const lojaId = loja?.id;
+  const num = Math.min(numResultados, 20);
+
+  const promessas: Promise<ItemShoppingSerpApi[]>[] = [];
+
+  // Canal 1: Chamada direta ultrarrápida ao Serper.dev Shopping (~400-700ms) se chave disponível
+  if (chaveLimpa) {
+    promessas.push(
+      (async () => {
+        const ctrl = new AbortController();
+        const tId = setTimeout(() => ctrl.abort(), 4500);
+        try {
+          const res = await fetch('https://google.serper.dev/shopping', {
+            method: 'POST',
+            headers: {
+              'X-API-KEY': chaveLimpa,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ q: queryFinal, gl: 'br', hl: 'pt-br', num }),
+            signal: ctrl.signal
+          });
+          clearTimeout(tId);
+          if (res.ok) {
+            const data = await res.json();
+            const itens = formatarItensShoppingBrutos(data.shopping || data.shopping_results || [], queryFinal);
+            if (itens.length > 0) return itens;
+          }
+        } catch {
+          clearTimeout(tId);
+        }
+        return [];
+      })()
+    );
+  }
+
+  // Canal 2: Proxy local em DEV (/api/buscar-fotos-serpapi?engine=google_shopping)
+  if (import.meta.env.DEV && chaveLimpa) {
+    promessas.push(
+      (async () => {
+        const ctrl = new AbortController();
+        const tId = setTimeout(() => ctrl.abort(), 5000);
+        try {
+          const params = new URLSearchParams({
+            engine: 'google_shopping',
+            q: queryFinal,
+            hl: 'pt',
+            gl: 'br',
+            api_key: chaveLimpa,
+            num: String(num)
+          });
+          const res = await fetch(`/api/buscar-fotos-serpapi?${params.toString()}`, { signal: ctrl.signal });
+          clearTimeout(tId);
+          if (res.ok) {
+            const data = await res.json();
+            const itens = formatarItensShoppingBrutos(data.shopping || data.shopping_results || data.results || [], queryFinal);
+            if (itens.length > 0) return itens;
+          }
+        } catch {
+          clearTimeout(tId);
+        }
+        return [];
+      })()
+    );
+  }
+
+  // Canal 3: Supabase Edge Function (buscar-fotos-serpapi com engine: 'google_shopping')
+  if (chaveLimpa || lojaId) {
+    promessas.push(
+      (async () => {
+        try {
+          const { data: edgeData, error } = await supabase.functions.invoke('buscar-fotos-serpapi', {
+            body: {
+              q: queryFinal,
+              engine: 'google_shopping',
+              serpApiKey: chaveLimpa || undefined,
+              api_key: chaveLimpa || undefined,
+              loja_id: lojaId || undefined,
+              num
+            }
+          });
+          if (!error && edgeData) {
+            const brutos = edgeData.shopping || edgeData.shopping_results || edgeData.results || [];
+            const itens = formatarItensShoppingBrutos(brutos, queryFinal);
+            if (itens.length > 0) return itens;
+          }
+        } catch {}
+        return [];
+      })()
+    );
+  }
+
+  if (promessas.length === 0) return [];
+
+  try {
+    // Resolve assim que o primeiro canal retornar ofertas válidas (> 0)
+    const ofertas = await new Promise<ItemShoppingSerpApi[]>((resolve) => {
+      let pendentes = promessas.length;
+      let resolvido = false;
+
+      promessas.forEach((p) => {
+        p.then((lista) => {
+          if (!resolvido && lista && lista.length > 0) {
+            resolvido = true;
+            resolve(lista);
+          } else {
+            pendentes--;
+            if (pendentes <= 0 && !resolvido) {
+              resolvido = true;
+              resolve([]);
+            }
+          }
+        }).catch(() => {
+          pendentes--;
+          if (pendentes <= 0 && !resolvido) {
+            resolvido = true;
+            resolve([]);
+          }
+        });
+      });
+
+      setTimeout(() => {
+        if (!resolvido) {
+          resolvido = true;
+          resolve([]);
+        }
+      }, 5500);
+    });
+
+    if (ofertas.length > 0) {
+      logSerpSucesso(`⚡ Encontradas ${ofertas.length} ofertas reais no Google Shopping para "${queryFinal}"`);
+      salvarCacheShoppingSerp(queryFinal, ofertas);
+      return ofertas;
+    }
+
+    // Fallback rápido para engine 'google' (busca orgânica com snippets de preço) se shopping vier vazio e houver chave
+    if (chaveLimpa) {
+      const ctrl = new AbortController();
+      const tId = setTimeout(() => ctrl.abort(), 3500);
+      try {
+        const resSearch = await fetch('https://google.serper.dev/search', {
+          method: 'POST',
+          headers: {
+            'X-API-KEY': chaveLimpa,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ q: `${queryFinal} preço comprar`, gl: 'br', hl: 'pt-br', num: 10 }),
+          signal: ctrl.signal
+        });
+        clearTimeout(tId);
+        if (resSearch.ok) {
+          const searchData = await resSearch.json();
+          const combinados = [
+            ...(searchData.shopping || []),
+            ...(searchData.organic || [])
+          ];
+          const itensFallback = formatarItensShoppingBrutos(combinados, queryFinal);
+          if (itensFallback.length > 0) {
+            salvarCacheShoppingSerp(queryFinal, itensFallback);
+            return itensFallback;
+          }
+        }
+      } catch {
+        clearTimeout(tId);
+      }
+    }
+  } catch (err) {
+    logSerpAviso('Aviso ao buscar preços no Google Shopping:', err);
+  }
+
+  return [];
+};

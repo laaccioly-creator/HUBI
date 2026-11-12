@@ -21,19 +21,22 @@ serve(async (req: Request) => {
     let apiKey = "";
     let lojaId = "";
     let num = 10;
+    let engine = "google_images";
 
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
       q = body.q || body.termo || "";
       apiKey = body.serpApiKey || body.api_key || body.apiKey || "";
       lojaId = body.loja_id || body.lojaId || "";
-      num = Math.min(body.num || 10, 10);
+      num = Math.min(body.num || 10, 20);
+      engine = body.engine || "google_images";
     } else {
       const url = new URL(req.url);
       q = url.searchParams.get("q") || url.searchParams.get("termo") || "";
       apiKey = url.searchParams.get("serpApiKey") || url.searchParams.get("api_key") || url.searchParams.get("apiKey") || "";
       lojaId = url.searchParams.get("loja_id") || url.searchParams.get("lojaId") || "";
-      num = Math.min(parseInt(url.searchParams.get("num") || "10", 10), 10);
+      num = Math.min(parseInt(url.searchParams.get("num") || "10", 10), 20);
+      engine = url.searchParams.get("engine") || "google_images";
     }
 
     // 1. Resolução da Chave de API:
@@ -102,9 +105,15 @@ serve(async (req: Request) => {
       );
     }
 
-    // 2. Chamada à API oficial do Serper.dev:
-    // Endpoint: POST https://google.serper.dev/images
-    const serperResponse = await fetch("https://google.serper.dev/images", {
+    // 2. Chamada à API oficial do Serper.dev (suporta images, shopping e search):
+    const serperEndpoint =
+      engine === "google_shopping" || engine === "shopping"
+        ? "https://google.serper.dev/shopping"
+        : engine === "google" || engine === "search"
+        ? "https://google.serper.dev/search"
+        : "https://google.serper.dev/images";
+
+    const serperResponse = await fetch(serperEndpoint, {
       method: "POST",
       headers: {
         "X-API-KEY": apiKey,
@@ -176,6 +185,32 @@ serve(async (req: Request) => {
     }
 
     // 3. Mapeamento da Resposta:
+    if (engine === "google_shopping" || engine === "shopping" || engine === "google" || engine === "search") {
+      const shoppingList = Array.isArray(serperData.shopping)
+        ? serperData.shopping
+        : Array.isArray(serperData.shopping_results)
+        ? serperData.shopping_results
+        : [];
+      const organicList = Array.isArray(serperData.organic)
+        ? serperData.organic
+        : Array.isArray(serperData.organic_results)
+        ? serperData.organic_results
+        : [];
+
+      return new Response(
+        JSON.stringify({
+          shopping: shoppingList,
+          shopping_results: shoppingList,
+          organic: organicList,
+          results: shoppingList.length > 0 ? shoppingList : organicList,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     // A API do Serper devolve { images: [ { imageUrl, title, source, width, height }, ... ] }
     const imagesList = Array.isArray(serperData.images)
       ? serperData.images

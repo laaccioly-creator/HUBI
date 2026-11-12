@@ -92,6 +92,7 @@ serve(async (req: Request) => {
 
     if (requestBody && typeof requestBody === "object") {
       Object.assign(googlePayload, requestBody);
+      delete googlePayload.model;
     } else {
       if (contents) googlePayload.contents = contents;
       if (generationConfig) googlePayload.generationConfig = generationConfig;
@@ -106,11 +107,24 @@ serve(async (req: Request) => {
     }
     const googleUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:${action}?key=${resolvedApiKey}`;
 
-    const googleResponse = await fetch(googleUrl, {
+    let googleResponse = await fetch(googleUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(googlePayload),
     });
+
+    if (googleResponse.status === 400 && googlePayload.generationConfig && typeof googlePayload.generationConfig === "object") {
+      const genCfg = googlePayload.generationConfig as Record<string, unknown>;
+      if (genCfg.thinkingConfig || genCfg.responseSchema) {
+        const { thinkingConfig: _tc, responseSchema: _rs, ...cleanGenCfg } = genCfg;
+        googlePayload.generationConfig = cleanGenCfg;
+        googleResponse = await fetch(googleUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(googlePayload),
+        });
+      }
+    }
 
     const responseData = await googleResponse.json().catch(() => ({}));
 

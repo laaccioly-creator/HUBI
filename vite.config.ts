@@ -103,6 +103,8 @@ function setupBuscaFotosMiddleware(middlewares: any) {
       }
 
       const q = urlObj.searchParams.get('q') || '';
+      const engine = urlObj.searchParams.get('engine') || 'google_images';
+      const num = Math.min(parseInt(urlObj.searchParams.get('num') || '12', 10), 20);
       if (!apiKey) {
         res.statusCode = 401;
         res.setHeader('Content-Type', 'application/json');
@@ -113,12 +115,19 @@ function setupBuscaFotosMiddleware(middlewares: any) {
       if (!q.trim()) {
         res.statusCode = 200;
         res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify({ images_results: [] }));
+        res.end(JSON.stringify({ images_results: [], shopping_results: [], results: [] }));
         return;
       }
 
+      const serperEndpoint =
+        engine === 'google_shopping' || engine === 'shopping'
+          ? 'https://google.serper.dev/shopping'
+          : engine === 'google' || engine === 'search'
+          ? 'https://google.serper.dev/search'
+          : 'https://google.serper.dev/images';
+
       // Tenta consultar primeiramente a API oficial do Serper.dev
-      const serperRes = await fetch('https://google.serper.dev/images', {
+      const serperRes = await fetch(serperEndpoint, {
         method: 'POST',
         headers: {
           'X-API-KEY': apiKey,
@@ -128,21 +137,38 @@ function setupBuscaFotosMiddleware(middlewares: any) {
           q: q.trim(),
           gl: 'br',
           hl: 'pt-br',
-          num: 10
+          num
         })
       });
 
       const serperData = await serperRes.json().catch(() => ({}));
 
-      if (serperRes.ok && Array.isArray(serperData.images)) {
-        res.statusCode = 200;
-        res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify({
-          images_results: serperData.images,
-          results: serperData.images,
-          images: serperData.images
-        }));
-        return;
+      if (serperRes.ok) {
+        if (engine === 'google_shopping' || engine === 'shopping' || engine === 'google' || engine === 'search') {
+          const shoppingList = Array.isArray(serperData.shopping) ? serperData.shopping : [];
+          const organicList = Array.isArray(serperData.organic) ? serperData.organic : [];
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            shopping: shoppingList,
+            shopping_results: shoppingList,
+            organic: organicList,
+            organic_results: organicList,
+            results: shoppingList.length > 0 ? shoppingList : organicList
+          }));
+          return;
+        }
+
+        if (Array.isArray(serperData.images)) {
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            images_results: serperData.images,
+            results: serperData.images,
+            images: serperData.images
+          }));
+          return;
+        }
       }
 
       if (serperRes.status === 401 || serperRes.status === 403) {
@@ -161,7 +187,7 @@ function setupBuscaFotosMiddleware(middlewares: any) {
 
       // Fallback para SerpApi legado
       const searchParams = new URLSearchParams({
-        engine: 'google_images',
+        engine,
         q: q.trim(),
         hl: 'pt',
         gl: 'br',
