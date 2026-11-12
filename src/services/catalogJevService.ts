@@ -41,7 +41,7 @@ export interface ContextoUnificadoProdutoJev {
  */
 export const invalidarCachesAntigosPipelineJev = (): void => {
   try {
-    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v11_ativo';
+    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v12_ativo';
     if (localStorage.getItem(FLAG_MIGRACAO) === 'true') return;
 
     const prefixosAntigos = [
@@ -55,7 +55,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
       const chavesParaRemover: string[] = [];
       for (let i = 0; i < storage.length; i++) {
         const k = storage.key(i);
-        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v11_')) {
+        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v12_')) {
           chavesParaRemover.push(k);
         }
       }
@@ -66,7 +66,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
     limparStorage(sessionStorage);
     localStorage.setItem(FLAG_MIGRACAO, 'true');
     console.log(
-      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v11 ativo!',
+      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v12 ativo!',
       'background: #10b981; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
       'color: #10b981; font-weight: bold;'
     );
@@ -805,8 +805,10 @@ export const catalogJevService = {
       }
     }
 
-    // Filtro estatístico de outliers (Mediana): descarta preços < 65% ou > 140% da mediana
-    if (listaLojas.length >= 3) {
+    // Filtro estatístico de outliers:
+    // - Com 4+ lojas válidas: aplica corte por mediana (65% a 140% da mediana)
+    // - Com 2 ou 3 lojas: descarta apenas preços aberrantes (< 30% ou > 250% do maior valor válido)
+    if (listaLojas.length >= 4) {
       const precosOrd = listaLojas.map(l => l.preco).sort((a, b) => a - b);
       const mid = Math.floor(precosOrd.length / 2);
       const mediana = precosOrd.length % 2 === 0
@@ -815,6 +817,12 @@ export const catalogJevService = {
       const semOutliers = listaLojas.filter(l => l.preco >= mediana * 0.65 && l.preco <= mediana * 1.40);
       if (semOutliers.length > 0) {
         listaLojas = semOutliers;
+      }
+    } else if (listaLojas.length >= 2) {
+      const maiorValido = Math.max(...listaLojas.map(l => l.preco));
+      const semAberrantes = listaLojas.filter(l => l.preco >= maiorValido * 0.30 && l.preco <= maiorValido * 2.50);
+      if (semAberrantes.length > 0) {
+        listaLojas = semAberrantes;
       }
     }
 

@@ -561,7 +561,7 @@ export const testarConexaoSerpApi = async (
 const cacheSerpMemoria = new Map<string, { timestamp: number; fotos: FotoResultadoSerpApi[] }>();
 
 export const obterCacheSerp = (termo: string): FotoResultadoSerpApi[] | null => {
-  const chave = `hubi_serp_cache_v11_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_cache_v12_${termo.toLowerCase().trim()}`;
   const emMemoria = cacheSerpMemoria.get(chave);
   if (emMemoria && Date.now() - emMemoria.timestamp < 1000 * 60 * 60 * 6) {
     return emMemoria.fotos;
@@ -581,7 +581,7 @@ export const obterCacheSerp = (termo: string): FotoResultadoSerpApi[] | null => 
 
 export const salvarCacheSerp = (termo: string, fotos: FotoResultadoSerpApi[]) => {
   if (!fotos || fotos.length === 0) return;
-  const chave = `hubi_serp_cache_v11_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_cache_v12_${termo.toLowerCase().trim()}`;
   const item = { timestamp: Date.now(), fotos };
   cacheSerpMemoria.set(chave, item);
   try {
@@ -942,7 +942,7 @@ export interface ItemShoppingSerpApi {
 const cacheShoppingSerpMemoria = new Map<string, { timestamp: number; itens: ItemShoppingSerpApi[] }>();
 
 export const obterCacheShoppingSerp = (termo: string): ItemShoppingSerpApi[] | null => {
-  const chave = `hubi_serp_shopping_cache_v11_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_shopping_cache_v12_${termo.toLowerCase().trim()}`;
   const TTL_MS = 1000 * 60 * 60 * 6; // 6 horas
   const emMemoria = cacheShoppingSerpMemoria.get(chave);
   if (emMemoria && Date.now() - emMemoria.timestamp < TTL_MS) {
@@ -963,7 +963,7 @@ export const obterCacheShoppingSerp = (termo: string): ItemShoppingSerpApi[] | n
 
 export const salvarCacheShoppingSerp = (termo: string, itens: ItemShoppingSerpApi[]) => {
   if (!itens || itens.length === 0) return;
-  const chave = `hubi_serp_shopping_cache_v11_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_shopping_cache_v12_${termo.toLowerCase().trim()}`;
   const item = { timestamp: Date.now(), itens };
   cacheShoppingSerpMemoria.set(chave, item);
   const serializado = JSON.stringify(item);
@@ -978,7 +978,7 @@ export const salvarCacheShoppingSerp = (termo: string, itens: ItemShoppingSerpAp
 /**
  * Converte strings monetárias brasileiras ("R$ 3.499,90", "R$ 45,00") ou números para float
  */
-export const extrairPrecoNumericoBr = (valor: any): number => {
+export const extrairPrecoNumericoBr = (valor: any, exigirSimboloRs = false): number => {
   if (typeof valor === 'number' && !Number.isNaN(valor) && valor > 0) {
     return valor;
   }
@@ -986,8 +986,9 @@ export const extrairPrecoNumericoBr = (valor: any): number => {
   const str = String(valor).trim();
 
   // Varre todas as ocorrências com R$ ignorando parcelas (ex: "12x R$ 350", "parcelas de R$ 299")
-  const regexRsGlobal = /(?:R\$\s*)(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:,\d{1,2})?)/gi;
+  const regexRsGlobal = /(?<!\d+\s*x\s*(?:de\s*)?)R\$\s*(\d{1,3}(?:\.\d{3})+(?:,\d{2})?|\d{2,}(?:,\d{2})?)/gi;
   const regexIgnorarPrefixo = /(?:\d+\s*x\s*(?:de\s*)?|parcelas?\s*(?:de\s*)?|juros\s*(?:de\s*)?|frete\s*(?:de|acima\s+de)?\s*|cupom\s*(?:de)?\s*|desconto\s*(?:de)?\s*)$/i;
+  const valoresValidos: number[] = [];
 
   for (const match of str.matchAll(regexRsGlobal)) {
     const idx = match.index ?? 0;
@@ -1004,13 +1005,17 @@ export const extrairPrecoNumericoBr = (valor: any): number => {
     }
     const parsed = parseFloat(numStr);
     if (!Number.isNaN(parsed) && parsed > 0) {
-      return parsed;
+      valoresValidos.push(parsed);
     }
   }
 
+  if (valoresValidos.length > 0) {
+    return Math.max(...valoresValidos);
+  }
+
   // Fallback numérico curto (ex: campo priceRange/price já isolado sem "R$")
-  if (str.length <= 28) {
-    const matchGenerico = str.match(/(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+,\d{1,2}|\d+\.\d{1,2}|\d+)/i);
+  if (!exigirSimboloRs && str.length <= 28) {
+    const matchGenerico = str.match(/^\s*(\d{1,3}(?:\.\d{3})+(?:,\d{2})?|\d+(?:[.,]\d{1,2})?)\s*$/);
     if (matchGenerico?.[1]) {
       let numStr = matchGenerico[1];
       if (numStr.includes(',')) {
@@ -1030,55 +1035,68 @@ export const extrairPrecoNumericoBr = (valor: any): number => {
 
 const normalizarNomeLojaBr = (fonteBruta: string, urlBruta?: string): string => {
   const f = (fonteBruta || '').trim();
-  const combinado = `${f} ${urlBruta || ''}`.toLowerCase();
-
-  if (combinado.includes('mercadolivre') || combinado.includes('mercado livre')) return 'Mercado Livre';
-  if (combinado.includes('amazon.com')) return 'Amazon Brasil';
-  if (combinado.includes('kabum')) return 'KaBuM!';
-  if (combinado.includes('magazineluiza') || combinado.includes('magalu')) return 'Magazine Luiza';
-  if (combinado.includes('shopee')) return 'Shopee';
-  if (combinado.includes('casasbahia') || combinado.includes('casas bahia')) return 'Casas Bahia';
-  if (combinado.includes('americanas')) return 'Americanas';
-  if (combinado.includes('pichau')) return 'Pichau';
-  if (combinado.includes('terabyteshop') || combinado.includes('terabyte')) return 'TerabyteShop';
-  if (combinado.includes('aliexpress')) return 'AliExpress';
-  if (combinado.includes('fastshop') || combinado.includes('fast shop')) return 'Fast Shop';
-  if (combinado.includes('carrefour')) return 'Carrefour';
-  if (combinado.includes('extra.com.br')) return 'Extra';
-  if (combinado.includes('pontofrio') || combinado.includes('ponto.com.br')) return 'Ponto';
-  if (combinado.includes('creality')) return 'Creality Brasil';
-  if (combinado.includes('slim3d') || combinado.includes('slim 3d')) return 'Slim 3D';
-  if (combinado.includes('melhorfilamento') || combinado.includes('melhor filamento')) return 'Melhor Filamento';
-  if (combinado.includes('3dlab') || combinado.includes('3d lab')) return '3D Lab';
-  if (combinado.includes('3dprime')) return '3D Prime';
-  if (combinado.includes('gtmax3d')) return 'GTMax3D';
-  if (combinado.includes('stlflix') || combinado.includes('3dfila')) return '3DFila';
-  if (combinado.includes('kalunga')) return 'Kalunga';
-  if (combinado.includes('leroymerlin') || combinado.includes('leroy merlin')) return 'Leroy Merlin';
-  if (combinado.includes('madeiramadeira')) return 'MadeiraMadeira';
-  if (combinado.includes('netshoes')) return 'Netshoes';
-  if (combinado.includes('centauro')) return 'Centauro';
-  if (combinado.includes('drogaraia') || combinado.includes('droga raia')) return 'Droga Raia';
-  if (combinado.includes('pague menos') || combinado.includes('paguemenos')) return 'Pague Menos';
-  if (combinado.includes('beleza na web') || combinado.includes('belezanaweb')) return 'Beleza na Web';
-  if (combinado.includes('epoca cosmeticos') || combinado.includes('epocacosmeticos')) return 'Época Cosméticos';
-
-  if (f && !f.includes('http') && !f.includes('/')) {
-    return f;
-  }
+  let hostLimpo = '';
 
   if (urlBruta) {
     try {
-      const host = new URL(urlBruta).hostname
+      hostLimpo = new URL(urlBruta).hostname
+        .toLowerCase()
         .replace(/^www\./, '')
         .replace(/^lista\./, '')
         .replace(/^produto\./, '')
-        .replace(/^loja\./, '');
-      const base = host.split('.')[0] || host;
-      if (base.length >= 2) {
-        return base.charAt(0).toUpperCase() + base.slice(1);
-      }
+        .replace(/^loja\./, '')
+        .replace(/^m\./, '');
     } catch {}
+  }
+
+  // Compara apenas hostname (nunca o slug/caminho da URL, para não colapsar lojas diferentes) e fonteBruta
+  const alvo = `${hostLimpo} ${f.toLowerCase()}`.trim();
+
+  if (alvo.includes('mercadolivre') || alvo.includes('mercado livre')) return 'Mercado Livre';
+  if (alvo.includes('amazon.com')) return 'Amazon Brasil';
+  if (alvo.includes('kabum')) return 'KaBuM!';
+  if (alvo.includes('magazineluiza') || alvo.includes('magalu')) return 'Magazine Luiza';
+  if (alvo.includes('shopee')) return 'Shopee';
+  if (alvo.includes('casasbahia') || alvo.includes('casas bahia')) return 'Casas Bahia';
+  if (alvo.includes('americanas')) return 'Americanas';
+  if (alvo.includes('pichau')) return 'Pichau';
+  if (alvo.includes('terabyteshop') || alvo.includes('terabyte')) return 'TerabyteShop';
+  if (alvo.includes('aliexpress')) return 'AliExpress';
+  if (alvo.includes('fastshop') || alvo.includes('fast shop')) return 'Fast Shop';
+  if (alvo.includes('carrefour')) return 'Carrefour';
+  if (alvo.includes('extra.com.br')) return 'Extra';
+  if (alvo.includes('pontofrio') || alvo.includes('ponto.com.br')) return 'Ponto';
+  if (alvo.includes('crealitybrasil') || alvo.includes('creality.com') || f.toLowerCase().includes('creality')) return 'Creality Brasil';
+  if (alvo.includes('slim3d') || alvo.includes('slim 3d')) return 'Slim 3D';
+  if (alvo.includes('melhorfilamento') || alvo.includes('melhor filamento')) return 'Melhor Filamento';
+  if (alvo.includes('3dlab') || alvo.includes('3d lab')) return '3D Lab';
+  if (alvo.includes('3dprime') || alvo.includes('3d prime')) return '3D Prime';
+  if (alvo.includes('gtmax3d')) return 'GTMax3D';
+  if (alvo.includes('stlflix') || alvo.includes('3dfila')) return '3DFila';
+  if (alvo.includes('kalunga')) return 'Kalunga';
+  if (alvo.includes('leroymerlin') || alvo.includes('leroy merlin')) return 'Leroy Merlin';
+  if (alvo.includes('madeiramadeira')) return 'MadeiraMadeira';
+  if (alvo.includes('netshoes')) return 'Netshoes';
+  if (alvo.includes('centauro')) return 'Centauro';
+  if (alvo.includes('drogaraia') || alvo.includes('droga raia')) return 'Droga Raia';
+  if (alvo.includes('pague menos') || alvo.includes('paguemenos')) return 'Pague Menos';
+  if (alvo.includes('beleza na web') || alvo.includes('belezanaweb')) return 'Beleza na Web';
+  if (alvo.includes('epoca cosmeticos') || alvo.includes('epocacosmeticos')) return 'Época Cosméticos';
+
+  if (hostLimpo) {
+    const semTld = hostLimpo.replace(/\.(com\.br|com|net\.br|net|org\.br|org|loja|shop|store)$/i, '');
+    const nomeFormatado = semTld
+      .split(/[.-]+/)
+      .filter(Boolean)
+      .map(p => p.charAt(0).toUpperCase() + p.slice(1))
+      .join(' ');
+    if (nomeFormatado.length >= 2) {
+      return nomeFormatado;
+    }
+  }
+
+  if (f && !f.includes('http') && !f.includes('/')) {
+    return f;
   }
 
   return f || 'Varejo Online';
@@ -1203,12 +1221,12 @@ const formatarItensShoppingBrutos = (rawItems: any[], queryPadrao: string): Item
     const precoNum =
       extrairPrecoNumericoBr(item.extracted_price) ||
       extrairPrecoNumericoBr(item.price) ||
-      extrairPrecoNumericoBr(item.priceRange) ||
+      extrairPrecoNumericoBr(item.priceRange, true) ||
       extrairPrecoNumericoBr(richPrice) ||
       extrairPrecoNumericoBr(item.attributes?.Preço || item.attributes?.Preco || item.attributes?.Price) ||
-      extrairPrecoNumericoBr(richExtensions) ||
-      extrairPrecoNumericoBr(item.snippet) ||
-      extrairPrecoNumericoBr(item.title);
+      extrairPrecoNumericoBr(richExtensions, true) ||
+      extrairPrecoNumericoBr(item.snippet, true) ||
+      extrairPrecoNumericoBr(item.title, true);
 
     if (precoNum <= 0) continue;
 
@@ -1238,9 +1256,15 @@ const formatarItensShoppingBrutos = (rawItems: any[], queryPadrao: string): Item
     });
   }
 
+  // Piso mínimo absoluto: descarta valores falsos (< R$ 15,00) quando há ofertas > R$ 100,00 para o mesmo produto
+  const temOfertaAcima100 = resultados.some(r => r.preco > 100);
+  const resultadosValidos = temOfertaAcima100
+    ? resultados.filter(r => r.preco >= 15)
+    : resultados;
+
   // Priorizar lojas distintas na ordenação (1ª oferta competitiva de cada loja distinta primeiro, depois demais)
   const porLoja = new Map<string, ItemShoppingSerpApi[]>();
-  for (const r of resultados) {
+  for (const r of resultadosValidos) {
     const k = r.loja.toLowerCase().trim();
     const lista = porLoja.get(k) || [];
     lista.push(r);
@@ -1453,9 +1477,15 @@ export const buscarPrecosShoppingSerpApi = async (
     }
 
     if (todosItens.length > 0) {
+      // Piso mínimo absoluto global: descarta qualquer valor irrisório (< R$ 15,00) quando existem ofertas acima de R$ 100,00
+      const temOfertaAcima100Global = todosItens.some(it => it.preco > 100);
+      const itensFiltradosPiso = temOfertaAcima100Global
+        ? todosItens.filter(it => it.preco >= 15)
+        : todosItens;
+
       // Deduplica por loja + preço/url, priorizando manter 1 oferta competitiva por loja distinta primeiro
       const porLoja = new Map<string, ItemShoppingSerpApi[]>();
-      for (const item of todosItens) {
+      for (const item of itensFiltradosPiso) {
         const chaveLoja = item.loja.toLowerCase().trim();
         const lista = porLoja.get(chaveLoja) || [];
         if (!lista.some(x => Math.abs(x.preco - item.preco) < 0.05 || (x.url && item.url && x.url === item.url))) {
