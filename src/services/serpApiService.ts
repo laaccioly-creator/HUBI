@@ -561,7 +561,7 @@ export const testarConexaoSerpApi = async (
 const cacheSerpMemoria = new Map<string, { timestamp: number; fotos: FotoResultadoSerpApi[] }>();
 
 export const obterCacheSerp = (termo: string): FotoResultadoSerpApi[] | null => {
-  const chave = `hubi_serp_cache_v7_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_cache_v8_${termo.toLowerCase().trim()}`;
   const emMemoria = cacheSerpMemoria.get(chave);
   if (emMemoria && Date.now() - emMemoria.timestamp < 1000 * 60 * 60 * 6) {
     return emMemoria.fotos;
@@ -581,7 +581,7 @@ export const obterCacheSerp = (termo: string): FotoResultadoSerpApi[] | null => 
 
 export const salvarCacheSerp = (termo: string, fotos: FotoResultadoSerpApi[]) => {
   if (!fotos || fotos.length === 0) return;
-  const chave = `hubi_serp_cache_v7_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_cache_v8_${termo.toLowerCase().trim()}`;
   const item = { timestamp: Date.now(), fotos };
   cacheSerpMemoria.set(chave, item);
   try {
@@ -942,7 +942,7 @@ export interface ItemShoppingSerpApi {
 const cacheShoppingSerpMemoria = new Map<string, { timestamp: number; itens: ItemShoppingSerpApi[] }>();
 
 export const obterCacheShoppingSerp = (termo: string): ItemShoppingSerpApi[] | null => {
-  const chave = `hubi_serp_shopping_cache_v7_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_shopping_cache_v8_${termo.toLowerCase().trim()}`;
   const TTL_MS = 1000 * 60 * 60 * 6; // 6 horas
   const emMemoria = cacheShoppingSerpMemoria.get(chave);
   if (emMemoria && Date.now() - emMemoria.timestamp < TTL_MS) {
@@ -963,7 +963,7 @@ export const obterCacheShoppingSerp = (termo: string): ItemShoppingSerpApi[] | n
 
 export const salvarCacheShoppingSerp = (termo: string, itens: ItemShoppingSerpApi[]) => {
   if (!itens || itens.length === 0) return;
-  const chave = `hubi_serp_shopping_cache_v7_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_shopping_cache_v8_${termo.toLowerCase().trim()}`;
   const item = { timestamp: Date.now(), itens };
   cacheShoppingSerpMemoria.set(chave, item);
   const serializado = JSON.stringify(item);
@@ -1236,7 +1236,7 @@ const formatarItensShoppingBrutos = (rawItems: any[], queryPadrao: string): Item
 export const buscarPrecosShoppingSerpApi = async (
   termo: string,
   loja?: any,
-  numResultados = 20
+  numResultados = 30
 ): Promise<ItemShoppingSerpApi[]> => {
   const queryFinal = extrairTermoPrincipalProduto(termo) || limparTermoParaBuscaGoogle(termo) || (termo || '').trim();
   if (!queryFinal) return [];
@@ -1256,7 +1256,7 @@ export const buscarPrecosShoppingSerpApi = async (
   }
 
   const lojaId = loja?.id;
-  const num = Math.min(Math.max(numResultados, 20), 25);
+  const num = Math.min(Math.max(numResultados, 20), 30);
 
   const promessasShopping: Promise<ItemShoppingSerpApi[]>[] = [];
 

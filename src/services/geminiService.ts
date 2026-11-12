@@ -749,8 +749,8 @@ export const executarRequisicaoGemini = async (
     c.parts?.some((p: any) => p.inline_data || p.inlineData)
   );
 
-  // Timeouts ágeis: 18s para imagem multimodal e 8s para texto
-  const timeoutMs = temImagem ? 18000 : 8000;
+  // Timeouts equilibrados: 20s para geração completa (texto e multimodal)
+  const timeoutMs = 20000;
 
   let tentativas = 0;
   for (const modelo of modelos) {
@@ -1537,7 +1537,7 @@ export const atualizarProdutoExistenteComIA = async (dados: {
   const termoReferencia = nomeInformadoPeloUsuario || (dados.descricao?.trim() || 'Produto');
 
   // Cache instantâneo (Memória + localStorage) para respostas em 0ms em consultas repetidas
-  const chaveCache = `hubi_preencher_ia_v7_${termoReferencia.toLowerCase().trim()}_${(dados.categoriaNome || '').toLowerCase()}`;
+  const chaveCache = `hubi_preencher_ia_v8_${termoReferencia.toLowerCase().trim()}_${(dados.categoriaNome || '').toLowerCase()}`;
   const TTL_CACHE = 1000 * 60 * 60 * 6; // 6 horas
   const emMemoria = cachePreencherIAMemoria.get(chaveCache);
   if (emMemoria && Date.now() - emMemoria.timestamp < TTL_CACHE) {
