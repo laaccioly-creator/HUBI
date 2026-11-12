@@ -1537,7 +1537,7 @@ export const atualizarProdutoExistenteComIA = async (dados: {
   const termoReferencia = nomeInformadoPeloUsuario || (dados.descricao?.trim() || 'Produto');
 
   // Cache instantâneo (Memória + localStorage) para respostas em 0ms em consultas repetidas
-  const chaveCache = `hubi_preencher_ia_v9_${termoReferencia.toLowerCase().trim()}_${(dados.categoriaNome || '').toLowerCase()}`;
+  const chaveCache = `hubi_preencher_ia_v10_${termoReferencia.toLowerCase().trim()}_${(dados.categoriaNome || '').toLowerCase()}`;
   const TTL_CACHE = 1000 * 60 * 60 * 6; // 6 horas
   const emMemoria = cachePreencherIAMemoria.get(chaveCache);
   if (emMemoria && Date.now() - emMemoria.timestamp < TTL_CACHE) {
