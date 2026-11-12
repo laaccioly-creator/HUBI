@@ -1543,7 +1543,7 @@ export const atualizarProdutoExistenteComIA = async (dados: {
   const termoReferencia = nomeInformadoPeloUsuario || (dados.descricao?.trim() || 'Produto');
 
   // Cache instantâneo (Memória + localStorage) para respostas em 0ms em consultas repetidas
-  const chaveCache = `hubi_preencher_ia_v15_${termoReferencia.toLowerCase().trim()}_${(dados.categoriaNome || '').toLowerCase()}`;
+  const chaveCache = `hubi_preencher_ia_v16_${termoReferencia.toLowerCase().trim()}_${(dados.categoriaNome || '').toLowerCase()}`;
   const TTL_CACHE = 1000 * 60 * 60 * 6; // 6 horas
   const emMemoria = cachePreencherIAMemoria.get(chaveCache);
   if (emMemoria && Date.now() - emMemoria.timestamp < TTL_CACHE) {
@@ -1696,7 +1696,7 @@ REGRAS MANDATÓRIAS:
         : [];
       const mediaRadar = Number((concorrentesRadar.reduce((acc, c) => acc + c.preco, 0) / concorrentesRadar.length).toFixed(2));
       const termoRadar = (contextoJev.termoCanonico || termoReferencia).toLowerCase().trim();
-      const chaveRadar = `hubi_radar_precos_cache_v15_${termoRadar}`;
+      const chaveRadar = `hubi_radar_precos_cache_v16_${termoRadar}`;
       const payloadRadar = JSON.stringify({
         timestamp: Date.now(),
         dados: {

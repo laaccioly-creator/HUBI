@@ -45,7 +45,7 @@ export interface ContextoUnificadoProdutoJev {
  */
 export const invalidarCachesAntigosPipelineJev = (): void => {
   try {
-    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v15_ativo';
+    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v16_ativo';
     if (localStorage.getItem(FLAG_MIGRACAO) === 'true') return;
 
     const prefixosAntigos = [
@@ -59,7 +59,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
       const chavesParaRemover: string[] = [];
       for (let i = 0; i < storage.length; i++) {
         const k = storage.key(i);
-        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v15_')) {
+        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v16_')) {
           chavesParaRemover.push(k);
         }
       }
@@ -70,7 +70,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
     limparStorage(sessionStorage);
     localStorage.setItem(FLAG_MIGRACAO, 'true');
     console.log(
-      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v15 ativo!',
+      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v16 ativo!',
       'background: #10b981; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
       'color: #10b981; font-weight: bold;'
     );
@@ -863,23 +863,20 @@ export const catalogJevService = {
       }
     }
 
-    // Filtro estatístico de outliers:
-    // - Entre 4 e 8 lojas distintas: preserva todas as válidas, descartando apenas absurdos (< 50% ou > 160% da mediana) e nunca reduzindo abaixo de 4 lojas
-    // - Acima de 8 lojas: aplica corte mais estrito (65% a 140% da mediana), mantendo mínimo de 4 lojas
-    // - Com 2 ou 3 lojas: descarta apenas preços aberrantes (< 30% ou > 250% do maior valor válido)
-    if (listaLojas.length >= 4) {
+    // Filtro estatístico de outliers contra kits/combos disfarçados e importações:
+    // - Com 3+ lojas válidas: mantém toda oferta nacional na faixa de 60% a 125% da mediana
+    // - Com 2 lojas: descarta apenas preços aberrantes (< 30% ou > 250% do maior valor válido)
+    if (listaLojas.length >= 3) {
       const precosOrd = listaLojas.map(l => l.preco).sort((a, b) => a - b);
       const mid = Math.floor(precosOrd.length / 2);
       const mediana = precosOrd.length % 2 === 0
         ? (precosOrd[mid - 1] + precosOrd[mid]) / 2
         : precosOrd[mid];
-      const fatorMin = listaLojas.length <= 8 ? 0.50 : 0.65;
-      const fatorMax = listaLojas.length <= 8 ? 1.60 : 1.40;
-      const semOutliers = listaLojas.filter(l => l.preco >= mediana * fatorMin && l.preco <= mediana * fatorMax);
-      if (semOutliers.length >= 4) {
+      const semOutliers = listaLojas.filter(l => l.preco >= mediana * 0.60 && l.preco <= mediana * 1.25);
+      if (semOutliers.length > 0) {
         listaLojas = semOutliers;
       }
-    } else if (listaLojas.length >= 2) {
+    } else if (listaLojas.length === 2) {
       const maiorValido = Math.max(...listaLojas.map(l => l.preco));
       const semAberrantes = listaLojas.filter(l => l.preco >= maiorValido * 0.30 && l.preco <= maiorValido * 2.50);
       if (semAberrantes.length > 0) {
