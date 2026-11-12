@@ -8,9 +8,9 @@ import {
 } from './serpApiService';
 
 /**
- * Limiar oficial de aprovação de probabilidade do HUBI JEV (75%)
+ * Limiar oficial de aprovação de probabilidade do HUBI JEV (50%)
  */
-export const LIMIAR_APROVACAO_JEV = 0.75;
+export const LIMIAR_APROVACAO_JEV = 0.50;
 
 export type EtapaPipelineJev =
   | 'FOTOS'
@@ -35,12 +35,12 @@ export interface ContextoUnificadoProdutoJev {
 }
 
 /**
- * Invalida caches antigos (v1 e v2) no localStorage e sessionStorage para aplicar
- * imediatamente o pipeline unificado HUBI JEV (>= 75%).
+ * Invalida caches antigos (v1, v2 e v3) no localStorage e sessionStorage para aplicar
+ * imediatamente o pipeline calibrado HUBI JEV v4 (limiar >= 50%, garantia mínima de resultados).
  */
 export const invalidarCachesAntigosPipelineJev = (): void => {
   try {
-    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v3_ativo';
+    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v4_ativo';
     if (localStorage.getItem(FLAG_MIGRACAO) === 'true') return;
 
     const prefixosAntigos = [
@@ -54,7 +54,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
       const chavesParaRemover: string[] = [];
       for (let i = 0; i < storage.length; i++) {
         const k = storage.key(i);
-        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v3_')) {
+        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v4_')) {
           chavesParaRemover.push(k);
         }
       }
@@ -65,7 +65,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
     limparStorage(sessionStorage);
     localStorage.setItem(FLAG_MIGRACAO, 'true');
     console.log(
-      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v3 (limiar >= 75%) ativo!',
+      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v4 (limiar >= 50%, equilíbrio precisão e cobertura) ativo!',
       'background: #10b981; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
       'color: #10b981; font-weight: bold;'
     );
@@ -76,24 +76,31 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
 invalidarCachesAntigosPipelineJev();
 
 /**
- * Sufixos de variação/modelo e acessórios que DEVEM ser penalizados (< 75%)
- * caso apareçam no resultado da SerpApi mas NÃO estejam no Nome do Produto digitado pelo usuário.
+ * Sufixos de variação/modelo que DEVEM ser penalizados (< 30%)
+ * APENAS caso apareçam no resultado da SerpApi mas NÃO estejam no Nome do Produto digitado pelo usuário.
  */
 const SUFIXOS_VARIACAO_DIVERGENTE = [
-  'plus', 'pro', 'combo', 'cfs', 'max', 'mini', 'ultra', 'lite', 'se', 'hi', 'multicolor', 'ams', 'v2', 'v3'
-];
-
-const TERMOS_ACESSORIO_OU_PECA = [
-  'kit', 'peça', 'peca', 'peças', 'pecas', 'bico', 'nozzle', 'hotend', 'extrusora', 'extrusor',
-  'placa mãe', 'placa mae', 'mesa magnética', 'mesa magnetica', 'chapa pei', 'filamento', 'resina',
-  'cabo', 'correia', 'cooler', 'ventoinha', 'reposição', 'reposicao', 'suporte para', 'capa',
-  'película', 'pelicula', 'refil', 'amostra', 'usado', 'recondicionado', 'defeito', 'sucata'
+  'plus', 'pro', 'max', 'ultra', 'combo', 'cfs', 'mini', 'lite', 'se', 'neo', 'xl',
+  'hi', 'multicolor', 'ams', 'v2', 'v3'
 ];
 
 /**
- * Calcula o score determinístico de compatibilidade de modelo (0.00 a 1.00) no HUBI JEV,
- * penalizando rigorosamente variações diferentes (Plus, Pro, Combo, CFS, Max, Mini, Kit, Peça)
- * que não constem no nome digitado pelo usuário.
+ * Termos de peças, insumos e acessórios que DEVEM ser penalizados (< 30%)
+ * quando não fazem parte do produto pesquisado.
+ */
+const TERMOS_ACESSORIO_OU_PECA = [
+  'filamento', 'bico', 'nozzle', 'hotend', 'mesa', 'placa', 'correia', 'extrusora', 'extrusor',
+  'kit peças', 'kit pecas', 'kit peca', 'peça', 'peca', 'peças', 'pecas', 'capa',
+  'mesa magnética', 'mesa magnetica', 'chapa pei', 'placa mãe', 'placa mae', 'termistor',
+  'aquecedor', 'cooler', 'ventoinha', 'resina', 'peça de reposição', 'peca de reposicao',
+  'refil', 'amostra', 'usado', 'recondicionado', 'defeito', 'sucata', 'suporte para'
+];
+
+/**
+ * Calcula o score de compatibilidade de modelo (0.00 a 1.00) no HUBI JEV:
+ * 1. Pontuação alta (85% a 100%) se o título contiver os tokens principais do produto (ex: Creality e K2),
+ *    ignorando/não penalizando SKUs numéricos (ex: 1002110107), voltagens (Bivolt, 110v, 220v) ou specs (FDM, 600mm/s).
+ * 2. Penalização forte (< 30%) APENAS para variações diferentes (Plus, Pro, Combo, CFS, etc.) ou peças/insumos.
  */
 export function calcularScoreEstritoModeloJev(
   nomeOriginalUsuario: string,
@@ -110,31 +117,41 @@ export function calcularScoreEstritoModeloJev(
     return { score: 0, penalizado: true, motivo: 'título vazio' };
   }
 
-  // 1. Penalização imediata de sufixos de variação ausentes no nome digitado pelo usuário
+  // 1. Penalização forte (< 30%) APENAS para variantes divergentes ausentes no nome digitado
   for (const variacao of SUFIXOS_VARIACAO_DIVERGENTE) {
     const regexVar = new RegExp(`\\b${variacao}\\b`, 'i');
     if (!regexVar.test(originalLower) && regexVar.test(candidatoLower)) {
       return {
-        score: 0.25,
+        score: 0.15,
         penalizado: true,
-        motivo: `variação divergente "${variacao.toUpperCase()}"`
+        motivo: `variante divergente "${variacao.toUpperCase()}"`
       };
     }
   }
 
-  // 2. Penalização imediata de acessórios/peças avulsas ausentes no nome digitado
+  // 2. Penalização forte (< 30%) APENAS para peças, insumos e acessórios ausentes no nome digitado
   for (const termoAcc of TERMOS_ACESSORIO_OU_PECA) {
     const regexAcc = new RegExp(`\\b${termoAcc}\\b`, 'i');
     if (!regexAcc.test(originalLower) && regexAcc.test(candidatoLower)) {
       return {
-        score: 0.20,
+        score: 0.10,
         penalizado: true,
-        motivo: `acessório/peça "${termoAcc.toUpperCase()}"`
+        motivo: `peça/insumo/acessório "${termoAcc.toUpperCase()}"`
       };
     }
   }
 
-  // 3. Verificação de presença dos tokens essenciais e códigos de modelo (ex: "creality", "k2", "3d")
+  // 3. Sanitização do título do candidato:
+  // Remove SKUs numéricos, voltagem, unidades e especificações técnicas sem penalizar o score
+  const candidatoSanitizado = candidatoLower
+    .replace(/[-–—]\s*\b\d{4,15}\b/g, ' ') // SKUs precedidos de hífen (ex: - 1002110107)
+    .replace(/\b\d{5,15}\b/g, ' ') // SKUs numéricos longos isolados
+    .replace(/\b(?:bivolt|110v|220v|127v|110\/220v|220\/110v)\b/gi, ' ')
+    .replace(/\b\d+\s*(?:mm\/s|mm\/s²|rpm|hz|khz|mhz|w\s+rms|w|v)\b/gi, ' ')
+    .replace(/\b(?:fdm|sla|dlp|alta\s+velocidade|velocidade\s+m[aá]xima|auto\s+nivelamento|nivelamento\s+autom[aá]tico)\b/gi, ' ')
+    .replace(/\s+/g, ' ');
+
+  // 4. Extração dos tokens do produto pesquisado pelo usuário
   const stopwords = new Set([
     'de', 'do', 'da', 'dos', 'das', 'para', 'com', 'sem', 'em', 'no', 'na', 'um', 'uma', 'o', 'a', 'os', 'as', 'e', 'ou'
   ]);
@@ -146,33 +163,60 @@ export function calcularScoreEstritoModeloJev(
     return { score: 0.85, penalizado: false };
   }
 
-  let tokensEncontrados = 0;
-  for (const token of tokensOriginais) {
-    const temDigito = /\d/.test(token);
-    const regexToken = new RegExp(`\\b${token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-    const encontrado = regexToken.test(candidatoLower) || (!temDigito && candidatoLower.includes(token));
+  // Identifica tokens discriminantes de modelo (ex: "k2", "s24", "g9") vs tokens de tecnologia/gerais (ex: "3d", "4k")
+  const tokensDescritoresGenericos = new Set(['3d', '4k', '8k', '2k', 'hd', 'fhd', 'rgb', 'led']);
+  const tokensCriticosModelo = tokensOriginais.filter(t => /\d/.test(t) && t.length >= 2 && !tokensDescritoresGenericos.has(t));
+  const tokensTexto = tokensOriginais.filter(t => !tokensCriticosModelo.includes(t) && !tokensDescritoresGenericos.has(t));
 
-    if (encontrado) {
-      tokensEncontrados++;
-    } else if (temDigito && token.length >= 2) {
-      // Se um identificador alfanumérico de modelo (ex: "k2", "s24", "v3") não está no título candidato,
-      // penaliza abaixo de 75% para não misturar modelos diferentes da mesma marca
+  // Verifica se o modelo específico exigido (ex: "k2") está presente no candidato
+  for (const tokenModelo of tokensCriticosModelo) {
+    const regex = new RegExp(`\\b${tokenModelo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    if (!regex.test(candidatoSanitizado)) {
+      // Se o identificador exclusivo de modelo não estiver no título, pontua abaixo de 30%
       return {
-        score: 0.40,
+        score: 0.25,
         penalizado: true,
-        motivo: `modelo "${token.toUpperCase()}" ausente no título`
+        motivo: `modelo "${tokenModelo.toUpperCase()}" ausente no título`
       };
     }
   }
 
-  const proporcaoMatch = tokensEncontrados / tokensOriginais.length;
-  // Escala entre 0.60 e 0.98 conforme cobertura dos tokens do nome original
-  const scoreCalculado = Math.min(0.98, Number((0.58 + proporcaoMatch * 0.40).toFixed(2)));
+  // Conta os demais tokens de texto (marca, categoria, etc.) presentes no candidato
+  let tokensTextoEncontrados = 0;
+  for (const token of tokensTexto) {
+    const regex = new RegExp(`\\b${token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    if (regex.test(candidatoSanitizado) || candidatoSanitizado.includes(token)) {
+      tokensTextoEncontrados++;
+    }
+  }
+
+  const proporcaoTexto = tokensTexto.length > 0
+    ? tokensTextoEncontrados / tokensTexto.length
+    : 1.0;
+
+  // Se o candidato contiver os tokens principais (modelo crítico + marca/produto), pontuação entre 85% e 100%
+  let scoreCalculado = 0.85;
+  if (tokensCriticosModelo.length > 0) {
+    // Modelo crítico presente (ex: K2). Se a marca também estiver presente, nota máxima (95%-100%)
+    if (proporcaoTexto >= 0.50) {
+      scoreCalculado = Number((0.92 + proporcaoTexto * 0.08).toFixed(2)); // 0.95 a 1.00
+    } else {
+      scoreCalculado = 0.88;
+    }
+  } else {
+    // Sem código alfanumérico estrito, pontua pela proporção de tokens encontrados
+    if (proporcaoTexto >= 0.75) {
+      scoreCalculado = Number((0.85 + proporcaoTexto * 0.12).toFixed(2)); // 0.94 a 0.97
+    } else if (proporcaoTexto >= 0.50) {
+      scoreCalculado = Number((0.65 + proporcaoTexto * 0.20).toFixed(2)); // 0.75 a 0.85
+    } else {
+      scoreCalculado = Number((0.45 + proporcaoTexto * 0.20).toFixed(2)); // 0.45 a 0.55
+    }
+  }
 
   return {
-    score: scoreCalculado,
-    penalizado: scoreCalculado < LIMIAR_APROVACAO_JEV,
-    motivo: scoreCalculado < LIMIAR_APROVACAO_JEV ? 'baixa correspondência textual' : undefined
+    score: Math.min(1.0, scoreCalculado),
+    penalizado: false
   };
 }
 
@@ -484,8 +528,8 @@ export const catalogJevService = {
 
   /**
    * Avalia a compatibilidade das fotos encontradas na web utilizando o modelo Jev (System One)
-   * combinado com o filtro estrito de versão/modelo.
-   * Descarta rigorosamente fotos com score < 75% (0.75) e ordena por maior probabilidade.
+   * combinado com o filtro equilibrado de versão/modelo (limiar >= 50%).
+   * Garante entre 6 e 10 fotos na interface, ordenadas por probabilidade.
    */
   async filtrarFotosCompativeisComJev(
     termo: string,
@@ -494,16 +538,16 @@ export const catalogJevService = {
   ): Promise<FotoResultadoSerpApi[]> {
     if (!fotos || fotos.length === 0) return [];
 
-    // 1. Pré-pontuação determinística estrita (filtra sufixos como Plus, Pro, Combo, CFS, Kit, Peça)
+    // 1. Pré-pontuação determinística equilibrada (filtra variantes divergentes como Plus, Pro, Combo, CFS ou peças)
     const preAvaliadas = fotos.map((foto, idx) => ({
       foto,
       idx,
       scoreDeterministico: calcularScoreEstritoModeloJev(termo, `${foto.titulo} ${foto.fonte || ''}`).score
     }));
 
-    // Seleciona as candidatas que já não foram reprovadas por variação diferente (ou todas se muito poucas)
+    // Seleciona as candidatas viáveis para o JEV (não penalizadas por variantes/peças)
     const candidatas = preAvaliadas.filter(item => item.scoreDeterministico >= LIMIAR_APROVACAO_JEV).slice(0, 12);
-    const descartadasPorSufixo = preAvaliadas.length - preAvaliadas.filter(item => item.scoreDeterministico >= LIMIAR_APROVACAO_JEV).length;
+    const descartadasPorSufixo = preAvaliadas.filter(item => item.scoreDeterministico < 0.30).length;
 
     const scoresJevMap = new Map<number, number>();
     if (candidatas.length > 0) {
@@ -511,7 +555,7 @@ export const catalogJevService = {
       candidatas.forEach((item) => {
         questions[`f_${item.idx}`] = {
           type: 'noul',
-          instructions: `Foto: "${item.foto.titulo}". Representa exatamente o produto "${termo}" (sem ser outra versão como Plus/Pro/Combo/CFS ou acessório/peça avulsa)${segmentoLoja ? ` no nicho de "${segmentoLoja}"` : ''}?`
+          instructions: `Foto: "${item.foto.titulo}". Representa o produto "${termo}"? NÃO penalizar códigos SKU numéricos (ex: 1002110107), voltagens (Bivolt/110v/220v) ou velocidades/especificações técnicas. Penalizar apenas se for variante diferente (Plus, Pro, Max, Combo) ou peça/acessório avulso.`
         };
       });
 
@@ -520,7 +564,7 @@ export const catalogJevService = {
           {
             produto_exato: termo,
             nicho: segmentoLoja || 'Varejo',
-            regra_estrita: 'Penalizar variações diferentes (Plus, Pro, Combo, CFS, Max, Mini, Kit, Peça) se não constarem no nome do produto.'
+            diretriz: 'Ignorar códigos SKU e voltagens. Penalizar apenas se for versão divergente ou acessório/peça.'
           },
           questions,
           'jev-latest',
@@ -541,54 +585,64 @@ export const catalogJevService = {
     }
 
     const aprovadas: Array<{ foto: FotoResultadoSerpApi; score: number }> = [];
-    let totalDescartadas = 0;
 
     preAvaliadas.forEach((item) => {
-      if (item.scoreDeterministico < LIMIAR_APROVACAO_JEV) {
-        totalDescartadas++;
+      // Descarta de imediato apenas itens com penalização severa por variante/peça (< 30%)
+      if (item.scoreDeterministico < 0.30) {
         return;
       }
       const noulJev = scoresJevMap.get(item.idx);
-      const scoreFinal = typeof noulJev === 'number'
-        ? Number(((item.scoreDeterministico * 0.55) + (noulJev * 0.45)).toFixed(2))
-        : item.scoreDeterministico;
+      let scoreFinal = item.scoreDeterministico;
+      if (typeof noulJev === 'number') {
+        if (item.scoreDeterministico >= 0.85) {
+          scoreFinal = Math.max(item.scoreDeterministico, Number(((item.scoreDeterministico * 0.8) + (noulJev * 0.2)).toFixed(2)));
+        } else {
+          scoreFinal = Number(((item.scoreDeterministico * 0.6) + (noulJev * 0.4)).toFixed(2));
+        }
+      }
 
       if (scoreFinal >= LIMIAR_APROVACAO_JEV) {
         aprovadas.push({ foto: item.foto, score: scoreFinal });
-      } else {
-        totalDescartadas++;
       }
     });
 
-    // Ordena estritamente da maior para a menor probabilidade
+    // Ordena da maior para a menor probabilidade
     aprovadas.sort((a, b) => b.score - a.score);
 
-    const mediaScore = aprovadas.length > 0
-      ? Math.round((aprovadas.reduce((acc, cur) => acc + cur.score, 0) / aprovadas.length) * 100)
+    // Garantia mínima de resultados: assegurar entre 6 e 10 fotos
+    if (aprovadas.length < 6) {
+      const urlsPresentes = new Set(aprovadas.map(a => a.foto.urlOriginal || a.foto.urlThumbnail));
+      const complementares = preAvaliadas
+        .filter(item => item.scoreDeterministico >= 0.40 && !urlsPresentes.has(item.foto.urlOriginal || item.foto.urlThumbnail))
+        .sort((a, b) => b.scoreDeterministico - a.scoreDeterministico);
+
+      for (const comp of complementares) {
+        if (aprovadas.length >= 6) break;
+        aprovadas.push({ foto: comp.foto, score: comp.scoreDeterministico });
+        urlsPresentes.add(comp.foto.urlOriginal || comp.foto.urlThumbnail);
+      }
+    }
+
+    // Teto de 10 fotos aprovadas para a interface
+    const fotosFinais = aprovadas.slice(0, 10);
+    const totalDescartadas = fotos.length - fotosFinais.length;
+
+    const mediaScore = fotosFinais.length > 0
+      ? Math.round((fotosFinais.reduce((acc, cur) => acc + cur.score, 0) / fotosFinais.length) * 100)
       : 0;
 
     console.log(
-      `%c[HUBI JEV ⚡] [FOTOS]%c Produto: "${termo}" | Score médio: ${mediaScore}% | Aprovadas (>=75%): ${aprovadas.length} | Descartadas (<75%): ${totalDescartadas} (variações/acessórios barrados: ${descartadasPorSufixo})`,
+      `%c[HUBI JEV ⚡] [FOTOS]%c Produto: "${termo}" | Score médio: ${mediaScore}% | Fotos aprovadas (limiar >=50%): ${fotosFinais.length} (garantia: 6-10) | Descartadas: ${totalDescartadas} (variantes/acessórios: ${descartadasPorSufixo})`,
       'color: #10b981; font-weight: bold;',
       'color: #34d399;'
     );
 
-    if (aprovadas.length > 0) {
-      return aprovadas.map(a => a.foto);
-    }
-
-    // Fallback seguro caso nenhuma atinja 0.75: retorna apenas as de maior score determinístico sem sufixo proibido
-    const fallbackSemVariacao = preAvaliadas
-      .filter(p => p.scoreDeterministico >= 0.65)
-      .sort((a, b) => b.scoreDeterministico - a.scoreDeterministico)
-      .map(p => p.foto);
-
-    return fallbackSemVariacao;
+    return fotosFinais.map(a => a.foto);
   },
 
   /**
    * Pontua cada resultado do Google Shopping / Orgânico (0% a 100%) no HUBI JEV,
-   * descartando resultados abaixo de 75% (0.75) e penalizando variações (Plus, Pro, Combo, CFS, Max, Mini, Kit, Peça).
+   * aprovando resultados a partir de 50% (0.50) e garantindo entre 4 e 8 lojas distintas no Radar de Preços.
    */
   async pontuarOfertasShoppingComJev(
     nomeOriginalUsuario: string,
@@ -625,7 +679,7 @@ export const catalogJevService = {
 
     const candidatasJev = preAvaliadas
       .filter(item => item.scoreDeterministico >= LIMIAR_APROVACAO_JEV)
-      .slice(0, 12);
+      .slice(0, 14);
 
     const scoresJevMap = new Map<number, number>();
 
@@ -634,7 +688,7 @@ export const catalogJevService = {
       candidatasJev.forEach((item) => {
         questions[`o_${item.idx}`] = {
           type: 'noul',
-          instructions: `Anúncio: "${item.oferta.titulo}" (R$ ${item.oferta.preco.toFixed(2)} em ${item.oferta.loja}). Trata-se exatamente do produto "${nomeOriginalUsuario}" (sem ser outra versão como Plus/Pro/Combo/CFS/Max/Mini e sem ser peça/kit/acessório avulso)?`
+          instructions: `Anúncio: "${item.oferta.titulo}" (R$ ${item.oferta.preco.toFixed(2)} em ${item.oferta.loja}). Trata-se do modelo "${nomeOriginalUsuario}"? NÃO penalizar códigos SKU numéricos (ex: 1002110107), voltagens (Bivolt/110v/220v) ou especificações técnicas (velocidade/FDM). Penalizar apenas se for versão divergente (Plus, Pro, Combo, CFS) ou peça/acessório avulso.`
         };
       });
 
@@ -643,7 +697,7 @@ export const catalogJevService = {
           {
             produto_pesquisado: nomeOriginalUsuario,
             nicho: segmentoLoja || 'Varejo Geral',
-            diretriz: 'Descartar anúncios de versões superiores/inferiores (Plus, Pro, Combo, CFS) ou acessórios quando o usuário pesquisou o modelo base.'
+            diretriz: 'Ignorar números SKU e voltagens. Penalizar apenas versões divergentes ou acessórios/peças.'
           },
           questions,
           'jev-latest',
@@ -663,47 +717,80 @@ export const catalogJevService = {
       }
     }
 
-    const aprovadas: ItemShoppingAprovadoJev[] = [];
-    let totalDescartados = 0;
+    const todasAprovadas: ItemShoppingAprovadoJev[] = [];
 
     preAvaliadas.forEach((item) => {
-      if (item.scoreDeterministico < LIMIAR_APROVACAO_JEV) {
-        totalDescartados++;
+      // Descarta apenas se tiver penalização forte por variante divergente ou peça (< 30%)
+      if (item.scoreDeterministico < 0.30) {
         return;
       }
 
       const noulJev = scoresJevMap.get(item.idx);
-      const scoreFinal = typeof noulJev === 'number'
-        ? Number(((item.scoreDeterministico * 0.6) + (noulJev * 0.4)).toFixed(2))
-        : item.scoreDeterministico;
+      let scoreFinal = item.scoreDeterministico;
+      if (typeof noulJev === 'number') {
+        if (item.scoreDeterministico >= 0.85) {
+          scoreFinal = Math.max(item.scoreDeterministico, Number(((item.scoreDeterministico * 0.8) + (noulJev * 0.2)).toFixed(2)));
+        } else {
+          scoreFinal = Number(((item.scoreDeterministico * 0.6) + (noulJev * 0.4)).toFixed(2));
+        }
+      }
 
       if (scoreFinal >= LIMIAR_APROVACAO_JEV) {
-        aprovadas.push({
+        todasAprovadas.push({
           ...item.oferta,
           scoreJev: scoreFinal
         });
-      } else {
-        totalDescartados++;
       }
     });
 
-    // Ordena por maior probabilidade (e em caso de empate, menor preço)
-    aprovadas.sort((a, b) => (b.scoreJev - a.scoreJev) || (a.preco - b.preco));
+    // Deduplica por loja distinta priorizando a oferta de maior probabilidade e melhor preço
+    const mapaPorLoja = new Map<string, ItemShoppingAprovadoJev>();
+    for (const item of todasAprovadas) {
+      const k = item.loja.trim().toLowerCase();
+      const existente = mapaPorLoja.get(k);
+      if (!existente || item.scoreJev > existente.scoreJev || (item.scoreJev === existente.scoreJev && item.preco < existente.preco)) {
+        mapaPorLoja.set(k, item);
+      }
+    }
 
-    const confiancaMediaPercentual = aprovadas.length > 0
-      ? Math.round((aprovadas.reduce((acc, cur) => acc + cur.scoreJev, 0) / aprovadas.length) * 100)
+    let listaLojas = Array.from(mapaPorLoja.values());
+
+    // Garantia mínima de resultados: garantir entre 4 e 8 lojas distintas
+    if (listaLojas.length < 4) {
+      const lojasJaAdicionadas = new Set(listaLojas.map(l => l.loja.trim().toLowerCase()));
+      const complementares = preAvaliadas
+        .filter(item => item.scoreDeterministico >= 0.40 && !lojasJaAdicionadas.has(item.oferta.loja.trim().toLowerCase()))
+        .sort((a, b) => b.scoreDeterministico - a.scoreDeterministico);
+
+      for (const comp of complementares) {
+        if (listaLojas.length >= 4) break;
+        listaLojas.push({
+          ...comp.oferta,
+          scoreJev: comp.scoreDeterministico
+        });
+        lojasJaAdicionadas.add(comp.oferta.loja.trim().toLowerCase());
+      }
+    }
+
+    // Ordena por maior probabilidade (e empate por menor preço) e limita entre 4 e 8 lojas distintas
+    listaLojas.sort((a, b) => (b.scoreJev - a.scoreJev) || (a.preco - b.preco));
+    const aprovadasFinais = listaLojas.slice(0, 8);
+    const totalDescartados = ofertas.length - aprovadasFinais.length;
+
+    const confiancaMediaPercentual = aprovadasFinais.length > 0
+      ? Math.round((aprovadasFinais.reduce((acc, cur) => acc + cur.scoreJev, 0) / aprovadasFinais.length) * 100)
       : 0;
 
     console.log(
-      `%c[HUBI JEV ⚡] [${etapa}]%c Produto: "${nomeOriginalUsuario}" | Confiança: ${confiancaMediaPercentual}% | Aprovados (>=75%): ${aprovadas.length}/${ofertas.length} | Descartados (<75%): ${totalDescartados}`,
+      `%c[HUBI JEV ⚡] [${etapa}]%c Produto: "${nomeOriginalUsuario}" | Confiança média: ${confiancaMediaPercentual}% | Lojas distintas aprovadas (>=50%): ${aprovadasFinais.length} (garantia: 4-8 lojas) | Descartados: ${totalDescartados}`,
       'color: #10b981; font-weight: bold;',
       'color: #34d399;'
     );
 
     return {
-      aprovadas,
+      aprovadas: aprovadasFinais,
       totalAvaliados: ofertas.length,
-      totalAprovados: aprovadas.length,
+      totalAprovados: aprovadasFinais.length,
       totalDescartados,
       confiancaMediaPercentual
     };

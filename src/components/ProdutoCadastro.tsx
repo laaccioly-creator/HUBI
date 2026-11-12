@@ -277,7 +277,7 @@ const processarListaConcorrentes = (
 const cacheRadarMercadoMemoria = new Map<string, { timestamp: number; dados: DadosMercadoIA }>();
 
 const obterCacheRadarMercado = (termo: string): DadosMercadoIA | null => {
-  const chave = `hubi_radar_precos_cache_v3_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_radar_precos_cache_v4_${termo.toLowerCase().trim()}`;
   const TTL_MS = 1000 * 60 * 60 * 6; // 6 horas
   const emMem = cacheRadarMercadoMemoria.get(chave);
   if (emMem && Date.now() - emMem.timestamp < TTL_MS && emMem.dados.totalPesquisados > 0) {
@@ -298,7 +298,7 @@ const obterCacheRadarMercado = (termo: string): DadosMercadoIA | null => {
 
 const salvarCacheRadarMercado = (termo: string, dados: DadosMercadoIA) => {
   if (!dados || dados.totalPesquisados === 0) return;
-  const chave = `hubi_radar_precos_cache_v3_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_radar_precos_cache_v4_${termo.toLowerCase().trim()}`;
   const item = { timestamp: Date.now(), dados };
   cacheRadarMercadoMemoria.set(chave, item);
   const serializado = JSON.stringify(item);
@@ -332,7 +332,7 @@ export const pesquisarPrecosMercadoIA = async (
     const radarEmCache = obterCacheRadarMercado(termoCache);
     if (radarEmCache) {
       console.log(
-        `%c[HUBI JEV ⚡] [RADAR_PRECOS]%c ⚡ [CACHE INSTANTÂNEO] Recuperadas ${radarEmCache.totalPesquisados} lojas aprovadas (>=75%) em 0ms para "${nomeOriginal}"`,
+        `%c[HUBI JEV ⚡] [RADAR_PRECOS]%c ⚡ [CACHE INSTANTÂNEO] Recuperadas ${radarEmCache.totalPesquisados} lojas aprovadas (>=50%) em 0ms para "${nomeOriginal}"`,
         'color: #10b981; font-weight: bold;',
         'color: #34d399;'
       );
