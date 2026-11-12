@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Plus,
@@ -33,6 +33,11 @@ import { ModalDetalhesProduto } from './ModalDetalhesProduto';
 import { ModalVincularAnuncioMl } from './mercadolivre/ModalVincularAnuncioMl';
 import { ProdutosMobile } from './ProdutosMobile';
 import { formatarMoeda } from '../utils/formatters';
+import {
+  obterCategoriasPrincipaisFiltro,
+  produtoCorrespondeAoFiltroCategorias,
+  CategoriaFiltroConsolidada
+} from '../utils/categoriasHierarquia';
 
 export const ProdutosEstoque: React.FC = () => {
   const { loja, usuario } = useAuth();
@@ -332,16 +337,23 @@ export const ProdutosEstoque: React.FC = () => {
   const valorCustoEstoque = produtos.filter(p => p.tipo_item !== 'servico').reduce((acc, p) => acc + getValorCustoEstoque(p), 0);
   const produtosAlertaEstoque = produtos.filter(p => p.tipo_item !== 'servico' && getEstoqueReal(p) <= Number(p.estoque_minimo_alerta));
 
+  // Fonte única: carrega exclusivamente as categorias principais da tabela oficial com contagem consolidada e deduplicação
+  const categoriasPrincipaisFiltro = useMemo<CategoriaFiltroConsolidada[]>(() => {
+    return obterCategoriasPrincipaisFiltro(categorias, produtos, loja?.id);
+  }, [categorias, produtos, loja?.id]);
+
   const produtosFiltrados = produtos.filter(p => {
     const matchBusca =
       p.nome.toLowerCase().includes(busca.toLowerCase()) ||
       (p.codigo_interno && p.codigo_interno.toLowerCase().includes(busca.toLowerCase())) ||
       (p.codigo_barras && p.codigo_barras.includes(busca));
 
-    const matchCategoria =
-      categoriasFiltro.length === 0 ||
-      (p.categoria_id && categoriasFiltro.includes(p.categoria_id)) ||
-      (p.subcategoria_id && categoriasFiltro.includes(p.subcategoria_id));
+    const matchCategoria = produtoCorrespondeAoFiltroCategorias(
+      p,
+      categoriasFiltro,
+      categoriasPrincipaisFiltro,
+      loja?.id
+    );
 
     const estoqueProduto = getEstoqueReal(p);
     const matchEstoque =
@@ -357,8 +369,11 @@ export const ProdutosEstoque: React.FC = () => {
     return matchBusca && matchCategoria && matchEstoque && matchAtivo;
   });
 
-  const temFiltroAtivo = categoriasFiltro.length > 0 || filtroEstoque !== 'todos' || filtroAtivo !== 'todos';
-  const qtdFiltrosAtivos = categoriasFiltro.length + (filtroEstoque !== 'todos' ? 1 : 0) + (filtroAtivo !== 'todos' ? 1 : 0);
+  const qtdCategoriasFiltroAtivas = categoriasPrincipaisFiltro.filter(c =>
+    c.todosIds.some(id => categoriasFiltro.includes(id))
+  ).length;
+  const temFiltroAtivo = qtdCategoriasFiltroAtivas > 0 || filtroEstoque !== 'todos' || filtroAtivo !== 'todos';
+  const qtdFiltrosAtivos = qtdCategoriasFiltroAtivas + (filtroEstoque !== 'todos' ? 1 : 0) + (filtroAtivo !== 'todos' ? 1 : 0);
 
   return (
     <div className={`h-full w-full overflow-hidden select-none ${isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-black'}`}>
@@ -551,30 +566,28 @@ export const ProdutosEstoque: React.FC = () => {
             </button>
 
             {/* Chips dos Filtros Selecionados na MESMA linha logo à direita de Filtros */}
-            {categoriasFiltro.map((catId) => {
-              const catObj = categorias.find(c => c.id === catId);
-              const nomeCat = catObj ? catObj.nome : 'Categoria';
-              return (
+            {categoriasPrincipaisFiltro
+              .filter(cat => cat.todosIds.some(id => categoriasFiltro.includes(id)))
+              .map((catPrincipal) => (
                 <div
-                  key={catId}
+                  key={catPrincipal.id}
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold shadow-xs shrink-0 animate-in fade-in ${
                     isDark
                       ? 'bg-[#000000] text-emerald-400 border border-emerald-500/50'
                       : 'bg-white text-emerald-800 border-2 border-emerald-300'
                   }`}
                 >
-                  <span>{nomeCat}</span>
+                  <span>{catPrincipal.icone ? `${catPrincipal.icone} ` : ''}{catPrincipal.nome}</span>
                   <button
                     type="button"
-                    onClick={() => setCategoriasFiltro(prev => prev.filter(id => id !== catId))}
+                    onClick={() => setCategoriasFiltro(prev => prev.filter(id => !catPrincipal.todosIds.includes(id)))}
                     className="p-0.5 rounded-md hover:opacity-80 transition cursor-pointer"
-                    title={`Remover filtro ${nomeCat}`}
+                    title={`Remover filtro ${catPrincipal.nome}`}
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
-              );
-            })}
+              ))}
 
             {filtroEstoque !== 'todos' && (
               <div className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold shadow-xs shrink-0 animate-in fade-in ${
@@ -1033,17 +1046,20 @@ export const ProdutosEstoque: React.FC = () => {
                     {categoriasFiltro.length === 0 && <Check className="w-4 h-4 text-white shrink-0 ml-1" />}
                   </button>
 
-                  {categorias.map((c) => {
-                    const isSelected = categoriasFiltro.includes(c.id);
-                    const qtdProdutosNaCat = produtos.filter(p => p.categoria_id === c.id).length;
+                  {categoriasPrincipaisFiltro.map((c) => {
+                    const isSelected = c.todosIds.some(id => categoriasFiltro.includes(id));
                     return (
                       <button
                         key={c.id}
                         type="button"
                         onClick={() => {
-                          setCategoriasFiltro(prev =>
-                            isSelected ? prev.filter(id => id !== c.id) : [...prev, c.id]
-                          );
+                          setCategoriasFiltro(prev => {
+                            if (isSelected) {
+                              return prev.filter(id => !c.todosIds.includes(id));
+                            } else {
+                              return [...prev.filter(id => !c.todosIds.includes(id)), c.id];
+                            }
+                          });
                         }}
                         className={`p-2.5 rounded-xl text-xs font-black text-left transition cursor-pointer flex items-center justify-between truncate shadow-xs ${
                           isSelected
@@ -1053,7 +1069,7 @@ export const ProdutosEstoque: React.FC = () => {
                             : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black'
                         }`}
                       >
-                        <span className="truncate">{c.icone ? `${c.icone} ` : ''}{c.nome} ({qtdProdutosNaCat})</span>
+                        <span className="truncate">{c.icone ? `${c.icone} ` : ''}{c.nome} ({c.qtdProdutos})</span>
                         {isSelected && <Check className="w-4 h-4 text-white shrink-0 ml-1" />}
                       </button>
                     );

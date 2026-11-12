@@ -303,3 +303,133 @@ export function agruparProdutosPorBlocosDeCategoria(
 
   return blocos;
 }
+
+export interface CategoriaFiltroConsolidada {
+  id: string;
+  todosIds: string[];
+  nome: string;
+  icone?: string | null;
+  ordem_exibicao: number;
+  todosIdsComFilhas: Set<string>;
+  qtdProdutos: number;
+}
+
+/**
+ * Carrega a lista exclusiva de categorias raiz/principais para o modal de filtros,
+ * com deduplicação normalizada por nome e contagem consolidada (categoria principal + subcategorias filhas).
+ */
+export function obterCategoriasPrincipaisFiltro(
+  categorias: Categoria[],
+  produtos: Produto[],
+  lojaId?: string | null
+): CategoriaFiltroConsolidada[] {
+  if (!categorias || categorias.length === 0) return [];
+
+  const mapaTodasCats = new Map<string, Categoria>();
+  categorias.forEach(c => mapaTodasCats.set(c.id, c));
+
+  const ehSubcategoria = (c: Categoria): boolean => {
+    const paiId = c.categoria_pai_id || (lojaId ? obterCategoriaPaiId(c, lojaId) : null);
+    return Boolean(paiId && mapaTodasCats.has(paiId));
+  };
+
+  const categoriasRaiz = categorias.filter(c => !ehSubcategoria(c));
+
+  const filhasPorPai = new Map<string, string[]>();
+  categorias.forEach(c => {
+    const paiId = c.categoria_pai_id || (lojaId ? obterCategoriaPaiId(c, lojaId) : null);
+    if (paiId) {
+      const lista = filhasPorPai.get(paiId) || [];
+      lista.push(c.id);
+      filhasPorPai.set(paiId, lista);
+    }
+  });
+
+  const gruposPorNome = new Map<string, Categoria[]>();
+  categoriasRaiz.forEach(c => {
+    const chave = (c.nome || '').trim().toLowerCase();
+    if (!chave) return;
+    const grupo = gruposPorNome.get(chave) || [];
+    grupo.push(c);
+    gruposPorNome.set(chave, grupo);
+  });
+
+  const consolidadas: CategoriaFiltroConsolidada[] = [];
+
+  gruposPorNome.forEach((grupoCats, chaveNome) => {
+    const catCanonica = [...grupoCats].sort((a, b) => {
+      const temIconeA = Boolean(a.icone && a.icone.trim().length > 0);
+      const temIconeB = Boolean(b.icone && b.icone.trim().length > 0);
+      if (temIconeA && !temIconeB) return -1;
+      if (!temIconeA && temIconeB) return 1;
+      return (a.ordem_exibicao || 0) - (b.ordem_exibicao || 0);
+    })[0];
+
+    const todosIds = grupoCats.map(c => c.id);
+
+    const subcategoriasIds: string[] = [];
+    todosIds.forEach(id => {
+      const filhas = filhasPorPai.get(id) || [];
+      subcategoriasIds.push(...filhas);
+    });
+
+    const todosIdsComFilhas = new Set<string>([...todosIds, ...subcategoriasIds]);
+
+    const qtdProdutos = produtos.filter(p => {
+      if (p.categoria_id && todosIdsComFilhas.has(p.categoria_id)) return true;
+      if (p.subcategoria_id && todosIdsComFilhas.has(p.subcategoria_id)) return true;
+      const subIdLocal = obterSubcategoriaIdProduto(p, lojaId);
+      if (subIdLocal && todosIdsComFilhas.has(subIdLocal)) return true;
+      if (p.categoria_nome && p.categoria_nome.trim().toLowerCase() === chaveNome) return true;
+      return false;
+    }).length;
+
+    consolidadas.push({
+      id: catCanonica.id,
+      todosIds,
+      nome: catCanonica.nome,
+      icone: catCanonica.icone,
+      ordem_exibicao: catCanonica.ordem_exibicao || 0,
+      todosIdsComFilhas,
+      qtdProdutos
+    });
+  });
+
+  return consolidadas.sort((a, b) => (a.ordem_exibicao - b.ordem_exibicao) || a.nome.localeCompare(b.nome));
+}
+
+/**
+ * Avalia se um produto corresponde à seleção ativa de categorias no filtro.
+ * Considera o vínculo direto à categoria principal ou a qualquer uma de suas subcategorias filhas.
+ */
+export function produtoCorrespondeAoFiltroCategorias(
+  produto: Produto,
+  categoriasFiltro: string[],
+  categoriasConsolidadas: CategoriaFiltroConsolidada[],
+  lojaId?: string | null
+): boolean {
+  if (!categoriasFiltro || categoriasFiltro.length === 0) return true;
+
+  const idsPermitidos = new Set<string>();
+  const nomesPermitidos = new Set<string>();
+
+  for (const cat of categoriasConsolidadas) {
+    const estaSelecionada = cat.todosIds.some(id => categoriasFiltro.includes(id));
+    if (estaSelecionada) {
+      cat.todosIdsComFilhas.forEach(id => idsPermitidos.add(id));
+      nomesPermitidos.add(cat.nome.trim().toLowerCase());
+    }
+  }
+
+  categoriasFiltro.forEach(id => idsPermitidos.add(id));
+
+  if (produto.categoria_id && idsPermitidos.has(produto.categoria_id)) return true;
+  if (produto.subcategoria_id && idsPermitidos.has(produto.subcategoria_id)) return true;
+
+  const subIdLocal = obterSubcategoriaIdProduto(produto, lojaId);
+  if (subIdLocal && idsPermitidos.has(subIdLocal)) return true;
+
+  if (produto.categoria_nome && nomesPermitidos.has(produto.categoria_nome.trim().toLowerCase())) return true;
+
+  return false;
+}

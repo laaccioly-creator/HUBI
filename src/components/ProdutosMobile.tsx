@@ -68,7 +68,10 @@ import {
   obterArvoreCategorias,
   obterSubcategoriasDe,
   obterSubcategoriaIdProduto,
-  salvarVinculoSubcategoriaProdutoLocal
+  salvarVinculoSubcategoriaProdutoLocal,
+  obterCategoriasPrincipaisFiltro,
+  produtoCorrespondeAoFiltroCategorias,
+  CategoriaFiltroConsolidada
 } from '../utils/categoriasHierarquia';
 import { audioService } from '../services/audioService';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
@@ -293,12 +296,21 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   });
   const [ordenacaoEstoque, setOrdenacaoEstoque] = useState<'menor_estoque' | 'maior_estoque' | 'a_z' | 'z_a'>('menor_estoque');
 
+  // Categorias principais consolidadas para o filtro mobile
+  const categoriasPrincipaisFiltro = useMemo<CategoriaFiltroConsolidada[]>(() => {
+    return obterCategoriasPrincipaisFiltro(categorias, produtos, loja?.id);
+  }, [categorias, produtos, loja?.id]);
+
+  const qtdCategoriasFiltroAtivas = categoriasPrincipaisFiltro.filter(c =>
+    c.todosIds.some(id => categoriasFiltro.includes(id))
+  ).length;
+
   const qtdFiltrosAtivos = (filtroSemEstoque ? 1 : 0) +
     (filtroMinimo ? 1 : 0) +
     (filtroAcimaMinimo ? 1 : 0) +
     (filtroSemControle ? 1 : 0) +
     (filtroAtivo !== 'todos' ? 1 : 0) +
-    categoriasFiltro.length;
+    qtdCategoriasFiltroAtivas;
 
   // Ao trocar de usuário ou deslogar, redefinir filtros imediatamente
   useEffect(() => {
@@ -795,11 +807,15 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       });
     }
 
-    // Filtros de Categorias
+    // Filtros de Categorias com contagem e filtragem consolidada (categoria + subcategorias)
     if (categoriasFiltro.length > 0) {
-      list = list.filter(p => 
-        (p.categoria_id && categoriasFiltro.includes(p.categoria_id)) ||
-        (p.subcategoria_id && categoriasFiltro.includes(p.subcategoria_id))
+      list = list.filter(p =>
+        produtoCorrespondeAoFiltroCategorias(
+          p,
+          categoriasFiltro,
+          categoriasPrincipaisFiltro,
+          loja?.id
+        )
       );
     }
 
@@ -2174,16 +2190,16 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               Categorias
             </h2>
             <div className="grid grid-cols-2 gap-2">
-              {categorias.map((cat) => {
-                const checked = categoriasFiltro.includes(cat.id);
+              {categoriasPrincipaisFiltro.map((cat) => {
+                const checked = cat.todosIds.some(id => categoriasFiltro.includes(id));
                 return (
                   <div
                     key={cat.id}
                     onClick={() => {
                       if (checked) {
-                        setCategoriasFiltro(prev => prev.filter(id => id !== cat.id));
+                        setCategoriasFiltro(prev => prev.filter(id => !cat.todosIds.includes(id)));
                       } else {
-                        setCategoriasFiltro(prev => [...prev, cat.id]);
+                        setCategoriasFiltro(prev => [...prev.filter(id => !cat.todosIds.includes(id)), cat.id]);
                       }
                     }}
                     className="flex items-center gap-2.5 p-2.5 transition cursor-pointer select-none rounded-xl border"
@@ -2210,7 +2226,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     >
                       {checked && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
                     </div>
-                    <span className="text-xs font-semibold uppercase truncate">{cat.nome}</span>
+                    <span className="text-xs font-semibold uppercase truncate">
+                      {cat.icone ? `${cat.icone} ` : ''}{cat.nome} ({cat.qtdProdutos})
+                    </span>
                   </div>
                 );
               })}
@@ -5647,29 +5665,32 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             Filtros:
           </span>
 
-          {categoriasFiltro.map((catId) => {
-            const catNome = mapaCategorias.get(catId) || 'Categoria';
-            return (
-              <div
-                key={catId}
-                className={`text-xs px-2.5 py-1 rounded-xl flex items-center gap-1.5 shrink-0 font-bold ${
-                  isDark
-                    ? 'bg-[#000000] text-emerald-400 border border-emerald-500/50'
-                    : 'bg-white text-emerald-800 border-2 border-emerald-300'
-                }`}
-              >
-                <span className="truncate max-w-[120px]">{catNome}</span>
-                <button
-                  type="button"
-                  onClick={() => setCategoriasFiltro(prev => prev.filter(id => id !== catId))}
-                  className="p-0.5 rounded-full hover:opacity-80 transition cursor-pointer"
-                  title={`Remover filtro ${catNome}`}
+          {categoriasPrincipaisFiltro
+            .filter(cat => cat.todosIds.some(id => categoriasFiltro.includes(id)))
+            .map((catPrincipal) => {
+              return (
+                <div
+                  key={catPrincipal.id}
+                  className={`text-xs px-2.5 py-1 rounded-xl flex items-center gap-1.5 shrink-0 font-bold ${
+                    isDark
+                      ? 'bg-[#000000] text-emerald-400 border border-emerald-500/50'
+                      : 'bg-white text-emerald-800 border-2 border-emerald-300'
+                  }`}
                 >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            );
-          })}
+                  <span className="truncate max-w-[120px]">
+                    {catPrincipal.icone ? `${catPrincipal.icone} ` : ''}{catPrincipal.nome}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setCategoriasFiltro(prev => prev.filter(id => !catPrincipal.todosIds.includes(id)))}
+                    className="p-0.5 rounded-full hover:opacity-80 transition cursor-pointer"
+                    title={`Remover filtro ${catPrincipal.nome}`}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              );
+            })}
 
           {filtroSemEstoque && (
             <div className={`text-xs px-2.5 py-1 rounded-xl flex items-center gap-1.5 shrink-0 font-bold ${
