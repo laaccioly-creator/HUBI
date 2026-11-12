@@ -1,5 +1,9 @@
 import { typesafeService, PerguntaTypeSafe } from './typesafeService';
-import { extrairDimensoesEPesoTexto, DimensoesEPesoExtraidos } from './geminiService';
+import {
+  extrairDimensoesEPesoTexto,
+  buscarOfertasComplementaresGeminiSearch,
+  DimensoesEPesoExtraidos
+} from './geminiService';
 import {
   buscarPrecosShoppingSerpApi,
   ehCompraInternacional,
@@ -41,7 +45,7 @@ export interface ContextoUnificadoProdutoJev {
  */
 export const invalidarCachesAntigosPipelineJev = (): void => {
   try {
-    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v12_ativo';
+    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v13_ativo';
     if (localStorage.getItem(FLAG_MIGRACAO) === 'true') return;
 
     const prefixosAntigos = [
@@ -55,7 +59,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
       const chavesParaRemover: string[] = [];
       for (let i = 0; i < storage.length; i++) {
         const k = storage.key(i);
-        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v12_')) {
+        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v13_')) {
           chavesParaRemover.push(k);
         }
       }
@@ -66,7 +70,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
     limparStorage(sessionStorage);
     localStorage.setItem(FLAG_MIGRACAO, 'true');
     console.log(
-      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v12 ativo!',
+      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v13 ativo!',
       'background: #10b981; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
       'color: #10b981; font-weight: bold;'
     );
@@ -381,7 +385,7 @@ export const catalogJevService = {
         },
         perguntas,
         'jev-latest',
-        800 // Orçamento estrito de 800ms
+        2500 // Timeout de 2500ms para tolerar latência da Edge Function
       );
 
       const resposta = resultado.answers.categoria_escolhida;
@@ -446,7 +450,7 @@ export const catalogJevService = {
         { produto: produto.nome },
         perguntas,
         'jev-latest',
-        800
+        2500
       );
 
       const resp = resultado.answers.unidade;
@@ -505,7 +509,7 @@ export const catalogJevService = {
         },
         perguntas,
         'jev-latest',
-        800
+        2500
       );
 
       const resp = resultado.answers.porte;
@@ -877,12 +881,31 @@ export const catalogJevService = {
       30
     );
 
-    const avaliacao = await this.pontuarOfertasShoppingComJev(
+    let avaliacao = await this.pontuarOfertasShoppingComJev(
       nomeOriginal,
       params.segmentoLoja,
       ofertasBrutas,
       params.etapa
     );
+
+    // Complemento inteligente com Gemini 3.8 Flash + Google Search quando a Serper retornar < 5 lojas nacionais válidas
+    if (avaliacao.aprovadas.length < 5) {
+      const ofertasComplementares = await buscarOfertasComplementaresGeminiSearch(
+        termoCanonico || nomeOriginal,
+        avaliacao.aprovadas.map(o => o.loja),
+        params.loja
+      );
+
+      if (ofertasComplementares.length > 0) {
+        const todasOfertasCombinadas = [...ofertasBrutas, ...ofertasComplementares];
+        avaliacao = await this.pontuarOfertasShoppingComJev(
+          nomeOriginal,
+          params.segmentoLoja,
+          todasOfertasCombinadas,
+          params.etapa
+        );
+      }
+    }
 
     const resumoContextoTexto = avaliacao.aprovadas.length > 0
       ? avaliacao.aprovadas

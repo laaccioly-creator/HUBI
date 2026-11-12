@@ -8,6 +8,11 @@ import {
   buscarPrecosShoppingSerpApi,
   limparTermoParaBuscaGoogle,
   extrairTermoEnxutoBusca,
+  extrairPrecoNumericoBr,
+  normalizarNomeLojaBr,
+  classificarTipoLojaShopping,
+  ehCompraInternacional,
+  ofertaCorrespondeAoModeloPesquisado,
   SerpApiQuotaError,
   SerpApiAuthError,
   FotoResultadoSerpApi,
@@ -1537,7 +1542,7 @@ export const atualizarProdutoExistenteComIA = async (dados: {
   const termoReferencia = nomeInformadoPeloUsuario || (dados.descricao?.trim() || 'Produto');
 
   // Cache instantâneo (Memória + localStorage) para respostas em 0ms em consultas repetidas
-  const chaveCache = `hubi_preencher_ia_v12_${termoReferencia.toLowerCase().trim()}_${(dados.categoriaNome || '').toLowerCase()}`;
+  const chaveCache = `hubi_preencher_ia_v13_${termoReferencia.toLowerCase().trim()}_${(dados.categoriaNome || '').toLowerCase()}`;
   const TTL_CACHE = 1000 * 60 * 60 * 6; // 6 horas
   const emMemoria = cachePreencherIAMemoria.get(chaveCache);
   if (emMemoria && Date.now() - emMemoria.timestamp < TTL_CACHE) {
@@ -1871,4 +1876,93 @@ REGRAS OBRIGATÓRIAS:
     largura_cm: Math.max(10, fallbackLargura),
     comprimento_cm: Math.max(15, fallbackComprimento)
   };
+};
+
+/**
+ * Busca complementar rápida com gemini-3.8-flash + Google Search Grounding
+ * acionada quando a Serper retorna menos de 5 lojas nacionais válidas.
+ */
+export const buscarOfertasComplementaresGeminiSearch = async (
+  termoCanonico: string,
+  lojasJaEncontradas: string[],
+  loja?: any
+): Promise<ItemShoppingSerpApi[]> => {
+  const termo = (termoCanonico || '').trim();
+  if (!termo) return [];
+
+  let apiKey = getGeminiApiKey(loja);
+  if (!apiKey && loja?.id) {
+    try {
+      apiKey = await obterOuBuscarGeminiApiKey(loja);
+    } catch {}
+  }
+  if (!apiKey && !loja?.id) return [];
+
+  const lojasExistentesSet = new Set(lojasJaEncontradas.map(l => l.toLowerCase().trim()));
+  const listaJaExistentes = lojasJaEncontradas.length > 0
+    ? `Lojas já coletadas (NÃO repetir, traga OUTRAS lojas brasileiras): ${lojasJaEncontradas.join(', ')}.`
+    : '';
+
+  const prompt = `Pesquise no Google Brasil ofertas reais e atuais à vista (em R$ / BRL) do produto EXATO: "${termo}".
+${listaJaExistentes}
+Busque em lojas brasileiras reais como KaBuM!, Creality Brasil, Slim 3D, Magazine Luiza, Pichau, TerabyteShop, Casas Bahia, Americanas, Mercado Livre, Amazon Brasil e lojas especializadas.
+
+REGRAS RÍGIDAS CONTRA ALUCINAÇÃO:
+1. Retorne APENAS lojas e preços efetivamente encontrados nos resultados reais da busca (NUNCA invente preços ou lojas).
+2. Exija correspondência EXATA com o modelo "${termo}". NUNCA inclua variantes diferentes (SE, Plus, Pro, Max, Combo, CFS, Mini, Lite), kits ou peças/acessórios.
+3. NUNCA inclua compras internacionais / envio do exterior (EUA/China/Remessa Conforme).
+4. Use sempre o preço à vista em BRL (número decimal, ex: 3699.00).
+
+Responda EXCLUSIVAMENTE em JSON válido no formato:
+{"ofertas":[{"loja":"Nome da Loja","titulo":"Título exato do anúncio","preco":3699.00,"url":"https://..."}]}`;
+
+  const requestBody: any = {
+    model: 'gemini-3.8-flash',
+    tools: [{ google_search: {} }],
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: 0.1,
+      maxOutputTokens: 2048,
+      thinkingConfig: { thinkingBudget: 0 }
+    }
+  };
+
+  try {
+    const resData = await executarRequisicaoGemini(apiKey, requestBody, loja?.id);
+    const parts = resData?.candidates?.[0]?.content?.parts || [];
+    const rawText = parts.map((p: any) => p?.text || '').join('\n').trim();
+    if (!rawText) return [];
+
+    const parsed = extrairJsonDoTexto(rawText);
+    const lista = Array.isArray(parsed?.ofertas) ? parsed.ofertas : Array.isArray(parsed) ? parsed : [];
+    const resultados: ItemShoppingSerpApi[] = [];
+
+    for (const item of lista) {
+      const titulo = String(item?.titulo || item?.title || termo).trim();
+      const url = String(item?.url || item?.link || '').trim();
+      const precoNum = extrairPrecoNumericoBr(item?.preco ?? item?.price);
+      if (!precoNum || precoNum <= 0) continue;
+
+      if (!ehCompraInternacional(termo) && ehCompraInternacional(`${titulo} ${url}`)) continue;
+      if (!ofertaCorrespondeAoModeloPesquisado(termo, titulo, url)) continue;
+
+      const nomeLoja = normalizarNomeLojaBr(String(item?.loja || ''), url);
+      if (lojasExistentesSet.has(nomeLoja.toLowerCase().trim())) continue;
+
+      lojasExistentesSet.add(nomeLoja.toLowerCase().trim());
+      resultados.push({
+        titulo,
+        loja: nomeLoja,
+        preco: precoNum,
+        precoTexto: `R$ ${precoNum.toFixed(2)}`,
+        url,
+        tipo: classificarTipoLojaShopping(nomeLoja)
+      });
+    }
+
+    return resultados;
+  } catch (err) {
+    console.warn('[GeminiSearchComplementar] Aviso ao complementar lojas via Google Search:', err);
+    return [];
+  }
 };
