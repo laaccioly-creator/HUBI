@@ -760,7 +760,7 @@ Tabela singleton de governança do ecossistema HUBI (`id = 1`), permitindo ao Su
 | `dias_trial` | INTEGER | NOT NULL DEFAULT 7 | Dias de cortesia para novas filiais criadas |
 | `valor_mensal_base` | NUMERIC(10,2) | NOT NULL DEFAULT 49.90 | Valor de referência do plano mensal (R$) |
 | `valor_anual_base` | NUMERIC(10,2) | NOT NULL DEFAULT 598.80 | Valor da anuidade cobrada no Mercado Pago (R$) |
-| `email_super_admin` | VARCHAR(255) | NOT NULL DEFAULT 'laaccioly@hotmail.com' | E-mail mestre com acesso irrestrito ao painel de parâmetros |
+| `email_super_admin` | VARCHAR(255) | NOT NULL DEFAULT '5585997374372@hubi.app' | E-mail mestre com acesso irrestrito ao painel de parâmetros |
 | `whatsapp_suporte` | VARCHAR(50) | NULL | WhatsApp oficial de atendimento e suporte aos lojistas |
 | `custo_disparo_whatsapp` | NUMERIC(10,2) | NOT NULL DEFAULT 0.15, CHECK (>= 0) | Tarifa cobrada por disparo de WhatsApp fora da janela de 24h |
 | `valor_minimo_recarga_whatsapp` | NUMERIC(10,2) | NOT NULL DEFAULT 10.00, CHECK (> 0) | Valor mínimo permitido para recarga da carteira WhatsApp via Pix |
@@ -1224,7 +1224,7 @@ Para conferir flexibilidade operacional aos mantenedores da plataforma sem neces
    - Registro exclusivo com `id = 1` centralizando a parametrização de negócio do HUBI.
    - Parâmetros administráveis: `dias_trial` (dias de degustação para novas lojas cadastradas), `valor_mensal_base` (R$ 49,90), `valor_anual_base` (R$ 598,80), `email_super_admin`, `whatsapp_suporte`, `modo_manutencao` e `mensagem_manutencao`.
 2. **Camada de Autorização Super Admin:**
-   - E-mail mestre global definido como `laaccioly@hotmail.com`.
+   - E-mail mestre global definido como `5585997374372@hubi.app`.
    - Validação a nível de banco de dados via função de segurança `public.eh_super_admin_plataforma()`, que inspeciona o e-mail do usuário autenticado (`auth.jwt() ->> 'email'`).
    - Validação na camada de UI através de `usePermissions.ts` expondo a flag booleana `ehSuperAdmin`.
 3. **Painel de Gestão `CardParametrosHubiAdmin.tsx`:**
@@ -1651,7 +1651,7 @@ A monetização do HUBI adota arquitetura de licença anual autônoma por unidad
      - Período de anuidade ativa: verificação de `loja.assinatura_fim_em` e flags de status.
    - Expõe valores de referência formatados para apresentação na UI (`valorMensalReferencia`, `valorAnualReferencia`).
 3. **Componentes de Apresentação e Administração:**
-   - **`CardParametrosHubiAdmin.tsx`:** Painel administrativo interativo integrado na aba "Geral" de `ConfiguracoesLoja.tsx`, renderizado exclusivamente quando o usuário autenticado for o Super Admin (`laaccioly@hotmail.com`).
+   - **`CardParametrosHubiAdmin.tsx`:** Painel administrativo interativo integrado na aba "Geral" de `ConfiguracoesLoja.tsx`, renderizado exclusivamente quando o usuário autenticado for o Super Admin (`5585997374372@hubi.app`).
    - **`BannerAssinaturaTop.tsx`:** Tarja superior de trial com fundo vermelho sólido, tipografia 100% branca pura, texto de dias restantes centralizado horizontalmente e botão de conversão rápida alinhado lado a lado ao valor.
 
 ### 5.17 Motor e Ledger da Caderneta de Mercadinho (`cadernetaService.ts`)

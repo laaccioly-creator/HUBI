@@ -320,7 +320,7 @@ interface ConfiguracoesLojaProps {
 
 export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaInicial }) => {
   const { isDark } = useTheme();
-  const { loja, setLoja, recarregarDadosLoja, usuario } = useAuth();
+  const { loja, setLoja, recarregarDadosLoja, usuario, session } = useAuth();
   const permissions = usePermissions();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -3578,7 +3578,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
             {permissions.ehSuperAdmin && (
               <div className="pt-2">
                 <CardParametrosHubiAdmin
-                  emailLogado={usuario?.email || loja?.email || 'laaccioly@hotmail.com'}
+                  emailLogado={session?.user?.email || usuario?.email || loja?.email || '5585997374372@hubi.app'}
                   lojaId={loja?.id}
                 />
               </div>

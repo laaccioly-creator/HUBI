@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS public.configuracoes_plataforma (
     aceita_cartao_debito BOOLEAN NOT NULL DEFAULT true,
     max_parcelas_cartao INTEGER NOT NULL DEFAULT 12 CHECK (max_parcelas_cartao >= 1 AND max_parcelas_cartao <= 24),
     parcelas_sem_juros INTEGER NOT NULL DEFAULT 12 CHECK (parcelas_sem_juros >= 1 AND parcelas_sem_juros <= 24),
-    email_super_admin VARCHAR(255) NOT NULL DEFAULT 'laaccioly@hotmail.com',
+    email_super_admin VARCHAR(255) NOT NULL DEFAULT '5585997374372@hubi.app',
     atualizado_em TIMESTAMPTZ NOT NULL DEFAULT now(),
     atualizado_por UUID REFERENCES auth.users(id) ON DELETE SET NULL,
     CONSTRAINT chk_configuracoes_plataforma_singleton CHECK (id = 1)
@@ -45,9 +45,9 @@ INSERT INTO public.configuracoes_plataforma (
     true,
     12,
     12,
-    'laaccioly@hotmail.com'
+    '5585997374372@hubi.app'
 ) ON CONFLICT (id) DO UPDATE SET
-    email_super_admin = 'laaccioly@hotmail.com';
+    email_super_admin = '5585997374372@hubi.app';
 
 -- 3. Função de verificação se usuário atual é Super Admin
 CREATE OR REPLACE FUNCTION public.eh_super_admin_plataforma()
@@ -65,7 +65,7 @@ BEGIN
     WHERE id = 1;
 
     IF v_email_admin IS NULL THEN
-        v_email_admin := 'laaccioly@hotmail.com';
+        v_email_admin := '5585997374372@hubi.app';
     END IF;
 
     SELECT email INTO v_user_email

@@ -43,10 +43,10 @@ export interface PermissionsState {
 }
 
 export const usePermissions = (): PermissionsState => {
-  const { usuario } = useAuth();
+  const { usuario, session } = useAuth();
 
-  const emailUsuario = (usuario?.email || '').toLowerCase().trim();
-  const ehSuperAdmin = emailUsuario === 'laaccioly@hotmail.com';
+  const emailUsuario = (session?.user?.email || usuario?.email || '').toLowerCase().trim();
+  const ehSuperAdmin = emailUsuario === '5585997374372@hubi.app';
 
   const perfil = usuario?.perfil || 'comum';
   const ehOwner = ehSuperAdmin || perfil === 'owner';

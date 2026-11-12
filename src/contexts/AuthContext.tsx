@@ -340,7 +340,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCarregando(true);
 
       const emailAtual = (session?.user?.email || usuario?.email || '').toLowerCase().trim();
-      const ehSuperAdmin = emailAtual === 'laaccioly@hotmail.com';
+      const ehSuperAdmin = emailAtual === '5585997374372@hubi.app';
       const podeTrocar = ehSuperAdmin || usuario?.perfil === 'owner' || Boolean(usuario?.pode_trocar_loja);
 
       if (!podeTrocar) {

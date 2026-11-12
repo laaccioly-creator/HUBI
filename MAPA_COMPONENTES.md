@@ -205,7 +205,7 @@
 | **Diálogo de Alerta / Feedback** | `src/components/ModalAlertaFeedback.tsx` | Modal acessível de feedback para mensagens de sucesso, alerta ou erro operacional. |
 | **Tutorial Chave Gemini AI** | `src/components/configuracoes/ModalComoObterGeminiApiKey.tsx` | Modal educativo ilustrado em 4 passos com links diretos e botão de colar para obtenção de API Key gratuita no Google AI Studio. |
 | **Modal Nova Filial (Conglomerado)** | `src/components/lojas/ModalAdicionarLoja.tsx` | Cadastro de nova unidade/filial com degustação gratuita, formulário de endereço completo (CEP, logradouro, número, complemento, bairro, cidade, UF), autopreenchimento assíncrono via ViaCEP e foco automático. |
-| **Parâmetros Globais HUBI (Admin)** | `src/components/configuracoes/CardParametrosHubiAdmin.tsx` | Painel exclusivo do Super Admin (`laaccioly@hotmail.com`) para controle de dias de trial, valores base e modo manutenção. |
+| **Parâmetros Globais HUBI (Admin)** | `src/components/configuracoes/CardParametrosHubiAdmin.tsx` | Painel exclusivo do Super Admin (`5585997374372@hubi.app`) para controle de dias de trial, valores base e modo manutenção. |
 | **Painel Carteira Pré-Paga WhatsApp** | `src/components/configuracoes/CardCarteiraWhatsapp.tsx` | Painel de gestão da Carteira Pré-Paga de WhatsApp: switch de automação, saldo em tempo real, estimativa de disparos e histórico auditável paginado. |
 | **Modal Recarga Carteira WhatsApp** | `src/components/configuracoes/ModalRecargaWhatsapp.tsx` | Modal de recarga instantânea de créditos WhatsApp via Pix Mercado Pago com QR Code dinâmico e atualização automática via Supabase Realtime. |
 | **Configurações de WhatsApp e IA** | `src/components/configuracoes/ConfiguracoesWhatsAppIA.tsx` | Painel de configuração de credenciais, prompts e parâmetros da Vendedora e Atendente IA. |
@@ -238,7 +238,7 @@
 | **useRegisterOverlay** | `src/hooks/useRegisterOverlay.ts` | Registra modais e drawers na pilha global, conectando-os à tecla ESC e ao botão voltar do celular. |
 | **usePedidosRealtime** | `src/hooks/usePedidosRealtime.ts` | Assinatura WebSocket do Supabase Realtime para atualização instantânea da central de pedidos. |
 | **useProdutos** | `src/hooks/useProdutos.ts` | Hook reativo para listagem, filtros rápidos e cache em memória do catálogo de produtos. |
-| **usePermissions** | `src/hooks/usePermissions.ts` | Validação declarativa de permissões RBAC do operador autenticado e flag mestre `ehSuperAdmin` (`laaccioly@hotmail.com`). |
+| **usePermissions** | `src/hooks/usePermissions.ts` | Validação declarativa de permissões RBAC do operador autenticado e flag mestre `ehSuperAdmin` (`5585997374372@hubi.app`). |
 | **useNetworkStatus** | `src/hooks/useNetworkStatus.ts` | Monitoramento contínuo do status online/offline da conexão com a internet. |
 | **useAssinaturaStatus** | `src/hooks/useAssinaturaStatus.ts` | Avaliação dinâmica do ciclo de vida da loja (Trial via `dias_trial` global, Ativo, Alerta 7 dias, Bloqueado), valores de referência e Realtime. |
 | **useGlobalNavigation** | `src/hooks/useGlobalNavigation.ts` | Hook de navegação segura para controle de telas, parâmetros de rota e histórico. |
