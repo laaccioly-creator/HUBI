@@ -942,7 +942,7 @@ export interface ItemShoppingSerpApi {
 const cacheShoppingSerpMemoria = new Map<string, { timestamp: number; itens: ItemShoppingSerpApi[] }>();
 
 export const obterCacheShoppingSerp = (termo: string): ItemShoppingSerpApi[] | null => {
-  const chave = `hubi_serp_shopping_cache_v5_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_shopping_cache_v6_${termo.toLowerCase().trim()}`;
   const TTL_MS = 1000 * 60 * 60 * 6; // 6 horas
   const emMemoria = cacheShoppingSerpMemoria.get(chave);
   if (emMemoria && Date.now() - emMemoria.timestamp < TTL_MS) {
@@ -963,7 +963,7 @@ export const obterCacheShoppingSerp = (termo: string): ItemShoppingSerpApi[] | n
 
 export const salvarCacheShoppingSerp = (termo: string, itens: ItemShoppingSerpApi[]) => {
   if (!itens || itens.length === 0) return;
-  const chave = `hubi_serp_shopping_cache_v5_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_shopping_cache_v6_${termo.toLowerCase().trim()}`;
   const item = { timestamp: Date.now(), itens };
   cacheShoppingSerpMemoria.set(chave, item);
   const serializado = JSON.stringify(item);
@@ -1020,6 +1020,8 @@ const normalizarNomeLojaBr = (fonteBruta: string, urlBruta?: string): string => 
   if (combinado.includes('extra.com.br')) return 'Extra';
   if (combinado.includes('pontofrio') || combinado.includes('ponto.com.br')) return 'Ponto';
   if (combinado.includes('creality')) return 'Creality Brasil';
+  if (combinado.includes('slim3d') || combinado.includes('slim 3d')) return 'Slim 3D';
+  if (combinado.includes('3dlab') || combinado.includes('3d lab')) return '3D Lab';
   if (combinado.includes('3dprime')) return '3D Prime';
   if (combinado.includes('gtmax3d')) return 'GTMax3D';
   if (combinado.includes('stlflix') || combinado.includes('3dfila')) return '3DFila';
@@ -1159,11 +1161,21 @@ const formatarItensShoppingBrutos = (rawItems: any[], queryPadrao: string): Item
       continue;
     }
 
+    const richExtensions = Array.isArray(item.richSnippet?.top?.extensions)
+      ? item.richSnippet.top.extensions.join(' ')
+      : '';
+    const richPrice =
+      item.richSnippet?.top?.detectedExtensions?.price ||
+      item.richSnippet?.bottom?.detectedExtensions?.price ||
+      '';
+
     const precoNum =
       extrairPrecoNumericoBr(item.extracted_price) ||
       extrairPrecoNumericoBr(item.price) ||
+      extrairPrecoNumericoBr(richPrice) ||
       extrairPrecoNumericoBr(item.priceRange) ||
       extrairPrecoNumericoBr(item.attributes?.Preço || item.attributes?.Preco || item.attributes?.Price) ||
+      extrairPrecoNumericoBr(richExtensions) ||
       extrairPrecoNumericoBr(item.snippet) ||
       extrairPrecoNumericoBr(item.title);
 
@@ -1244,12 +1256,11 @@ export const buscarPrecosShoppingSerpApi = async (
   }
 
   const lojaId = loja?.id;
-  const num = Math.min(Math.max(numResultados, 15), 25);
+  const num = Math.min(Math.max(numResultados, 20), 25);
 
   const promessasShopping: Promise<ItemShoppingSerpApi[]>[] = [];
-  const promessasOrganic: Promise<ItemShoppingSerpApi[]>[] = [];
 
-  // Canal 1: Chamada direta ultrarrápida ao Serper.dev Shopping + Search em paralelo (~400-700ms)
+  // Canal 1: Chamada direta ao Serper.dev Shopping (~400-700ms)
   if (chaveLimpa) {
     promessasShopping.push(
       (async () => {
@@ -1262,39 +1273,13 @@ export const buscarPrecosShoppingSerpApi = async (
               'X-API-KEY': chaveLimpa,
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ q: queryFinal, gl: 'br', hl: 'pt-br', num }),
+            body: JSON.stringify({ q: queryFinal, gl: 'br', hl: 'pt', num }),
             signal: ctrl.signal
           });
           clearTimeout(tId);
           if (res.ok) {
             const data = await res.json();
             return formatarItensShoppingBrutos(data.shopping || data.shopping_results || [], queryFinal);
-          }
-        } catch {
-          clearTimeout(tId);
-        }
-        return [];
-      })()
-    );
-
-    promessasOrganic.push(
-      (async () => {
-        const ctrl = new AbortController();
-        const tId = setTimeout(() => ctrl.abort(), 3500);
-        try {
-          const res = await fetch('https://google.serper.dev/search', {
-            method: 'POST',
-            headers: {
-              'X-API-KEY': chaveLimpa,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ q: `${queryFinal} comprar preço`, gl: 'br', hl: 'pt-br', num: 15 }),
-            signal: ctrl.signal
-          });
-          clearTimeout(tId);
-          if (res.ok) {
-            const data = await res.json();
-            return formatarItensShoppingBrutos([...(data.shopping || []), ...(data.organic || [])], queryFinal);
           }
         } catch {
           clearTimeout(tId);
@@ -1356,15 +1341,80 @@ export const buscarPrecosShoppingSerpApi = async (
     );
   }
 
-  if (promessasShopping.length === 0 && promessasOrganic.length === 0) return [];
+  if (promessasShopping.length === 0) return [];
 
   try {
-    const resultadosParalelos = await Promise.allSettled([...promessasShopping, ...promessasOrganic]);
+    const resultadosShopping = await Promise.allSettled(promessasShopping);
     const todosItens: ItemShoppingSerpApi[] = [];
 
-    for (const r of resultadosParalelos) {
+    for (const r of resultadosShopping) {
       if (r.status === 'fulfilled' && Array.isArray(r.value) && r.value.length > 0) {
         todosItens.push(...r.value);
+      }
+    }
+
+    const lojasDistintasShopping = new Set(todosItens.map(it => it.loja.toLowerCase().trim()));
+
+    // Busca complementar orgânica (engine: 'google' / /search) automática se shopping retornar < 6 lojas distintas
+    if (lojasDistintasShopping.size < 6) {
+      const queryOrganica = `"${queryFinal}" preço R$ comprar`;
+      const promessasOrganic: Promise<ItemShoppingSerpApi[]>[] = [];
+
+      if (chaveLimpa) {
+        promessasOrganic.push(
+          (async () => {
+            const ctrl = new AbortController();
+            const tId = setTimeout(() => ctrl.abort(), 3500);
+            try {
+              const res = await fetch('https://google.serper.dev/search', {
+                method: 'POST',
+                headers: {
+                  'X-API-KEY': chaveLimpa,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ q: queryOrganica, gl: 'br', hl: 'pt', num: 20 }),
+                signal: ctrl.signal
+              });
+              clearTimeout(tId);
+              if (res.ok) {
+                const data = await res.json();
+                return formatarItensShoppingBrutos([...(data.shopping || []), ...(data.organic || [])], queryFinal);
+              }
+            } catch {
+              clearTimeout(tId);
+            }
+            return [];
+          })()
+        );
+      } else if (lojaId) {
+        promessasOrganic.push(
+          (async () => {
+            try {
+              const { data: edgeData, error } = await supabase.functions.invoke('buscar-fotos-serpapi', {
+                body: {
+                  q: queryOrganica,
+                  engine: 'google',
+                  loja_id: lojaId,
+                  num: 20
+                }
+              });
+              if (!error && edgeData) {
+                const brutos = [...(edgeData.shopping || []), ...(edgeData.organic || []), ...(edgeData.results || [])];
+                return formatarItensShoppingBrutos(brutos, queryFinal);
+              }
+            } catch {}
+            return [];
+          })()
+        );
+      }
+
+      if (promessasOrganic.length > 0) {
+        const resultadosOrganic = await Promise.allSettled(promessasOrganic);
+        for (const r of resultadosOrganic) {
+          if (r.status === 'fulfilled' && Array.isArray(r.value) && r.value.length > 0) {
+            todosItens.push(...r.value);
+          }
+        }
       }
     }
 
@@ -1390,7 +1440,7 @@ export const buscarPrecosShoppingSerpApi = async (
         }
       }
 
-      const ofertasFinais = [...distintasPrimeiro, ...adicionais].slice(0, 25);
+      const ofertasFinais = [...distintasPrimeiro, ...adicionais].slice(0, 30);
       logSerpSucesso(`⚡ Encontradas ${ofertasFinais.length} ofertas (${distintasPrimeiro.length} lojas distintas) para "${queryFinal}"`);
       salvarCacheShoppingSerp(queryFinal, ofertasFinais);
       return ofertasFinais;

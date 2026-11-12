@@ -41,7 +41,7 @@ export interface ContextoUnificadoProdutoJev {
  */
 export const invalidarCachesAntigosPipelineJev = (): void => {
   try {
-    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v5_ativo';
+    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v6_ativo';
     if (localStorage.getItem(FLAG_MIGRACAO) === 'true') return;
 
     const prefixosAntigos = [
@@ -55,7 +55,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
       const chavesParaRemover: string[] = [];
       for (let i = 0; i < storage.length; i++) {
         const k = storage.key(i);
-        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v5_')) {
+        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v6_')) {
           chavesParaRemover.push(k);
         }
       }
@@ -66,7 +66,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
     limparStorage(sessionStorage);
     localStorage.setItem(FLAG_MIGRACAO, 'true');
     console.log(
-      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v5 ativo!',
+      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v6 ativo!',
       'background: #10b981; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
       'color: #10b981; font-weight: bold;'
     );
@@ -788,15 +788,15 @@ export const catalogJevService = {
 
     let listaLojas = Array.from(mapaPorLoja.values());
 
-    // Garantia mínima de resultados: garantir entre 4 e 8 lojas distintas (sempre bloqueando variantes/importados)
-    if (listaLojas.length < 4) {
+    // Garantia mínima de resultados: garantir entre 5 e 10 lojas nacionais distintas (sempre bloqueando variantes/importados)
+    if (listaLojas.length < 5) {
       const lojasJaAdicionadas = new Set(listaLojas.map(l => l.loja.trim().toLowerCase()));
       const complementares = preAvaliadas
         .filter(item => !item.penalizado && item.scoreDeterministico >= 0.40 && !lojasJaAdicionadas.has(item.oferta.loja.trim().toLowerCase()))
         .sort((a, b) => b.scoreDeterministico - a.scoreDeterministico);
 
       for (const comp of complementares) {
-        if (listaLojas.length >= 4) break;
+        if (listaLojas.length >= 6) break;
         listaLojas.push({
           ...comp.oferta,
           scoreJev: comp.scoreDeterministico
@@ -818,9 +818,9 @@ export const catalogJevService = {
       }
     }
 
-    // Ordena por maior probabilidade (e empate por menor preço) e limita entre 4 e 8 lojas distintas
-    listaLojas.sort((a, b) => (b.scoreJev - a.scoreJev) || (a.preco - b.preco));
-    const aprovadasFinais = listaLojas.slice(0, 8);
+    // Ordena pelo preço (menor para maior) e limita entre 5 e 10 lojas nacionais distintas
+    listaLojas.sort((a, b) => a.preco - b.preco);
+    const aprovadasFinais = listaLojas.slice(0, 10);
     const totalDescartados = ofertas.length - aprovadasFinais.length;
 
     const confiancaMediaPercentual = aprovadasFinais.length > 0
@@ -828,7 +828,7 @@ export const catalogJevService = {
       : 0;
 
     console.log(
-      `%c[HUBI JEV ⚡] [${etapa}]%c Produto: "${nomeOriginalUsuario}" | Confiança média: ${confiancaMediaPercentual}% | Lojas distintas aprovadas (>=50%): ${aprovadasFinais.length} (garantia: 4-8 lojas) | Descartados: ${totalDescartados}`,
+      `%c[HUBI JEV ⚡] [${etapa}]%c Produto: "${nomeOriginalUsuario}" | Confiança média: ${confiancaMediaPercentual}% | Lojas nacionais distintas aprovadas (>=50%): ${aprovadasFinais.length} (garantia: 5-10 lojas) | Descartados: ${totalDescartados}`,
       'color: #10b981; font-weight: bold;',
       'color: #34d399;'
     );
