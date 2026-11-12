@@ -561,7 +561,7 @@ export const testarConexaoSerpApi = async (
 const cacheSerpMemoria = new Map<string, { timestamp: number; fotos: FotoResultadoSerpApi[] }>();
 
 export const obterCacheSerp = (termo: string): FotoResultadoSerpApi[] | null => {
-  const chave = `hubi_serp_cache_v8_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_cache_v9_${termo.toLowerCase().trim()}`;
   const emMemoria = cacheSerpMemoria.get(chave);
   if (emMemoria && Date.now() - emMemoria.timestamp < 1000 * 60 * 60 * 6) {
     return emMemoria.fotos;
@@ -581,7 +581,7 @@ export const obterCacheSerp = (termo: string): FotoResultadoSerpApi[] | null => 
 
 export const salvarCacheSerp = (termo: string, fotos: FotoResultadoSerpApi[]) => {
   if (!fotos || fotos.length === 0) return;
-  const chave = `hubi_serp_cache_v8_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_cache_v9_${termo.toLowerCase().trim()}`;
   const item = { timestamp: Date.now(), fotos };
   cacheSerpMemoria.set(chave, item);
   try {
@@ -942,7 +942,7 @@ export interface ItemShoppingSerpApi {
 const cacheShoppingSerpMemoria = new Map<string, { timestamp: number; itens: ItemShoppingSerpApi[] }>();
 
 export const obterCacheShoppingSerp = (termo: string): ItemShoppingSerpApi[] | null => {
-  const chave = `hubi_serp_shopping_cache_v8_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_shopping_cache_v9_${termo.toLowerCase().trim()}`;
   const TTL_MS = 1000 * 60 * 60 * 6; // 6 horas
   const emMemoria = cacheShoppingSerpMemoria.get(chave);
   if (emMemoria && Date.now() - emMemoria.timestamp < TTL_MS) {
@@ -963,7 +963,7 @@ export const obterCacheShoppingSerp = (termo: string): ItemShoppingSerpApi[] | n
 
 export const salvarCacheShoppingSerp = (termo: string, itens: ItemShoppingSerpApi[]) => {
   if (!itens || itens.length === 0) return;
-  const chave = `hubi_serp_shopping_cache_v8_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_shopping_cache_v9_${termo.toLowerCase().trim()}`;
   const item = { timestamp: Date.now(), itens };
   cacheShoppingSerpMemoria.set(chave, item);
   const serializado = JSON.stringify(item);
@@ -1258,43 +1258,51 @@ export const buscarPrecosShoppingSerpApi = async (
   const lojaId = loja?.id;
   const num = Math.min(Math.max(numResultados, 20), 30);
 
-  const promessasShopping: Promise<ItemShoppingSerpApi[]>[] = [];
+  const promessasParalelas: Promise<ItemShoppingSerpApi[]>[] = [];
 
-  // Canal 1: Chamada direta ao Serper.dev Shopping (~400-700ms)
+  const executarSerperPost = async (endpoint: 'shopping' | 'search', payload: Record<string, any>): Promise<ItemShoppingSerpApi[]> => {
+    const ctrl = new AbortController();
+    const tId = setTimeout(() => ctrl.abort(), 4000);
+    try {
+      const res = await fetch(`https://google.serper.dev/${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'X-API-KEY': chaveLimpa!,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload),
+        signal: ctrl.signal
+      });
+      clearTimeout(tId);
+      if (res.ok) {
+        const data = await res.json();
+        const brutos = [
+          ...(data.shopping || []),
+          ...(data.shopping_results || []),
+          ...(data.organic || [])
+        ];
+        return formatarItensShoppingBrutos(brutos, queryFinal);
+      } else {
+        const errBody = await res.text().catch(() => '');
+        logSerpErro(`Erro HTTP ${res.status} no Serper /${endpoint}:`, errBody);
+      }
+    } catch {
+      clearTimeout(tId);
+    }
+    return [];
+  };
+
+  // Canal 1 e 2: Chamadas simultâneas ao Serper.dev (/shopping + /search orgânico comercial)
   if (chaveLimpa) {
-    promessasShopping.push(
-      (async () => {
-        const ctrl = new AbortController();
-        const tId = setTimeout(() => ctrl.abort(), 3500);
-        try {
-          const res = await fetch('https://google.serper.dev/shopping', {
-            method: 'POST',
-            headers: {
-              'X-API-KEY': chaveLimpa,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ q: queryFinal, gl: 'br', hl: 'pt-br', num }),
-            signal: ctrl.signal
-          });
-          clearTimeout(tId);
-          if (res.ok) {
-            const data = await res.json();
-            return formatarItensShoppingBrutos(data.shopping || data.shopping_results || [], queryFinal);
-          } else {
-            const errBody = await res.text().catch(() => '');
-            logSerpErro(`Erro HTTP ${res.status} no Serper /shopping:`, errBody);
-          }
-        } catch {
-          clearTimeout(tId);
-        }
-        return [];
-      })()
+    promessasParalelas.push(
+      executarSerperPost('shopping', { q: queryFinal, gl: 'br', hl: 'pt-br' }),
+      executarSerperPost('search', { q: `${queryFinal} R$ comprar`, gl: 'br', hl: 'pt-br', num: 20 })
     );
   }
 
-  // Canal 2: Proxy local em DEV (/api/buscar-fotos-serpapi)
+  // Canal 3: Proxy local em DEV (/api/buscar-fotos-serpapi)
   if (import.meta.env.DEV && chaveLimpa) {
-    promessasShopping.push(
+    promessasParalelas.push(
       (async () => {
         const ctrl = new AbortController();
         const tId = setTimeout(() => ctrl.abort(), 4000);
@@ -1321,9 +1329,9 @@ export const buscarPrecosShoppingSerpApi = async (
     );
   }
 
-  // Canal 3: Supabase Edge Function (buscar-fotos-serpapi) caso não haja chave no cliente
+  // Canal 4: Supabase Edge Function (buscar-fotos-serpapi) caso não haja chave no cliente
   if (!chaveLimpa && lojaId) {
-    promessasShopping.push(
+    promessasParalelas.push(
       (async () => {
         try {
           const { data: edgeData, error } = await supabase.functions.invoke('buscar-fotos-serpapi', {
@@ -1340,87 +1348,65 @@ export const buscarPrecosShoppingSerpApi = async (
           }
         } catch {}
         return [];
+      })(),
+      (async () => {
+        try {
+          const { data: edgeData, error } = await supabase.functions.invoke('buscar-fotos-serpapi', {
+            body: {
+              q: `${queryFinal} R$ comprar`,
+              engine: 'google',
+              loja_id: lojaId,
+              num: 20
+            }
+          });
+          if (!error && edgeData) {
+            const brutos = [...(edgeData.shopping || []), ...(edgeData.organic || []), ...(edgeData.results || [])];
+            return formatarItensShoppingBrutos(brutos, queryFinal);
+          }
+        } catch {}
+        return [];
       })()
     );
   }
 
-  if (promessasShopping.length === 0) return [];
+  if (promessasParalelas.length === 0) return [];
 
   try {
-    const resultadosShopping = await Promise.allSettled(promessasShopping);
+    const resultadosIniciais = await Promise.all(promessasParalelas);
     const todosItens: ItemShoppingSerpApi[] = [];
 
-    for (const r of resultadosShopping) {
-      if (r.status === 'fulfilled' && Array.isArray(r.value) && r.value.length > 0) {
-        todosItens.push(...r.value);
+    for (const lista of resultadosIniciais) {
+      if (Array.isArray(lista) && lista.length > 0) {
+        todosItens.push(...lista);
       }
     }
 
-    const lojasDistintasShopping = new Set(todosItens.map(it => it.loja.toLowerCase().trim()));
+    const lojasDistintasIniciais = new Set(todosItens.map(it => it.loja.toLowerCase().trim()));
 
-    // Busca complementar orgânica (engine: 'google' / /search) automática se shopping retornar < 6 lojas distintas
-    if (lojasDistintasShopping.size < 6) {
-      const queryOrganica = `${queryFinal} comprar preço R$`;
-      const promessasOrganic: Promise<ItemShoppingSerpApi[]>[] = [];
-
+    // Segunda busca orgânica complementar caso a soma das duas primeiras ainda tenha menos de 6 lojas únicas
+    if (lojasDistintasIniciais.size < 6) {
+      const queryComplementar = `"${queryFinal}" preço`;
+      let extras: ItemShoppingSerpApi[] = [];
       if (chaveLimpa) {
-        promessasOrganic.push(
-          (async () => {
-            const ctrl = new AbortController();
-            const tId = setTimeout(() => ctrl.abort(), 3500);
-            try {
-              const res = await fetch('https://google.serper.dev/search', {
-                method: 'POST',
-                headers: {
-                  'X-API-KEY': chaveLimpa,
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ q: queryOrganica, gl: 'br', hl: 'pt-br', num: 20 }),
-                signal: ctrl.signal
-              });
-              clearTimeout(tId);
-              if (res.ok) {
-                const data = await res.json();
-                return formatarItensShoppingBrutos([...(data.shopping || []), ...(data.organic || [])], queryFinal);
-              } else {
-                const errBody = await res.text().catch(() => '');
-                logSerpErro(`Erro HTTP ${res.status} no Serper /search:`, errBody);
-              }
-            } catch {
-              clearTimeout(tId);
-            }
-            return [];
-          })()
-        );
+        extras = await executarSerperPost('search', { q: queryComplementar, gl: 'br', hl: 'pt-br', num: 15 });
       } else if (lojaId) {
-        promessasOrganic.push(
-          (async () => {
-            try {
-              const { data: edgeData, error } = await supabase.functions.invoke('buscar-fotos-serpapi', {
-                body: {
-                  q: queryOrganica,
-                  engine: 'google',
-                  loja_id: lojaId,
-                  num: 20
-                }
-              });
-              if (!error && edgeData) {
-                const brutos = [...(edgeData.shopping || []), ...(edgeData.organic || []), ...(edgeData.results || [])];
-                return formatarItensShoppingBrutos(brutos, queryFinal);
-              }
-            } catch {}
-            return [];
-          })()
-        );
-      }
-
-      if (promessasOrganic.length > 0) {
-        const resultadosOrganic = await Promise.allSettled(promessasOrganic);
-        for (const r of resultadosOrganic) {
-          if (r.status === 'fulfilled' && Array.isArray(r.value) && r.value.length > 0) {
-            todosItens.push(...r.value);
+        try {
+          const { data: edgeData, error } = await supabase.functions.invoke('buscar-fotos-serpapi', {
+            body: {
+              q: queryComplementar,
+              engine: 'google',
+              loja_id: lojaId,
+              num: 15
+            }
+          });
+          if (!error && edgeData) {
+            const brutos = [...(edgeData.shopping || []), ...(edgeData.organic || []), ...(edgeData.results || [])];
+            extras = formatarItensShoppingBrutos(brutos, queryFinal);
           }
-        }
+        } catch {}
+      }
+      if (extras.length > 0) {
+        todosItens.push(...extras);
       }
     }
 

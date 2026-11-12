@@ -41,7 +41,7 @@ export interface ContextoUnificadoProdutoJev {
  */
 export const invalidarCachesAntigosPipelineJev = (): void => {
   try {
-    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v8_ativo';
+    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v9_ativo';
     if (localStorage.getItem(FLAG_MIGRACAO) === 'true') return;
 
     const prefixosAntigos = [
@@ -55,7 +55,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
       const chavesParaRemover: string[] = [];
       for (let i = 0; i < storage.length; i++) {
         const k = storage.key(i);
-        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v8_')) {
+        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v9_')) {
           chavesParaRemover.push(k);
         }
       }
@@ -66,7 +66,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
     limparStorage(sessionStorage);
     localStorage.setItem(FLAG_MIGRACAO, 'true');
     console.log(
-      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v8 ativo!',
+      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v9 ativo!',
       'background: #10b981; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
       'color: #10b981; font-weight: bold;'
     );
@@ -805,14 +805,14 @@ export const catalogJevService = {
       }
     }
 
-    // Filtro estatístico de outliers (Mediana): descarta preços < 60% ou > 145% da mediana
+    // Filtro estatístico de outliers (Mediana): descarta preços < 65% ou > 140% da mediana
     if (listaLojas.length >= 3) {
       const precosOrd = listaLojas.map(l => l.preco).sort((a, b) => a - b);
       const mid = Math.floor(precosOrd.length / 2);
       const mediana = precosOrd.length % 2 === 0
         ? (precosOrd[mid - 1] + precosOrd[mid]) / 2
         : precosOrd[mid];
-      const semOutliers = listaLojas.filter(l => l.preco >= mediana * 0.60 && l.preco <= mediana * 1.45);
+      const semOutliers = listaLojas.filter(l => l.preco >= mediana * 0.65 && l.preco <= mediana * 1.40);
       if (semOutliers.length > 0) {
         listaLojas = semOutliers;
       }
