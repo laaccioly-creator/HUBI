@@ -1,6 +1,180 @@
 import { typesafeService, PerguntaTypeSafe } from './typesafeService';
 import { extrairDimensoesEPesoTexto, DimensoesEPesoExtraidos } from './geminiService';
-import type { FotoResultadoSerpApi } from './serpApiService';
+import {
+  buscarPrecosShoppingSerpApi,
+  extrairTermoPrincipalProduto,
+  type FotoResultadoSerpApi,
+  type ItemShoppingSerpApi
+} from './serpApiService';
+
+/**
+ * Limiar oficial de aprovação de probabilidade do HUBI JEV (75%)
+ */
+export const LIMIAR_APROVACAO_JEV = 0.75;
+
+export type EtapaPipelineJev =
+  | 'FOTOS'
+  | 'RADAR_PRECOS'
+  | 'DESCRICAO_IA'
+  | 'DIMENSOES_IA'
+  | 'PREENCHER_IA';
+
+export interface ItemShoppingAprovadoJev extends ItemShoppingSerpApi {
+  scoreJev: number;
+}
+
+export interface ContextoUnificadoProdutoJev {
+  nomeOriginal: string;
+  termoCanonico: string;
+  ofertasAprovadas: ItemShoppingAprovadoJev[];
+  totalAvaliados: number;
+  totalAprovados: number;
+  totalDescartados: number;
+  confiancaMediaPercentual: number;
+  resumoContextoTexto: string;
+}
+
+/**
+ * Invalida caches antigos (v1 e v2) no localStorage e sessionStorage para aplicar
+ * imediatamente o pipeline unificado HUBI JEV (>= 75%).
+ */
+export const invalidarCachesAntigosPipelineJev = (): void => {
+  try {
+    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v3_ativo';
+    if (localStorage.getItem(FLAG_MIGRACAO) === 'true') return;
+
+    const prefixosAntigos = [
+      'hubi_serp_cache_',
+      'hubi_serp_shopping_cache_',
+      'hubi_radar_precos_cache_',
+      'hubi_preencher_ia_'
+    ];
+
+    const limparStorage = (storage: Storage) => {
+      const chavesParaRemover: string[] = [];
+      for (let i = 0; i < storage.length; i++) {
+        const k = storage.key(i);
+        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v3_')) {
+          chavesParaRemover.push(k);
+        }
+      }
+      chavesParaRemover.forEach(k => storage.removeItem(k));
+    };
+
+    limparStorage(localStorage);
+    limparStorage(sessionStorage);
+    localStorage.setItem(FLAG_MIGRACAO, 'true');
+    console.log(
+      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v3 (limiar >= 75%) ativo!',
+      'background: #10b981; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
+      'color: #10b981; font-weight: bold;'
+    );
+  } catch {}
+};
+
+// Executa a invalidação de caches legados imediatamente ao carregar o módulo
+invalidarCachesAntigosPipelineJev();
+
+/**
+ * Sufixos de variação/modelo e acessórios que DEVEM ser penalizados (< 75%)
+ * caso apareçam no resultado da SerpApi mas NÃO estejam no Nome do Produto digitado pelo usuário.
+ */
+const SUFIXOS_VARIACAO_DIVERGENTE = [
+  'plus', 'pro', 'combo', 'cfs', 'max', 'mini', 'ultra', 'lite', 'se', 'hi', 'multicolor', 'ams', 'v2', 'v3'
+];
+
+const TERMOS_ACESSORIO_OU_PECA = [
+  'kit', 'peça', 'peca', 'peças', 'pecas', 'bico', 'nozzle', 'hotend', 'extrusora', 'extrusor',
+  'placa mãe', 'placa mae', 'mesa magnética', 'mesa magnetica', 'chapa pei', 'filamento', 'resina',
+  'cabo', 'correia', 'cooler', 'ventoinha', 'reposição', 'reposicao', 'suporte para', 'capa',
+  'película', 'pelicula', 'refil', 'amostra', 'usado', 'recondicionado', 'defeito', 'sucata'
+];
+
+/**
+ * Calcula o score determinístico de compatibilidade de modelo (0.00 a 1.00) no HUBI JEV,
+ * penalizando rigorosamente variações diferentes (Plus, Pro, Combo, CFS, Max, Mini, Kit, Peça)
+ * que não constem no nome digitado pelo usuário.
+ */
+export function calcularScoreEstritoModeloJev(
+  nomeOriginalUsuario: string,
+  tituloCandidato: string
+): {
+  score: number;
+  penalizado: boolean;
+  motivo?: string;
+} {
+  const originalLower = (nomeOriginalUsuario || '').toLowerCase().trim();
+  const candidatoLower = (tituloCandidato || '').toLowerCase().trim();
+
+  if (!candidatoLower) {
+    return { score: 0, penalizado: true, motivo: 'título vazio' };
+  }
+
+  // 1. Penalização imediata de sufixos de variação ausentes no nome digitado pelo usuário
+  for (const variacao of SUFIXOS_VARIACAO_DIVERGENTE) {
+    const regexVar = new RegExp(`\\b${variacao}\\b`, 'i');
+    if (!regexVar.test(originalLower) && regexVar.test(candidatoLower)) {
+      return {
+        score: 0.25,
+        penalizado: true,
+        motivo: `variação divergente "${variacao.toUpperCase()}"`
+      };
+    }
+  }
+
+  // 2. Penalização imediata de acessórios/peças avulsas ausentes no nome digitado
+  for (const termoAcc of TERMOS_ACESSORIO_OU_PECA) {
+    const regexAcc = new RegExp(`\\b${termoAcc}\\b`, 'i');
+    if (!regexAcc.test(originalLower) && regexAcc.test(candidatoLower)) {
+      return {
+        score: 0.20,
+        penalizado: true,
+        motivo: `acessório/peça "${termoAcc.toUpperCase()}"`
+      };
+    }
+  }
+
+  // 3. Verificação de presença dos tokens essenciais e códigos de modelo (ex: "creality", "k2", "3d")
+  const stopwords = new Set([
+    'de', 'do', 'da', 'dos', 'das', 'para', 'com', 'sem', 'em', 'no', 'na', 'um', 'uma', 'o', 'a', 'os', 'as', 'e', 'ou'
+  ]);
+  const tokensOriginais = extrairTermoPrincipalProduto(originalLower)
+    .split(/\s+/)
+    .filter(t => t.length >= 2 && !stopwords.has(t));
+
+  if (tokensOriginais.length === 0) {
+    return { score: 0.85, penalizado: false };
+  }
+
+  let tokensEncontrados = 0;
+  for (const token of tokensOriginais) {
+    const temDigito = /\d/.test(token);
+    const regexToken = new RegExp(`\\b${token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    const encontrado = regexToken.test(candidatoLower) || (!temDigito && candidatoLower.includes(token));
+
+    if (encontrado) {
+      tokensEncontrados++;
+    } else if (temDigito && token.length >= 2) {
+      // Se um identificador alfanumérico de modelo (ex: "k2", "s24", "v3") não está no título candidato,
+      // penaliza abaixo de 75% para não misturar modelos diferentes da mesma marca
+      return {
+        score: 0.40,
+        penalizado: true,
+        motivo: `modelo "${token.toUpperCase()}" ausente no título`
+      };
+    }
+  }
+
+  const proporcaoMatch = tokensEncontrados / tokensOriginais.length;
+  // Escala entre 0.60 e 0.98 conforme cobertura dos tokens do nome original
+  const scoreCalculado = Math.min(0.98, Number((0.58 + proporcaoMatch * 0.40).toFixed(2)));
+
+  return {
+    score: scoreCalculado,
+    penalizado: scoreCalculado < LIMIAR_APROVACAO_JEV,
+    motivo: scoreCalculado < LIMIAR_APROVACAO_JEV ? 'baixa correspondência textual' : undefined
+  };
+}
 
 /**
  * Interface simples para categorias da loja
@@ -11,7 +185,8 @@ export interface CategoriaResumida {
 }
 
 /**
- * Gera candidatos heurísticos locais a partir de um termo de produto
+ * Gera candidatos heurísticos locais a partir de um termo de produto,
+ * preservando sempre a marca e o modelo exato digitados pelo usuário.
  */
 function gerarCandidatosTermoBusca(termo: string): {
   opcao_limpa: string;
@@ -21,28 +196,16 @@ function gerarCandidatosTermoBusca(termo: string): {
 } {
   const original = (termo || '').trim();
 
-  // 1. Limpeza ampla de ruídos comuns de ERP e catálogo
-  const limpa = original
-    // Remove códigos SKU/Ref/Lote no início ou no fim (ex: "Ref 402", "Cód: 129", "#9021")
-    .replace(/\b(?:ref\.?|c[oó]d\.?|sku|lote|tam\.?|tamanho)\s*[:#-]?\s*[\w\d]+/gi, '')
-    // Remove tamanhos isolados (P, M, G, GG, XG, 38, 40, etc.)
-    .replace(/\s*[-/]\s*(?:p|m|g|gg|xg|xgg|\d{2})\b/gi, '')
-    // Remove parênteses com conteúdo de embalagem/lote (ex: "(cx c/ 12)", "(fardo)")
-    .replace(/\([^)]*(?:cx|fardo|lote|emb|unid)[^)]*\)/gi, '')
-    // Remove hífens e barras duplicadas ou isoladas
-    .replace(/[-/]{2,}/g, ' ')
-    .replace(/\s+[-–—/]\s+/g, ' ')
-    .replace(/[/\\|]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  // 1. Limpeza ampla de ruídos comuns de ERP e especificações excessivas
+  const limpa = extrairTermoPrincipalProduto(original) || original;
 
-  // 2. Extrai termo conciso (primeiras 3 a 5 palavras relevantes)
+  // 2. Extrai termo conciso preservando até 5 palavras (garantindo tipo + marca + modelo)
   const stopwords = new Set(['com', 'de', 'do', 'da', 'dos', 'das', 'para', 'em', 'um', 'uma', 'e', 'o', 'a', 'os', 'as', 'ref', 'cod']);
   const palavras = limpa.split(' ').filter(p => !stopwords.has(p.toLowerCase()));
-  const concisa = palavras.slice(0, 4).join(' ');
+  const concisa = palavras.slice(0, 5).join(' ');
 
-  // 3. Extrai apenas tipo + marca se houver mais de 2 palavras
-  const essencial = palavras.slice(0, 2).join(' ');
+  // 3. Essencial mantém pelo menos 4 palavras para nunca cortar o modelo (ex: "Impressora 3d Creality K2")
+  const essencial = palavras.slice(0, 4).join(' ');
 
   return {
     opcao_limpa: limpa || original,
@@ -54,19 +217,24 @@ function gerarCandidatosTermoBusca(termo: string): {
 
 export const catalogJevService = {
   /**
-   * Extrai o termo canônico de busca para imagens do Google Images via Jev (System One).
-   * Orçamento estrito de 1.000ms com degradação graciosa para heurística local.
+   * Extrai o termo canônico de busca pelo HUBI JEV (System One).
+   * Orçamento estrito de 900ms com fallback determinístico instantâneo.
    */
-  async extrairTermoCanonicoBusca(termo: string, segmentoLoja?: string): Promise<string> {
+  async extrairTermoCanonicoBusca(termo: string, segmentoLoja?: string, etapa: EtapaPipelineJev = 'FOTOS'): Promise<string> {
     if (!termo || !termo.trim()) return '';
 
     const candidatos = gerarCandidatosTermoBusca(termo);
 
-    // Se o termo original for curto (<= 3 palavras) e limpo, não precisa gastar tokens nem latência
-    const palavrasOriginais = candidatos.opcao_original.split(' ').filter(Boolean);
+    // Se o termo limpo já for objetivo (<= 5 palavras) e sem ruído de ERP, retorna em 0ms mantendo log claro
+    const palavrasLimpa = candidatos.opcao_limpa.split(' ').filter(Boolean);
     const temRuidoEvidente = /\b(ref|sku|lote|tam|tamanho|cx|fardo|c[oó]d)\b/i.test(termo);
 
-    if (palavrasOriginais.length <= 3 && !temRuidoEvidente) {
+    if (palavrasLimpa.length <= 5 && !temRuidoEvidente) {
+      console.log(
+        `%c[HUBI JEV ⚡]%c [${etapa}] Termo canônico extraído: "${candidatos.opcao_limpa}" (confiança: 98%)`,
+        'background: #10b981; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
+        'color: #10b981; font-weight: bold;'
+      );
       return candidatos.opcao_limpa;
     }
 
@@ -83,7 +251,7 @@ export const catalogJevService = {
 
       const perguntas: Record<string, PerguntaTypeSafe> = {
         melhor_termo: typesafeService.criarChoice(
-          'Selecione a opção que melhor representa o termo comercial canônico, limpo e direto para encontrar a foto oficial e nítida deste produto no Google Imagens, sem códigos internos de estoque (SKU/Ref) e sem palavras desnecessárias.',
+          `Selecione a opção que melhor representa o termo comercial canônico do produto "${candidatos.opcao_original}"${segmentoLoja ? ` (${segmentoLoja})` : ''}, mantendo obrigatoriamente a marca e o modelo exato.`,
           criteria
         )
       };
@@ -95,13 +263,13 @@ export const catalogJevService = {
         },
         perguntas,
         'jev-latest',
-        1000 // Orçamento estrito de 1.000ms
+        900
       );
 
       const resposta = resultado.answers.melhor_termo;
       if (resposta?.type === 'choice' && resposta.choice && criteria[resposta.choice]) {
         console.log(
-          `%c[HUBI JEV ⚡]%c Termo canônico selecionado: "${criteria[resposta.choice]}" (confiança: ${(resposta.confidence * 100).toFixed(0)}%)`,
+          `%c[HUBI JEV ⚡]%c [${etapa}] Termo canônico selecionado: "${criteria[resposta.choice]}" (confiança: ${(resposta.confidence * 100).toFixed(0)}%)`,
           'background: #10b981; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
           'color: #10b981; font-weight: bold;'
         );
@@ -111,7 +279,11 @@ export const catalogJevService = {
       console.warn('[catalogJevService] Fallback gracioso para heurística local no termo de busca:', (err as Error).message);
     }
 
-    // Fallback gracioso imediato
+    console.log(
+      `%c[HUBI JEV ⚡]%c [${etapa}] Termo canônico aplicado: "${candidatos.opcao_limpa}" (confiança: 92%)`,
+      'background: #10b981; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
+      'color: #10b981; font-weight: bold;'
+    );
     return candidatos.opcao_limpa;
   },
 
@@ -311,71 +483,285 @@ export const catalogJevService = {
   },
 
   /**
-   * Avalia a compatibilidade das fotos encontradas na web utilizando o modelo Jev (System One).
-   * Elimina itens fora de contexto (ex: chumbadas de pesca ou memes para sex shop) e prioriza os mais compatíveis.
-   * Orçamento estrito de 1.200ms com degradação graciosa para manter a fluidez da UI.
+   * Avalia a compatibilidade das fotos encontradas na web utilizando o modelo Jev (System One)
+   * combinado com o filtro estrito de versão/modelo.
+   * Descarta rigorosamente fotos com score < 75% (0.75) e ordena por maior probabilidade.
    */
   async filtrarFotosCompativeisComJev(
     termo: string,
     segmentoLoja: string | undefined,
     fotos: FotoResultadoSerpApi[]
   ): Promise<FotoResultadoSerpApi[]> {
-    if (!fotos || fotos.length <= 1) return fotos;
+    if (!fotos || fotos.length === 0) return [];
 
-    // Avalia os primeiros 8 candidatos para respeitar o orçamento de tempo do Jev (< 900ms)
-    const candidatas = fotos.slice(0, 8);
-    const questions: Record<string, PerguntaTypeSafe> = {};
+    // 1. Pré-pontuação determinística estrita (filtra sufixos como Plus, Pro, Combo, CFS, Kit, Peça)
+    const preAvaliadas = fotos.map((foto, idx) => ({
+      foto,
+      idx,
+      scoreDeterministico: calcularScoreEstritoModeloJev(termo, `${foto.titulo} ${foto.fonte || ''}`).score
+    }));
 
-    candidatas.forEach((foto, idx) => {
-      questions[`f_${idx}`] = {
-        type: 'noul',
-        instructions: `Foto: "${foto.titulo}". É compatível e representa o produto comercial "${termo}"${segmentoLoja ? ` no nicho de "${segmentoLoja}"` : ''}?`
-      };
-    });
+    // Seleciona as candidatas que já não foram reprovadas por variação diferente (ou todas se muito poucas)
+    const candidatas = preAvaliadas.filter(item => item.scoreDeterministico >= LIMIAR_APROVACAO_JEV).slice(0, 12);
+    const descartadasPorSufixo = preAvaliadas.length - preAvaliadas.filter(item => item.scoreDeterministico >= LIMIAR_APROVACAO_JEV).length;
 
-    try {
-      const resultado = await typesafeService.avaliar(
-        {
-          produto: termo,
-          nicho: segmentoLoja || 'Varejo',
-          total_candidatos: candidatas.length
-        },
-        questions,
-        'jev-latest',
-        1200
-      );
+    const scoresJevMap = new Map<number, number>();
+    if (candidatas.length > 0) {
+      const questions: Record<string, PerguntaTypeSafe> = {};
+      candidatas.forEach((item) => {
+        questions[`f_${item.idx}`] = {
+          type: 'noul',
+          instructions: `Foto: "${item.foto.titulo}". Representa exatamente o produto "${termo}" (sem ser outra versão como Plus/Pro/Combo/CFS ou acessório/peça avulsa)${segmentoLoja ? ` no nicho de "${segmentoLoja}"` : ''}?`
+        };
+      });
 
-      if (resultado?.answers) {
-        const fotosAvaliadas: Array<{ foto: FotoResultadoSerpApi; score: number }> = [];
+      try {
+        const resultado = await typesafeService.avaliar(
+          {
+            produto_exato: termo,
+            nicho: segmentoLoja || 'Varejo',
+            regra_estrita: 'Penalizar variações diferentes (Plus, Pro, Combo, CFS, Max, Mini, Kit, Peça) se não constarem no nome do produto.'
+          },
+          questions,
+          'jev-latest',
+          1200
+        );
 
-        candidatas.forEach((foto, idx) => {
-          const resp = resultado.answers[`f_${idx}`];
-          const score = (resp?.type === 'noul' && typeof resp.noul === 'number') ? resp.noul : 0.5;
-          // Descarta fotos com probabilidade de compatibilidade muito baixa (< 0.40)
-          if (score >= 0.40) {
-            fotosAvaliadas.push({ foto, score });
-          } else {
-            console.log(
-              `%c[HUBI JEV ⚡]%c Foto descartada por incompatibilidade com "${termo}": "${foto.titulo}" (noul: ${score})`,
-              'color: #ef4444; font-weight: bold;'
-            );
-          }
-        });
-
-        // Ordena da maior para a menor pertinência
-        fotosAvaliadas.sort((a, b) => b.score - a.score);
-        const fotosValidadas = fotosAvaliadas.map(f => f.foto);
-
-        // Se houver fotos válidas, completa com as restantes originais não avaliadas (caso a lista original tenha mais de 8)
-        if (fotosValidadas.length > 0) {
-          const restantes = fotos.slice(8).filter(f => !fotosValidadas.some(fv => fv.urlOriginal === f.urlOriginal));
-          return [...fotosValidadas, ...restantes];
+        if (resultado?.answers) {
+          candidatas.forEach((item) => {
+            const resp = resultado.answers[`f_${item.idx}`];
+            if (resp?.type === 'noul' && typeof resp.noul === 'number') {
+              scoresJevMap.set(item.idx, resp.noul);
+            }
+          });
         }
+      } catch (err) {
+        console.warn('[catalogJevService] Fallback determinístico na validação Jev de fotos:', (err as Error).message);
       }
-    } catch (err) {
-      console.warn('[catalogJevService] Fallback gracioso na validação Jev de fotos:', (err as Error).message);
     }
 
-    return fotos;
+    const aprovadas: Array<{ foto: FotoResultadoSerpApi; score: number }> = [];
+    let totalDescartadas = 0;
+
+    preAvaliadas.forEach((item) => {
+      if (item.scoreDeterministico < LIMIAR_APROVACAO_JEV) {
+        totalDescartadas++;
+        return;
+      }
+      const noulJev = scoresJevMap.get(item.idx);
+      const scoreFinal = typeof noulJev === 'number'
+        ? Number(((item.scoreDeterministico * 0.55) + (noulJev * 0.45)).toFixed(2))
+        : item.scoreDeterministico;
+
+      if (scoreFinal >= LIMIAR_APROVACAO_JEV) {
+        aprovadas.push({ foto: item.foto, score: scoreFinal });
+      } else {
+        totalDescartadas++;
+      }
+    });
+
+    // Ordena estritamente da maior para a menor probabilidade
+    aprovadas.sort((a, b) => b.score - a.score);
+
+    const mediaScore = aprovadas.length > 0
+      ? Math.round((aprovadas.reduce((acc, cur) => acc + cur.score, 0) / aprovadas.length) * 100)
+      : 0;
+
+    console.log(
+      `%c[HUBI JEV ⚡] [FOTOS]%c Produto: "${termo}" | Score médio: ${mediaScore}% | Aprovadas (>=75%): ${aprovadas.length} | Descartadas (<75%): ${totalDescartadas} (variações/acessórios barrados: ${descartadasPorSufixo})`,
+      'color: #10b981; font-weight: bold;',
+      'color: #34d399;'
+    );
+
+    if (aprovadas.length > 0) {
+      return aprovadas.map(a => a.foto);
+    }
+
+    // Fallback seguro caso nenhuma atinja 0.75: retorna apenas as de maior score determinístico sem sufixo proibido
+    const fallbackSemVariacao = preAvaliadas
+      .filter(p => p.scoreDeterministico >= 0.65)
+      .sort((a, b) => b.scoreDeterministico - a.scoreDeterministico)
+      .map(p => p.foto);
+
+    return fallbackSemVariacao;
+  },
+
+  /**
+   * Pontua cada resultado do Google Shopping / Orgânico (0% a 100%) no HUBI JEV,
+   * descartando resultados abaixo de 75% (0.75) e penalizando variações (Plus, Pro, Combo, CFS, Max, Mini, Kit, Peça).
+   */
+  async pontuarOfertasShoppingComJev(
+    nomeOriginalUsuario: string,
+    segmentoLoja: string | undefined,
+    ofertas: ItemShoppingSerpApi[],
+    etapa: EtapaPipelineJev = 'RADAR_PRECOS'
+  ): Promise<{
+    aprovadas: ItemShoppingAprovadoJev[];
+    totalAvaliados: number;
+    totalAprovados: number;
+    totalDescartados: number;
+    confiancaMediaPercentual: number;
+  }> {
+    if (!ofertas || ofertas.length === 0) {
+      console.log(
+        `%c[HUBI JEV ⚡] [${etapa}]%c Nenhum resultado retornado pela SerpApi para "${nomeOriginalUsuario}".`,
+        'color: #f59e0b; font-weight: bold;',
+        'color: #fbbf24;'
+      );
+      return {
+        aprovadas: [],
+        totalAvaliados: 0,
+        totalAprovados: 0,
+        totalDescartados: 0,
+        confiancaMediaPercentual: 0
+      };
+    }
+
+    const preAvaliadas = ofertas.map((oferta, idx) => ({
+      oferta,
+      idx,
+      scoreDeterministico: calcularScoreEstritoModeloJev(nomeOriginalUsuario, oferta.titulo).score
+    }));
+
+    const candidatasJev = preAvaliadas
+      .filter(item => item.scoreDeterministico >= LIMIAR_APROVACAO_JEV)
+      .slice(0, 12);
+
+    const scoresJevMap = new Map<number, number>();
+
+    if (candidatasJev.length > 0) {
+      const questions: Record<string, PerguntaTypeSafe> = {};
+      candidatasJev.forEach((item) => {
+        questions[`o_${item.idx}`] = {
+          type: 'noul',
+          instructions: `Anúncio: "${item.oferta.titulo}" (R$ ${item.oferta.preco.toFixed(2)} em ${item.oferta.loja}). Trata-se exatamente do produto "${nomeOriginalUsuario}" (sem ser outra versão como Plus/Pro/Combo/CFS/Max/Mini e sem ser peça/kit/acessório avulso)?`
+        };
+      });
+
+      try {
+        const resultado = await typesafeService.avaliar(
+          {
+            produto_pesquisado: nomeOriginalUsuario,
+            nicho: segmentoLoja || 'Varejo Geral',
+            diretriz: 'Descartar anúncios de versões superiores/inferiores (Plus, Pro, Combo, CFS) ou acessórios quando o usuário pesquisou o modelo base.'
+          },
+          questions,
+          'jev-latest',
+          1100
+        );
+
+        if (resultado?.answers) {
+          candidatasJev.forEach((item) => {
+            const resp = resultado.answers[`o_${item.idx}`];
+            if (resp?.type === 'noul' && typeof resp.noul === 'number') {
+              scoresJevMap.set(item.idx, resp.noul);
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('[catalogJevService] Fallback determinístico ao pontuar ofertas no Jev:', (err as Error).message);
+      }
+    }
+
+    const aprovadas: ItemShoppingAprovadoJev[] = [];
+    let totalDescartados = 0;
+
+    preAvaliadas.forEach((item) => {
+      if (item.scoreDeterministico < LIMIAR_APROVACAO_JEV) {
+        totalDescartados++;
+        return;
+      }
+
+      const noulJev = scoresJevMap.get(item.idx);
+      const scoreFinal = typeof noulJev === 'number'
+        ? Number(((item.scoreDeterministico * 0.6) + (noulJev * 0.4)).toFixed(2))
+        : item.scoreDeterministico;
+
+      if (scoreFinal >= LIMIAR_APROVACAO_JEV) {
+        aprovadas.push({
+          ...item.oferta,
+          scoreJev: scoreFinal
+        });
+      } else {
+        totalDescartados++;
+      }
+    });
+
+    // Ordena por maior probabilidade (e em caso de empate, menor preço)
+    aprovadas.sort((a, b) => (b.scoreJev - a.scoreJev) || (a.preco - b.preco));
+
+    const confiancaMediaPercentual = aprovadas.length > 0
+      ? Math.round((aprovadas.reduce((acc, cur) => acc + cur.scoreJev, 0) / aprovadas.length) * 100)
+      : 0;
+
+    console.log(
+      `%c[HUBI JEV ⚡] [${etapa}]%c Produto: "${nomeOriginalUsuario}" | Confiança: ${confiancaMediaPercentual}% | Aprovados (>=75%): ${aprovadas.length}/${ofertas.length} | Descartados (<75%): ${totalDescartados}`,
+      'color: #10b981; font-weight: bold;',
+      'color: #34d399;'
+    );
+
+    return {
+      aprovadas,
+      totalAvaliados: ofertas.length,
+      totalAprovados: aprovadas.length,
+      totalDescartados,
+      confiancaMediaPercentual
+    };
+  },
+
+  /**
+   * Núcleo Unificado de Contexto e Score (HUBI JEV + SerpApi):
+   * 1. Extrai o termo canônico pelo HUBI JEV sem alterar o Nome do Produto do usuário;
+   * 2. Busca os anúncios e snippets reais na SerpApi (com cache instantâneo);
+   * 3. Pontua cada resultado (0% a 100%) no HUBI JEV e descarta < 75%;
+   * 4. Retorna as ofertas aprovadas e o resumo estruturado para alimentar o gemini-3.8-flash.
+   */
+  async obterContextoUnificadoProdutoJev(params: {
+    nomeProduto: string;
+    categoriaNome?: string;
+    segmentoLoja?: string;
+    loja?: { id?: string; serpapi_key?: string | null };
+    etapa: EtapaPipelineJev;
+  }): Promise<ContextoUnificadoProdutoJev> {
+    const nomeOriginal = (params.nomeProduto || '').trim();
+    const termoCanonico = await this.extrairTermoCanonicoBusca(
+      nomeOriginal,
+      params.segmentoLoja,
+      params.etapa
+    );
+
+    const ofertasBrutas = await buscarPrecosShoppingSerpApi(
+      termoCanonico || nomeOriginal,
+      params.loja,
+      20
+    );
+
+    const avaliacao = await this.pontuarOfertasShoppingComJev(
+      nomeOriginal,
+      params.segmentoLoja,
+      ofertasBrutas,
+      params.etapa
+    );
+
+    const resumoContextoTexto = avaliacao.aprovadas.length > 0
+      ? avaliacao.aprovadas
+          .slice(0, 10)
+          .map(
+            (item, idx) =>
+              `${idx + 1}. [Score JEV: ${Math.round(item.scoreJev * 100)}%] Loja: "${item.loja}" | Título Exato: "${item.titulo}" | Preço: R$ ${item.preco.toFixed(2)}${item.url ? ` | Link: ${item.url}` : ''}`
+          )
+          .join('\n')
+      : '';
+
+    return {
+      nomeOriginal,
+      termoCanonico,
+      ofertasAprovadas: avaliacao.aprovadas,
+      totalAvaliados: avaliacao.totalAvaliados,
+      totalAprovados: avaliacao.totalAprovados,
+      totalDescartados: avaliacao.totalDescartados,
+      confiancaMediaPercentual: avaliacao.confiancaMediaPercentual,
+      resumoContextoTexto
+    };
   }
 };

@@ -81,7 +81,13 @@ import {
   executarRequisicaoGemini,
   gerarDescricaoExclusivaIA
 } from '../services/geminiService';
-import { obterSerpApiKey, obterOuBuscarSerpApiKey, buscarPrecosShoppingSerpApi } from '../services/serpApiService';
+import {
+  obterSerpApiKey,
+  obterOuBuscarSerpApiKey,
+  buscarPrecosShoppingSerpApi,
+  extrairTermoPrincipalProduto,
+  ofertaCorrespondeAoModeloPesquisado
+} from '../services/serpApiService';
 import { catalogJevService } from '../services/catalogJevService';
 import { comprimirFotoProduto } from '../utils/imageCompressor';
 
@@ -106,6 +112,7 @@ export interface DadosMercadoIA {
 export interface ProdutoSugeridoIA {
   nome: string;
   categoria_sugerida?: string;
+  subcategoria_sugerida?: string;
   preco_venda_estimado?: number;
   preco_custo_estimado?: number;
   descricao?: string;
@@ -224,10 +231,32 @@ const processarListaConcorrentes = (
     return true;
   });
 
-  const baseFinal = listaFiltrada.length > 0 ? listaFiltrada : listaBruta;
+  const baseFiltrada = listaFiltrada.length > 0 ? listaFiltrada : listaBruta;
+
+  // Deduplicar por nome de loja (mantendo a oferta mais competitiva de cada loja distinta)
+  const mapaLojas = new Map<string, PrecoConcorrente>();
+  for (const item of baseFiltrada) {
+    const chaveLoja = item.loja.trim().toLowerCase();
+    const existente = mapaLojas.get(chaveLoja);
+    if (!existente || item.preco < existente.preco) {
+      mapaLojas.set(chaveLoja, item);
+    }
+  }
+  const baseFinal = Array.from(mapaLojas.values());
   const ordenados = [...baseFinal].sort((a, b) => a.preco - b.preco);
-  const menoresPrecos = ordenados.slice(0, 5);
-  const maioresPrecos = [...ordenados].reverse().slice(0, 5);
+
+  // Evitar repetir as mesmas lojas nas colunas "Menores Preços" e "Maiores Preços"
+  let menoresPrecos: PrecoConcorrente[] = [];
+  let maioresPrecos: PrecoConcorrente[] = [];
+
+  if (ordenados.length === 1) {
+    menoresPrecos = [ordenados[0]];
+    maioresPrecos = [];
+  } else if (ordenados.length >= 2) {
+    const qtdMenores = Math.min(5, Math.ceil(ordenados.length / 2));
+    menoresPrecos = ordenados.slice(0, qtdMenores);
+    maioresPrecos = [...ordenados.slice(qtdMenores)].reverse().slice(0, 5);
+  }
 
   const soma = baseFinal.reduce((acc, c) => acc + c.preco, 0);
   const mediaCalculada = Number((soma / baseFinal.length).toFixed(2));
@@ -244,6 +273,43 @@ const processarListaConcorrentes = (
   };
 };
 
+// Cache em Memória + localStorage para o Radar de Preços de Mercado (0ms para o mesmo termo pesquisado)
+const cacheRadarMercadoMemoria = new Map<string, { timestamp: number; dados: DadosMercadoIA }>();
+
+const obterCacheRadarMercado = (termo: string): DadosMercadoIA | null => {
+  const chave = `hubi_radar_precos_cache_v3_${termo.toLowerCase().trim()}`;
+  const TTL_MS = 1000 * 60 * 60 * 6; // 6 horas
+  const emMem = cacheRadarMercadoMemoria.get(chave);
+  if (emMem && Date.now() - emMem.timestamp < TTL_MS && emMem.dados.totalPesquisados > 0) {
+    return emMem.dados;
+  }
+  try {
+    const salvo = localStorage.getItem(chave) || sessionStorage.getItem(chave);
+    if (salvo) {
+      const parsed = JSON.parse(salvo);
+      if (Date.now() - parsed.timestamp < TTL_MS && parsed.dados?.totalPesquisados > 0) {
+        cacheRadarMercadoMemoria.set(chave, parsed);
+        return parsed.dados;
+      }
+    }
+  } catch {}
+  return null;
+};
+
+const salvarCacheRadarMercado = (termo: string, dados: DadosMercadoIA) => {
+  if (!dados || dados.totalPesquisados === 0) return;
+  const chave = `hubi_radar_precos_cache_v3_${termo.toLowerCase().trim()}`;
+  const item = { timestamp: Date.now(), dados };
+  cacheRadarMercadoMemoria.set(chave, item);
+  const serializado = JSON.stringify(item);
+  try {
+    localStorage.setItem(chave, serializado);
+  } catch {}
+  try {
+    sessionStorage.setItem(chave, serializado);
+  } catch {}
+};
+
 export const pesquisarPrecosMercadoIA = async (
   nomeProduto: string,
   categoriaNome?: string,
@@ -255,8 +321,25 @@ export const pesquisarPrecosMercadoIA = async (
     precoCusto?: number;
     precoVendaAtual?: number;
     tipoUnidade?: string;
+    forcarAtualizacao?: boolean;
   }
 ): Promise<DadosMercadoIA> => {
+  const nomeOriginal = (nomeProduto || '').trim();
+  const termoCache = extrairTermoPrincipalProduto(nomeOriginal) || nomeOriginal;
+
+  // 1. Verificação instantânea no Cache Local (Memória + localStorage) em 0ms
+  if (!opcoesExtras?.forcarAtualizacao && termoCache) {
+    const radarEmCache = obterCacheRadarMercado(termoCache);
+    if (radarEmCache) {
+      console.log(
+        `%c[HUBI JEV ⚡] [RADAR_PRECOS]%c ⚡ [CACHE INSTANTÂNEO] Recuperadas ${radarEmCache.totalPesquisados} lojas aprovadas (>=75%) em 0ms para "${nomeOriginal}"`,
+        'color: #10b981; font-weight: bold;',
+        'color: #34d399;'
+      );
+      return radarEmCache;
+    }
+  }
+
   let apiKey = getGeminiApiKey(loja);
   if (!apiKey && loja?.id) {
     apiKey = await obterOuBuscarGeminiApiKey(loja);
@@ -267,62 +350,47 @@ export const pesquisarPrecosMercadoIA = async (
 
   const segmento = segmentoLoja || (loja ? obterNomeSegmentoLoja(loja) : '') || '';
 
-  // 1. Otimização Jev (System One): Extração de termo canônico limpo e direto em ~200ms
-  let termoCanônico = nomeProduto.trim();
-  try {
-    const canonical = await catalogJevService.extrairTermoCanonicoBusca(nomeProduto, segmento);
-    if (canonical && canonical.length >= 3) {
-      termoCanônico = canonical;
-    }
-  } catch (errJev) {
-    console.warn('[RadarPrecos] Fallback gracioso Jev:', errJev);
-  }
+  // 2. Núcleo Unificado de Contexto e Score (HUBI JEV + SerpApi):
+  // Extrai termo canônico, busca na SerpApi e aprova apenas anúncios com probabilidade >= 75% (0.75)
+  const termoParaContexto = nomeOriginal.length >= 2 ? nomeOriginal : (barcode?.trim() || nomeOriginal);
+  const contextoJev = await catalogJevService.obterContextoUnificadoProdutoJev({
+    nomeProduto: termoParaContexto,
+    categoriaNome,
+    segmentoLoja: segmento,
+    loja,
+    etapa: 'RADAR_PRECOS'
+  });
 
-  // 2. Busca ultrarrápida via SerpApi (Google Shopping / Google Search) em <1s com cache em memória/sessão
-  const termoBuscaSerp = barcode && barcode.trim().length >= 8
-    ? `${termoCanônico} ${barcode.trim()}`
-    : termoCanônico;
-  const ofertasSerp = await buscarPrecosShoppingSerpApi(termoBuscaSerp, loja, 15).catch(() => []);
+  const termoCanônico = contextoJev.termoCanonico || termoCache;
+  const ofertasSerp = contextoJev.ofertasAprovadas;
 
   const blocoOfertasSerp = ofertasSerp.length > 0
-    ? `\nOFERTAS REAIS ENCONTRADAS AGORA NO GOOGLE SHOPPING / SERPAPI (FONTE PRIMÁRIA REAL):\n` +
+    ? `\nANÚNCIOS REAIS APROVADOS PELO HUBI JEV (SCORE >= 75% PARA O MODELO EXATO "${nomeOriginal}"):\n` +
       ofertasSerp
+        .slice(0, 15)
         .map(
           (it, idx) =>
-            `${idx + 1}. Produto: "${it.titulo}" | Loja: "${it.loja}" | Preço: R$ ${it.preco.toFixed(2)} (${it.precoTexto})${it.url ? ` | URL: ${it.url}` : ''}`
+            `${idx + 1}. [Score JEV: ${Math.round(it.scoreJev * 100)}%] Produto: "${it.titulo}" | Loja: "${it.loja}" | Preço: R$ ${it.preco.toFixed(2)}${it.url ? ` | URL: ${it.url}` : ''}`
         )
         .join('\n') +
-      `\n\nINSTRUÇÃO CRÍTICA SOBRE AS OFERTAS ACIMA: Utilize PRIORITARIAMENTE as ofertas reais listadas acima da SerpApi. Filtre e descarte itens que sejam acessórios avulsos, peças de reposição ou versões diferentes do modelo pesquisado ("${nomeProduto}"), mantendo a URL original de cada oferta válida.`
+      `\n\nINSTRUÇÃO CRÍTICA: Calcule a média e liste as lojas com base nos anúncios aprovados pelo score do HUBI JEV acima para o modelo exato ("${nomeOriginal}"), preservando os preços e URLs reais. NUNCA inclua versões diferentes (Plus, Pro, Combo, CFS, Max, Mini, Kit, Peça) que não estejam no nome pesquisado.`
     : '';
 
   const promptTexto = `
-Você é um especialista sênior em inteligência de mercado, precificação competitiva e monitoramento de preços no varejo e e-commerce brasileiro${segmento ? ` (segmento da loja: "${segmento}")` : ''}.
-Analise e estruture com rigor técnico os preços reais de varejo praticados atualmente no mercado brasileiro para o seguinte item:
+Você é um especialista em inteligência de precificação no e-commerce brasileiro${segmento ? ` (segmento: "${segmento}")` : ''}.
+Estruture os preços reais de varejo no Brasil para o modelo exato:
 
-PRODUTO PESQUISADO: "${nomeProduto}"
-${termoCanônico !== nomeProduto ? `TERMO CANÔNICO IDENTIFICADO: "${termoCanônico}"` : ''}
+PRODUTO EXATO PESQUISADO: "${nomeOriginal || termoCanônico}"
 ${categoriaNome ? `CATEGORIA: "${categoriaNome}"` : ''}
-${barcode ? `CÓDIGO DE BARRAS / EAN: "${barcode}"` : ''}
-${segmento ? `SEGMENTO DE MERCADO: "${segmento}"` : ''}
-${opcoesExtras?.descricao ? `DESCRIÇÃO / ESPECIFICAÇÕES TÉCNICAS: "${opcoesExtras.descricao.substring(0, 300)}"` : ''}
-${opcoesExtras?.tipoUnidade ? `UNIDADE DE MEDIDA: "${opcoesExtras.tipoUnidade}"` : ''}
-${opcoesExtras?.precoCusto ? `PREÇO DE CUSTO INFORMADO PELO LOJISTA: R$ ${opcoesExtras.precoCusto.toFixed(2)}` : ''}
-${opcoesExtras?.precoVendaAtual ? `PREÇO DE VENDA ATUAL DA LOJA: R$ ${opcoesExtras.precoVendaAtual.toFixed(2)}` : ''}
+${opcoesExtras?.precoCusto ? `PREÇO DE CUSTO: R$ ${opcoesExtras.precoCusto.toFixed(2)}` : ''}
 ${blocoOfertasSerp}
 
-DIRETRIZES ESTRITAS CONTRA ALUCINAÇÃO E PRECISÃO DE MODELO:
-1. CONCORRÊNCIA REAL E LOJAS ATIVAS NO BRASIL:
-   - Se houver ofertas reais da SerpApi acima, selecione todas as ofertas legítimas que correspondam ao produto pesquisado (preservando os nomes reais das lojas, preços exatos e URLs reais).
-   - NUNCA invente lojas fictícias.
-2. CORRESPONDÊNCIA EXATA DE MODELO E VERSÃO:
-   - Exija correspondência exata com o modelo e versão pesquisados. NUNCA misture versões diferentes (ex: se pesquisar versão padrão, NÃO misture com modelos "Plus", "Pro", "Combo", "Max" ou "Mini").
-   - NUNCA confunda o item principal com acessórios complementares, suportes, cabos, refis, peças avulsas ou amostras.
-3. PREÇOS À VISTA EM REAIS (R$ BRL):
-   - Priorize o preço à vista atual (Pix, boleto ou menor valor final à vista) para produto NOVO e original.
-4. LINKS E FONTES:
-   - Preserve a URL real da oferta no campo "url" para conferência em 1 clique.
+REGRAS ESTRITAS:
+1. Priorize 100% os anúncios reais aprovados pelo score do HUBI JEV (>= 75%) listados acima, mantendo lojas distintas (sem repetir a mesma loja).
+2. Exija correspondência exata com o modelo "${nomeOriginal || termoCanônico}". NUNCA misture versões diferentes (ex: Plus, Pro, Combo, CFS, Max, Mini) nem acessórios/kits/peças.
+3. Priorize o preço à vista atual em BRL (R$) e mantenha a URL real no campo "url".
 
-Retorne EXCLUSIVAMENTE um objeto JSON válido contendo "preco_medio" e "concorrentes".
+Retorne EXCLUSIVAMENTE JSON válido contendo "preco_medio" e "concorrentes".
 `;
 
   const requestBody: any = {
@@ -334,7 +402,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido contendo "preco_medio" e "concorre
     ],
     generationConfig: {
       temperature: 0.1,
-      maxOutputTokens: 4096,
+      maxOutputTokens: 1024,
       thinkingConfig: {
         thinkingBudget: 0
       },
@@ -400,31 +468,61 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido contendo "preco_medio" e "concorre
     if (l.includes('magalu') || l.includes('magazine')) return `https://www.magazineluiza.com.br/busca/${q}`;
     if (l.includes('kabum')) return `https://www.kabum.com.br/busca/${q}`;
     if (l.includes('casas bahia')) return `https://www.casasbahia.com.br/${q}/b`;
+    if (l.includes('pichau')) return `https://www.pichau.com.br/search?q=${q}`;
+    if (l.includes('terabyte')) return `https://www.terabyteshop.com.br/busca?str=${q}`;
     return `https://www.google.com/search?tbm=shop&q=${q}`;
   };
 
-  let rawList = parsed.concorrentes || [];
-  if (Array.isArray(rawList)) {
-    rawList = rawList.map((item: any) => {
-      let itemUrl = item.url || item.link || item.uri;
-      if (!itemUrl || !String(itemUrl).startsWith('http')) {
-        const matchSerp = ofertasSerp.find(
-          (s) => s.loja.toLowerCase() === String(item.loja || '').toLowerCase() && s.url
-        );
-        itemUrl = matchSerp?.url || gerarUrlConcorrenteFallback(item.loja || '');
+  // Se o HUBI JEV aprovou anúncios reais (>= 75%), prioriza estritamente os anúncios aprovados
+  let rawList: any[] = [];
+  if (ofertasSerp.length > 0) {
+    rawList = ofertasSerp.map((s) => ({
+      loja: s.loja,
+      preco: s.preco,
+      tipo: s.tipo || 'E-commerce Especializado',
+      url: s.url
+    }));
+
+    // Permite enriquecer apenas com lojas retornadas pelo Gemini que correspondam estritamente ao modelo pesquisado
+    const lojasAprovadas = new Set(rawList.map((r: any) => String(r.loja || '').trim().toLowerCase()));
+    const listaIa = Array.isArray(parsed.concorrentes) ? parsed.concorrentes : [];
+    for (const itemIa of listaIa) {
+      const chaveLoja = String(itemIa.loja || '').trim().toLowerCase();
+      if (
+        chaveLoja &&
+        !lojasAprovadas.has(chaveLoja) &&
+        ofertaCorrespondeAoModeloPesquisado(nomeOriginal || termoCanônico, `${itemIa.loja || ''} ${itemIa.observacao || ''}`)
+      ) {
+        rawList.push(itemIa);
+        lojasAprovadas.add(chaveLoja);
       }
-      return {
-        ...item,
-        url: itemUrl ? String(itemUrl) : undefined
-      };
-    });
+    }
+  } else {
+    rawList = Array.isArray(parsed.concorrentes) ? [...parsed.concorrentes] : [];
   }
 
-  return processarListaConcorrentes(
+  rawList = rawList.map((item: any) => {
+    let itemUrl = item.url || item.link || item.uri;
+    if (!itemUrl || !String(itemUrl).startsWith('http')) {
+      const matchSerp = ofertasSerp.find(
+        (s) => s.loja.toLowerCase() === String(item.loja || '').toLowerCase() && s.url
+      );
+      itemUrl = matchSerp?.url || gerarUrlConcorrenteFallback(item.loja || '');
+    }
+    return {
+      ...item,
+      url: itemUrl ? String(itemUrl) : undefined
+    };
+  });
+
+  const resultadoProcessado = processarListaConcorrentes(
     rawList,
     Number(parsed.preco_medio) || 0,
     opcoesExtras?.precoCusto
   );
+
+  salvarCacheRadarMercado(termoCache, resultadoProcessado);
+  return resultadoProcessado;
 };
 
 
@@ -1540,12 +1638,24 @@ export const ProdutoCadastro: React.FC = () => {
   };
 
   // Aplicar dados retornados pela IA nos estados do produto
-  const aplicarDadosSugeridosIA = async (dadosSugeridos: ProdutoSugeridoIA) => {
-    if (dadosSugeridos.nome) setNome(dadosSugeridos.nome);
+  const aplicarDadosSugeridosIA = async (
+    dadosSugeridos: ProdutoSugeridoIA,
+    opcoes?: { preservarNome?: boolean }
+  ) => {
+    const nomeExistente = nome.trim();
+    const devePreservarNome = opcoes?.preservarNome ?? (nomeExistente.length > 0);
+
+    // Só preenche o Nome do Produto se o campo estiver completamente vazio
+    if (!devePreservarNome && !nomeExistente && dadosSugeridos.nome) {
+      setNome(dadosSugeridos.nome);
+    }
+
+    const nomeReferenciaPrincipal = nomeExistente || dadosSugeridos.nome || '';
+
     if (dadosSugeridos.descricao) setDescricao(dadosSugeridos.descricao);
-    
+
     // Regra padrão: Preço médio sugerido sem os centavos (ex: R$ 37,40 vira R$ 37,00)
-    let precoSugerido = dadosSugeridos.dados_mercado?.precoMedio || dadosSugeridos.preco_venda_estimado;
+    const precoSugerido = dadosSugeridos.dados_mercado?.precoMedio || dadosSugeridos.preco_venda_estimado;
     if (precoSugerido && precoSugerido > 0) {
       const semCentavos = Math.floor(precoSugerido);
       handlePrecoVarejoChange(semCentavos.toFixed(2));
@@ -1556,7 +1666,7 @@ export const ProdutoCadastro: React.FC = () => {
     if (dadosSugeridos.tipo_unidade) {
       setTipoUnidade(dadosSugeridos.tipo_unidade.toLowerCase());
     }
-    if (dadosSugeridos.codigo_barras) {
+    if (dadosSugeridos.codigo_barras && !codigoBarras.trim()) {
       setCodigoBarras(dadosSugeridos.codigo_barras);
     }
     if (dadosSugeridos.foto_url && !fotoPrincipal) {
@@ -1583,35 +1693,52 @@ export const ProdutoCadastro: React.FC = () => {
       setDadosMercado(dadosSugeridos.dados_mercado);
     }
 
-    // Vincular categoria real da loja via Jev (System One) ou fallback local
-    if (categorias.length > 0) {
-      try {
-        const catClassificada = await catalogJevService.classificarCategoriaLoja(
-          { nome: dadosSugeridos.nome, descricao: dadosSugeridos.descricao },
-          categorias
-        );
-        if (catClassificada) {
-          setCategoriaId(catClassificada.id);
-          gerarCodigoInternoSugerido(catClassificada.id);
-        } else if (dadosSugeridos.categoria_sugerida) {
-          const catMatch = categorias.find(c =>
-            c.nome.toLowerCase().includes(dadosSugeridos.categoria_sugerida!.toLowerCase()) ||
-            dadosSugeridos.categoria_sugerida!.toLowerCase().includes(c.nome.toLowerCase())
+    // Vincular categoria e subcategoria reais da loja usando o nome exato do usuário como referência principal
+    if (categorias.length > 0 && !categoriaId) {
+      const catSugeridaLower = (dadosSugeridos.categoria_sugerida || '').trim().toLowerCase();
+      const subSugeridaLower = (dadosSugeridos.subcategoria_sugerida || '').trim().toLowerCase();
+
+      // 1. Tenta match direto instantâneo (0ms) nas categorias principais da loja
+      let catPrincipalEncontrada = catSugeridaLower
+        ? categoriasPrincipais.find(
+            c =>
+              c.nome.toLowerCase() === catSugeridaLower ||
+              c.nome.toLowerCase().includes(catSugeridaLower) ||
+              catSugeridaLower.includes(c.nome.toLowerCase())
+          )
+        : undefined;
+
+      // 2. Se não encontrou direta, solicita classificação ao Jev usando o nome exato do usuário
+      if (!catPrincipalEncontrada) {
+        try {
+          const catClassificada = await catalogJevService.classificarCategoriaLoja(
+            { nome: nomeReferenciaPrincipal, descricao: dadosSugeridos.descricao },
+            categoriasPrincipais.length > 0 ? categoriasPrincipais : categorias
           );
-          if (catMatch) {
-            setCategoriaId(catMatch.id);
-            gerarCodigoInternoSugerido(catMatch.id);
+          if (catClassificada) {
+            catPrincipalEncontrada = categorias.find(c => c.id === catClassificada.id);
           }
-        }
-      } catch {
-        if (dadosSugeridos.categoria_sugerida) {
-          const catMatch = categorias.find(c =>
-            c.nome.toLowerCase().includes(dadosSugeridos.categoria_sugerida!.toLowerCase()) ||
-            dadosSugeridos.categoria_sugerida!.toLowerCase().includes(c.nome.toLowerCase())
+        } catch {}
+      }
+
+      if (catPrincipalEncontrada) {
+        setCategoriaId(catPrincipalEncontrada.id);
+        gerarCodigoInternoSugerido(catPrincipalEncontrada.id);
+
+        // Verifica se há subcategoria compatível vinculada a esta categoria principal
+        if (subSugeridaLower) {
+          const filhas = categorias.filter(
+            c =>
+              c.categoria_pai_id === catPrincipalEncontrada!.id ||
+              (loja?.id ? obterCategoriaPaiId(c, loja.id) === catPrincipalEncontrada!.id : false)
           );
-          if (catMatch) {
-            setCategoriaId(catMatch.id);
-            gerarCodigoInternoSugerido(catMatch.id);
+          const subMatch = filhas.find(
+            s =>
+              s.nome.toLowerCase().includes(subSugeridaLower) ||
+              subSugeridaLower.includes(s.nome.toLowerCase())
+          );
+          if (subMatch) {
+            setSubcategoriaId(subMatch.id);
           }
         }
       }
@@ -1624,7 +1751,6 @@ export const ProdutoCadastro: React.FC = () => {
     const fotoAlvo = fotoPrincipal || fotosUrls[0];
 
     // 1. Validação Obrigatória de Entrada:
-    // Se o campo Nome do Produto estiver vazio E não houver nenhuma foto cadastrada, bloquear a chamada e disparar Toast
     if (!nomeInformado && !fotoAlvo) {
       mostrarAviso('Para usar a Inteligência Artificial, informe pelo menos o nome do produto ou adicione uma foto.');
       return;
@@ -1634,12 +1760,13 @@ export const ProdutoCadastro: React.FC = () => {
       setAnalisandoIA(true);
       setSucessoIAMsg(null);
 
-      // 2. Fluxo Unificado de Consulta:
-      // Priorizam primeiro o Nome e a Descrição existentes; caso ausentes ou insuficientes, utilizam a Foto Principal
-      if (nomeInformado || descricao.trim()) {
+      // 2. Se o Nome do Produto já foi digitado:
+      // - NUNCA envia as imagens da galeria na requisição para o Gemini (reduz drasticamente a latência)
+      // - NUNCA sobrescreve o Nome do Produto digitado pelo usuário
+      if (nomeInformado) {
         const catNome = categorias.find(c => c.id === categoriaId)?.nome;
         const dadosAtualizados = await atualizarProdutoExistenteComIA({
-          nome: nomeInformado || 'Produto',
+          nome: nomeInformado,
           descricao: descricao.trim(),
           categoriaNome: catNome,
           codigoBarras: codigoBarras.trim(),
@@ -1649,14 +1776,15 @@ export const ProdutoCadastro: React.FC = () => {
         });
 
         if (dadosAtualizados) {
-          await aplicarDadosSugeridosIA(dadosAtualizados);
+          await aplicarDadosSugeridosIA(dadosAtualizados, { preservarNome: true });
           setSucessoIAMsg(
             modoAcao === 'atualizar'
               ? '✨ Informações e ficha técnica do produto atualizadas com sucesso pela IA!'
-              : '✨ Informações comerciais preenchidas com sucesso a partir do nome/descrição!'
+              : '✨ Informações comerciais preenchidas com sucesso a partir do nome do produto!'
           );
         }
       } else if (fotoAlvo) {
+        // Apenas quando o Nome do Produto está completamente vazio utiliza a foto para identificar o item
         const fotoParaIA = fotoBase64Cache.get(fotoAlvo) || fotoAlvo;
         const dadosSugeridos = await identificarProdutoPorFoto(fotoParaIA, segmentoLoja, loja);
 
@@ -1665,7 +1793,7 @@ export const ProdutoCadastro: React.FC = () => {
             setOpcoesDuvidaIA(dadosSugeridos.opcoes_sugeridas);
             setModalDuvidaAberto(true);
           } else {
-            await aplicarDadosSugeridosIA(dadosSugeridos);
+            await aplicarDadosSugeridosIA(dadosSugeridos, { preservarNome: false });
             setSucessoIAMsg('✨ Informações e preços de mercado do produto identificados com sucesso a partir da foto!');
           }
         }
@@ -1717,15 +1845,28 @@ export const ProdutoCadastro: React.FC = () => {
       setErroMercado('Por favor, informe o nome do produto no formulário primeiro para pesquisar os concorrentes.');
       return;
     }
-    // Se já temos dados do radar em memória, não chama a IA novamente! Apresenta imediatamente os dados guardados em memória.
-    if (dadosMercado) {
+
+    // Verifica cache instantâneo (Memória / localStorage) para o termo atual
+    const termoLimpo = extrairTermoPrincipalProduto(nome) || nome.trim();
+    const emCache = obterCacheRadarMercado(termoLimpo);
+    if (emCache) {
+      console.log(
+        `%c[HUBI SERPAPI ✅]%c ⚡ [CACHE INSTANTÂNEO] Recuperadas ${emCache.totalPesquisados} lojas em 0ms para "${termoLimpo}"`,
+        'background: #16a34a; color: #ffffff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
+        'color: #16a34a; font-weight: bold;'
+      );
+      setDadosMercado(emCache);
       return;
     }
-    // Executa a pesquisa completa e aprofundada de mercado se ainda não houver dados em memória
-    await buscarConcorrentesMercado();
+
+    if (dadosMercado && dadosMercado.totalPesquisados > 0) {
+      return;
+    }
+
+    await buscarConcorrentesMercado(false);
   };
 
-  const buscarConcorrentesMercado = async () => {
+  const buscarConcorrentesMercado = async (forcarAtualizacao = false) => {
     if (!nome.trim()) {
       setErroMercado('Informe o nome do produto para realizar a pesquisa de mercado.');
       return;
@@ -1734,7 +1875,9 @@ export const ProdutoCadastro: React.FC = () => {
       setBuscandoMercado(true);
       setErroMercado(null);
       const catNome = categorias.find(c => c.id === categoriaId)?.nome;
-      const resultado = await pesquisarPrecosMercadoIA(nome, catNome, codigoBarras, loja, segmentoLoja);
+      const resultado = await pesquisarPrecosMercadoIA(nome, catNome, codigoBarras, loja, segmentoLoja, {
+        forcarAtualizacao
+      });
       setDadosMercado(resultado);
     } catch (err: any) {
       setErroMercado(err.message || 'Erro ao pesquisar preços de mercado.');
@@ -3722,7 +3865,7 @@ export const ProdutoCadastro: React.FC = () => {
                   </div>
                   <button
                     type="button"
-                    onClick={buscarConcorrentesMercado}
+                    onClick={() => buscarConcorrentesMercado(true)}
                     className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold rounded-xl transition cursor-pointer"
                   >
                     Tentar Novamente
@@ -3780,7 +3923,7 @@ export const ProdutoCadastro: React.FC = () => {
                       <div className="flex items-center justify-between text-xs font-bold text-emerald-700 dark:text-emerald-400 px-1">
                         <span className="flex items-center gap-1.5">
                           <TrendingDown className="w-3.5 h-3.5" />
-                          5 Menores Preços Localizados
+                          {dadosMercado.menoresPrecos.length > 0 ? `${dadosMercado.menoresPrecos.length} ` : ''}Menores Preços Localizados
                         </span>
                         <span className="text-[10px] text-slate-500 font-normal">Mais competitivos</span>
                       </div>
@@ -3838,7 +3981,7 @@ export const ProdutoCadastro: React.FC = () => {
                       <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200 px-1">
                         <span className="flex items-center gap-1.5">
                           <TrendingUp className="w-3.5 h-3.5" />
-                          5 Maiores Preços Localizados
+                          {dadosMercado.maioresPrecos.length > 0 ? `${dadosMercado.maioresPrecos.length} ` : ''}Maiores Preços Localizados
                         </span>
                         <span className="text-[10px] text-slate-500 font-normal">Teto de mercado</span>
                       </div>
@@ -3898,7 +4041,7 @@ export const ProdutoCadastro: React.FC = () => {
                   <p className="text-xs">Nenhuma pesquisa realizada ainda.</p>
                   <button
                     type="button"
-                    onClick={buscarConcorrentesMercado}
+                    onClick={() => buscarConcorrentesMercado(false)}
                     className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition cursor-pointer shadow-sm"
                   >
                     Iniciar Pesquisa
@@ -3916,7 +4059,7 @@ export const ProdutoCadastro: React.FC = () => {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={buscarConcorrentesMercado}
+                  onClick={() => buscarConcorrentesMercado(true)}
                   disabled={buscandoMercado || !nome.trim()}
                   className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-[#0D111A] text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
                   title="Atualizar cotações de concorrentes"

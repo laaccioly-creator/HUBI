@@ -18,6 +18,8 @@ import {
   getAvailableGeminiModels,
   getAvailableGeminiModel,
   invalidarCacheGemini,
+  isModeloIndisponivel,
+  registrarModeloIndisponivel,
   testarChaveGemini
 } from './geminiClient';
 
@@ -34,6 +36,7 @@ export type { FotoResultadoSerpApi };
 export interface ProdutoSugeridoIA {
   nome: string;
   categoria_sugerida?: string;
+  subcategoria_sugerida?: string;
   preco_venda_estimado?: number;
   preco_custo_estimado?: number;
   descricao?: string;
@@ -692,47 +695,52 @@ export const executarRequisicaoGemini = async (
 
   const modeloDesejado = modelInBody || 'gemini-3.8-flash';
 
-  // 1. Tentar execução segura via Supabase Edge Function (gemini-proxy) sem expor credenciais
-  try {
-    const { data: edgeData, error: edgeErr } = await supabase.functions.invoke('gemini-proxy', {
-      body: {
-        model: modeloDesejado,
-        action: 'generateContent',
-        requestBody: payloadCompleto,
-        api_key: apiKey ? apiKey.trim() : undefined,
-        loja_id: lojaId
-      }
-    });
-
-    if (!edgeErr && edgeData && !edgeData.error) {
-      return edgeData;
-    }
-    if (edgeData?.error && !apiKey && !lojaId) {
-      console.warn('[Gemini] Erro retornado pela Edge Function gemini-proxy:', edgeData.error);
-      throw new Error(edgeData.error);
-    }
-  } catch (edgeCallErr: any) {
-    if (!apiKey && !lojaId) {
-      throw edgeCallErr;
-    }
-    console.warn('[Gemini] Aviso ao invocar Edge Function gemini-proxy, acionando contingência direta:', edgeCallErr?.message || edgeCallErr);
-  }
-
-  // 2. Contingência direta caso haja chave BYOK informada
-  let chaveParaContingencia = apiKey;
+  // 1. Resolver chave local/loja para chamada direta de baixa latência (1 salto direto à Google API)
+  let chaveParaContingencia = (apiKey || '').trim() || getGeminiApiKey();
   if (!chaveParaContingencia && lojaId) {
     try {
       chaveParaContingencia = await obterOuBuscarGeminiApiKey({ id: lojaId });
     } catch {}
   }
 
+  // 2. Se NÃO houver chave disponível no cliente, recorrer à Supabase Edge Function (gemini-proxy)
   if (!chaveParaContingencia) {
+    try {
+      const { data: edgeData, error: edgeErr } = await supabase.functions.invoke('gemini-proxy', {
+        body: {
+          model: modeloDesejado,
+          action: 'generateContent',
+          requestBody: payloadCompleto,
+          loja_id: lojaId
+        }
+      });
+
+      if (!edgeErr && edgeData && !edgeData.error) {
+        return edgeData;
+      }
+      if (edgeData?.error) {
+        throw new Error(edgeData.error);
+      }
+    } catch (edgeCallErr: any) {
+      throw new Error(edgeCallErr?.message || 'Chave da API do Google Gemini não configurada no servidor ou na loja.');
+    }
     throw new Error('Chave da API do Google Gemini não configurada no servidor ou na loja.');
   }
 
-  const modelosValidos = await obterModelosValidosGemini(chaveParaContingencia);
-  const modelos = Array.from(new Set([modeloDesejado, ...modelosValidos]))
-    .filter(m => m !== 'gemini-2.5-flash-lite' && m !== 'gemini-3.5-flash-lite');
+  // 3. Execução direta ultrarrápida com cache inteligente de modelo ativo (evita GET /v1beta/models desnecessário)
+  let modelos: string[] = [];
+  if (!isModeloIndisponivel(modeloDesejado)) {
+    const validosEmCache = await obterModelosValidosGemini(chaveParaContingencia);
+    modelos = Array.from(new Set([modeloDesejado, ...validosEmCache])).filter(m => !isModeloIndisponivel(m));
+  } else {
+    const validos = await obterModelosValidosGemini(chaveParaContingencia);
+    modelos = validos.filter(m => !isModeloIndisponivel(m));
+  }
+
+  if (modelos.length === 0) {
+    modelos = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+  }
+
   let primeiroErro: string | null = null;
   let contador429 = 0;
 
@@ -740,8 +748,8 @@ export const executarRequisicaoGemini = async (
     c.parts?.some((p: any) => p.inline_data || p.inlineData)
   );
 
-  // Timeouts resilientes para redes móveis: 20s para imagem multimodal e 10s para texto
-  const timeoutMs = temImagem ? 20000 : 10000;
+  // Timeouts ágeis: 18s para imagem multimodal e 8s para texto
+  const timeoutMs = temImagem ? 18000 : 8000;
 
   let tentativas = 0;
   for (const modelo of modelos) {
@@ -809,19 +817,20 @@ export const executarRequisicaoGemini = async (
                 throw new Error('A cota de requisições da sua chave do Google Gemini atingiu o limite temporário. Por favor, aguarde cerca de 30 segundos antes de tentar novamente.');
               }
             } else {
+              registrarModeloIndisponivel(modelo, chaveParaContingencia);
               console.warn(`[Gemini] Modelo ${modelo} não possui cota gratuita ativa (limit: 0). Pulando para o próximo.`);
             }
           }
 
-          // Se for 404 (Not Found / Modelo descontinuado), invalida o cache para Auto-Recuperação imediata
+          // Se for 404 (Not Found / Modelo indisponível), registra em memória para nunca mais repetir tentativa lenta
           if (response.status === 404) {
-            console.warn(`[Gemini] Modelo ${modelo} retornou 404. Acionando auto-recuperação (Self-Healing)...`);
-            invalidarCacheGemini(apiKey);
-            break; // Pula para o próximo modelo
+            console.warn(`[Gemini] Modelo ${modelo} retornou 404. Registrando fallback imediato...`);
+            registrarModeloIndisponivel(modelo, chaveParaContingencia);
+            break; // Pula para o próximo modelo imediatamente
           }
 
           console.warn(`Tentativa com modelo ${modelo} retornou erro (${response.status}):`, msg);
-          break; // Pula para o próximo modelo se a resposta HTTP já foi recebida com erro
+          break;
         }
       } catch (e: any) {
         const isAbort = e?.name === 'AbortError' || e?.message?.includes('aborted');
@@ -830,14 +839,13 @@ export const executarRequisicaoGemini = async (
           primeiroErro = temImagem
             ? 'O processamento da imagem pela IA demorou mais que o esperado. Por favor, tente novamente com boa iluminação ou pelo nome/código de barras.'
             : 'A consulta de texto pela IA demorou mais que o esperado.';
-          break; // Pula para próximo modelo
+          break;
         }
 
         console.error(`[Gemini] Erro ao chamar modelo ${modelo}:`, e);
 
         if (subTentativa < 2 && !e?.message?.includes('cota') && !e?.message?.includes('inválida') && !e?.message?.includes('não pôde ser interpretada')) {
-          // Retry rápido em oscilação momentânea de conexão móvel
-          await new Promise((r) => setTimeout(r, 600));
+          await new Promise((r) => setTimeout(r, 400));
           continue;
         }
 
@@ -1111,8 +1119,8 @@ Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 
 };
 
 /**
- * Gera uma descrição aprimorada, rica, qualitativa, detalhada e exclusiva para o produto
- * sem truncamento e com apresentação comercial completa.
+ * Gera uma descrição comercial completa, persuasiva e fiel às especificações reais do modelo exato
+ * utilizando o contexto aprovado pelo HUBI JEV (>= 75%) + SerpApi + gemini-3.8-flash.
  */
 export const gerarDescricaoExclusivaIA = async (
   nomeProduto: string,
@@ -1126,30 +1134,45 @@ export const gerarDescricaoExclusivaIA = async (
     apiKey = await obterOuBuscarGeminiApiKey(loja);
   }
 
-  if (nomeProduto.trim()) {
+  const nomeExato = (nomeProduto || '').trim();
+  if (nomeExato) {
     try {
-      const prompt = `
-Você é um especialista em copy comercial e vendas de alta conversão para varejo, catálogo digital e WhatsApp${segmentoLoja ? ` no segmento de "${segmentoLoja}"` : ''}.
-Escreva uma descrição comercial DIRETA, ATRAENTE e CONCISA para o seguinte produto:
+      const contextoJev = await catalogJevService.obterContextoUnificadoProdutoJev({
+        nomeProduto: nomeExato,
+        categoriaNome: categoria,
+        segmentoLoja: segmentoLoja || loja?.segmento,
+        loja,
+        etapa: 'DESCRICAO_IA'
+      });
 
-PRODUTO: "${nomeProduto}"
+      const blocoContextoReal = contextoJev.resumoContextoTexto
+        ? `\nRESULTADOS REAIS APROVADOS PELO HUBI JEV (SCORE >= 75% PARA O MODELO EXATO "${nomeExato}"):\n${contextoJev.resumoContextoTexto}\n`
+        : '';
+
+      const prompt = `
+Você é um especialista sênior em copy comercial e ficha técnica de produtos para varejo, Catálogo Online e vendas via WhatsApp${segmentoLoja ? ` no segmento de "${segmentoLoja}"` : ''}.
+Escreva uma descrição comercial COMPLETA, PERSUASIVA e FIEL às especificações reais do modelo exato abaixo:
+
+PRODUTO EXATO (NÃO ALTERAR VERSÃO/MODELO): "${nomeExato}"
 ${categoria ? `CATEGORIA: "${categoria}"` : ''}
-${descricaoAtual ? `RASCUNHO / DADOS DO LOJISTA: "${descricaoAtual}"` : ''}
+${descricaoAtual ? `OBSERVAÇÕES DO LOJISTA: "${descricaoAtual}"` : ''}${blocoContextoReal}
 
 DIRETRIZES ESTRITAS:
-1. MÁXIMO DE 2 A 3 FRASES OBJETIVAS ou 2-3 bullet points rápidos e apelativos.
-2. NUNCA gere blocos de texto longos, cansativos ou prolixos. O cliente precisa ler em menos de 5 segundos no celular.
-3. Foque nos benefícios reais, diferenciais do produto e chamada sutil para ação.
-4. Formato perfeitamente adaptado para leitura instantânea no Catálogo Digital e compartilhamento via WhatsApp.
-5. Retorne APENAS o texto da descrição comercial em português, sem aspas e sem markdown desnecessário.
+1. FIDELIDADE ABSOLUTA AO MODELO: Descreva exclusivamente o produto "${nomeExato}". Nunca misture especificações de outras versões (como Plus, Pro, Combo, CFS, Max ou Mini) se não estiverem no nome informado.
+2. ESTRUTURA COMERCIAL COMPLETA E PERSUASIVA:
+   - Parágrafo 1: Apresentação comercial forte destacando o propósito e o principal diferencial do "${nomeExato}".
+   - Destaques / Especificações Reais: 3 a 5 tópicos objetivos com as características técnicas e benefícios reais deste modelo exato.
+   - Fechamento: Indicação de uso prático e chamada persuasiva para compra.
+3. PROIBIDO TEXTO GENÉRICO VAZIO: Utilize os dados reais do produto e do contexto aprovado pelo HUBI JEV.
+4. Retorne APENAS o texto final da descrição em português (sem cercas markdown e sem aspas envolvendo o texto).
 `;
 
       const requestBody = {
         model: 'gemini-3.8-flash',
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.6,
-          maxOutputTokens: 2048,
+          temperature: 0.35,
+          maxOutputTokens: 4096,
           thinkingConfig: { thinkingBudget: 0 }
         }
       };
@@ -1160,11 +1183,11 @@ DIRETRIZES ESTRITAS:
         return texto.trim();
       }
     } catch (err) {
-      console.warn('Erro ao gerar descrição concisa com Gemini:', err);
+      console.warn('Erro ao gerar descrição comercial com HUBI JEV + Gemini:', err);
     }
   }
 
-  return `${nomeProduto}. Ideal para quem busca qualidade, praticidade e excelente custo-benefício no dia a dia. Produto original com garantia.`;
+  return `${nomeExato || 'Produto'} — item original selecionado com alto padrão de qualidade, especificações verificadas e excelente desempenho para sua necessidade.`;
 };
 
 export interface FotoResultadoInternet {
@@ -1286,17 +1309,25 @@ export const pesquisarFotosProdutoNaInternet = async (
   const termosParaPesquisar: string[] = [];
 
   if (termoLimpo) {
+    const termoCanonicoJev = await catalogJevService.extrairTermoCanonicoBusca(
+      termoLimpo,
+      segmentoLoja || loja?.segmento,
+      'FOTOS'
+    );
     const termoEnxuto = extrairTermoEnxutoBusca(termoLimpo, 4);
     const segCurto = (segmentoLoja || loja?.segmento || '').split('/')[0].trim();
 
-    // Se o termo tem muitas palavras (> 4), a versão enxuta indexa muito mais rápido no Google Imagens
-    if (palavrasTermo.length > 4 && termoEnxuto) {
+    if (termoCanonicoJev) {
+      termosParaPesquisar.push(termoCanonicoJev);
+    }
+    if (palavrasTermo.length > 4 && termoEnxuto && !termosParaPesquisar.includes(termoEnxuto)) {
       termosParaPesquisar.push(termoEnxuto);
+    }
+    if (!termosParaPesquisar.includes(termoLimpo)) {
       termosParaPesquisar.push(termoLimpo);
-    } else if (segCurto && !termoLimpo.toLowerCase().includes(segCurto.toLowerCase())) {
+    }
+    if (segCurto && !termoLimpo.toLowerCase().includes(segCurto.toLowerCase())) {
       termosParaPesquisar.push(`${termoLimpo} ${segCurto}`);
-    } else {
-      termosParaPesquisar.push(termoLimpo);
     }
   } else if (fotoReferencia) {
     // Apenas se NÃO houver nome digitado e houver uma foto, aciona a IA Multimodal (Gemini Vision)
@@ -1347,11 +1378,11 @@ export const pesquisarFotosProdutoNaInternet = async (
         'color: #16a34a; font-weight: bold;'
       );
 
-      // Validação semântica e filtro de pertinência comercial com Jev (System One)
+      // Validação semântica e filtro estrito de versão/modelo (>= 75%) com HUBI JEV
       let fotosParaRegistrar = resultadosSerpApi;
       try {
         fotosParaRegistrar = await catalogJevService.filtrarFotosCompativeisComJev(
-          termoLimpo,
+          termo.trim() || termoLimpo,
           segmentoLoja || loja?.segmento,
           resultadosSerpApi
         );
@@ -1452,9 +1483,11 @@ export const pesquisarFotosProdutoNaInternet = async (
   return fotos.slice(0, 20);
 };
 
+const cachePreencherIAMemoria = new Map<string, { timestamp: number; dados: ProdutoSugeridoIA }>();
+
 /**
- * Atualiza um produto existente a partir do NOME COMERCIAL através do Jev (System One) e IA ultrarrápida (Gemini 3.8 Flash).
- * Entrega o enriquecimento cadastral comercial completo em poucos segundos.
+ * Atualiza/preenche um produto a partir do NOME COMERCIAL através do SerpApi Shopping + Jev (System One) + Gemini 3.8 Flash.
+ * NUNCA envia imagens quando o nome já foi digitado e NUNCA sobrescreve o nome informado pelo usuário.
  */
 export const atualizarProdutoExistenteComIA = async (dados: {
   nome: string;
@@ -1466,23 +1499,46 @@ export const atualizarProdutoExistenteComIA = async (dados: {
   segmentoLoja?: string;
   loja?: any;
 }): Promise<ProdutoSugeridoIA> => {
-  const termoReferencia = (dados.nome && dados.nome.trim() !== 'Produto') ? dados.nome.trim() : (dados.descricao?.trim() || 'Produto');
+  const nomeInformadoPeloUsuario = (dados.nome && dados.nome.trim() && dados.nome.trim() !== 'Produto')
+    ? dados.nome.trim()
+    : '';
+  const termoReferencia = nomeInformadoPeloUsuario || (dados.descricao?.trim() || 'Produto');
 
-  // 1. Otimização Jev (System One) + SerpApi Shopping em paralelo (< 800ms)
-  const termoCanonicoPromise = catalogJevService.extrairTermoCanonicoBusca(termoReferencia, dados.segmentoLoja).catch(() => termoReferencia);
+  // Cache instantâneo (Memória + localStorage) para respostas em 0ms em consultas repetidas
+  const chaveCache = `hubi_preencher_ia_v3_${termoReferencia.toLowerCase().trim()}_${(dados.categoriaNome || '').toLowerCase()}`;
+  const TTL_CACHE = 1000 * 60 * 60 * 6; // 6 horas
+  const emMemoria = cachePreencherIAMemoria.get(chaveCache);
+  if (emMemoria && Date.now() - emMemoria.timestamp < TTL_CACHE) {
+    return {
+      ...emMemoria.dados,
+      nome: nomeInformadoPeloUsuario || emMemoria.dados.nome
+    };
+  }
+  try {
+    const salvoLocal = localStorage.getItem(chaveCache);
+    if (salvoLocal) {
+      const parsedCache = JSON.parse(salvoLocal);
+      if (Date.now() - parsedCache.timestamp < TTL_CACHE && parsedCache.dados) {
+        cachePreencherIAMemoria.set(chaveCache, parsedCache);
+        return {
+          ...parsedCache.dados,
+          nome: nomeInformadoPeloUsuario || parsedCache.dados.nome
+        };
+      }
+    }
+  } catch {}
+
+  // 1. Disparo paralelo do núcleo unificado HUBI JEV + SerpApi (>= 75%) e classificação de unidade
   const unidadeJevPromise = catalogJevService.classificarUnidadeVenda({ nome: termoReferencia, descricao: dados.descricao }).catch(() => 'un');
-  const dimensoesJevPromise = catalogJevService.estimarDimensoesComJev(
-    termoReferencia,
-    dados.categoriaNome,
-    dados.descricao
-  ).catch(() => extrairDimensoesEPesoTexto(`${termoReferencia} ${dados.descricao || ''}`));
+  const contextoUnificadoPromise = catalogJevService.obterContextoUnificadoProdutoJev({
+    nomeProduto: termoReferencia,
+    categoriaNome: dados.categoriaNome,
+    segmentoLoja: dados.segmentoLoja || dados.loja?.segmento,
+    loja: dados.loja,
+    etapa: 'PREENCHER_IA'
+  });
 
-  const shoppingSerpPromise = Promise.race([
-    buscarPrecosShoppingSerpApi(termoReferencia, dados.loja, 8).catch(() => [] as ItemShoppingSerpApi[]),
-    new Promise<ItemShoppingSerpApi[]>(resolve => setTimeout(() => resolve([]), 2200))
-  ]);
-
-  // 2. Consulta de enriquecimento comercial com Gemini 3.8 Flash
+  // 2. Consulta de enriquecimento comercial com Gemini 3.8 Flash (thinkingBudget: 0, maxOutputTokens: 4096)
   let apiKey = getGeminiApiKey(dados.loja);
   if (!apiKey && dados.loja?.id) {
     apiKey = await obterOuBuscarGeminiApiKey(dados.loja);
@@ -1490,46 +1546,43 @@ export const atualizarProdutoExistenteComIA = async (dados: {
   let parsedIA: any = null;
   let precoMedioSerp = 0;
 
-  if (termoReferencia.length >= 2) {
-    const [termoCanonico, ofertasSerp] = await Promise.all([termoCanonicoPromise, shoppingSerpPromise]);
+  const contextoJev = await contextoUnificadoPromise;
+  const ofertasAprovadas = contextoJev.ofertasAprovadas;
 
+  if (termoReferencia.length >= 2) {
     let resumoShopping = '';
-    if (ofertasSerp && ofertasSerp.length > 0) {
-      const precosValidos = ofertasSerp.map(o => o.preco).filter(p => p > 0);
+    if (ofertasAprovadas && ofertasAprovadas.length > 0) {
+      const precosValidos = ofertasAprovadas.map(o => o.preco).filter(p => p > 0);
       if (precosValidos.length > 0) {
         const soma = precosValidos.reduce((a, b) => a + b, 0);
         precoMedioSerp = Math.floor(soma / precosValidos.length);
       }
-      resumoShopping = `\nOFERTAS REAIS ENCONTRADAS NO GOOGLE SHOPPING BRASIL:\n` +
-        ofertasSerp.slice(0, 6).map(o => `- ${o.loja}: R$ ${o.preco.toFixed(2)} ("${o.titulo}")`).join('\n');
+      resumoShopping = `\nANÚNCIOS REAIS APROVADOS PELO HUBI JEV (SCORE >= 75% PARA O MODELO EXATO):\n${contextoJev.resumoContextoTexto}`;
     }
 
     const promptTexto = `
-Você é um especialista sênior em catálogo de produtos, copywriting comercial de alta conversão e inteligência de precificação para o varejo e e-commerce brasileiro${dados.segmentoLoja ? ` no segmento de "${dados.segmentoLoja}"` : ''}.
-O lojista está cadastrando/atualizando o seguinte produto e solicitou o PREENCHIMENTO COMPLETO COM INTELIGÊNCIA ARTIFICIAL:
+Você é um especialista sênior em catálogo de produtos, engenharia logística, copywriting comercial e precificação para o varejo brasileiro${dados.segmentoLoja ? ` no segmento de "${dados.segmentoLoja}"` : ''}.
+Gere os dados comerciais e logísticos para o produto exatamente conforme o nome/modelo informado pelo lojista:
 
-PRODUTO INFORMADO: "${termoReferencia}"
-${termoCanonico && termoCanonico !== termoReferencia ? `TERMO CANÔNICO IDENTIFICADO: "${termoCanonico}"` : ''}
+NOME EXATO DO PRODUTO (REFERÊNCIA PRINCIPAL INTOCÁVEL): "${termoReferencia}"
 ${dados.categoriaNome ? `CATEGORIA ATUAL: "${dados.categoriaNome}"` : ''}
 ${dados.codigoBarras ? `CÓDIGO DE BARRAS / EAN: "${dados.codigoBarras}"` : ''}
 ${dados.precoVendaAtual && dados.precoVendaAtual > 0 ? `PREÇO DE VENDA ATUAL DA LOJA: R$ ${dados.precoVendaAtual.toFixed(2)}` : ''}
 ${dados.segmentoLoja ? `SEGMENTO DA LOJA: "${dados.segmentoLoja}"` : ''}${resumoShopping}
 
-SUAS OBRIGAÇÕES MANDATÓRIAS:
-1. NOME COMERCIAL:
-   - Padronize o nome comercial oficial, completo, limpo e atraente em português (sem códigos internos de SKU, lote ou ruídos de ERP).
-2. PREÇO DE VAREJO SUGERIDO DE MERCADO (OBRIGATÓRIO):
-   - Estime o preço de venda de varejo realista praticado no mercado brasileiro atual para este item novo e original em reais (R$ BRL).
-   - Preencha "preco_varejo" e "preco_venda_estimado" com valor MAIOR QUE ZERO (nunca retorne 0.00).
-   - Se houver ofertas do Google Shopping listadas acima, calibre o preço pela média das ofertas correspondentes ao modelo exato.
-   - Estime também um "preco_custo_estimado" de referência (aproximadamente 40% a 60% do preço de venda sugerido).
-3. CATEGORIA E UNIDADE:
-   - Indique a categoria comercial de varejo mais adequada em "categoria_sugerida".
-   - Indique a unidade de venda comercial ("un", "kg", "cx", "pct", "par", "m") em "tipo_unidade".
-4. DESCRIÇÃO COMERCIAL DETALHADA PARA CATÁLOGO E WHATSAPP:
-   - Elabore em "descricao_comercial" (e repita em "descricao") uma descrição comercial completa, estruturada, rica e persuasiva (com apresentação do produto, principais benefícios, características/especificações de materiais e dicas práticas de uso).
-   - Formate o texto perfeitamente para visualização no Catálogo Online da loja e envio direto no WhatsApp para os clientes.
-   - NUNCA retorne frases genéricas ou clichês vazios como "Produto com excelente acabamento e alta durabilidade". Detalhe as qualidades reais deste item específico.
+REGRAS MANDATÓRIAS:
+1. FIDELIDADE ABSOLUTA AO MODELO INFORMADO:
+   - Use "${termoReferencia}" como referência exata. NUNCA misture especificações ou preços de outras versões (como Plus, Pro, Combo, CFS, Max, Mini, Kit ou Peça) se não constarem no nome digitado.
+2. PREÇO DE VAREJO SUGERIDO (OBRIGATÓRIO > 0):
+   - Preencha "preco_varejo" e "preco_venda_estimado" com o preço de varejo atual no Brasil em reais (R$ BRL), sempre MAIOR QUE ZERO.
+   - Se houver anúncios aprovados pelo HUBI JEV listados acima, calibre pela média real (${precoMedioSerp > 0 ? `R$ ${precoMedioSerp}` : 'média das ofertas'}).
+   - Preencha "preco_custo_estimado" (aprox. 55% do preço de varejo).
+3. CATEGORIA, SUBCATEGORIA E UNIDADE:
+   - Indique "categoria_sugerida", "subcategoria_sugerida" e "tipo_unidade" ("un", "kg", "cx", "pct", "par", "m").
+4. DESCRIÇÃO COMERCIAL COMPLETA E PERSUASIVA:
+   - Elabore em "descricao_comercial" (e repita em "descricao") uma descrição comercial completa, persuasiva e fiel às especificações reais do modelo exato "${termoReferencia}" (apresentação comercial, principais especificações técnicas e benefícios práticos), ideal para Catálogo Online e WhatsApp.
+5. DIMENSÕES E PESO REAIS DA EMBALAGEM PARA ENVIO:
+   - Identifique e preencha "peso_kg", "altura_cm", "largura_cm" e "comprimento_cm" reais da caixa/embalagem lacrada deste modelo exato "${termoReferencia}".
 `;
 
     try {
@@ -1546,24 +1599,31 @@ SUAS OBRIGAÇÕES MANDATÓRIAS:
           responseSchema: {
             type: 'OBJECT',
             properties: {
-              nome: { type: 'STRING' },
               categoria_sugerida: { type: 'STRING' },
+              subcategoria_sugerida: { type: 'STRING' },
               preco_varejo: { type: 'NUMBER' },
               preco_venda_estimado: { type: 'NUMBER' },
               preco_custo_estimado: { type: 'NUMBER' },
               tipo_unidade: { type: 'STRING' },
               descricao_comercial: { type: 'STRING' },
-              descricao: { type: 'STRING' }
+              descricao: { type: 'STRING' },
+              peso_kg: { type: 'NUMBER' },
+              altura_cm: { type: 'NUMBER' },
+              largura_cm: { type: 'NUMBER' },
+              comprimento_cm: { type: 'NUMBER' }
             },
             required: [
-              'nome',
               'categoria_sugerida',
               'preco_varejo',
               'preco_venda_estimado',
               'preco_custo_estimado',
               'tipo_unidade',
               'descricao_comercial',
-              'descricao'
+              'descricao',
+              'peso_kg',
+              'altura_cm',
+              'largura_cm',
+              'comprimento_cm'
             ]
           }
         }
@@ -1579,8 +1639,10 @@ SUAS OBRIGAÇÕES MANDATÓRIAS:
     }
   }
 
-  // Aguarda as respostas do Jev em paralelo
-  const [dims, unidadeJev] = await Promise.all([dimensoesJevPromise, unidadeJevPromise]);
+  const unidadeJev = await unidadeJevPromise;
+  const dimsFallback = (!parsedIA?.peso_kg || !parsedIA?.altura_cm)
+    ? await catalogJevService.estimarDimensoesComJev(termoReferencia, dados.categoriaNome, dados.descricao).catch(() => extrairDimensoesEPesoTexto(`${termoReferencia} ${dados.descricao || ''}`))
+    : { peso_kg: 0.35, altura_cm: 10, largura_cm: 15, comprimento_cm: 20 };
 
   const precoEstimado =
     Number(parsedIA?.preco_varejo) ||
@@ -1593,21 +1655,33 @@ SUAS OBRIGAÇÕES MANDATÓRIAS:
   const textoDescricaoIA = (parsedIA?.descricao_comercial || parsedIA?.descricao || '').trim();
   const descricaoFinal = textoDescricaoIA.length > 15
     ? textoDescricaoIA
-    : (dados.descricao?.trim() || `${termoReferencia} - Produto de alta qualidade selecionado especialmente para oferecer o melhor custo-benefício e praticidade aos nossos clientes.`);
+    : (dados.descricao?.trim() || `${termoReferencia} — equipamento/produto selecionado com alto padrão de qualidade, desempenho confiável e excelente custo-benefício.`);
 
-  return {
-    nome: parsedIA?.nome?.trim() || dados.nome || termoReferencia,
+  const resultadoFinal: ProdutoSugeridoIA = {
+    // NUNCA sobrescreve o nome se o usuário já o informou
+    nome: nomeInformadoPeloUsuario || parsedIA?.nome?.trim() || termoReferencia,
     categoria_sugerida: parsedIA?.categoria_sugerida || dados.categoriaNome || 'Geral',
+    subcategoria_sugerida: parsedIA?.subcategoria_sugerida || undefined,
     preco_venda_estimado: precoSemCentavos,
     preco_custo_estimado: Number(parsedIA?.preco_custo_estimado) || (precoSemCentavos > 0 ? Math.floor(precoSemCentavos * 0.55) : 0),
     descricao: descricaoFinal,
     tipo_unidade: parsedIA?.tipo_unidade || unidadeJev || 'un',
     codigo_barras: dados.codigoBarras || '',
-    peso_kg: dims.peso_kg || 0.35,
-    altura_cm: dims.altura_cm || 10,
-    largura_cm: dims.largura_cm || 15,
-    comprimento_cm: dims.comprimento_cm || 20
+    peso_kg: Number(parsedIA?.peso_kg) > 0 ? Number(Number(parsedIA.peso_kg).toFixed(3)) : (dimsFallback.peso_kg || 0.35),
+    altura_cm: Number(parsedIA?.altura_cm) > 0 ? Math.max(4, Math.round(Number(parsedIA.altura_cm))) : (dimsFallback.altura_cm || 10),
+    largura_cm: Number(parsedIA?.largura_cm) > 0 ? Math.max(10, Math.round(Number(parsedIA.largura_cm))) : (dimsFallback.largura_cm || 15),
+    comprimento_cm: Number(parsedIA?.comprimento_cm) > 0 ? Math.max(15, Math.round(Number(parsedIA.comprimento_cm))) : (dimsFallback.comprimento_cm || 20)
   };
+
+  if (precoSemCentavos > 0 && textoDescricaoIA.length > 15) {
+    const cacheItem = { timestamp: Date.now(), dados: resultadoFinal };
+    cachePreencherIAMemoria.set(chaveCache, cacheItem);
+    try {
+      localStorage.setItem(chaveCache, JSON.stringify(cacheItem));
+    } catch {}
+  }
+
+  return resultadoFinal;
 };
 
 /**
@@ -1633,17 +1707,9 @@ export const estimarDimensoesEPesoProduto = async (
     return extraidos;
   }
 
-  // 1. Tentar estimativa ultrarrápida via Jev (System One) em ~250ms por faixa logística
-  try {
-    const dimJev = await catalogJevService.estimarDimensoesComJev(nomeProduto, categoriaNome, descricao);
-    if (dimJev && dimJev.peso_kg && dimJev.altura_cm) {
-      return dimJev;
-    }
-  } catch (err) {
-    console.warn('[GeminiService] Estimativa rápida com Jev indisponível, recorrendo ao pipeline secundário:', err);
-  }
+  const nomeExato = (nomeProduto || '').trim();
 
-  // Tentar estimativa profunda com Google Gemini
+  // 1. Consulta o Núcleo Unificado (HUBI JEV >= 75% + SerpApi) + gemini-3.8-flash para obter Peso e Dimensões REAIS da embalagem do modelo exato
   let chave = getGeminiApiKey(loja);
   if (!chave && loja?.id) {
     try {
@@ -1651,44 +1717,62 @@ export const estimarDimensoesEPesoProduto = async (
     } catch {}
   }
 
-  if (chave && nomeProduto.trim()) {
+  if (nomeExato) {
     try {
-      const prompt = `
-Você é um especialista em logística de e-commerce e despacho de encomendas no Brasil (Correios e Jadlog).
-Estime com inteligência o peso bruto com embalagem ('peso_kg') e as dimensões mínimas para embalagem de envio ('altura_cm', 'largura_cm', 'comprimento_cm') para o seguinte produto:
+      const contextoJev = await catalogJevService.obterContextoUnificadoProdutoJev({
+        nomeProduto: nomeExato,
+        categoriaNome,
+        segmentoLoja: loja?.segmento,
+        loja,
+        etapa: 'DIMENSOES_IA'
+      });
 
-Produto: "${nomeProduto}"
+      const blocoContexto = contextoJev.resumoContextoTexto
+        ? `\nRESULTADOS REAIS APROVADOS PELO HUBI JEV (SCORE >= 75% PARA O MODELO EXATO "${nomeExato}"):\n${contextoJev.resumoContextoTexto}\n`
+        : '';
+
+      const prompt = `
+Você é um engenheiro de logística e ficha técnica de produtos para e-commerce no Brasil (Correios, Jadlog e transportadoras).
+Identifique as dimensões e o peso bruto REAIS da embalagem de envio para o modelo exato abaixo:
+
+PRODUTO EXATO (NÃO CONFUNDIR COM VERSÕES PLUS, PRO, COMBO, CFS OU MINI): "${nomeExato}"
 ${categoriaNome ? `Categoria: "${categoriaNome}"` : ''}
-${descricao ? `Descrição: "${descricao.slice(0, 300)}"` : ''}
+${descricao ? `Descrição / Especificações: "${descricao.slice(0, 400)}"` : ''}${blocoContexto}
 
 REGRAS OBRIGATÓRIAS:
-- 'peso_kg': Peso total bruto da mercadoria com a caixa/pacote em kg (ex: 0.35 para 350g, 1.2 para 1.2kg).
-- 'altura_cm', 'largura_cm', 'comprimento_cm': Dimensões da embalagem para envio. Mínimos aceitos nos Correios/Jadlog: altura >= 4cm, largura >= 10cm, comprimento >= 15cm.
-
-Retorne EXCLUSIVAMENTE um objeto JSON válido (sem texto extra, sem bloco markdown):
-{
-  "peso_kg": 0.35,
-  "altura_cm": 10,
-  "largura_cm": 15,
-  "comprimento_cm": 20
-}
+1. FIDELIDADE AO MODELO EXATO: Informe as medidas e o peso reais da caixa/embalagem lacrada do modelo "${nomeExato}" (ex: se for uma impressora 3D, eletrodoméstico ou equipamento, retorne o peso real em kg como 14.5, 18.0, etc. e as medidas reais da caixa em cm como 45x45x55, nunca valores genéricos pequenos).
+2. 'peso_kg': Peso total bruto da mercadoria com a embalagem em kg (ex: 0.35 para 350g, 16.5 para 16,5kg).
+3. 'altura_cm', 'largura_cm', 'comprimento_cm': Dimensões reais da embalagem em centímetros (mínimos operacionais: altura >= 4cm, largura >= 10cm, comprimento >= 15cm).
 `;
 
       const requestBody = {
+        model: 'gemini-3.8-flash',
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.1,
-          response_mime_type: 'application/json'
+          maxOutputTokens: 512,
+          thinkingConfig: { thinkingBudget: 0 },
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: 'OBJECT',
+            properties: {
+              peso_kg: { type: 'NUMBER' },
+              altura_cm: { type: 'NUMBER' },
+              largura_cm: { type: 'NUMBER' },
+              comprimento_cm: { type: 'NUMBER' }
+            },
+            required: ['peso_kg', 'altura_cm', 'largura_cm', 'comprimento_cm']
+          }
         }
       };
 
-      const resData = await executarRequisicaoGemini(chave, requestBody);
+      const resData = await executarRequisicaoGemini(chave, requestBody, loja?.id);
       const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (rawText) {
         const parsed = extrairJsonDoTexto(rawText);
-        if (parsed) {
+        if (parsed && Number(parsed.peso_kg) > 0) {
           return {
-            peso_kg: extraidos.peso_kg || (Number(parsed.peso_kg) > 0 ? Number(Number(parsed.peso_kg).toFixed(3)) : 0.35),
+            peso_kg: extraidos.peso_kg || Number(Number(parsed.peso_kg).toFixed(3)),
             altura_cm: extraidos.altura_cm || Math.max(4, Math.round(Number(parsed.altura_cm) || 10)),
             largura_cm: extraidos.largura_cm || Math.max(10, Math.round(Number(parsed.largura_cm) || 15)),
             comprimento_cm: extraidos.comprimento_cm || Math.max(15, Math.round(Number(parsed.comprimento_cm) || 20))
@@ -1696,8 +1780,18 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem texto extra, sem bloco markdo
         }
       }
     } catch (err) {
-      console.warn('[GeminiService] Falha na estimativa de medidas com IA, aplicando fallback heurístico:', err);
+      console.warn('[GeminiService] Falha na detecção precisa de dimensões com HUBI JEV + Gemini, acionando contingência:', err);
     }
+  }
+
+  // 2. Contingência via Jev (System One) por faixa logística caso o Gemini esteja indisponível
+  try {
+    const dimJev = await catalogJevService.estimarDimensoesComJev(nomeProduto, categoriaNome, descricao);
+    if (dimJev && dimJev.peso_kg && dimJev.altura_cm) {
+      return dimJev;
+    }
+  } catch (err) {
+    console.warn('[GeminiService] Contingência Jev indisponível:', err);
   }
 
   // Fallback inteligente baseado em palavras-chave e categorias de varejo

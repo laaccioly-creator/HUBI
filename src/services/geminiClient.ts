@@ -8,9 +8,36 @@
 const cacheModeloAtivo = new Map<string, string>();
 // Cache em memória de todos os modelos compatíveis ordenados por chave de API
 const cacheModelosValidos = new Map<string, string[]>();
+// Registro em memória de modelos que retornaram 404 para nunca repetir tentativa lenta
+const modelosIndisponiveis404 = new Set<string>(['gemini-2.5-flash-lite', 'gemini-3.5-flash-lite']);
 
 // Fallback de contingência caso a rede do cliente oscile ou a listagem falhe temporariamente
-export const MODELOS_FALLBACK_CONTINGENCIA = ['gemini-3.8-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-8b'];
+export const MODELOS_FALLBACK_CONTINGENCIA = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-8b'];
+
+export const isModeloIndisponivel = (modelo: string): boolean => {
+  return modelosIndisponiveis404.has((modelo || '').replace(/^models\//, '').toLowerCase());
+};
+
+export const registrarModeloIndisponivel = (modelo: string, apiKey?: string): void => {
+  const limpo = (modelo || '').replace(/^models\//, '').toLowerCase();
+  if (limpo) {
+    modelosIndisponiveis404.add(limpo);
+  }
+  if (apiKey) {
+    const key = apiKey.trim();
+    const listaAtual = cacheModelosValidos.get(key);
+    if (listaAtual) {
+      const filtrada = listaAtual.filter(m => m.toLowerCase() !== limpo);
+      if (filtrada.length > 0) {
+        cacheModelosValidos.set(key, filtrada);
+        cacheModeloAtivo.set(key, filtrada[0]);
+      } else {
+        cacheModelosValidos.delete(key);
+        cacheModeloAtivo.delete(key);
+      }
+    }
+  }
+};
 
 /**
  * Invalida o cache em memória para forçar uma nova descoberta dinâmica.
