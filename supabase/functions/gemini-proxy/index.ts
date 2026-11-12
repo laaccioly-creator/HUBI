@@ -29,7 +29,8 @@ serve(async (req: Request) => {
       generationConfig,
       safetySettings,
       systemInstruction,
-      model = "gemini-3.5-flash-lite",
+      tools,
+      model = "gemini-3.8-flash",
       action = "generateContent",
       api_key,
       loja_id,
@@ -96,11 +97,12 @@ serve(async (req: Request) => {
       if (generationConfig) googlePayload.generationConfig = generationConfig;
       if (safetySettings) googlePayload.safetySettings = safetySettings;
       if (systemInstruction) googlePayload.systemInstruction = systemInstruction;
+      if (tools) googlePayload.tools = tools;
     }
 
-    let cleanModel = String(model || "gemini-3.5-flash-lite").replace(/^models\//, "");
-    if (cleanModel === "gemini-2.5-flash-lite") {
-      cleanModel = "gemini-3.5-flash-lite";
+    let cleanModel = String(model || "gemini-3.8-flash").replace(/^models\//, "");
+    if (cleanModel === "gemini-2.5-flash-lite" || cleanModel === "gemini-3.5-flash-lite") {
+      cleanModel = "gemini-3.8-flash";
     }
     const googleUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:${action}?key=${resolvedApiKey}`;
 

@@ -10,7 +10,7 @@ const cacheModeloAtivo = new Map<string, string>();
 const cacheModelosValidos = new Map<string, string[]>();
 
 // Fallback de contingência caso a rede do cliente oscile ou a listagem falhe temporariamente
-export const MODELOS_FALLBACK_CONTINGENCIA = ['gemini-3.5-flash-lite', 'gemini-2.0-flash', 'gemini-1.5-flash-8b'];
+export const MODELOS_FALLBACK_CONTINGENCIA = ['gemini-3.8-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-8b'];
 
 /**
  * Invalida o cache em memória para forçar uma nova descoberta dinâmica.
@@ -29,7 +29,7 @@ export const invalidarCacheGemini = (apiKey?: string): void => {
 
 /**
  * Extrai o peso/score de um modelo Gemini para ordenação:
- * Prioriza a família Flash e os modelos velozes recomendados (gemini-3.5-flash-lite).
+ * Prioriza a família Flash e o modelo oficial mais recente (gemini-3.8-flash).
  */
 export const calcularScoreModelo = (nome: string): number => {
   const limpo = nome.toLowerCase().replace('models/', '');
@@ -44,7 +44,10 @@ export const calcularScoreModelo = (nome: string): number => {
   if (limpo.includes('flash')) {
     score += 1000;
   }
-  // Modelos recomendados e velozes para o Radar de Preços e Varejo
+  // Modelo primário recomendado para o Radar de Preços com Google Search e Varejo
+  if (limpo === 'gemini-3.8-flash') {
+    score += 1500;
+  }
   if (limpo === 'gemini-3.5-flash-lite' || limpo === 'gemini-3.5-flash') {
     score += 600;
   }

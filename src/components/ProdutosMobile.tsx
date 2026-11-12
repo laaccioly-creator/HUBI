@@ -56,7 +56,8 @@ import {
   Calendar,
   Clock,
   MapPin,
-  UserCheck
+  UserCheck,
+  ExternalLink
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -4996,9 +4997,22 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                           key={idx}
                           className="p-2.5 bg-slate-50 dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] rounded-xl flex items-center justify-between hover:bg-slate-100 dark:hover:bg-[#0D111A] transition"
                         >
-                          <div>
-                            <span className="font-bold text-xs text-slate-800 dark:text-slate-200 block">{conc.loja}</span>
-                            {conc.tipo && <span className="text-[10px] text-slate-400">{conc.tipo}</span>}
+                          <div className="min-w-0 flex-1 mr-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-xs text-slate-800 dark:text-slate-200 truncate">{conc.loja}</span>
+                              {conc.url && (
+                                <a
+                                  href={conc.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title="Ver oferta na fonte"
+                                  className="text-slate-400 hover:text-emerald-500 transition-colors shrink-0"
+                                >
+                                  <ExternalLink className="w-3 h-3" />
+                                </a>
+                              )}
+                            </div>
+                            {conc.tipo && <span className="text-[10px] text-slate-400 block truncate">{conc.tipo}</span>}
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="font-black text-xs text-slate-900 dark:text-white">R$ {conc.preco.toFixed(2)}</span>

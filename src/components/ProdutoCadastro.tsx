@@ -41,7 +41,8 @@ import {
   Calendar,
   MapPin,
   UserCheck,
-  Home
+  Home,
+  ExternalLink
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -184,7 +185,8 @@ const processarListaConcorrentes = (
       loja: String(c.loja || c.estabelecimento || 'Loja de Varejo'),
       preco: Number(c.preco || c.valor) || 0,
       tipo: String(c.tipo || 'Varejo Online'),
-      observacao: c.observacao ? String(c.observacao) : undefined
+      observacao: c.observacao ? String(c.observacao) : undefined,
+      url: (c.url || c.link || c.uri) ? String(c.url || c.link || c.uri) : undefined
     }))
     .filter((c: PrecoConcorrente) => c.preco > 0);
 
@@ -264,9 +266,9 @@ export const pesquisarPrecosMercadoIA = async (
 
   const promptTexto = `
 Você é um especialista sênior em inteligência de mercado, precificação competitiva e monitoramento de preços no varejo e e-commerce brasileiro${segmento ? ` (segmento da loja: "${segmento}")` : ''}.
-Pesquise e levante com rigor técnico os preços reais de varejo praticados atualmente no mercado brasileiro para o seguinte item:
+Utilize a ferramenta de busca do Google (Google Search) para pesquisar em tempo real os preços reais praticados no mercado brasileiro para o seguinte item:
 
-PRODUTO: "${nomeProduto}"
+PRODUTO PESQUISADO: "${nomeProduto}"
 ${categoriaNome ? `CATEGORIA: "${categoriaNome}"` : ''}
 ${barcode ? `CÓDIGO DE BARRAS / EAN: "${barcode}"` : ''}
 ${segmento ? `SEGMENTO DE MERCADO: "${segmento}"` : ''}
@@ -275,39 +277,46 @@ ${opcoesExtras?.tipoUnidade ? `UNIDADE DE MEDIDA: "${opcoesExtras.tipoUnidade}"`
 ${opcoesExtras?.precoCusto ? `PREÇO DE CUSTO INFORMADO PELO LOJISTA: R$ ${opcoesExtras.precoCusto.toFixed(2)}` : ''}
 ${opcoesExtras?.precoVendaAtual ? `PREÇO DE VENDA ATUAL DA LOJA: R$ ${opcoesExtras.precoVendaAtual.toFixed(2)}` : ''}
 
-DIRETRIZES DE CALIBRAÇÃO E PRECISÃO DE PREÇOS NO BRASIL:
-1. IDENTIFICAÇÃO EXATA DO PRODUTO:
-   - Identifique rigorosamente a marca exata, modelo, tamanho/volume (ml, g, kg, L) e se é unidade avulsa ou kit/fardo.
-   - NUNCA confunda o produto principal com sachês, amostras grátis, refis avulsos, pilhas, peças de reposição ou acessórios secundários.
-   - Os preços devem refletir estritamente o produto NOVO e COMPLETO para o consumidor final em reais (R$ BRL).
-2. CONCORRÊNCIA E LOJAS ADEQUADAS AO NICHO:
-   - Identifique entre 10 e 14 concorrentes REAIS e ativos no Brasil que de fato comercializam esta categoria.
-   - Inclua os maiores marketplaces (Mercado Livre, Amazon Brasil, Shopee Lojas Oficiais).
-   - Inclua e-commerces e redes especializadas do nicho no Brasil.
-   - Pratique preços realistas de mercado sem ancoragem artificial para baixo.
+DIRETRIZES ESTRITAS CONTRA ALUCINAÇÃO E PRECISÃO DE MODELO:
+1. BUSCA EM TEMPO REAL E DADOS REAIS:
+   - Retorne APENAS lojas, marketplaces e preços que foram EFETIVAMENTE localizados nos resultados reais da busca na web.
+   - NUNCA invente lojas, nunca alucine preços estimados ou fictícios e NUNCA preencha a lista com concorrentes inventados para atingir uma quantidade pré-definida. Se encontrar apenas 3, 4 ou 6 ofertas reais na busca, retorne somente as que realmente existem.
+2. CORRESPONDÊNCIA EXATA DE MODELO E VERSÃO:
+   - Exija correspondência exata com o modelo e versão pesquisados. NUNCA misture versões diferentes (ex: se pesquisar versão padrão, NÃO misture com modelos "Plus", "Pro", "Combo", "Max" ou "Mini").
+   - NUNCA confunda o item principal com acessórios complementares, suportes, cabos, refis, peças avulsas ou amostras.
+3. PREÇOS À VISTA EM REAIS (R$ BRL):
+   - Priorize o preço à vista atual (Pix, boleto ou menor valor final à vista) para produto NOVO e original.
+4. LINKS E FONTES:
+   - Sempre que a busca retornar o link da oferta ou página da loja, inclua a URL completa no campo "url" de cada concorrente.
 
-Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e sem texto adicional):
+Retorne EXCLUSIVAMENTE um objeto JSON válido no seguinte formato:
 {
   "preco_medio": 0.00,
   "concorrentes": [
-    { "loja": "Mercado Livre", "preco": 0.00, "tipo": "Marketplace" },
-    { "loja": "Amazon Brasil", "preco": 0.00, "tipo": "Marketplace" },
-    { "loja": "Shopee Oficial", "preco": 0.00, "tipo": "Marketplace" },
-    { "loja": "Loja Especializada", "preco": 0.00, "tipo": "E-commerce Especializado" }
+    {
+      "loja": "Nome da Loja ou Marketplace",
+      "preco": 0.00,
+      "tipo": "Marketplace | Loja Oficial | E-commerce Especializado | Varejo",
+      "url": "https://link-da-oferta.com"
+    }
   ]
 }
 `;
 
   const requestBody: any = {
-    model: 'gemini-3.5-flash-lite',
+    model: 'gemini-3.8-flash',
     contents: [
       {
         parts: [{ text: promptTexto }]
       }
     ],
+    tools: [
+      {
+        google_search: {}
+      }
+    ],
     generationConfig: {
-      temperature: 0.15,
-      response_mime_type: 'application/json'
+      temperature: 0.1
     }
   };
 
@@ -319,9 +328,38 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
   const parsed = extrairJsonDoTexto(rawText);
   if (!parsed) throw new Error('Não foi possível interpretar a resposta da IA.');
 
-  const lista = parsed.concorrentes || [];
+  // Extrair URLs dos groundingChunks se disponíveis pelo Google Search Grounding
+  const groundingChunks: Array<{ web?: { uri?: string; title?: string } }> =
+    resData?.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+  const urlsGrounding = groundingChunks
+    .map(chunk => chunk.web?.uri)
+    .filter((uri): uri is string => Boolean(uri && uri.startsWith('http')));
+
+  let rawList = parsed.concorrentes || [];
+  if (Array.isArray(rawList)) {
+    rawList = rawList.map((item: any, idx: number) => {
+      let itemUrl = item.url || item.link || item.uri;
+      if (!itemUrl && urlsGrounding.length > 0) {
+        const lojaLower = String(item.loja || '').toLowerCase();
+        const urlMatch = urlsGrounding.find(u => {
+          try {
+            const host = new URL(u).hostname.toLowerCase();
+            return lojaLower && (host.includes(lojaLower.split(' ')[0]) || lojaLower.includes(host.replace('www.', '').split('.')[0]));
+          } catch {
+            return false;
+          }
+        });
+        itemUrl = urlMatch || urlsGrounding[idx % urlsGrounding.length];
+      }
+      return {
+        ...item,
+        url: itemUrl ? String(itemUrl) : undefined
+      };
+    });
+  }
+
   return processarListaConcorrentes(
-    lista,
+    rawList,
     Number(parsed.preco_medio) || 0,
     opcoesExtras?.precoCusto
   );
@@ -3695,9 +3733,20 @@ export const ProdutoCadastro: React.FC = () => {
                               className="bg-slate-50 hover:bg-slate-100 dark:bg-[#000000] dark:hover:bg-[#0D111A] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex items-center justify-between gap-2 transition group"
                             >
                               <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex items-center gap-1.5 min-w-0">
                                   <Store className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
                                   <h5 className="font-semibold text-xs text-slate-800 dark:text-slate-200 truncate">{item.loja}</h5>
+                                  {item.url && (
+                                    <a
+                                      href={item.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      title="Ver oferta na fonte"
+                                      className="text-slate-400 hover:text-emerald-500 transition-colors shrink-0"
+                                    >
+                                      <ExternalLink className="w-3.5 h-3.5" />
+                                    </a>
+                                  )}
                                 </div>
                                 <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5 truncate">
                                   {item.tipo || 'Varejo'}
@@ -3742,9 +3791,20 @@ export const ProdutoCadastro: React.FC = () => {
                               className="bg-slate-50 hover:bg-slate-100 dark:bg-[#000000] dark:hover:bg-[#0D111A] border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 flex items-center justify-between gap-2 transition group"
                             >
                               <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex items-center gap-1.5 min-w-0">
                                   <Building2 className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
                                   <h5 className="font-semibold text-xs text-slate-800 dark:text-slate-200 truncate">{item.loja}</h5>
+                                  {item.url && (
+                                    <a
+                                      href={item.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      title="Ver oferta na fonte"
+                                      className="text-slate-400 hover:text-emerald-500 transition-colors shrink-0"
+                                    >
+                                      <ExternalLink className="w-3.5 h-3.5" />
+                                    </a>
+                                  )}
                                 </div>
                                 <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5 truncate">
                                   {item.tipo || 'Varejo'}

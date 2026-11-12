@@ -539,7 +539,7 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
     safetySettings: requestBody.safetySettings || SAFETY_SETTINGS_VAREJO
   };
 
-  const modeloDesejado = requestBody?.model || 'gemini-3.5-flash-lite';
+  const modeloDesejado = requestBody?.model || 'gemini-3.8-flash';
 
   // 1. Tentar execução segura via Supabase Edge Function (gemini-proxy) sem expor credenciais
   try {
@@ -569,7 +569,7 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
   // 2. Contingência direta caso haja chave BYOK informada
   const modelosValidos = await obterModelosValidosGemini(apiKey);
   const modelos = Array.from(new Set([modeloDesejado, ...modelosValidos]))
-    .filter(m => m !== 'gemini-2.5-flash-lite');
+    .filter(m => m !== 'gemini-2.5-flash-lite' && m !== 'gemini-3.5-flash-lite');
   let primeiroErro: string | null = null;
   let contador429 = 0;
 
@@ -961,7 +961,7 @@ DIRETRIZES ESTRITAS:
 `;
 
       const requestBody = {
-        model: 'gemini-3.5-flash-lite',
+        model: 'gemini-3.8-flash',
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: { temperature: 0.6, maxOutputTokens: 500 }
       };
