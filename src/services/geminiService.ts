@@ -1536,16 +1536,18 @@ export const atualizarProdutoExistenteComIA = async (dados: {
   segmentoLoja?: string;
   loja?: any;
 }): Promise<ProdutoSugeridoIA> => {
+  const tInicioPerf = performance.now();
   const nomeInformadoPeloUsuario = (dados.nome && dados.nome.trim() && dados.nome.trim() !== 'Produto')
     ? dados.nome.trim()
     : '';
   const termoReferencia = nomeInformadoPeloUsuario || (dados.descricao?.trim() || 'Produto');
 
   // Cache instantâneo (Memória + localStorage) para respostas em 0ms em consultas repetidas
-  const chaveCache = `hubi_preencher_ia_v14_${termoReferencia.toLowerCase().trim()}_${(dados.categoriaNome || '').toLowerCase()}`;
+  const chaveCache = `hubi_preencher_ia_v15_${termoReferencia.toLowerCase().trim()}_${(dados.categoriaNome || '').toLowerCase()}`;
   const TTL_CACHE = 1000 * 60 * 60 * 6; // 6 horas
   const emMemoria = cachePreencherIAMemoria.get(chaveCache);
   if (emMemoria && Date.now() - emMemoria.timestamp < TTL_CACHE) {
+    console.log(`%c[HUBI PERF ⏱️]%c [PREENCHER_IA] Cache instantâneo em ${Math.round(performance.now() - tInicioPerf)}ms`, 'color: #0ea5e9; font-weight: bold;', 'color: #38bdf8;');
     return {
       ...emMemoria.dados,
       nome: nomeInformadoPeloUsuario || emMemoria.dados.nome
@@ -1557,6 +1559,7 @@ export const atualizarProdutoExistenteComIA = async (dados: {
       const parsedCache = JSON.parse(salvoLocal);
       if (Date.now() - parsedCache.timestamp < TTL_CACHE && parsedCache.dados) {
         cachePreencherIAMemoria.set(chaveCache, parsedCache);
+        console.log(`%c[HUBI PERF ⏱️]%c [PREENCHER_IA] Cache localStorage em ${Math.round(performance.now() - tInicioPerf)}ms`, 'color: #0ea5e9; font-weight: bold;', 'color: #38bdf8;');
         return {
           ...parsedCache.dados,
           nome: nomeInformadoPeloUsuario || parsedCache.dados.nome
@@ -1565,61 +1568,48 @@ export const atualizarProdutoExistenteComIA = async (dados: {
     }
   } catch {}
 
-  // 1. Disparo paralelo do núcleo unificado HUBI JEV + SerpApi (>= 75%) e classificação de unidade
+  let apiKey = getGeminiApiKey(dados.loja);
+  if (!apiKey && dados.loja?.id) {
+    apiKey = await obterOuBuscarGeminiApiKey(dados.loja);
+  }
+
+  // 1. Disparo 100% paralelo (Promise.all):
+  //    a) Busca rápida da Serper + JEV (sem google_search)
+  //    b) Unidade de venda JEV
+  //    c) Chamada única ao gemini-3.8-flash (sem tools, thinkingBudget: 0) para descrição, categoria e dimensões
   const unidadeJevPromise = catalogJevService.classificarUnidadeVenda({ nome: termoReferencia, descricao: dados.descricao }).catch(() => 'un');
   const contextoUnificadoPromise = catalogJevService.obterContextoUnificadoProdutoJev({
     nomeProduto: termoReferencia,
     categoriaNome: dados.categoriaNome,
     segmentoLoja: dados.segmentoLoja || dados.loja?.segmento,
     loja: dados.loja,
-    etapa: 'PREENCHER_IA'
+    etapa: 'PREENCHER_IA',
+    permitirComplementoGemini: false
   });
 
-  // 2. Consulta de enriquecimento comercial com Gemini 3.8 Flash (thinkingBudget: 0, maxOutputTokens: 4096)
-  let apiKey = getGeminiApiKey(dados.loja);
-  if (!apiKey && dados.loja?.id) {
-    apiKey = await obterOuBuscarGeminiApiKey(dados.loja);
-  }
-  let parsedIA: any = null;
-  let precoMedioSerp = 0;
-
-  const contextoJev = await contextoUnificadoPromise;
-  const ofertasAprovadas = contextoJev.ofertasAprovadas;
-
-  if (termoReferencia.length >= 2) {
-    let resumoShopping = '';
-    if (ofertasAprovadas && ofertasAprovadas.length > 0) {
-      const precosValidos = ofertasAprovadas.map(o => o.preco).filter(p => p > 0);
-      if (precosValidos.length > 0) {
-        const soma = precosValidos.reduce((a, b) => a + b, 0);
-        precoMedioSerp = Math.floor(soma / precosValidos.length);
-      }
-      resumoShopping = `\nANÚNCIOS REAIS APROVADOS PELO HUBI JEV (SCORE >= 75% PARA O MODELO EXATO):\n${contextoJev.resumoContextoTexto}`;
-    }
-
+  const geminiPromise = (async (): Promise<any> => {
+    if (termoReferencia.length < 2) return null;
     const promptTexto = `
-Você é um especialista sênior em catálogo de produtos, engenharia logística, copywriting comercial e precificação para o varejo brasileiro${dados.segmentoLoja ? ` no segmento de "${dados.segmentoLoja}"` : ''}.
+Você é um especialista sênior em catálogo de produtos, engenharia logística e copywriting comercial para o varejo brasileiro${dados.segmentoLoja ? ` no segmento de "${dados.segmentoLoja}"` : ''}.
 Gere os dados comerciais e logísticos para o produto exatamente conforme o nome/modelo informado pelo lojista:
 
 NOME EXATO DO PRODUTO (REFERÊNCIA PRINCIPAL INTOCÁVEL): "${termoReferencia}"
 ${dados.categoriaNome ? `CATEGORIA ATUAL: "${dados.categoriaNome}"` : ''}
 ${dados.codigoBarras ? `CÓDIGO DE BARRAS / EAN: "${dados.codigoBarras}"` : ''}
 ${dados.precoVendaAtual && dados.precoVendaAtual > 0 ? `PREÇO DE VENDA ATUAL DA LOJA: R$ ${dados.precoVendaAtual.toFixed(2)}` : ''}
-${dados.segmentoLoja ? `SEGMENTO DA LOJA: "${dados.segmentoLoja}"` : ''}${resumoShopping}
+${dados.segmentoLoja ? `SEGMENTO DA LOJA: "${dados.segmentoLoja}"` : ''}
 
 REGRAS MANDATÓRIAS:
 1. FIDELIDADE ABSOLUTA AO MODELO INFORMADO:
-   - Use "${termoReferencia}" como referência exata. NUNCA misture especificações ou preços de outras versões (como Plus, Pro, Combo, CFS, Max, Mini, Kit ou Peça) se não constarem no nome digitado.
-2. PREÇO DE VAREJO SUGERIDO (OBRIGATÓRIO > 0):
-   - Preencha "preco_varejo" e "preco_venda_estimado" com o preço de varejo atual no Brasil em reais (R$ BRL), sempre MAIOR QUE ZERO.
-   - Se houver anúncios aprovados pelo HUBI JEV listados acima, calibre pela média real (${precoMedioSerp > 0 ? `R$ ${precoMedioSerp}` : 'média das ofertas'}).
-   - Preencha "preco_custo_estimado" (aprox. 55% do preço de varejo).
-3. CATEGORIA, SUBCATEGORIA E UNIDADE:
+   - Use "${termoReferencia}" como referência exata. NUNCA misture especificações de outras versões (Plus, Pro, Combo, CFS, Max, Mini, Kit ou Peça) se não constarem no nome digitado.
+2. CATEGORIA, SUBCATEGORIA E UNIDADE:
    - Indique "categoria_sugerida", "subcategoria_sugerida" e "tipo_unidade" ("un", "kg", "cx", "pct", "par", "m").
-4. DESCRIÇÃO COMERCIAL COMPLETA E PERSUASIVA:
-   - Elabore em "descricao_comercial" (e repita em "descricao") uma descrição comercial completa, persuasiva e fiel às especificações reais do modelo exato "${termoReferencia}" (apresentação comercial, principais especificações técnicas e benefícios práticos), ideal para Catálogo Online e WhatsApp.
-5. DIMENSÕES E PESO REAIS DA EMBALAGEM PARA ENVIO:
+3. DESCRIÇÃO COMERCIAL COMPLETA E PERSUASIVA:
+   - Elabore em "descricao_comercial" (e repita em "descricao") uma descrição comercial completa, persuasiva e fiel às especificações reais do modelo exato "${termoReferencia}", ideal para Catálogo Online e WhatsApp.
+4. DIMENSÕES E PESO REAIS DA EMBALAGEM PARA ENVIO:
    - Identifique e preencha "peso_kg", "altura_cm", "largura_cm" e "comprimento_cm" reais da caixa/embalagem lacrada deste modelo exato "${termoReferencia}".
+5. PREÇO ESTIMADO DE REFERÊNCIA:
+   - Informe "preco_varejo" e "preco_custo_estimado" (aprox. 55% do varejo) em R$ BRL.
 `;
 
     try {
@@ -1652,7 +1642,6 @@ REGRAS MANDATÓRIAS:
             required: [
               'categoria_sugerida',
               'preco_varejo',
-              'preco_venda_estimado',
               'preco_custo_estimado',
               'tipo_unidade',
               'descricao_comercial',
@@ -1668,26 +1657,80 @@ REGRAS MANDATÓRIAS:
 
       const resData = await executarRequisicaoGemini(apiKey, requestBody, dados.loja?.id);
       const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (rawText) {
-        parsedIA = extrairJsonDoTexto(rawText);
-      }
+      return rawText ? extrairJsonDoTexto(rawText) : null;
     } catch (err) {
       console.warn('[GeminiService] Enriquecimento textual IA rápido não respondeu a tempo, usando dados inteligentes locais:', err);
+      return null;
     }
-  }
+  })();
 
-  const unidadeJev = await unidadeJevPromise;
+  const [contextoJev, parsedIA, unidadeJev] = await Promise.all([
+    contextoUnificadoPromise,
+    geminiPromise,
+    unidadeJevPromise
+  ]);
+
+  const ofertasAprovadas = contextoJev.ofertasAprovadas;
+  let precoMedioSerp = 0;
+
+  if (ofertasAprovadas && ofertasAprovadas.length > 0) {
+    const precosValidos = ofertasAprovadas.map(o => o.preco).filter(p => p > 0);
+    if (precosValidos.length > 0) {
+      const soma = precosValidos.reduce((a, b) => a + b, 0);
+      precoMedioSerp = Math.floor(soma / precosValidos.length);
+    }
+
+    // Salva ofertas aprovadas diretamente no cache compartilhado do Radar de Preços (0ms ao abrir o Radar)
+    try {
+      const ordenadas = [...ofertasAprovadas].sort((a, b) => a.preco - b.preco);
+      const concorrentesRadar = ordenadas.map(it => ({
+        loja: it.loja,
+        preco: Number(it.preco.toFixed(2)),
+        tipo: it.tipo || 'E-commerce Especializado',
+        url: it.url
+      }));
+      const qtdMenores = concorrentesRadar.length === 1 ? 1 : Math.min(5, Math.ceil(concorrentesRadar.length / 2));
+      const menoresPrecos = concorrentesRadar.slice(0, qtdMenores);
+      const maioresPrecos = concorrentesRadar.length >= 2
+        ? [...concorrentesRadar.slice(qtdMenores)].reverse().slice(0, 5)
+        : [];
+      const mediaRadar = Number((concorrentesRadar.reduce((acc, c) => acc + c.preco, 0) / concorrentesRadar.length).toFixed(2));
+      const termoRadar = (contextoJev.termoCanonico || termoReferencia).toLowerCase().trim();
+      const chaveRadar = `hubi_radar_precos_cache_v15_${termoRadar}`;
+      const payloadRadar = JSON.stringify({
+        timestamp: Date.now(),
+        dados: {
+          precoMedio: mediaRadar,
+          menorPreco: concorrentesRadar[0].preco,
+          maiorPreco: concorrentesRadar[concorrentesRadar.length - 1].preco,
+          totalPesquisados: concorrentesRadar.length,
+          concorrentes: concorrentesRadar,
+          menoresPrecos,
+          maioresPrecos,
+          dataConsulta: new Date().toLocaleDateString('pt-BR')
+        }
+      });
+      localStorage.setItem(chaveRadar, payloadRadar);
+      sessionStorage.setItem(chaveRadar, payloadRadar);
+    } catch {}
+  }
   const dimsFallback = (!parsedIA?.peso_kg || !parsedIA?.altura_cm)
     ? await catalogJevService.estimarDimensoesComJev(termoReferencia, dados.categoriaNome, dados.descricao).catch(() => extrairDimensoesEPesoTexto(`${termoReferencia} ${dados.descricao || ''}`))
     : { peso_kg: 0.35, altura_cm: 10, largura_cm: 15, comprimento_cm: 20 };
 
   const precoEstimado =
+    precoMedioSerp ||
     Number(parsedIA?.preco_varejo) ||
     Number(parsedIA?.preco_venda_estimado) ||
-    precoMedioSerp ||
     Number(dados.precoVendaAtual) ||
     0;
   const precoSemCentavos = precoEstimado > 0 ? Math.floor(precoEstimado) : 0;
+
+  console.log(
+    `%c[HUBI PERF ⏱️]%c [PREENCHER_IA] Concluído em ${Math.round(performance.now() - tInicioPerf)}ms (Serper: ${ofertasAprovadas.length} lojas | Preço sugerido: R$ ${precoSemCentavos})`,
+    'color: #0ea5e9; font-weight: bold;',
+    'color: #38bdf8;'
+  );
 
   const textoDescricaoIA = (parsedIA?.descricao_comercial || parsedIA?.descricao || '').trim();
   const descricaoFinal = textoDescricaoIA.length > 15
@@ -1905,7 +1948,7 @@ export const buscarOfertasComplementaresGeminiSearch = async (
 
   const prompt = `Pesquise no Google Brasil ofertas reais e atuais à vista (em R$ / BRL) do produto EXATO: "${termo}".
 ${listaJaExistentes}
-Busque em lojas brasileiras reais como KaBuM!, Creality Brasil, Slim 3D, Magazine Luiza, Pichau, TerabyteShop, Casas Bahia, Americanas, Mercado Livre, Amazon Brasil e lojas especializadas.
+Inclua também o preço oficial na loja da fabricante no Brasil quando existir (ex: store.creality.com/br, crealitybrasil.com) e lojas brasileiras reais como KaBuM!, Slim 3D, Magazine Luiza, Pichau, TerabyteShop, Casas Bahia, Americanas, Mercado Livre, Amazon Brasil e lojas especializadas.
 
 REGRAS RÍGIDAS CONTRA ALUCINAÇÃO:
 1. Retorne APENAS lojas e preços efetivamente encontrados nos resultados reais da busca (NUNCA invente preços ou lojas).

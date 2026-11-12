@@ -45,7 +45,7 @@ export interface ContextoUnificadoProdutoJev {
  */
 export const invalidarCachesAntigosPipelineJev = (): void => {
   try {
-    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v14_ativo';
+    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v15_ativo';
     if (localStorage.getItem(FLAG_MIGRACAO) === 'true') return;
 
     const prefixosAntigos = [
@@ -59,7 +59,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
       const chavesParaRemover: string[] = [];
       for (let i = 0; i < storage.length; i++) {
         const k = storage.key(i);
-        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v14_')) {
+        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v15_')) {
           chavesParaRemover.push(k);
         }
       }
@@ -70,7 +70,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
     limparStorage(sessionStorage);
     localStorage.setItem(FLAG_MIGRACAO, 'true');
     console.log(
-      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v14 ativo!',
+      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v15 ativo!',
       'background: #10b981; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
       'color: #10b981; font-weight: bold;'
     );
@@ -286,13 +286,14 @@ export const catalogJevService = {
 
     const candidatos = gerarCandidatosTermoBusca(termo);
 
-    // Se o termo limpo já for objetivo (<= 5 palavras) e sem ruído de ERP, retorna em 0ms mantendo log claro
+    // Classificação local instantânea (0ms): só consulta Edge Function typesafe-eval se confiança local < 70%
     const palavrasLimpa = candidatos.opcao_limpa.split(' ').filter(Boolean);
     const temRuidoEvidente = /\b(ref|sku|lote|tam|tamanho|cx|fardo|c[oó]d)\b/i.test(termo);
+    const confiancaLocalTermo = (palavrasLimpa.length >= 1 && palavrasLimpa.length <= 6 && !temRuidoEvidente) ? 0.95 : 0.55;
 
-    if (palavrasLimpa.length <= 5 && !temRuidoEvidente) {
+    if (confiancaLocalTermo >= 0.70) {
       console.log(
-        `%c[HUBI JEV ⚡]%c [${etapa}] Termo canônico extraído: "${candidatos.opcao_limpa}" (confiança: 98%)`,
+        `%c[HUBI JEV ⚡]%c [${etapa}] Termo canônico extraído (0ms): "${candidatos.opcao_limpa}" (confiança: ${Math.round(confiancaLocalTermo * 100)}%)`,
         'background: #10b981; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
         'color: #10b981; font-weight: bold;'
       );
@@ -360,7 +361,60 @@ export const catalogJevService = {
     if (!categorias || categorias.length === 0) return null;
     if (categorias.length === 1) return categorias[0];
 
-    // Limita a até 20 categorias para respeitar o limite de critérios do Jev
+    // 1. Classificação local instantânea (0ms) por tokens/radicais em TypeScript
+    const normalizarTextoCat = (s: string) =>
+      (s || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const textoProdutoNorm = normalizarTextoCat(`${produto.nome || ''} ${produto.descricao || ''}`);
+    const tokensProduto = textoProdutoNorm.split(' ').filter(t => t.length >= 3);
+
+    let melhorCatLocal: { id: string; nome: string } | null = null;
+    let melhorConfiancaLocal = 0;
+
+    for (const cat of categorias) {
+      const catNorm = normalizarTextoCat(cat.nome);
+      if (!catNorm) continue;
+
+      if (textoProdutoNorm.includes(catNorm)) {
+        melhorCatLocal = cat;
+        melhorConfiancaLocal = 0.98;
+        break;
+      }
+
+      const tokensCat = catNorm.split(' ').filter(t => t.length >= 3);
+      if (tokensCat.length === 0) continue;
+
+      let hits = 0;
+      for (const tc of tokensCat) {
+        const radicalCat = tc.length > 4 ? tc.slice(0, -1) : tc;
+        if (tokensProduto.some(tp => tp.includes(radicalCat) || radicalCat.includes(tp.slice(0, Math.max(3, tp.length - 1))))) {
+          hits++;
+        }
+      }
+
+      const scoreCat = hits / tokensCat.length;
+      if (scoreCat > melhorConfiancaLocal) {
+        melhorConfiancaLocal = scoreCat;
+        melhorCatLocal = cat;
+      }
+    }
+
+    if (melhorCatLocal && melhorConfiancaLocal >= 0.70) {
+      console.log(
+        `%c[HUBI JEV ⚡]%c Categoria classificada localmente em 0ms: "${melhorCatLocal.nome}" (confiança: ${Math.round(melhorConfiancaLocal * 100)}%)`,
+        'background: #10b981; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
+        'color: #10b981; font-weight: bold;'
+      );
+      return melhorCatLocal;
+    }
+
+    // Limita a até 20 categorias para respeitar o limite de critérios do Jev (apenas quando confiança local < 70%)
     const categoriasValidas = categorias.slice(0, 20);
 
     const criteriaMap: Record<string, string> = {};
@@ -870,7 +924,9 @@ export const catalogJevService = {
     segmentoLoja?: string;
     loja?: { id?: string; serpapi_key?: string | null };
     etapa: EtapaPipelineJev;
+    permitirComplementoGemini?: boolean;
   }): Promise<ContextoUnificadoProdutoJev> {
+    const tInicioCtx = performance.now();
     const nomeOriginal = (params.nomeProduto || '').trim();
     const termoCanonico = await this.extrairTermoCanonicoBusca(
       nomeOriginal,
@@ -891,8 +947,14 @@ export const catalogJevService = {
       params.etapa
     );
 
-    // Complemento inteligente com Gemini 3.8 Flash + Google Search quando a Serper retornar < 5 lojas nacionais válidas
-    if (avaliacao.aprovadas.length < 5) {
+    // Aciona Gemini 3.8 Flash + Google Search apenas quando:
+    // - explicitamente solicitado (ex: botão "Atualizar Pesquisa" no Radar) e houver < 5 lojas, OU
+    // - como fallback caso a Serper retorne 0 lojas válidas (exceto em PREENCHER_IA)
+    const deveComplementarComGemini =
+      params.etapa !== 'PREENCHER_IA' &&
+      (avaliacao.aprovadas.length === 0 || (params.permitirComplementoGemini === true && avaliacao.aprovadas.length < 5));
+
+    if (deveComplementarComGemini) {
       const ofertasComplementares = await buscarOfertasComplementaresGeminiSearch(
         termoCanonico || nomeOriginal,
         avaliacao.aprovadas.map(o => o.loja),
@@ -939,6 +1001,12 @@ export const catalogJevService = {
           )
           .join('\n')
       : '';
+
+    console.log(
+      `%c[HUBI PERF ⏱️]%c [${params.etapa}] Contexto Unificado JEV+Serper concluído em ${Math.round(performance.now() - tInicioCtx)}ms (${avaliacao.aprovadas.length} lojas aprovadas)`,
+      'color: #0ea5e9; font-weight: bold;',
+      'color: #38bdf8;'
+    );
 
     return {
       nomeOriginal,

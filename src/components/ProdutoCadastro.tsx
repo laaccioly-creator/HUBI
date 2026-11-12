@@ -223,12 +223,11 @@ const processarListaConcorrentes = (
     ? (precosOrdenados[meio - 1] + precosOrdenados[meio]) / 2
     : precosOrdenados[meio];
 
-  // Filtragem estatística de discrepâncias e outliers (Mediana):
-  // Descarta preços menores que 60% da mediana (importados/peças/acessórios) ou maiores que 145% da mediana (kits/combos)
+  // Filtragem leve apenas para discrepâncias extremas (< 45% ou > 175% da mediana), preservando todas as lojas já aprovadas pelo HUBI JEV
   const listaFiltrada = baseCalculo.filter(c => {
-    if (precosOrdenados.length >= 3) {
-      if (c.preco < mediana * 0.60) return false;
-      if (c.preco > mediana * 1.45) return false;
+    if (precosOrdenados.length >= 4) {
+      if (c.preco < mediana * 0.45) return false;
+      if (c.preco > mediana * 1.75) return false;
     }
     if (precoCustoRef && precoCustoRef > 0 && c.preco < precoCustoRef * 0.65) {
       return false;
@@ -236,7 +235,7 @@ const processarListaConcorrentes = (
     return true;
   });
 
-  const baseFiltrada = listaFiltrada.length > 0 ? listaFiltrada : baseCalculo;
+  const baseFiltrada = listaFiltrada.length >= Math.min(4, baseCalculo.length) ? listaFiltrada : baseCalculo;
 
   // Deduplicar por nome de loja (mantendo a oferta mais competitiva de cada loja distinta)
   const mapaLojas = new Map<string, PrecoConcorrente>();
@@ -282,7 +281,7 @@ const processarListaConcorrentes = (
 const cacheRadarMercadoMemoria = new Map<string, { timestamp: number; dados: DadosMercadoIA }>();
 
 const obterCacheRadarMercado = (termo: string): DadosMercadoIA | null => {
-  const chave = `hubi_radar_precos_cache_v14_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_radar_precos_cache_v15_${termo.toLowerCase().trim()}`;
   const TTL_MS = 1000 * 60 * 60 * 6; // 6 horas
   const emMem = cacheRadarMercadoMemoria.get(chave);
   if (emMem && Date.now() - emMem.timestamp < TTL_MS && emMem.dados.totalPesquisados > 0) {
@@ -303,7 +302,7 @@ const obterCacheRadarMercado = (termo: string): DadosMercadoIA | null => {
 
 const salvarCacheRadarMercado = (termo: string, dados: DadosMercadoIA) => {
   if (!dados || dados.totalPesquisados === 0) return;
-  const chave = `hubi_radar_precos_cache_v14_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_radar_precos_cache_v15_${termo.toLowerCase().trim()}`;
   const item = { timestamp: Date.now(), dados };
   cacheRadarMercadoMemoria.set(chave, item);
   const serializado = JSON.stringify(item);
@@ -329,6 +328,7 @@ export const pesquisarPrecosMercadoIA = async (
     forcarAtualizacao?: boolean;
   }
 ): Promise<DadosMercadoIA> => {
+  const tInicioRadar = performance.now();
   const nomeOriginal = (nomeProduto || '').trim();
   const termoCache = extrairTermoPrincipalProduto(nomeOriginal) || nomeOriginal;
 
@@ -337,9 +337,9 @@ export const pesquisarPrecosMercadoIA = async (
     const radarEmCache = obterCacheRadarMercado(termoCache);
     if (radarEmCache) {
       console.log(
-        `%c[HUBI JEV ⚡] [RADAR_PRECOS]%c ⚡ [CACHE INSTANTÂNEO] Recuperadas ${radarEmCache.totalPesquisados} lojas aprovadas (>=50%) em 0ms para "${nomeOriginal}"`,
-        'color: #10b981; font-weight: bold;',
-        'color: #34d399;'
+        `%c[HUBI PERF ⏱️]%c [RADAR_PRECOS] ⚡ [CACHE INSTANTÂNEO] ${radarEmCache.totalPesquisados} lojas em ${Math.round(performance.now() - tInicioRadar)}ms para "${nomeOriginal}"`,
+        'color: #0ea5e9; font-weight: bold;',
+        'color: #38bdf8;'
       );
       return radarEmCache;
     }
@@ -355,15 +355,17 @@ export const pesquisarPrecosMercadoIA = async (
 
   const segmento = segmentoLoja || (loja ? obterNomeSegmentoLoja(loja) : '') || '';
 
-  // 2. Núcleo Unificado de Contexto e Score (HUBI JEV + SerpApi):
-  // Extrai termo canônico, busca na SerpApi e aprova apenas anúncios com probabilidade >= 75% (0.75)
+  // 2. Núcleo Unificado de Contexto e Score (HUBI JEV + Serper):
+  // Em abertura padrão, executa apenas Serper (/shopping + /search) para resposta em ~1-2s.
+  // Só aciona Gemini + Google Search se for "Atualizar Pesquisa" explícito ou se a Serper retornar 0 lojas.
   const termoParaContexto = nomeOriginal.length >= 2 ? nomeOriginal : (barcode?.trim() || nomeOriginal);
   const contextoJev = await catalogJevService.obterContextoUnificadoProdutoJev({
     nomeProduto: termoParaContexto,
     categoriaNome,
     segmentoLoja: segmento,
     loja,
-    etapa: 'RADAR_PRECOS'
+    etapa: 'RADAR_PRECOS',
+    permitirComplementoGemini: Boolean(opcoesExtras?.forcarAtualizacao)
   });
 
   const termoCanônico = contextoJev.termoCanonico || termoCache;
@@ -436,19 +438,9 @@ Retorne EXCLUSIVAMENTE JSON válido contendo "preco_medio" e "concorrentes".
   };
 
   let parsed: any = null;
-  try {
-    const resData = await executarRequisicaoGemini(apiKey, requestBody, loja?.id);
-    const parts = resData?.candidates?.[0]?.content?.parts || [];
-    const rawText = parts.map((p: any) => p?.text || '').join('\n').trim();
-    if (rawText) {
-      parsed = extrairJsonDoTexto(rawText);
-    }
-  } catch (errIa) {
-    console.warn('[RadarPrecos] Erro na chamada Gemini, verificando fallback SerpApi direto:', errIa);
-  }
 
-  // Fallback imediato com os dados reais da SerpApi caso o parse/chamada da IA falhe
-  if (!parsed && ofertasSerp.length > 0) {
+  // Se a Serper + JEV já retornou ofertas reais aprovadas, monta em 0ms em TypeScript sem chamada redundante ao Gemini
+  if (ofertasSerp.length > 0) {
     const soma = ofertasSerp.reduce((acc, cur) => acc + cur.preco, 0);
     parsed = {
       preco_medio: Number((soma / ofertasSerp.length).toFixed(2)),
@@ -459,7 +451,24 @@ Retorne EXCLUSIVAMENTE JSON válido contendo "preco_medio" e "concorrentes".
         url: it.url
       }))
     };
+  } else {
+    try {
+      const resData = await executarRequisicaoGemini(apiKey, requestBody, loja?.id);
+      const parts = resData?.candidates?.[0]?.content?.parts || [];
+      const rawText = parts.map((p: any) => p?.text || '').join('\n').trim();
+      if (rawText) {
+        parsed = extrairJsonDoTexto(rawText);
+      }
+    } catch (errIa) {
+      console.warn('[RadarPrecos] Erro na chamada Gemini:', errIa);
+    }
   }
+
+  console.log(
+    `%c[HUBI PERF ⏱️]%c [RADAR_PRECOS] Concluído em ${Math.round(performance.now() - tInicioRadar)}ms (${ofertasSerp.length} lojas)`,
+    'color: #0ea5e9; font-weight: bold;',
+    'color: #38bdf8;'
+  );
 
   if (!parsed) throw new Error('Não foi possível interpretar a resposta da IA.');
 
