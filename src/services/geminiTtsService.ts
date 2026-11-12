@@ -6,7 +6,7 @@
  * Características:
  * - Modelo primário: gemini-3.8-flash-tts (Google AI Studio)
  * - Vozes prebuilt naturais: Aoede (melodiosa/acolhedora), Puck, Charon
- * - Fallback resiliente automático: gemini-2.0-flash / gemini-2.5-flash-preview -> Web Speech API
+ * - Fallback resiliente automático: gemini-3.5-flash-lite / gemini-2.0-flash -> Web Speech API
  * - Cache em memória (Map texto -> blob URL) para confirmações rápidas e economia de cota
  * - Suporte a conversão nativa de PCM/WAV/MP3 em navegadores desktop e mobile
  * - Blindagem contra vazamento de credenciais (PII/BYOK)
@@ -27,7 +27,7 @@ export interface GeminiTtsConfig {
 
 // Modelos prioritários para TTS no Google AI Studio
 const MODELO_PRIMARIO = 'gemini-3.8-flash-tts';
-const MODELOS_FALLBACK = ['gemini-2.0-flash', 'gemini-2.5-flash-preview'];
+const MODELOS_FALLBACK = ['gemini-3.5-flash-lite', 'gemini-2.0-flash'];
 
 // Cache em memória: chave (voice + texto sanitizado) -> Blob URL
 const cacheAudioUrls = new Map<string, string>();

@@ -783,23 +783,25 @@ async function enviarMensagemMeta(
 
 // Cache em memória dos modelos Gemini por API Key no ciclo de vida da Edge Function
 const cacheModelosValidosEdge = new Map<string, string[]>();
-const MODELOS_EDGE_CONTINGENCIA = ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-1.5-flash-8b"];
+const MODELOS_EDGE_CONTINGENCIA = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-1.5-flash-8b"];
 
 /**
  * Extrai pontuação de prioridade para modelos Gemini:
- * Prioriza a família Flash e as versões mais recentes (3.8 > 3.5 > 2.5 > 1.5).
+ * Prioriza a família Flash e as versões mais recentes (3.8 > 3.5 > 2.0 > 1.5).
  */
 function calcularScoreModeloEdge(nome: string): number {
   const limpo = nome.toLowerCase().replace("models/", "");
+  if (limpo.includes("gemini-2.5-flash-lite")) return -1000;
   let score = 0;
   if (limpo.includes("flash")) score += 1000;
+  if (limpo === "gemini-3.5-flash-lite" || limpo === "gemini-3.5-flash") score += 600;
   if (limpo.includes("pro")) score -= 200;
 
   const match = limpo.match(/(\d+(?:\.\d+)?)/);
   if (match) {
     score += parseFloat(match[1]) * 100;
   }
-  if (limpo.includes("lite")) score += 10;
+  if (limpo.includes("lite")) score += 50;
   return score;
 }
 
@@ -838,8 +840,9 @@ async function getAvailableGeminiModelsEdge(
 
           if (!suportaGenerate) return false;
 
-          // Ignora modelos não textuais ou pesados
+          // Ignora modelos não textuais ou pesados e descontinuados
           if (
+            nome.includes("gemini-2.5-flash-lite") ||
             nome.includes("embedding") ||
             nome.includes("aqa") ||
             nome.includes("bison") ||

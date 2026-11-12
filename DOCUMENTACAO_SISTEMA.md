@@ -1830,7 +1830,7 @@ O HUBI introduz experiência conversacional auditiva humana com o motor Gemini S
 1. **Modelos de Alta Fidelidade e Vozes Naturais:**
    - Modelo primário: `gemini-3.8-flash-tts` no Google AI Studio, gerando entonação humana ultra-realista em Português do Brasil (`pt-BR`).
    - Vozes pré-configuradas: `Aoede` (melodiosa/acolhedora para atendimento), `Puck`, `Charon`.
-   - Fallback de contingência em múltiplos níveis: `gemini-2.0-flash` -> `gemini-2.5-flash-preview` -> `Web Speech API` nativa do navegador.
+   - Fallback de contingência em múltiplos níveis: `gemini-3.5-flash-lite` -> `gemini-2.0-flash` -> `Web Speech API` nativa do navegador.
 2. **Otimização de Quota e Latência:**
    - Cache em memória com limite dinâmico (`cacheAudioUrls` até 80 entradas) indexado por hash da voz + texto.
    - Sanitização fonética automática (`limparTextoParaAudio`): expansão de moedas (`R$ 15,90` -> "15 reais e 90 centavos"), descarte de formatações markdown, URLs e tags internas.

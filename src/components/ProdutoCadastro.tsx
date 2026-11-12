@@ -299,6 +299,7 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido (sem tags markdown de código e se
 `;
 
   const requestBody: any = {
+    model: 'gemini-3.5-flash-lite',
     contents: [
       {
         parts: [{ text: promptTexto }]

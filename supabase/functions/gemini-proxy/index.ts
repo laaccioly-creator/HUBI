@@ -29,7 +29,7 @@ serve(async (req: Request) => {
       generationConfig,
       safetySettings,
       systemInstruction,
-      model = "gemini-2.0-flash",
+      model = "gemini-3.5-flash-lite",
       action = "generateContent",
       api_key,
       loja_id,
@@ -98,7 +98,10 @@ serve(async (req: Request) => {
       if (systemInstruction) googlePayload.systemInstruction = systemInstruction;
     }
 
-    const cleanModel = String(model).replace(/^models\//, "");
+    let cleanModel = String(model || "gemini-3.5-flash-lite").replace(/^models\//, "");
+    if (cleanModel === "gemini-2.5-flash-lite") {
+      cleanModel = "gemini-3.5-flash-lite";
+    }
     const googleUrl = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:${action}?key=${resolvedApiKey}`;
 
     const googleResponse = await fetch(googleUrl, {

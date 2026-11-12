@@ -10,7 +10,7 @@ const cacheModeloAtivo = new Map<string, string>();
 const cacheModelosValidos = new Map<string, string[]>();
 
 // Fallback de contingência caso a rede do cliente oscile ou a listagem falhe temporariamente
-export const MODELOS_FALLBACK_CONTINGENCIA = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-8b'];
+export const MODELOS_FALLBACK_CONTINGENCIA = ['gemini-3.5-flash-lite', 'gemini-2.0-flash', 'gemini-1.5-flash-8b'];
 
 /**
  * Invalida o cache em memória para forçar uma nova descoberta dinâmica.
@@ -29,19 +29,30 @@ export const invalidarCacheGemini = (apiKey?: string): void => {
 
 /**
  * Extrai o peso/score de um modelo Gemini para ordenação:
- * Prioriza a família Flash e os modelos estáveis (gemini-1.5-flash e gemini-2.0-flash).
+ * Prioriza a família Flash e os modelos velozes recomendados (gemini-3.5-flash-lite).
  */
 export const calcularScoreModelo = (nome: string): number => {
   const limpo = nome.toLowerCase().replace('models/', '');
   let score = 0;
 
+  // Bloqueio imediato de modelos descontinuados pela Google API
+  if (limpo.includes('gemini-2.5-flash-lite')) {
+    return -1000;
+  }
+
   // Prioridade absoluta para a família flash
   if (limpo.includes('flash')) {
     score += 1000;
   }
-  // Modelos estáveis e consolidados para visão e varejo recebem bônus prioritário
-  if (limpo === 'gemini-1.5-flash' || limpo === 'gemini-2.0-flash') {
+  // Modelos recomendados e velozes para o Radar de Preços e Varejo
+  if (limpo === 'gemini-3.5-flash-lite' || limpo === 'gemini-3.5-flash') {
+    score += 600;
+  }
+  if (limpo === 'gemini-2.0-flash') {
     score += 500;
+  }
+  if (limpo === 'gemini-1.5-flash') {
+    score += 450;
   }
   if (limpo === 'gemini-1.5-flash-8b') {
     score += 400;
@@ -51,18 +62,16 @@ export const calcularScoreModelo = (nome: string): number => {
     score -= 200;
   }
 
-  // Extrai versão numérica (ex: 2.0, 1.5)
+  // Extrai versão numérica (ex: 3.5, 3.8, 2.0, 1.5)
   const versaoMatch = limpo.match(/(\d+(?:\.\d+)?)/);
   if (versaoMatch) {
     const versao = parseFloat(versaoMatch[1]);
-    if (versao <= 2.5) {
-      score += versao * 100;
-    }
+    score += versao * 100;
   }
 
   // Prioriza lite para respostas ágeis se empatado em versão
   if (limpo.includes('lite')) {
-    score += 10;
+    score += 50;
   }
 
   return score;
@@ -114,8 +123,9 @@ export const getAvailableGeminiModels = async (
 
           if (!suportaGenerate) return false;
 
-          // Ignora modelos especializados não-conversacionais (TTS, embedding, etc.)
+          // Ignora modelos especializados não-conversacionais (TTS, embedding, etc.) e descontinuados
           if (
+            nome.includes('gemini-2.5-flash-lite') ||
             nome.includes('embedding') ||
             nome.includes('aqa') ||
             nome.includes('bison') ||
