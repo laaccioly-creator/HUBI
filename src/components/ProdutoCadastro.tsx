@@ -257,18 +257,33 @@ export const pesquisarPrecosMercadoIA = async (
     tipoUnidade?: string;
   }
 ): Promise<DadosMercadoIA> => {
-  const apiKey = getGeminiApiKey(loja);
-  if (!apiKey) {
+  let apiKey = getGeminiApiKey(loja);
+  if (!apiKey && loja?.id) {
+    apiKey = await obterOuBuscarGeminiApiKey(loja);
+  }
+  if (!apiKey && !loja?.id) {
     throw new Error('Chave da API do Google Gemini não configurada. Configure a chave no topo da página.');
   }
 
   const segmento = segmentoLoja || (loja ? obterNomeSegmentoLoja(loja) : '') || '';
 
+  // 1. Otimização Jev (System One): Extração de termo canônico limpo e direto em ~200ms
+  let termoCanônico = nomeProduto.trim();
+  try {
+    const canonical = await catalogJevService.extrairTermoCanonicoBusca(nomeProduto, segmento);
+    if (canonical && canonical.length >= 3) {
+      termoCanônico = canonical;
+    }
+  } catch (errJev) {
+    console.warn('[RadarPrecos] Fallback gracioso Jev:', errJev);
+  }
+
   const promptTexto = `
 Você é um especialista sênior em inteligência de mercado, precificação competitiva e monitoramento de preços no varejo e e-commerce brasileiro${segmento ? ` (segmento da loja: "${segmento}")` : ''}.
-Utilize a ferramenta de busca do Google (Google Search) para pesquisar em tempo real os preços reais praticados no mercado brasileiro para o seguinte item:
+Pesquise e levante com rigor técnico e velocidade máxima os preços reais de varejo praticados atualmente no mercado brasileiro para o seguinte item:
 
 PRODUTO PESQUISADO: "${nomeProduto}"
+${termoCanônico !== nomeProduto ? `TERMO CANÔNICO IDENTIFICADO: "${termoCanônico}"` : ''}
 ${categoriaNome ? `CATEGORIA: "${categoriaNome}"` : ''}
 ${barcode ? `CÓDIGO DE BARRAS / EAN: "${barcode}"` : ''}
 ${segmento ? `SEGMENTO DE MERCADO: "${segmento}"` : ''}
@@ -278,26 +293,33 @@ ${opcoesExtras?.precoCusto ? `PREÇO DE CUSTO INFORMADO PELO LOJISTA: R$ ${opcoe
 ${opcoesExtras?.precoVendaAtual ? `PREÇO DE VENDA ATUAL DA LOJA: R$ ${opcoesExtras.precoVendaAtual.toFixed(2)}` : ''}
 
 DIRETRIZES ESTRITAS CONTRA ALUCINAÇÃO E PRECISÃO DE MODELO:
-1. BUSCA EM TEMPO REAL E DADOS REAIS:
-   - Retorne APENAS lojas, marketplaces e preços que foram EFETIVAMENTE localizados nos resultados reais da busca na web.
-   - NUNCA invente lojas, nunca alucine preços estimados ou fictícios e NUNCA preencha a lista com concorrentes inventados para atingir uma quantidade pré-definida. Se encontrar apenas 3, 4 ou 6 ofertas reais na busca, retorne somente as que realmente existem.
+1. CONCORRÊNCIA REAL E LOJAS ATIVAS NO BRASIL:
+   - Identifique entre 8 e 12 concorrentes REAIS e ativos no Brasil que comercializam esta categoria.
+   - Inclua os maiores marketplaces (Mercado Livre, Amazon Brasil, Shopee Lojas Oficiais, Magazine Luiza, Kabum, Casas Bahia) e lojas especializadas do nicho.
+   - NUNCA invente lojas fictícias.
 2. CORRESPONDÊNCIA EXATA DE MODELO E VERSÃO:
    - Exija correspondência exata com o modelo e versão pesquisados. NUNCA misture versões diferentes (ex: se pesquisar versão padrão, NÃO misture com modelos "Plus", "Pro", "Combo", "Max" ou "Mini").
    - NUNCA confunda o item principal com acessórios complementares, suportes, cabos, refis, peças avulsas ou amostras.
 3. PREÇOS À VISTA EM REAIS (R$ BRL):
    - Priorize o preço à vista atual (Pix, boleto ou menor valor final à vista) para produto NOVO e original.
 4. LINKS E FONTES:
-   - Sempre que a busca retornar o link da oferta ou página da loja, inclua a URL completa no campo "url" de cada concorrente.
+   - Para cada concorrente, inclua a URL direta de busca ou da oferta na respectiva loja (ex: "https://lista.mercadolivre.com.br/...", "https://www.amazon.com.br/s?k=...", etc.) no campo "url" para conferência em 1 clique.
 
-Retorne EXCLUSIVAMENTE um objeto JSON válido no seguinte formato:
+Retorne EXCLUSIVAMENTE um objeto JSON válido no seguinte formato (sem tags markdown de código e sem texto extra):
 {
   "preco_medio": 0.00,
   "concorrentes": [
     {
-      "loja": "Nome da Loja ou Marketplace",
+      "loja": "Mercado Livre",
       "preco": 0.00,
-      "tipo": "Marketplace | Loja Oficial | E-commerce Especializado | Varejo",
-      "url": "https://link-da-oferta.com"
+      "tipo": "Marketplace",
+      "url": "https://lista.mercadolivre.com.br/..."
+    },
+    {
+      "loja": "Amazon Brasil",
+      "preco": 0.00,
+      "tipo": "Marketplace",
+      "url": "https://www.amazon.com.br/s?k=..."
     }
   ]
 }
@@ -310,17 +332,14 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido no seguinte formato:
         parts: [{ text: promptTexto }]
       }
     ],
-    tools: [
-      {
-        google_search: {}
-      }
-    ],
     generationConfig: {
-      temperature: 0.1
+      temperature: 0.15,
+      maxOutputTokens: 1000,
+      response_mime_type: 'application/json'
     }
   };
 
-  const resData = await executarRequisicaoGemini(apiKey, requestBody);
+  const resData = await executarRequisicaoGemini(apiKey, requestBody, loja?.id);
 
   const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!rawText) throw new Error('Resposta vazia da IA.');
@@ -328,28 +347,25 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido no seguinte formato:
   const parsed = extrairJsonDoTexto(rawText);
   if (!parsed) throw new Error('Não foi possível interpretar a resposta da IA.');
 
-  // Extrair URLs dos groundingChunks se disponíveis pelo Google Search Grounding
-  const groundingChunks: Array<{ web?: { uri?: string; title?: string } }> =
-    resData?.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-  const urlsGrounding = groundingChunks
-    .map(chunk => chunk.web?.uri)
-    .filter((uri): uri is string => Boolean(uri && uri.startsWith('http')));
+  const termoBuscaLinks = termoCanônico || nomeProduto;
+  const gerarUrlConcorrenteFallback = (lojaNome: string): string => {
+    const l = (lojaNome || '').toLowerCase();
+    const q = encodeURIComponent(termoBuscaLinks);
+    if (l.includes('mercado livre')) return `https://lista.mercadolivre.com.br/${q}`;
+    if (l.includes('amazon')) return `https://www.amazon.com.br/s?k=${q}`;
+    if (l.includes('shopee')) return `https://shopee.com.br/search?keyword=${q}`;
+    if (l.includes('magalu') || l.includes('magazine')) return `https://www.magazineluiza.com.br/busca/${q}`;
+    if (l.includes('kabum')) return `https://www.kabum.com.br/busca/${q}`;
+    if (l.includes('casas bahia')) return `https://www.casasbahia.com.br/${q}/b`;
+    return `https://www.google.com/search?tbm=shop&q=${q}`;
+  };
 
   let rawList = parsed.concorrentes || [];
   if (Array.isArray(rawList)) {
-    rawList = rawList.map((item: any, idx: number) => {
+    rawList = rawList.map((item: any) => {
       let itemUrl = item.url || item.link || item.uri;
-      if (!itemUrl && urlsGrounding.length > 0) {
-        const lojaLower = String(item.loja || '').toLowerCase();
-        const urlMatch = urlsGrounding.find(u => {
-          try {
-            const host = new URL(u).hostname.toLowerCase();
-            return lojaLower && (host.includes(lojaLower.split(' ')[0]) || lojaLower.includes(host.replace('www.', '').split('.')[0]));
-          } catch {
-            return false;
-          }
-        });
-        itemUrl = urlMatch || urlsGrounding[idx % urlsGrounding.length];
+      if (!itemUrl || !String(itemUrl).startsWith('http')) {
+        itemUrl = gerarUrlConcorrenteFallback(item.loja || '');
       }
       return {
         ...item,

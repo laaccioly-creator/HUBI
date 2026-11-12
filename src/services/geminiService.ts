@@ -533,7 +533,11 @@ export const SAFETY_SETTINGS_VAREJO = [
   }
 ];
 
-export const executarRequisicaoGemini = async (apiKey: string, requestBody: any): Promise<any> => {
+export const executarRequisicaoGemini = async (
+  apiKey: string,
+  requestBody: any,
+  lojaId?: string
+): Promise<any> => {
   const payloadCompleto = {
     ...requestBody,
     safetySettings: requestBody.safetySettings || SAFETY_SETTINGS_VAREJO
@@ -548,26 +552,38 @@ export const executarRequisicaoGemini = async (apiKey: string, requestBody: any)
         model: modeloDesejado,
         action: 'generateContent',
         requestBody: payloadCompleto,
-        api_key: apiKey ? apiKey.trim() : undefined
+        api_key: apiKey ? apiKey.trim() : undefined,
+        loja_id: lojaId
       }
     });
 
     if (!edgeErr && edgeData && !edgeData.error) {
       return edgeData;
     }
-    if (edgeData?.error && !apiKey) {
+    if (edgeData?.error && !apiKey && !lojaId) {
       console.warn('[Gemini] Erro retornado pela Edge Function gemini-proxy:', edgeData.error);
       throw new Error(edgeData.error);
     }
   } catch (edgeCallErr: any) {
-    if (!apiKey) {
+    if (!apiKey && !lojaId) {
       throw edgeCallErr;
     }
     console.warn('[Gemini] Aviso ao invocar Edge Function gemini-proxy, acionando contingência direta:', edgeCallErr?.message || edgeCallErr);
   }
 
   // 2. Contingência direta caso haja chave BYOK informada
-  const modelosValidos = await obterModelosValidosGemini(apiKey);
+  let chaveParaContingencia = apiKey;
+  if (!chaveParaContingencia && lojaId) {
+    try {
+      chaveParaContingencia = await obterOuBuscarGeminiApiKey({ id: lojaId });
+    } catch {}
+  }
+
+  if (!chaveParaContingencia) {
+    throw new Error('Chave da API do Google Gemini não configurada no servidor ou na loja.');
+  }
+
+  const modelosValidos = await obterModelosValidosGemini(chaveParaContingencia);
   const modelos = Array.from(new Set([modeloDesejado, ...modelosValidos]))
     .filter(m => m !== 'gemini-2.5-flash-lite' && m !== 'gemini-3.5-flash-lite');
   let primeiroErro: string | null = null;
@@ -1265,8 +1281,8 @@ export const pesquisarFotosProdutoNaInternet = async (
 };
 
 /**
- * Atualiza um produto existente a partir do NOME COMERCIAL através do Jev (System One) e IA ultrarrápida.
- * Não processa fotos pesadas, entregando a atualização em ~1 segundo.
+ * Atualiza um produto existente a partir do NOME COMERCIAL através do Jev (System One) e IA ultrarrápida (Gemini 3.8 Flash).
+ * Entrega o enriquecimento cadastral comercial completo em poucos segundos.
  */
 export const atualizarProdutoExistenteComIA = async (dados: {
   nome: string;
@@ -1280,48 +1296,74 @@ export const atualizarProdutoExistenteComIA = async (dados: {
 }): Promise<ProdutoSugeridoIA> => {
   const termoReferencia = (dados.nome && dados.nome.trim() !== 'Produto') ? dados.nome.trim() : (dados.descricao?.trim() || 'Produto');
 
-  // 1. Estimar dimensões e peso em paralelo via Jev (System One) em ~200ms
+  // 1. Otimização Jev (System One) em paralelo: extração de termo canônico, unidade comercial e dimensões logísticas (< 300ms)
+  const termoCanonicoPromise = catalogJevService.extrairTermoCanonicoBusca(termoReferencia, dados.segmentoLoja).catch(() => termoReferencia);
+  const unidadeJevPromise = catalogJevService.classificarUnidadeVenda({ nome: termoReferencia, descricao: dados.descricao }).catch(() => 'un');
   const dimensoesJevPromise = catalogJevService.estimarDimensoesComJev(
     termoReferencia,
     dados.categoriaNome,
     dados.descricao
   ).catch(() => extrairDimensoesEPesoTexto(`${termoReferencia} ${dados.descricao || ''}`));
 
-  // 2. Consulta ultrarrápida de enriquecimento textual com Gemini (se apiKey configurada)
+  // 2. Consulta de enriquecimento comercial com Gemini 3.8 Flash
   let apiKey = getGeminiApiKey(dados.loja);
   if (!apiKey && dados.loja?.id) {
     apiKey = await obterOuBuscarGeminiApiKey(dados.loja);
   }
   let parsedIA: any = null;
 
-  if (apiKey && termoReferencia.length > 2) {
+  if (termoReferencia.length >= 2) {
+    const termoCanonico = await termoCanonicoPromise;
     const promptTexto = `
-Você é um especialista em catálogo de varejo brasileiro${dados.segmentoLoja ? ` no segmento "${dados.segmentoLoja}"` : ''}.
-Com base no NOME DO ITEM: "${termoReferencia}", estruture a ficha rápida em JSON:
-${dados.categoriaNome ? `- Categoria: "${dados.categoriaNome}"` : ''}
-${dados.codigoBarras ? `- Código/EAN: "${dados.codigoBarras}"` : ''}
-${dados.precoVendaAtual ? `- Preço Atual: R$ ${dados.precoVendaAtual}` : ''}
+Você é um especialista sênior em catálogo de produtos, copywriting comercial de alta conversão e inteligência de precificação para o varejo e e-commerce brasileiro${dados.segmentoLoja ? ` no segmento de "${dados.segmentoLoja}"` : ''}.
+O lojista está cadastrando/atualizando o seguinte produto e solicitou o PREENCHIMENTO COMPLETO COM INTELIGÊNCIA ARTIFICIAL:
 
-Retorne EXCLUSIVAMENTE este JSON (sem markdown):
+PRODUTO INFORMADO: "${termoReferencia}"
+${termoCanonico && termoCanonico !== termoReferencia ? `TERMO CANÔNICO IDENTIFICADO: "${termoCanonico}"` : ''}
+${dados.categoriaNome ? `CATEGORIA ATUAL: "${dados.categoriaNome}"` : ''}
+${dados.codigoBarras ? `CÓDIGO DE BARRAS / EAN: "${dados.codigoBarras}"` : ''}
+${dados.precoVendaAtual && dados.precoVendaAtual > 0 ? `PREÇO DE VENDA ATUAL DA LOJA: R$ ${dados.precoVendaAtual.toFixed(2)}` : ''}
+${dados.segmentoLoja ? `SEGMENTO DA LOJA: "${dados.segmentoLoja}"` : ''}
+
+SUAS OBRIGAÇÕES MANDATÓRIAS:
+1. NOME COMERCIAL:
+   - Padronize o nome comercial oficial, completo, limpo e atraente em português (sem códigos internos de SKU, lote ou ruídos de ERP).
+2. PREÇO DE VENDA SUGERIDO DE MERCADO (OBRIGATÓRIO):
+   - Estime o preço de venda de varejo realista praticado no mercado brasileiro atual para este item novo e original em reais (R$ BRL).
+   - O campo "preco_venda_estimado" DEVE SER MAIOR QUE ZERO (nunca retorne 0.00).
+   - Se o preço atual já estiver informado e for plausível, utilize-o como base ou calibre-o para a média de mercado.
+   - Estime também um "preco_custo_estimado" de referência (aproximadamente 40% a 60% do preço de venda sugerido).
+3. CATEGORIA E UNIDADE:
+   - Indique a categoria comercial de varejo mais adequada em "categoria_sugerida".
+   - Indique a unidade de venda comercial ("un", "kg", "cx", "pct", "par", "m") em "tipo_unidade".
+4. DESCRIÇÃO COMERCIAL DETALHADA PARA CATÁLOGO E WHATSAPP:
+   - Elabore uma descrição comercial completa, estruturada, rica e persuasiva (com apresentação do produto, principais benefícios, características/especificações de materiais e dicas práticas de uso).
+   - Formate o texto perfeitamente para visualização no Catálogo Online da loja e envio direto no WhatsApp para os clientes.
+   - NUNCA retorne frases genéricas ou clichês vazios como "Produto com excelente acabamento e alta durabilidade". Detalhe as qualidades reais deste item específico.
+
+Retorne EXCLUSIVAMENTE um objeto JSON válido no formato abaixo (sem tags markdown de código e sem texto adicional):
 {
-  "nome": "Nome comercial padronizado e limpo",
+  "nome": "Nome comercial padronizado e atraente",
   "categoria_sugerida": "Nome da Categoria",
   "preco_venda_estimado": 0.00,
-  "descricao": "Descrição comercial de 1 a 2 frases destacando principais benefícios."
+  "preco_custo_estimado": 0.00,
+  "tipo_unidade": "un",
+  "descricao": "Apresentação comercial completa do produto, seus benefícios práticos, diferenciais de acabamento/material e recomendações de uso..."
 }
 `;
 
     try {
       const requestBody = {
+        model: 'gemini-3.8-flash',
         contents: [{ parts: [{ text: promptTexto }] }],
         generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 220,
+          temperature: 0.2,
+          maxOutputTokens: 1200,
           response_mime_type: 'application/json'
         }
       };
 
-      const resData = await executarRequisicaoGemini(apiKey, requestBody);
+      const resData = await executarRequisicaoGemini(apiKey, requestBody, dados.loja?.id);
       const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (rawText) {
         parsedIA = extrairJsonDoTexto(rawText);
@@ -1331,23 +1373,23 @@ Retorne EXCLUSIVAMENTE este JSON (sem markdown):
     }
   }
 
-  // Aguarda as dimensões logísticas estimadas pelo Jev
-  const dims = await dimensoesJevPromise;
+  // Aguarda as respostas do Jev em paralelo
+  const [dims, unidadeJev] = await Promise.all([dimensoesJevPromise, unidadeJevPromise]);
 
   const precoEstimado = Number(parsedIA?.preco_venda_estimado) || Number(dados.precoVendaAtual) || 0;
   const precoSemCentavos = precoEstimado > 0 ? Math.floor(precoEstimado) : 0;
 
-  const descricaoFinal = (parsedIA?.descricao && parsedIA.descricao.trim().length > 10)
+  const descricaoFinal = (parsedIA?.descricao && parsedIA.descricao.trim().length > 15)
     ? parsedIA.descricao.trim()
-    : (dados.descricao?.trim() || `${termoReferencia}. Produto com excelente acabamento e alta durabilidade, ideal para o dia a dia.`);
+    : (dados.descricao?.trim() || `${termoReferencia} - Produto de alta qualidade selecionado especialmente para oferecer o melhor custo-benefício e praticidade aos nossos clientes.`);
 
   return {
     nome: parsedIA?.nome?.trim() || dados.nome || termoReferencia,
     categoria_sugerida: parsedIA?.categoria_sugerida || dados.categoriaNome || 'Geral',
     preco_venda_estimado: precoSemCentavos,
-    preco_custo_estimado: Number(parsedIA?.preco_custo_estimado) || 0,
+    preco_custo_estimado: Number(parsedIA?.preco_custo_estimado) || (precoSemCentavos > 0 ? Math.floor(precoSemCentavos * 0.55) : 0),
     descricao: descricaoFinal,
-    tipo_unidade: 'un',
+    tipo_unidade: parsedIA?.tipo_unidade || unidadeJev || 'un',
     codigo_barras: dados.codigoBarras || '',
     peso_kg: dims.peso_kg || 0.35,
     altura_cm: dims.altura_cm || 10,
