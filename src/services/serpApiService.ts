@@ -561,7 +561,7 @@ export const testarConexaoSerpApi = async (
 const cacheSerpMemoria = new Map<string, { timestamp: number; fotos: FotoResultadoSerpApi[] }>();
 
 export const obterCacheSerp = (termo: string): FotoResultadoSerpApi[] | null => {
-  const chave = `hubi_serp_cache_v10_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_cache_v11_${termo.toLowerCase().trim()}`;
   const emMemoria = cacheSerpMemoria.get(chave);
   if (emMemoria && Date.now() - emMemoria.timestamp < 1000 * 60 * 60 * 6) {
     return emMemoria.fotos;
@@ -581,7 +581,7 @@ export const obterCacheSerp = (termo: string): FotoResultadoSerpApi[] | null => 
 
 export const salvarCacheSerp = (termo: string, fotos: FotoResultadoSerpApi[]) => {
   if (!fotos || fotos.length === 0) return;
-  const chave = `hubi_serp_cache_v10_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_cache_v11_${termo.toLowerCase().trim()}`;
   const item = { timestamp: Date.now(), fotos };
   cacheSerpMemoria.set(chave, item);
   try {
@@ -942,7 +942,7 @@ export interface ItemShoppingSerpApi {
 const cacheShoppingSerpMemoria = new Map<string, { timestamp: number; itens: ItemShoppingSerpApi[] }>();
 
 export const obterCacheShoppingSerp = (termo: string): ItemShoppingSerpApi[] | null => {
-  const chave = `hubi_serp_shopping_cache_v10_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_shopping_cache_v11_${termo.toLowerCase().trim()}`;
   const TTL_MS = 1000 * 60 * 60 * 6; // 6 horas
   const emMemoria = cacheShoppingSerpMemoria.get(chave);
   if (emMemoria && Date.now() - emMemoria.timestamp < TTL_MS) {
@@ -963,7 +963,7 @@ export const obterCacheShoppingSerp = (termo: string): ItemShoppingSerpApi[] | n
 
 export const salvarCacheShoppingSerp = (termo: string, itens: ItemShoppingSerpApi[]) => {
   if (!itens || itens.length === 0) return;
-  const chave = `hubi_serp_shopping_cache_v10_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_shopping_cache_v11_${termo.toLowerCase().trim()}`;
   const item = { timestamp: Date.now(), itens };
   cacheShoppingSerpMemoria.set(chave, item);
   const serializado = JSON.stringify(item);
@@ -984,21 +984,48 @@ export const extrairPrecoNumericoBr = (valor: any): number => {
   }
   if (!valor) return 0;
   const str = String(valor).trim();
-  // Prioriza valores explícitos com R$ quando for texto longo (ex: snippet orgânico)
-  const matchRs = str.match(/R\$\s*(\d{1,3}(?:\.\d{3})+,\d{1,2}|\d+,\d{1,2}|\d{1,3}(?:\.\d{3})+|\d+)/i);
-  const matchGenerico = !matchRs && str.length <= 28
-    ? str.match(/(\d{1,3}(?:\.\d{3})+,\d{1,2}|\d+,\d{1,2}|\d{1,3}(?:\.\d{3})+|\d+\.\d{1,2}|\d+)/i)
-    : null;
-  const numBruto = matchRs?.[1] || matchGenerico?.[1];
-  if (!numBruto) return 0;
-  let numStr = numBruto;
-  if (numStr.includes(',')) {
-    numStr = numStr.replace(/\./g, '').replace(',', '.');
-  } else if (/^\d{1,3}(\.\d{3})+$/.test(numStr)) {
-    numStr = numStr.replace(/\./g, '');
+
+  // Varre todas as ocorrências com R$ ignorando parcelas (ex: "12x R$ 350", "parcelas de R$ 299")
+  const regexRsGlobal = /(?:R\$\s*)(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:,\d{1,2})?)/gi;
+  const regexIgnorarPrefixo = /(?:\d+\s*x\s*(?:de\s*)?|parcelas?\s*(?:de\s*)?|juros\s*(?:de\s*)?|frete\s*(?:de|acima\s+de)?\s*|cupom\s*(?:de)?\s*|desconto\s*(?:de)?\s*)$/i;
+
+  for (const match of str.matchAll(regexRsGlobal)) {
+    const idx = match.index ?? 0;
+    const prefixo = str.slice(Math.max(0, idx - 28), idx);
+    if (regexIgnorarPrefixo.test(prefixo)) {
+      continue;
+    }
+
+    let numStr = match[1];
+    if (numStr.includes(',')) {
+      numStr = numStr.replace(/\./g, '').replace(',', '.');
+    } else if (/^\d{1,3}(\.\d{3})+$/.test(numStr)) {
+      numStr = numStr.replace(/\./g, '');
+    }
+    const parsed = parseFloat(numStr);
+    if (!Number.isNaN(parsed) && parsed > 0) {
+      return parsed;
+    }
   }
-  const parsed = parseFloat(numStr);
-  return !Number.isNaN(parsed) && parsed > 0 ? parsed : 0;
+
+  // Fallback numérico curto (ex: campo priceRange/price já isolado sem "R$")
+  if (str.length <= 28) {
+    const matchGenerico = str.match(/(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+,\d{1,2}|\d+\.\d{1,2}|\d+)/i);
+    if (matchGenerico?.[1]) {
+      let numStr = matchGenerico[1];
+      if (numStr.includes(',')) {
+        numStr = numStr.replace(/\./g, '').replace(',', '.');
+      } else if (/^\d{1,3}(\.\d{3})+$/.test(numStr)) {
+        numStr = numStr.replace(/\./g, '');
+      }
+      const parsed = parseFloat(numStr);
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+  }
+
+  return 0;
 };
 
 const normalizarNomeLojaBr = (fonteBruta: string, urlBruta?: string): string => {
@@ -1021,6 +1048,7 @@ const normalizarNomeLojaBr = (fonteBruta: string, urlBruta?: string): string => 
   if (combinado.includes('pontofrio') || combinado.includes('ponto.com.br')) return 'Ponto';
   if (combinado.includes('creality')) return 'Creality Brasil';
   if (combinado.includes('slim3d') || combinado.includes('slim 3d')) return 'Slim 3D';
+  if (combinado.includes('melhorfilamento') || combinado.includes('melhor filamento')) return 'Melhor Filamento';
   if (combinado.includes('3dlab') || combinado.includes('3d lab')) return '3D Lab';
   if (combinado.includes('3dprime')) return '3D Prime';
   if (combinado.includes('gtmax3d')) return 'GTMax3D';
@@ -1156,7 +1184,10 @@ const formatarItensShoppingBrutos = (rawItems: any[], queryPadrao: string): Item
   for (const item of rawItems) {
     const titulo = String(item.title || item.titulo || queryPadrao).trim();
     const url = String(item.link || item.product_link || item.url || '').trim();
-    const textoExtra = `${item.delivery || ''} ${item.snippet || ''} ${url}`;
+    if (!ehCompraInternacional(queryPadrao) && ehCompraInternacional(String(item.snippet || ''))) {
+      continue;
+    }
+    const textoExtra = `${item.delivery || ''} ${url}`;
     if (!ofertaCorrespondeAoModeloPesquisado(queryPadrao, titulo, textoExtra)) {
       continue;
     }
@@ -1172,8 +1203,8 @@ const formatarItensShoppingBrutos = (rawItems: any[], queryPadrao: string): Item
     const precoNum =
       extrairPrecoNumericoBr(item.extracted_price) ||
       extrairPrecoNumericoBr(item.price) ||
-      extrairPrecoNumericoBr(richPrice) ||
       extrairPrecoNumericoBr(item.priceRange) ||
+      extrairPrecoNumericoBr(richPrice) ||
       extrairPrecoNumericoBr(item.attributes?.Preço || item.attributes?.Preco || item.attributes?.Price) ||
       extrairPrecoNumericoBr(richExtensions) ||
       extrairPrecoNumericoBr(item.snippet) ||

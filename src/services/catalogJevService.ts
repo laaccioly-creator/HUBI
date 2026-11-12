@@ -41,7 +41,7 @@ export interface ContextoUnificadoProdutoJev {
  */
 export const invalidarCachesAntigosPipelineJev = (): void => {
   try {
-    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v10_ativo';
+    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v11_ativo';
     if (localStorage.getItem(FLAG_MIGRACAO) === 'true') return;
 
     const prefixosAntigos = [
@@ -55,7 +55,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
       const chavesParaRemover: string[] = [];
       for (let i = 0; i < storage.length; i++) {
         const k = storage.key(i);
-        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v10_')) {
+        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v11_')) {
           chavesParaRemover.push(k);
         }
       }
@@ -66,7 +66,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
     limparStorage(sessionStorage);
     localStorage.setItem(FLAG_MIGRACAO, 'true');
     console.log(
-      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v10 ativo!',
+      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v11 ativo!',
       'background: #10b981; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
       'color: #10b981; font-weight: bold;'
     );
