@@ -45,7 +45,7 @@ export interface ContextoUnificadoProdutoJev {
  */
 export const invalidarCachesAntigosPipelineJev = (): void => {
   try {
-    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v13_ativo';
+    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v14_ativo';
     if (localStorage.getItem(FLAG_MIGRACAO) === 'true') return;
 
     const prefixosAntigos = [
@@ -59,7 +59,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
       const chavesParaRemover: string[] = [];
       for (let i = 0; i < storage.length; i++) {
         const k = storage.key(i);
-        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v13_')) {
+        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v14_')) {
           chavesParaRemover.push(k);
         }
       }
@@ -70,7 +70,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
     limparStorage(sessionStorage);
     localStorage.setItem(FLAG_MIGRACAO, 'true');
     console.log(
-      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v13 ativo!',
+      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v14 ativo!',
       'background: #10b981; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
       'color: #10b981; font-weight: bold;'
     );
@@ -810,7 +810,8 @@ export const catalogJevService = {
     }
 
     // Filtro estatístico de outliers:
-    // - Com 4+ lojas válidas: aplica corte por mediana (65% a 140% da mediana)
+    // - Entre 4 e 8 lojas distintas: preserva todas as válidas, descartando apenas absurdos (< 50% ou > 160% da mediana) e nunca reduzindo abaixo de 4 lojas
+    // - Acima de 8 lojas: aplica corte mais estrito (65% a 140% da mediana), mantendo mínimo de 4 lojas
     // - Com 2 ou 3 lojas: descarta apenas preços aberrantes (< 30% ou > 250% do maior valor válido)
     if (listaLojas.length >= 4) {
       const precosOrd = listaLojas.map(l => l.preco).sort((a, b) => a - b);
@@ -818,8 +819,10 @@ export const catalogJevService = {
       const mediana = precosOrd.length % 2 === 0
         ? (precosOrd[mid - 1] + precosOrd[mid]) / 2
         : precosOrd[mid];
-      const semOutliers = listaLojas.filter(l => l.preco >= mediana * 0.65 && l.preco <= mediana * 1.40);
-      if (semOutliers.length > 0) {
+      const fatorMin = listaLojas.length <= 8 ? 0.50 : 0.65;
+      const fatorMax = listaLojas.length <= 8 ? 1.60 : 1.40;
+      const semOutliers = listaLojas.filter(l => l.preco >= mediana * fatorMin && l.preco <= mediana * fatorMax);
+      if (semOutliers.length >= 4) {
         listaLojas = semOutliers;
       }
     } else if (listaLojas.length >= 2) {
@@ -897,13 +900,33 @@ export const catalogJevService = {
       );
 
       if (ofertasComplementares.length > 0) {
-        const todasOfertasCombinadas = [...ofertasBrutas, ...ofertasComplementares];
-        avaliacao = await this.pontuarOfertasShoppingComJev(
+        const aprovadasSerper = [...avaliacao.aprovadas];
+        const avaliacaoCombinada = await this.pontuarOfertasShoppingComJev(
           nomeOriginal,
           params.segmentoLoja,
-          todasOfertasCombinadas,
+          [...ofertasBrutas, ...ofertasComplementares],
           params.etapa
         );
+
+        // Garante que nenhuma loja já aprovada na Serper seja perdida na consolidação
+        const porLojaConsolidado = new Map<string, ItemShoppingAprovadoJev>();
+        for (const item of [...aprovadasSerper, ...avaliacaoCombinada.aprovadas]) {
+          const chave = item.loja.trim().toLowerCase();
+          if (!porLojaConsolidado.has(chave)) {
+            porLojaConsolidado.set(chave, item);
+          }
+        }
+        const consolidadas = Array.from(porLojaConsolidado.values())
+          .sort((a, b) => a.preco - b.preco)
+          .slice(0, 10);
+
+        avaliacao = {
+          ...avaliacaoCombinada,
+          aprovadas: consolidadas,
+          confiancaMediaPercentual: consolidadas.length > 0
+            ? Math.round((consolidadas.reduce((acc, cur) => acc + cur.scoreJev, 0) / consolidadas.length) * 100)
+            : avaliacaoCombinada.confiancaMediaPercentual
+        };
       }
     }
 
