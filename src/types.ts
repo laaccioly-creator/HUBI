@@ -415,6 +415,8 @@ export interface Loja {
   whatsapp_bonus_expira_em?: string | null;
   whatsapp_alerta_saldo_baixo?: number;
   exigir_pesagem_previa_pagamento?: boolean;
+  taxa_padrao_domicilio?: number;
+  abater_taxa_domicilio_ao_fechar?: boolean;
   tipos_venda?: {
     varejo?: boolean;
     atacado?: boolean;
@@ -533,6 +535,7 @@ export interface Fornecedor {
 }
 
 export type TipoItem = 'produto' | 'servico';
+export type ModoTaxaDomicilio = 'padrao' | 'especifico' | 'gratis';
 
 export interface Produto {
   id: string;
@@ -547,6 +550,8 @@ export interface Produto {
   requer_agendamento?: boolean;
   duracao_estimada_minutos?: number;
   local_prestacao_servico?: LocalPrestacaoServico;
+  taxa_deslocamento_domicilio?: number | null;
+  abater_taxa_domicilio_ao_fechar?: boolean | null;
   codigo_interno?: string | null;
   codigo_barras?: string | null;
   descricao?: string | null;

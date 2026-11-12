@@ -17,6 +17,7 @@ import {
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import { DadosEnderecoCliente } from '../components/ModalEnderecoClienteCatalogo';
 import { ItemAgendamentoInfo } from '../types/agendamento';
+import { calcularTaxaVisitaPedido, ResultadoTaxaVisita } from '../utils/taxaDomicilioUtils';
 
 import { supabase } from '../lib/supabase';
 import { podeEditarPedido, podeEditarItensPedido, podeEditarDescontoPedido } from '../utils/statusPedidoUtils';
@@ -45,6 +46,10 @@ interface CartContextType {
   tipoDesconto: 'valor' | 'percentual';
   taxaEntrega: number;
   valor_frete: number;
+  infoTaxaVisita: ResultadoTaxaVisita;
+  abaterVisitaManual: boolean | null;
+  setAbaterVisitaManual: (abater: boolean | null) => void;
+  alternarAbatimentoVisita: () => void;
   pedidoEntrega: PedidoEntrega | null;
   enderecoEntrega: string | null;
   dadosEndereco: DadosEnderecoCliente | null;
@@ -105,6 +110,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [descontoPercentual, setDescontoPercentualState] = useState<number>(0);
   const [tipoDesconto, setTipoDesconto] = useState<'valor' | 'percentual'>('valor');
   const [taxaEntrega, setTaxaEntregaState] = useState<number>(0);
+  const [abaterVisitaManual, setAbaterVisitaManual] = useState<boolean | null>(null);
   const [pedidoEntrega, setPedidoEntrega] = useState<PedidoEntrega | null>(FORMA_ENTREGA_RETIRADA_PADRAO);
   const [enderecoEntrega, setEnderecoEntrega] = useState<string | null>(null);
   const [dadosEndereco, setDadosEndereco] = useState<DadosEnderecoCliente | null>(null);
@@ -741,6 +747,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setDescontoPercentualState(0);
     setTipoDesconto('valor');
     setTaxaEntrega(0);
+    setAbaterVisitaManual(null);
     setPedidoEntrega(FORMA_ENTREGA_RETIRADA_PADRAO);
     setPedidoEmEdicao(null);
     setSnapshotPedidoOriginal(null);
@@ -932,9 +939,30 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPedidoEmEdicao((prev: any) => (prev ? { ...prev, status: novoStatus } : null));
   };
 
+  const infoTaxaVisita = useMemo(() => {
+    return calcularTaxaVisitaPedido(itensComPrecoDinamico, loja, abaterVisitaManual ?? undefined);
+  }, [itensComPrecoDinamico, loja, abaterVisitaManual]);
+
+  const alternarAbatimentoVisita = () => {
+    if (abaterVisitaManual === true) {
+      setAbaterVisitaManual(false);
+    } else if (abaterVisitaManual === false) {
+      setAbaterVisitaManual(true);
+    } else {
+      setAbaterVisitaManual(!infoTaxaVisita.taxaVisitaIsenta);
+    }
+  };
+
+  const taxaEntregaEfetiva = useMemo(() => {
+    if (infoTaxaVisita.temServicoExterno) {
+      return infoTaxaVisita.taxaVisitaCobrada;
+    }
+    return taxaEntrega;
+  }, [infoTaxaVisita.temServicoExterno, infoTaxaVisita.taxaVisitaCobrada, taxaEntrega]);
+
   const total = useMemo(() => {
-    return Math.max(0, subtotal - desconto + taxaEntrega);
-  }, [subtotal, desconto, taxaEntrega]);
+    return Math.max(0, subtotal - desconto + taxaEntregaEfetiva);
+  }, [subtotal, desconto, taxaEntregaEfetiva]);
 
   const totalItens = useMemo(() => {
     return itensComPrecoDinamico.reduce((acc, item) => acc + item.quantidade, 0);
@@ -951,8 +979,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         desconto,
         descontoPercentual,
         tipoDesconto,
-        taxaEntrega,
-        valor_frete: taxaEntrega,
+        taxaEntrega: taxaEntregaEfetiva,
+        valor_frete: taxaEntregaEfetiva,
+        infoTaxaVisita,
+        abaterVisitaManual,
+        setAbaterVisitaManual,
+        alternarAbatimentoVisita,
         pedidoEntrega,
         enderecoEntrega,
         dadosEndereco,

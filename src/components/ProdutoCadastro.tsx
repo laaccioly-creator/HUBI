@@ -40,7 +40,8 @@ import {
   Clock,
   Calendar,
   MapPin,
-  UserCheck
+  UserCheck,
+  Home
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -48,7 +49,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { ProdutoService } from '../services/produtoService';
 import { agendamentoService } from '../services/agendamentoService';
-import { Categoria, Fornecedor, UnidadeMedida, UsuarioLoja, LocalPrestacaoServico } from '../types';
+import { Categoria, Fornecedor, UnidadeMedida, UsuarioLoja, LocalPrestacaoServico, ModoTaxaDomicilio } from '../types';
 import {
   obterArvoreCategorias,
   obterSubcategoriasDe,
@@ -435,6 +436,17 @@ export const ProdutoCadastro: React.FC = () => {
   const [profissionaisHabilitadosIds, setProfissionaisHabilitadosIds] = useState<string[]>([]);
   const [colaboradoresPrestadoresLoja, setColaboradoresPrestadoresLoja] = useState<UsuarioLoja[]>([]);
 
+  // Taxa de Atendimento a Domicílio / Visita Técnica (Exceção por Serviço)
+  const [modoTaxaDomicilio, setModoTaxaDomicilio] = useState<ModoTaxaDomicilio>(
+    () => (rascunhoSalvo as any)?.modoTaxaDomicilio || 'padrao'
+  );
+  const [taxaDeslocamentoEspecifica, setTaxaDeslocamentoEspecifica] = useState<number | string>(
+    () => (rascunhoSalvo as any)?.taxaDeslocamentoEspecifica ?? 0
+  );
+  const [abaterTaxaDomicilioAoFecharServico, setAbaterTaxaDomicilioAoFecharServico] = useState<boolean>(
+    () => Boolean((rascunhoSalvo as any)?.abaterTaxaDomicilioAoFecharServico)
+  );
+
   // Categorias principais (aquelas onde categoria_pai_id é nulo/vazio)
   const categoriasPrincipais = useMemo(() => {
     return categorias
@@ -725,6 +737,9 @@ export const ProdutoCadastro: React.FC = () => {
     setRequerAgendamento(false);
     setDuracaoEstimadaMinutos(30);
     setLocalPrestacaoServico('loja');
+    setModoTaxaDomicilio('padrao');
+    setTaxaDeslocamentoEspecifica(0);
+    setAbaterTaxaDomicilioAoFecharServico(false);
     setProfissionaisHabilitadosIds([]);
     setTemVariacoes(false);
     setNomeTipoVariacao('');
@@ -822,6 +837,12 @@ export const ProdutoCadastro: React.FC = () => {
         dataValidade,
         exibirCatalogo,
         destaque,
+        requerAgendamento,
+        duracaoEstimadaMinutos,
+        localPrestacaoServico,
+        modoTaxaDomicilio,
+        taxaDeslocamentoEspecifica,
+        abaterTaxaDomicilioAoFecharServico,
         temVariacoes,
         nomeTipoVariacao,
         etapaVariacao,
@@ -1073,6 +1094,23 @@ export const ProdutoCadastro: React.FC = () => {
             setRequerAgendamento(Boolean((prod as any).requer_agendamento));
             setDuracaoEstimadaMinutos(Number((prod as any).duracao_estimada_minutos) || 30);
             setLocalPrestacaoServico(((prod as any).local_prestacao_servico as any) || 'loja');
+
+            // Taxa de deslocamento a domicílio / visita técnica (Nível 2 - Exceção do Serviço)
+            const taxaServico = (prod as any).taxa_deslocamento_domicilio;
+            if (taxaServico === null || taxaServico === undefined) {
+              setModoTaxaDomicilio('padrao');
+              setTaxaDeslocamentoEspecifica(0);
+              setAbaterTaxaDomicilioAoFecharServico(false);
+            } else if (Number(taxaServico) === 0) {
+              setModoTaxaDomicilio('gratis');
+              setTaxaDeslocamentoEspecifica(0);
+              setAbaterTaxaDomicilioAoFecharServico(false);
+            } else {
+              setModoTaxaDomicilio('especifico');
+              setTaxaDeslocamentoEspecifica(Number(taxaServico));
+              setAbaterTaxaDomicilioAoFecharServico(Boolean((prod as any).abater_taxa_domicilio_ao_fechar));
+            }
+
             supabase
               .from('servico_profissionais')
               .select('usuario_id')
@@ -1731,7 +1769,19 @@ export const ProdutoCadastro: React.FC = () => {
         comprimento_cm: comprimentoCm.trim() ? Number(comprimentoCm.replace(',', '.')) : null,
         requer_agendamento: tipoItem === 'servico' ? requerAgendamento : false,
         duracao_estimada_minutos: tipoItem === 'servico' ? duracaoEstimadaMinutos : 30,
-        local_prestacao_servico: tipoItem === 'servico' ? localPrestacaoServico : 'loja'
+        local_prestacao_servico: tipoItem === 'servico' ? localPrestacaoServico : 'loja',
+        taxa_deslocamento_domicilio: (tipoItem === 'servico' && (localPrestacaoServico === 'externo' || localPrestacaoServico === 'ambos'))
+          ? (modoTaxaDomicilio === 'especifico'
+              ? (typeof taxaDeslocamentoEspecifica === 'number'
+                  ? taxaDeslocamentoEspecifica
+                  : (parseFloat(String(taxaDeslocamentoEspecifica).replace(',', '.')) || 0))
+              : (modoTaxaDomicilio === 'gratis' ? 0 : null))
+          : null,
+        abater_taxa_domicilio_ao_fechar: (tipoItem === 'servico' && (localPrestacaoServico === 'externo' || localPrestacaoServico === 'ambos'))
+          ? (modoTaxaDomicilio === 'especifico'
+              ? Boolean(abaterTaxaDomicilioAoFecharServico)
+              : (modoTaxaDomicilio === 'gratis' ? false : null))
+          : null
       };
 
       if (ehEdicao) {
@@ -1746,10 +1796,11 @@ export const ProdutoCadastro: React.FC = () => {
           erroUpdate.message?.includes('tipo_item') || 
           erroUpdate.message?.includes('peso_kg') || 
           erroUpdate.message?.includes('altura_cm') ||
+          erroUpdate.message?.includes('taxa_deslocamento_domicilio') ||
           (erroUpdate as any).details?.includes('peso_kg')
         )) {
           console.warn('Colunas novas ausentes no schema de produtos. Tentando atualizar com payload base...');
-          const { subcategoria_id, tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, ...dadosSemNovasColunas } = novoProduto;
+          const { subcategoria_id, tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, taxa_deslocamento_domicilio, abater_taxa_domicilio_ao_fechar, ...dadosSemNovasColunas } = novoProduto;
           const retry = await supabase
             .from('produtos')
             .update(dadosSemNovasColunas)
@@ -1790,10 +1841,11 @@ export const ProdutoCadastro: React.FC = () => {
           erroProd.message?.includes('tipo_item') || 
           erroProd.message?.includes('peso_kg') || 
           erroProd.message?.includes('altura_cm') ||
+          erroProd.message?.includes('taxa_deslocamento_domicilio') ||
           (erroProd as any).details?.includes('peso_kg')
         )) {
           console.warn('Colunas novas ausentes no schema de produtos. Tentando cadastrar com payload base...');
-          const { subcategoria_id, tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, ...dadosSemNovasColunas } = novoProduto;
+          const { subcategoria_id, tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, taxa_deslocamento_domicilio, abater_taxa_domicilio_ao_fechar, ...dadosSemNovasColunas } = novoProduto;
           const retry = await supabase
             .from('produtos')
             .insert([dadosSemNovasColunas])
@@ -2839,6 +2891,150 @@ export const ProdutoCadastro: React.FC = () => {
                         ))}
                       </div>
                     </div>
+
+                    {/* Taxa de Atendimento a Domicílio / Visita Técnica (quando externo ou ambos) */}
+                    {(localPrestacaoServico === 'externo' || localPrestacaoServico === 'ambos') && (
+                      <div className="p-3.5 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/60 space-y-3.5">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500">
+                            <Home className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-slate-900 dark:text-slate-100 block">
+                              Taxa de Deslocamento / Atendimento a Domicílio
+                            </span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block leading-tight">
+                              Defina se este serviço segue a taxa padrão da loja ou possui regra diferenciada.
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                          {/* Opção 1: Usar Padrão da Loja */}
+                          <label
+                            className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
+                              modoTaxaDomicilio === 'padrao'
+                                ? 'bg-emerald-500/10 border-emerald-500 text-emerald-950 dark:text-white ring-1 ring-emerald-500/30'
+                                : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                name="modoTaxaDomicilio"
+                                value="padrao"
+                                checked={modoTaxaDomicilio === 'padrao'}
+                                onChange={() => setModoTaxaDomicilio('padrao')}
+                                className="text-emerald-500 focus:ring-emerald-500"
+                              />
+                              <span className="text-xs font-bold">Padrão da Loja</span>
+                            </div>
+                            <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-700/50">
+                              <span className="text-xs font-mono font-black text-emerald-600 dark:text-emerald-400 block">
+                                R$ {Number(loja?.taxa_padrao_domicilio ?? 0).toFixed(2).replace('.', ',')}
+                              </span>
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                                {loja?.abater_taxa_domicilio_ao_fechar ? 'Abate ao fechar' : 'Taxa não abatida'}
+                              </span>
+                            </div>
+                          </label>
+
+                          {/* Opção 2: Definir valor específico */}
+                          <label
+                            className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
+                              modoTaxaDomicilio === 'especifico'
+                                ? 'bg-emerald-500/10 border-emerald-500 text-emerald-950 dark:text-white ring-1 ring-emerald-500/30'
+                                : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                name="modoTaxaDomicilio"
+                                value="especifico"
+                                checked={modoTaxaDomicilio === 'especifico'}
+                                onChange={() => setModoTaxaDomicilio('especifico')}
+                                className="text-emerald-500 focus:ring-emerald-500"
+                              />
+                              <span className="text-xs font-bold">Valor Específico</span>
+                            </div>
+                            <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-700/50">
+                              <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block">
+                                Personalizar taxa
+                              </span>
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                                Definir valor exclusivo
+                              </span>
+                            </div>
+                          </label>
+
+                          {/* Opção 3: Deslocamento Grátis */}
+                          <label
+                            className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
+                              modoTaxaDomicilio === 'gratis'
+                                ? 'bg-emerald-500/10 border-emerald-500 text-emerald-950 dark:text-white ring-1 ring-emerald-500/30'
+                                : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                name="modoTaxaDomicilio"
+                                value="gratis"
+                                checked={modoTaxaDomicilio === 'gratis'}
+                                onChange={() => setModoTaxaDomicilio('gratis')}
+                                className="text-emerald-500 focus:ring-emerald-500"
+                              />
+                              <span className="text-xs font-bold">Deslocamento Grátis</span>
+                            </div>
+                            <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-700/50">
+                              <span className="text-xs font-mono font-black text-emerald-600 dark:text-emerald-400 block">
+                                R$ 0,00
+                              </span>
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                                Sem taxa para o cliente
+                              </span>
+                            </div>
+                          </label>
+                        </div>
+
+                        {/* Seletor Específico: Input de Valor e Checkbox de Abatimento */}
+                        {modoTaxaDomicilio === 'especifico' && (
+                          <div className="pt-2 pl-3 sm:pl-4 border-l-2 border-emerald-500/50 space-y-3 animate-in fade-in">
+                            <div className="max-w-xs">
+                              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                Valor da Taxa para este Serviço (R$) *
+                              </label>
+                              <MoneyInput
+                                value={taxaDeslocamentoEspecifica}
+                                onChange={(val) => setTaxaDeslocamentoEspecifica(val)}
+                                className="w-full px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                              />
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block">
+                                Cobrado na visita para a realização deste serviço no local do cliente.
+                              </span>
+                            </div>
+
+                            <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={abaterTaxaDomicilioAoFecharServico}
+                                onChange={(e) => setAbaterTaxaDomicilioAoFecharServico(e.target.checked)}
+                                className="mt-0.5 rounded text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                              />
+                              <div>
+                                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
+                                  Isentar / abater esta taxa se o cliente fechar o serviço
+                                </span>
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
+                                  Ideal para orçamentos técnicos: cobra apenas se o cliente não autorizar o conserto/serviço.
+                                </span>
+                              </div>
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Colaboradores Habilitados */}
                     <div className="space-y-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">

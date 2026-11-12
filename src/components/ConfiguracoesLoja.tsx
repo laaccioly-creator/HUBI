@@ -49,8 +49,10 @@ import {
   Gift,
   Target,
   Tag,
-  Bot
+  Bot,
+  Home
 } from 'lucide-react';
+import { MoneyInput } from './ui/MoneyInput';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -302,6 +304,8 @@ const gerarSnapshotConfig = (dados: any) => {
     descricaoRetirada: (dados.descricaoRetirada || '').trim(),
     freteGratisAtivo: Boolean(dados.freteGratisAtivo),
     freteGratisValorMinimo: Number(dados.freteGratisValorMinimo ?? 0),
+    taxaPadraoDomicilio: Number(dados.taxaPadraoDomicilio ?? 0),
+    abaterTaxaDomicilioAoFechar: Boolean(dados.abaterTaxaDomicilioAoFechar),
     facebookPixelId: (dados.facebookPixelId || '').trim(),
     tiktokPixelId: (dados.tiktokPixelId || '').trim(),
     tipoVendaVarejo: Boolean(dados.tipoVendaVarejo ?? true),
@@ -851,6 +855,10 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const [freteGratisValorMinimo, setFreteGratisValorMinimo] = useState<number | string>(0);
   const [listaFormasEntrega, setListaFormasEntrega] = useState<FormaEntrega[]>([]);
 
+  // Atendimento a Domicílio & Visita Técnica
+  const [taxaPadraoDomicilio, setTaxaPadraoDomicilio] = useState<number | string>(0);
+  const [abaterTaxaDomicilioAoFechar, setAbaterTaxaDomicilioAoFechar] = useState<boolean>(false);
+
   // 7. EXPORTAÇÃO DE RELATÓRIOS
   const [dataInicioExport, setDataInicioExport] = useState<string>(
     new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0]
@@ -1053,6 +1061,12 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       setFreteGratisAtivo(freteGratisAtivoIni);
       setFreteGratisValorMinimo(freteGratisValorMinIni);
 
+      // Atendimento a Domicílio & Visita Técnica
+      const taxaDomicilioIni = Number(loja.taxa_padrao_domicilio ?? 0);
+      const abaterTaxaIni = Boolean(loja.abater_taxa_domicilio_ao_fechar);
+      setTaxaPadraoDomicilio(taxaDomicilioIni);
+      setAbaterTaxaDomicilioAoFechar(abaterTaxaIni);
+
       let retBalcaoFinal = retiradaAtivaIni;
       let freteGratisFinal = freteGratisAtivoIni;
       let freteMinimoFinal = freteGratisValorMinIni;
@@ -1216,6 +1230,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           descricaoRetirada: entregaRet.descricao_retirada || '',
           freteGratisAtivo: freteGratisFinal,
           freteGratisValorMinimo: freteMinimoFinal,
+          taxaPadraoDomicilio: taxaDomicilioIni,
+          abaterTaxaDomicilioAoFechar: abaterTaxaIni,
           facebookPixelId: parceiros.facebook_pixel_id || '',
           tiktokPixelId: parceiros.tiktok_pixel_id || '',
           tipoVendaVarejo: tiposVenda.varejo !== false,
@@ -1337,6 +1353,12 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           trabalho_com_retirada: trabalhoComRetirada,
           descricao_retirada: descricaoRetirada
         },
+        atendimento_domicilio: {
+          taxa_padrao: typeof taxaPadraoDomicilio === 'number'
+            ? taxaPadraoDomicilio
+            : (parseFloat(String(taxaPadraoDomicilio).replace(',', '.')) || 0.00),
+          abater_ao_fechar: Boolean(abaterTaxaDomicilioAoFechar)
+        },
         pagamentos: {
           permitir_fiado: cadernetaAtiva ? false : Boolean(permitirFiado),
           caderneta_ativa: Boolean(cadernetaAtiva),
@@ -1448,6 +1470,10 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           frete_gratis_valor_minimo: typeof freteGratisValorMinimo === 'number'
             ? freteGratisValorMinimo
             : (parseFloat(String(freteGratisValorMinimo).replace(',', '.')) || 0.00),
+          taxa_padrao_domicilio: typeof taxaPadraoDomicilio === 'number'
+            ? taxaPadraoDomicilio
+            : (parseFloat(String(taxaPadraoDomicilio).replace(',', '.')) || 0.00),
+          abater_taxa_domicilio_ao_fechar: Boolean(abaterTaxaDomicilioAoFechar),
           status_em_separacao: statusEmSeparacao,
           status_em_expedicao: statusEmExpedicao,
           status_aguardando_envio: statusAguardandoEnvio,
@@ -1495,6 +1521,10 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               frete_gratis_valor_minimo: typeof freteGratisValorMinimo === 'number'
                 ? freteGratisValorMinimo
                 : (parseFloat(String(freteGratisValorMinimo).replace(',', '.')) || 0.00),
+              taxa_padrao_domicilio: typeof taxaPadraoDomicilio === 'number'
+                ? taxaPadraoDomicilio
+                : (parseFloat(String(taxaPadraoDomicilio).replace(',', '.')) || 0.00),
+              abater_taxa_domicilio_ao_fechar: Boolean(abaterTaxaDomicilioAoFechar),
               status_em_separacao: statusEmSeparacao,
               status_em_expedicao: statusEmExpedicao,
               status_aguardando_envio: statusAguardandoEnvio,
@@ -1787,6 +1817,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       descricaoRetirada,
       freteGratisAtivo,
       freteGratisValorMinimo,
+      taxaPadraoDomicilio,
+      abaterTaxaDomicilioAoFechar,
       facebookPixelId,
       tiktokPixelId,
       tipoVendaVarejo,
@@ -1889,12 +1921,23 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
     descricaoRetirada,
     freteGratisAtivo,
     freteGratisValorMinimo,
+    taxaPadraoDomicilio,
+    abaterTaxaDomicilioAoFechar,
     facebookPixelId,
     tiktokPixelId,
     tipoVendaVarejo,
     tipoVendaAtacado,
     tipoVendaDistribuidor
   ]);
+
+  const isTaxaDomicilioAlterada = useMemo(() => {
+    const taxaOriginal = Number(loja?.taxa_padrao_domicilio ?? 0);
+    const abaterOriginal = Boolean(loja?.abater_taxa_domicilio_ao_fechar);
+    const taxaAtual = typeof taxaPadraoDomicilio === 'number'
+      ? taxaPadraoDomicilio
+      : (parseFloat(String(taxaPadraoDomicilio).replace(',', '.')) || 0);
+    return Math.abs(taxaAtual - taxaOriginal) > 0.001 || Boolean(abaterTaxaDomicilioAoFechar) !== abaterOriginal;
+  }, [taxaPadraoDomicilio, abaterTaxaDomicilioAoFechar, loja]);
 
   const isSegmentoAlterado = useMemo(() => {
     const segOriginal =
@@ -1910,7 +1953,8 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
     !['metas', 'whatsapp-ia', 'exportar', 'importar-exportar', 'importar-exportar-produtos'].includes(subTela) &&
     (
       (houveInteracaoFisica && snapshotInicial && snapshotAtual !== snapshotInicial) ||
-      isSegmentoAlterado
+      isSegmentoAlterado ||
+      isTaxaDomicilioAlterada
     )
   );
 
@@ -2091,6 +2135,61 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   />
                   <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
                 </label>
+              </div>
+
+              {/* Atendimento a Domicílio & Visita Técnica */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3">
+                <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
+                  <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+                    <Home className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-xs text-slate-800 block">Atendimento a Domicílio & Visita Técnica</span>
+                    <span className="text-[11px] text-slate-500 block leading-tight">
+                      Taxa padrão de deslocamento cobrada para atendimentos externos.
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Taxa Padrão de Atendimento a Domicílio (R$)
+                  </label>
+                  <MoneyInput
+                    value={taxaPadraoDomicilio}
+                    onChange={(val) => {
+                      setTaxaPadraoDomicilio(val);
+                      marcarInteracaoFisica();
+                    }}
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-slate-50 text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
+                  <span className="text-[10px] text-slate-500 mt-1 block leading-tight">
+                    Valor único cobrado por visita quando o cliente solicitar serviço em seu endereço (aplicado a todos os serviços, salvo exceções).
+                  </span>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                  <div className="space-y-0.5 max-w-[75%]">
+                    <span className="font-bold text-xs text-slate-800 block">
+                      Isentar / abater esta taxa quando o serviço principal for fechado
+                    </span>
+                    <span className="text-[11px] text-slate-500 block leading-tight">
+                      Ideal para visitas de orçamento: cobra apenas se o cliente não aprovar o serviço.
+                    </span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={abaterTaxaDomicilioAoFechar}
+                      onChange={(e) => {
+                        setAbaterTaxaDomicilioAoFechar(e.target.checked);
+                        marcarInteracaoFisica();
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  </label>
+                </div>
               </div>
 
               {/* Transações Canceladas */}
@@ -3346,6 +3445,67 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 />
                 <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
               </label>
+            </div>
+
+            {/* Atendimento a Domicílio & Visita Técnica */}
+            <div className={`p-4 rounded-2xl space-y-4 ${
+              isDark ? 'bg-[#000000] border border-slate-800' : 'bg-slate-50 border border-slate-200'
+            }`}>
+              <div className="flex items-center gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
+                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500">
+                  <Home className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className={`font-black text-xs block ${isDark ? 'text-white' : 'text-black'}`}>
+                    Atendimento a Domicílio & Visita Técnica
+                  </h3>
+                  <p className={`text-[11px] block leading-tight font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    Taxa padrão de deslocamento cobrada para atendimentos externos.
+                  </p>
+                </div>
+              </div>
+
+              <div className="max-w-md">
+                <label className={`block text-xs font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  Taxa Padrão de Atendimento a Domicílio (R$)
+                </label>
+                <MoneyInput
+                  value={taxaPadraoDomicilio}
+                  onChange={(val) => {
+                    setTaxaPadraoDomicilio(val);
+                    marcarInteracaoFisica();
+                  }}
+                  className={`w-full px-3.5 py-2.5 rounded-xl text-sm font-bold border outline-none focus:ring-2 focus:ring-emerald-500 ${
+                    isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-black'
+                  }`}
+                />
+                <span className={`text-[11px] mt-1 block leading-tight ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  Valor único cobrado por visita quando o cliente solicitar serviço em seu endereço (aplicado a todos os serviços, salvo exceções).
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
+                <div className="space-y-0.5 max-w-[80%]">
+                  <span className={`font-black text-xs block ${isDark ? 'text-white' : 'text-black'}`}>
+                    Isentar / abater esta taxa quando o serviço principal for fechado
+                  </span>
+                  <span className={`text-[11px] block leading-tight font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    Ideal para visitas de orçamento: cobra apenas se o cliente não aprovar o serviço.
+                  </span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={abaterTaxaDomicilioAoFechar}
+                    onChange={(e) => {
+                      setAbaterTaxaDomicilioAoFechar(e.target.checked);
+                      marcarInteracaoFisica();
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                </label>
+              </div>
             </div>
 
             {/* Transações Canceladas */}

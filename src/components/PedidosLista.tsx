@@ -46,8 +46,10 @@ import {
   AlertCircle,
   Navigation,
   ShoppingBag,
-  Scale
+  Scale,
+  Home
 } from 'lucide-react';
+import { extrairInfoVisitaPedido } from '../utils/taxaDomicilioUtils';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -3223,6 +3225,32 @@ export const PedidosLista: React.FC = () => {
                     </div>
 
                     <div className="space-y-2 text-xs">
+                      {(() => {
+                        const infoVisita = extrairInfoVisitaPedido(pedidoSelecionado, loja);
+                        if (infoVisita.temServicoExterno) {
+                          const enderecoEfetivo = infoVisita.enderecoVisita || pedidoSelecionado.endereco_entrega;
+                          return (
+                            <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-950 dark:text-emerald-100 space-y-1 mb-2">
+                              <div className="flex items-center gap-1.5 font-bold text-xs text-emerald-700 dark:text-emerald-300">
+                                <Home className="w-4 h-4 text-emerald-500" />
+                                <span>Local de Prestação do Serviço: No Endereço do Cliente</span>
+                              </div>
+                              {enderecoEfetivo && (
+                                <div className="text-[11px] text-slate-700 dark:text-slate-300 pl-5">
+                                  <strong>Endereço:</strong> {enderecoEfetivo}
+                                </div>
+                              )}
+                              {infoVisita.ehPedidoMisto && (
+                                <div className="text-[11px] text-emerald-600 dark:text-emerald-400 pl-5 font-semibold">
+                                  📦 Levar produto junto na visita do profissional (Frete Grátis)
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+
                       {pedidoSelecionado.endereco_entrega && (
                         <div>
                           <span className="text-slate-400 block text-[11px]">Endereço de Entrega:</span>
@@ -3737,28 +3765,68 @@ export const PedidosLista: React.FC = () => {
                 </div>
 
                 <div className="space-y-2 text-xs">
-                  <div className={`flex justify-between ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
-                    <span>Subtotal de produtos</span>
-                    <span className="font-bold">
-                      R$ {Number(pedidoSelecionado.subtotal || pedidoSelecionado.valor_total || 0).toFixed(2)}
-                    </span>
-                  </div>
+                  {(() => {
+                    const infoVisita = extrairInfoVisitaPedido(pedidoSelecionado, loja);
 
-                  {Number(pedidoSelecionado.valor_desconto || 0) > 0 && (
-                    <div className="flex justify-between text-rose-600 dark:text-rose-400 font-semibold">
-                      <span>Desconto</span>
-                      <span>-R$ {Number(pedidoSelecionado.valor_desconto).toFixed(2)}</span>
-                    </div>
-                  )}
+                    return (
+                      <>
+                        {(!infoVisita.temServicoExterno && infoVisita.totalServicos === 0) ? (
+                          <div className={`flex justify-between ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
+                            <span>Subtotal de produtos</span>
+                            <span className="font-bold">
+                              R$ {Number(pedidoSelecionado.subtotal || pedidoSelecionado.valor_total || 0).toFixed(2)}
+                            </span>
+                          </div>
+                        ) : (
+                          <>
+                            {infoVisita.subtotalProdutos > 0 && (
+                              <div className={`flex justify-between ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
+                                <span>Subtotal de produtos</span>
+                                <span className="font-bold">
+                                  R$ {Number(infoVisita.subtotalProdutos).toFixed(2)}
+                                </span>
+                              </div>
+                            )}
+                            {infoVisita.subtotalServicos > 0 && (
+                              <div className={`flex justify-between ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
+                                <span>Valor do(s) serviço(s)</span>
+                                <span className="font-bold">
+                                  R$ {Number(infoVisita.subtotalServicos).toFixed(2)}
+                                </span>
+                              </div>
+                            )}
+                          </>
+                        )}
 
-                  <div className={`flex justify-between ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
-                    <span>Valor do frete</span>
-                    <span className={Number(pedidoSelecionado.valor_frete || 0) === 0 ? "text-emerald-600 dark:text-emerald-400 font-bold" : "font-bold"}>
-                      {Number(pedidoSelecionado.valor_frete || 0) > 0
-                        ? `R$ ${Number(pedidoSelecionado.valor_frete).toFixed(2)}`
-                        : 'Grátis'}
-                    </span>
-                  </div>
+                        {Number(pedidoSelecionado.valor_desconto || 0) > 0 && (
+                          <div className="flex justify-between text-rose-600 dark:text-rose-400 font-semibold">
+                            <span>Desconto</span>
+                            <span>-R$ {Number(pedidoSelecionado.valor_desconto).toFixed(2)}</span>
+                          </div>
+                        )}
+
+                        {infoVisita.temServicoExterno ? (
+                          <div className={`flex justify-between ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
+                            <span>Taxa de atendimento a domicílio:</span>
+                            <span className={infoVisita.taxaVisitaIsenta ? "text-emerald-600 dark:text-emerald-400 font-bold" : "font-bold"}>
+                              {infoVisita.taxaVisitaIsenta
+                                ? 'Isenta (serviço aprovado)'
+                                : `R$ ${Number(infoVisita.taxaVisitaCobrada).toFixed(2)}`}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className={`flex justify-between ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
+                            <span>Valor do frete</span>
+                            <span className={Number(pedidoSelecionado.valor_frete || 0) === 0 ? "text-emerald-600 dark:text-emerald-400 font-bold" : "font-bold"}>
+                              {Number(pedidoSelecionado.valor_frete || 0) > 0
+                                ? `R$ ${Number(pedidoSelecionado.valor_frete).toFixed(2)}`
+                                : 'Grátis'}
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
 
                   <div className={`flex justify-between text-base font-black pt-2 border-t ${isDark ? 'border-slate-800 text-slate-100' : 'border-slate-200 text-black'}`}>
                     <span>Total</span>

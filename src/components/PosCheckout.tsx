@@ -231,6 +231,8 @@ export const PosCheckout: React.FC = () => {
     descontoPercentual,
     tipoDesconto,
     taxaEntrega,
+    infoTaxaVisita,
+    alternarAbatimentoVisita,
     pedidoEntrega,
     subtotal,
     total,
@@ -1910,7 +1912,8 @@ export const PosCheckout: React.FC = () => {
             observacoes: obsFinal,
             tabelaPrecoCalculada: tabelaPrecoCalculada,
             dataIso: dataIso,
-            dataVencimentoFiado: dataVencimentoFiado
+            dataVencimentoFiado: dataVencimentoFiado,
+            infoTaxaVisita: infoTaxaVisita
           });
 
           // Atualizar o Limite de Crédito e Saldo Devedor do Cliente na memória local
@@ -3136,12 +3139,42 @@ export const PosCheckout: React.FC = () => {
               </div>
             )}
 
-            {taxaEntrega > 0 && (
+            {infoTaxaVisita.temServicoExterno ? (
+              <div className="space-y-1 pt-0.5">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-400">Atendimento a Domicílio:</span>
+                  <span className="text-emerald-400 font-bold">
+                    {infoTaxaVisita.taxaVisitaIsenta ? "Isenta (serviço aprovado)" : `+${formatarMoeda(infoTaxaVisita.taxaVisitaCobrada)}`}
+                  </span>
+                </div>
+                {infoTaxaVisita.podeAbater && (
+                  <button
+                    type="button"
+                    onClick={alternarAbatimentoVisita}
+                    className={`w-full py-1 px-2 rounded-lg text-[11px] font-bold transition flex items-center justify-between border cursor-pointer ${
+                      infoTaxaVisita.taxaVisitaIsenta
+                        ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400'
+                        : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-emerald-500/50'
+                    }`}
+                  >
+                    <span>{infoTaxaVisita.taxaVisitaIsenta ? '✓ Visita Abatida' : 'Abater visita (Serviço aprovado)'}</span>
+                    <span className="text-[10px] text-slate-400 underline">
+                      {infoTaxaVisita.taxaVisitaIsenta ? 'Restaurar taxa' : 'Isentar taxa'}
+                    </span>
+                  </button>
+                )}
+                {infoTaxaVisita.ehPedidoMisto && (
+                  <div className="text-[10px] text-emerald-400/90 font-medium leading-tight">
+                    📦 Levar produto junto na visita do profissional (Frete Grátis)
+                  </div>
+                )}
+              </div>
+            ) : taxaEntrega > 0 ? (
               <div className="flex justify-between text-xs text-slate-400">
                 <span>Taxa de Entrega:</span>
                 <span className="text-emerald-400 font-bold">+{formatarMoeda(taxaEntrega)}</span>
               </div>
-            )}
+            ) : null}
 
             <div className={`flex justify-between text-base font-bold pt-1.5 border-t ${
               isDark ? 'border-slate-800 text-white' : 'border-[#E2E8F0] text-[#0F172A]'
@@ -3823,6 +3856,12 @@ export const PosCheckout: React.FC = () => {
                         {taxaEntrega > 0 && <span className="line-through text-slate-400 text-[11px]">{formatarMoeda(taxaEntrega)}</span>}
                         <span className="text-emerald-500 font-black">Grátis (Cupom)</span>
                       </span>
+                    ) : infoTaxaVisita.temServicoExterno ? (
+                      infoTaxaVisita.taxaVisitaIsenta ? (
+                        <span className="text-emerald-500 font-bold">Isenta (serviço aprovado)</span>
+                      ) : (
+                        formatarMoeda(infoTaxaVisita.taxaVisitaCobrada)
+                      )
                     ) : taxaEntrega > 0 ? (
                       formatarMoeda(taxaEntrega)
                     ) : pedidoEntrega?.tipo_atendimento === 'retirada' ? (

@@ -9,6 +9,7 @@ import { Cliente, Pedido, StatusPedido, StatusPagamento, FormaPagamento } from '
 import { PedidoEntrega } from '../types/shipping';
 import { ItemAgendamentoInfo } from '../types/agendamento';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
+import { ResultadoTaxaVisita } from '../utils/taxaDomicilioUtils';
 
 export interface ItemVendaInput {
   produto: {
@@ -74,6 +75,7 @@ export interface GravarVendaParams {
   tabelaPrecoCalculada: string;
   dataIso: string;
   dataVencimentoFiado?: string | null;
+  infoTaxaVisita?: ResultadoTaxaVisita | null;
 }
 
 export class VendaService {
@@ -192,6 +194,17 @@ export class VendaService {
     metaExistente.provedor_frete = pedidoEntrega?.provedor || null;
     metaExistente.servico_frete_codigo = pedidoEntrega?.servico_codigo || null;
     metaExistente.tipo_atendimento = pedidoEntrega?.tipo_atendimento || (taxaEntrega > 0 ? 'entrega' : 'retirada');
+    if (params.infoTaxaVisita?.temServicoExterno) {
+      metaExistente.servico_a_domicilio = true;
+      metaExistente.taxa_visita_cobrada = params.infoTaxaVisita.taxaVisitaCobrada;
+      metaExistente.taxa_visita_isenta = params.infoTaxaVisita.taxaVisitaIsenta;
+      metaExistente.taxa_visita_original = params.infoTaxaVisita.taxaVisitaOriginal;
+      metaExistente.pode_abater_visita = params.infoTaxaVisita.podeAbater;
+      metaExistente.abater_visita_aprovada = params.infoTaxaVisita.taxaVisitaIsenta;
+      if (params.infoTaxaVisita.enderecoVisita) {
+        metaExistente.endereco_prestacao_snapshot = params.infoTaxaVisita.enderecoVisita;
+      }
+    }
     if (clientRequestId) {
       metaExistente.client_request_id = clientRequestId;
     }

@@ -5,6 +5,7 @@ import { obterDadosPagamentoRecibo, formatarDataRecibo, PrintService } from '../
 import { ReceiptPdfService } from '../../services/receiptPdfService';
 import { obterInfoVencimentoFiado, extrairInfoPagamentoEntrega } from '../../utils/statusPedidoUtils';
 import { extrairObservacaoLimpa, formatarMoeda } from '../../utils/formatters';
+import { extrairInfoVisitaPedido } from '../../utils/taxaDomicilioUtils';
 import { detectarServicoPorCodigo } from '../../utils/correiosValidator';
 import { formatarNomeTransportadora } from '../../utils/shippingDisplay';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -239,6 +240,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
   const valorTotal = Number(pedido.valor_total || 0);
   const pagInfo = obterDadosPagamentoRecibo(pedido);
   const infoEntrega = pedido ? extrairInfoPagamentoEntrega(pedido) : null;
+  const infoVisita = extrairInfoVisitaPedido(pedido, loja);
   const obsLimpa = extrairObservacaoLimpa(pedido.observacoes);
 
   return (
@@ -341,13 +343,26 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
               <div className="flex justify-between items-center">
                 <span className="font-bold text-slate-700 uppercase text-[10px] tracking-wider">Forma de Entrega:</span>
                 <span className={`font-black px-1.5 py-0.5 rounded text-[10px] ${badgeEstilo}`}>
-                  {formaEntregaTexto}
+                  {infoVisita.temServicoExterno ? 'Atendimento a Domicílio' : formaEntregaTexto}
                 </span>
               </div>
               <div className="text-slate-700 pt-0.5">
-                <strong className="text-slate-900">{ehRetirada ? 'Local de Retirada:' : 'Endereço de Entrega:'} </strong>
-                <span className="text-slate-700">{ehRetirada ? enderecoLojaFormatado : enderecoDestino}</span>
+                <strong className="text-slate-900">
+                  {infoVisita.temServicoExterno 
+                    ? 'Local de Prestação do Serviço: No Endereço do Cliente' 
+                    : (ehRetirada ? 'Local de Retirada:' : 'Endereço de Entrega:')}{' '}
+                </strong>
+                <span className="text-slate-700">
+                  {infoVisita.temServicoExterno 
+                    ? (infoVisita.enderecoVisita || enderecoDestino) 
+                    : (ehRetirada ? enderecoLojaFormatado : enderecoDestino)}
+                </span>
               </div>
+              {infoVisita.ehPedidoMisto && (
+                <div className="text-emerald-700 font-bold pt-0.5 text-[10px]">
+                  📦 Levar produtos junto na visita do profissional (Frete Grátis)
+                </div>
+              )}
               {codigoCorrida && (
                 <div className="text-emerald-700 font-bold pt-0.5">
                   Código da Corrida: {codigoCorrida}
@@ -407,12 +422,32 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
 
             {/* Fechamento Financeiro */}
             <div className="space-y-1.5 text-xs text-slate-700">
-              <div className="flex justify-between">
-                <span>Subtotal dos Produtos:</span>
-                <span className="font-semibold text-slate-900">
-                  {formatarMoeda(subtotalProdutos)}
-                </span>
-              </div>
+              {infoVisita.subtotalProdutos > 0 && (
+                <div className="flex justify-between">
+                  <span>Subtotal dos Produtos:</span>
+                  <span className="font-semibold text-slate-900">
+                    {formatarMoeda(infoVisita.subtotalProdutos)}
+                  </span>
+                </div>
+              )}
+
+              {infoVisita.subtotalServicos > 0 && (
+                <div className="flex justify-between">
+                  <span>Valor do(s) Serviço(s):</span>
+                  <span className="font-semibold text-slate-900">
+                    {formatarMoeda(infoVisita.subtotalServicos)}
+                  </span>
+                </div>
+              )}
+
+              {(!infoVisita.temServicoExterno && infoVisita.totalServicos === 0 && infoVisita.subtotalProdutos === 0) && (
+                <div className="flex justify-between">
+                  <span>Subtotal dos Produtos:</span>
+                  <span className="font-semibold text-slate-900">
+                    {formatarMoeda(subtotalProdutos)}
+                  </span>
+                </div>
+              )}
 
               {valorDesconto > 0 && (
                 <div className="flex justify-between text-rose-600 font-bold">
@@ -421,7 +456,16 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 </div>
               )}
 
-              {!ehRetirada && (
+              {infoVisita.temServicoExterno ? (
+                <div className="flex justify-between">
+                  <span>Taxa de atendimento a domicílio:</span>
+                  <span className={infoVisita.taxaVisitaIsenta ? "font-bold text-emerald-600" : "font-semibold text-slate-900"}>
+                    {infoVisita.taxaVisitaIsenta
+                      ? 'Isenta (serviço aprovado)'
+                      : `+ ${formatarMoeda(infoVisita.taxaVisitaCobrada)}`}
+                  </span>
+                </div>
+              ) : !ehRetirada ? (
                 <div className="flex justify-between">
                   <span>Frete{formaEntregaTexto ? ` (${formaEntregaTexto})` : ''}:</span>
                   <span className="font-semibold text-slate-900">
@@ -432,7 +476,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                         : 'A Definir'}
                   </span>
                 </div>
-              )}
+              ) : null}
 
               <div className="border-t border-dashed border-slate-200 pt-2 my-1"></div>
 
