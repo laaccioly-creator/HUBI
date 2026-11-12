@@ -2,6 +2,7 @@ import { typesafeService, PerguntaTypeSafe } from './typesafeService';
 import { extrairDimensoesEPesoTexto, DimensoesEPesoExtraidos } from './geminiService';
 import {
   buscarPrecosShoppingSerpApi,
+  ehCompraInternacional,
   extrairTermoPrincipalProduto,
   type FotoResultadoSerpApi,
   type ItemShoppingSerpApi
@@ -40,7 +41,7 @@ export interface ContextoUnificadoProdutoJev {
  */
 export const invalidarCachesAntigosPipelineJev = (): void => {
   try {
-    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v4_ativo';
+    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v5_ativo';
     if (localStorage.getItem(FLAG_MIGRACAO) === 'true') return;
 
     const prefixosAntigos = [
@@ -54,7 +55,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
       const chavesParaRemover: string[] = [];
       for (let i = 0; i < storage.length; i++) {
         const k = storage.key(i);
-        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v4_')) {
+        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v5_')) {
           chavesParaRemover.push(k);
         }
       }
@@ -65,7 +66,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
     limparStorage(sessionStorage);
     localStorage.setItem(FLAG_MIGRACAO, 'true');
     console.log(
-      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v4 (limiar >= 50%, equilíbrio precisão e cobertura) ativo!',
+      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v5 ativo!',
       'background: #10b981; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
       'color: #10b981; font-weight: bold;'
     );
@@ -117,24 +118,36 @@ export function calcularScoreEstritoModeloJev(
     return { score: 0, penalizado: true, motivo: 'título vazio' };
   }
 
-  // 1. Penalização forte (< 30%) APENAS para variantes divergentes ausentes no nome digitado
+  // 0. Exclusão imediata de Compra Internacional / Importação Direta
+  if (!ehCompraInternacional(originalLower) && ehCompraInternacional(candidatoLower)) {
+    return {
+      score: 0,
+      penalizado: true,
+      motivo: 'compra internacional / importação direta'
+    };
+  }
+
+  // Normaliza hífens/barras para detectar sufixos mesmo em slugs de URL (ex: /creality-k2-se/)
+  const candidatoComEspacos = candidatoLower.replace(/[-_/]/g, ' ');
+
+  // 1. Bloqueio rigoroso (score = 0) para variantes divergentes ausentes no nome digitado
   for (const variacao of SUFIXOS_VARIACAO_DIVERGENTE) {
     const regexVar = new RegExp(`\\b${variacao}\\b`, 'i');
-    if (!regexVar.test(originalLower) && regexVar.test(candidatoLower)) {
+    if (!regexVar.test(originalLower) && regexVar.test(candidatoComEspacos)) {
       return {
-        score: 0.15,
+        score: 0,
         penalizado: true,
         motivo: `variante divergente "${variacao.toUpperCase()}"`
       };
     }
   }
 
-  // 2. Penalização forte (< 30%) APENAS para peças, insumos e acessórios ausentes no nome digitado
+  // 2. Bloqueio rigoroso (score = 0) para peças, insumos e acessórios ausentes no nome digitado
   for (const termoAcc of TERMOS_ACESSORIO_OU_PECA) {
     const regexAcc = new RegExp(`\\b${termoAcc}\\b`, 'i');
-    if (!regexAcc.test(originalLower) && regexAcc.test(candidatoLower)) {
+    if (!regexAcc.test(originalLower) && regexAcc.test(candidatoComEspacos)) {
       return {
-        score: 0.10,
+        score: 0,
         penalizado: true,
         motivo: `peça/insumo/acessório "${termoAcc.toUpperCase()}"`
       };
@@ -609,17 +622,32 @@ export const catalogJevService = {
     // Ordena da maior para a menor probabilidade
     aprovadas.sort((a, b) => b.score - a.score);
 
-    // Garantia mínima de resultados: assegurar entre 6 e 10 fotos
+    // Garantia mínima de resultados: assegurar entre 6 e 10 fotos válidas
     if (aprovadas.length < 6) {
       const urlsPresentes = new Set(aprovadas.map(a => a.foto.urlOriginal || a.foto.urlThumbnail));
+      // 1ª camada de preenchimento: fotos não penalizadas com score >= 0.40
       const complementares = preAvaliadas
         .filter(item => item.scoreDeterministico >= 0.40 && !urlsPresentes.has(item.foto.urlOriginal || item.foto.urlThumbnail))
         .sort((a, b) => b.scoreDeterministico - a.scoreDeterministico);
 
       for (const comp of complementares) {
-        if (aprovadas.length >= 6) break;
+        if (aprovadas.length >= 8) break;
         aprovadas.push({ foto: comp.foto, score: comp.scoreDeterministico });
         urlsPresentes.add(comp.foto.urlOriginal || comp.foto.urlThumbnail);
+      }
+
+      // 2ª camada de segurança: se ainda houver menos de 6 fotos, aceita fotos da SerpApi que não sejam peças/insumos
+      if (aprovadas.length < 6) {
+        const termosPecaStrict = ['filamento', 'bico', 'nozzle', 'hotend', 'correia', 'capa', 'resina', 'extrusora'];
+        for (const item of preAvaliadas) {
+          if (aprovadas.length >= 6) break;
+          const urlKey = item.foto.urlOriginal || item.foto.urlThumbnail;
+          if (urlsPresentes.has(urlKey)) continue;
+          const titLower = `${item.foto.titulo} ${item.foto.fonte || ''}`.toLowerCase();
+          if (termosPecaStrict.some(tp => titLower.includes(tp))) continue;
+          aprovadas.push({ foto: item.foto, score: Math.max(0.50, item.scoreDeterministico) });
+          urlsPresentes.add(urlKey);
+        }
       }
     }
 
@@ -671,11 +699,16 @@ export const catalogJevService = {
       };
     }
 
-    const preAvaliadas = ofertas.map((oferta, idx) => ({
-      oferta,
-      idx,
-      scoreDeterministico: calcularScoreEstritoModeloJev(nomeOriginalUsuario, oferta.titulo).score
-    }));
+    const preAvaliadas = ofertas.map((oferta, idx) => {
+      const textoAvaliacao = `${oferta.titulo} ${oferta.entrega || ''} ${oferta.url || ''}`;
+      const aval = calcularScoreEstritoModeloJev(nomeOriginalUsuario, textoAvaliacao);
+      return {
+        oferta,
+        idx,
+        scoreDeterministico: aval.score,
+        penalizado: aval.penalizado
+      };
+    });
 
     const candidatasJev = preAvaliadas
       .filter(item => item.scoreDeterministico >= LIMIAR_APROVACAO_JEV)
@@ -755,11 +788,11 @@ export const catalogJevService = {
 
     let listaLojas = Array.from(mapaPorLoja.values());
 
-    // Garantia mínima de resultados: garantir entre 4 e 8 lojas distintas
+    // Garantia mínima de resultados: garantir entre 4 e 8 lojas distintas (sempre bloqueando variantes/importados)
     if (listaLojas.length < 4) {
       const lojasJaAdicionadas = new Set(listaLojas.map(l => l.loja.trim().toLowerCase()));
       const complementares = preAvaliadas
-        .filter(item => item.scoreDeterministico >= 0.40 && !lojasJaAdicionadas.has(item.oferta.loja.trim().toLowerCase()))
+        .filter(item => !item.penalizado && item.scoreDeterministico >= 0.40 && !lojasJaAdicionadas.has(item.oferta.loja.trim().toLowerCase()))
         .sort((a, b) => b.scoreDeterministico - a.scoreDeterministico);
 
       for (const comp of complementares) {
@@ -769,6 +802,19 @@ export const catalogJevService = {
           scoreJev: comp.scoreDeterministico
         });
         lojasJaAdicionadas.add(comp.oferta.loja.trim().toLowerCase());
+      }
+    }
+
+    // Filtro estatístico de outliers (Mediana): descarta preços < 60% ou > 145% da mediana
+    if (listaLojas.length >= 3) {
+      const precosOrd = listaLojas.map(l => l.preco).sort((a, b) => a - b);
+      const mid = Math.floor(precosOrd.length / 2);
+      const mediana = precosOrd.length % 2 === 0
+        ? (precosOrd[mid - 1] + precosOrd[mid]) / 2
+        : precosOrd[mid];
+      const semOutliers = listaLojas.filter(l => l.preco >= mediana * 0.60 && l.preco <= mediana * 1.45);
+      if (semOutliers.length > 0) {
+        listaLojas = semOutliers;
       }
     }
 

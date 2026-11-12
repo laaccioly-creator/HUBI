@@ -317,6 +317,7 @@ export const obterNomeSegmentoLoja = (loja?: any): string => {
     papelaria: 'Papelaria / Armarinho / Presentes',
     otica: 'Ótica / Joalheria / Relojoaria',
     informatica: 'Informática / Celulares / Eletrônicos',
+    eletronicos: 'Eletrônicos / Informática / Tecnologia',
     construcao: 'Material de Construção / Tintas / Elétrica',
     artesanato: 'Artesanato / Decoração / Variedades',
     geral: 'Varejo Comercial Geral'
@@ -1370,7 +1371,7 @@ export const pesquisarFotosProdutoNaInternet = async (
       const resultadosSerpApi = await buscarFotosGoogleImagesSerpApi(
         termoPrincipal,
         serpApiKey,
-        { lojaId: loja?.id, numResultados: 10 }
+        { lojaId: loja?.id, numResultados: 20 }
       );
       console.log(
         `%c[HUBI IMAGENS]%c SerpApi retornou ${resultadosSerpApi.length} fotos para "${termoPrincipal}"`,
@@ -1378,7 +1379,7 @@ export const pesquisarFotosProdutoNaInternet = async (
         'color: #16a34a; font-weight: bold;'
       );
 
-      // Validação semântica e filtro estrito de versão/modelo (>= 75%) com HUBI JEV
+      // Validação semântica e filtro de versão/modelo com HUBI JEV (garantia mínima de 6-10 fotos)
       let fotosParaRegistrar = resultadosSerpApi;
       try {
         fotosParaRegistrar = await catalogJevService.filtrarFotosCompativeisComJev(
@@ -1400,6 +1401,37 @@ export const pesquisarFotosProdutoNaInternet = async (
           item.largura,
           item.altura
         );
+      }
+
+      // Se ainda restarem menos de 6 fotos válidas e houver um termo alternativo diferente, busca complemento
+      if (fotos.length < 6 && termoLimpo) {
+        const termoAlternativo = `${termoLimpo} oficial`;
+        const resultadosComplementares = await buscarFotosGoogleImagesSerpApi(
+          termoAlternativo,
+          serpApiKey,
+          { lojaId: loja?.id, numResultados: 15 }
+        ).catch(() => []);
+        if (resultadosComplementares.length > 0) {
+          const filtradosComp = await catalogJevService
+            .filtrarFotosCompativeisComJev(
+              termo.trim() || termoLimpo,
+              segmentoLoja || loja?.segmento,
+              resultadosComplementares
+            )
+            .catch(() => resultadosComplementares);
+          for (const item of filtradosComp) {
+            if (fotos.length >= 10) break;
+            registrarFoto(
+              item.urlOriginal,
+              item.titulo,
+              item.fonte || 'Google Imagens',
+              item.urlThumbnail,
+              item.urlOriginal,
+              item.largura,
+              item.altura
+            );
+          }
+        }
       }
     } catch (err) {
       if (err instanceof SerpApiQuotaError || err instanceof SerpApiAuthError) {
@@ -1505,7 +1537,7 @@ export const atualizarProdutoExistenteComIA = async (dados: {
   const termoReferencia = nomeInformadoPeloUsuario || (dados.descricao?.trim() || 'Produto');
 
   // Cache instantâneo (Memória + localStorage) para respostas em 0ms em consultas repetidas
-  const chaveCache = `hubi_preencher_ia_v4_${termoReferencia.toLowerCase().trim()}_${(dados.categoriaNome || '').toLowerCase()}`;
+  const chaveCache = `hubi_preencher_ia_v5_${termoReferencia.toLowerCase().trim()}_${(dados.categoriaNome || '').toLowerCase()}`;
   const TTL_CACHE = 1000 * 60 * 60 * 6; // 6 horas
   const emMemoria = cachePreencherIAMemoria.get(chaveCache);
   if (emMemoria && Date.now() - emMemoria.timestamp < TTL_CACHE) {

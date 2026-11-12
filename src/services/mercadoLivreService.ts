@@ -2,7 +2,7 @@
 // Gerencia a comunicação da camada React com as Edge Functions e tabelas do Mercado Livre
 // Governança: supabase-rls-guard (filtro estrito por loja_id) e pii-leak-detector
 
-import { supabase } from '../lib/supabase';
+import { supabase, supabaseFunctionsBaseUrl } from '../lib/supabase';
 
 export interface MarketplaceContaLoja {
   id: string;
@@ -147,8 +147,7 @@ export const mercadoLivreService = {
   async obterUrlAutorizacao(lojaId: string): Promise<string> {
     const session = await obterSessaoValida();
 
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-    const resposta = await fetch(`${supabaseUrl}/functions/v1/ml-oauth?action=authorize_url&loja_id=${lojaId}`, {
+    const resposta = await fetch(`${supabaseFunctionsBaseUrl}/ml-oauth?action=authorize_url&loja_id=${lojaId}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${session.access_token}`,
@@ -344,8 +343,7 @@ export const mercadoLivreService = {
   async imprimirEtiquetaPedido(pedidoId: string): Promise<void> {
     const session = await obterSessaoValida();
 
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-    const resposta = await fetch(`${supabaseUrl}/functions/v1/ml-etiquetas?pedido_id=${pedidoId}&formato=pdf`, {
+    const resposta = await fetch(`${supabaseFunctionsBaseUrl}/ml-etiquetas?pedido_id=${pedidoId}&formato=pdf`, {
       headers: {
         Authorization: `Bearer ${session.access_token}`,
       },

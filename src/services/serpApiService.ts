@@ -148,6 +148,7 @@ export const formatarResultadosSerpApi = (
   num: number = 20
 ): FotoResultadoSerpApi[] => {
   const fotosFormatadas: FotoResultadoSerpApi[] = [];
+  const fotosReserva: FotoResultadoSerpApi[] = [];
   const urlsVistas = new Set<string>();
 
   for (let idx = 0; idx < imagesResults.length; idx++) {
@@ -196,31 +197,15 @@ export const formatarResultadosSerpApi = (
       ? item.original_height
       : undefined;
 
-    // Filtra apenas imagens em alta/média resolução para e-commerce (descarta ícones e miniaturas < 250px)
-    if (largura && largura < 250 && altura && altura < 250) {
-      continue;
-    }
-
-    // Filtra fontes não comerciais (redes sociais de vídeo/memes que não são lojas ou e-commerce)
     const fonteLower = (item.source || item.domain || '').toLowerCase();
     const linkLower = (item.link || item.original || '').toLowerCase();
     const tituloLower = (item.title || '').toLowerCase();
-
-    const fontesInvalidas = [
-      'tiktok', 'instagram', 'youtube', 'youtu.be', 'facebook', 'pinterest',
-      'reddit', 'twitter', 'x.com', 'giphy', 'tenor'
-    ];
-    if (fontesInvalidas.some(f => fonteLower.includes(f) || linkLower.includes(f))) {
-      continue;
-    }
 
     if (tituloLower.includes('meme') || tituloLower.includes('viral') || tituloLower.includes('animal mais feio')) {
       continue;
     }
 
-    urlsVistas.add(originalUrl);
-
-    fotosFormatadas.push({
+    const fotoObj: FotoResultadoSerpApi = {
       urlOriginal: originalUrl,
       urlThumbnail: thumbnailUrl,
       titulo: item.titulo || item.title || queryTratada,
@@ -228,9 +213,29 @@ export const formatarResultadosSerpApi = (
       posicao: item.posicao || item.position || idx + 1,
       largura,
       altura
-    });
+    };
+
+    const ehResolucaoBaixa = Boolean(largura && largura < 200 && altura && altura < 200);
+    const fontesNaoComerciais = ['tiktok', 'giphy', 'tenor', 'shutterstock', 'istockphoto'];
+    const ehFonteReserva = fontesNaoComerciais.some(f => fonteLower.includes(f) || linkLower.includes(f));
+
+    urlsVistas.add(originalUrl);
+
+    if (ehResolucaoBaixa || ehFonteReserva) {
+      fotosReserva.push(fotoObj);
+    } else {
+      fotosFormatadas.push(fotoObj);
+    }
 
     if (fotosFormatadas.length >= num) break;
+  }
+
+  // Garante no mínimo 8 fotos disponíveis quando houver reservas válidas
+  if (fotosFormatadas.length < 8 && fotosReserva.length > 0) {
+    for (const res of fotosReserva) {
+      if (fotosFormatadas.length >= num) break;
+      fotosFormatadas.push(res);
+    }
   }
 
   return fotosFormatadas;
@@ -556,7 +561,7 @@ export const testarConexaoSerpApi = async (
 const cacheSerpMemoria = new Map<string, { timestamp: number; fotos: FotoResultadoSerpApi[] }>();
 
 export const obterCacheSerp = (termo: string): FotoResultadoSerpApi[] | null => {
-  const chave = `hubi_serp_cache_v4_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_cache_v5_${termo.toLowerCase().trim()}`;
   const emMemoria = cacheSerpMemoria.get(chave);
   if (emMemoria && Date.now() - emMemoria.timestamp < 1000 * 60 * 60 * 6) {
     return emMemoria.fotos;
@@ -576,7 +581,7 @@ export const obterCacheSerp = (termo: string): FotoResultadoSerpApi[] | null => 
 
 export const salvarCacheSerp = (termo: string, fotos: FotoResultadoSerpApi[]) => {
   if (!fotos || fotos.length === 0) return;
-  const chave = `hubi_serp_cache_v4_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_cache_v5_${termo.toLowerCase().trim()}`;
   const item = { timestamp: Date.now(), fotos };
   cacheSerpMemoria.set(chave, item);
   try {
@@ -671,7 +676,7 @@ export const buscarFotosGoogleImagesSerpApi = async (
     : chaveLimpa ? '***' : '(busca via lojaId no banco)';
 
   const queryFinal = limparTermoParaBuscaGoogle(termo);
-  const num = Math.min(opcoes?.numResultados || 10, 10);
+  const num = Math.min(opcoes?.numResultados || 20, 20);
 
   // 1. Verificação instantânea no Cache Local (Memória + sessionStorage)
   const fotosEmCache = obterCacheSerp(queryFinal);
@@ -937,7 +942,7 @@ export interface ItemShoppingSerpApi {
 const cacheShoppingSerpMemoria = new Map<string, { timestamp: number; itens: ItemShoppingSerpApi[] }>();
 
 export const obterCacheShoppingSerp = (termo: string): ItemShoppingSerpApi[] | null => {
-  const chave = `hubi_serp_shopping_cache_v4_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_shopping_cache_v5_${termo.toLowerCase().trim()}`;
   const TTL_MS = 1000 * 60 * 60 * 6; // 6 horas
   const emMemoria = cacheShoppingSerpMemoria.get(chave);
   if (emMemoria && Date.now() - emMemoria.timestamp < TTL_MS) {
@@ -958,7 +963,7 @@ export const obterCacheShoppingSerp = (termo: string): ItemShoppingSerpApi[] | n
 
 export const salvarCacheShoppingSerp = (termo: string, itens: ItemShoppingSerpApi[]) => {
   if (!itens || itens.length === 0) return;
-  const chave = `hubi_serp_shopping_cache_v4_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_shopping_cache_v5_${termo.toLowerCase().trim()}`;
   const item = { timestamp: Date.now(), itens };
   cacheShoppingSerpMemoria.set(chave, item);
   const serializado = JSON.stringify(item);
@@ -1072,20 +1077,55 @@ const classificarTipoLojaShopping = (nomeLoja: string): string => {
 };
 
 /**
- * Verifica se o título de uma oferta corresponde à versão exata pesquisada pelo usuário,
- * descartando versões divergentes (ex: Plus, Pro, Combo, Max, Mini) quando o usuário não as pediu,
- * bem como acessórios ou peças de reposição.
+ * Detecta se o anúncio/resultado se refere a compra internacional ou importação direta
+ * (onde o preço exibido costuma excluir Imposto de Importação + ICMS / Remessa Conforme).
  */
-export const ofertaCorrespondeAoModeloPesquisado = (termoPesquisado: string, tituloOferta: string): boolean => {
-  const qLower = (termoPesquisado || '').toLowerCase();
-  const tLower = (tituloOferta || '').toLowerCase();
-  if (!tLower) return true;
+export const ehCompraInternacional = (texto: string): boolean => {
+  const lower = (texto || '').toLowerCase();
+  if (!lower) return false;
+  const termosImportacao = [
+    'compra internacional',
+    'envio internacional',
+    'frete internacional',
+    'envio de eua',
+    'envio dos eua',
+    'envio da china',
+    'enviado do exterior',
+    'remessa conforme',
+    'imposto de importação',
+    'imposto de importacao',
+    'importação direta',
+    'importacao direta',
+    'internacional'
+  ];
+  return termosImportacao.some(t => lower.includes(t));
+};
 
-  // 1. Filtra modificadores de versão/modelo que mudam completamente a faixa de preço
+/**
+ * Verifica se o título (ou URL) de uma oferta corresponde à versão exata pesquisada pelo usuário,
+ * descartando versões divergentes (ex: Plus, Pro, Combo, SE, Max, Mini) quando o usuário não as pediu,
+ * bem como compras internacionais e acessórios/peças de reposição.
+ */
+export const ofertaCorrespondeAoModeloPesquisado = (
+  termoPesquisado: string,
+  tituloOferta: string,
+  textoExtra?: string
+): boolean => {
+  const qLower = (termoPesquisado || '').toLowerCase();
+  const combinado = `${tituloOferta || ''} ${textoExtra || ''}`.toLowerCase().trim();
+  if (!combinado) return true;
+
+  // 0. Descarta imediatamente compras internacionais / importação direta (a menos que o usuário tenha digitado explicitamente)
+  if (!ehCompraInternacional(qLower) && ehCompraInternacional(combinado)) {
+    return false;
+  }
+
+  // 1. Filtra modificadores de versão/modelo que mudam completamente a faixa de preço (título e slug de URL)
   const modificadoresVersao = ['plus', 'pro', 'max', 'ultra', 'combo', 'cfs', 'mini', 'lite', 'se', 'neo', 'xl'];
+  const combinadoNormalizadoSlug = combinado.replace(/[-_/]/g, ' ');
   for (const mod of modificadoresVersao) {
     const regexMod = new RegExp(`\\b${mod}\\b`, 'i');
-    if (!regexMod.test(qLower) && regexMod.test(tLower)) {
+    if (!regexMod.test(qLower) && regexMod.test(combinadoNormalizadoSlug)) {
       return false;
     }
   }
@@ -1099,7 +1139,7 @@ export const ofertaCorrespondeAoModeloPesquisado = (termoPesquisado: string, tit
     'refil', 'amostra', 'usado', 'recondicionado', 'defeito', 'sucata', 'suporte para'
   ];
   for (const acc of termosAcessorios) {
-    if (!qLower.includes(acc) && tLower.includes(acc)) {
+    if (!qLower.includes(acc) && combinadoNormalizadoSlug.includes(acc)) {
       return false;
     }
   }
@@ -1113,7 +1153,9 @@ const formatarItensShoppingBrutos = (rawItems: any[], queryPadrao: string): Item
 
   for (const item of rawItems) {
     const titulo = String(item.title || item.titulo || queryPadrao).trim();
-    if (!ofertaCorrespondeAoModeloPesquisado(queryPadrao, titulo)) {
+    const url = String(item.link || item.product_link || item.url || '').trim();
+    const textoExtra = `${item.delivery || ''} ${item.snippet || ''} ${url}`;
+    if (!ofertaCorrespondeAoModeloPesquisado(queryPadrao, titulo, textoExtra)) {
       continue;
     }
 
@@ -1127,7 +1169,6 @@ const formatarItensShoppingBrutos = (rawItems: any[], queryPadrao: string): Item
 
     if (precoNum <= 0) continue;
 
-    const url = String(item.link || item.product_link || item.url || '').trim();
     // Ignorar links de vídeos/fóruns/redes sociais que não são lojas
     if (/\b(youtube\.com|youtu\.be|tiktok\.com|instagram\.com|facebook\.com|reddit\.com|pinterest\.com|wikipedia\.org)\b/i.test(url)) {
       continue;

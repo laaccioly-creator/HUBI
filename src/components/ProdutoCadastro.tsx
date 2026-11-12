@@ -85,6 +85,7 @@ import {
   obterSerpApiKey,
   obterOuBuscarSerpApiKey,
   buscarPrecosShoppingSerpApi,
+  ehCompraInternacional,
   extrairTermoPrincipalProduto,
   ofertaCorrespondeAoModeloPesquisado
 } from '../services/serpApiService';
@@ -211,19 +212,23 @@ const processarListaConcorrentes = (
     };
   }
 
+  // Remove qualquer eventual compra internacional antes do cálculo da mediana
+  const listaNacional = listaBruta.filter(c => !ehCompraInternacional(`${c.loja} ${c.url || ''}`));
+  const baseCalculo = listaNacional.length > 0 ? listaNacional : listaBruta;
+
   // Ordenar para calcular a mediana
-  const precosOrdenados = [...listaBruta].map(c => c.preco).sort((a, b) => a - b);
+  const precosOrdenados = [...baseCalculo].map(c => c.preco).sort((a, b) => a - b);
   const meio = Math.floor(precosOrdenados.length / 2);
   const mediana = precosOrdenados.length % 2 === 0
     ? (precosOrdenados[meio - 1] + precosOrdenados[meio]) / 2
     : precosOrdenados[meio];
 
-  // Filtragem estatística de discrepâncias e outliers extremos
-  // Descarta preços menores que 40% da mediana (acessórios/refis) ou maiores que 220% da mediana
-  const listaFiltrada = listaBruta.filter(c => {
-    if (precosOrdenados.length >= 4) {
-      if (c.preco < mediana * 0.40) return false;
-      if (c.preco > mediana * 2.20) return false;
+  // Filtragem estatística de discrepâncias e outliers (Mediana):
+  // Descarta preços menores que 60% da mediana (importados/peças/acessórios) ou maiores que 145% da mediana (kits/combos)
+  const listaFiltrada = baseCalculo.filter(c => {
+    if (precosOrdenados.length >= 3) {
+      if (c.preco < mediana * 0.60) return false;
+      if (c.preco > mediana * 1.45) return false;
     }
     if (precoCustoRef && precoCustoRef > 0 && c.preco < precoCustoRef * 0.65) {
       return false;
@@ -231,7 +236,7 @@ const processarListaConcorrentes = (
     return true;
   });
 
-  const baseFiltrada = listaFiltrada.length > 0 ? listaFiltrada : listaBruta;
+  const baseFiltrada = listaFiltrada.length > 0 ? listaFiltrada : baseCalculo;
 
   // Deduplicar por nome de loja (mantendo a oferta mais competitiva de cada loja distinta)
   const mapaLojas = new Map<string, PrecoConcorrente>();
@@ -277,7 +282,7 @@ const processarListaConcorrentes = (
 const cacheRadarMercadoMemoria = new Map<string, { timestamp: number; dados: DadosMercadoIA }>();
 
 const obterCacheRadarMercado = (termo: string): DadosMercadoIA | null => {
-  const chave = `hubi_radar_precos_cache_v4_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_radar_precos_cache_v5_${termo.toLowerCase().trim()}`;
   const TTL_MS = 1000 * 60 * 60 * 6; // 6 horas
   const emMem = cacheRadarMercadoMemoria.get(chave);
   if (emMem && Date.now() - emMem.timestamp < TTL_MS && emMem.dados.totalPesquisados > 0) {
@@ -298,7 +303,7 @@ const obterCacheRadarMercado = (termo: string): DadosMercadoIA | null => {
 
 const salvarCacheRadarMercado = (termo: string, dados: DadosMercadoIA) => {
   if (!dados || dados.totalPesquisados === 0) return;
-  const chave = `hubi_radar_precos_cache_v4_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_radar_precos_cache_v5_${termo.toLowerCase().trim()}`;
   const item = { timestamp: Date.now(), dados };
   cacheRadarMercadoMemoria.set(chave, item);
   const serializado = JSON.stringify(item);
@@ -483,18 +488,24 @@ Retorne EXCLUSIVAMENTE JSON válido contendo "preco_medio" e "concorrentes".
       url: s.url
     }));
 
-    // Permite enriquecer apenas com lojas retornadas pelo Gemini que correspondam estritamente ao modelo pesquisado
-    const lojasAprovadas = new Set(rawList.map((r: any) => String(r.loja || '').trim().toLowerCase()));
-    const listaIa = Array.isArray(parsed.concorrentes) ? parsed.concorrentes : [];
-    for (const itemIa of listaIa) {
-      const chaveLoja = String(itemIa.loja || '').trim().toLowerCase();
-      if (
-        chaveLoja &&
-        !lojasAprovadas.has(chaveLoja) &&
-        ofertaCorrespondeAoModeloPesquisado(nomeOriginal || termoCanônico, `${itemIa.loja || ''} ${itemIa.observacao || ''}`)
-      ) {
-        rawList.push(itemIa);
-        lojasAprovadas.add(chaveLoja);
+    // Permite enriquecer com itens da IA apenas se houver menos de 4 lojas reais aprovadas e sem compra internacional/variante
+    if (rawList.length < 4) {
+      const lojasAprovadas = new Set(rawList.map((r: any) => String(r.loja || '').trim().toLowerCase()));
+      const listaIa = Array.isArray(parsed.concorrentes) ? parsed.concorrentes : [];
+      for (const itemIa of listaIa) {
+        const chaveLoja = String(itemIa.loja || '').trim().toLowerCase();
+        if (
+          chaveLoja &&
+          !lojasAprovadas.has(chaveLoja) &&
+          ofertaCorrespondeAoModeloPesquisado(
+            nomeOriginal || termoCanônico,
+            `${itemIa.loja || ''} ${itemIa.observacao || ''}`,
+            `${itemIa.url || ''}`
+          )
+        ) {
+          rawList.push(itemIa);
+          lojasAprovadas.add(chaveLoja);
+        }
       }
     }
   } else {

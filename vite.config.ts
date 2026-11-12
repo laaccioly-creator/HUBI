@@ -391,7 +391,15 @@ export default defineConfig({
     host: '0.0.0.0',
     strictPort: true,
     allowedHosts: true,
-    https: true as any
+    cors: true,
+    https: true as any,
+    proxy: {
+      '/local-functions': {
+        target: 'http://127.0.0.1:54321',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/local-functions/, '/functions/v1')
+      }
+    }
   },
   preview: {
     port: 3000,
