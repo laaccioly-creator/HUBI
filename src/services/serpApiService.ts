@@ -33,7 +33,7 @@ export class SerpApiAuthError extends Error {
  */
 const logSerp = (titulo: string, ...detalhes: any[]) => {
   console.log(
-    `%c[HUBI SERPAPI]%c ${titulo}`,
+    `%c[HUBI SERPER]%c ${titulo}`,
     'background: #0284c7; color: #ffffff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
     'color: #0284c7; font-weight: bold;',
     ...detalhes
@@ -42,7 +42,7 @@ const logSerp = (titulo: string, ...detalhes: any[]) => {
 
 const logSerpSucesso = (titulo: string, ...detalhes: any[]) => {
   console.log(
-    `%c[HUBI SERPAPI ✅]%c ${titulo}`,
+    `%c[HUBI SERPER ✅]%c ${titulo}`,
     'background: #16a34a; color: #ffffff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
     'color: #16a34a; font-weight: bold;',
     ...detalhes
@@ -51,7 +51,7 @@ const logSerpSucesso = (titulo: string, ...detalhes: any[]) => {
 
 const logSerpAviso = (titulo: string, ...detalhes: any[]) => {
   console.warn(
-    `%c[HUBI SERPAPI ⚠️]%c ${titulo}`,
+    `%c[HUBI SERPER ⚠️]%c ${titulo}`,
     'background: #ea580c; color: #ffffff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
     'color: #ea580c; font-weight: bold;',
     ...detalhes
@@ -60,7 +60,7 @@ const logSerpAviso = (titulo: string, ...detalhes: any[]) => {
 
 const logSerpErro = (titulo: string, ...detalhes: any[]) => {
   console.error(
-    `%c[HUBI SERPAPI ❌]%c ${titulo}`,
+    `%c[HUBI SERPER ❌]%c ${titulo}`,
     'background: #dc2626; color: #ffffff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
     'color: #dc2626; font-weight: bold;',
     ...detalhes
@@ -561,7 +561,7 @@ export const testarConexaoSerpApi = async (
 const cacheSerpMemoria = new Map<string, { timestamp: number; fotos: FotoResultadoSerpApi[] }>();
 
 export const obterCacheSerp = (termo: string): FotoResultadoSerpApi[] | null => {
-  const chave = `hubi_serp_cache_v5_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_cache_v7_${termo.toLowerCase().trim()}`;
   const emMemoria = cacheSerpMemoria.get(chave);
   if (emMemoria && Date.now() - emMemoria.timestamp < 1000 * 60 * 60 * 6) {
     return emMemoria.fotos;
@@ -581,7 +581,7 @@ export const obterCacheSerp = (termo: string): FotoResultadoSerpApi[] | null => 
 
 export const salvarCacheSerp = (termo: string, fotos: FotoResultadoSerpApi[]) => {
   if (!fotos || fotos.length === 0) return;
-  const chave = `hubi_serp_cache_v5_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_cache_v7_${termo.toLowerCase().trim()}`;
   const item = { timestamp: Date.now(), fotos };
   cacheSerpMemoria.set(chave, item);
   try {
@@ -942,7 +942,7 @@ export interface ItemShoppingSerpApi {
 const cacheShoppingSerpMemoria = new Map<string, { timestamp: number; itens: ItemShoppingSerpApi[] }>();
 
 export const obterCacheShoppingSerp = (termo: string): ItemShoppingSerpApi[] | null => {
-  const chave = `hubi_serp_shopping_cache_v6_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_shopping_cache_v7_${termo.toLowerCase().trim()}`;
   const TTL_MS = 1000 * 60 * 60 * 6; // 6 horas
   const emMemoria = cacheShoppingSerpMemoria.get(chave);
   if (emMemoria && Date.now() - emMemoria.timestamp < TTL_MS) {
@@ -963,7 +963,7 @@ export const obterCacheShoppingSerp = (termo: string): ItemShoppingSerpApi[] | n
 
 export const salvarCacheShoppingSerp = (termo: string, itens: ItemShoppingSerpApi[]) => {
   if (!itens || itens.length === 0) return;
-  const chave = `hubi_serp_shopping_cache_v6_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_shopping_cache_v7_${termo.toLowerCase().trim()}`;
   const item = { timestamp: Date.now(), itens };
   cacheShoppingSerpMemoria.set(chave, item);
   const serializado = JSON.stringify(item);
@@ -1273,13 +1273,16 @@ export const buscarPrecosShoppingSerpApi = async (
               'X-API-KEY': chaveLimpa,
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ q: queryFinal, gl: 'br', hl: 'pt', num }),
+            body: JSON.stringify({ q: queryFinal, gl: 'br', hl: 'pt-br', num }),
             signal: ctrl.signal
           });
           clearTimeout(tId);
           if (res.ok) {
             const data = await res.json();
             return formatarItensShoppingBrutos(data.shopping || data.shopping_results || [], queryFinal);
+          } else {
+            const errBody = await res.text().catch(() => '');
+            logSerpErro(`Erro HTTP ${res.status} no Serper /shopping:`, errBody);
           }
         } catch {
           clearTimeout(tId);
@@ -1357,7 +1360,7 @@ export const buscarPrecosShoppingSerpApi = async (
 
     // Busca complementar orgânica (engine: 'google' / /search) automática se shopping retornar < 6 lojas distintas
     if (lojasDistintasShopping.size < 6) {
-      const queryOrganica = `"${queryFinal}" preço R$ comprar`;
+      const queryOrganica = `${queryFinal} comprar preço R$`;
       const promessasOrganic: Promise<ItemShoppingSerpApi[]>[] = [];
 
       if (chaveLimpa) {
@@ -1372,13 +1375,16 @@ export const buscarPrecosShoppingSerpApi = async (
                   'X-API-KEY': chaveLimpa,
                   'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ q: queryOrganica, gl: 'br', hl: 'pt', num: 20 }),
+                body: JSON.stringify({ q: queryOrganica, gl: 'br', hl: 'pt-br', num: 20 }),
                 signal: ctrl.signal
               });
               clearTimeout(tId);
               if (res.ok) {
                 const data = await res.json();
                 return formatarItensShoppingBrutos([...(data.shopping || []), ...(data.organic || [])], queryFinal);
+              } else {
+                const errBody = await res.text().catch(() => '');
+                logSerpErro(`Erro HTTP ${res.status} no Serper /search:`, errBody);
               }
             } catch {
               clearTimeout(tId);
