@@ -281,7 +281,7 @@ const processarListaConcorrentes = (
 const cacheRadarMercadoMemoria = new Map<string, { timestamp: number; dados: DadosMercadoIA }>();
 
 const obterCacheRadarMercado = (termo: string): DadosMercadoIA | null => {
-  const chave = `hubi_radar_precos_cache_v16_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_radar_precos_cache_v18_${termo.toLowerCase().trim()}`;
   const TTL_MS = 1000 * 60 * 60 * 6; // 6 horas
   const emMem = cacheRadarMercadoMemoria.get(chave);
   if (emMem && Date.now() - emMem.timestamp < TTL_MS && emMem.dados.totalPesquisados > 0) {
@@ -302,7 +302,7 @@ const obterCacheRadarMercado = (termo: string): DadosMercadoIA | null => {
 
 const salvarCacheRadarMercado = (termo: string, dados: DadosMercadoIA) => {
   if (!dados || dados.totalPesquisados === 0) return;
-  const chave = `hubi_radar_precos_cache_v16_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_radar_precos_cache_v18_${termo.toLowerCase().trim()}`;
   const item = { timestamp: Date.now(), dados };
   cacheRadarMercadoMemoria.set(chave, item);
   const serializado = JSON.stringify(item);
@@ -437,32 +437,19 @@ Retorne EXCLUSIVAMENTE JSON válido contendo "preco_medio" e "concorrentes".
     }
   };
 
-  let parsed: any = null;
-
-  // Se a Serper + JEV já retornou ofertas reais aprovadas, monta em 0ms em TypeScript sem chamada redundante ao Gemini
-  if (ofertasSerp.length > 0) {
-    const soma = ofertasSerp.reduce((acc, cur) => acc + cur.preco, 0);
-    parsed = {
-      preco_medio: Number((soma / ofertasSerp.length).toFixed(2)),
-      concorrentes: ofertasSerp.map((it) => ({
-        loja: it.loja,
-        preco: it.preco,
-        tipo: it.tipo || 'Marketplace',
-        url: it.url
-      }))
-    };
-  } else {
-    try {
-      const resData = await executarRequisicaoGemini(apiKey, requestBody, loja?.id);
-      const parts = resData?.candidates?.[0]?.content?.parts || [];
-      const rawText = parts.map((p: any) => p?.text || '').join('\n').trim();
-      if (rawText) {
-        parsed = extrairJsonDoTexto(rawText);
-      }
-    } catch (errIa) {
-      console.warn('[RadarPrecos] Erro na chamada Gemini:', errIa);
-    }
-  }
+  // Se a Serper + JEV (e eventual fallback fundamentado no Google Search) retornaram 0 ofertas reais,
+  // NUNCA inventar preços de memória via Gemini sem grounding: retorna lista vazia para preenchimento manual.
+  const parsed: any = {
+    preco_medio: ofertasSerp.length > 0
+      ? Number((ofertasSerp.reduce((acc, cur) => acc + cur.preco, 0) / ofertasSerp.length).toFixed(2))
+      : 0,
+    concorrentes: ofertasSerp.map((it) => ({
+      loja: it.loja,
+      preco: it.preco,
+      tipo: it.tipo || 'Marketplace',
+      url: it.url
+    }))
+  };
 
   console.log(
     `%c[HUBI PERF ⏱️]%c [RADAR_PRECOS] Concluído em ${Math.round(performance.now() - tInicioRadar)}ms (${ofertasSerp.length} lojas)`,

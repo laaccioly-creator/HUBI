@@ -8,6 +8,7 @@ import {
   buscarPrecosShoppingSerpApi,
   ehCompraInternacional,
   extrairTermoPrincipalProduto,
+  extrairPartNumbersProduto,
   type FotoResultadoSerpApi,
   type ItemShoppingSerpApi
 } from './serpApiService';
@@ -45,7 +46,7 @@ export interface ContextoUnificadoProdutoJev {
  */
 export const invalidarCachesAntigosPipelineJev = (): void => {
   try {
-    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v16_ativo';
+    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v18_ativo';
     if (localStorage.getItem(FLAG_MIGRACAO) === 'true') return;
 
     const prefixosAntigos = [
@@ -59,7 +60,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
       const chavesParaRemover: string[] = [];
       for (let i = 0; i < storage.length; i++) {
         const k = storage.key(i);
-        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v16_')) {
+        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v18_')) {
           chavesParaRemover.push(k);
         }
       }
@@ -70,7 +71,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
     limparStorage(sessionStorage);
     localStorage.setItem(FLAG_MIGRACAO, 'true');
     console.log(
-      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v16 ativo!',
+      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v18 ativo!',
       'background: #10b981; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
       'color: #10b981; font-weight: bold;'
     );
@@ -168,11 +169,14 @@ export function calcularScoreEstritoModeloJev(
     .replace(/\b(?:fdm|sla|dlp|alta\s+velocidade|velocidade\s+m[aá]xima|auto\s+nivelamento|nivelamento\s+autom[aá]tico)\b/gi, ' ')
     .replace(/\s+/g, ' ');
 
-  // 4. Extração dos tokens do produto pesquisado pelo usuário
+  // 4. Extração dos tokens a partir do Termo Canônico Limpo (sem adjetivos descritivos nem aspas quebradas)
+  const termoLimpoParaMatching = extrairTermoPrincipalProduto(originalLower) || originalLower;
+  const partNumbersExtraidos = extrairPartNumbersProduto(originalLower).map(p => p.toLowerCase());
   const stopwords = new Set([
     'de', 'do', 'da', 'dos', 'das', 'para', 'com', 'sem', 'em', 'no', 'na', 'um', 'uma', 'o', 'a', 'os', 'as', 'e', 'ou'
   ]);
-  const tokensOriginais = extrairTermoPrincipalProduto(originalLower)
+  const tokensOriginais = termoLimpoParaMatching
+    .replace(/[""''"`,;()[\]{}]/g, ' ')
     .split(/\s+/)
     .filter(t => t.length >= 2 && !stopwords.has(t));
 
@@ -180,21 +184,37 @@ export function calcularScoreEstritoModeloJev(
     return { score: 0.85, penalizado: false };
   }
 
-  // Identifica tokens discriminantes de modelo (ex: "k2", "s24", "g9") vs tokens de tecnologia/gerais (ex: "3d", "4k")
-  const tokensDescritoresGenericos = new Set(['3d', '4k', '8k', '2k', 'hd', 'fhd', 'rgb', 'led']);
-  const tokensCriticosModelo = tokensOriginais.filter(t => /\d/.test(t) && t.length >= 2 && !tokensDescritoresGenericos.has(t));
-  const tokensTexto = tokensOriginais.filter(t => !tokensCriticosModelo.includes(t) && !tokensDescritoresGenericos.has(t));
+  // Identifica apenas códigos reais de modelo/part-number (letras + dígitos, ex: "k2", "mb16ahve", "hmg00234pt", "se2726h", "a1m")
+  const tokensDescritoresGenericos = new Set(['3d', '2d', '4k', '8k', '2k', 'hd', 'fhd', 'wqhd', 'rgb', 'led']);
+  const tokensCriticosModelo = Array.from(
+    new Set([
+      ...partNumbersExtraidos,
+      ...tokensOriginais.filter(
+        t => /[a-z]/i.test(t) && /\d/.test(t) && t.length >= 2 && !tokensDescritoresGenericos.has(t)
+      )
+    ])
+  );
+  const tokensTexto = tokensOriginais.filter(
+    t => !tokensCriticosModelo.includes(t) && !tokensDescritoresGenericos.has(t) && !/^\d+(?:[.,]\d+)?$/.test(t)
+  );
 
-  // Verifica se o modelo específico exigido (ex: "k2") está presente no candidato
-  for (const tokenModelo of tokensCriticosModelo) {
-    const regex = new RegExp(`\\b${tokenModelo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-    if (!regex.test(candidatoSanitizado)) {
-      // Se o identificador exclusivo de modelo não estiver no título, pontua abaixo de 30%
-      return {
-        score: 0.25,
-        penalizado: true,
-        motivo: `modelo "${tokenModelo.toUpperCase()}" ausente no título`
-      };
+  // Bônus máximo imediato se o anúncio contiver o part-number exato (ex: MB16AHVE, HMG00234PT, SE2726H)
+  const temPartNumberExato = partNumbersExtraidos.some(pn => {
+    const regexPn = new RegExp(`\\b${pn.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    return regexPn.test(candidatoSanitizado) || candidatoLower.includes(pn);
+  });
+
+  if (!temPartNumberExato) {
+    // Verifica se o modelo específico exigido (ex: "k2") está presente no candidato
+    for (const tokenModelo of tokensCriticosModelo) {
+      const regex = new RegExp(`\\b${tokenModelo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+      if (!regex.test(candidatoSanitizado)) {
+        return {
+          score: 0.25,
+          penalizado: true,
+          motivo: `modelo "${tokenModelo.toUpperCase()}" ausente no título`
+        };
+      }
     }
   }
 
@@ -361,7 +381,7 @@ export const catalogJevService = {
     if (!categorias || categorias.length === 0) return null;
     if (categorias.length === 1) return categorias[0];
 
-    // 1. Classificação local instantânea (0ms) por tokens/radicais em TypeScript
+    // 1. Classificação local instantânea (0ms) por dicionário semântico e tokens exatos em TypeScript
     const normalizarTextoCat = (s: string) =>
       (s || '')
         .toLowerCase()
@@ -373,6 +393,29 @@ export const catalogJevService = {
 
     const textoProdutoNorm = normalizarTextoCat(`${produto.nome || ''} ${produto.descricao || ''}`);
     const tokensProduto = textoProdutoNorm.split(' ').filter(t => t.length >= 3);
+
+    // Dicionário semântico explícito (evita falsos positivos por substring curta como "mprt" -> "impressoras")
+    const regrasSemanticas: Array<{ termosProduto: RegExp; termosCategoria: RegExp }> = [
+      { termosProduto: /\b(monitor|zenscreen|ultrawide|tela\s+portatil)\b/i, termosCategoria: /\bmonitor(es)?\b/i },
+      { termosProduto: /\b(impressora\s*3d|impressora|filamento|bambu\s*lab|creality|anycubic|elegoo)\b/i, termosCategoria: /\b(impressora(s)?|impressao\s*3d)\b/i },
+      { termosProduto: /\b(notebook|laptop|ultrabook|macbook)\b/i, termosCategoria: /\bnotebook(s)?\b/i },
+      { termosProduto: /\b(smartphone|celular|iphone)\b/i, termosCategoria: /\b(celular(es)?|smartphone(s)?)\b/i },
+      { termosProduto: /\b(teclado|mouse|headset|fone|webcam|microfone)\b/i, termosCategoria: /\b(periferico(s)?|acessorio(s)?|teclado|mouse|audio)\b/i }
+    ];
+
+    for (const regra of regrasSemanticas) {
+      if (regra.termosProduto.test(textoProdutoNorm)) {
+        const catSemantica = categorias.find(c => regra.termosCategoria.test(normalizarTextoCat(c.nome)));
+        if (catSemantica) {
+          console.log(
+            `%c[HUBI JEV ⚡]%c Categoria classificada localmente em 0ms: "${catSemantica.nome}" (confiança: 99%)`,
+            'background: #10b981; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
+            'color: #10b981; font-weight: bold;'
+          );
+          return catSemantica;
+        }
+      }
+    }
 
     let melhorCatLocal: { id: string; nome: string } | null = null;
     let melhorConfiancaLocal = 0;
@@ -387,13 +430,13 @@ export const catalogJevService = {
         break;
       }
 
-      const tokensCat = catNorm.split(' ').filter(t => t.length >= 3);
+      const tokensCat = catNorm.split(' ').filter(t => t.length >= 4);
       if (tokensCat.length === 0) continue;
 
       let hits = 0;
       for (const tc of tokensCat) {
-        const radicalCat = tc.length > 4 ? tc.slice(0, -1) : tc;
-        if (tokensProduto.some(tp => tp.includes(radicalCat) || radicalCat.includes(tp.slice(0, Math.max(3, tp.length - 1))))) {
+        const radicalCat = tc.length > 5 ? tc.slice(0, -1) : tc;
+        if (tokensProduto.some(tp => tp === tc || (tp.length >= 5 && (tp.startsWith(radicalCat) || radicalCat.startsWith(tp))))) {
           hits++;
         }
       }
@@ -930,19 +973,45 @@ export const catalogJevService = {
       params.segmentoLoja,
       params.etapa
     );
+    const partNumbers = extrairPartNumbersProduto(nomeOriginal);
 
-    const ofertasBrutas = await buscarPrecosShoppingSerpApi(
+    let ofertasBrutas = await buscarPrecosShoppingSerpApi(
       termoCanonico || nomeOriginal,
       params.loja,
       30
     );
 
     let avaliacao = await this.pontuarOfertasShoppingComJev(
-      nomeOriginal,
+      termoCanonico || nomeOriginal,
       params.segmentoLoja,
       ofertasBrutas,
       params.etapa
     );
+
+    // Fallback de query por Marca + Part-Number se retornou < 2 lojas aprovadas e houver part-number identificado
+    if (avaliacao.aprovadas.length < 2 && partNumbers.length > 0) {
+      const pnPrincipal = partNumbers[partNumbers.length - 1];
+      const palavrasCanonicas = (termoCanonico || nomeOriginal)
+        .split(/\s+/)
+        .filter(p => p.length >= 2 && p.toLowerCase() !== pnPrincipal.toLowerCase());
+      const marcaProvavel = palavrasCanonicas.find(
+        p => !/^(monitor|impressora|notebook|celular|smartphone|gamer|curvo|portatil|3d)$/i.test(p)
+      ) || palavrasCanonicas[0] || '';
+      const queryPartNumber = `${marcaProvavel} ${pnPrincipal}`.trim();
+
+      if (queryPartNumber && queryPartNumber.toLowerCase() !== (termoCanonico || '').toLowerCase()) {
+        const ofertasPn = await buscarPrecosShoppingSerpApi(queryPartNumber, params.loja, 30);
+        if (ofertasPn.length > 0) {
+          ofertasBrutas = [...ofertasBrutas, ...ofertasPn];
+          avaliacao = await this.pontuarOfertasShoppingComJev(
+            termoCanonico || nomeOriginal,
+            params.segmentoLoja,
+            ofertasBrutas,
+            params.etapa
+          );
+        }
+      }
+    }
 
     // Aciona Gemini 3.8 Flash + Google Search apenas quando:
     // - explicitamente solicitado (ex: botão "Atualizar Pesquisa" no Radar) e houver < 5 lojas, OU
@@ -961,7 +1030,7 @@ export const catalogJevService = {
       if (ofertasComplementares.length > 0) {
         const aprovadasSerper = [...avaliacao.aprovadas];
         const avaliacaoCombinada = await this.pontuarOfertasShoppingComJev(
-          nomeOriginal,
+          termoCanonico || nomeOriginal,
           params.segmentoLoja,
           [...ofertasBrutas, ...ofertasComplementares],
           params.etapa

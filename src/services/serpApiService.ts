@@ -120,22 +120,62 @@ export const extrairTermoEnxutoBusca = (termo: string, maxPalavras = 4): string 
  * removendo adjetivos promocionais ou especificações técnicas excessivas (ex: "Alta Velocidade 600mm/s",
  * "Envio Imediato", "Nota Fiscal", "Bivolt") que restringem a quantidade de lojas retornadas.
  */
+/**
+ * Extrai códigos alfanuméricos de modelo / part-number (ex: MB16AHVE, HMG00234PT, SE2726H, A1M, K2),
+ * ignorando unidades técnicas (144Hz, 1ms, 500mm, 15.6, 3D, 4K).
+ */
+export const extrairPartNumbersProduto = (termo: string): string[] => {
+  if (!termo) return [];
+  const limpo = termo
+    .replace(/[""''"`,;()[\]{}]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const tokens = limpo.split(/\s+/).filter(Boolean);
+  const regexUnidadeOuGenerico = /^(?:\d+(?:[.,]\d+)?(?:hz|khz|mhz|ms|mm|cm|m|kg|g|gb|tb|mb|w|v|rpm|fps|mah|pol)?|3d|2d|4k|8k|2k|fhd|wqhd|uhd|qhd|hdr10?|usb\d*|hdmi\d*|type-?c|110v|220v|127v)$/i;
+
+  const partNumbers: string[] = [];
+  for (const tok of tokens) {
+    const semTraco = tok.replace(/^[-–—]+|[-–—]+$/g, '');
+    if (!semTraco || semTraco.length < 2) continue;
+    if (regexUnidadeOuGenerico.test(semTraco)) continue;
+    // Exige mistura de letras e dígitos (ex: MB16AHVE, HMG00234PT, SE2726H, K2, A1M, PF002-M-BRA)
+    if (/[a-z]/i.test(semTraco) && /\d/.test(semTraco)) {
+      partNumbers.push(semTraco);
+    }
+  }
+  return Array.from(new Set(partNumbers));
+};
+
 export const extrairTermoPrincipalProduto = (termo: string): string => {
-  const base = limparTermoParaBuscaGoogle(termo);
+  const base = limparTermoParaBuscaGoogle(termo)
+    .replace(/[""''"`,;()[\]{}]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
   if (!base) return '';
 
+  const partNumbers = extrairPartNumbersProduto(termo);
+
   const semRuido = base
-    .replace(/\b(?:alta\s+velocidade|velocidade\s+m[aá]xima|envio\s+imediato|pronta\s+entrega|com\s+nota\s+fiscal|nota\s+fiscal|nf-?e?|garantia\s+oficial|100%\s+original|original\s+lacrad[oa]|lacrad[oa]|promo[cç][aã]o|oferta|super\s+r[aá]pid[oa]|bivolt|110v\s*\/?\s*220v|220v\s*\/?\s*110v)\b/gi, ' ')
-    .replace(/\b\d+\s*(?:mm\/s|mm\/s²|rpm|hz|khz|mhz|w\s+rms)\b/gi, ' ')
+    .replace(/\b(?:full\s*hd|fhd|wqhd|qhd|uhd|hdr\d*|ips|va|tn|oled|amoled|hdmi|usb|type\s*c|displayport|filtro\s+blue\s+light|blue\s+light|anti\s*reflexo|antireflexo|adaptive\s+sync|freesync|g\s*sync|mprt|conforto\s+visual|auto\s+nivelamento|silencios[oa]|velocidade\s+de\s+at[eé]|alta\s+velocidade|velocidade\s+m[aá]xima|envio\s+imediato|pronta\s+entrega|com\s+nota\s+fiscal|nota\s+fiscal|nf-?e?|garantia\s+oficial|100%\s+original|original\s+lacrad[oa]|lacrad[oa]|promo[cç][aã]o|oferta|super\s+r[aá]pid[oa]|bivolt|110v\s*\/?\s*220v|220v\s*\/?\s*110v|ultrawide|widescreen|gamer|curvo|port[aá]til)\b/gi, ' ')
+    .replace(/\b\d+(?:[.,]\d+)?\s*(?:mm\/s|mm\/s²|rpm|hz|khz|mhz|ms|w\s*rms|pol|polegadas)\b/gi, ' ')
+    .replace(/\b\d{1,2}(?:[.,]\d{1,2})\b/g, ' ') // polegadas como 15.6 ou 23.8
     .replace(/\b\d{2,4}\s*[xX×]\s*\d{2,4}(?:\s*[xX×]\s*\d{2,4})?\s*(?:mm|cm)?\b/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
-  const palavras = (semRuido || base).split(/\s+/).filter(Boolean);
-  if (palavras.length <= 6) {
-    return palavras.join(' ');
+  const palavrasBase = (semRuido || base).split(/\s+/).filter(Boolean);
+  const nucleo = palavrasBase.slice(0, 5);
+
+  // Garante que o part-number principal (ex: MB16AHVE, HMG00234PT, SE2726H) nunca seja cortado
+  if (partNumbers.length > 0) {
+    const pnPrincipal = partNumbers[partNumbers.length - 1];
+    const jaTemPn = nucleo.some(p => p.toLowerCase() === pnPrincipal.toLowerCase());
+    if (!jaTemPn) {
+      nucleo.push(pnPrincipal);
+    }
   }
-  return palavras.slice(0, 6).join(' ');
+
+  return nucleo.join(' ').trim();
 };
 
 /**
@@ -561,7 +601,7 @@ export const testarConexaoSerpApi = async (
 const cacheSerpMemoria = new Map<string, { timestamp: number; fotos: FotoResultadoSerpApi[] }>();
 
 export const obterCacheSerp = (termo: string): FotoResultadoSerpApi[] | null => {
-  const chave = `hubi_serp_cache_v16_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_cache_v18_${termo.toLowerCase().trim()}`;
   const emMemoria = cacheSerpMemoria.get(chave);
   if (emMemoria && Date.now() - emMemoria.timestamp < 1000 * 60 * 60 * 6) {
     return emMemoria.fotos;
@@ -581,7 +621,7 @@ export const obterCacheSerp = (termo: string): FotoResultadoSerpApi[] | null => 
 
 export const salvarCacheSerp = (termo: string, fotos: FotoResultadoSerpApi[]) => {
   if (!fotos || fotos.length === 0) return;
-  const chave = `hubi_serp_cache_v16_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_cache_v18_${termo.toLowerCase().trim()}`;
   const item = { timestamp: Date.now(), fotos };
   cacheSerpMemoria.set(chave, item);
   try {
@@ -942,7 +982,7 @@ export interface ItemShoppingSerpApi {
 const cacheShoppingSerpMemoria = new Map<string, { timestamp: number; itens: ItemShoppingSerpApi[] }>();
 
 export const obterCacheShoppingSerp = (termo: string): ItemShoppingSerpApi[] | null => {
-  const chave = `hubi_serp_shopping_cache_v16_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_shopping_cache_v18_${termo.toLowerCase().trim()}`;
   const TTL_MS = 1000 * 60 * 60 * 6; // 6 horas
   const emMemoria = cacheShoppingSerpMemoria.get(chave);
   if (emMemoria && Date.now() - emMemoria.timestamp < TTL_MS) {
@@ -963,7 +1003,7 @@ export const obterCacheShoppingSerp = (termo: string): ItemShoppingSerpApi[] | n
 
 export const salvarCacheShoppingSerp = (termo: string, itens: ItemShoppingSerpApi[]) => {
   if (!itens || itens.length === 0) return;
-  const chave = `hubi_serp_shopping_cache_v16_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_shopping_cache_v18_${termo.toLowerCase().trim()}`;
   const item = { timestamp: Date.now(), itens };
   cacheShoppingSerpMemoria.set(chave, item);
   const serializado = JSON.stringify(item);

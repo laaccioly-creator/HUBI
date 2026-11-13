@@ -1543,7 +1543,7 @@ export const atualizarProdutoExistenteComIA = async (dados: {
   const termoReferencia = nomeInformadoPeloUsuario || (dados.descricao?.trim() || 'Produto');
 
   // Cache instantâneo (Memória + localStorage) para respostas em 0ms em consultas repetidas
-  const chaveCache = `hubi_preencher_ia_v16_${termoReferencia.toLowerCase().trim()}_${(dados.categoriaNome || '').toLowerCase()}`;
+  const chaveCache = `hubi_preencher_ia_v18_${termoReferencia.toLowerCase().trim()}_${(dados.categoriaNome || '').toLowerCase()}`;
   const TTL_CACHE = 1000 * 60 * 60 * 6; // 6 horas
   const emMemoria = cachePreencherIAMemoria.get(chaveCache);
   if (emMemoria && Date.now() - emMemoria.timestamp < TTL_CACHE) {
@@ -1696,7 +1696,7 @@ REGRAS MANDATÓRIAS:
         : [];
       const mediaRadar = Number((concorrentesRadar.reduce((acc, c) => acc + c.preco, 0) / concorrentesRadar.length).toFixed(2));
       const termoRadar = (contextoJev.termoCanonico || termoReferencia).toLowerCase().trim();
-      const chaveRadar = `hubi_radar_precos_cache_v16_${termoRadar}`;
+      const chaveRadar = `hubi_radar_precos_cache_v18_${termoRadar}`;
       const payloadRadar = JSON.stringify({
         timestamp: Date.now(),
         dados: {
@@ -1718,10 +1718,9 @@ REGRAS MANDATÓRIAS:
     ? await catalogJevService.estimarDimensoesComJev(termoReferencia, dados.categoriaNome, dados.descricao).catch(() => extrairDimensoesEPesoTexto(`${termoReferencia} ${dados.descricao || ''}`))
     : { peso_kg: 0.35, altura_cm: 10, largura_cm: 15, comprimento_cm: 20 };
 
+  // Nunca chutar preços inventados pelo Gemini quando Serper = 0 lojas (mantém apenas preço real da Serper ou atual da loja)
   const precoEstimado =
     precoMedioSerp ||
-    Number(parsedIA?.preco_varejo) ||
-    Number(parsedIA?.preco_venda_estimado) ||
     Number(dados.precoVendaAtual) ||
     0;
   const precoSemCentavos = precoEstimado > 0 ? Math.floor(precoEstimado) : 0;
@@ -1980,9 +1979,11 @@ Responda EXCLUSIVAMENTE em JSON válido no formato:
     const lista = Array.isArray(parsed?.ofertas) ? parsed.ofertas : Array.isArray(parsed) ? parsed : [];
     const resultados: ItemShoppingSerpApi[] = [];
 
+    // Verifica que a URL é real e válida (nunca aceitar oferta sem URL verificada do Google Search)
     for (const item of lista) {
       const titulo = String(item?.titulo || item?.title || termo).trim();
       const url = String(item?.url || item?.link || '').trim();
+      if (!url || !url.startsWith('http')) continue;
       const precoNum = extrairPrecoNumericoBr(item?.preco ?? item?.price);
       if (!precoNum || precoNum <= 0) continue;
 
