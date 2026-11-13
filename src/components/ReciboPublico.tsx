@@ -16,7 +16,8 @@ import {
 import { ReceiptPdfService } from '../services/receiptPdfService';
 import { obterInfoVencimentoFiado, extrairInfoPagamentoEntrega } from '../utils/statusPedidoUtils';
 import { formatarMoeda } from '../utils/formatters';
-import { obterResumoServicoRecibo, extrairInfoVisitaPedido } from '../utils/taxaDomicilioUtils';
+import { extrairInfoVisitaPedido } from '../utils/taxaDomicilioUtils';
+import { resolverDadosReciboPedido } from '../utils/reciboServicoHelper';
 
 export const ReciboPublico: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -262,7 +263,7 @@ export const ReciboPublico: React.FC = () => {
   const pagInfo = obterDadosPagamentoRecibo(pedido);
   const infoEntrega = pedido ? extrairInfoPagamentoEntrega(pedido) : null;
   const infoVisita = extrairInfoVisitaPedido(pedido, loja);
-  const resumoServico = obterResumoServicoRecibo(pedido, loja);
+  const dadosRecibo = resolverDadosReciboPedido(pedido, pedido.itens || (pedido as { itens_pedido?: Pedido['itens'] }).itens_pedido, loja);
   const pe = (pedido as any)?.pedido_entrega || (pedido as any)?.pedido_entregas?.[0];
   const itens = (pedido.itens || (pedido as unknown as { itens_pedido?: ItemPedido[] }).itens_pedido || []) as ItemPedido[];
   const totalQtdItens = itens.reduce((acc, i) => acc + Number(i.quantidade || 1), 0);
@@ -318,6 +319,9 @@ export const ReciboPublico: React.FC = () => {
             <h4 className="font-black text-slate-900 text-base tracking-wide uppercase">
               RECIBO #{pedido.numero_pedido}
             </h4>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              {dadosRecibo.subtituloRecibo}
+            </p>
             <p className="font-bold text-slate-800 uppercase text-[11px]">
               {loja?.nome_fantasia || 'HUBI PDV'}
             </p>
@@ -353,21 +357,19 @@ export const ReciboPublico: React.FC = () => {
           <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 border-dashed text-[11px] space-y-1">
             <div className="flex justify-between items-center">
               <span className="font-bold text-slate-700 uppercase">
-                {resumoServico.isSomenteServico ? 'LOCAL DO SERVIÇO:' : 'Forma de Entrega:'}
+                {dadosRecibo.isSomenteServico ? `${dadosRecibo.rotuloLocalCabecalho}:` : 'Forma de Entrega:'}
               </span>
               <span className={`font-black px-1.5 py-0.5 rounded text-[10px] ${
-                resumoServico.isSomenteServico ? 'bg-emerald-100 text-emerald-800' : badgeEstilo
+                dadosRecibo.isSomenteServico ? 'bg-emerald-100 text-emerald-800' : badgeEstilo
               }`}>
-                {resumoServico.isSomenteServico
-                  ? (resumoServico.modalidadeLocal === 'externo' ? 'EM DOMICÍLIO' : 'NA LOJA')
-                  : formaEntregaTexto}
+                {dadosRecibo.isSomenteServico ? dadosRecibo.badgeLocalValor : formaEntregaTexto}
               </span>
             </div>
             <div className="text-slate-600 pt-0.5">
               <strong className="text-slate-800">
-                {resumoServico.isSomenteServico ? 'Local da Prestação:' : labelEndereco}{' '}
+                {dadosRecibo.isSomenteServico ? `${dadosRecibo.rotuloEndereco}:` : labelEndereco}{' '}
               </strong>
-              <span>{resumoServico.isSomenteServico ? resumoServico.enderecoServico : enderecoExibicao}</span>
+              <span>{dadosRecibo.isSomenteServico ? dadosRecibo.enderecoFormatado : enderecoExibicao}</span>
             </div>
             {(() => {
               const rawCod = pe?.codigo_corrida || (pedido as any)?.codigo_corrida || (pedido as any)?.metadados?.codigo_corrida;
@@ -457,10 +459,10 @@ export const ReciboPublico: React.FC = () => {
 
           {/* Fechamento Financeiro */}
           <div className="space-y-1.5 text-xs text-slate-700">
-            {resumoServico.isSomenteServico ? (
+            {dadosRecibo.isSomenteServico ? (
               <div className="flex justify-between text-slate-800">
-                <span>Subtotal dos Serviços:</span>
-                <span className="font-semibold text-slate-900">{formatarMoeda(resumoServico.subtotalServicos)}</span>
+                <span>{dadosRecibo.rotuloSubtotal}:</span>
+                <span className="font-semibold text-slate-900">{formatarMoeda(dadosRecibo.subtotalItens)}</span>
               </div>
             ) : (
               <>
@@ -492,13 +494,13 @@ export const ReciboPublico: React.FC = () => {
               </div>
             )}
 
-            {resumoServico.isSomenteServico ? (
-              resumoServico.modalidadeLocal === 'externo' && resumoServico.taxaVisita > 0 ? (
+            {dadosRecibo.isSomenteServico ? (
+              dadosRecibo.taxaVisitaDomicilio > 0 ? (
                 <div className="flex justify-between text-slate-800">
-                  <span>Taxa de Visita (Domicílio):</span>
-                  <span className="font-semibold text-slate-900">+ {formatarMoeda(resumoServico.taxaVisita)}</span>
+                  <span>{dadosRecibo.rotuloTaxaAdicional || 'Taxa de Visita (Domicílio)'}:</span>
+                  <span className="font-semibold text-slate-900">+ {formatarMoeda(dadosRecibo.taxaVisitaDomicilio)}</span>
                 </div>
-              ) : resumoServico.modalidadeLocal === 'externo' && resumoServico.taxaVisitaIsenta ? (
+              ) : dadosRecibo.isAtendimentoDomicilio && infoVisita.taxaVisitaIsenta ? (
                 <div className="flex justify-between text-slate-800">
                   <span>Taxa de Visita (Domicílio):</span>
                   <span className="font-bold text-emerald-600">Isenta (serviço aprovado)</span>

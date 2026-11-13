@@ -11,7 +11,8 @@ import { Pedido, Loja, ItemPedido } from '../types';
 import { obterInfoVencimentoFiado, extrairInfoPagamentoEntrega } from '../utils/statusPedidoUtils';
 import { detectarServicoPorCodigo } from '../utils/correiosValidator';
 import { formatarNomeTransportadora } from '../utils/shippingDisplay';
-import { extrairInfoVisitaPedido, obterResumoServicoRecibo } from '../utils/taxaDomicilioUtils';
+import { extrairInfoVisitaPedido } from '../utils/taxaDomicilioUtils';
+import { resolverDadosReciboPedido } from '../utils/reciboServicoHelper';
 
 export const formatarDataRecibo = (dataIso?: string | null): string => {
   if (!dataIso) return '';
@@ -331,13 +332,13 @@ export const obterInfoEntregaRecibo = (
   );
   const temEnderecoEntrega = Boolean(pe?.destino_logradouro || pedido.endereco_entrega);
 
-  const resumoServico = obterResumoServicoRecibo(pedido, loja);
-  if (resumoServico.isSomenteServico) {
+  const dadosRecibo = resolverDadosReciboPedido(pedido, pedido.itens, loja);
+  if (dadosRecibo.isSomenteServico) {
     return {
-      ehRetirada: resumoServico.modalidadeLocal === 'loja',
-      formaEntregaTexto: resumoServico.modalidadeLocal === 'externo' ? 'EM DOMICÍLIO' : 'NA LOJA',
-      labelEndereco: 'Local da Prestação:',
-      enderecoExibicao: resumoServico.enderecoServico,
+      ehRetirada: !dadosRecibo.isAtendimentoDomicilio,
+      formaEntregaTexto: dadosRecibo.badgeLocalValor,
+      labelEndereco: `${dadosRecibo.rotuloEndereco}:`,
+      enderecoExibicao: dadosRecibo.enderecoFormatado,
       codigoRastreio: null,
       codigoCorrida: null,
       nomeApp: null
@@ -550,7 +551,7 @@ export class PrintService {
       const infoEntregaPresencial = extrairInfoPagamentoEntrega(pedido);
 
       // Dados fiéis de frete, forma de entrega e endereçamento
-      const resumoServico = obterResumoServicoRecibo(pedido, loja);
+      const dadosRecibo = resolverDadosReciboPedido(pedido, pedido.itens, loja);
       const {
         ehRetirada,
         formaEntregaTexto,
@@ -723,15 +724,15 @@ export class PrintService {
           <div style="margin-bottom: 14px; padding: 8px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
               <span style="font-size: ${isA4 ? '11px' : '9px'}; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
-                ${resumoServico.isSomenteServico ? 'LOCAL DO SERVIÇO:' : 'Forma de Entrega:'}
+                ${dadosRecibo.isSomenteServico ? 'LOCAL DO SERVIÇO:' : 'Forma de Entrega:'}
               </span>
-              <span style="font-size: ${isA4 ? '11px' : '9px'}; font-weight: 800; color: ${resumoServico.isSomenteServico ? '#047857' : (ehRetirada ? '#7e22ce' : '#047857')}; background: ${resumoServico.isSomenteServico ? '#d1fae5' : (ehRetirada ? '#f3e8ff' : '#d1fae5')}; padding: 1px 6px; border-radius: 4px;">
-                ${resumoServico.isSomenteServico ? (resumoServico.modalidadeLocal === 'externo' ? 'EM DOMICÍLIO' : 'NA LOJA') : formaEntregaTexto}
+              <span style="font-size: ${isA4 ? '11px' : '9px'}; font-weight: 800; color: ${dadosRecibo.isSomenteServico ? '#047857' : (ehRetirada ? '#7e22ce' : '#047857')}; background: ${dadosRecibo.isSomenteServico ? '#d1fae5' : (ehRetirada ? '#f3e8ff' : '#d1fae5')}; padding: 1px 6px; border-radius: 4px;">
+                ${dadosRecibo.isSomenteServico ? dadosRecibo.badgeLocalValor : formaEntregaTexto}
               </span>
             </div>
-            ${(resumoServico.isSomenteServico ? resumoServico.enderecoServico : enderecoExibicao) ? `
+            ${(dadosRecibo.isSomenteServico ? dadosRecibo.enderecoFormatado : enderecoExibicao) ? `
               <div style="font-size: ${isA4 ? '12px' : '10px'}; color: #334155; margin-top: 4px; border-top: 1px dashed #cbd5e1; padding-top: 4px; line-height: 1.3;">
-                <strong>${resumoServico.isSomenteServico ? 'Local da Prestação:' : labelEndereco}</strong> ${resumoServico.isSomenteServico ? resumoServico.enderecoServico : enderecoExibicao}
+                <strong>${dadosRecibo.isSomenteServico ? `${dadosRecibo.rotuloEndereco}:` : labelEndereco}</strong> ${dadosRecibo.isSomenteServico ? dadosRecibo.enderecoFormatado : enderecoExibicao}
               </div>
             ` : ''}
             ${codigoRastreio ? `
@@ -782,11 +783,11 @@ export class PrintService {
           <div style="margin-top: 8px; padding-top: 6px; font-size: ${isA4 ? '12px' : '11px'}; color: #475569; border-top: 1px dashed #e2e8f0;">
             ${(() => {
               const infoVisita = extrairInfoVisitaPedido(pedido, loja);
-              if (resumoServico.isSomenteServico) {
+              if (dadosRecibo.isSomenteServico) {
                 return `
                   <div style="display: flex; justify-content: space-between; margin: 2px 0;">
-                    <span>Subtotal dos Serviços:</span>
-                    <span>R$ ${formatNumeroMoeda(resumoServico.subtotalServicos)}</span>
+                    <span>${dadosRecibo.rotuloSubtotal}:</span>
+                    <span>R$ ${formatNumeroMoeda(dadosRecibo.subtotalItens)}</span>
                   </div>`;
               }
               let htmlFechamento = '';
@@ -821,17 +822,17 @@ export class PrintService {
             ` : ''}
             ${(() => {
               const infoVisita = extrairInfoVisitaPedido(pedido, loja);
-              if (resumoServico.isSomenteServico) {
-                if (resumoServico.modalidadeLocal === 'externo' && resumoServico.taxaVisita > 0) {
+              if (dadosRecibo.isSomenteServico) {
+                if (dadosRecibo.taxaVisitaDomicilio > 0) {
                   return `
                     <div style="display: flex; justify-content: space-between; margin: 2px 0;">
-                      <span>Taxa de Visita (Domicílio):</span>
+                      <span>${dadosRecibo.rotuloTaxaAdicional || 'Taxa de Visita (Domicílio)'}:</span>
                       <span style="font-weight: 600; color: #0f172a;">
-                        + R$ ${formatNumeroMoeda(resumoServico.taxaVisita)}
+                        + R$ ${formatNumeroMoeda(dadosRecibo.taxaVisitaDomicilio)}
                       </span>
                     </div>`;
                 }
-                if (resumoServico.modalidadeLocal === 'externo' && resumoServico.taxaVisitaIsenta) {
+                if (dadosRecibo.isAtendimentoDomicilio && infoVisita.taxaVisitaIsenta) {
                   return `
                     <div style="display: flex; justify-content: space-between; margin: 2px 0;">
                       <span>Taxa de Visita (Domicílio):</span>
@@ -1234,7 +1235,7 @@ export class PrintService {
     }
     text += divider;
 
-    const resumoServico = obterResumoServicoRecibo(pedido, loja);
+    const dadosRecibo = resolverDadosReciboPedido(pedido, pedido.itens, loja);
     const {
       ehRetirada,
       formaEntregaTexto,
@@ -1249,10 +1250,10 @@ export class PrintService {
       const telCli = pedido.cliente?.whatsapp || pedido.cliente?.telefone || (pedido as any).cliente_telefone_avulso;
       if (telCli) text += `Contato: ${telCli}\n`;
     }
-    if (resumoServico.isSomenteServico) {
-      text += `LOCAL DO SERVICO: ${resumoServico.modalidadeLocal === 'externo' ? 'EM DOMICILIO' : 'NA LOJA'}\n`;
-      if (resumoServico.enderecoServico) {
-        text += `Local da Prestacao: ${resumoServico.enderecoServico.slice(0, cols - 20)}\n`;
+    if (dadosRecibo.isSomenteServico) {
+      text += `LOCAL DO SERVICO: ${dadosRecibo.isAtendimentoDomicilio ? 'EM DOMICILIO' : 'NA LOJA'}\n`;
+      if (dadosRecibo.enderecoFormatado) {
+        text += `Local da Prestacao: ${dadosRecibo.enderecoFormatado.slice(0, cols - 20)}\n`;
       }
     } else {
       text += `Forma de Entrega: ${formaEntregaTexto.toUpperCase()}\n`;
@@ -1277,8 +1278,8 @@ export class PrintService {
 
     const infoVisita = extrairInfoVisitaPedido(pedido, loja);
 
-    if (resumoServico.isSomenteServico) {
-      text += `Subtotal dos Servicos: R$ ${Number(resumoServico.subtotalServicos).toFixed(2)}\n`;
+    if (dadosRecibo.isSomenteServico) {
+      text += `Subtotal dos Servicos: R$ ${Number(dadosRecibo.subtotalItens).toFixed(2)}\n`;
     } else if (infoVisita.subtotalServicos > 0 && infoVisita.subtotalProdutos > 0) {
       text += `Subtotal Servicos:     R$ ${Number(infoVisita.subtotalServicos).toFixed(2)}\n`;
       text += `Subtotal Produtos:     R$ ${Number(infoVisita.subtotalProdutos).toFixed(2)}\n`;
@@ -1290,11 +1291,11 @@ export class PrintService {
 
     if (Number(pedido.valor_desconto) > 0) text += `Desconto:            - R$ ${Number(pedido.valor_desconto).toFixed(2)}\n`;
 
-    if (resumoServico.isSomenteServico) {
-      if (resumoServico.modalidadeLocal === 'externo' && resumoServico.taxaVisita > 0) {
-        text += `Taxa Visita Domicilio:+ R$ ${Number(resumoServico.taxaVisita).toFixed(2)}\n`;
-      } else if (resumoServico.modalidadeLocal === 'externo' && resumoServico.taxaVisitaIsenta) {
-        text += `Taxa Visita Domicilio: Isenta (Aprovado)\n`;
+    if (dadosRecibo.isSomenteServico) {
+      if (dadosRecibo.taxaVisitaDomicilio > 0) {
+        text += `Taxa de Visita (Domicilio): + R$ ${Number(dadosRecibo.taxaVisitaDomicilio).toFixed(2)}\n`;
+      } else if (dadosRecibo.isAtendimentoDomicilio && infoVisita.taxaVisitaIsenta) {
+        text += `Taxa de Visita (Domicilio): Isenta (Aprovado)\n`;
       }
     } else if (infoVisita.temServicoExterno) {
       const valorTaxa = infoVisita.taxaVisitaCobrada > 0 ? infoVisita.taxaVisitaCobrada : Number(pedido.valor_frete || 0);
@@ -1426,7 +1427,7 @@ export class PrintService {
       pagStr = `\nSTATUS DO PAGAMENTO: AGUARDANDO PAGAMENTO\n`;
     }
 
-    const resumoServico = obterResumoServicoRecibo(pedido, loja);
+    const dadosRecibo = resolverDadosReciboPedido(pedido, pedido.itens, loja);
     const infoVisita = extrairInfoVisitaPedido(pedido, loja);
 
     return `RECIBO #${pedido.numero_pedido}\n\n` +
@@ -1436,8 +1437,8 @@ export class PrintService {
       `\nVendedor: ${vendedorInfo.valor}\n` +
       `Cliente: ${clienteNome}\n` +
       (pedido.cliente?.whatsapp ? `Contato: +55 ${pedido.cliente.whatsapp}\n` : '') +
-      (resumoServico.isSomenteServico
-        ? `\nLOCAL DO SERVIÇO: ${resumoServico.modalidadeLocal === 'externo' ? 'EM DOMICÍLIO' : 'NA LOJA'}\nLocal da Prestação: ${resumoServico.enderecoServico}\n`
+      (dadosRecibo.isSomenteServico
+        ? `\n${dadosRecibo.rotuloLocalCabecalho}: ${dadosRecibo.badgeLocalValor}\n${dadosRecibo.rotuloEndereco}: ${dadosRecibo.enderecoFormatado}\n`
         : infoVisita.temServicoExterno
         ? `\nLOCAL DO SERVIÇO: EM DOMICÍLIO\nLocal da Prestação: ${infoVisita.enderecoVisita || pedido.endereco_entrega || 'A combinar'}\n`
         : '') +
@@ -1445,18 +1446,18 @@ export class PrintService {
       `--------------------------------------------------\n` +
       linhasItens + `\n` +
       `--------------------------------------------------\n` +
-      (resumoServico.isSomenteServico
-        ? `Subtotal dos Serviços: R$ ${Number(resumoServico.subtotalServicos).toFixed(2)}\n`
+      (dadosRecibo.isSomenteServico
+        ? `${dadosRecibo.rotuloSubtotal}: R$ ${Number(dadosRecibo.subtotalItens).toFixed(2)}\n`
         : infoVisita.subtotalServicos > 0 && infoVisita.subtotalProdutos > 0
         ? `Subtotal dos Serviços: R$ ${Number(infoVisita.subtotalServicos).toFixed(2)}\nSubtotal dos Produtos: R$ ${Number(infoVisita.subtotalProdutos).toFixed(2)}\n`
         : infoVisita.subtotalServicos > 0
         ? `Subtotal dos Serviços: R$ ${Number(infoVisita.subtotalServicos).toFixed(2)}\n`
         : `Subtotal dos Produtos: R$ ${Number(pedido.subtotal || 0).toFixed(2)}\n`) +
       (Number(pedido.valor_desconto) > 0 ? `Desconto: - R$ ${Number(pedido.valor_desconto).toFixed(2)}\n` : '') +
-      (resumoServico.isSomenteServico
-        ? (resumoServico.modalidadeLocal === 'externo' && resumoServico.taxaVisita > 0
-            ? `Taxa de Visita (Domicílio): + R$ ${Number(resumoServico.taxaVisita).toFixed(2)}\n`
-            : resumoServico.modalidadeLocal === 'externo' && resumoServico.taxaVisitaIsenta
+      (dadosRecibo.isSomenteServico
+        ? (dadosRecibo.taxaVisitaDomicilio > 0
+            ? `${dadosRecibo.rotuloTaxaAdicional || 'Taxa de Visita (Domicílio)'}: + R$ ${Number(dadosRecibo.taxaVisitaDomicilio).toFixed(2)}\n`
+            : dadosRecibo.isAtendimentoDomicilio && infoVisita.taxaVisitaIsenta
             ? `Taxa de Visita (Domicílio): Isenta (serviço aprovado)\n`
             : '')
         : infoVisita.temServicoExterno
@@ -1497,13 +1498,13 @@ export class PrintService {
       ? '\n⚖️ Seu pedido contém itens por quilo e está em pesagem/separação. Avisaremos assim que os valores exatos forem confirmados!\n'
       : '';
 
-    const resumoServico = obterResumoServicoRecibo(pedido, loja);
-    const blocoServicoWhatsApp = resumoServico.isSomenteServico
-      ? `\n📍 LOCAL DO SERVIÇO: ${resumoServico.modalidadeLocal === 'externo' ? 'EM DOMICÍLIO' : 'NA LOJA'}` +
-        `\nLocal da Prestação: ${resumoServico.enderecoServico}` +
-        `\nSubtotal dos Serviços: R$ ${Number(resumoServico.subtotalServicos).toFixed(2).replace('.', ',')}` +
-        (resumoServico.modalidadeLocal === 'externo' && resumoServico.taxaVisita > 0
-          ? `\nTaxa de Visita (Domicílio): R$ ${Number(resumoServico.taxaVisita).toFixed(2).replace('.', ',')}`
+    const dadosRecibo = resolverDadosReciboPedido(pedido, pedido.itens, loja);
+    const blocoServicoWhatsApp = dadosRecibo.isSomenteServico
+      ? `\n📍 ${dadosRecibo.rotuloLocalCabecalho}: ${dadosRecibo.badgeLocalValor}` +
+        `\n${dadosRecibo.rotuloEndereco}: ${dadosRecibo.enderecoFormatado}` +
+        `\n${dadosRecibo.rotuloSubtotal}: R$ ${Number(dadosRecibo.subtotalItens).toFixed(2).replace('.', ',')}` +
+        (dadosRecibo.taxaVisitaDomicilio > 0
+          ? `\n${dadosRecibo.rotuloTaxaAdicional || 'Taxa de Visita (Domicílio)'}: + R$ ${Number(dadosRecibo.taxaVisitaDomicilio).toFixed(2).replace('.', ',')}`
           : '') +
         `\nVALOR TOTAL: R$ ${Number(pedido.valor_total || 0).toFixed(2).replace('.', ',')}\n`
       : '';

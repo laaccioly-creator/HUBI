@@ -18,6 +18,7 @@ import {
 } from '../services/printService';
 import { ReceiptPdfService } from '../services/receiptPdfService';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
+import { AgendamentoReciboInput, resolverDadosReciboPedido } from '../utils/reciboServicoHelper';
 import { useTheme } from '../contexts/ThemeContext';
 
 export interface ModalReciboPedidoProps {
@@ -41,6 +42,7 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
   const isDark = tema === 'dark';
   const [pedidoCompleto, setPedidoCompleto] = useState<Pedido | null>(null);
   const [lojaCompleta, setLojaCompleta] = useState<Loja | null>(lojaProp || null);
+  const [agendamentoServico, setAgendamentoServico] = useState<AgendamentoReciboInput | null>(null);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [baixandoPdf, setBaixandoPdf] = useState<boolean>(false);
   const [copiado, setCopiado] = useState<boolean>(false);
@@ -52,6 +54,7 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
     async function carregarDetalhes() {
       if (!isOpen || !pedido) {
         setPedidoCompleto(null);
+        setAgendamentoServico(null);
         return;
       }
 
@@ -61,9 +64,9 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
       try {
         const idLojaAlvo = lojaProp?.id || pedido.loja_id || lojaId;
 
-        const [itensRes, pagRes, entregaRes, lojaRes] = await Promise.allSettled([
+        const [itensRes, pagRes, entregaRes, lojaRes, agendamentoRes] = await Promise.allSettled([
           !pedido.itens || pedido.itens.length === 0
-            ? supabase.from('itens_pedido').select('*').eq('pedido_id', pedido.id)
+            ? supabase.from('itens_pedido').select('*, produto:produtos(tipo_item)').eq('pedido_id', pedido.id)
             : Promise.resolve({ data: pedido.itens }),
           !pedido.pagamentos || pedido.pagamentos.length === 0
             ? supabase.from('pagamentos_pedido').select('*, forma_pagamento:formas_pagamento(*)').eq('pedido_id', pedido.id)
@@ -71,33 +74,41 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
           supabase.from('pedido_entregas').select('*').eq('pedido_id', pedido.id),
           !lojaProp && idLojaAlvo
             ? supabase.from('lojas').select('*').eq('id', idLojaAlvo).maybeSingle()
-            : Promise.resolve({ data: lojaProp || null })
+            : Promise.resolve({ data: lojaProp || null }),
+          supabase.from('agendamentos_servicos').select('*').eq('pedido_id', pedido.id).maybeSingle()
         ]);
 
         if (!ativo) return;
 
-        const itens = itensRes.status === 'fulfilled' && (itensRes.value as any)?.data
-          ? (itensRes.value as any).data
+        const itens = itensRes.status === 'fulfilled' && (itensRes.value as { data?: ItemPedido[] | null })?.data
+          ? (itensRes.value as { data: ItemPedido[] }).data
           : pedido.itens || [];
 
-        const pagamentos = pagRes.status === 'fulfilled' && (pagRes.value as any)?.data
-          ? (pagRes.value as any).data
+        const pagamentos = pagRes.status === 'fulfilled' && (pagRes.value as { data?: Pedido['pagamentos'] | null })?.data
+          ? (pagRes.value as { data: Pedido['pagamentos'] }).data
           : pedido.pagamentos || [];
 
-        const pedidoEntregas = entregaRes.status === 'fulfilled' && (entregaRes.value as any)?.data
-          ? (entregaRes.value as any).data
-          : (pedido as any)?.pedido_entregas || [];
+        const pedidoEntregas = entregaRes.status === 'fulfilled' && (entregaRes.value as { data?: unknown[] | null })?.data
+          ? (entregaRes.value as { data: unknown[] }).data
+          : (pedido as { pedido_entregas?: unknown[] })?.pedido_entregas || [];
 
-        const lojaFinal = lojaRes.status === 'fulfilled' && (lojaRes.value as any)?.data
-          ? (lojaRes.value as any).data
+        const lojaFinal = lojaRes.status === 'fulfilled' && (lojaRes.value as { data?: Loja | null })?.data
+          ? (lojaRes.value as { data: Loja }).data
           : lojaProp || null;
 
+        const agendamentoCarregado =
+          agendamentoRes.status === 'fulfilled' && (agendamentoRes.value as { data?: AgendamentoReciboInput | null })?.data
+            ? (agendamentoRes.value as { data: AgendamentoReciboInput }).data
+            : (pedido.agendamentos && pedido.agendamentos[0]) || null;
+
+        setAgendamentoServico(agendamentoCarregado);
         setLojaCompleta(lojaFinal);
         setPedidoCompleto({
           ...pedido,
           itens,
           pagamentos,
-          pedido_entregas: pedidoEntregas
+          pedido_entregas: pedidoEntregas,
+          agendamentos: agendamentoCarregado ? [agendamentoCarregado as never] : pedido.agendamentos
         } as Pedido);
       } catch (err) {
         console.warn('[ModalReciboPedido] Erro ao carregar detalhes do recibo:', err);
@@ -175,7 +186,13 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
   })();
 
   const pagInfo = obterDadosPagamentoRecibo(pedAtual);
-  const subtotalProdutos = Number((pedAtual as any).subtotal_produtos || pedAtual.subtotal || pedAtual.valor_total || 0);
+  const dadosRecibo = resolverDadosReciboPedido(
+    pedAtual,
+    pedAtual.itens,
+    lojaAtual,
+    agendamentoServico
+  );
+  const subtotalProdutos = Number((pedAtual as { subtotal_produtos?: number }).subtotal_produtos || pedAtual.subtotal || pedAtual.valor_total || 0);
   const valorDesconto = Number(pedAtual.valor_desconto || 0);
   const valorFrete = Number(pedAtual.valor_frete || 0);
   const valorTotal = Number(pedAtual.valor_total || 0);
@@ -209,9 +226,14 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
         <div className={`p-4 border-b flex items-center justify-between shrink-0 ${
           isDark ? 'border-slate-700/80 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-900'
         }`}>
-          <h3 className="text-sm font-bold">
-            Recibo #{pedAtual.numero_pedido}
-          </h3>
+          <div>
+            <h3 className="text-sm font-bold">
+              Recibo #{pedAtual.numero_pedido}
+            </h3>
+            <p className={`text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              {dadosRecibo.subtituloRecibo}
+            </p>
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -246,6 +268,9 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
                 {(lojaAtual?.whatsapp || lojaAtual?.telefone) && (
                   <p className="text-[11px] text-slate-600">{lojaAtual?.whatsapp || lojaAtual?.telefone}</p>
                 )}
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 pt-1">
+                  {dadosRecibo.subtituloRecibo}
+                </p>
               </div>
 
               {/* Número e Data */}
@@ -275,17 +300,29 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
                 )}
               </div>
 
-              {/* Forma de Entrega & Endereço */}
+              {/* Forma de Entrega / Local do Serviço & Endereço */}
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] space-y-1.5">
                 <div className="flex justify-between items-center">
-                  <span className="font-bold text-slate-700 uppercase text-[10px] tracking-wider">Forma de Entrega:</span>
-                  <span className={`font-black px-1.5 py-0.5 rounded text-[10px] ${badgeEstilo}`}>
-                    {formaEntregaTexto}
+                  <span className="font-bold text-slate-700 uppercase text-[10px] tracking-wider">
+                    {dadosRecibo.rotuloLocalCabecalho}:
+                  </span>
+                  <span className={`font-black px-1.5 py-0.5 rounded text-[10px] ${
+                    dadosRecibo.isSomenteServico ? 'bg-emerald-100 text-emerald-800' : badgeEstilo
+                  }`}>
+                    {dadosRecibo.isSomenteServico ? dadosRecibo.badgeLocalValor : formaEntregaTexto}
                   </span>
                 </div>
                 <div className="text-slate-700 pt-0.5">
-                  <strong className="text-slate-900">{ehRetirada ? 'Local de Retirada:' : 'Endereço de Entrega:'} </strong>
-                  <span className="text-slate-700">{ehRetirada ? (enderecoLojaFormatado || 'Balcão da Loja') : enderecoDestino}</span>
+                  <strong className="text-slate-900">
+                    {dadosRecibo.isSomenteServico
+                      ? `${dadosRecibo.rotuloEndereco}:`
+                      : (ehRetirada ? 'Local de Retirada:' : 'Endereço de Entrega:')}{' '}
+                  </strong>
+                  <span className="text-slate-700">
+                    {dadosRecibo.isSomenteServico
+                      ? dadosRecibo.enderecoFormatado
+                      : (ehRetirada ? (enderecoLojaFormatado || 'Balcão da Loja') : enderecoDestino)}
+                  </span>
                 </div>
                 {(() => {
                   const rawCod = pe?.codigo_corrida || (pedAtual as any)?.codigo_corrida || (pedAtual as any)?.metadados?.codigo_corrida;
@@ -332,9 +369,9 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
               {/* Fechamento Financeiro */}
               <div className="space-y-1.5 text-xs text-slate-700">
                 <div className="flex justify-between">
-                  <span>Subtotal dos Produtos:</span>
+                  <span>{dadosRecibo.rotuloSubtotal}:</span>
                   <span className="font-semibold text-slate-900">
-                    R$ {subtotalProdutos.toFixed(2)}
+                    R$ {(dadosRecibo.isSomenteServico ? dadosRecibo.subtotalItens : subtotalProdutos).toFixed(2)}
                   </span>
                 </div>
 
@@ -345,7 +382,16 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
                   </div>
                 )}
 
-                {!ehRetirada && (
+                {dadosRecibo.isSomenteServico ? (
+                  dadosRecibo.taxaVisitaDomicilio > 0 ? (
+                    <div className="flex justify-between">
+                      <span>{dadosRecibo.rotuloTaxaAdicional || 'Taxa de Visita (Domicílio)'}:</span>
+                      <span className="font-semibold text-slate-900">
+                        + R$ {dadosRecibo.taxaVisitaDomicilio.toFixed(2)}
+                      </span>
+                    </div>
+                  ) : null
+                ) : !ehRetirada && (
                   <div className="flex justify-between">
                     <span>Frete{formaEntregaTexto ? ` (${formaEntregaTexto})` : ''}:</span>
                     <span className="font-semibold text-slate-900">

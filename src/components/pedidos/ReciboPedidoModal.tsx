@@ -6,7 +6,8 @@ import { obterDadosPagamentoRecibo, formatarDataRecibo, PrintService } from '../
 import { ReceiptPdfService } from '../../services/receiptPdfService';
 import { obterInfoVencimentoFiado, extrairInfoPagamentoEntrega } from '../../utils/statusPedidoUtils';
 import { extrairObservacaoLimpa, formatarMoeda } from '../../utils/formatters';
-import { extrairInfoVisitaPedido, obterResumoServicoRecibo } from '../../utils/taxaDomicilioUtils';
+import { extrairInfoVisitaPedido } from '../../utils/taxaDomicilioUtils';
+import { resolverDadosReciboPedido } from '../../utils/reciboServicoHelper';
 import { detectarServicoPorCodigo } from '../../utils/correiosValidator';
 import { formatarNomeTransportadora } from '../../utils/shippingDisplay';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -276,7 +277,12 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
   const pagInfo = obterDadosPagamentoRecibo(pedido);
   const infoEntrega = pedido ? extrairInfoPagamentoEntrega(pedido) : null;
   const infoVisita = extrairInfoVisitaPedido(pedidoComAgendamentos || pedido, loja);
-  const resumoServico = obterResumoServicoRecibo(pedidoComAgendamentos || pedido, loja, agendamentosCarregados);
+  const dadosRecibo = resolverDadosReciboPedido(
+    pedidoComAgendamentos || pedido,
+    (pedidoComAgendamentos || pedido).itens || (pedidoComAgendamentos || pedido).itens_pedido,
+    loja,
+    agendamentosCarregados
+  );
   const obsLimpa = extrairObservacaoLimpa(pedido.observacoes);
 
   return (
@@ -299,7 +305,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 Recibo do Pedido #{pedido.numero_pedido}
               </h3>
               <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                Comprovante fiscal e de entrega
+                {dadosRecibo.subtituloRecibo}
               </p>
             </div>
           </div>
@@ -378,13 +384,13 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] space-y-1.5">
               <div className="flex justify-between items-center">
                 <span className="font-bold text-slate-700 uppercase text-[10px] tracking-wider">
-                  {resumoServico.isSomenteServico ? 'LOCAL DO SERVIÇO:' : 'Forma de Entrega:'}
+                  {dadosRecibo.isSomenteServico ? `${dadosRecibo.rotuloLocalCabecalho}:` : 'Forma de Entrega:'}
                 </span>
                 <span className={`font-black px-1.5 py-0.5 rounded text-[10px] ${
-                  resumoServico.isSomenteServico ? 'bg-emerald-100 text-emerald-800' : badgeEstilo
+                  dadosRecibo.isSomenteServico ? 'bg-emerald-100 text-emerald-800' : badgeEstilo
                 }`}>
-                  {resumoServico.isSomenteServico
-                    ? (resumoServico.modalidadeLocal === 'externo' ? 'EM DOMICÍLIO' : 'NA LOJA')
+                  {dadosRecibo.isSomenteServico
+                    ? dadosRecibo.badgeLocalValor
                     : infoVisita.temServicoExterno
                     ? 'EM DOMICÍLIO'
                     : formaEntregaTexto}
@@ -392,13 +398,15 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
               </div>
               <div className="text-slate-700 pt-0.5">
                 <strong className="text-slate-900">
-                  {resumoServico.isSomenteServico || infoVisita.temServicoExterno
+                  {dadosRecibo.isSomenteServico
+                    ? `${dadosRecibo.rotuloEndereco}:`
+                    : infoVisita.temServicoExterno
                     ? 'Local da Prestação:'
                     : (ehRetirada ? 'Local de Retirada:' : 'Endereço de Entrega:')}{' '}
                 </strong>
                 <span className="text-slate-700">
-                  {resumoServico.isSomenteServico
-                    ? resumoServico.enderecoServico
+                  {dadosRecibo.isSomenteServico
+                    ? dadosRecibo.enderecoFormatado
                     : infoVisita.temServicoExterno
                     ? (infoVisita.enderecoVisita || enderecoDestino)
                     : (ehRetirada ? enderecoLojaFormatado : enderecoDestino)}
@@ -468,11 +476,11 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
 
             {/* Fechamento Financeiro */}
             <div className="space-y-1.5 text-xs text-slate-700">
-              {resumoServico.isSomenteServico ? (
+              {dadosRecibo.isSomenteServico ? (
                 <div className="flex justify-between">
-                  <span>Subtotal dos Serviços:</span>
+                  <span>{dadosRecibo.rotuloSubtotal}:</span>
                   <span className="font-semibold text-slate-900">
-                    {formatarMoeda(resumoServico.subtotalServicos)}
+                    {formatarMoeda(dadosRecibo.subtotalItens)}
                   </span>
                 </div>
               ) : (
@@ -513,15 +521,15 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 </div>
               )}
 
-              {resumoServico.isSomenteServico ? (
-                resumoServico.modalidadeLocal === 'externo' && resumoServico.taxaVisita > 0 ? (
+              {dadosRecibo.isSomenteServico ? (
+                dadosRecibo.taxaVisitaDomicilio > 0 ? (
                   <div className="flex justify-between">
-                    <span>Taxa de Visita (Domicílio):</span>
+                    <span>{dadosRecibo.rotuloTaxaAdicional || 'Taxa de Visita (Domicílio)'}:</span>
                     <span className="font-semibold text-slate-900">
-                      + {formatarMoeda(resumoServico.taxaVisita)}
+                      + {formatarMoeda(dadosRecibo.taxaVisitaDomicilio)}
                     </span>
                   </div>
-                ) : resumoServico.modalidadeLocal === 'externo' && resumoServico.taxaVisitaIsenta ? (
+                ) : dadosRecibo.isAtendimentoDomicilio && infoVisita.taxaVisitaIsenta ? (
                   <div className="flex justify-between">
                     <span>Taxa de Visita (Domicílio):</span>
                     <span className="font-bold text-emerald-600">Isenta (serviço aprovado)</span>

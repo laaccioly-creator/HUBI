@@ -140,10 +140,22 @@ export class ReceiptPdfService {
       }
     }
 
-    // 3. Monta a mensagem completa e estruturada do recibo com link oficial
-    const mensagemWhatsApp = PrintService.generateWhatsAppMessage(pedido, loja);
+    // 3. Garante agendamento vinculado carregado para pedidos de serviço antes de gerar a mensagem
+    let pedidoParaMensagem = pedido;
+    if (pedido.id && (!pedido.agendamentos || pedido.agendamentos.length === 0)) {
+      const { data: agData } = await supabase
+        .from('agendamentos_servicos')
+        .select('*')
+        .eq('pedido_id', pedido.id);
+      if (agData && agData.length > 0) {
+        pedidoParaMensagem = { ...pedido, agendamentos: agData };
+      }
+    }
 
-    // 4. Dispara a abertura direta do WhatsApp para o cliente (sem telas intermediárias do SO)
+    // 4. Monta a mensagem completa e estruturada do recibo com link oficial
+    const mensagemWhatsApp = PrintService.generateWhatsAppMessage(pedidoParaMensagem, loja);
+
+    // 5. Dispara a abertura direta do WhatsApp para o cliente (sem telas intermediárias do SO)
     PrintService.openWhatsApp(telCliente, mensagemWhatsApp);
   }
 
