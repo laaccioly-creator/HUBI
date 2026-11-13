@@ -5546,15 +5546,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         />
 
         {/* SPINNER PESQUISANDO CENTRALIZADO DURANTE AÇÕES DE IA */}
-        {(processandoIA || gerandoDescricaoIA) && (
+        {processandoIA && (
           <SpinnerPesquisandoIA
             fullScreen
             texto="Pesquisando"
-            subtexto={
-              gerandoDescricaoIA
-                ? 'Elaborando descrição comercial rica e completa com IA...'
-                : mensagemStatusIA || 'Processando informações com Inteligência Artificial...'
-            }
+            subtexto={mensagemStatusIA || 'Processando informações com Inteligência Artificial...'}
           />
         )}
       </div>

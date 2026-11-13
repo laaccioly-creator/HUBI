@@ -179,6 +179,38 @@ export const extrairTermoPrincipalProduto = (termo: string): string => {
 };
 
 /**
+ * Extrai uma query curta de modelo contendo apenas Categoria/Tipo + Marca + Código do Modelo
+ * (ex: "Monitor Dell C2423H" ou "Monitor Aoc 22b3hmf") para busca dupla no Serper.
+ */
+export const extrairQueryCurtaModelo = (termo: string): string => {
+  const principal = extrairTermoPrincipalProduto(termo);
+  if (!principal) return '';
+
+  const partNumbers = extrairPartNumbersProduto(termo);
+  const pnPrincipal = partNumbers.length > 0 ? partNumbers[partNumbers.length - 1] : '';
+
+  const stopwords = new Set([
+    'de', 'do', 'da', 'dos', 'das', 'para', 'com', 'sem', 'em', 'no', 'na',
+    'um', 'uma', 'o', 'a', 'os', 'as', 'e', 'ou', 'preto', 'branco', 'prata', 'cinza'
+  ]);
+
+  const tokensSemPn = principal
+    .split(/\s+/)
+    .filter(
+      (tok) =>
+        tok.length >= 2 &&
+        !stopwords.has(tok.toLowerCase()) &&
+        (!pnPrincipal || tok.toLowerCase() !== pnPrincipal.toLowerCase())
+    );
+
+  const prefixo = tokensSemPn.slice(0, 2);
+  if (pnPrincipal) {
+    return [...prefixo, pnPrincipal].join(' ').trim();
+  }
+  return tokensSemPn.slice(0, 3).join(' ').trim();
+};
+
+/**
  * Formata os itens brutos retornados pela SerpApi em FotoResultadoSerpApi
  * Prioriza imagens em alta resolução e filtra miniaturas excessivamente pequenas
  */
@@ -1397,6 +1429,11 @@ export const buscarPrecosShoppingSerpApi = async (
       .trim();
 
   const querySimples = sanitizarQuerySerperSimples(queryFinal);
+  const queryCurtaModelo = extrairQueryCurtaModelo(termo);
+  const queryCurtaSimples = sanitizarQuerySerperSimples(queryCurtaModelo);
+  const usarQueryCurtaParalela =
+    Boolean(queryCurtaSimples) &&
+    queryCurtaSimples.toLowerCase() !== querySimples.toLowerCase();
 
   const promessasParalelas: Promise<ItemShoppingSerpApi[]>[] = [];
 
@@ -1436,11 +1473,18 @@ export const buscarPrecosShoppingSerpApi = async (
   };
 
   // Canal 1 e 2: Chamadas simultâneas ao Serper.dev (/shopping + /search orgânico comercial)
+  // com busca dupla paralela (termo canônico + query curta de modelo)
   if (chaveLimpa) {
     promessasParalelas.push(
       executarSerperPost('shopping', { q: querySimples, gl: 'br', hl: 'pt-br' }),
       executarSerperPost('search', { q: `${querySimples} comprar preco`, gl: 'br', hl: 'pt-br', num: 20 })
     );
+    if (usarQueryCurtaParalela) {
+      promessasParalelas.push(
+        executarSerperPost('shopping', { q: queryCurtaSimples, gl: 'br', hl: 'pt-br' }),
+        executarSerperPost('search', { q: `${queryCurtaSimples} comprar preco`, gl: 'br', hl: 'pt-br', num: 20 })
+      );
+    }
   }
 
   // Canal 3: Proxy local em DEV (/api/buscar-fotos-serpapi)
@@ -1470,6 +1514,27 @@ export const buscarPrecosShoppingSerpApi = async (
         return [];
       })()
     );
+    if (usarQueryCurtaParalela) {
+      promessasParalelas.push(
+        (async () => {
+          try {
+            const { data: edgeData, error } = await supabase.functions.invoke('buscar-fotos-serpapi', {
+              body: {
+                q: queryCurtaSimples,
+                engine: 'google_shopping',
+                loja_id: lojaId,
+                num
+              }
+            });
+            if (!error && edgeData) {
+              const brutos = edgeData.shopping || edgeData.shopping_results || edgeData.results || [];
+              return formatarItensShoppingBrutos(brutos, queryFinal);
+            }
+          } catch {}
+          return [];
+        })()
+      );
+    }
   }
 
   // Canal 4: Supabase Edge Function (buscar-fotos-serpapi) caso não haja chave no cliente
@@ -1510,6 +1575,27 @@ export const buscarPrecosShoppingSerpApi = async (
         return [];
       })()
     );
+    if (usarQueryCurtaParalela) {
+      promessasParalelas.push(
+        (async () => {
+          try {
+            const { data: edgeData, error } = await supabase.functions.invoke('buscar-fotos-serpapi', {
+              body: {
+                q: queryCurtaSimples,
+                engine: 'google_shopping',
+                loja_id: lojaId,
+                num
+              }
+            });
+            if (!error && edgeData) {
+              const brutos = edgeData.shopping || edgeData.shopping_results || edgeData.results || [];
+              return formatarItensShoppingBrutos(brutos, queryFinal);
+            }
+          } catch {}
+          return [];
+        })()
+      );
+    }
   }
 
   if (promessasParalelas.length === 0) return [];
@@ -1560,29 +1646,41 @@ export const buscarPrecosShoppingSerpApi = async (
         ? todosItens.filter(it => it.preco >= 15)
         : todosItens;
 
-      // Deduplica por loja + preço/url, priorizando manter 1 oferta competitiva por loja distinta primeiro
-      const porLoja = new Map<string, ItemShoppingSerpApi[]>();
+      // Deduplica por domínio/loja mantendo o menor preço válido por loja de forma determinística
+      const extrairChaveDominioOuLoja = (item: ItemShoppingSerpApi): string => {
+        if (item.url) {
+          try {
+            const host = new URL(item.url).hostname.replace(/^www\./i, '').toLowerCase();
+            if (host && !host.includes('google.')) {
+              return host;
+            }
+          } catch {}
+        }
+        return item.loja.toLowerCase().trim();
+      };
+
+      const porDominioOuLoja = new Map<string, ItemShoppingSerpApi>();
       for (const item of itensFiltradosPiso) {
-        const chaveLoja = item.loja.toLowerCase().trim();
-        const lista = porLoja.get(chaveLoja) || [];
-        if (!lista.some(x => Math.abs(x.preco - item.preco) < 0.05 || (x.url && item.url && x.url === item.url))) {
-          lista.push(item);
-          porLoja.set(chaveLoja, lista);
+        if (typeof item.preco !== 'number' || !Number.isFinite(item.preco) || item.preco <= 0) {
+          continue;
+        }
+        const chave = extrairChaveDominioOuLoja(item);
+        const existente = porDominioOuLoja.get(chave);
+        if (
+          !existente ||
+          item.preco < existente.preco ||
+          (item.preco === existente.preco && item.titulo.localeCompare(existente.titulo) < 0)
+        ) {
+          porDominioOuLoja.set(chave, item);
         }
       }
 
-      const distintasPrimeiro: ItemShoppingSerpApi[] = [];
-      const adicionais: ItemShoppingSerpApi[] = [];
-      for (const [, lista] of porLoja.entries()) {
-        lista.sort((a, b) => a.preco - b.preco);
-        distintasPrimeiro.push(lista[0]);
-        if (lista.length > 1) {
-          adicionais.push(...lista.slice(1));
-        }
-      }
+      const distintasDeterministicas = Array.from(porDominioOuLoja.values()).sort(
+        (a, b) => a.preco - b.preco || a.loja.localeCompare(b.loja)
+      );
 
-      const ofertasFinais = [...distintasPrimeiro, ...adicionais].slice(0, 30);
-      logSerpSucesso(`⚡ Encontradas ${ofertasFinais.length} ofertas (${distintasPrimeiro.length} lojas distintas) para "${queryFinal}"`);
+      const ofertasFinais = distintasDeterministicas.slice(0, 30);
+      logSerpSucesso(`⚡ Encontradas ${ofertasFinais.length} ofertas (${distintasDeterministicas.length} lojas/domínios distintos) para "${queryFinal}"`);
       console.log(`%c[HUBI PERF ⏱️]%c [SERPER] Busca paralela concluída em ${Math.round(performance.now() - tInicioSerper)}ms`, 'color: #0ea5e9; font-weight: bold;', 'color: #38bdf8;');
       salvarCacheShoppingSerp(queryFinal, ofertasFinais);
       return ofertasFinais;

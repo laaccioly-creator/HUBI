@@ -417,6 +417,34 @@ export function blindarMargemCustoVarejo(
 }
 
 export const TTL_CACHE_SESSAO_15MIN_MS = 15 * 60 * 1000;
+export const TTL_CACHE_RADAR_10MIN_MS = 10 * 60 * 1000;
+
+const DOMINIOS_VAREJISTAS_OFICIAIS_BR: readonly string[] = [
+  'kabum.com.br',
+  'dell.com',
+  'amazon.com.br',
+  'mercadolivre.com.br',
+  'magazineluiza.com.br',
+  'magalu.com',
+  'pichau.com.br',
+  'terabyteshop.com.br',
+  'casasbahia.com.br',
+  'fastshop.com.br',
+  'kalunga.com.br',
+  'samsung.com',
+  'lenovo.com',
+  'hp.com',
+  'asus.com'
+];
+
+export function ehDominioVarejistaOficial(url?: string, loja?: string): boolean {
+  const urlLower = (url || '').toLowerCase();
+  const lojaLower = (loja || '').toLowerCase();
+  return DOMINIOS_VAREJISTAS_OFICIAIS_BR.some((dom) => {
+    const marcaDom = dom.split('.')[0];
+    return urlLower.includes(dom) || lojaLower.includes(marcaDom);
+  });
+}
 
 export interface EntradaCacheSessao<T> {
   timestamp: number;
@@ -1025,19 +1053,30 @@ export const catalogJevService = {
 
     const preAvaliadas = ofertasBase
       .map((oferta, idx) => {
-      const textoAvaliacao = `${oferta.titulo} ${oferta.entrega || ''} ${oferta.url || ''}`;
-      const aval = calcularScoreEstritoModeloJev(nomeOriginalUsuario, textoAvaliacao);
-      return {
-        oferta,
-        idx,
-        scoreDeterministico: aval.score,
-        penalizado: aval.penalizado
-      };
-    });
+        const textoAvaliacao = `${oferta.titulo} ${oferta.entrega || ''} ${oferta.url || ''}`;
+        const aval = calcularScoreEstritoModeloJev(nomeOriginalUsuario, textoAvaliacao);
+        return {
+          oferta,
+          idx,
+          scoreDeterministico: aval.score,
+          penalizado: aval.penalizado,
+          varejistaOficial: ehDominioVarejistaOficial(oferta.url, oferta.loja)
+        };
+      })
+      .sort(
+        (a, b) =>
+          b.scoreDeterministico - a.scoreDeterministico ||
+          a.oferta.preco - b.oferta.preco ||
+          a.oferta.loja.localeCompare(b.oferta.loja) ||
+          a.oferta.titulo.localeCompare(b.oferta.titulo)
+      );
 
     const limiteLoteJev = ehPreencherIa ? 8 : 25;
     const candidatasJev = preAvaliadas
-      .filter(item => item.scoreDeterministico >= LIMIAR_APROVACAO_JEV)
+      .filter((item) => {
+        const limiarMin = item.varejistaOficial ? 0.40 : LIMIAR_APROVACAO_JEV;
+        return item.scoreDeterministico >= limiarMin;
+      })
       .slice(0, limiteLoteJev);
 
     const scoresJevMap = new Map<number, number>();
@@ -1094,7 +1133,8 @@ export const catalogJevService = {
         }
       }
 
-      if (scoreFinal >= LIMIAR_APROVACAO_JEV) {
+      const limiarAprovacaoItem = item.varejistaOficial ? 0.40 : LIMIAR_APROVACAO_JEV;
+      if (scoreFinal >= limiarAprovacaoItem) {
         todasAprovadas.push({
           ...item.oferta,
           scoreJev: scoreFinal
@@ -1154,8 +1194,8 @@ export const catalogJevService = {
       }
     }
 
-    // Ordena pelo preço (menor para maior) e limita entre 5 e 10 lojas nacionais distintas
-    listaLojas.sort((a, b) => a.preco - b.preco);
+    // Ordena pelo preço (menor para maior) e desempate determinístico por loja
+    listaLojas.sort((a, b) => a.preco - b.preco || a.loja.localeCompare(b.loja));
     const aprovadasFinais = listaLojas.slice(0, 10);
     const totalDescartados = ofertas.length - aprovadasFinais.length;
 
@@ -1192,20 +1232,27 @@ export const catalogJevService = {
     loja?: { id?: string; serpapi_key?: string | null };
     etapa: EtapaPipelineJev;
     permitirComplementoGemini?: boolean;
+    forcarAtualizacao?: boolean;
   }): Promise<ContextoUnificadoProdutoJev> {
     const tInicioCtx = performance.now();
     const nomeOriginal = (params.nomeProduto || '').trim();
     const prefixoCacheCtx = `hubi_ctx_jev_v22_${params.etapa.toLowerCase()}`;
+    const ttlCacheCtx =
+      params.etapa === 'RADAR_PRECOS' ? TTL_CACHE_RADAR_10MIN_MS : TTL_CACHE_SESSAO_15MIN_MS;
     const chaveOriginal = criarChaveCacheEscopada(prefixoCacheCtx, nomeOriginal, params.loja?.id);
 
-    const cacheDiretoOriginal = lerCacheHibridoSessao(cacheContextoUnificadoMemoria, chaveOriginal);
-    if (cacheDiretoOriginal) {
+    const cacheAnteriorOriginal = lerCacheHibridoSessao(
+      cacheContextoUnificadoMemoria,
+      chaveOriginal,
+      ttlCacheCtx
+    );
+    if (!params.forcarAtualizacao && cacheAnteriorOriginal) {
       console.log(
-        `%c[HUBI CACHE ⚡]%c Resposta instantânea via cache (0ms) para "${cacheDiretoOriginal.termoCanonico || nomeOriginal}"`,
+        `%c[HUBI CACHE ⚡]%c Resposta instantânea via cache (0ms) para "${cacheAnteriorOriginal.termoCanonico || nomeOriginal}"`,
         'color: #10b981; font-weight: bold;',
         'color: #34d399;'
       );
-      return cacheDiretoOriginal;
+      return cacheAnteriorOriginal;
     }
 
     const termoCanonico = await this.extrairTermoCanonicoBusca(
@@ -1219,17 +1266,22 @@ export const catalogJevService = {
       params.loja?.id
     );
 
-    if (chaveCanonico !== chaveOriginal) {
-      const cacheCanonico = lerCacheHibridoSessao(cacheContextoUnificadoMemoria, chaveCanonico);
-      if (cacheCanonico) {
-        console.log(
-          `%c[HUBI CACHE ⚡]%c Resposta instantânea via cache (0ms) para "${termoCanonico || nomeOriginal}"`,
-          'color: #10b981; font-weight: bold;',
-          'color: #34d399;'
-        );
-        return cacheCanonico;
-      }
+    const cacheAnteriorCanonico =
+      chaveCanonico !== chaveOriginal
+        ? lerCacheHibridoSessao(cacheContextoUnificadoMemoria, chaveCanonico, ttlCacheCtx)
+        : null;
+
+    if (!params.forcarAtualizacao && cacheAnteriorCanonico) {
+      console.log(
+        `%c[HUBI CACHE ⚡]%c Resposta instantânea via cache (0ms) para "${termoCanonico || nomeOriginal}"`,
+        'color: #10b981; font-weight: bold;',
+        'color: #34d399;'
+      );
+      return cacheAnteriorCanonico;
     }
+
+    const ofertasAnteriores =
+      cacheAnteriorCanonico?.ofertasAprovadas || cacheAnteriorOriginal?.ofertasAprovadas || [];
 
     const partNumbers = extrairPartNumbersProduto(nomeOriginal);
 
@@ -1315,6 +1367,36 @@ export const catalogJevService = {
             : avaliacaoCombinada.confiancaMediaPercentual
         };
       }
+    }
+
+    // Mescla determinística com lojas válidas já localizadas em buscas anteriores da sessão
+    // (evita que "Atualizar Pesquisa" oscile ou perca lojas válidas)
+    if (ofertasAnteriores.length > 0 && params.etapa === 'RADAR_PRECOS') {
+      const mapaMesclado = new Map<string, ItemShoppingAprovadoJev>();
+      for (const item of [...ofertasAnteriores, ...avaliacao.aprovadas]) {
+        const chaveLoja = item.loja.trim().toLowerCase();
+        const atual = mapaMesclado.get(chaveLoja);
+        if (
+          !atual ||
+          item.scoreJev > atual.scoreJev ||
+          (item.scoreJev === atual.scoreJev && item.preco < atual.preco)
+        ) {
+          mapaMesclado.set(chaveLoja, item);
+        }
+      }
+      const mescladas = Array.from(mapaMesclado.values())
+        .sort((a, b) => a.preco - b.preco || a.loja.localeCompare(b.loja))
+        .slice(0, 10);
+
+      avaliacao = {
+        ...avaliacao,
+        aprovadas: mescladas,
+        totalAprovados: mescladas.length,
+        confiancaMediaPercentual:
+          mescladas.length > 0
+            ? Math.round((mescladas.reduce((acc, cur) => acc + cur.scoreJev, 0) / mescladas.length) * 100)
+            : avaliacao.confiancaMediaPercentual
+      };
     }
 
     const resumoContextoTexto = avaliacao.aprovadas.length > 0
