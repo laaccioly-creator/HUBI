@@ -145,7 +145,7 @@ export const SeletorCategoriasHibrido: React.FC<SeletorCategoriasHibridoProps> =
   );
 
   return (
-    <div ref={containerRef} className="relative w-full">
+    <div ref={containerRef} className={`relative w-full ${aberto ? 'z-[999] isolate' : ''}`}>
       {/* Botão Disparador */}
       <button
         type="button"
@@ -174,14 +174,14 @@ export const SeletorCategoriasHibrido: React.FC<SeletorCategoriasHibridoProps> =
       ===================================================================== */}
       {aberto && !apenasGavetaMobile && (
         <div
-          className={`hidden md:flex absolute left-0 top-full mt-1.5 z-50 rounded-2xl shadow-2xl border ${
+          className={`hidden md:flex absolute left-0 top-full mt-1.5 z-[999] isolate rounded-2xl shadow-2xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 ${
             isDark
-              ? 'bg-slate-900 border-slate-700/90 text-slate-100'
+              ? 'bg-slate-900 border-slate-700 text-slate-100'
               : 'bg-white border-slate-200 text-slate-900'
           }`}
         >
           {/* Coluna Principal de Categorias */}
-          <div className="w-64 max-h-[380px] overflow-y-auto p-1.5 space-y-0.5">
+          <div className="w-64 max-h-[380px] overflow-y-auto p-1.5 space-y-0.5 bg-white dark:bg-slate-900 rounded-2xl">
             {/* Opção Fixa: Todas as Categorias */}
             <button
               type="button"
@@ -191,8 +191,8 @@ export const SeletorCategoriasHibrido: React.FC<SeletorCategoriasHibridoProps> =
                 valorSelecionado === valorTodas
                   ? 'bg-emerald-600 text-white shadow-xs'
                   : isDark
-                  ? 'text-slate-200 hover:bg-slate-800'
-                  : 'text-slate-800 hover:bg-slate-100'
+                  ? 'text-slate-100 hover:bg-slate-800 hover:text-emerald-400'
+                  : 'text-slate-800 dark:text-slate-100 hover:bg-emerald-50 dark:hover:bg-slate-800 hover:text-emerald-700'
               }`}
             >
               <span className="truncate">{rotuloTodas}</span>
@@ -222,8 +222,8 @@ export const SeletorCategoriasHibrido: React.FC<SeletorCategoriasHibridoProps> =
                   valorSelecionado === extra.id
                     ? 'bg-emerald-600 text-white shadow-xs'
                     : isDark
-                    ? 'text-slate-200 hover:bg-slate-800'
-                    : 'text-slate-800 hover:bg-slate-100'
+                    ? 'text-slate-100 hover:bg-slate-800 hover:text-emerald-400'
+                    : 'text-slate-800 dark:text-slate-100 hover:bg-emerald-50 dark:hover:bg-slate-800 hover:text-emerald-700'
                 }`}
               >
                 <span className="truncate">{extra.rotulo}</span>
@@ -255,8 +255,8 @@ export const SeletorCategoriasHibrido: React.FC<SeletorCategoriasHibridoProps> =
                         ? 'bg-slate-800 text-emerald-400'
                         : 'bg-emerald-50 text-emerald-700'
                       : isDark
-                      ? 'text-slate-200 hover:bg-slate-800'
-                      : 'text-slate-700 hover:bg-slate-100'
+                      ? 'text-slate-100 hover:bg-slate-800 hover:text-emerald-400'
+                      : 'text-slate-800 dark:text-slate-100 hover:bg-emerald-50 dark:hover:bg-slate-800 hover:text-emerald-700'
                   }`}
                 >
                   <span className="truncate text-left flex-1">{cat.nome}</span>
@@ -284,10 +284,10 @@ export const SeletorCategoriasHibrido: React.FC<SeletorCategoriasHibridoProps> =
           {/* Flyout Flutuante Lateral Direito (quando a categoria em hover possui subcategorias) */}
           {categoriaHoverObj && categoriaHoverObj.subcategorias.length > 0 && (
             <div
-              className={`w-60 max-h-[380px] overflow-y-auto p-1.5 border-l space-y-0.5 rounded-r-2xl animate-in fade-in slide-in-from-left-1 duration-150 ${
+              className={`w-60 max-h-[380px] overflow-y-auto p-1.5 border-l space-y-0.5 rounded-r-2xl shadow-2xl z-[999] isolate animate-in fade-in slide-in-from-left-1 duration-150 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 ${
                 isDark
-                  ? 'bg-slate-950/95 border-slate-800 text-slate-100'
-                  : 'bg-slate-50/95 border-slate-200 text-slate-900'
+                  ? 'bg-slate-900 border-slate-700 text-slate-100'
+                  : 'bg-white border-slate-200 text-slate-900'
               }`}
             >
               <button
@@ -297,15 +297,15 @@ export const SeletorCategoriasHibrido: React.FC<SeletorCategoriasHibridoProps> =
                   valorSelecionado === categoriaHoverObj.id
                     ? 'bg-emerald-600 text-white'
                     : isDark
-                    ? 'text-emerald-400 hover:bg-slate-800/80'
-                    : 'text-emerald-700 hover:bg-emerald-100/70'
+                    ? 'text-emerald-400 hover:bg-slate-800'
+                    : 'text-emerald-700 hover:bg-emerald-50'
                 }`}
               >
                 <span className="truncate">Todas de {categoriaHoverObj.nome}</span>
                 {valorSelecionado === categoriaHoverObj.id && <Check className="w-3.5 h-3.5 shrink-0" />}
               </button>
 
-              <div className={`my-1 border-t ${isDark ? 'border-slate-800/80' : 'border-slate-200'}`} />
+              <div className={`my-1 border-t ${isDark ? 'border-slate-700' : 'border-slate-200'}`} />
 
               {categoriaHoverObj.subcategorias.map((sub) => {
                 const subAtiva = valorSelecionado === sub.id;
@@ -319,8 +319,8 @@ export const SeletorCategoriasHibrido: React.FC<SeletorCategoriasHibridoProps> =
                       subAtiva
                         ? 'bg-emerald-600 text-white font-bold'
                         : isDark
-                        ? 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                        : 'text-slate-700 hover:bg-white hover:text-slate-900'
+                        ? 'text-slate-100 hover:bg-slate-800 hover:text-emerald-400'
+                        : 'text-slate-800 dark:text-slate-100 hover:bg-emerald-50 dark:hover:bg-slate-800 hover:text-emerald-700'
                     }`}
                   >
                     <span className="truncate text-left flex-1">{sub.nome}</span>
@@ -351,7 +351,7 @@ export const SeletorCategoriasHibrido: React.FC<SeletorCategoriasHibridoProps> =
       {aberto && (
         <div
           data-gaveta-categorias-mobile="true"
-          className={`${apenasGavetaMobile ? 'block' : 'block md:hidden'} fixed inset-0 z-50`}
+          className={`${apenasGavetaMobile ? 'block' : 'block md:hidden'} fixed inset-0 z-[999] isolate`}
         >
           {/* Backdrop escuro */}
           <div
@@ -361,7 +361,7 @@ export const SeletorCategoriasHibrido: React.FC<SeletorCategoriasHibridoProps> =
 
           {/* Gaveta Lateral Esquerda */}
           <div
-            className="fixed inset-y-0 left-0 w-[80%] max-w-xs bg-white dark:bg-slate-900 shadow-2xl z-50 flex flex-col animate-in slide-in-from-left duration-200 border-r border-slate-200 dark:border-slate-800"
+            className="fixed inset-y-0 left-0 w-[80%] max-w-xs bg-white dark:bg-slate-900 shadow-2xl z-[999] flex flex-col animate-in slide-in-from-left duration-200 border-r border-slate-200 dark:border-slate-700"
           >
             {/* Cabeçalho */}
             <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-200 dark:border-slate-800">
