@@ -577,18 +577,13 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
   const opcoesCotacaoExibidas = useMemo<OpcaoFreteCotada[]>(() => {
     let lista = [...cotacoes];
-    if (!ehCatalogo) {
-      // No PDV/retaguarda, a aba de cotação automática destina-se estritamente a transportadoras e APIs externas
-      lista = lista.filter(op => op.provedor !== 'frete_proprio');
-      return lista;
-    }
 
-    if (ehCatalogo && temFreteProprio && configLoja) {
+    if (temFreteProprio && configLoja) {
       const ufOrigem = (configLoja.origem_uf || '').toUpperCase().trim();
       const ufDestino = (enderecoSelecionado?.uf || '').toUpperCase().trim();
       const outroEstado = Boolean(ufOrigem && ufDestino && ufOrigem !== ufDestino);
 
-      const raioMaximo = Number((configLoja as any)?.frete_proprio_raio_maximo_km) || 5.0;
+      const raioMaximo = Number((configLoja as { frete_proprio_raio_maximo_km?: number | null })?.frete_proprio_raio_maximo_km) || 5.0;
       let foraDoRaio = false;
       const origLat = Number(configLoja.origem_latitude);
       const origLng = Number(configLoja.origem_longitude);
@@ -608,20 +603,21 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         const freteGratisPorMinimo = Boolean(configLoja.frete_gratis_ativo && Number(configLoja.frete_gratis_valor_minimo) > 0 && subtotal >= Number(configLoja.frete_gratis_valor_minimo));
         const isGratis = tipoCobranca === 'gratis' || valorBase === 0 || freteGratisPorMinimo;
         const valorFinal = isGratis ? 0 : valorBase;
-        
+
         const jaTemProprio = lista.some(op => op.provedor === 'frete_proprio');
         if (!jaTemProprio) {
+          const configProprio = configLoja as { frete_proprio_nome?: string | null; frete_proprio_prazo_estimado?: string | null };
           const opcaoPropria: OpcaoFreteCotada = {
             id: 'opcao_frete_proprio',
             provedor: 'frete_proprio',
-            transportadora_nome: (configLoja as any).frete_proprio_nome || 'Entrega Própria da Loja',
+            transportadora_nome: configProprio.frete_proprio_nome || 'Entrega Própria da Loja',
             servico_codigo: tipoCobranca,
             servico_nome: isGratis ? 'Frete Grátis' : (ehManual ? 'Valor Manual' : 'Taxa Fixa'),
             valor_frete: valorFinal,
             valor_original: valorBase,
             valor_subsidio: freteGratisPorMinimo ? valorBase : 0,
             is_frete_gratis: isGratis,
-            prazo_estimado_texto: (configLoja as any).frete_proprio_prazo_estimado || 'Entrega hoje (30 a 60 min)',
+            prazo_estimado_texto: configProprio.frete_proprio_prazo_estimado || 'Mesmo dia',
             icone_tipo: 'loja',
             permite_edicao_valor: ehManual,
             tipo_cobranca: (tipoCobranca === 'bairro' ? 'fixo' : tipoCobranca) as 'fixo' | 'manual' | 'gratis'
@@ -631,7 +627,74 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
       }
     }
     return lista;
-  }, [cotacoes, temFreteProprio, configLoja, subtotal, ehCatalogo, enderecoSelecionado]);
+  }, [cotacoes, temFreteProprio, configLoja, subtotal, enderecoSelecionado]);
+
+  const formasManuaisExibidas = useMemo<FormaEntrega[]>(() => {
+    const base = formasEntrega.filter(
+      f =>
+        f.tipo !== 'retirada' &&
+        ['correios', 'app_entrega', 'transportadora', 'proprio', 'frota_propria', 'motoboy'].includes(f.tipo)
+    );
+    const resultado = [...base];
+
+    if (temFreteProprio && configLoja) {
+      const jaTemProprio = resultado.some(f => ['proprio', 'frota_propria', 'motoboy'].includes(f.tipo));
+      if (!jaTemProprio) {
+        const configProprio = configLoja as { frete_proprio_nome?: string | null; frete_proprio_prazo_estimado?: string | null };
+        const tipoCobranca = configLoja.frete_proprio_tipo_cobranca || 'fixo';
+        const valorBase = tipoCobranca === 'gratis' ? 0 : Number(configLoja.frete_proprio_valor_padrao || 0);
+        const freteGratisPorMinimo = Boolean(
+          configLoja.frete_gratis_ativo &&
+          Number(configLoja.frete_gratis_valor_minimo) > 0 &&
+          subtotal >= Number(configLoja.frete_gratis_valor_minimo)
+        );
+        resultado.unshift({
+          id: 'frete_proprio',
+          loja_id: lojaId,
+          nome: configProprio.frete_proprio_nome || 'Entrega Própria da Loja',
+          tipo: 'proprio',
+          valor_taxa: freteGratisPorMinimo ? 0 : valorBase,
+          tempo_estimado: configProprio.frete_proprio_prazo_estimado || 'Mesmo dia',
+          requer_codigo_rastreio: false,
+          requer_entregador: false,
+          ativo: true,
+          padrao: false
+        });
+      }
+    }
+
+    if (appsCadastrados.length > 0 && !resultado.some(f => f.tipo === 'app_entrega')) {
+      resultado.push({
+        id: 'app_entrega_avulso',
+        loja_id: lojaId,
+        nome: 'Aplicativo de Entrega (Uber / 99)',
+        tipo: 'app_entrega',
+        valor_taxa: 0,
+        tempo_estimado: 'Mesmo dia',
+        requer_codigo_rastreio: false,
+        requer_entregador: true,
+        ativo: true,
+        padrao: false
+      });
+    }
+
+    if (transportadorasCadastradas.length > 0 && !resultado.some(f => f.tipo === 'transportadora')) {
+      resultado.push({
+        id: 'transportadora_avulsa',
+        loja_id: lojaId,
+        nome: 'Transportadora / Correios',
+        tipo: 'transportadora',
+        valor_taxa: 0,
+        tempo_estimado: 'A combinar',
+        requer_codigo_rastreio: true,
+        requer_entregador: false,
+        ativo: true,
+        padrao: false
+      });
+    }
+
+    return resultado;
+  }, [formasEntrega, temFreteProprio, configLoja, subtotal, lojaId, appsCadastrados, transportadorasCadastradas]);
 
   const limiteDeclaracaoConteudo = Number(configLoja?.limite_declaracao_conteudo ?? 1000);
   const excedeLimiteSemNfe = !ehCatalogo && subtotal > limiteDeclaracaoConteudo && !possuiNfe;
@@ -737,7 +800,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
             itens,
             config: runtimeConfig,
             pacote: pacoteAtual,
-            somente_automatico: !ehCatalogo
+            somente_automatico: false
           })
         : Promise.resolve([] as OpcaoFreteCotada[]);
 
@@ -2120,9 +2183,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                             onClick={() => {
                               setModalidade('entrega');
                               setViaEntrega('manual');
-                              const formasManuais = formasEntrega.filter(f => f.tipo !== 'retirada');
-                              if (formasManuais.length > 0 && !formaManualEscolhidaId) {
-                                const primeira = formasManuais[0];
+                              if (formasManuaisExibidas.length > 0 && !formaManualEscolhidaId) {
+                                const primeira = formasManuaisExibidas[0];
                                 setFormaManualEscolhidaId(primeira.id);
                                 const val = valoresManuais[primeira.id] ?? (primeira.valor_taxa > 0 ? primeira.valor_taxa.toString() : '');
                                 emitirSelecaoManual(primeira, val, enderecoSelecionado);
@@ -2449,20 +2511,18 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
               {/* VIA B: INFORMAR FRETE MANUALMENTE (FORMAS RELACIONAIS CADASTRADAS - APENAS PAINEL DO LOJISTA) */}
               {!ehCatalogo && viaEntrega === 'manual' && (
                 <div className="space-y-2.5">
-                  {formasEntrega.filter(f => f.tipo !== 'retirada' && ['correios', 'app_entrega', 'transportadora', 'proprio', 'frota_propria', 'motoboy'].includes(f.tipo)).length === 0 ? (
+                  {formasManuaisExibidas.length === 0 ? (
                     <div className={`p-4 rounded-2xl border text-center space-y-1.5 ${
                       ehDark ? 'bg-black border-slate-800' : 'bg-slate-50 border-slate-200'
                     }`}>
                       <Truck className="w-6 h-6 text-slate-400 mx-auto" />
-                      <p className={`text-xs font-bold ${ehDark ? 'text-white' : 'text-slate-700'}`}>Nenhuma forma de entrega manual ativa</p>
+                      <p className={`text-xs font-bold ${ehDark ? 'text-white' : 'text-slate-700'}`}>Nenhuma forma de entrega ativa</p>
                       <p className={`text-xs ${ehDark ? 'text-slate-300' : 'text-slate-500'}`}>
-                        Acesse <strong>Configurações &gt; Frete</strong> para cadastrar modalidades manuais como Correios, Aplicativo de Corrida, Transportadora ou Frete Próprio.
+                        Acesse <strong>Configurações &gt; Frete</strong> para ativar o Frete Próprio, Uber Direct, Melhor Envio ou transportadoras.
                       </p>
                     </div>
                   ) : (
-                    formasEntrega
-                      .filter(forma => forma.tipo !== 'retirada' && ['correios', 'app_entrega', 'transportadora', 'proprio', 'frota_propria', 'motoboy'].includes(forma.tipo))
-                      .map((forma) => {
+                    formasManuaisExibidas.map((forma) => {
                         const selecionada = modalidade === 'entrega' && viaEntrega === 'manual' && formaManualEscolhidaId === forma.id;
                         const valorForma = valoresManuais[forma.id] ?? '';
                         const ehFormaPropria = forma.tipo === 'motoboy' || forma.tipo === 'frota_propria' || forma.tipo === 'proprio' || (forma.nome || '').toLowerCase().includes('própri') || (forma.nome || '').toLowerCase().includes('propri');

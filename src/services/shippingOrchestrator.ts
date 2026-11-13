@@ -138,48 +138,91 @@ export class ShippingOrchestrator {
       .eq('loja_id', lojaId)
       .maybeSingle();
 
-    let data;
-    let error;
+    const extrairColunaInexistente = (err: { code?: string; message?: string } | null): string | null => {
+      if (!err?.message) return null;
+      const ehErroSchema =
+        err.code === 'PGRST204' ||
+        /Could not find the '([^']+)' column/i.test(err.message) ||
+        /column ["']?([a-zA-Z0-9_]+)["']?.*does not exist/i.test(err.message);
+      if (!ehErroSchema) return null;
 
-    if (existente?.id) {
-      const resUpdate = await supabase
-        .from('loja_shipping_configs')
-        .update(payload)
-        .eq('loja_id', lojaId)
-        .select()
-        .single();
-      data = resUpdate.data;
-      error = resUpdate.error;
-    } else {
-      // Busca dados cadastrais da loja para não violar NOT NULL no insert inicial
+      const matchPgrst = err.message.match(/Could not find the '([^']+)' column/i);
+      if (matchPgrst?.[1]) return matchPgrst[1];
+
+      const matchPg = err.message.match(/column ["']?([a-zA-Z0-9_]+)["']?.*does not exist/i);
+      return matchPg?.[1] ?? null;
+    };
+
+    const payloadMutavel: Record<string, unknown> = { ...payload };
+    let lojaDadosCache: {
+      endereco_cep?: string | null;
+      endereco_logradouro?: string | null;
+      endereco_numero?: string | null;
+      endereco_bairro?: string | null;
+      endereco_cidade?: string | null;
+      endereco_estado?: string | null;
+    } | null = null;
+
+    if (!existente?.id) {
       const { data: loja } = await supabase
         .from('lojas')
         .select('endereco_cep, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_estado')
         .eq('id', lojaId)
         .maybeSingle();
+      lojaDadosCache = loja;
+    }
 
-      const insertPayload = {
-        origem_cep: (payload.origem_cep as string) || loja?.endereco_cep || '60710790',
-        origem_logradouro: (payload.origem_logradouro as string) || loja?.endereco_logradouro || 'Rua Principal',
-        origem_numero: (payload.origem_numero as string) || loja?.endereco_numero || 'S/N',
-        origem_bairro: (payload.origem_bairro as string) || loja?.endereco_bairro || 'Centro',
-        origem_cidade: (payload.origem_cidade as string) || loja?.endereco_cidade || 'Fortaleza',
-        origem_uf: (payload.origem_uf as string) || loja?.endereco_estado || 'CE',
-        ...payload
-      };
+    let data: unknown = null;
+    let error: { code?: string; message?: string } | null = null;
+    const MAX_TENTATIVAS_SCHEMA = 5;
 
-      const resInsert = await supabase
-        .from('loja_shipping_configs')
-        .insert(insertPayload)
-        .select()
-        .single();
-      data = resInsert.data;
-      error = resInsert.error;
+    for (let tentativa = 0; tentativa < MAX_TENTATIVAS_SCHEMA; tentativa++) {
+      if (existente?.id) {
+        const resUpdate = await supabase
+          .from('loja_shipping_configs')
+          .update(payloadMutavel)
+          .eq('loja_id', lojaId)
+          .select()
+          .single();
+        data = resUpdate.data;
+        error = resUpdate.error;
+      } else {
+        const insertPayload: Record<string, unknown> = {
+          origem_cep: (payloadMutavel.origem_cep as string) || lojaDadosCache?.endereco_cep || '60710790',
+          origem_logradouro: (payloadMutavel.origem_logradouro as string) || lojaDadosCache?.endereco_logradouro || 'Rua Principal',
+          origem_numero: (payloadMutavel.origem_numero as string) || lojaDadosCache?.endereco_numero || 'S/N',
+          origem_bairro: (payloadMutavel.origem_bairro as string) || lojaDadosCache?.endereco_bairro || 'Centro',
+          origem_cidade: (payloadMutavel.origem_cidade as string) || lojaDadosCache?.endereco_cidade || 'Fortaleza',
+          origem_uf: (payloadMutavel.origem_uf as string) || lojaDadosCache?.endereco_estado || 'CE',
+          ...payloadMutavel
+        };
+
+        const resInsert = await supabase
+          .from('loja_shipping_configs')
+          .insert(insertPayload)
+          .select()
+          .single();
+        data = resInsert.data;
+        error = resInsert.error;
+      }
+
+      if (!error) break;
+
+      const colunaDesconhecida = extrairColunaInexistente(error);
+      if (colunaDesconhecida && Object.prototype.hasOwnProperty.call(payloadMutavel, colunaDesconhecida)) {
+        console.warn(
+          `[ShippingOrchestrator] Coluna "${colunaDesconhecida}" ausente no schema cache do Supabase. Removendo do payload e tentando novamente.`
+        );
+        delete payloadMutavel[colunaDesconhecida];
+        continue;
+      }
+
+      break;
     }
 
     if (error) {
       console.error('Erro ao atualizar loja_shipping_configs:', error);
-      throw new Error(`Erro ao salvar configurações de frete: ${error.message}`);
+      throw new Error('Não foi possível salvar as configurações de frete no momento. Tente novamente.');
     }
 
     // Sincroniza também diretamente na tabela lojas para consistência relacional total
@@ -479,8 +522,8 @@ export class ShippingOrchestrator {
       }
     }
 
-    // 3. Frete Próprio da Loja - APENAS se ativado explicitamente e dentro do raio / mesmo estado
-    if (config?.frete_proprio_ativo === true && !(req as any).somente_automatico) {
+    // 3. Frete Próprio da Loja - sempre incluído quando ativado explicitamente (PDV, Pedidos e Catálogo), dentro do raio / mesmo estado
+    if (config?.frete_proprio_ativo === true) {
       const ufOrigem = (config?.origem_uf || '').toUpperCase().trim();
       const ufDestino = (destino_uf || '').toUpperCase().trim();
       const outroEstado = Boolean(ufOrigem && ufDestino && ufOrigem !== ufDestino);
@@ -506,8 +549,8 @@ export class ShippingOrchestrator {
         const valorFreteProprio = (tipoCobranca === 'gratis' || ehManual) 
           ? 0 
           : Number(config.frete_proprio_valor_padrao || 0);
-        const nomeFreteProprio = (config as any).frete_proprio_nome || 'Entrega Própria da Loja';
-        const prazoFreteProprio = (config as any).frete_proprio_prazo_estimado || 'Entrega hoje (30 a 60 min)';
+        const nomeFreteProprio = (config as { frete_proprio_nome?: string | null }).frete_proprio_nome || 'Entrega Própria da Loja';
+        const prazoFreteProprio = (config as { frete_proprio_prazo_estimado?: string | null }).frete_proprio_prazo_estimado || 'Mesmo dia';
 
         opcoesTotais.push({
           id: 'opcao_frete_proprio',
@@ -1368,13 +1411,13 @@ export class ShippingOrchestrator {
       }
 
       if (data && data.length > 0) {
-        const nomeOficialProprio = (config as any)?.frete_proprio_nome || 'Entrega Própria da Loja';
-        const prazoOficialProprio = (config as any)?.frete_proprio_prazo_estimado || 'Entrega hoje (30 a 60 min)';
+        const nomeOficialProprio = (config as { frete_proprio_nome?: string | null } | null)?.frete_proprio_nome || 'Entrega Própria da Loja';
+        const prazoOficialProprio = (config as { frete_proprio_prazo_estimado?: string | null } | null)?.frete_proprio_prazo_estimado || 'Mesmo dia';
         const taxaOficialPropria = config?.frete_proprio_tipo_cobranca === 'gratis'
           ? 0
           : Number(config?.frete_proprio_valor_padrao || 0);
 
-        return (data as FormaEntrega[]).map(forma => {
+        const mapeadas = (data as FormaEntrega[]).map(forma => {
           const ehProprio = ['frota_propria', 'proprio', 'motoboy'].includes(forma.tipo) || (forma.nome || '').toLowerCase().includes('frete italia');
           if (ehProprio) {
             if ((forma.nome || '').toLowerCase().includes('frete italia')) {
@@ -1399,6 +1442,26 @@ export class ShippingOrchestrator {
           }
           return forma;
         });
+
+        const jaPossuiProprioAtivo = mapeadas.some(
+          f => f.ativo && ['frota_propria', 'proprio', 'motoboy'].includes(f.tipo)
+        );
+        if (config?.frete_proprio_ativo === true && !jaPossuiProprioAtivo) {
+          mapeadas.push({
+            id: 'frete_proprio',
+            loja_id: lojaId,
+            nome: nomeOficialProprio,
+            tipo: 'proprio',
+            valor_taxa: taxaOficialPropria,
+            tempo_estimado: prazoOficialProprio,
+            requer_codigo_rastreio: false,
+            requer_entregador: false,
+            ativo: true,
+            padrao: false
+          });
+        }
+
+        return mapeadas;
       }
 
       // Seed das opções padrão se não houver registros

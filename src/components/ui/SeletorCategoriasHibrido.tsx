@@ -57,6 +57,7 @@ export const SeletorCategoriasHibrido: React.FC<SeletorCategoriasHibridoProps> =
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const portalRef = useRef<HTMLDivElement>(null);
+  const openedAtRef = useRef<number>(0);
 
   useRegisterOverlay(aberto, () => setAberto(false), idOverlay, 'drawer');
 
@@ -108,11 +109,14 @@ export const SeletorCategoriasHibrido: React.FC<SeletorCategoriasHibridoProps> =
     return () => document.removeEventListener('mousedown', handleClickFora);
   }, [aberto]);
 
-  // Quando abre a gaveta, se uma subcategoria estiver selecionada, já expande a categoria pai
+  // Sempre zera o flyout ao abrir/fechar; na gaveta mobile, expande o acordeão da categoria pai se houver subcategoria selecionada
   useEffect(() => {
+    setCategoriaHoverId(null);
     if (!aberto) {
-      setCategoriaHoverId(null);
       return;
+    }
+    if (openedAtRef.current === 0) {
+      openedAtRef.current = Date.now();
     }
     const catAtual = categorias.find((c) => c.id === valorSelecionado);
     if (catAtual) {
@@ -186,7 +190,16 @@ export const SeletorCategoriasHibrido: React.FC<SeletorCategoriasHibridoProps> =
       <button
         ref={triggerRef}
         type="button"
-        onClick={() => setAberto((prev) => !prev)}
+        onClick={() => {
+          setAberto((prev) => {
+            const proximo = !prev;
+            if (proximo) {
+              openedAtRef.current = Date.now();
+            }
+            setCategoriaHoverId(null);
+            return proximo;
+          });
+        }}
         className={
           classNameBotao ||
           `w-full flex items-center justify-between gap-2 ${
@@ -297,7 +310,10 @@ export const SeletorCategoriasHibrido: React.FC<SeletorCategoriasHibridoProps> =
                   <button
                     key={cat.id}
                     type="button"
-                    onMouseEnter={() => setCategoriaHoverId(cat.id)}
+                    onMouseEnter={() => {
+                      if (Date.now() - openedAtRef.current < 150) return;
+                      setCategoriaHoverId(temSub ? cat.id : null);
+                    }}
                     onClick={() => handleSelecionar(cat.id)}
                     className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs font-medium opacity-100 transition cursor-pointer ${
                       isSelecionada
