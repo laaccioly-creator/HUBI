@@ -46,7 +46,7 @@ export interface ContextoUnificadoProdutoJev {
  */
 export const invalidarCachesAntigosPipelineJev = (): void => {
   try {
-    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v18_ativo';
+    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v20_ativo';
     if (localStorage.getItem(FLAG_MIGRACAO) === 'true') return;
 
     const prefixosAntigos = [
@@ -60,7 +60,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
       const chavesParaRemover: string[] = [];
       for (let i = 0; i < storage.length; i++) {
         const k = storage.key(i);
-        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v18_')) {
+        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v20_')) {
           chavesParaRemover.push(k);
         }
       }
@@ -71,7 +71,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
     limparStorage(sessionStorage);
     localStorage.setItem(FLAG_MIGRACAO, 'true');
     console.log(
-      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v18 ativo!',
+      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v20 ativo!',
       'background: #10b981; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
       'color: #10b981; font-weight: bold;'
     );
@@ -800,7 +800,12 @@ export const catalogJevService = {
       };
     }
 
-    const preAvaliadas = ofertas.map((oferta, idx) => {
+    const preAvaliadas = ofertas
+      .filter(oferta => {
+        const lojaLower = (oferta.loja || '').trim().toLowerCase();
+        return lojaLower !== 'google' && lojaLower !== 'google shopping' && !lojaLower.includes('google.com');
+      })
+      .map((oferta, idx) => {
       const textoAvaliacao = `${oferta.titulo} ${oferta.entrega || ''} ${oferta.url || ''}`;
       const aval = calcularScoreEstritoModeloJev(nomeOriginalUsuario, textoAvaliacao);
       return {

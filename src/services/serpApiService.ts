@@ -601,7 +601,7 @@ export const testarConexaoSerpApi = async (
 const cacheSerpMemoria = new Map<string, { timestamp: number; fotos: FotoResultadoSerpApi[] }>();
 
 export const obterCacheSerp = (termo: string): FotoResultadoSerpApi[] | null => {
-  const chave = `hubi_serp_cache_v18_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_cache_v20_${termo.toLowerCase().trim()}`;
   const emMemoria = cacheSerpMemoria.get(chave);
   if (emMemoria && Date.now() - emMemoria.timestamp < 1000 * 60 * 60 * 6) {
     return emMemoria.fotos;
@@ -621,7 +621,7 @@ export const obterCacheSerp = (termo: string): FotoResultadoSerpApi[] | null => 
 
 export const salvarCacheSerp = (termo: string, fotos: FotoResultadoSerpApi[]) => {
   if (!fotos || fotos.length === 0) return;
-  const chave = `hubi_serp_cache_v18_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_cache_v20_${termo.toLowerCase().trim()}`;
   const item = { timestamp: Date.now(), fotos };
   cacheSerpMemoria.set(chave, item);
   try {
@@ -982,7 +982,7 @@ export interface ItemShoppingSerpApi {
 const cacheShoppingSerpMemoria = new Map<string, { timestamp: number; itens: ItemShoppingSerpApi[] }>();
 
 export const obterCacheShoppingSerp = (termo: string): ItemShoppingSerpApi[] | null => {
-  const chave = `hubi_serp_shopping_cache_v18_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_shopping_cache_v20_${termo.toLowerCase().trim()}`;
   const TTL_MS = 1000 * 60 * 60 * 6; // 6 horas
   const emMemoria = cacheShoppingSerpMemoria.get(chave);
   if (emMemoria && Date.now() - emMemoria.timestamp < TTL_MS) {
@@ -1003,7 +1003,7 @@ export const obterCacheShoppingSerp = (termo: string): ItemShoppingSerpApi[] | n
 
 export const salvarCacheShoppingSerp = (termo: string, itens: ItemShoppingSerpApi[]) => {
   if (!itens || itens.length === 0) return;
-  const chave = `hubi_serp_shopping_cache_v18_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_serp_shopping_cache_v20_${termo.toLowerCase().trim()}`;
   const item = { timestamp: Date.now(), itens };
   cacheShoppingSerpMemoria.set(chave, item);
   const serializado = JSON.stringify(item);
@@ -1071,6 +1071,33 @@ export const extrairPrecoNumericoBr = (valor: any, exigirSimboloRs = false): num
   }
 
   return 0;
+};
+
+export const desembrulharUrlGoogle = (urlBruta: string): string => {
+  const raw = (urlBruta || '').trim();
+  if (!raw) return '';
+  try {
+    const parsed = new URL(raw);
+    const host = parsed.hostname.toLowerCase();
+    if (host === 'google.com' || host.endsWith('.google.com') || host === 'google.com.br' || host.endsWith('.google.com.br')) {
+      const destino =
+        parsed.searchParams.get('url') ||
+        parsed.searchParams.get('q') ||
+        parsed.searchParams.get('adurl') ||
+        parsed.searchParams.get('u') ||
+        '';
+      if (destino && /^https?:\/\//i.test(destino)) {
+        const hostDestino = new URL(destino).hostname.toLowerCase();
+        if (!hostDestino.includes('google.com')) {
+          return destino;
+        }
+      }
+      return '';
+    }
+    return raw;
+  } catch {
+    return raw;
+  }
 };
 
 export const normalizarNomeLojaBr = (fonteBruta: string, urlBruta?: string): string => {
@@ -1241,7 +1268,12 @@ const formatarItensShoppingBrutos = (rawItems: any[], queryPadrao: string): Item
 
   for (const item of rawItems) {
     const titulo = String(item.title || item.titulo || queryPadrao).trim();
-    const url = String(item.link || item.product_link || item.url || '').trim();
+    const urlOriginal = String(item.link || item.product_link || item.url || '').trim();
+    const url = desembrulharUrlGoogle(urlOriginal);
+    // Se a URL era redirecionamento do Google sem destino real de varejista, descarta o item
+    if (urlOriginal && !url) {
+      continue;
+    }
     if (!ehCompraInternacional(queryPadrao) && ehCompraInternacional(String(item.snippet || ''))) {
       continue;
     }
@@ -1284,6 +1316,10 @@ const formatarItensShoppingBrutos = (rawItems: any[], queryPadrao: string): Item
     ).trim();
 
     const loja = normalizarNomeLojaBr(fonteBruta, url);
+    const lojaLower = loja.toLowerCase().trim();
+    if (!lojaLower || lojaLower === 'google' || lojaLower === 'google shopping' || lojaLower.includes('google.com')) {
+      continue;
+    }
 
     resultados.push({
       titulo,

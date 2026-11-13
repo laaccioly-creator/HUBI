@@ -281,7 +281,7 @@ const processarListaConcorrentes = (
 const cacheRadarMercadoMemoria = new Map<string, { timestamp: number; dados: DadosMercadoIA }>();
 
 const obterCacheRadarMercado = (termo: string): DadosMercadoIA | null => {
-  const chave = `hubi_radar_precos_cache_v18_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_radar_precos_cache_v20_${termo.toLowerCase().trim()}`;
   const TTL_MS = 1000 * 60 * 60 * 6; // 6 horas
   const emMem = cacheRadarMercadoMemoria.get(chave);
   if (emMem && Date.now() - emMem.timestamp < TTL_MS && emMem.dados.totalPesquisados > 0) {
@@ -302,7 +302,7 @@ const obterCacheRadarMercado = (termo: string): DadosMercadoIA | null => {
 
 const salvarCacheRadarMercado = (termo: string, dados: DadosMercadoIA) => {
   if (!dados || dados.totalPesquisados === 0) return;
-  const chave = `hubi_radar_precos_cache_v18_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_radar_precos_cache_v20_${termo.toLowerCase().trim()}`;
   const item = { timestamp: Date.now(), dados };
   cacheRadarMercadoMemoria.set(chave, item);
   const serializado = JSON.stringify(item);
@@ -1663,12 +1663,18 @@ export const ProdutoCadastro: React.FC = () => {
 
     // Regra padrão: Preço médio sugerido sem os centavos (ex: R$ 37,40 vira R$ 37,00)
     const precoSugerido = dadosSugeridos.dados_mercado?.precoMedio || dadosSugeridos.preco_venda_estimado;
+    const precoVarejoFinal = precoSugerido && precoSugerido > 0
+      ? Math.floor(precoSugerido)
+      : (Number(precoVendaVarejo) || 0);
     if (precoSugerido && precoSugerido > 0) {
-      const semCentavos = Math.floor(precoSugerido);
-      handlePrecoVarejoChange(semCentavos.toFixed(2));
+      handlePrecoVarejoChange(precoVarejoFinal.toFixed(2));
     }
-    if (dadosSugeridos.preco_custo_estimado) {
-      setPrecoCusto(dadosSugeridos.preco_custo_estimado.toFixed(2));
+    let precoCustoFinal = Number(dadosSugeridos.preco_custo_estimado) || 0;
+    if (precoVarejoFinal > 0 && (!precoCustoFinal || precoCustoFinal >= precoVarejoFinal)) {
+      precoCustoFinal = Number((precoVarejoFinal * 0.70).toFixed(2));
+    }
+    if (precoCustoFinal > 0) {
+      setPrecoCusto(precoCustoFinal.toFixed(2));
     }
     if (dadosSugeridos.tipo_unidade) {
       setTipoUnidade(dadosSugeridos.tipo_unidade.toLowerCase());

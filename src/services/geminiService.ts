@@ -10,6 +10,7 @@ import {
   extrairTermoEnxutoBusca,
   extrairPrecoNumericoBr,
   normalizarNomeLojaBr,
+  desembrulharUrlGoogle,
   classificarTipoLojaShopping,
   ehCompraInternacional,
   ofertaCorrespondeAoModeloPesquisado,
@@ -1543,7 +1544,7 @@ export const atualizarProdutoExistenteComIA = async (dados: {
   const termoReferencia = nomeInformadoPeloUsuario || (dados.descricao?.trim() || 'Produto');
 
   // Cache instantâneo (Memória + localStorage) para respostas em 0ms em consultas repetidas
-  const chaveCache = `hubi_preencher_ia_v18_${termoReferencia.toLowerCase().trim()}_${(dados.categoriaNome || '').toLowerCase()}`;
+  const chaveCache = `hubi_preencher_ia_v20_${termoReferencia.toLowerCase().trim()}_${(dados.categoriaNome || '').toLowerCase()}`;
   const TTL_CACHE = 1000 * 60 * 60 * 6; // 6 horas
   const emMemoria = cachePreencherIAMemoria.get(chaveCache);
   if (emMemoria && Date.now() - emMemoria.timestamp < TTL_CACHE) {
@@ -1696,7 +1697,7 @@ REGRAS MANDATÓRIAS:
         : [];
       const mediaRadar = Number((concorrentesRadar.reduce((acc, c) => acc + c.preco, 0) / concorrentesRadar.length).toFixed(2));
       const termoRadar = (contextoJev.termoCanonico || termoReferencia).toLowerCase().trim();
-      const chaveRadar = `hubi_radar_precos_cache_v18_${termoRadar}`;
+      const chaveRadar = `hubi_radar_precos_cache_v20_${termoRadar}`;
       const payloadRadar = JSON.stringify({
         timestamp: Date.now(),
         dados: {
@@ -1982,7 +1983,8 @@ Responda EXCLUSIVAMENTE em JSON válido no formato:
     // Verifica que a URL é real e válida (nunca aceitar oferta sem URL verificada do Google Search)
     for (const item of lista) {
       const titulo = String(item?.titulo || item?.title || termo).trim();
-      const url = String(item?.url || item?.link || '').trim();
+      const urlBruta = String(item?.url || item?.link || '').trim();
+      const url = desembrulharUrlGoogle(urlBruta);
       if (!url || !url.startsWith('http')) continue;
       const precoNum = extrairPrecoNumericoBr(item?.preco ?? item?.price);
       if (!precoNum || precoNum <= 0) continue;
@@ -1991,7 +1993,11 @@ Responda EXCLUSIVAMENTE em JSON válido no formato:
       if (!ofertaCorrespondeAoModeloPesquisado(termo, titulo, url)) continue;
 
       const nomeLoja = normalizarNomeLojaBr(String(item?.loja || ''), url);
-      if (lojasExistentesSet.has(nomeLoja.toLowerCase().trim())) continue;
+      const nomeLojaLower = nomeLoja.toLowerCase().trim();
+      if (!nomeLojaLower || nomeLojaLower === 'google' || nomeLojaLower === 'google shopping' || nomeLojaLower.includes('google.com')) {
+        continue;
+      }
+      if (lojasExistentesSet.has(nomeLojaLower)) continue;
 
       lojasExistentesSet.add(nomeLoja.toLowerCase().trim());
       resultados.push({
