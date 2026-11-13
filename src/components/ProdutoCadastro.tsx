@@ -281,7 +281,7 @@ const processarListaConcorrentes = (
 const cacheRadarMercadoMemoria = new Map<string, { timestamp: number; dados: DadosMercadoIA }>();
 
 const obterCacheRadarMercado = (termo: string): DadosMercadoIA | null => {
-  const chave = `hubi_radar_precos_cache_v20_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_radar_precos_cache_v21_${termo.toLowerCase().trim()}`;
   const TTL_MS = 1000 * 60 * 60 * 6; // 6 horas
   const emMem = cacheRadarMercadoMemoria.get(chave);
   if (emMem && Date.now() - emMem.timestamp < TTL_MS && emMem.dados.totalPesquisados > 0) {
@@ -302,7 +302,7 @@ const obterCacheRadarMercado = (termo: string): DadosMercadoIA | null => {
 
 const salvarCacheRadarMercado = (termo: string, dados: DadosMercadoIA) => {
   if (!dados || dados.totalPesquisados === 0) return;
-  const chave = `hubi_radar_precos_cache_v20_${termo.toLowerCase().trim()}`;
+  const chave = `hubi_radar_precos_cache_v21_${termo.toLowerCase().trim()}`;
   const item = { timestamp: Date.now(), dados };
   cacheRadarMercadoMemoria.set(chave, item);
   const serializado = JSON.stringify(item);
@@ -355,9 +355,8 @@ export const pesquisarPrecosMercadoIA = async (
 
   const segmento = segmentoLoja || (loja ? obterNomeSegmentoLoja(loja) : '') || '';
 
-  // 2. Núcleo Unificado de Contexto e Score (HUBI JEV + Serper):
-  // Em abertura padrão, executa apenas Serper (/shopping + /search) para resposta em ~1-2s.
-  // Só aciona Gemini + Google Search se for "Atualizar Pesquisa" explícito ou se a Serper retornar 0 lojas.
+  // 2. Núcleo Unificado de Contexto e Score (HUBI JEV + Serper + Complemento Gemini quando < 6 lojas):
+  // Utiliza exatamente o mesmo pipeline consolidado na 1ª abertura, no Preencher com IA e no Atualizar Pesquisa.
   const termoParaContexto = nomeOriginal.length >= 2 ? nomeOriginal : (barcode?.trim() || nomeOriginal);
   const contextoJev = await catalogJevService.obterContextoUnificadoProdutoJev({
     nomeProduto: termoParaContexto,
@@ -365,7 +364,7 @@ export const pesquisarPrecosMercadoIA = async (
     segmentoLoja: segmento,
     loja,
     etapa: 'RADAR_PRECOS',
-    permitirComplementoGemini: Boolean(opcoesExtras?.forcarAtualizacao)
+    permitirComplementoGemini: true
   });
 
   const termoCanônico = contextoJev.termoCanonico || termoCache;

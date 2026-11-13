@@ -46,7 +46,7 @@ export interface ContextoUnificadoProdutoJev {
  */
 export const invalidarCachesAntigosPipelineJev = (): void => {
   try {
-    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v20_ativo';
+    const FLAG_MIGRACAO = 'hubi_jev_pipeline_unificado_v21_ativo';
     if (localStorage.getItem(FLAG_MIGRACAO) === 'true') return;
 
     const prefixosAntigos = [
@@ -60,7 +60,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
       const chavesParaRemover: string[] = [];
       for (let i = 0; i < storage.length; i++) {
         const k = storage.key(i);
-        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v20_')) {
+        if (k && prefixosAntigos.some(p => k.startsWith(p)) && !k.includes('_v21_')) {
           chavesParaRemover.push(k);
         }
       }
@@ -71,7 +71,7 @@ export const invalidarCachesAntigosPipelineJev = (): void => {
     limparStorage(sessionStorage);
     localStorage.setItem(FLAG_MIGRACAO, 'true');
     console.log(
-      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v20 ativo!',
+      '%c[HUBI JEV ⚡]%c Caches antigos invalidados com sucesso. Pipeline Unificado v21 ativo!',
       'background: #10b981; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
       'color: #10b981; font-weight: bold;'
     );
@@ -1018,12 +1018,11 @@ export const catalogJevService = {
       }
     }
 
-    // Aciona Gemini 3.8 Flash + Google Search apenas quando:
-    // - explicitamente solicitado (ex: botão "Atualizar Pesquisa" no Radar) e houver < 5 lojas, OU
-    // - como fallback caso a Serper retorne 0 lojas válidas (exceto em PREENCHER_IA)
+    // Pipeline unificado (Preencher com IA, 1ª abertura do Radar e Atualizar Pesquisa):
+    // Sempre que a Serper retornar < 6 lojas nacionais aprovadas, aciona o complemento
+    // do gemini-3.8-flash + Google Search para consolidar de 6 a 10 lojas reais.
     const deveComplementarComGemini =
-      params.etapa !== 'PREENCHER_IA' &&
-      (avaliacao.aprovadas.length === 0 || (params.permitirComplementoGemini === true && avaliacao.aprovadas.length < 5));
+      params.permitirComplementoGemini !== false && avaliacao.aprovadas.length < 6;
 
     if (deveComplementarComGemini) {
       const ofertasComplementares = await buscarOfertasComplementaresGeminiSearch(

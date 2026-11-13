@@ -1544,7 +1544,7 @@ export const atualizarProdutoExistenteComIA = async (dados: {
   const termoReferencia = nomeInformadoPeloUsuario || (dados.descricao?.trim() || 'Produto');
 
   // Cache instantâneo (Memória + localStorage) para respostas em 0ms em consultas repetidas
-  const chaveCache = `hubi_preencher_ia_v20_${termoReferencia.toLowerCase().trim()}_${(dados.categoriaNome || '').toLowerCase()}`;
+  const chaveCache = `hubi_preencher_ia_v21_${termoReferencia.toLowerCase().trim()}_${(dados.categoriaNome || '').toLowerCase()}`;
   const TTL_CACHE = 1000 * 60 * 60 * 6; // 6 horas
   const emMemoria = cachePreencherIAMemoria.get(chaveCache);
   if (emMemoria && Date.now() - emMemoria.timestamp < TTL_CACHE) {
@@ -1575,7 +1575,7 @@ export const atualizarProdutoExistenteComIA = async (dados: {
   }
 
   // 1. Disparo 100% paralelo (Promise.all):
-  //    a) Busca rápida da Serper + JEV (sem google_search)
+  //    a) Pipeline Unificado Serper + JEV + Complemento Gemini Google Search (quando < 6 lojas)
   //    b) Unidade de venda JEV
   //    c) Chamada única ao gemini-3.8-flash (sem tools, thinkingBudget: 0) para descrição, categoria e dimensões
   const unidadeJevPromise = catalogJevService.classificarUnidadeVenda({ nome: termoReferencia, descricao: dados.descricao }).catch(() => 'un');
@@ -1585,7 +1585,7 @@ export const atualizarProdutoExistenteComIA = async (dados: {
     segmentoLoja: dados.segmentoLoja || dados.loja?.segmento,
     loja: dados.loja,
     etapa: 'PREENCHER_IA',
-    permitirComplementoGemini: false
+    permitirComplementoGemini: true
   });
 
   const geminiPromise = (async (): Promise<any> => {
@@ -1697,7 +1697,7 @@ REGRAS MANDATÓRIAS:
         : [];
       const mediaRadar = Number((concorrentesRadar.reduce((acc, c) => acc + c.preco, 0) / concorrentesRadar.length).toFixed(2));
       const termoRadar = (contextoJev.termoCanonico || termoReferencia).toLowerCase().trim();
-      const chaveRadar = `hubi_radar_precos_cache_v20_${termoRadar}`;
+      const chaveRadar = `hubi_radar_precos_cache_v21_${termoRadar}`;
       const payloadRadar = JSON.stringify({
         timestamp: Date.now(),
         dados: {
