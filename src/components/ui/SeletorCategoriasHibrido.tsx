@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Layers, ChevronDown, ChevronRight, X, Check } from 'lucide-react';
 import { Categoria, Produto } from '../../types';
 import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
@@ -48,25 +49,60 @@ export const SeletorCategoriasHibrido: React.FC<SeletorCategoriasHibridoProps> =
   const [aberto, setAberto] = useState(false);
   const [categoriaHoverId, setCategoriaHoverId] = useState<string | null>(null);
   const [acordeaoExpandidoIds, setAcordeaoExpandidoIds] = useState<Record<string, boolean>>({});
+  const [coordsPortal, setCoordsPortal] = useState<{ top: number; left: number; dropdownWidth: number }>({
+    top: 0,
+    left: 0,
+    dropdownWidth: 256
+  });
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const portalRef = useRef<HTMLDivElement>(null);
 
   useRegisterOverlay(aberto, () => setAberto(false), idOverlay, 'drawer');
+
+  const atualizarCoordenadasPortal = useCallback(() => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const dropdownWidth = 256; // w-64
+    setCoordsPortal({
+      top: rect.bottom + 6,
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - dropdownWidth - 16)),
+      dropdownWidth
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!aberto || apenasGavetaMobile) return;
+    atualizarCoordenadasPortal();
+    window.addEventListener('resize', atualizarCoordenadasPortal);
+    window.addEventListener('scroll', atualizarCoordenadasPortal, true);
+    return () => {
+      window.removeEventListener('resize', atualizarCoordenadasPortal);
+      window.removeEventListener('scroll', atualizarCoordenadasPortal, true);
+    };
+  }, [aberto, apenasGavetaMobile, atualizarCoordenadasPortal]);
 
   const arvoreCategorias = useMemo(
     () => obterArvoreCategorias(categorias, lojaId),
     [categorias, lojaId]
   );
 
-  // Fecha menu desktop ao clicar fora
+  // Fecha menu desktop ao clicar fora (considerando containerRef e portalRef)
   useEffect(() => {
     if (!aberto) return;
     const handleClickFora = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        // Verifica se o clique não foi dentro da gaveta mobile (portal/fixed)
-        const targetEl = e.target as HTMLElement;
-        if (targetEl.closest('[data-gaveta-categorias-mobile="true"]')) return;
-        setAberto(false);
+      const targetNode = e.target as Node;
+      const targetEl = e.target as HTMLElement;
+      const clicouNoTrigger = containerRef.current?.contains(targetNode) ?? false;
+      const clicouNoPortal = portalRef.current?.contains(targetNode) ?? false;
+      if (clicouNoTrigger || clicouNoPortal) return;
+      if (
+        targetEl.closest('[data-gaveta-categorias-mobile="true"]') ||
+        targetEl.closest('[data-portal-seletor-categorias="true"]')
+      ) {
+        return;
       }
+      setAberto(false);
     };
     document.addEventListener('mousedown', handleClickFora);
     return () => document.removeEventListener('mousedown', handleClickFora);
@@ -148,6 +184,7 @@ export const SeletorCategoriasHibrido: React.FC<SeletorCategoriasHibridoProps> =
     <div ref={containerRef} className={`relative w-full ${aberto ? 'z-[999] isolate' : ''}`}>
       {/* Botão Disparador */}
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setAberto((prev) => !prev)}
         className={
@@ -170,180 +207,212 @@ export const SeletorCategoriasHibrido: React.FC<SeletorCategoriasHibridoProps> =
       </button>
 
       {/* =====================================================================
-          1. DESKTOP: MENU DROPDOWN COM FLYOUT LATERAL HOVER À DIREITA
+          1. DESKTOP: MENU DROPDOWN + FLYOUT LATERAL VIA PORTAL NO document.body
       ===================================================================== */}
-      {aberto && !apenasGavetaMobile && (
-        <div
-          className={`hidden md:flex absolute left-0 top-full mt-1.5 z-[999] isolate rounded-2xl shadow-2xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 ${
-            isDark
-              ? 'bg-slate-900 border-slate-700 text-slate-100'
-              : 'bg-white border-slate-200 text-slate-900'
-          }`}
-        >
-          {/* Coluna Principal de Categorias */}
-          <div className="w-64 max-h-[380px] overflow-y-auto p-1.5 space-y-0.5 bg-white dark:bg-slate-900 rounded-2xl">
-            {/* Opção Fixa: Todas as Categorias */}
-            <button
-              type="button"
-              onMouseEnter={() => setCategoriaHoverId(null)}
-              onClick={() => handleSelecionar(valorTodas)}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                valorSelecionado === valorTodas
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : isDark
-                  ? 'text-slate-100 hover:bg-slate-800 hover:text-emerald-400'
-                  : 'text-slate-800 dark:text-slate-100 hover:bg-emerald-50 dark:hover:bg-slate-800 hover:text-emerald-700'
-              }`}
-            >
-              <span className="truncate">{rotuloTodas}</span>
-              {exibirContagem && (
-                <span
-                  className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                    valorSelecionado === valorTodas
-                      ? 'bg-white/20 text-white'
-                      : isDark
-                      ? 'bg-slate-800 text-slate-400'
-                      : 'bg-slate-100 text-slate-600'
-                  }`}
-                >
-                  {produtos.length}
-                </span>
-              )}
-            </button>
-
-            {/* Opções Extras no Topo (ex: Destaques) */}
-            {opcoesExtrasTopo.map((extra) => (
-              <button
-                key={extra.id}
-                type="button"
-                onMouseEnter={() => setCategoriaHoverId(null)}
-                onClick={() => handleSelecionar(extra.id)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                  valorSelecionado === extra.id
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : isDark
-                    ? 'text-slate-100 hover:bg-slate-800 hover:text-emerald-400'
-                    : 'text-slate-800 dark:text-slate-100 hover:bg-emerald-50 dark:hover:bg-slate-800 hover:text-emerald-700'
-                }`}
-              >
-                <span className="truncate">{extra.rotulo}</span>
-              </button>
-            ))}
-
-            <div className={`my-1 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'}`} />
-
-            {/* Lista de Categorias Principais */}
-            {arvoreCategorias.map((cat) => {
-              const temSub = cat.subcategorias.length > 0;
-              const isSelecionada =
-                valorSelecionado === cat.id ||
-                cat.subcategorias.some((s) => s.id === valorSelecionado);
-              const isHovered = categoriaHoverId === cat.id;
-              const qtd = contarProdutosDaCategoria(cat);
-
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onMouseEnter={() => setCategoriaHoverId(cat.id)}
-                  onClick={() => handleSelecionar(cat.id)}
-                  className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                    isSelecionada
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : isHovered
-                      ? isDark
-                        ? 'bg-slate-800 text-emerald-400'
-                        : 'bg-emerald-50 text-emerald-700'
-                      : isDark
-                      ? 'text-slate-100 hover:bg-slate-800 hover:text-emerald-400'
-                      : 'text-slate-800 dark:text-slate-100 hover:bg-emerald-50 dark:hover:bg-slate-800 hover:text-emerald-700'
-                  }`}
-                >
-                  <span className="truncate text-left flex-1">{cat.nome}</span>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {exibirContagem && (
-                      <span
-                        className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                          isSelecionada
-                            ? 'bg-white/20 text-white'
-                            : isDark
-                            ? 'bg-slate-800 text-slate-400'
-                            : 'bg-slate-100 text-slate-500'
-                        }`}
-                      >
-                        {qtd}
-                      </span>
-                    )}
-                    {temSub && <ChevronRight className="w-3.5 h-3.5 opacity-80" />}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Flyout Flutuante Lateral Direito (quando a categoria em hover possui subcategorias) */}
-          {categoriaHoverObj && categoriaHoverObj.subcategorias.length > 0 && (
+      {aberto && !apenasGavetaMobile && typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            ref={portalRef}
+            data-portal-seletor-categorias="true"
+            className="hidden md:block"
+            style={{
+              position: 'fixed',
+              top: coordsPortal.top,
+              left: coordsPortal.left,
+              zIndex: 99999
+            }}
+          >
+            {/* Coluna Principal de Categorias */}
             <div
-              className={`w-60 max-h-[380px] overflow-y-auto p-1.5 border-l space-y-0.5 rounded-r-2xl shadow-2xl z-[999] isolate animate-in fade-in slide-in-from-left-1 duration-150 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 ${
+              style={{
+                backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                zIndex: 99999
+              }}
+              className={`w-64 max-h-[380px] overflow-y-auto p-1.5 space-y-0.5 rounded-xl border shadow-2xl opacity-100 ${
                 isDark
                   ? 'bg-slate-900 border-slate-700 text-slate-100'
                   : 'bg-white border-slate-200 text-slate-900'
               }`}
             >
+              {/* Opção Fixa: Todas as Categorias */}
               <button
                 type="button"
-                onClick={() => handleSelecionar(categoriaHoverObj.id)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                  valorSelecionado === categoriaHoverObj.id
-                    ? 'bg-emerald-600 text-white'
+                onMouseEnter={() => setCategoriaHoverId(null)}
+                onClick={() => handleSelecionar(valorTodas)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium opacity-100 transition cursor-pointer ${
+                  valorSelecionado === valorTodas
+                    ? 'bg-emerald-600 text-white font-bold shadow-xs'
                     : isDark
-                    ? 'text-emerald-400 hover:bg-slate-800'
-                    : 'text-emerald-700 hover:bg-emerald-50'
+                    ? 'text-slate-100 hover:bg-slate-800 hover:text-emerald-400'
+                    : 'text-slate-900 hover:bg-emerald-50 hover:text-emerald-700'
                 }`}
               >
-                <span className="truncate">Todas de {categoriaHoverObj.nome}</span>
-                {valorSelecionado === categoriaHoverObj.id && <Check className="w-3.5 h-3.5 shrink-0" />}
+                <span className="truncate">{rotuloTodas}</span>
+                {exibirContagem && (
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                      valorSelecionado === valorTodas
+                        ? 'bg-white/20 text-white'
+                        : isDark
+                        ? 'bg-slate-800 text-slate-300'
+                        : 'bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    {produtos.length}
+                  </span>
+                )}
               </button>
+
+              {/* Opções Extras no Topo (ex: Destaques) */}
+              {opcoesExtrasTopo.map((extra) => (
+                <button
+                  key={extra.id}
+                  type="button"
+                  onMouseEnter={() => setCategoriaHoverId(null)}
+                  onClick={() => handleSelecionar(extra.id)}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium opacity-100 transition cursor-pointer ${
+                    valorSelecionado === extra.id
+                      ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                      : isDark
+                      ? 'text-slate-100 hover:bg-slate-800 hover:text-emerald-400'
+                      : 'text-slate-900 hover:bg-emerald-50 hover:text-emerald-700'
+                  }`}
+                >
+                  <span className="truncate">{extra.rotulo}</span>
+                </button>
+              ))}
 
               <div className={`my-1 border-t ${isDark ? 'border-slate-700' : 'border-slate-200'}`} />
 
-              {categoriaHoverObj.subcategorias.map((sub) => {
-                const subAtiva = valorSelecionado === sub.id;
-                const qtdSub = contarProdutosDaSubcategoria(sub.id);
+              {/* Lista de Categorias Principais */}
+              {arvoreCategorias.map((cat) => {
+                const temSub = cat.subcategorias.length > 0;
+                const isSelecionada =
+                  valorSelecionado === cat.id ||
+                  cat.subcategorias.some((s) => s.id === valorSelecionado);
+                const isHovered = categoriaHoverId === cat.id;
+                const qtd = contarProdutosDaCategoria(cat);
+
                 return (
                   <button
-                    key={sub.id}
+                    key={cat.id}
                     type="button"
-                    onClick={() => handleSelecionar(sub.id)}
-                    className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
-                      subAtiva
-                        ? 'bg-emerald-600 text-white font-bold'
+                    onMouseEnter={() => setCategoriaHoverId(cat.id)}
+                    onClick={() => handleSelecionar(cat.id)}
+                    className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs font-medium opacity-100 transition cursor-pointer ${
+                      isSelecionada
+                        ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                        : isHovered
+                        ? isDark
+                          ? 'bg-slate-800 text-emerald-400'
+                          : 'bg-emerald-50 text-emerald-700'
                         : isDark
                         ? 'text-slate-100 hover:bg-slate-800 hover:text-emerald-400'
-                        : 'text-slate-800 dark:text-slate-100 hover:bg-emerald-50 dark:hover:bg-slate-800 hover:text-emerald-700'
+                        : 'text-slate-900 hover:bg-emerald-50 hover:text-emerald-700'
                     }`}
                   >
-                    <span className="truncate text-left flex-1">{sub.nome}</span>
-                    {exibirContagem && (
-                      <span
-                        className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                          subAtiva
-                            ? 'bg-white/20 text-white'
-                            : isDark
-                            ? 'bg-slate-800 text-slate-400'
-                            : 'bg-slate-200/70 text-slate-600'
-                        }`}
-                      >
-                        {qtdSub}
-                      </span>
-                    )}
+                    <span className="truncate text-left flex-1">{cat.nome}</span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {exibirContagem && (
+                        <span
+                          className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                            isSelecionada
+                              ? 'bg-white/20 text-white'
+                              : isDark
+                              ? 'bg-slate-800 text-slate-300'
+                              : 'bg-slate-100 text-slate-700'
+                          }`}
+                        >
+                          {qtd}
+                        </span>
+                      )}
+                      {temSub && <ChevronRight className="w-3.5 h-3.5 opacity-80" />}
+                    </div>
                   </button>
                 );
               })}
             </div>
-          )}
-        </div>
-      )}
+
+            {/* Flyout Flutuante Lateral Direito (quando a categoria em hover possui subcategorias) */}
+            {categoriaHoverObj && categoriaHoverObj.subcategorias.length > 0 && (() => {
+              const flyoutWidth = 240; // w-60
+              const posDireita = coordsPortal.left + coordsPortal.dropdownWidth + 4;
+              const flyoutLeft =
+                posDireita + flyoutWidth <= window.innerWidth - 8
+                  ? posDireita
+                  : Math.max(8, coordsPortal.left - flyoutWidth - 4);
+
+              return (
+                <div
+                  style={{
+                    position: 'fixed',
+                    top: coordsPortal.top,
+                    left: flyoutLeft,
+                    backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                    zIndex: 99999
+                  }}
+                  className={`w-60 max-h-[380px] overflow-y-auto p-1.5 border space-y-0.5 rounded-xl shadow-2xl opacity-100 animate-in fade-in duration-150 ${
+                    isDark
+                      ? 'bg-slate-900 border-slate-700 text-slate-100'
+                      : 'bg-white border-slate-200 text-slate-900'
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleSelecionar(categoriaHoverObj.id)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold opacity-100 transition cursor-pointer ${
+                      valorSelecionado === categoriaHoverObj.id
+                        ? 'bg-emerald-600 text-white'
+                        : isDark
+                        ? 'text-emerald-400 hover:bg-slate-800'
+                        : 'text-emerald-700 hover:bg-emerald-50'
+                    }`}
+                  >
+                    <span className="truncate">Todas de {categoriaHoverObj.nome}</span>
+                    {valorSelecionado === categoriaHoverObj.id && <Check className="w-3.5 h-3.5 shrink-0" />}
+                  </button>
+
+                  <div className={`my-1 border-t ${isDark ? 'border-slate-700' : 'border-slate-200'}`} />
+
+                  {categoriaHoverObj.subcategorias.map((sub) => {
+                    const subAtiva = valorSelecionado === sub.id;
+                    const qtdSub = contarProdutosDaSubcategoria(sub.id);
+                    return (
+                      <button
+                        key={sub.id}
+                        type="button"
+                        onClick={() => handleSelecionar(sub.id)}
+                        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs font-medium opacity-100 transition cursor-pointer ${
+                          subAtiva
+                            ? 'bg-emerald-600 text-white font-bold'
+                            : isDark
+                            ? 'text-slate-100 hover:bg-slate-800 hover:text-emerald-400'
+                            : 'text-slate-900 hover:bg-emerald-50 hover:text-emerald-700'
+                        }`}
+                      >
+                        <span className="truncate text-left flex-1">{sub.nome}</span>
+                        {exibirContagem && (
+                          <span
+                            className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                              subAtiva
+                                ? 'bg-white/20 text-white'
+                                : isDark
+                                ? 'bg-slate-800 text-slate-300'
+                                : 'bg-slate-100 text-slate-700'
+                            }`}
+                          >
+                            {qtdSub}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>,
+          document.body
+        )}
 
       {/* =====================================================================
           2. MOBILE: GAVETA LATERAL DESLIZANTE ESQUERDA COM ACORDEÃO VERTICAL
