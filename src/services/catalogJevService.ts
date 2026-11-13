@@ -38,6 +38,8 @@ export interface ContextoUnificadoProdutoJev {
   totalDescartados: number;
   confiancaMediaPercentual: number;
   resumoContextoTexto: string;
+  precoVendaVarejoSugerido?: number;
+  precoCustoSugerido?: number;
 }
 
 /**
@@ -295,6 +297,219 @@ function gerarCandidatosTermoBusca(termo: string): {
     opcao_original: original
   };
 }
+
+const TERMOS_ACESSORIO_PRE_FILTRO_LOCAL: readonly string[] = [
+  'cabo',
+  'suporte',
+  'capa',
+  'película',
+  'pelicula',
+  'fonte',
+  'carregador',
+  'adaptador',
+  'manual',
+  'peça',
+  'peca',
+  'base',
+  'conector',
+  'controle remoto'
+];
+
+/**
+ * Pré-filtro determinístico local (0ms antes de invocar o JEV):
+ * 1. Remove acessórios/peças óbvias quando o termo canônico principal não for um acessório;
+ * 2. Calcula a mediana bruta dos preços numéricos e descarta outliers (< 35% ou > 250% da mediana).
+ */
+export function preFiltrarOfertasSerperLocalmente(
+  termoPrincipal: string,
+  ofertas: ItemShoppingSerpApi[]
+): ItemShoppingSerpApi[] {
+  if (!ofertas || ofertas.length === 0) return [];
+
+  const termoNorm = (termoPrincipal || '').toLowerCase().replace(/[-_/]/g, ' ');
+  const termosProibidos = TERMOS_ACESSORIO_PRE_FILTRO_LOCAL.filter((termoAcc) => {
+    const regex = new RegExp(`\\b${termoAcc.replace(/\s+/g, '\\s+')}\\b`, 'i');
+    return !regex.test(termoNorm);
+  });
+
+  const semAcessorios = ofertas.filter((oferta) => {
+    if (typeof oferta.preco !== 'number' || !Number.isFinite(oferta.preco) || oferta.preco <= 0) {
+      return false;
+    }
+    const lojaLower = (oferta.loja || '').trim().toLowerCase();
+    if (lojaLower === 'google' || lojaLower === 'google shopping' || lojaLower.includes('google.com')) {
+      return false;
+    }
+
+    const tituloNorm = (oferta.titulo || '').toLowerCase().replace(/[-_/]/g, ' ');
+    return !termosProibidos.some((termoAcc) => {
+      const regex = new RegExp(`\\b${termoAcc.replace(/\s+/g, '\\s+')}\\b`, 'i');
+      return regex.test(tituloNorm);
+    });
+  });
+
+  if (semAcessorios.length < 2) {
+    return semAcessorios;
+  }
+
+  const precosOrdenados = semAcessorios
+    .map((o) => o.preco)
+    .sort((a, b) => a - b);
+  const meio = Math.floor(precosOrdenados.length / 2);
+  const medianaBruta =
+    precosOrdenados.length % 2 === 0
+      ? (precosOrdenados[meio - 1] + precosOrdenados[meio]) / 2
+      : precosOrdenados[meio];
+
+  if (!Number.isFinite(medianaBruta) || medianaBruta <= 0) {
+    return semAcessorios;
+  }
+
+  const limiteInferior = medianaBruta * 0.35;
+  const limiteSuperior = medianaBruta * 2.50;
+  const semOutliers = semAcessorios.filter(
+    (o) => o.preco >= limiteInferior && o.preco <= limiteSuperior
+  );
+
+  return semOutliers.length > 0 ? semOutliers : semAcessorios;
+}
+
+/**
+ * Blindagem de Margem (Custo vs. Varejo):
+ * Garante que o preco_custo sugerido nunca seja maior ou igual ao preco_venda_varejo sugerido.
+ */
+export function blindarMargemCustoVarejo(
+  precoVendaVarejo: number,
+  precoCustoEstimado?: number
+): { preco_venda_varejo: number; preco_custo: number } {
+  const vendaValida =
+    typeof precoVendaVarejo === 'number' && Number.isFinite(precoVendaVarejo) && precoVendaVarejo > 0
+      ? Number(precoVendaVarejo.toFixed(2))
+      : 0;
+
+  if (vendaValida <= 0) {
+    return { preco_venda_varejo: 0, preco_custo: 0 };
+  }
+
+  const custoInformado =
+    typeof precoCustoEstimado === 'number' && Number.isFinite(precoCustoEstimado) && precoCustoEstimado > 0
+      ? Number(precoCustoEstimado.toFixed(2))
+      : 0;
+
+  if (custoInformado > 0 && custoInformado < vendaValida) {
+    return {
+      preco_venda_varejo: vendaValida,
+      preco_custo: custoInformado
+    };
+  }
+
+  // Margem de segurança (55% do varejo), garantindo estritamente custo < venda
+  const custoComMargem = Number((vendaValida * 0.55).toFixed(2));
+  const custoFinal =
+    custoComMargem < vendaValida
+      ? custoComMargem
+      : Math.max(0, Number((vendaValida - 0.01).toFixed(2)));
+
+  return {
+    preco_venda_varejo: vendaValida,
+    preco_custo: custoFinal
+  };
+}
+
+export const TTL_CACHE_SESSAO_15MIN_MS = 15 * 60 * 1000;
+
+export interface EntradaCacheSessao<T> {
+  timestamp: number;
+  dados: T;
+}
+
+/**
+ * Normaliza termo para chave de cache (minúsculas, trim, sem acentos).
+ */
+export function normalizarTermoChaveCache(termo: string): string {
+  return (termo || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+/**
+ * Gera chave de cache normalizada e escopada por lojaId (sem dados sensíveis).
+ */
+export function criarChaveCacheEscopada(
+  prefixo: string,
+  termoCanonico: string,
+  lojaId?: string
+): string {
+  const termoNorm = normalizarTermoChaveCache(termoCanonico);
+  const lojaEscopo = (lojaId || 'global').trim().toLowerCase();
+  return `${prefixo}_${lojaEscopo}_${termoNorm}`;
+}
+
+/**
+ * Lê entrada válida e não expirada do cache híbrido (Map em memória + sessionStorage).
+ */
+export function lerCacheHibridoSessao<T>(
+  mapaMemoria: Map<string, EntradaCacheSessao<T>>,
+  chave: string,
+  ttlMs: number = TTL_CACHE_SESSAO_15MIN_MS
+): T | null {
+  const agora = Date.now();
+  const emMemoria = mapaMemoria.get(chave);
+  if (emMemoria) {
+    if (agora - emMemoria.timestamp < ttlMs) {
+      return emMemoria.dados;
+    }
+    mapaMemoria.delete(chave);
+  }
+
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      const bruto = sessionStorage.getItem(chave);
+      if (bruto) {
+        const parsed = JSON.parse(bruto) as EntradaCacheSessao<T>;
+        if (parsed && typeof parsed.timestamp === 'number' && parsed.dados !== undefined) {
+          if (agora - parsed.timestamp < ttlMs) {
+            mapaMemoria.set(chave, parsed);
+            return parsed.dados;
+          }
+          sessionStorage.removeItem(chave);
+        }
+      }
+    }
+  } catch {
+    // Ignora falhas de acesso/parse do sessionStorage
+  }
+
+  return null;
+}
+
+/**
+ * Persiste entrada no cache híbrido (Map em memória + sessionStorage) sem armazenar chaves ou PII.
+ */
+export function salvarCacheHibridoSessao<T>(
+  mapaMemoria: Map<string, EntradaCacheSessao<T>>,
+  chave: string,
+  dados: T
+): void {
+  const entrada: EntradaCacheSessao<T> = {
+    timestamp: Date.now(),
+    dados
+  };
+  mapaMemoria.set(chave, entrada);
+
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(chave, JSON.stringify(entrada));
+    }
+  } catch {
+    // Ignora quota excedida no sessionStorage
+  }
+}
+
+const cacheContextoUnificadoMemoria = new Map<string, EntradaCacheSessao<ContextoUnificadoProdutoJev>>();
 
 export const catalogJevService = {
   /**
@@ -800,11 +1015,15 @@ export const catalogJevService = {
       };
     }
 
-    const preAvaliadas = ofertas
-      .filter(oferta => {
-        const lojaLower = (oferta.loja || '').trim().toLowerCase();
-        return lojaLower !== 'google' && lojaLower !== 'google shopping' && !lojaLower.includes('google.com');
-      })
+    const ehPreencherIa = etapa === 'PREENCHER_IA';
+    const ofertasBase = ehPreencherIa
+      ? preFiltrarOfertasSerperLocalmente(nomeOriginalUsuario, ofertas)
+      : ofertas.filter(oferta => {
+          const lojaLower = (oferta.loja || '').trim().toLowerCase();
+          return lojaLower !== 'google' && lojaLower !== 'google shopping' && !lojaLower.includes('google.com');
+        });
+
+    const preAvaliadas = ofertasBase
       .map((oferta, idx) => {
       const textoAvaliacao = `${oferta.titulo} ${oferta.entrega || ''} ${oferta.url || ''}`;
       const aval = calcularScoreEstritoModeloJev(nomeOriginalUsuario, textoAvaliacao);
@@ -816,9 +1035,10 @@ export const catalogJevService = {
       };
     });
 
+    const limiteLoteJev = ehPreencherIa ? 8 : 25;
     const candidatasJev = preAvaliadas
       .filter(item => item.scoreDeterministico >= LIMIAR_APROVACAO_JEV)
-      .slice(0, 25);
+      .slice(0, limiteLoteJev);
 
     const scoresJevMap = new Map<number, number>();
 
@@ -894,8 +1114,10 @@ export const catalogJevService = {
 
     let listaLojas = Array.from(mapaPorLoja.values());
 
-    // Garantia mínima de resultados: garantir entre 5 e 10 lojas nacionais distintas (sempre bloqueando variantes/importados)
-    if (listaLojas.length < 5) {
+    // No fluxo PREENCHER_IA (passada única), aceita imediatamente se aprovar 1+ lojas válidas.
+    // Nos demais fluxos (ex: RADAR_PRECOS), mantém garantia mínima de 5 lojas distintas.
+    const exigeMinimoCincoLojas = !ehPreencherIa;
+    if ((exigeMinimoCincoLojas && listaLojas.length < 5) || (!exigeMinimoCincoLojas && listaLojas.length === 0)) {
       const lojasJaAdicionadas = new Set(listaLojas.map(l => l.loja.trim().toLowerCase()));
       const complementares = preAvaliadas
         .filter(item => !item.penalizado && item.scoreDeterministico >= 0.40 && !lojasJaAdicionadas.has(item.oferta.loja.trim().toLowerCase()))
@@ -973,11 +1195,42 @@ export const catalogJevService = {
   }): Promise<ContextoUnificadoProdutoJev> {
     const tInicioCtx = performance.now();
     const nomeOriginal = (params.nomeProduto || '').trim();
+    const prefixoCacheCtx = `hubi_ctx_jev_v22_${params.etapa.toLowerCase()}`;
+    const chaveOriginal = criarChaveCacheEscopada(prefixoCacheCtx, nomeOriginal, params.loja?.id);
+
+    const cacheDiretoOriginal = lerCacheHibridoSessao(cacheContextoUnificadoMemoria, chaveOriginal);
+    if (cacheDiretoOriginal) {
+      console.log(
+        `%c[HUBI CACHE ⚡]%c Resposta instantânea via cache (0ms) para "${cacheDiretoOriginal.termoCanonico || nomeOriginal}"`,
+        'color: #10b981; font-weight: bold;',
+        'color: #34d399;'
+      );
+      return cacheDiretoOriginal;
+    }
+
     const termoCanonico = await this.extrairTermoCanonicoBusca(
       nomeOriginal,
       params.segmentoLoja,
       params.etapa
     );
+    const chaveCanonico = criarChaveCacheEscopada(
+      prefixoCacheCtx,
+      termoCanonico || nomeOriginal,
+      params.loja?.id
+    );
+
+    if (chaveCanonico !== chaveOriginal) {
+      const cacheCanonico = lerCacheHibridoSessao(cacheContextoUnificadoMemoria, chaveCanonico);
+      if (cacheCanonico) {
+        console.log(
+          `%c[HUBI CACHE ⚡]%c Resposta instantânea via cache (0ms) para "${termoCanonico || nomeOriginal}"`,
+          'color: #10b981; font-weight: bold;',
+          'color: #34d399;'
+        );
+        return cacheCanonico;
+      }
+    }
+
     const partNumbers = extrairPartNumbersProduto(nomeOriginal);
 
     let ofertasBrutas = await buscarPrecosShoppingSerpApi(
@@ -993,8 +1246,11 @@ export const catalogJevService = {
       params.etapa
     );
 
-    // Fallback de query por Marca + Part-Number se retornou < 2 lojas aprovadas e houver part-number identificado
-    if (avaliacao.aprovadas.length < 2 && partNumbers.length > 0) {
+    const ehPreencherIa = params.etapa === 'PREENCHER_IA';
+
+    // No fluxo PREENCHER_IA é proibida segunda chamada/retry no JEV: passada única com até 8 ofertas pré-filtradas.
+    // Fallback de query por Marca + Part-Number (apenas fora de PREENCHER_IA) se retornou < 2 lojas aprovadas
+    if (!ehPreencherIa && avaliacao.aprovadas.length < 2 && partNumbers.length > 0) {
       const pnPrincipal = partNumbers[partNumbers.length - 1];
       const palavrasCanonicas = (termoCanonico || nomeOriginal)
         .split(/\s+/)
@@ -1018,11 +1274,10 @@ export const catalogJevService = {
       }
     }
 
-    // Pipeline unificado (Preencher com IA, 1ª abertura do Radar e Atualizar Pesquisa):
-    // Sempre que a Serper retornar < 6 lojas nacionais aprovadas, aciona o complemento
-    // do gemini-3.8-flash + Google Search para consolidar de 6 a 10 lojas reais.
+    // Pipeline unificado: fora de PREENCHER_IA, complementa com Google Search quando < 6 lojas.
+    // Em PREENCHER_IA, passada única no JEV: se aprovar 1+ lojas válidas na 1ª chamada, aceita imediatamente sem segunda chamada.
     const deveComplementarComGemini =
-      params.permitirComplementoGemini !== false && avaliacao.aprovadas.length < 6;
+      !ehPreencherIa && params.permitirComplementoGemini !== false && avaliacao.aprovadas.length < 6;
 
     if (deveComplementarComGemini) {
       const ofertasComplementares = await buscarOfertasComplementaresGeminiSearch(
@@ -1078,7 +1333,13 @@ export const catalogJevService = {
       'color: #38bdf8;'
     );
 
-    return {
+    const precoMedioAprovado =
+      avaliacao.aprovadas.length > 0
+        ? avaliacao.aprovadas.reduce((acc, item) => acc + item.preco, 0) / avaliacao.aprovadas.length
+        : 0;
+    const margemBlindada = blindarMargemCustoVarejo(precoMedioAprovado);
+
+    const resultadoContexto: ContextoUnificadoProdutoJev = {
       nomeOriginal,
       termoCanonico,
       ofertasAprovadas: avaliacao.aprovadas,
@@ -1086,7 +1347,18 @@ export const catalogJevService = {
       totalAprovados: avaliacao.totalAprovados,
       totalDescartados: avaliacao.totalDescartados,
       confiancaMediaPercentual: avaliacao.confiancaMediaPercentual,
-      resumoContextoTexto
+      resumoContextoTexto,
+      precoVendaVarejoSugerido: margemBlindada.preco_venda_varejo,
+      precoCustoSugerido: margemBlindada.preco_custo
     };
+
+    if (avaliacao.aprovadas.length > 0) {
+      salvarCacheHibridoSessao(cacheContextoUnificadoMemoria, chaveCanonico, resultadoContexto);
+      if (chaveOriginal !== chaveCanonico) {
+        salvarCacheHibridoSessao(cacheContextoUnificadoMemoria, chaveOriginal, resultadoContexto);
+      }
+    }
+
+    return resultadoContexto;
   }
 };

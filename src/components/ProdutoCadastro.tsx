@@ -552,6 +552,8 @@ export const ProdutoCadastro: React.FC = () => {
   const [salvando, setSalvando] = useState<boolean>(false);
   const [carregandoProduto, setCarregandoProduto] = useState<boolean>(false);
   const [analisandoIA, setAnalisandoIA] = useState<boolean>(false);
+  const [redigindoDescricaoIA, setRedigindoDescricaoIA] = useState<boolean>(false);
+  const descricaoEditadaManualRef = useRef<boolean>(false);
   const [sucessoIAMsg, setSucessoIAMsg] = useState<string | null>(null);
 
   // Modal de Categorias
@@ -1646,7 +1648,7 @@ export const ProdutoCadastro: React.FC = () => {
   // Aplicar dados retornados pela IA nos estados do produto
   const aplicarDadosSugeridosIA = async (
     dadosSugeridos: ProdutoSugeridoIA,
-    opcoes?: { preservarNome?: boolean }
+    opcoes?: { preservarNome?: boolean; preservarDescricao?: boolean }
   ) => {
     const nomeExistente = nome.trim();
     const devePreservarNome = opcoes?.preservarNome ?? (nomeExistente.length > 0);
@@ -1658,7 +1660,9 @@ export const ProdutoCadastro: React.FC = () => {
 
     const nomeReferenciaPrincipal = nomeExistente || dadosSugeridos.nome || '';
 
-    if (dadosSugeridos.descricao) setDescricao(dadosSugeridos.descricao);
+    if (dadosSugeridos.descricao && !opcoes?.preservarDescricao) {
+      setDescricao(dadosSugeridos.descricao);
+    }
 
     // Regra padrão: Preço médio sugerido sem os centavos (ex: R$ 37,40 vira R$ 37,00)
     const precoSugerido = dadosSugeridos.dados_mercado?.precoMedio || dadosSugeridos.preco_venda_estimado;
@@ -1770,25 +1774,41 @@ export const ProdutoCadastro: React.FC = () => {
 
     try {
       setAnalisandoIA(true);
+      setRedigindoDescricaoIA(false);
+      descricaoEditadaManualRef.current = false;
       setSucessoIAMsg(null);
 
       // 2. Se o Nome do Produto já foi digitado:
       // - NUNCA envia as imagens da galeria na requisição para o Gemini (reduz drasticamente a latência)
       // - NUNCA sobrescreve o Nome do Produto digitado pelo usuário
+      // - Opera em 2 estágios progressivos: Estágio 1 (Preços/Categoria) destrava a tela; Estágio 2 (Descrição) preenche em background
       if (nomeInformado) {
         const catNome = categorias.find(c => c.id === categoriaId)?.nome;
         const dadosAtualizados = await atualizarProdutoExistenteComIA({
           nome: nomeInformado,
           descricao: descricao.trim(),
+          fotos: fotosUrls,
+          possuiImagens: Boolean(fotoPrincipal || fotosUrls.length > 0),
           categoriaNome: catNome,
           codigoBarras: codigoBarras.trim(),
           precoVendaAtual: Number(precoVendaVarejo) || undefined,
           segmentoLoja,
-          loja
+          loja,
+          onEstagio1Pronto: (parcialEstagio1) => {
+            void aplicarDadosSugeridosIA(parcialEstagio1, {
+              preservarNome: true,
+              preservarDescricao: true
+            });
+            setAnalisandoIA(false);
+            setRedigindoDescricaoIA(true);
+          }
         });
 
         if (dadosAtualizados) {
-          await aplicarDadosSugeridosIA(dadosAtualizados, { preservarNome: true });
+          await aplicarDadosSugeridosIA(dadosAtualizados, {
+            preservarNome: true,
+            preservarDescricao: descricaoEditadaManualRef.current
+          });
           setSucessoIAMsg(
             modoAcao === 'atualizar'
               ? '✨ Informações e ficha técnica do produto atualizadas com sucesso pela IA!'
@@ -1815,6 +1835,7 @@ export const ProdutoCadastro: React.FC = () => {
       mostrarErro(`Não foi possível processar com a IA: ${err.message || 'Tente novamente'}`);
     } finally {
       setAnalisandoIA(false);
+      setRedigindoDescricaoIA(false);
     }
   };
 
@@ -2747,10 +2768,18 @@ export const ProdutoCadastro: React.FC = () => {
 
               {/* Descrição Comercial */}
               <div className="md:col-span-2 space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                    Descrição Comercial (Catálogo & WhatsApp)
-                  </label>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                      Descrição Comercial (Catálogo & WhatsApp)
+                    </label>
+                    {redigindoDescricaoIA && (
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>Redigindo descrição com IA...</span>
+                      </span>
+                    )}
+                  </div>
                   <button
                     type="button"
                     disabled={melhorandoDescricaoIA}
@@ -2775,7 +2804,10 @@ export const ProdutoCadastro: React.FC = () => {
                   rows={3}
                   placeholder="Informações adicionais do produto, material, diferenciais e modo de uso..."
                   value={descricao}
-                  onChange={(e) => setDescricao(e.target.value)}
+                  onChange={(e) => {
+                    descricaoEditadaManualRef.current = true;
+                    setDescricao(e.target.value);
+                  }}
                   className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl p-3 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 resize-none"
                 ></textarea>
               </div>

@@ -666,6 +666,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
   // Estados de IA para Descrição (TELA017)
   const [gerandoDescricaoIA, setGerandoDescricaoIA] = useState<boolean>(false);
+  const [redigindoDescricaoIA, setRedigindoDescricaoIA] = useState<boolean>(false);
+  const descricaoEditadaManualRef = useRef<boolean>(false);
   const [novaCategoriaNome, setNovaCategoriaNome] = useState<string>('');
   const [criandoNovaCategoria, setCriandoNovaCategoria] = useState<boolean>(false);
   const [buscaCategoria, setBuscaCategoria] = useState<string>('');
@@ -1055,7 +1057,57 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     }
 
     setProcessandoIA(true);
+    setRedigindoDescricaoIA(false);
+    descricaoEditadaManualRef.current = false;
     setMensagemStatusIA('Atualizando produto com IA...');
+
+    const aplicarCamposEstagio1 = (parcial: {
+      nome?: string;
+      preco_venda_estimado?: number;
+      preco_custo_estimado?: number;
+      categoria_sugerida?: string;
+      codigo_barras?: string;
+      tipo_unidade?: string;
+    }) => {
+      let atacadoSugerido: string | undefined = undefined;
+      let autoSugerido: string | undefined = undefined;
+      let precoVendaFmt = formData.precoVenda;
+      let precoCustoFmt = formData.precoCusto;
+
+      if (parcial.preco_venda_estimado && parcial.preco_venda_estimado > 0) {
+        const semCentavos = Math.floor(parcial.preco_venda_estimado);
+        const descAtacado = Number(regrasPrecificacaoLoja.descontoAtacado) || 20;
+        const descAuto = Number(regrasPrecificacaoLoja.descontoAutoatacado) || 25;
+        precoVendaFmt = semCentavos.toFixed(2).replace('.', ',');
+        atacadoSugerido = (semCentavos * (1 - descAtacado / 100)).toFixed(2).replace('.', ',');
+        autoSugerido = (semCentavos * (1 - descAuto / 100)).toFixed(2).replace('.', ',');
+
+        const custoEst = Number(parcial.preco_custo_estimado) || 0;
+        if (custoEst > 0 && custoEst < semCentavos) {
+          precoCustoFmt = custoEst.toFixed(2).replace('.', ',');
+        }
+      }
+
+      let categoriaMatchId = formData.categoriaId;
+      if (parcial.categoria_sugerida) {
+        const achouCat = categorias.find(c =>
+          c.nome.toLowerCase().includes(parcial.categoria_sugerida!.toLowerCase())
+        );
+        if (achouCat) categoriaMatchId = achouCat.id;
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        nome: !prev.nome.trim() && parcial.nome ? parcial.nome.toUpperCase() : prev.nome,
+        categoriaId: categoriaMatchId || prev.categoriaId,
+        precoVenda: precoVendaFmt,
+        precoCusto: precoCustoFmt,
+        precoAtacado: atacadoSugerido !== undefined ? atacadoSugerido : prev.precoAtacado,
+        precoAutoatacado: autoSugerido !== undefined ? autoSugerido : prev.precoAutoatacado,
+        codigoBarras: parcial.codigo_barras || prev.codigoBarras,
+        tipoUnidade: (parcial.tipo_unidade as TipoUnidade) || prev.tipoUnidade
+      }));
+    };
 
     try {
       const catNome = mapaCategorias.get(formData.categoriaId) || 'Geral';
@@ -1063,47 +1115,29 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         nome: formData.nome || 'Produto',
         descricao: formData.descricao,
         fotoUrl: !formData.nome?.trim() ? formData.fotos[0] : undefined,
+        fotos: formData.fotos,
+        possuiImagens: formData.fotos.length > 0,
         categoriaNome: catNome,
         codigoBarras: formData.codigoBarras,
         precoVendaAtual: Number(formData.precoVenda?.replace(',', '.')) || undefined,
         segmentoLoja,
-        loja
+        loja,
+        onEstagio1Pronto: (parcialEstagio1) => {
+          aplicarCamposEstagio1(parcialEstagio1);
+          setProcessandoIA(false);
+          setMensagemStatusIA('');
+          setRedigindoDescricaoIA(true);
+        }
       });
 
       if (dadosAtualizados) {
-        let atacadoSugerido: string | undefined = undefined;
-        let autoSugerido: string | undefined = undefined;
-        let precoVendaFmt = formData.precoVenda;
-
-        if (dadosAtualizados.preco_venda_estimado && dadosAtualizados.preco_venda_estimado > 0) {
-          const semCentavos = Math.floor(dadosAtualizados.preco_venda_estimado);
-          const descAtacado = Number(regrasPrecificacaoLoja.descontoAtacado) || 20;
-          const descAuto = Number(regrasPrecificacaoLoja.descontoAutoatacado) || 25;
-          precoVendaFmt = semCentavos.toFixed(2).replace('.', ',');
-          atacadoSugerido = (semCentavos * (1 - descAtacado / 100)).toFixed(2).replace('.', ',');
-          autoSugerido = (semCentavos * (1 - descAuto / 100)).toFixed(2).replace('.', ',');
+        aplicarCamposEstagio1(dadosAtualizados);
+        if (dadosAtualizados.descricao && !descricaoEditadaManualRef.current) {
+          setFormData(prev => ({
+            ...prev,
+            descricao: dadosAtualizados.descricao || prev.descricao
+          }));
         }
-
-        // Categoria sugerida
-        let categoriaMatchId = formData.categoriaId;
-        if (dadosAtualizados.categoria_sugerida) {
-          const achouCat = categorias.find(c =>
-            c.nome.toLowerCase().includes(dadosAtualizados.categoria_sugerida!.toLowerCase())
-          );
-          if (achouCat) categoriaMatchId = achouCat.id;
-        }
-
-        setFormData(prev => ({
-          ...prev,
-          nome: dadosAtualizados.nome ? dadosAtualizados.nome.toUpperCase() : prev.nome,
-          categoriaId: categoriaMatchId || prev.categoriaId,
-          precoVenda: precoVendaFmt,
-          precoAtacado: atacadoSugerido !== undefined ? atacadoSugerido : prev.precoAtacado,
-          precoAutoatacado: autoSugerido !== undefined ? autoSugerido : prev.precoAutoatacado,
-          descricao: dadosAtualizados.descricao || prev.descricao,
-          codigoBarras: dadosAtualizados.codigo_barras || prev.codigoBarras,
-          tipoUnidade: (dadosAtualizados.tipo_unidade as TipoUnidade) || prev.tipoUnidade
-        }));
 
         setMensagemFeedback({ texto: '✨ Produto atualizado e enriquecido com sucesso pela IA!', tipo: 'sucesso' });
       }
@@ -1113,6 +1147,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     } finally {
       setProcessandoIA(false);
       setMensagemStatusIA('');
+      setRedigindoDescricaoIA(false);
     }
   };
 
@@ -2781,13 +2816,24 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         {/* Conteúdo TELA017 */}
         <div className="flex-1 p-4 flex flex-col justify-between overflow-y-auto space-y-4">
           <div className="space-y-2">
-            <label className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              Texto da Descrição
-            </label>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <label className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Texto da Descrição
+              </label>
+              {redigindoDescricaoIA && (
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <span>Redigindo descrição com IA...</span>
+                </span>
+              )}
+            </div>
             <textarea
               rows={9}
               value={formData.descricao}
-              onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
+              onChange={(e) => {
+                descricaoEditadaManualRef.current = true;
+                setFormData(prev => ({ ...prev, descricao: e.target.value }));
+              }}
               placeholder="Digite os detalhes do produto, benefícios, modo de uso ou deixe a IA criar uma descrição exclusiva para você..."
               className="w-full p-4 border-2 border-emerald-500/80 text-xs sm:text-sm font-medium uppercase leading-relaxed text-slate-800 dark:text-white focus:outline-none bg-slate-50/60 dark:bg-[#000000] dark:border-[#1E293B] rounded-2xl resize-none shadow-sm"
             />
@@ -3576,7 +3622,15 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
                   >
                     <div className="flex-1 pr-2">
-                      <span className="text-xs font-semibold uppercase tracking-wider block" style={{ color: temaCores.textoSecundario }}>Descrição Comercial</span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-semibold uppercase tracking-wider block" style={{ color: temaCores.textoSecundario }}>Descrição Comercial</span>
+                        {redigindoDescricaoIA && (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            <span>Redigindo descrição com IA...</span>
+                          </span>
+                        )}
+                      </div>
                       <span className="text-xs sm:text-sm font-semibold uppercase line-clamp-2" style={{ color: temaCores.textoPrincipal }}>
                         {formData.descricao || 'Toque para adicionar uma descrição exclusiva...'}
                       </span>

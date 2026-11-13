@@ -19,7 +19,14 @@ import {
   FotoResultadoSerpApi,
   ItemShoppingSerpApi
 } from './serpApiService';
-import { catalogJevService } from './catalogJevService';
+import {
+  catalogJevService,
+  blindarMargemCustoVarejo,
+  type EntradaCacheSessao,
+  criarChaveCacheEscopada,
+  lerCacheHibridoSessao,
+  salvarCacheHibridoSessao
+} from './catalogJevService';
 import {
   getAvailableGeminiModels,
   getAvailableGeminiModel,
@@ -1521,105 +1528,168 @@ export const pesquisarFotosProdutoNaInternet = async (
   return fotos.slice(0, 20);
 };
 
-const cachePreencherIAMemoria = new Map<string, { timestamp: number; dados: ProdutoSugeridoIA }>();
+const cachePreencherIAMemoria = new Map<string, EntradaCacheSessao<ProdutoSugeridoIA>>();
+const cacheGeminiTextoPreencherMemoria = new Map<string, EntradaCacheSessao<RespostaGeminiPreencherIA>>();
+
+interface RespostaGeminiPreencherIA {
+  nome_padronizado?: string;
+  nome?: string;
+  descricao_curta?: string;
+  descricao_comercial?: string;
+  descricao?: string;
+  categoria_sugerida?: string;
+  subcategoria_sugerida?: string;
+  tipo_unidade?: string;
+  peso_kg?: number;
+  altura_cm?: number;
+  largura_cm?: number;
+  comprimento_cm?: number;
+}
+
+interface GeminiProxyResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{ text?: string }>;
+    };
+  }>;
+  error?: string | { message?: string };
+}
 
 /**
- * Atualiza/preenche um produto a partir do NOME COMERCIAL através do SerpApi Shopping + Jev (System One) + Gemini 3.8 Flash.
- * NUNCA envia imagens quando o nome já foi digitado e NUNCA sobrescreve o nome informado pelo usuário.
+ * Invoca o Gemini estritamente via Edge Function `gemini-proxy` (Zero-Trust BYOK, sem chaves no front-end),
+ * utilizando `gemini-2.5-flash` como modelo primário e `gemini-2.0-flash` como fallback.
+ */
+async function invocarGeminiPreencherViaEdgeProxy(
+  requestBody: Record<string, unknown>,
+  lojaId?: string
+): Promise<GeminiProxyResponse> {
+  const modelos: readonly string[] = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+  let ultimoErro = 'Falha ao consultar Edge Function gemini-proxy.';
+
+  for (const modelo of modelos) {
+    const { data, error } = await supabase.functions.invoke<GeminiProxyResponse>('gemini-proxy', {
+      body: {
+        model: modelo,
+        action: 'generateContent',
+        requestBody,
+        loja_id: lojaId
+      }
+    });
+
+    if (!error && data && !data.error) {
+      return data;
+    }
+
+    const msgErro =
+      typeof data?.error === 'string'
+        ? data.error
+        : data?.error?.message || error?.message || `Falha no modelo ${modelo}`;
+    ultimoErro = msgErro;
+    console.warn(`[GeminiService] Fallback de modelo no proxy (${modelo}):`, msgErro);
+  }
+
+  throw new Error(ultimoErro);
+}
+
+/**
+ * Atualiza/preenche um produto a partir do NOME COMERCIAL através do SerpApi Shopping + Jev (System One) + Gemini 2.5 Flash (via Edge Function).
+ * NUNCA envia imagens, NUNCA dispara busca redundante de fotos quando o formulário já possui imagens e NUNCA sobrescreve o nome informado pelo usuário.
  */
 export const atualizarProdutoExistenteComIA = async (dados: {
   nome: string;
   descricao?: string;
   fotoUrl?: string;
+  fotos?: string[];
+  possuiImagens?: boolean;
   categoriaNome?: string;
   codigoBarras?: string;
   precoVendaAtual?: number;
   segmentoLoja?: string;
-  loja?: any;
+  loja?: (Partial<Loja> & { id?: string; segmento?: string }) | null;
+  onEstagio1Pronto?: (dadosParciais: ProdutoSugeridoIA) => void;
 }): Promise<ProdutoSugeridoIA> => {
   const tInicioPerf = performance.now();
   const nomeInformadoPeloUsuario = (dados.nome && dados.nome.trim() && dados.nome.trim() !== 'Produto')
     ? dados.nome.trim()
     : '';
   const termoReferencia = nomeInformadoPeloUsuario || (dados.descricao?.trim() || 'Produto');
+  const jaPossuiImagens = Boolean(
+    dados.possuiImagens ||
+    (dados.fotoUrl && dados.fotoUrl.trim().length > 0) ||
+    (dados.fotos && dados.fotos.length > 0)
+  );
 
-  // Cache instantâneo (Memória + localStorage) para respostas em 0ms em consultas repetidas
-  const chaveCache = `hubi_preencher_ia_v21_${termoReferencia.toLowerCase().trim()}_${(dados.categoriaNome || '').toLowerCase()}`;
-  const TTL_CACHE = 1000 * 60 * 60 * 6; // 6 horas
-  const emMemoria = cachePreencherIAMemoria.get(chaveCache);
-  if (emMemoria && Date.now() - emMemoria.timestamp < TTL_CACHE) {
-    console.log(`%c[HUBI PERF ⏱️]%c [PREENCHER_IA] Cache instantâneo em ${Math.round(performance.now() - tInicioPerf)}ms`, 'color: #0ea5e9; font-weight: bold;', 'color: #38bdf8;');
+  // Cache híbrido resiliente (Memória + sessionStorage, TTL 15 min) escopado por lojaId e termo normalizado
+  const chaveCache = criarChaveCacheEscopada(
+    'hubi_preencher_ia_sessao_v22',
+    termoReferencia,
+    dados.loja?.id
+  );
+  const emCacheSessao = lerCacheHibridoSessao(cachePreencherIAMemoria, chaveCache);
+  if (emCacheSessao) {
+    console.log(
+      `%c[HUBI CACHE ⚡]%c Resposta instantânea via cache (0ms) para "${termoReferencia}"`,
+      'color: #10b981; font-weight: bold;',
+      'color: #34d399;'
+    );
     return {
-      ...emMemoria.dados,
-      nome: nomeInformadoPeloUsuario || emMemoria.dados.nome
+      ...emCacheSessao,
+      nome: nomeInformadoPeloUsuario || emCacheSessao.nome
     };
-  }
-  try {
-    const salvoLocal = localStorage.getItem(chaveCache);
-    if (salvoLocal) {
-      const parsedCache = JSON.parse(salvoLocal);
-      if (Date.now() - parsedCache.timestamp < TTL_CACHE && parsedCache.dados) {
-        cachePreencherIAMemoria.set(chaveCache, parsedCache);
-        console.log(`%c[HUBI PERF ⏱️]%c [PREENCHER_IA] Cache localStorage em ${Math.round(performance.now() - tInicioPerf)}ms`, 'color: #0ea5e9; font-weight: bold;', 'color: #38bdf8;');
-        return {
-          ...parsedCache.dados,
-          nome: nomeInformadoPeloUsuario || parsedCache.dados.nome
-        };
-      }
-    }
-  } catch {}
-
-  let apiKey = getGeminiApiKey(dados.loja);
-  if (!apiKey && dados.loja?.id) {
-    apiKey = await obterOuBuscarGeminiApiKey(dados.loja);
   }
 
   // 1. Disparo 100% paralelo (Promise.all):
-  //    a) Pipeline Unificado Serper + JEV + Complemento Gemini Google Search (quando < 6 lojas)
+  //    a) Pipeline Unificado Serper + JEV (passada única em PREENCHER_IA)
   //    b) Unidade de venda JEV
-  //    c) Chamada única ao gemini-3.8-flash (sem tools, thinkingBudget: 0) para descrição, categoria e dimensões
+  //    c) Chamada enxuta ao gemini-2.5-flash via Edge Function gemini-proxy (thinkingBudget: 0, maxOutputTokens: 450)
+  //    Obs.: Desacoplado de busca de fotos (especialmente quando jaPossuiImagens === true).
   const unidadeJevPromise = catalogJevService.classificarUnidadeVenda({ nome: termoReferencia, descricao: dados.descricao }).catch(() => 'un');
   const contextoUnificadoPromise = catalogJevService.obterContextoUnificadoProdutoJev({
     nomeProduto: termoReferencia,
     categoriaNome: dados.categoriaNome,
     segmentoLoja: dados.segmentoLoja || dados.loja?.segmento,
-    loja: dados.loja,
+    loja: dados.loja ?? undefined,
     etapa: 'PREENCHER_IA',
-    permitirComplementoGemini: true
+    permitirComplementoGemini: false
   });
 
-  const geminiPromise = (async (): Promise<any> => {
+  const geminiPromise = (async (): Promise<RespostaGeminiPreencherIA | null> => {
     if (termoReferencia.length < 2) return null;
-    const promptTexto = `
-Você é um especialista sênior em catálogo de produtos, engenharia logística e copywriting comercial para o varejo brasileiro${dados.segmentoLoja ? ` no segmento de "${dados.segmentoLoja}"` : ''}.
-Gere os dados comerciais e logísticos para o produto exatamente conforme o nome/modelo informado pelo lojista:
+    const chaveCacheGemini = criarChaveCacheEscopada(
+      'hubi_gemini_texto_v22',
+      termoReferencia,
+      dados.loja?.id
+    );
+    const geminiEmCache = lerCacheHibridoSessao(cacheGeminiTextoPreencherMemoria, chaveCacheGemini);
+    if (geminiEmCache) {
+      console.log(
+        `%c[HUBI CACHE ⚡]%c Resposta instantânea via cache (0ms) para "${termoReferencia}"`,
+        'color: #10b981; font-weight: bold;',
+        'color: #34d399;'
+      );
+      return geminiEmCache;
+    }
 
-NOME EXATO DO PRODUTO (REFERÊNCIA PRINCIPAL INTOCÁVEL): "${termoReferencia}"
+    const tGemini = performance.now();
+    const promptTexto = `Retorne EXCLUSIVAMENTE um JSON válido em pt-BR para o produto abaixo${dados.segmentoLoja ? ` (segmento: "${dados.segmentoLoja}")` : ''}:
+PRODUTO: "${termoReferencia}"
 ${dados.categoriaNome ? `CATEGORIA ATUAL: "${dados.categoriaNome}"` : ''}
-${dados.codigoBarras ? `CÓDIGO DE BARRAS / EAN: "${dados.codigoBarras}"` : ''}
-${dados.precoVendaAtual && dados.precoVendaAtual > 0 ? `PREÇO DE VENDA ATUAL DA LOJA: R$ ${dados.precoVendaAtual.toFixed(2)}` : ''}
-${dados.segmentoLoja ? `SEGMENTO DA LOJA: "${dados.segmentoLoja}"` : ''}
+${dados.codigoBarras ? `EAN: "${dados.codigoBarras}"` : ''}
 
-REGRAS MANDATÓRIAS:
-1. FIDELIDADE ABSOLUTA AO MODELO INFORMADO:
-   - Use "${termoReferencia}" como referência exata. NUNCA misture especificações de outras versões (Plus, Pro, Combo, CFS, Max, Mini, Kit ou Peça) se não constarem no nome digitado.
-2. CATEGORIA, SUBCATEGORIA E UNIDADE:
-   - Indique "categoria_sugerida", "subcategoria_sugerida" e "tipo_unidade" ("un", "kg", "cx", "pct", "par", "m").
-3. DESCRIÇÃO COMERCIAL COMPLETA E PERSUASIVA:
-   - Elabore em "descricao_comercial" (e repita em "descricao") uma descrição comercial completa, persuasiva e fiel às especificações reais do modelo exato "${termoReferencia}", ideal para Catálogo Online e WhatsApp.
-4. DIMENSÕES E PESO REAIS DA EMBALAGEM PARA ENVIO:
-   - Identifique e preencha "peso_kg", "altura_cm", "largura_cm" e "comprimento_cm" reais da caixa/embalagem lacrada deste modelo exato "${termoReferencia}".
-5. PREÇO ESTIMADO DE REFERÊNCIA:
-   - Informe "preco_varejo" e "preco_custo_estimado" (aprox. 55% do varejo) em R$ BRL.
-`;
+Campos obrigatórios do JSON:
+- "nome_padronizado": string limpa e comercial do modelo exato "${termoReferencia}" (sem inventar versões como Plus/Pro/Combo).
+- "descricao_curta": texto objetivo em 3 a 4 bullet points curtos destacando especificações técnicas principais (máximo absoluto de 400 caracteres, sem textos longos).
+- "categoria_sugerida": categoria comercial em pt-BR.
+- "tipo_unidade": "un" | "kg" | "cx" | "pct" | "par" | "m".
+- "peso_kg", "altura_cm", "largura_cm", "comprimento_cm": números reais estimados da embalagem.`;
 
     try {
-      const requestBody = {
-        model: 'gemini-3.8-flash',
+      const requestBody: Record<string, unknown> = {
         contents: [{ parts: [{ text: promptTexto }] }],
+        safetySettings: SAFETY_SETTINGS_VAREJO,
         generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 4096,
+          temperature: 0.3,
+          maxOutputTokens: 450,
           thinkingConfig: {
             thinkingBudget: 0
           },
@@ -1627,48 +1697,66 @@ REGRAS MANDATÓRIAS:
           responseSchema: {
             type: 'OBJECT',
             properties: {
+              nome_padronizado: { type: 'STRING' },
+              descricao_curta: { type: 'STRING' },
               categoria_sugerida: { type: 'STRING' },
-              subcategoria_sugerida: { type: 'STRING' },
-              preco_varejo: { type: 'NUMBER' },
-              preco_venda_estimado: { type: 'NUMBER' },
-              preco_custo_estimado: { type: 'NUMBER' },
               tipo_unidade: { type: 'STRING' },
-              descricao_comercial: { type: 'STRING' },
-              descricao: { type: 'STRING' },
               peso_kg: { type: 'NUMBER' },
               altura_cm: { type: 'NUMBER' },
               largura_cm: { type: 'NUMBER' },
               comprimento_cm: { type: 'NUMBER' }
             },
-            required: [
-              'categoria_sugerida',
-              'preco_varejo',
-              'preco_custo_estimado',
-              'tipo_unidade',
-              'descricao_comercial',
-              'descricao',
-              'peso_kg',
-              'altura_cm',
-              'largura_cm',
-              'comprimento_cm'
-            ]
+            required: ['nome_padronizado', 'descricao_curta']
           }
         }
       };
 
-      const resData = await executarRequisicaoGemini(apiKey, requestBody, dados.loja?.id);
+      const resData = await invocarGeminiPreencherViaEdgeProxy(requestBody, dados.loja?.id);
       const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
-      return rawText ? extrairJsonDoTexto(rawText) : null;
+      console.log(
+        `%c[HUBI PERF ⏱️]%c [PREENCHER_IA] Gemini Proxy concluído em ${Math.round(performance.now() - tGemini)}ms (imagens desacopladas: ${jaPossuiImagens})`,
+        'color: #0ea5e9; font-weight: bold;',
+        'color: #38bdf8;'
+      );
+      const parsedResposta = rawText ? (extrairJsonDoTexto(rawText) as RespostaGeminiPreencherIA | null) : null;
+      if (parsedResposta) {
+        salvarCacheHibridoSessao(cacheGeminiTextoPreencherMemoria, chaveCacheGemini, parsedResposta);
+      }
+      return parsedResposta;
     } catch (err) {
       console.warn('[GeminiService] Enriquecimento textual IA rápido não respondeu a tempo, usando dados inteligentes locais:', err);
       return null;
     }
   })();
 
-  const [contextoJev, parsedIA, unidadeJev] = await Promise.all([
-    contextoUnificadoPromise,
-    geminiPromise,
-    unidadeJevPromise
+  const estagio1Promise = Promise.all([contextoUnificadoPromise, unidadeJevPromise]).then(
+    ([ctxJev, unidJev]) => {
+      if (dados.onEstagio1Pronto) {
+        const ofertas = ctxJev.ofertasAprovadas || [];
+        const precos = ofertas.map(o => o.preco).filter(p => p > 0);
+        const mediaSerp =
+          precos.length > 0 ? Math.floor(precos.reduce((a, b) => a + b, 0) / precos.length) : 0;
+        const precoEst = mediaSerp || Number(dados.precoVendaAtual) || 0;
+        const precoSemCent = precoEst > 0 ? Math.floor(precoEst) : 0;
+        const margemEstagio1 = blindarMargemCustoVarejo(precoSemCent, ctxJev.precoCustoSugerido);
+
+        dados.onEstagio1Pronto({
+          nome: nomeInformadoPeloUsuario || ctxJev.termoCanonico || termoReferencia,
+          categoria_sugerida: dados.categoriaNome || '',
+          preco_venda_estimado: precoSemCent,
+          preco_custo_estimado: margemEstagio1.preco_custo > 0 ? Math.floor(margemEstagio1.preco_custo) : 0,
+          descricao: '',
+          tipo_unidade: unidJev || 'un',
+          codigo_barras: dados.codigoBarras || ''
+        });
+      }
+      return [ctxJev, unidJev] as const;
+    }
+  );
+
+  const [[contextoJev, unidadeJev], parsedIA] = await Promise.all([
+    estagio1Promise,
+    geminiPromise
   ]);
 
   const ofertasAprovadas = contextoJev.ofertasAprovadas;
@@ -1732,33 +1820,51 @@ REGRAS MANDATÓRIAS:
     'color: #38bdf8;'
   );
 
-  const textoDescricaoIA = (parsedIA?.descricao_comercial || parsedIA?.descricao || '').trim();
+  const textoDescricaoIA = (
+    parsedIA?.descricao_curta ||
+    parsedIA?.descricao_comercial ||
+    parsedIA?.descricao ||
+    ''
+  )
+    .trim()
+    .slice(0, 400);
   const descricaoFinal = textoDescricaoIA.length > 15
     ? textoDescricaoIA
     : (dados.descricao?.trim() || `${termoReferencia} — equipamento/produto selecionado com alto padrão de qualidade, desempenho confiável e excelente custo-benefício.`);
 
+  const margemBlindada = blindarMargemCustoVarejo(
+    precoSemCentavos,
+    contextoJev.precoCustoSugerido
+  );
+
   const resultadoFinal: ProdutoSugeridoIA = {
     // NUNCA sobrescreve o nome se o usuário já o informou
-    nome: nomeInformadoPeloUsuario || parsedIA?.nome?.trim() || termoReferencia,
+    nome: nomeInformadoPeloUsuario || parsedIA?.nome_padronizado?.trim() || parsedIA?.nome?.trim() || termoReferencia,
     categoria_sugerida: parsedIA?.categoria_sugerida || dados.categoriaNome || 'Geral',
     subcategoria_sugerida: parsedIA?.subcategoria_sugerida || undefined,
     preco_venda_estimado: precoSemCentavos,
-    preco_custo_estimado: Number(parsedIA?.preco_custo_estimado) || (precoSemCentavos > 0 ? Math.floor(precoSemCentavos * 0.55) : 0),
+    preco_custo_estimado: margemBlindada.preco_custo > 0 ? Math.floor(margemBlindada.preco_custo) : 0,
     descricao: descricaoFinal,
     tipo_unidade: parsedIA?.tipo_unidade || unidadeJev || 'un',
     codigo_barras: dados.codigoBarras || '',
-    peso_kg: Number(parsedIA?.peso_kg) > 0 ? Number(Number(parsedIA.peso_kg).toFixed(3)) : (dimsFallback.peso_kg || 0.35),
-    altura_cm: Number(parsedIA?.altura_cm) > 0 ? Math.max(4, Math.round(Number(parsedIA.altura_cm))) : (dimsFallback.altura_cm || 10),
-    largura_cm: Number(parsedIA?.largura_cm) > 0 ? Math.max(10, Math.round(Number(parsedIA.largura_cm))) : (dimsFallback.largura_cm || 15),
-    comprimento_cm: Number(parsedIA?.comprimento_cm) > 0 ? Math.max(15, Math.round(Number(parsedIA.comprimento_cm))) : (dimsFallback.comprimento_cm || 20)
+    peso_kg: Number(parsedIA?.peso_kg) > 0 ? Number(Number(parsedIA?.peso_kg).toFixed(3)) : (dimsFallback.peso_kg || 0.35),
+    altura_cm: Number(parsedIA?.altura_cm) > 0 ? Math.max(4, Math.round(Number(parsedIA?.altura_cm))) : (dimsFallback.altura_cm || 10),
+    largura_cm: Number(parsedIA?.largura_cm) > 0 ? Math.max(10, Math.round(Number(parsedIA?.largura_cm))) : (dimsFallback.largura_cm || 15),
+    comprimento_cm: Number(parsedIA?.comprimento_cm) > 0 ? Math.max(15, Math.round(Number(parsedIA?.comprimento_cm))) : (dimsFallback.comprimento_cm || 20)
   };
 
-  if (precoSemCentavos > 0 && textoDescricaoIA.length > 15) {
-    const cacheItem = { timestamp: Date.now(), dados: resultadoFinal };
-    cachePreencherIAMemoria.set(chaveCache, cacheItem);
-    try {
-      localStorage.setItem(chaveCache, JSON.stringify(cacheItem));
-    } catch {}
+  if (precoSemCentavos > 0 || textoDescricaoIA.length > 15) {
+    salvarCacheHibridoSessao(cachePreencherIAMemoria, chaveCache, resultadoFinal);
+    if (contextoJev.termoCanonico) {
+      const chaveCanonico = criarChaveCacheEscopada(
+        'hubi_preencher_ia_sessao_v22',
+        contextoJev.termoCanonico,
+        dados.loja?.id
+      );
+      if (chaveCanonico !== chaveCache) {
+        salvarCacheHibridoSessao(cachePreencherIAMemoria, chaveCanonico, resultadoFinal);
+      }
+    }
   }
 
   return resultadoFinal;
