@@ -11,7 +11,7 @@ import { Pedido, Loja, ItemPedido } from '../types';
 import { obterInfoVencimentoFiado, extrairInfoPagamentoEntrega } from '../utils/statusPedidoUtils';
 import { detectarServicoPorCodigo } from '../utils/correiosValidator';
 import { formatarNomeTransportadora } from '../utils/shippingDisplay';
-import { extrairInfoVisitaPedido } from '../utils/taxaDomicilioUtils';
+import { extrairInfoVisitaPedido, obterResumoServicoRecibo } from '../utils/taxaDomicilioUtils';
 
 export const formatarDataRecibo = (dataIso?: string | null): string => {
   if (!dataIso) return '';
@@ -331,6 +331,19 @@ export const obterInfoEntregaRecibo = (
   );
   const temEnderecoEntrega = Boolean(pe?.destino_logradouro || pedido.endereco_entrega);
 
+  const resumoServico = obterResumoServicoRecibo(pedido, loja);
+  if (resumoServico.isSomenteServico) {
+    return {
+      ehRetirada: resumoServico.modalidadeLocal === 'loja',
+      formaEntregaTexto: resumoServico.modalidadeLocal === 'externo' ? 'EM DOMICÍLIO' : 'NA LOJA',
+      labelEndereco: 'Local da Prestação:',
+      enderecoExibicao: resumoServico.enderecoServico,
+      codigoRastreio: null,
+      codigoCorrida: null,
+      nomeApp: null
+    };
+  }
+
   const infoVisita = extrairInfoVisitaPedido(pedido, loja);
   if (infoVisita.temServicoExterno) {
     const enderecoDestino = infoVisita.enderecoVisita || pedido.endereco_entrega || pe?.destino_logradouro || 'No Endereço do Cliente';
@@ -537,6 +550,7 @@ export class PrintService {
       const infoEntregaPresencial = extrairInfoPagamentoEntrega(pedido);
 
       // Dados fiéis de frete, forma de entrega e endereçamento
+      const resumoServico = obterResumoServicoRecibo(pedido, loja);
       const {
         ehRetirada,
         formaEntregaTexto,
@@ -705,19 +719,19 @@ export class PrintService {
             ` : ''}
           </div>
 
-          <!-- Bloco de Forma de Entrega e Endereço -->
+          <!-- Bloco de Forma de Entrega / Local do Serviço e Endereço -->
           <div style="margin-bottom: 14px; padding: 8px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
               <span style="font-size: ${isA4 ? '11px' : '9px'}; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
-                Forma de Entrega:
+                ${resumoServico.isSomenteServico ? 'LOCAL DO SERVIÇO:' : 'Forma de Entrega:'}
               </span>
-              <span style="font-size: ${isA4 ? '11px' : '9px'}; font-weight: 800; color: ${ehRetirada ? '#7e22ce' : '#047857'}; background: ${ehRetirada ? '#f3e8ff' : '#d1fae5'}; padding: 1px 6px; border-radius: 4px;">
-                ${formaEntregaTexto}
+              <span style="font-size: ${isA4 ? '11px' : '9px'}; font-weight: 800; color: ${resumoServico.isSomenteServico ? '#047857' : (ehRetirada ? '#7e22ce' : '#047857')}; background: ${resumoServico.isSomenteServico ? '#d1fae5' : (ehRetirada ? '#f3e8ff' : '#d1fae5')}; padding: 1px 6px; border-radius: 4px;">
+                ${resumoServico.isSomenteServico ? (resumoServico.modalidadeLocal === 'externo' ? 'EM DOMICÍLIO' : 'NA LOJA') : formaEntregaTexto}
               </span>
             </div>
-            ${enderecoExibicao ? `
+            ${(resumoServico.isSomenteServico ? resumoServico.enderecoServico : enderecoExibicao) ? `
               <div style="font-size: ${isA4 ? '12px' : '10px'}; color: #334155; margin-top: 4px; border-top: 1px dashed #cbd5e1; padding-top: 4px; line-height: 1.3;">
-                <strong>${labelEndereco}</strong> ${enderecoExibicao}
+                <strong>${resumoServico.isSomenteServico ? 'Local da Prestação:' : labelEndereco}</strong> ${resumoServico.isSomenteServico ? resumoServico.enderecoServico : enderecoExibicao}
               </div>
             ` : ''}
             ${codigoRastreio ? `
@@ -768,6 +782,13 @@ export class PrintService {
           <div style="margin-top: 8px; padding-top: 6px; font-size: ${isA4 ? '12px' : '11px'}; color: #475569; border-top: 1px dashed #e2e8f0;">
             ${(() => {
               const infoVisita = extrairInfoVisitaPedido(pedido, loja);
+              if (resumoServico.isSomenteServico) {
+                return `
+                  <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+                    <span>Subtotal dos Serviços:</span>
+                    <span>R$ ${formatNumeroMoeda(resumoServico.subtotalServicos)}</span>
+                  </div>`;
+              }
               let htmlFechamento = '';
               if (infoVisita.subtotalProdutos > 0) {
                 htmlFechamento += `
@@ -779,7 +800,7 @@ export class PrintService {
               if (infoVisita.subtotalServicos > 0) {
                 htmlFechamento += `
                   <div style="display: flex; justify-content: space-between; margin: 2px 0;">
-                    <span>Valor do(s) Serviço(s):</span>
+                    <span>Subtotal dos Serviços:</span>
                     <span>R$ ${formatNumeroMoeda(infoVisita.subtotalServicos)}</span>
                   </div>`;
               }
@@ -800,12 +821,32 @@ export class PrintService {
             ` : ''}
             ${(() => {
               const infoVisita = extrairInfoVisitaPedido(pedido, loja);
+              if (resumoServico.isSomenteServico) {
+                if (resumoServico.modalidadeLocal === 'externo' && resumoServico.taxaVisita > 0) {
+                  return `
+                    <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+                      <span>Taxa de Visita (Domicílio):</span>
+                      <span style="font-weight: 600; color: #0f172a;">
+                        + R$ ${formatNumeroMoeda(resumoServico.taxaVisita)}
+                      </span>
+                    </div>`;
+                }
+                if (resumoServico.modalidadeLocal === 'externo' && resumoServico.taxaVisitaIsenta) {
+                  return `
+                    <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+                      <span>Taxa de Visita (Domicílio):</span>
+                      <span style="font-weight: 600; color: #059669;">Isenta (serviço aprovado)</span>
+                    </div>`;
+                }
+                return '';
+              }
               if (infoVisita.temServicoExterno) {
+                const valorTaxa = infoVisita.taxaVisitaCobrada > 0 ? infoVisita.taxaVisitaCobrada : Number(pedido.valor_frete || 0);
                 return `
                   <div style="display: flex; justify-content: space-between; margin: 2px 0;">
-                    <span>Taxa de atendimento a domicílio:</span>
-                    <span style="font-weight: 600; color: ${infoVisita.taxaVisitaIsenta ? '#059669' : '#0f172a'};">
-                      ${infoVisita.taxaVisitaIsenta ? 'Isenta (serviço aprovado)' : `+ R$ ${formatNumeroMoeda(infoVisita.taxaVisitaCobrada)}`}
+                    <span>Taxa de Visita (Domicílio):</span>
+                    <span style="font-weight: 600; color: ${infoVisita.taxaVisitaIsenta && valorTaxa === 0 ? '#059669' : '#0f172a'};">
+                      ${infoVisita.taxaVisitaIsenta && valorTaxa === 0 ? 'Isenta (serviço aprovado)' : `+ R$ ${formatNumeroMoeda(valorTaxa)}`}
                     </span>
                   </div>`;
               }
@@ -1193,6 +1234,7 @@ export class PrintService {
     }
     text += divider;
 
+    const resumoServico = obterResumoServicoRecibo(pedido, loja);
     const {
       ehRetirada,
       formaEntregaTexto,
@@ -1207,9 +1249,16 @@ export class PrintService {
       const telCli = pedido.cliente?.whatsapp || pedido.cliente?.telefone || (pedido as any).cliente_telefone_avulso;
       if (telCli) text += `Contato: ${telCli}\n`;
     }
-    text += `Forma de Entrega: ${formaEntregaTexto.toUpperCase()}\n`;
-    if (enderecoExibicao) {
-      text += `${labelEndereco} ${enderecoExibicao.slice(0, cols - 10)}\n`;
+    if (resumoServico.isSomenteServico) {
+      text += `LOCAL DO SERVICO: ${resumoServico.modalidadeLocal === 'externo' ? 'EM DOMICILIO' : 'NA LOJA'}\n`;
+      if (resumoServico.enderecoServico) {
+        text += `Local da Prestacao: ${resumoServico.enderecoServico.slice(0, cols - 20)}\n`;
+      }
+    } else {
+      text += `Forma de Entrega: ${formaEntregaTexto.toUpperCase()}\n`;
+      if (enderecoExibicao) {
+        text += `${labelEndereco} ${enderecoExibicao.slice(0, cols - 10)}\n`;
+      }
     }
     text += divider;
 
@@ -1228,22 +1277,31 @@ export class PrintService {
 
     const infoVisita = extrairInfoVisitaPedido(pedido, loja);
 
-    if (infoVisita.subtotalServicos > 0 && infoVisita.subtotalProdutos > 0) {
+    if (resumoServico.isSomenteServico) {
+      text += `Subtotal dos Servicos: R$ ${Number(resumoServico.subtotalServicos).toFixed(2)}\n`;
+    } else if (infoVisita.subtotalServicos > 0 && infoVisita.subtotalProdutos > 0) {
       text += `Subtotal Servicos:     R$ ${Number(infoVisita.subtotalServicos).toFixed(2)}\n`;
       text += `Subtotal Produtos:     R$ ${Number(infoVisita.subtotalProdutos).toFixed(2)}\n`;
     } else if (infoVisita.subtotalServicos > 0 && infoVisita.subtotalProdutos === 0) {
-      text += `Valor do(s) Servico(s):R$ ${Number(infoVisita.subtotalServicos).toFixed(2)}\n`;
+      text += `Subtotal dos Servicos: R$ ${Number(infoVisita.subtotalServicos).toFixed(2)}\n`;
     } else {
       text += `Subtotal:              R$ ${Number(pedido.subtotal).toFixed(2)}\n`;
     }
 
     if (Number(pedido.valor_desconto) > 0) text += `Desconto:            - R$ ${Number(pedido.valor_desconto).toFixed(2)}\n`;
 
-    if (infoVisita.temServicoExterno) {
-      if (infoVisita.taxaVisitaIsenta) {
+    if (resumoServico.isSomenteServico) {
+      if (resumoServico.modalidadeLocal === 'externo' && resumoServico.taxaVisita > 0) {
+        text += `Taxa Visita Domicilio:+ R$ ${Number(resumoServico.taxaVisita).toFixed(2)}\n`;
+      } else if (resumoServico.modalidadeLocal === 'externo' && resumoServico.taxaVisitaIsenta) {
         text += `Taxa Visita Domicilio: Isenta (Aprovado)\n`;
-      } else if (infoVisita.taxaVisitaCobrada > 0) {
-        text += `Taxa Visita Domicilio:+ R$ ${Number(infoVisita.taxaVisitaCobrada).toFixed(2)}\n`;
+      }
+    } else if (infoVisita.temServicoExterno) {
+      const valorTaxa = infoVisita.taxaVisitaCobrada > 0 ? infoVisita.taxaVisitaCobrada : Number(pedido.valor_frete || 0);
+      if (infoVisita.taxaVisitaIsenta && valorTaxa === 0) {
+        text += `Taxa Visita Domicilio: Isenta (Aprovado)\n`;
+      } else if (valorTaxa > 0) {
+        text += `Taxa Visita Domicilio:+ R$ ${Number(valorTaxa).toFixed(2)}\n`;
       }
     } else if (Number(pedido.valor_frete) > 0) {
       text += `Taxa de Entrega:     + R$ ${Number(pedido.valor_frete).toFixed(2)}\n`;
@@ -1368,6 +1426,7 @@ export class PrintService {
       pagStr = `\nSTATUS DO PAGAMENTO: AGUARDANDO PAGAMENTO\n`;
     }
 
+    const resumoServico = obterResumoServicoRecibo(pedido, loja);
     const infoVisita = extrairInfoVisitaPedido(pedido, loja);
 
     return `RECIBO #${pedido.numero_pedido}\n\n` +
@@ -1377,24 +1436,34 @@ export class PrintService {
       `\nVendedor: ${vendedorInfo.valor}\n` +
       `Cliente: ${clienteNome}\n` +
       (pedido.cliente?.whatsapp ? `Contato: +55 ${pedido.cliente.whatsapp}\n` : '') +
-      (infoVisita.temServicoExterno
-        ? `\nLocal de Prestação do Serviço: No Endereço do Cliente\nEndereço: ${infoVisita.enderecoVisita || pedido.endereco_entrega || 'A combinar'}\n`
+      (resumoServico.isSomenteServico
+        ? `\nLOCAL DO SERVIÇO: ${resumoServico.modalidadeLocal === 'externo' ? 'EM DOMICÍLIO' : 'NA LOJA'}\nLocal da Prestação: ${resumoServico.enderecoServico}\n`
+        : infoVisita.temServicoExterno
+        ? `\nLOCAL DO SERVIÇO: EM DOMICÍLIO\nLocal da Prestação: ${infoVisita.enderecoVisita || pedido.endereco_entrega || 'A combinar'}\n`
         : '') +
       `\n${itens.length} itens (Qtd.: ${totalQtd})\n` +
       `--------------------------------------------------\n` +
       linhasItens + `\n` +
       `--------------------------------------------------\n` +
-      (infoVisita.subtotalServicos > 0 && infoVisita.subtotalProdutos > 0
-        ? `Subtotal de Serviços: R$ ${Number(infoVisita.subtotalServicos).toFixed(2)}\nSubtotal de Produtos: R$ ${Number(infoVisita.subtotalProdutos).toFixed(2)}\n`
+      (resumoServico.isSomenteServico
+        ? `Subtotal dos Serviços: R$ ${Number(resumoServico.subtotalServicos).toFixed(2)}\n`
+        : infoVisita.subtotalServicos > 0 && infoVisita.subtotalProdutos > 0
+        ? `Subtotal dos Serviços: R$ ${Number(infoVisita.subtotalServicos).toFixed(2)}\nSubtotal dos Produtos: R$ ${Number(infoVisita.subtotalProdutos).toFixed(2)}\n`
         : infoVisita.subtotalServicos > 0
-        ? `Valor do(s) Serviço(s): R$ ${Number(infoVisita.subtotalServicos).toFixed(2)}\n`
-        : `Subtotal: R$ ${Number(pedido.subtotal || 0).toFixed(2)}\n`) +
+        ? `Subtotal dos Serviços: R$ ${Number(infoVisita.subtotalServicos).toFixed(2)}\n`
+        : `Subtotal dos Produtos: R$ ${Number(pedido.subtotal || 0).toFixed(2)}\n`) +
       (Number(pedido.valor_desconto) > 0 ? `Desconto: - R$ ${Number(pedido.valor_desconto).toFixed(2)}\n` : '') +
-      (infoVisita.temServicoExterno
-        ? (infoVisita.taxaVisitaIsenta
-            ? `Taxa de atendimento a domicílio: Isenta (serviço aprovado)\n`
-            : infoVisita.taxaVisitaCobrada > 0
-            ? `Taxa de atendimento a domicílio: + R$ ${Number(infoVisita.taxaVisitaCobrada).toFixed(2)}\n`
+      (resumoServico.isSomenteServico
+        ? (resumoServico.modalidadeLocal === 'externo' && resumoServico.taxaVisita > 0
+            ? `Taxa de Visita (Domicílio): + R$ ${Number(resumoServico.taxaVisita).toFixed(2)}\n`
+            : resumoServico.modalidadeLocal === 'externo' && resumoServico.taxaVisitaIsenta
+            ? `Taxa de Visita (Domicílio): Isenta (serviço aprovado)\n`
+            : '')
+        : infoVisita.temServicoExterno
+        ? (infoVisita.taxaVisitaIsenta && infoVisita.taxaVisitaCobrada === 0
+            ? `Taxa de Visita (Domicílio): Isenta (serviço aprovado)\n`
+            : (infoVisita.taxaVisitaCobrada > 0 || Number(pedido.valor_frete || 0) > 0)
+            ? `Taxa de Visita (Domicílio): + R$ ${Number(infoVisita.taxaVisitaCobrada || pedido.valor_frete || 0).toFixed(2)}\n`
             : '')
         : (Number(pedido.valor_frete) > 0 ? `Taxa Entrega: + R$ ${Number(pedido.valor_frete).toFixed(2)}\n` : '')) +
       `Total: R$ ${Number(pedido.valor_total).toFixed(2)}\n` +
@@ -1428,7 +1497,18 @@ export class PrintService {
       ? '\n⚖️ Seu pedido contém itens por quilo e está em pesagem/separação. Avisaremos assim que os valores exatos forem confirmados!\n'
       : '';
 
-    return `🧾 RECIBO #${pedido.numero_pedido} - ${nomeLoja}${avisoPesagem}
+    const resumoServico = obterResumoServicoRecibo(pedido, loja);
+    const blocoServicoWhatsApp = resumoServico.isSomenteServico
+      ? `\n📍 LOCAL DO SERVIÇO: ${resumoServico.modalidadeLocal === 'externo' ? 'EM DOMICÍLIO' : 'NA LOJA'}` +
+        `\nLocal da Prestação: ${resumoServico.enderecoServico}` +
+        `\nSubtotal dos Serviços: R$ ${Number(resumoServico.subtotalServicos).toFixed(2).replace('.', ',')}` +
+        (resumoServico.modalidadeLocal === 'externo' && resumoServico.taxaVisita > 0
+          ? `\nTaxa de Visita (Domicílio): R$ ${Number(resumoServico.taxaVisita).toFixed(2).replace('.', ',')}`
+          : '') +
+        `\nVALOR TOTAL: R$ ${Number(pedido.valor_total || 0).toFixed(2).replace('.', ',')}\n`
+      : '';
+
+    return `🧾 RECIBO #${pedido.numero_pedido} - ${nomeLoja}${avisoPesagem}${blocoServicoWhatsApp}
 
 Acesse seu Recibo Oficial:
 ${urlReciboOficial}

@@ -11,6 +11,10 @@ interface OrderReceiptFinancialSummaryProps {
   pedidoEntrega?: PedidoEntrega | null;
   enderecoLojaOrigem?: string | null;
   statusPagamento?: string;
+  isSomenteServico?: boolean;
+  modalidadeServico?: 'loja' | 'externo';
+  enderecoPrestacaoServico?: string | null;
+  taxaVisitaDomicilio?: number;
   className?: string;
 }
 
@@ -22,10 +26,17 @@ export const OrderReceiptFinancialSummary: React.FC<OrderReceiptFinancialSummary
   pedidoEntrega,
   enderecoLojaOrigem,
   statusPagamento,
+  isSomenteServico = false,
+  modalidadeServico = 'loja',
+  enderecoPrestacaoServico,
+  taxaVisitaDomicilio,
   className = ''
 }) => {
-  const ehRetirada = pedidoEntrega?.tipo_atendimento === 'retirada' || valorFrete === 0;
+  const ehRetirada = isSomenteServico
+    ? modalidadeServico === 'loja'
+    : (pedidoEntrega?.tipo_atendimento === 'retirada' || valorFrete === 0);
   const transportadora = pedidoEntrega?.transportadora_nome || (ehRetirada ? 'Retirada na Loja' : 'Entrega');
+  const taxaVisitaEfetiva = typeof taxaVisitaDomicilio === 'number' ? taxaVisitaDomicilio : valorFrete;
 
   return (
     <div className={`space-y-4 rounded-xl border border-slate-200 dark:border-slate-800 p-4 bg-slate-50/50 dark:bg-slate-900/50 ${className}`}>
@@ -39,16 +50,26 @@ export const OrderReceiptFinancialSummary: React.FC<OrderReceiptFinancialSummary
               <Truck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             )}
             <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-              {ehRetirada ? 'RETIRADA NA LOJA' : `ENTREGA VIA ${transportadora.toUpperCase()}`}
+              {isSomenteServico
+                ? `LOCAL DO SERVIÇO: ${modalidadeServico === 'externo' ? 'EM DOMICÍLIO' : 'NA LOJA'}`
+                : ehRetirada
+                ? 'RETIRADA NA LOJA'
+                : `ENTREGA VIA ${transportadora.toUpperCase()}`}
             </span>
           </div>
 
           <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-            ehRetirada 
+            isSomenteServico
+              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+              : ehRetirada 
               ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300'
               : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
           }`}>
-            {ehRetirada ? 'Grátis (Retirada)' : `R$ ${valorFrete.toFixed(2).replace('.', ',')}`}
+            {isSomenteServico
+              ? (modalidadeServico === 'externo'
+                  ? (taxaVisitaEfetiva > 0 ? `Visita R$ ${taxaVisitaEfetiva.toFixed(2).replace('.', ',')}` : 'Em Domicílio')
+                  : 'Na Loja')
+              : (ehRetirada ? 'Grátis (Retirada)' : `R$ ${valorFrete.toFixed(2).replace('.', ',')}`)}
           </span>
         </div>
 
@@ -57,10 +78,16 @@ export const OrderReceiptFinancialSummary: React.FC<OrderReceiptFinancialSummary
           <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
           <div className="space-y-0.5">
             <span className="font-semibold text-slate-700 dark:text-slate-300 block">
-              {ehRetirada ? 'Local de Retirada (Loja):' : 'Endereço de Entrega (Cliente):'}
+              {isSomenteServico
+                ? 'Local da Prestação:'
+                : (ehRetirada ? 'Local de Retirada (Loja):' : 'Endereço de Entrega (Cliente):')}
             </span>
             <p className="text-[11px] leading-relaxed">
-              {ehRetirada ? (
+              {isSomenteServico ? (
+                modalidadeServico === 'externo'
+                  ? (enderecoPrestacaoServico || pedidoEntrega?.destino_logradouro || 'Endereço do cliente')
+                  : (enderecoPrestacaoServico || enderecoLojaOrigem || 'Balcão da Loja Física')
+              ) : ehRetirada ? (
                 enderecoLojaOrigem || 'Balcão da Loja Física'
               ) : pedidoEntrega?.destino_logradouro ? (
                 `${pedidoEntrega.destino_logradouro}, ${pedidoEntrega.destino_numero || 'S/N'}${
@@ -88,7 +115,7 @@ export const OrderReceiptFinancialSummary: React.FC<OrderReceiptFinancialSummary
       {/* Tabela de Fechamento Financeiro */}
       <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
         <div className="flex justify-between">
-          <span>Subtotal dos Produtos:</span>
+          <span>{isSomenteServico ? 'Subtotal dos Serviços:' : 'Subtotal dos Produtos:'}</span>
           <span className="font-semibold text-slate-800 dark:text-slate-100">
             {formatarMoeda(subtotalProdutos)}
           </span>
@@ -103,14 +130,25 @@ export const OrderReceiptFinancialSummary: React.FC<OrderReceiptFinancialSummary
           </div>
         )}
 
-        <div className="flex justify-between">
-          <span>Frete / Envio:</span>
-          <span className="font-semibold text-slate-800 dark:text-slate-100">
-            {valorFrete > 0 
-              ? `+ ${formatarMoeda(valorFrete)}`
-              : 'Grátis (Retirada)'}
-          </span>
-        </div>
+        {isSomenteServico ? (
+          modalidadeServico === 'externo' && taxaVisitaEfetiva > 0 ? (
+            <div className="flex justify-between">
+              <span>Taxa de Visita (Domicílio):</span>
+              <span className="font-semibold text-slate-800 dark:text-slate-100">
+                + {formatarMoeda(taxaVisitaEfetiva)}
+              </span>
+            </div>
+          ) : null
+        ) : (
+          <div className="flex justify-between">
+            <span>Frete / Envio:</span>
+            <span className="font-semibold text-slate-800 dark:text-slate-100">
+              {valorFrete > 0 
+                ? `+ ${formatarMoeda(valorFrete)}`
+                : 'Grátis (Retirada)'}
+            </span>
+          </div>
+        )}
 
         <div className="flex justify-between pt-2 border-t border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-900 dark:text-white">
           <span>Total Geral:</span>

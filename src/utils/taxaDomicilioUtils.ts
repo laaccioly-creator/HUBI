@@ -224,7 +224,7 @@ export const extrairInfoVisitaPedido = (
     let totalProdutos = 0;
 
     for (const it of itens) {
-      const ehServico = it.produto?.tipo_item === 'servico';
+      const ehServico = it.produto?.tipo_item === 'servico' || (it as { tipo_item?: string }).tipo_item === 'servico';
       const qtd = Number(it.quantidade || 1);
       const preco = Number(it.preco_venda_unitario ?? it.preco_unitario ?? 0);
       const sub = Number(it.subtotal ?? (preco * qtd));
@@ -281,4 +281,116 @@ export const extrairInfoVisitaPedido = (
   });
 
   return calcularTaxaVisitaPedido(itensAdaptados, loja);
+};
+
+export interface ResumoServicoRecibo {
+  isSomenteServico: boolean;
+  modalidadeLocal: 'loja' | 'externo';
+  enderecoServico: string;
+  subtotalServicos: number;
+  taxaVisita: number;
+  taxaVisitaIsenta: boolean;
+}
+
+/**
+ * Resolve de forma unificada se o pedido é exclusivo de serviços,
+ * qual o local da prestação (EM DOMICÍLIO ou NA LOJA), o endereço completo
+ * e a taxa de visita/deslocamento para exibição consistente em PDFs, modais e impressões.
+ */
+export const obterResumoServicoRecibo = (
+  pedido: Pedido,
+  loja?: Loja | null,
+  agendamentosExtras?: Array<{
+    id?: string;
+    produto_id?: string | null;
+    item_pedido_id?: string | null;
+    modalidade_local?: 'loja' | 'externo' | string | null;
+    endereco_prestacao_snapshot?: string | null;
+  }>
+): ResumoServicoRecibo => {
+  const itens = pedido.itens || pedido.itens_pedido || [];
+  const agendamentos = (agendamentosExtras && agendamentosExtras.length > 0)
+    ? agendamentosExtras
+    : (pedido.agendamentos || []);
+
+  const infoVisita = extrairInfoVisitaPedido(pedido, loja);
+
+  const isItemServico = (it: any): boolean => {
+    if (it?.produto?.tipo_item === 'servico' || it?.tipo_item === 'servico') return true;
+    return agendamentos.some(
+      (ag) => (ag.item_pedido_id && ag.item_pedido_id === it?.id) || (ag.produto_id && ag.produto_id === it?.produto_id)
+    );
+  };
+
+  const isSomenteServico = itens.length > 0
+    ? itens.every(isItemServico)
+    : agendamentos.length > 0;
+
+  const subtotalItens = itens.reduce((acc: number, it: any) => {
+    const qtd = Number(it?.quantidade || 1);
+    const unit = Number(it?.preco_venda_unitario ?? it?.preco_unitario ?? 0);
+    const sub = typeof it?.subtotal === 'number' ? Number(it.subtotal) : unit * qtd;
+    return acc + sub;
+  }, 0);
+
+  const subtotalServicos = subtotalItens > 0
+    ? subtotalItens
+    : (infoVisita.subtotalServicos > 0 ? infoVisita.subtotalServicos : Number(pedido.subtotal || 0));
+
+  const temAgendamentoExterno = agendamentos.some((ag) => ag.modalidade_local === 'externo');
+  const todosAgendamentosLoja = agendamentos.length > 0 && agendamentos.every((ag) => ag.modalidade_local === 'loja');
+
+  const rawPe = (pedido as any).pedido_entrega || (pedido as any).pedido_entregas;
+  const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
+  const temEnderecoExternoPedido = Boolean(pe?.destino_logradouro || pedido.endereco_entrega);
+
+  const modalidadeLocal: 'loja' | 'externo' = temAgendamentoExterno
+    ? 'externo'
+    : todosAgendamentosLoja
+    ? 'loja'
+    : (infoVisita.temServicoExterno || (isSomenteServico && (Number(pedido.valor_frete || 0) > 0 || temEnderecoExternoPedido)))
+    ? 'externo'
+    : 'loja';
+
+  const enderecoLojaFormatado = [
+    loja?.endereco_logradouro,
+    loja?.endereco_numero,
+    loja?.endereco_bairro,
+    loja?.endereco_cidade,
+    loja?.endereco_estado
+  ].filter(Boolean).join(', ') || 'Balcão da Loja Física';
+
+  const enderecoPeFormatado = pe?.destino_logradouro
+    ? `${pe.destino_logradouro}, ${pe.destino_numero || 'S/N'}${pe.destino_complemento ? ` - ${pe.destino_complemento}` : ''}, ${pe.destino_bairro || ''}, ${pe.destino_cidade || ''}-${pe.destino_uf || ''}${pe.destino_cep ? ` (CEP: ${pe.destino_cep})` : ''}`
+    : null;
+
+  const snapshotAgendamento = agendamentos.find(
+    (ag) => ag.modalidade_local === 'externo' && ag.endereco_prestacao_snapshot
+  )?.endereco_prestacao_snapshot;
+
+  const enderecoServico = modalidadeLocal === 'externo'
+    ? (snapshotAgendamento || infoVisita.enderecoVisita || enderecoPeFormatado || pedido.endereco_entrega || 'Endereço do cliente')
+    : enderecoLojaFormatado;
+
+  const freteRaw = Number(pedido.valor_frete || 0);
+  const diferencaTotal = Math.max(
+    0,
+    Number(pedido.valor_total || 0) + Number(pedido.valor_desconto || 0) - subtotalServicos
+  );
+  const taxaVisita = freteRaw > 0
+    ? freteRaw
+    : infoVisita.taxaVisitaCobrada > 0
+    ? infoVisita.taxaVisitaCobrada
+    : diferencaTotal > 0.009
+    ? Number(diferencaTotal.toFixed(2))
+    : 0;
+
+  return {
+    isSomenteServico,
+    modalidadeLocal,
+    enderecoServico,
+    subtotalServicos,
+    taxaVisita,
+    taxaVisitaIsenta: infoVisita.taxaVisitaIsenta && taxaVisita === 0
+  };
 };

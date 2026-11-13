@@ -1,11 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Store, Printer, Share2, Download, CheckCircle2, MessageCircle, Receipt } from 'lucide-react';
 import { Pedido } from '../../types';
+import { supabase } from '../../lib/supabase';
 import { obterDadosPagamentoRecibo, formatarDataRecibo, PrintService } from '../../services/printService';
 import { ReceiptPdfService } from '../../services/receiptPdfService';
 import { obterInfoVencimentoFiado, extrairInfoPagamentoEntrega } from '../../utils/statusPedidoUtils';
 import { extrairObservacaoLimpa, formatarMoeda } from '../../utils/formatters';
-import { extrairInfoVisitaPedido } from '../../utils/taxaDomicilioUtils';
+import { extrairInfoVisitaPedido, obterResumoServicoRecibo } from '../../utils/taxaDomicilioUtils';
 import { detectarServicoPorCodigo } from '../../utils/correiosValidator';
 import { formatarNomeTransportadora } from '../../utils/shippingDisplay';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -37,6 +38,40 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
   const reciboRef = useRef<HTMLDivElement>(null);
   const ultimoPedidoDisparadoRef = useRef<string | null>(null);
   const [resultadoHibrido, setResultadoHibrido] = useState<ResultadoDisparoHibrido | null>(null);
+  const [agendamentosCarregados, setAgendamentosCarregados] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!isOpen || !pedido?.id || !loja?.id) {
+      if (!isOpen) setAgendamentosCarregados([]);
+      return;
+    }
+    if (pedido.agendamentos && pedido.agendamentos.length > 0) {
+      setAgendamentosCarregados(pedido.agendamentos);
+      return;
+    }
+    let ativo = true;
+    void (async () => {
+      const { data } = await supabase
+        .from('agendamentos_servicos')
+        .select('id, produto_id, item_pedido_id, modalidade_local, endereco_prestacao_snapshot, data_agendamento, hora_inicio')
+        .eq('loja_id', String(loja.id))
+        .eq('pedido_id', pedido.id);
+      if (ativo && data) {
+        setAgendamentosCarregados(data);
+      }
+    })();
+    return () => {
+      ativo = false;
+    };
+  }, [isOpen, pedido?.id, pedido?.agendamentos, loja?.id]);
+
+  const pedidoComAgendamentos = useMemo(() => {
+    if (!pedido) return null;
+    if (agendamentosCarregados.length > 0 && !(pedido.agendamentos && pedido.agendamentos.length > 0)) {
+      return { ...pedido, agendamentos: agendamentosCarregados };
+    }
+    return pedido;
+  }, [pedido, agendamentosCarregados]);
 
   useEffect(() => {
     if (!isOpen || !pedido || !loja?.id) {
@@ -240,7 +275,8 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
   const valorTotal = Number(pedido.valor_total || 0);
   const pagInfo = obterDadosPagamentoRecibo(pedido);
   const infoEntrega = pedido ? extrairInfoPagamentoEntrega(pedido) : null;
-  const infoVisita = extrairInfoVisitaPedido(pedido, loja);
+  const infoVisita = extrairInfoVisitaPedido(pedidoComAgendamentos || pedido, loja);
+  const resumoServico = obterResumoServicoRecibo(pedidoComAgendamentos || pedido, loja, agendamentosCarregados);
   const obsLimpa = extrairObservacaoLimpa(pedido.observacoes);
 
   return (
@@ -338,23 +374,33 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
               {pedido.cliente?.whatsapp && <p className="text-slate-600">{pedido.cliente.whatsapp}</p>}
             </div>
 
-            {/* Forma de Entrega & Endereço */}
+            {/* Forma de Entrega / Local do Serviço & Endereço */}
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] space-y-1.5">
               <div className="flex justify-between items-center">
-                <span className="font-bold text-slate-700 uppercase text-[10px] tracking-wider">Forma de Entrega:</span>
-                <span className={`font-black px-1.5 py-0.5 rounded text-[10px] ${badgeEstilo}`}>
-                  {infoVisita.temServicoExterno ? 'Atendimento a Domicílio' : formaEntregaTexto}
+                <span className="font-bold text-slate-700 uppercase text-[10px] tracking-wider">
+                  {resumoServico.isSomenteServico ? 'LOCAL DO SERVIÇO:' : 'Forma de Entrega:'}
+                </span>
+                <span className={`font-black px-1.5 py-0.5 rounded text-[10px] ${
+                  resumoServico.isSomenteServico ? 'bg-emerald-100 text-emerald-800' : badgeEstilo
+                }`}>
+                  {resumoServico.isSomenteServico
+                    ? (resumoServico.modalidadeLocal === 'externo' ? 'EM DOMICÍLIO' : 'NA LOJA')
+                    : infoVisita.temServicoExterno
+                    ? 'EM DOMICÍLIO'
+                    : formaEntregaTexto}
                 </span>
               </div>
               <div className="text-slate-700 pt-0.5">
                 <strong className="text-slate-900">
-                  {infoVisita.temServicoExterno 
-                    ? 'Local de Prestação do Serviço: No Endereço do Cliente' 
+                  {resumoServico.isSomenteServico || infoVisita.temServicoExterno
+                    ? 'Local da Prestação:'
                     : (ehRetirada ? 'Local de Retirada:' : 'Endereço de Entrega:')}{' '}
                 </strong>
                 <span className="text-slate-700">
-                  {infoVisita.temServicoExterno 
-                    ? (infoVisita.enderecoVisita || enderecoDestino) 
+                  {resumoServico.isSomenteServico
+                    ? resumoServico.enderecoServico
+                    : infoVisita.temServicoExterno
+                    ? (infoVisita.enderecoVisita || enderecoDestino)
                     : (ehRetirada ? enderecoLojaFormatado : enderecoDestino)}
                 </span>
               </div>
@@ -422,31 +468,42 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
 
             {/* Fechamento Financeiro */}
             <div className="space-y-1.5 text-xs text-slate-700">
-              {infoVisita.subtotalProdutos > 0 && (
+              {resumoServico.isSomenteServico ? (
                 <div className="flex justify-between">
-                  <span>Subtotal dos Produtos:</span>
+                  <span>Subtotal dos Serviços:</span>
                   <span className="font-semibold text-slate-900">
-                    {formatarMoeda(infoVisita.subtotalProdutos)}
+                    {formatarMoeda(resumoServico.subtotalServicos)}
                   </span>
                 </div>
-              )}
+              ) : (
+                <>
+                  {infoVisita.subtotalProdutos > 0 && (
+                    <div className="flex justify-between">
+                      <span>Subtotal dos Produtos:</span>
+                      <span className="font-semibold text-slate-900">
+                        {formatarMoeda(infoVisita.subtotalProdutos)}
+                      </span>
+                    </div>
+                  )}
 
-              {infoVisita.subtotalServicos > 0 && (
-                <div className="flex justify-between">
-                  <span>Valor do(s) Serviço(s):</span>
-                  <span className="font-semibold text-slate-900">
-                    {formatarMoeda(infoVisita.subtotalServicos)}
-                  </span>
-                </div>
-              )}
+                  {infoVisita.subtotalServicos > 0 && (
+                    <div className="flex justify-between">
+                      <span>Subtotal dos Serviços:</span>
+                      <span className="font-semibold text-slate-900">
+                        {formatarMoeda(infoVisita.subtotalServicos)}
+                      </span>
+                    </div>
+                  )}
 
-              {(!infoVisita.temServicoExterno && infoVisita.totalServicos === 0 && infoVisita.subtotalProdutos === 0) && (
-                <div className="flex justify-between">
-                  <span>Subtotal dos Produtos:</span>
-                  <span className="font-semibold text-slate-900">
-                    {formatarMoeda(subtotalProdutos)}
-                  </span>
-                </div>
+                  {(!infoVisita.temServicoExterno && infoVisita.totalServicos === 0 && infoVisita.subtotalProdutos === 0) && (
+                    <div className="flex justify-between">
+                      <span>Subtotal dos Produtos:</span>
+                      <span className="font-semibold text-slate-900">
+                        {formatarMoeda(subtotalProdutos)}
+                      </span>
+                    </div>
+                  )}
+                </>
               )}
 
               {valorDesconto > 0 && (
@@ -456,13 +513,27 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 </div>
               )}
 
-              {infoVisita.temServicoExterno ? (
+              {resumoServico.isSomenteServico ? (
+                resumoServico.modalidadeLocal === 'externo' && resumoServico.taxaVisita > 0 ? (
+                  <div className="flex justify-between">
+                    <span>Taxa de Visita (Domicílio):</span>
+                    <span className="font-semibold text-slate-900">
+                      + {formatarMoeda(resumoServico.taxaVisita)}
+                    </span>
+                  </div>
+                ) : resumoServico.modalidadeLocal === 'externo' && resumoServico.taxaVisitaIsenta ? (
+                  <div className="flex justify-between">
+                    <span>Taxa de Visita (Domicílio):</span>
+                    <span className="font-bold text-emerald-600">Isenta (serviço aprovado)</span>
+                  </div>
+                ) : null
+              ) : infoVisita.temServicoExterno ? (
                 <div className="flex justify-between">
-                  <span>Taxa de atendimento a domicílio:</span>
-                  <span className={infoVisita.taxaVisitaIsenta ? "font-bold text-emerald-600" : "font-semibold text-slate-900"}>
-                    {infoVisita.taxaVisitaIsenta
+                  <span>Taxa de Visita (Domicílio):</span>
+                  <span className={infoVisita.taxaVisitaIsenta && valorFrete === 0 ? "font-bold text-emerald-600" : "font-semibold text-slate-900"}>
+                    {infoVisita.taxaVisitaIsenta && valorFrete === 0
                       ? 'Isenta (serviço aprovado)'
-                      : `+ ${formatarMoeda(infoVisita.taxaVisitaCobrada)}`}
+                      : `+ ${formatarMoeda(infoVisita.taxaVisitaCobrada > 0 ? infoVisita.taxaVisitaCobrada : valorFrete)}`}
                   </span>
                 </div>
               ) : !ehRetirada ? (
