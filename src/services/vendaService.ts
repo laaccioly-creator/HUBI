@@ -353,6 +353,7 @@ export class VendaService {
         loja_id: lojaId,
         pedido_id: pedidoId,
         produto_id: item.produto.id,
+        tipo_item: item.produto?.tipo_item || (item as { tipo_item?: string }).tipo_item || 'produto',
         variacao_id: (item.variacao_id && SyncService.isUuidValido(item.variacao_id))
           ? item.variacao_id
           : (item.variacao?.id && SyncService.isUuidValido(item.variacao.id))

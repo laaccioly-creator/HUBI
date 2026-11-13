@@ -96,7 +96,7 @@ export const resolverDadosReciboPedido = (
     : pedido.agendamentos || [];
 
   const isItemServico = (item: ItemPedidoReciboInput): boolean => {
-    if (item.produto?.tipo_item === 'servico' || item.tipo_item === 'servico') {
+    if (item.tipo_item === 'servico' || item.produto?.tipo_item === 'servico') {
       return true;
     }
     return listaAgendamentos.some(

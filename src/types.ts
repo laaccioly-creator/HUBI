@@ -841,6 +841,7 @@ export interface ItemPedido {
   pedido_id: string;
   produto_id: string;
   variacao_id?: string | null;
+  tipo_item?: 'produto' | 'servico' | string | null;
   tabela_preco_utilizada: TabelaPreco;
   nome_produto: string;
   rotulo_variacao?: string | null;

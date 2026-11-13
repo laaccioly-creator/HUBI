@@ -2175,6 +2175,7 @@ export const CatalogoPublico: React.FC = () => {
           loja_id: loja.id,
           pedido_id: pedidoCriado.id,
           produto_id: item.produto.id,
+          tipo_item: item.produto?.tipo_item || 'produto',
           variacao_id: item.variacao?.id || null,
           tabela_preco_utilizada: avaliacaoCarrinho.tabelaAtiva,
           nome_produto: item.produto.nome,

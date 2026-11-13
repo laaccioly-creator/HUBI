@@ -66,7 +66,7 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
 
         const [itensRes, pagRes, entregaRes, lojaRes, agendamentoRes] = await Promise.allSettled([
           !pedido.itens || pedido.itens.length === 0
-            ? supabase.from('itens_pedido').select('*, produto:produtos(tipo_item)').eq('pedido_id', pedido.id)
+            ? supabase.from('itens_pedido').select('*').eq('pedido_id', pedido.id)
             : Promise.resolve({ data: pedido.itens }),
           !pedido.pagamentos || pedido.pagamentos.length === 0
             ? supabase.from('pagamentos_pedido').select('*, forma_pagamento:formas_pagamento(*)').eq('pedido_id', pedido.id)

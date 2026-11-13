@@ -1188,6 +1188,7 @@ export const PosCheckout: React.FC = () => {
         return {
           loja_id: loja.id,
           produto_id: item.produto.id,
+          tipo_item: item.produto?.tipo_item || 'produto',
           variacao_id: (item.variacao_id && SyncService.isUuidValido(item.variacao_id))
             ? item.variacao_id
             : (item.variacao?.id && SyncService.isUuidValido(item.variacao.id))
@@ -1458,6 +1459,7 @@ export const PosCheckout: React.FC = () => {
         return {
           loja_id: loja.id,
           produto_id: item.produto.id,
+          tipo_item: item.produto?.tipo_item || 'produto',
           variacao_id: (item.variacao_id && SyncService.isUuidValido(item.variacao_id))
             ? item.variacao_id
             : (item.variacao?.id && SyncService.isUuidValido(item.variacao.id))
@@ -1852,6 +1854,7 @@ export const PosCheckout: React.FC = () => {
         return {
           loja_id: loja.id,
           produto_id: item.produto.id,
+          tipo_item: item.produto?.tipo_item || 'produto',
           variacao_id: (item.variacao_id && SyncService.isUuidValido(item.variacao_id))
             ? item.variacao_id
             : (item.variacao?.id && SyncService.isUuidValido(item.variacao.id))
