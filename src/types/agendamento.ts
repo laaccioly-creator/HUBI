@@ -234,6 +234,7 @@ export interface ItemAgendamentoInfo {
   hora_inicio: string; // 'HH:MM'
   hora_fim: string; // 'HH:MM'
   modalidade_local: ModalidadeLocalPrestacao; // 'loja' | 'externo'
+  cliente_id?: string | null;
   cliente_endereco_id?: string | null;
   endereco_prestacao_snapshot?: string | null;
   observacoes?: string | null;

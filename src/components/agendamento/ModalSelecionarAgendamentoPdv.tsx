@@ -3,7 +3,7 @@
 // Modal de Seleção de Horário e Profissional para Serviços no PDV
 // =============================================================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   X,
   Calendar,
@@ -16,17 +16,46 @@ import {
   Building2,
   Home,
   CheckCircle2,
-  Sparkles
+  Search,
+  User,
+  Plus,
+  AlertTriangle
 } from 'lucide-react';
 import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 import { useTheme } from '../../contexts/ThemeContext';
+import { supabase } from '../../lib/supabase';
 import { agendamentoService, formatarDataPtBr } from '../../services/agendamentoService';
+import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
+import { ModalNovoCliente } from '../ModalNovoCliente';
+import { ModalAtualizarEnderecoCliente } from '../shipping/ModalAtualizarEnderecoCliente';
 import type {
   SlotHorarioDisponivel,
   ItemAgendamentoInfo,
   ModalidadeLocalPrestacao
 } from '../../types/agendamento';
 import type { Produto, UsuarioLoja, Cliente } from '../../types';
+import type { ClienteEndereco } from '../../types/shipping';
+
+const isEnderecoCompleto = (end?: ClienteEndereco | null): boolean => {
+  if (!end) return false;
+  const cepLimpo = (end.cep || '').replace(/\D/g, '');
+  return Boolean(
+    cepLimpo.length >= 8 &&
+    end.logradouro?.trim() &&
+    end.numero?.trim() &&
+    end.bairro?.trim() &&
+    end.cidade?.trim() &&
+    end.uf?.trim()
+  );
+};
+
+const formatarEnderecoSnapshot = (end: ClienteEndereco): string => {
+  const linha1 = [end.logradouro, end.numero].filter(Boolean).join(', ');
+  const linha2 = [end.complemento, end.bairro].filter(Boolean).join(' - ');
+  const linha3 = [end.cidade, end.uf].filter(Boolean).join('/');
+  const cepFmt = end.cep ? `CEP ${end.cep}` : '';
+  return [linha1, linha2, linha3, cepFmt].filter(Boolean).join(' • ');
+};
 
 interface ModalSelecionarAgendamentoPdvProps {
   isOpen: boolean;
@@ -34,6 +63,10 @@ interface ModalSelecionarAgendamentoPdvProps {
   produto: Produto;
   lojaId: string;
   cliente?: Cliente | null;
+  clientesDisponiveis?: Cliente[];
+  onClienteCadastrado?: (novoCliente: Cliente) => void;
+  onClienteAtualizado?: (clienteAtualizado: Cliente) => void;
+  onSincronizarClienteCarrinho?: (cliente: Cliente) => void;
   agendamentoExistente?: ItemAgendamentoInfo | null;
   onConfirmar: (dadosAgendamento: ItemAgendamentoInfo) => void;
 }
@@ -44,11 +77,35 @@ export const ModalSelecionarAgendamentoPdv: React.FC<ModalSelecionarAgendamentoP
   produto,
   lojaId,
   cliente,
+  clientesDisponiveis,
+  onClienteCadastrado,
+  onClienteAtualizado,
+  onSincronizarClienteCarrinho,
   agendamentoExistente,
   onConfirmar
 }) => {
   useRegisterOverlay(isOpen, onClose, 'modal-selecionar-agendamento-pdv');
   const { isDark } = useTheme();
+
+  // 0. Identificação do Cliente e Endereços
+  const [listaClientes, setListaClientes] = useState<Cliente[]>(clientesDisponiveis || []);
+  const [carregandoClientes, setCarregandoClientes] = useState<boolean>(false);
+  const [clienteSelecionadoModal, setClienteSelecionadoModal] = useState<Cliente | null>(cliente || null);
+  const [buscaCliente, setBuscaCliente] = useState<string>('');
+  const [dropdownClientesAberto, setDropdownClientesAberto] = useState<boolean>(false);
+  const [modalNovoClienteAberto, setModalNovoClienteAberto] = useState<boolean>(false);
+
+  const [enderecosCliente, setEnderecosCliente] = useState<ClienteEndereco[]>([]);
+  const [carregandoEnderecos, setCarregandoEnderecos] = useState<boolean>(false);
+  const [enderecoSelecionado, setEnderecoSelecionado] = useState<ClienteEndereco | null>(null);
+  const [modalAtualizarEnderecoAberto, setModalAtualizarEnderecoAberto] = useState<boolean>(false);
+  const [modalEscolherEnderecoAberto, setModalEscolherEnderecoAberto] = useState<boolean>(false);
+
+  useRegisterOverlay(
+    modalEscolherEnderecoAberto,
+    () => setModalEscolherEnderecoAberto(false),
+    'modal-escolher-endereco-agendamento-pdv'
+  );
 
   // 1. Determinação da modalidade de local
   const modoFixo = produto.local_prestacao_servico === 'loja' || produto.local_prestacao_servico === 'externo'
@@ -59,22 +116,6 @@ export const ModalSelecionarAgendamentoPdv: React.FC<ModalSelecionarAgendamentoP
     if (agendamentoExistente?.modalidade_local) return agendamentoExistente.modalidade_local;
     if (modoFixo) return modoFixo;
     return 'loja';
-  });
-
-  const [enderecoSnapshot, setEnderecoSnapshot] = useState<string>(() => {
-    if (agendamentoExistente?.endereco_prestacao_snapshot) {
-      return agendamentoExistente.endereco_prestacao_snapshot;
-    }
-    if (cliente) {
-      const partes = [
-        cliente.endereco_logradouro,
-        cliente.endereco_numero ? `nº ${cliente.endereco_numero}` : '',
-        cliente.endereco_bairro,
-        cliente.endereco_cidade
-      ].filter(Boolean);
-      return partes.join(', ');
-    }
-    return '';
   });
 
   // 2. Profissionais habilitados
@@ -102,6 +143,95 @@ export const ModalSelecionarAgendamentoPdv: React.FC<ModalSelecionarAgendamentoP
   const [erro, setErro] = useState<string | null>(null);
 
   const duracao = produto.duracao_estimada_minutos || 30;
+
+  // Sincronizar lista de clientes e cliente inicial ao abrir
+  useEffect(() => {
+    if (!isOpen) return;
+    if (clientesDisponiveis && clientesDisponiveis.length > 0) {
+      setListaClientes(clientesDisponiveis);
+    } else if (lojaId) {
+      let montado = true;
+      setCarregandoClientes(true);
+      void (async () => {
+        try {
+          const { data, error: erroClientes } = await supabase
+            .from('clientes')
+            .select('*')
+            .eq('loja_id', lojaId)
+            .eq('ativo', true)
+            .order('nome', { ascending: true });
+          if (montado && !erroClientes && data) {
+            setListaClientes(data as Cliente[]);
+          }
+        } finally {
+          if (montado) setCarregandoClientes(false);
+        }
+      })();
+      return () => {
+        montado = false;
+      };
+    }
+  }, [isOpen, lojaId, clientesDisponiveis]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (cliente) {
+      setClienteSelecionadoModal(cliente);
+      return;
+    }
+    if (agendamentoExistente?.cliente_id && listaClientes.length > 0) {
+      const encontrado = listaClientes.find(c => c.id === agendamentoExistente.cliente_id) || null;
+      if (encontrado) setClienteSelecionadoModal(encontrado);
+    }
+  }, [isOpen, cliente, agendamentoExistente?.cliente_id, listaClientes]);
+
+  const carregarEnderecosDoCliente = useCallback(async (clienteId: string, preferredEnderecoId?: string | null) => {
+    if (!clienteId) {
+      setEnderecosCliente([]);
+      setEnderecoSelecionado(null);
+      return;
+    }
+    setCarregandoEnderecos(true);
+    try {
+      const lista = await ShippingOrchestrator.listarEnderecosCliente(clienteId);
+      setEnderecosCliente(lista);
+      const targetId = preferredEnderecoId ?? agendamentoExistente?.cliente_endereco_id ?? null;
+      const porId = targetId ? lista.find(e => e.id === targetId && isEnderecoCompleto(e)) : null;
+      const primeiroValido = lista.find(e => isEnderecoCompleto(e)) || null;
+      setEnderecoSelecionado(porId || primeiroValido || lista[0] || null);
+    } catch (err) {
+      console.error('Erro ao carregar endereços do cliente:', err);
+      setEnderecosCliente([]);
+      setEnderecoSelecionado(null);
+    } finally {
+      setCarregandoEnderecos(false);
+    }
+  }, [agendamentoExistente?.cliente_endereco_id]);
+
+  useEffect(() => {
+    if (!isOpen || !clienteSelecionadoModal?.id) {
+      setEnderecosCliente([]);
+      setEnderecoSelecionado(null);
+      return;
+    }
+    carregarEnderecosDoCliente(clienteSelecionadoModal.id);
+  }, [isOpen, clienteSelecionadoModal?.id, carregarEnderecosDoCliente]);
+
+  const clientesFiltrados = useMemo(() => {
+    const termo = buscaCliente.trim().toLowerCase();
+    const termoLimpo = termo.replace(/\D/g, '');
+    if (!termo) return listaClientes.slice(0, 30);
+    return listaClientes.filter((c) => {
+      const nomeMatch = (c.nome || '').toLowerCase().includes(termo);
+      const tel = (c.whatsapp || c.telefone || '').replace(/\D/g, '');
+      const doc = (c.numero_documento || '').replace(/\D/g, '');
+      const telMatch = termoLimpo ? tel.includes(termoLimpo) : (c.whatsapp || c.telefone || '').toLowerCase().includes(termo);
+      const docMatch = termoLimpo ? doc.includes(termoLimpo) : (c.numero_documento || '').toLowerCase().includes(termo);
+      return nomeMatch || telMatch || docMatch;
+    }).slice(0, 30);
+  }, [listaClientes, buscaCliente]);
+
+  const enderecoValido = isEnderecoCompleto(enderecoSelecionado);
 
   // Carregar lista de profissionais habilitados para o serviço
   useEffect(() => {
@@ -186,6 +316,11 @@ export const ModalSelecionarAgendamentoPdv: React.FC<ModalSelecionarAgendamentoP
   };
 
   const profissionalAtivo = profissionais.find(p => p.id === profissionalId);
+  const podeConfirmar = Boolean(
+    slotSelecionado &&
+    profissionalId &&
+    (modalidadeLocal !== 'externo' || (clienteSelecionadoModal && enderecoValido))
+  );
 
   const handleConfirmar = () => {
     setErro(null);
@@ -202,9 +337,19 @@ export const ModalSelecionarAgendamentoPdv: React.FC<ModalSelecionarAgendamentoP
       setErro('Selecione um horário disponível para o agendamento.');
       return;
     }
-    if (modalidadeLocal === 'externo' && !enderecoSnapshot.trim()) {
-      setErro('Informe o endereço onde o serviço externo será realizado.');
-      return;
+    if (modalidadeLocal === 'externo') {
+      if (!clienteSelecionadoModal) {
+        setErro('Selecione um cliente para confirmar o atendimento externo.');
+        return;
+      }
+      if (!enderecoSelecionado || !isEnderecoCompleto(enderecoSelecionado)) {
+        setErro('O endereço do cliente precisa estar completo para agendar atendimento externo.');
+        return;
+      }
+    }
+
+    if (clienteSelecionadoModal && onSincronizarClienteCarrinho) {
+      onSincronizarClienteCarrinho(clienteSelecionadoModal);
     }
 
     const dados: ItemAgendamentoInfo = {
@@ -214,7 +359,12 @@ export const ModalSelecionarAgendamentoPdv: React.FC<ModalSelecionarAgendamentoP
       hora_inicio: slotSelecionado.hora_inicio,
       hora_fim: slotSelecionado.hora_fim,
       modalidade_local: modalidadeLocal,
-      endereco_prestacao_snapshot: modalidadeLocal === 'externo' ? enderecoSnapshot.trim() : null,
+      cliente_id: clienteSelecionadoModal?.id || null,
+      cliente_endereco_id: modalidadeLocal === 'externo' ? (enderecoSelecionado?.id || null) : null,
+      endereco_prestacao_snapshot:
+        modalidadeLocal === 'externo' && enderecoSelecionado
+          ? formatarEnderecoSnapshot(enderecoSelecionado)
+          : null,
       observacoes: observacoes.trim() || null
     };
 
@@ -225,6 +375,7 @@ export const ModalSelecionarAgendamentoPdv: React.FC<ModalSelecionarAgendamentoP
   if (!isOpen) return null;
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-200 select-none">
       <div
         className={`w-full max-w-2xl max-h-[92vh] flex flex-col rounded-3xl border shadow-2xl overflow-hidden transition-colors ${
@@ -270,6 +421,142 @@ export const ModalSelecionarAgendamentoPdv: React.FC<ModalSelecionarAgendamentoP
 
         {/* Conteúdo com Scroll */}
         <div className="p-4 sm:p-5 overflow-y-auto space-y-5 flex-1">
+          {/* SEÇÃO: Identificação do Cliente */}
+          <div className="space-y-2 relative">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <User size={14} className="text-emerald-500" />
+                <span>Cliente do Agendamento:</span>
+                {modalidadeLocal === 'externo' && (
+                  <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                    (Obrigatório para domicílio)
+                  </span>
+                )}
+              </label>
+              <button
+                type="button"
+                onClick={() => setModalNovoClienteAberto(true)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold transition cursor-pointer"
+              >
+                <Plus size={12} />
+                <span>Novo Cliente</span>
+              </button>
+            </div>
+
+            {clienteSelecionadoModal ? (
+              <div className={`p-3 rounded-xl border flex items-center justify-between gap-2 ${
+                isDark
+                  ? 'bg-emerald-950/20 border-emerald-500/30 text-white'
+                  : 'bg-emerald-50/70 border-emerald-200 text-slate-900'
+              }`}>
+                <div className="min-w-0">
+                  <p className="text-xs font-black truncate">{clienteSelecionadoModal.nome}</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                    {clienteSelecionadoModal.whatsapp || clienteSelecionadoModal.telefone || 'Sem WhatsApp'}
+                    {clienteSelecionadoModal.numero_documento ? ` • Doc: ${clienteSelecionadoModal.numero_documento}` : ''}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setClienteSelecionadoModal(null);
+                    setBuscaCliente('');
+                    setDropdownClientesAberto(true);
+                  }}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:border-emerald-500 transition shrink-0 cursor-pointer"
+                >
+                  Trocar
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <div className="relative flex items-center">
+                  <Search size={14} className="absolute left-3 text-slate-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={buscaCliente}
+                    onFocus={() => setDropdownClientesAberto(true)}
+                    onChange={(e) => {
+                      setBuscaCliente(e.target.value);
+                      setDropdownClientesAberto(true);
+                    }}
+                    placeholder="Buscar cliente por nome, WhatsApp ou CPF..."
+                    className={`w-full pl-9 pr-8 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:border-emerald-500 ${
+                      isDark
+                        ? 'bg-slate-900 border-slate-700 text-white placeholder:text-slate-500'
+                        : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400'
+                    }`}
+                  />
+                  {buscaCliente && (
+                    <button
+                      type="button"
+                      onClick={() => setBuscaCliente('')}
+                      className="absolute right-2.5 p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+
+                {dropdownClientesAberto && (
+                  <div className={`mt-1.5 rounded-2xl border shadow-xl max-h-48 overflow-y-auto z-30 ${
+                    isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
+                  }`}>
+                    {carregandoClientes ? (
+                      <div className="p-3 text-xs text-slate-400 flex items-center justify-center gap-2">
+                        <Loader2 size={14} className="animate-spin text-emerald-500" />
+                        <span>Carregando clientes...</span>
+                      </div>
+                    ) : clientesFiltrados.length === 0 ? (
+                      <div className="p-3 text-center text-xs text-slate-500 space-y-2">
+                        <p>Nenhum cliente encontrado.</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDropdownClientesAberto(false);
+                            setModalNovoClienteAberto(true);
+                          }}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold cursor-pointer"
+                        >
+                          <Plus size={12} />
+                          <span>Cadastrar Novo Cliente</span>
+                        </button>
+                      </div>
+                    ) : (
+                      clientesFiltrados.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            setClienteSelecionadoModal(c);
+                            setBuscaCliente('');
+                            setDropdownClientesAberto(false);
+                          }}
+                          className={`w-full px-3 py-2.5 text-left border-b last:border-b-0 flex items-center justify-between gap-2 transition cursor-pointer ${
+                            isDark
+                              ? 'border-slate-800 hover:bg-slate-800/80'
+                              : 'border-slate-100 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <span className="text-xs font-bold block truncate">{c.nome}</span>
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block truncate">
+                              {c.whatsapp || c.telefone || 'Sem telefone'}
+                              {c.numero_documento ? ` • ${c.numero_documento}` : ''}
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
+                            Selecionar
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* PASSO 1: Local de Prestação do Serviço */}
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
@@ -316,38 +603,79 @@ export const ModalSelecionarAgendamentoPdv: React.FC<ModalSelecionarAgendamentoP
               </div>
             )}
 
-            {/* Endereço caso seja externo */}
+            {/* Endereço caso seja externo (integrado com cadastro do cliente) */}
             {modalidadeLocal === 'externo' && (
-              <div className="p-3 rounded-xl border border-amber-500/20 bg-amber-500/5 dark:bg-amber-950/20 space-y-2 animate-in fade-in">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-amber-800 dark:text-amber-300">
-                    Endereço de Atendimento:
-                  </span>
-                  {cliente && (cliente.endereco_logradouro || cliente.endereco_cidade) && (
+              <div className="space-y-2 animate-in fade-in">
+                {!clienteSelecionadoModal ? (
+                  <div className="p-3.5 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 text-xs flex items-center gap-2.5">
+                    <AlertCircle size={16} className="shrink-0 text-amber-600 dark:text-amber-400" />
+                    <span className="font-semibold">
+                      Selecione um cliente acima para verificar o endereço de atendimento.
+                    </span>
+                  </div>
+                ) : carregandoEnderecos ? (
+                  <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 text-xs text-slate-500 flex items-center gap-2">
+                    <Loader2 size={15} className="animate-spin text-emerald-500 shrink-0" />
+                    <span>Verificando endereço cadastrado do cliente...</span>
+                  </div>
+                ) : !enderecoValido ? (
+                  <div className="p-3.5 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 space-y-2.5">
+                    <div className="flex items-start gap-2.5 text-amber-900 dark:text-amber-200 text-xs">
+                      <AlertTriangle size={16} className="shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                      <span className="font-semibold leading-relaxed">
+                        O endereço deste cliente não está cadastrado ou está incompleto. Atualize o endereço para agendar atendimento externo.
+                      </span>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => {
-                        const partes = [
-                          cliente.endereco_logradouro,
-                          cliente.endereco_numero ? `nº ${cliente.endereco_numero}` : '',
-                          cliente.endereco_bairro,
-                          cliente.endereco_cidade
-                        ].filter(Boolean);
-                        setEnderecoSnapshot(partes.join(', '));
-                      }}
-                      className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                      onClick={() => setModalAtualizarEnderecoAberto(true)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs transition cursor-pointer"
                     >
-                      Preencher do cadastro do cliente
+                      <MapPin size={14} />
+                      <span>Atualizar Endereço do Cliente</span>
                     </button>
-                  )}
-                </div>
-                <input
-                  type="text"
-                  placeholder="Ex: Rua das Flores, 120, Apto 302 - Centro"
-                  value={enderecoSnapshot}
-                  onChange={(e) => setEnderecoSnapshot(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold focus:outline-none focus:border-emerald-500"
-                />
+                  </div>
+                ) : (
+                  <div className={`p-3.5 rounded-xl border space-y-2 ${
+                    isDark
+                      ? 'bg-emerald-950/20 border-emerald-500/30 text-white'
+                      : 'bg-slate-50 border-emerald-200 text-slate-900'
+                  }`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2 min-w-0">
+                        <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                              Endereço de Atendimento Validado
+                            </span>
+                            {enderecoSelecionado?.identificador && (
+                              <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                                {enderecoSelecionado.identificador}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-0.5 break-words">
+                            {enderecoSelecionado ? formatarEnderecoSnapshot(enderecoSelecionado) : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (enderecosCliente.length > 1) {
+                            setModalEscolherEnderecoAberto(true);
+                          } else {
+                            setModalAtualizarEnderecoAberto(true);
+                          }
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:border-emerald-500 transition shrink-0 cursor-pointer"
+                      >
+                        Alterar / Outro Endereço
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -533,7 +861,7 @@ export const ModalSelecionarAgendamentoPdv: React.FC<ModalSelecionarAgendamentoP
           <button
             type="button"
             onClick={handleConfirmar}
-            disabled={!slotSelecionado || !profissionalId}
+            disabled={!podeConfirmar}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Check size={15} />
@@ -542,5 +870,113 @@ export const ModalSelecionarAgendamentoPdv: React.FC<ModalSelecionarAgendamentoP
         </div>
       </div>
     </div>
+
+    {/* Submodal: Cadastrar Novo Cliente */}
+    <ModalNovoCliente
+      isOpen={modalNovoClienteAberto}
+      onClose={() => setModalNovoClienteAberto(false)}
+      onClienteCadastrado={(novoCliente) => {
+        setListaClientes(prev => [novoCliente, ...prev]);
+        setClienteSelecionadoModal(novoCliente);
+        setDropdownClientesAberto(false);
+        setModalNovoClienteAberto(false);
+        onClienteCadastrado?.(novoCliente);
+      }}
+    />
+
+    {/* Submodal: Escolher Outro Endereço Cadastrado */}
+    {modalEscolherEnderecoAberto && clienteSelecionadoModal && (
+      <div className="fixed inset-0 z-[90] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-xs animate-in fade-in">
+        <div className={`w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden ${
+          isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
+        }`}>
+          <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-2">
+              <MapPin size={18} className="text-emerald-500" />
+              <h3 className="text-sm font-black">Selecionar Endereço do Cliente</h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setModalEscolherEnderecoAberto(false)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+          </div>
+          <div className="p-4 max-h-72 overflow-y-auto space-y-2">
+            {enderecosCliente.map((end) => {
+              const completo = isEnderecoCompleto(end);
+              const ativo = enderecoSelecionado?.id === end.id;
+              return (
+                <button
+                  key={end.id}
+                  type="button"
+                  disabled={!completo}
+                  onClick={() => {
+                    setEnderecoSelecionado(end);
+                    setModalEscolherEnderecoAberto(false);
+                  }}
+                  className={`w-full p-3 rounded-xl border text-left transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                    ativo
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-500'
+                      : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 hover:border-emerald-400'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="text-[11px] font-black text-emerald-700 dark:text-emerald-400">
+                      {end.identificador || (end.is_principal ? 'Principal' : 'Endereço')}
+                    </span>
+                    {!completo && (
+                      <span className="text-[10px] font-bold text-amber-600">Incompleto</span>
+                    )}
+                  </div>
+                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                    {formatarEnderecoSnapshot(end)}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+          <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setModalEscolherEnderecoAberto(false)}
+              className="px-3 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+            >
+              Fechar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setModalEscolherEnderecoAberto(false);
+                setModalAtualizarEnderecoAberto(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer"
+            >
+              <Plus size={14} />
+              <span>Editar / Novo Endereço</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Submodal: Atualizar / Cadastrar Endereço do Cliente */}
+    {modalAtualizarEnderecoAberto && clienteSelecionadoModal && (
+      <ModalAtualizarEnderecoCliente
+        aberto={modalAtualizarEnderecoAberto}
+        onFechar={() => setModalAtualizarEnderecoAberto(false)}
+        cliente={clienteSelecionadoModal}
+        enderecoIdAtual={enderecoSelecionado?.id || null}
+        onSucesso={(clienteAtualizado, enderecoSalvo) => {
+          setClienteSelecionadoModal(clienteAtualizado);
+          setListaClientes(prev => prev.map(c => c.id === clienteAtualizado.id ? clienteAtualizado : c));
+          onClienteAtualizado?.(clienteAtualizado);
+          setModalAtualizarEnderecoAberto(false);
+          carregarEnderecosDoCliente(clienteAtualizado.id, enderecoSalvo.id);
+        }}
+      />
+    )}
+    </>
   );
 };

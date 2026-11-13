@@ -3284,6 +3284,21 @@ export const PosCheckout: React.FC = () => {
           produto={agendamentoModal.produto}
           lojaId={loja?.id || ''}
           cliente={clienteSelecionado}
+          clientesDisponiveis={clientes}
+          onClienteCadastrado={(novoCliente) => {
+            setClientes(prev => [novoCliente, ...prev]);
+          }}
+          onClienteAtualizado={(clienteAtualizado) => {
+            setClientes(prev => prev.map(c => c.id === clienteAtualizado.id ? clienteAtualizado : c));
+            if (clienteSelecionado?.id === clienteAtualizado.id) {
+              setClienteSelecionado(clienteAtualizado);
+            }
+          }}
+          onSincronizarClienteCarrinho={(clienteAgendamento) => {
+            if (clienteAgendamento && clienteSelecionado?.id !== clienteAgendamento.id) {
+              setClienteSelecionado(clienteAgendamento);
+            }
+          }}
           agendamentoExistente={agendamentoModal.agendamentoExistente}
           onConfirmar={(dadosAgendamento) => {
             if (agendamentoModal.cartId) {
