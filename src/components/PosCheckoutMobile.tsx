@@ -2058,6 +2058,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                       const estoqueQtd = Number(produto.quantidade_estoque ?? 0);
                       const isEsgotado = estoqueQtd <= 0;
                       const temEstoqueBaixo = estoqueQtd > 0 && estoqueQtd <= Number(produto.estoque_minimo_alerta || 0);
+                      const badgeCatTexto = obterTextoBadgeCategoriaProduto(produto, categorias, loja?.id);
 
                       return (
                         <div
@@ -2127,6 +2128,11 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                                 {produto.nome}
                               </h3>
                             </div>
+                            {badgeCatTexto && (
+                              <span className="text-xs font-medium text-slate-900 dark:text-slate-100 truncate block mt-0.5">
+                                {badgeCatTexto}
+                              </span>
+                            )}
 
                             <div className="flex items-baseline justify-between pt-1">
                               <span className="font-black text-xs text-emerald-600 dark:text-emerald-400">
@@ -2208,18 +2214,15 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                             </div>
 
                             <div className="space-y-0.5 max-w-[190px]">
-                              {badgeCatTexto && (
-                                <span className="inline-block px-1.5 py-0.2 rounded text-[8px] font-semibold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                                  {badgeCatTexto}
-                                </span>
-                              )}
                               <div className="flex items-center gap-1">
                                 {produto.destaque && <span className="text-amber-500 text-xs">★</span>}
                                 <h3 className={`font-bold text-xs uppercase truncate ${isDark ? 'text-white' : 'text-black'}`}>{produto.nome}</h3>
                               </div>
-                              <span className={`text-[10px] block font-mono ${isDark ? 'text-slate-400' : 'text-slate-600 font-semibold'}`}>
-                                Cód. {produto.codigo_interno || produto.codigo_barras?.slice(-4) || '1000'}
-                              </span>
+                              {badgeCatTexto && (
+                                <span className="text-xs font-medium text-slate-900 dark:text-slate-100 truncate block">
+                                  {badgeCatTexto}
+                                </span>
+                              )}
                             </div>
                           </div>
 

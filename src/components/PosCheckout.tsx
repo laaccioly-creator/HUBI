@@ -39,8 +39,7 @@ import {
   AlertOctagon,
   Sparkles,
   Ticket,
-  Calendar,
-  Scissors
+  Calendar
 } from 'lucide-react';
 import { creditRiskJevService, AvaliacaoRiscoCredito } from '../services/creditRiskJevService';
 import { useNavigate } from 'react-router-dom';
@@ -81,7 +80,8 @@ import { obterInfoEntregaRecibo } from '../services/printService';
 import { SeletorCategoriasHibrido } from './ui/SeletorCategoriasHibrido';
 import {
   produtoPertenceAoFiltroCategoria,
-  agruparProdutosPorBlocosDeCategoria
+  agruparProdutosPorBlocosDeCategoria,
+  obterTextoBadgeCategoriaProduto
 } from '../utils/categoriasHierarquia';
 
 /**
@@ -2411,6 +2411,7 @@ export const PosCheckout: React.FC = () => {
                       const precoOriginal = (produto.promocao_ativa && Number(produto.preco_promocional) > 0 && precoFinal !== produto.preco_venda_varejo)
                         ? produto.preco_venda_varejo
                         : null;
+                      const nomeSubOuCat = obterTextoBadgeCategoriaProduto(produto, categorias, loja?.id);
 
                       return (
                         <div
@@ -2463,12 +2464,6 @@ export const PosCheckout: React.FC = () => {
                                 </div>
                               ) : (
                                 <>
-                                  {ehServico && (
-                                    <span className="absolute top-1 left-1 z-10 bg-emerald-600 text-white font-black text-[8px] px-1.5 py-0.5 rounded shadow uppercase tracking-wider flex items-center gap-1">
-                                      <Scissors className="w-2.5 h-2.5" />
-                                      Serviço
-                                    </span>
-                                  )}
                                   {produto.promocao_ativa && Number(produto.preco_promocional) > 0 && (
                                     <span className="absolute bottom-1 left-1 bg-rose-600 text-white font-black text-[8px] px-1.5 py-0.5 rounded shadow uppercase tracking-wider">
                                       PROMO
@@ -2486,8 +2481,10 @@ export const PosCheckout: React.FC = () => {
                             <h3 className={`font-bold text-[11px] sm:text-xs line-clamp-2 leading-tight ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
                               {produto.nome}
                             </h3>
-                            {produto.codigo_interno && (
-                              <span className="text-[9px] text-slate-500 block mt-0.5 font-mono">#{produto.codigo_interno}</span>
+                            {nomeSubOuCat && (
+                              <span className="text-xs font-medium text-slate-900 dark:text-slate-100 truncate block mt-0.5">
+                                {nomeSubOuCat}
+                              </span>
                             )}
                           </div>
 
