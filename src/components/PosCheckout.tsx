@@ -1239,6 +1239,7 @@ export const PosCheckout: React.FC = () => {
       });
 
       let pedidoIdFinal = '';
+      let erroAgendaMensagem: string | null = null;
 
       if (navigator.onLine) {
         let itensInseridosPendente: Array<{ id: string; produto_id: string }> = [];
@@ -1285,31 +1286,34 @@ export const PosCheckout: React.FC = () => {
         }
 
         // Sincronizar agendamentos de serviços vinculados ao pedido pendente
-        if (pedidoIdFinal && itensInseridosPendente.length > 0) {
+        if (pedidoIdFinal) {
           const itensParaAgenda = itens
             .map((it, idx) => {
-              const ins = itensInseridosPendente[idx];
-              if (!it.agendamento || !ins?.id) return null;
+              if (!it.agendamento) return null;
+              const ins =
+                itensInseridosPendente[idx]?.produto_id === it.produto.id
+                  ? itensInseridosPendente[idx]
+                  : itensInseridosPendente[idx] || itensInseridosPendente.find((row) => row.produto_id === it.produto.id);
               return {
-                itemPedidoId: ins.id,
+                itemPedidoId: ins?.id || null,
                 produtoId: it.produto.id,
                 agendamento: it.agendamento
               };
             })
-            .filter((x): x is { itemPedidoId: string; produtoId: string; agendamento: ItemAgendamentoInfo } => x !== null);
+            .filter((x): x is { itemPedidoId: string | null; produtoId: string; agendamento: ItemAgendamentoInfo } => x !== null);
 
           if (itensParaAgenda.length > 0) {
             const resAgenda = await agendamentoService.sincronizarAgendamentosPedidoPdv({
               lojaId: loja.id,
               pedidoId: pedidoIdFinal,
               clienteId: clienteSelecionado?.id || null,
-              clienteNome: clienteSelecionado?.nome || 'Cliente Balcão',
-              clienteWhatsapp: clienteSelecionado?.whatsapp || clienteSelecionado?.telefone || '',
+              clienteNome: clienteSelecionado?.nome || pedidoEmEdicao?.cliente_nome_avulso || 'Cliente Balcão',
+              clienteWhatsapp: clienteSelecionado?.whatsapp || clienteSelecionado?.telefone || pedidoEmEdicao?.cliente_telefone_avulso || '',
               criadoPorUsuarioId: usuario?.id || null,
               itens: itensParaAgenda
             });
             if (resAgenda.erroMensagem) {
-              mostrarAviso(resAgenda.erroMensagem, 'Aviso de Agendamento');
+              erroAgendaMensagem = resAgenda.erroMensagem;
             }
           }
         }
@@ -1369,7 +1373,12 @@ export const PosCheckout: React.FC = () => {
         }
       };
 
-      mostrarSucesso('Pedido salvo com sucesso', 'Sucesso!', aoConfirmarSucesso);
+      if (erroAgendaMensagem) {
+        aoConfirmarSucesso();
+        mostrarErro(erroAgendaMensagem, 'Erro ao Gravar Agendamento');
+      } else {
+        mostrarSucesso('Pedido salvo com sucesso', 'Sucesso!', aoConfirmarSucesso);
+      }
     } catch (err: any) {
       console.error('Erro ao salvar pedido:', err);
       mostrarErro(`Erro ao salvar pedido: ${err.message || 'Tente novamente.'}`);
@@ -1569,6 +1578,7 @@ export const PosCheckout: React.FC = () => {
         : [];
 
       let pedidoIdFinal = '';
+      let erroAgendaMensagem: string | null = null;
       let itensInseridosPagamento: Array<{ id: string; produto_id: string }> = [];
 
       if (pedidoEmEdicao?.id) {
@@ -1611,31 +1621,34 @@ export const PosCheckout: React.FC = () => {
         itensInseridosPagamento = (insData || []) as Array<{ id: string; produto_id: string }>;
       }
 
-      if (pedidoIdFinal && itensInseridosPagamento.length > 0) {
+      if (pedidoIdFinal) {
         const itensParaAgenda = itens
           .map((it, idx) => {
-            const ins = itensInseridosPagamento[idx];
-            if (!it.agendamento || !ins?.id) return null;
+            if (!it.agendamento) return null;
+            const ins =
+              itensInseridosPagamento[idx]?.produto_id === it.produto.id
+                ? itensInseridosPagamento[idx]
+                : itensInseridosPagamento[idx] || itensInseridosPagamento.find((row) => row.produto_id === it.produto.id);
             return {
-              itemPedidoId: ins.id,
+              itemPedidoId: ins?.id || null,
               produtoId: it.produto.id,
               agendamento: it.agendamento
             };
           })
-          .filter((x): x is { itemPedidoId: string; produtoId: string; agendamento: ItemAgendamentoInfo } => x !== null);
+          .filter((x): x is { itemPedidoId: string | null; produtoId: string; agendamento: ItemAgendamentoInfo } => x !== null);
 
         if (itensParaAgenda.length > 0) {
           const resAgenda = await agendamentoService.sincronizarAgendamentosPedidoPdv({
             lojaId: loja.id,
             pedidoId: pedidoIdFinal,
             clienteId: clienteSelecionado?.id || null,
-            clienteNome: clienteSelecionado?.nome || 'Cliente Balcão',
-            clienteWhatsapp: clienteSelecionado?.whatsapp || clienteSelecionado?.telefone || '',
+            clienteNome: clienteSelecionado?.nome || pedidoEmEdicao?.cliente_nome_avulso || 'Cliente Balcão',
+            clienteWhatsapp: clienteSelecionado?.whatsapp || clienteSelecionado?.telefone || pedidoEmEdicao?.cliente_telefone_avulso || '',
             criadoPorUsuarioId: usuario?.id || null,
             itens: itensParaAgenda
           });
           if (resAgenda.erroMensagem) {
-            mostrarAviso(resAgenda.erroMensagem, 'Aviso de Agendamento');
+            erroAgendaMensagem = resAgenda.erroMensagem;
           }
         }
       }
@@ -1698,7 +1711,12 @@ export const PosCheckout: React.FC = () => {
         }
       };
 
-      mostrarSucesso('Pedido salvo com sucesso', 'Sucesso!', aoConfirmarSucesso);
+      if (erroAgendaMensagem) {
+        aoConfirmarSucesso();
+        mostrarErro(erroAgendaMensagem, 'Erro ao Gravar Agendamento');
+      } else {
+        mostrarSucesso('Pedido salvo com sucesso', 'Sucesso!', aoConfirmarSucesso);
+      }
     } catch (err: any) {
       console.error('Erro ao salvar pedido com forma de pagamento:', err);
       // Rollback compensatório para impedir pedidos órfãos sem itens ou pagamentos
@@ -2037,7 +2055,7 @@ export const PosCheckout: React.FC = () => {
 
           const avisoAgenda = (pedidoCriado as Pedido & { _avisoAgendamento?: string })?._avisoAgendamento;
           if (avisoAgenda) {
-            mostrarAviso(avisoAgenda, 'Aviso de Agendamento');
+            mostrarErro(avisoAgenda, 'Erro ao Gravar Agendamento');
           }
 
           // Atualizar o Limite de Crédito e Saldo Devedor do Cliente na memória local

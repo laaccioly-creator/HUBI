@@ -7,12 +7,34 @@ export interface ItemPedidoReciboInput extends Partial<ItemPedido> {
   item_pedido_id?: string | null;
 }
 
-export type AgendamentoReciboInput = Partial<
-  Pick<
-    AgendamentoServico,
-    'id' | 'produto_id' | 'item_pedido_id' | 'modalidade_local' | 'endereco_prestacao_snapshot'
-  >
->;
+export interface AgendamentoReciboInput
+  extends Partial<
+    Pick<
+      AgendamentoServico,
+      | 'id'
+      | 'produto_id'
+      | 'item_pedido_id'
+      | 'modalidade_local'
+      | 'endereco_prestacao_snapshot'
+      | 'data_agendamento'
+      | 'hora_inicio'
+      | 'hora_fim'
+    >
+  > {
+  produto?: { nome?: string | null } | null;
+  profissional?: { nome_completo?: string | null; nome?: string | null } | null;
+  produto_nome?: string | null;
+  profissional_nome?: string | null;
+}
+
+export interface AgendamentoFormatadoRecibo {
+  id: string;
+  servicoNome: string;
+  profissionalNome: string;
+  dataFormatada: string;
+  horarioFormatado: string;
+  modalidadeLocal: string;
+}
 
 export interface PedidoReciboInput
   extends Omit<Pedido, 'itens' | 'itens_pedido' | 'pedido_entrega' | 'pedido_entregas'> {
@@ -46,6 +68,7 @@ export interface DadosReciboPedidoResolvido {
     | 'Comprovante de atendimento e serviço'
     | 'Comprovante de pedido e entrega'
     | 'Comprovante de pedido e atendimento';
+  agendamentosFormatados: AgendamentoFormatadoRecibo[];
 }
 
 const formatarEnderecoLoja = (loja?: Loja | null): string => {
@@ -115,6 +138,23 @@ export const formatarEnderecoCliente = (cliente?: Cliente | null): string | null
 const isSnapshotGenerico = (texto?: string | null): boolean => {
   const norm = normalizarTextoEndereco(texto);
   return !norm || norm === 'enderecodocliente' || norm === 'noenderecodocliente';
+};
+
+const formatarDataAgendamentoRecibo = (dataStr?: string | null): string => {
+  if (!dataStr) return '';
+  const match = dataStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) return `${match[3]}/${match[2]}/${match[1]}`;
+  const dt = new Date(dataStr);
+  if (!Number.isNaN(dt.getTime())) {
+    return dt.toLocaleDateString('pt-BR');
+  }
+  return dataStr;
+};
+
+const formatarHoraCurtaRecibo = (horaStr?: string | null): string => {
+  if (!horaStr) return '';
+  const match = horaStr.match(/^(\d{2}):(\d{2})/);
+  return match ? `${match[1]}:${match[2]}` : horaStr.slice(0, 5);
 };
 
 /**
@@ -245,6 +285,61 @@ export const resolverDadosReciboPedido = (
     )?.endereco_prestacao_snapshot?.trim() ||
     null;
 
+  const itensServico = listaItens.filter(isItemServico);
+  const agendamentosFormatados: AgendamentoFormatadoRecibo[] = listaAgendamentos
+    .filter((ag) =>
+      Boolean(ag.data_agendamento || ag.hora_inicio || ag.profissional || ag.produto || ag.produto_id)
+    )
+    .map((ag, idx) => {
+      const itemCorrespondente =
+        listaItens.find(
+          (it) =>
+            (Boolean(ag.item_pedido_id) && it.id === ag.item_pedido_id) ||
+            (Boolean(ag.produto_id) && it.produto_id === ag.produto_id)
+        ) || (itensServico.length === 1 ? itensServico[0] : undefined);
+
+      const servicoNome =
+        ag.produto?.nome?.trim() ||
+        ag.produto_nome?.trim() ||
+        itemCorrespondente?.nome_produto?.trim() ||
+        itemCorrespondente?.produto?.nome?.trim() ||
+        'Serviço Agendado';
+
+      const profissionalNome =
+        ag.profissional?.nome_completo?.trim() ||
+        ag.profissional?.nome?.trim() ||
+        ag.profissional_nome?.trim() ||
+        'Profissional da Loja';
+
+      const dataFormatada = formatarDataAgendamentoRecibo(ag.data_agendamento) || 'A confirmar';
+      const horaIni = formatarHoraCurtaRecibo(ag.hora_inicio);
+      const horaFim = formatarHoraCurtaRecibo(ag.hora_fim);
+      const horarioFormatado =
+        horaIni && horaFim
+          ? `das ${horaIni} às ${horaFim}`
+          : horaIni
+          ? `às ${horaIni}`
+          : 'A confirmar';
+
+      const modalidadeLocal =
+        ag.modalidade_local === 'externo'
+          ? 'Atendimento em Domicílio'
+          : ag.modalidade_local === 'loja'
+          ? 'Atendimento na Loja'
+          : isAtendimentoDomicilio
+          ? 'Atendimento em Domicílio'
+          : 'Atendimento na Loja';
+
+      return {
+        id: ag.id || `ag-${idx}`,
+        servicoNome,
+        profissionalNome,
+        dataFormatada,
+        horarioFormatado,
+        modalidadeLocal
+      };
+    });
+
   if (isPedidoHibrido) {
     const enderecoServico = isAtendimentoDomicilio
       ? snapshotBruto || enderecoPe || enderecoPedidoDireto || enderecoCadastroCliente || 'A confirmar com o cliente'
@@ -288,7 +383,8 @@ export const resolverDadosReciboPedido = (
       taxaVisitaDomicilio,
       valorFreteProdutos,
       rotuloTaxaAdicional: taxaVisitaDomicilio > 0 ? 'Taxa de Visita (Domicílio)' : null,
-      subtituloRecibo: 'Comprovante de pedido e atendimento'
+      subtituloRecibo: 'Comprovante de pedido e atendimento',
+      agendamentosFormatados
     };
   }
 
@@ -316,7 +412,8 @@ export const resolverDadosReciboPedido = (
       taxaVisitaDomicilio,
       valorFreteProdutos: 0,
       rotuloTaxaAdicional: taxaVisitaDomicilio > 0 ? 'Taxa de Visita (Domicílio)' : null,
-      subtituloRecibo: 'Comprovante de atendimento e serviço'
+      subtituloRecibo: 'Comprovante de atendimento e serviço',
+      agendamentosFormatados
     };
   }
 
@@ -341,6 +438,7 @@ export const resolverDadosReciboPedido = (
     taxaVisitaDomicilio: 0,
     valorFreteProdutos,
     rotuloTaxaAdicional: valorFreteProdutos > 0 ? 'Frete / Entrega' : null,
-    subtituloRecibo: 'Comprovante de pedido e entrega'
+    subtituloRecibo: 'Comprovante de pedido e entrega',
+    agendamentosFormatados
   };
 };

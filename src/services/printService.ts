@@ -996,6 +996,20 @@ export class PrintService {
               </div>
             ` : ''}
           </div>
+          ${dadosRecibo.agendamentosFormatados.length > 0 ? `
+            <div style="margin-top: ${isA4 ? '14px' : '10px'}; padding: ${isA4 ? '12px 14px' : '8px 10px'}; border: 1.5px solid #a7f3d0; background-color: #ecfdf5; border-radius: 8px; page-break-inside: avoid;">
+              <div style="font-size: ${isA4 ? '11px' : '9px'}; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; color: #065f46; margin-bottom: ${isA4 ? '8px' : '5px'};">
+                ${dadosRecibo.agendamentosFormatados.length > 1 ? 'AGENDAMENTOS DO PEDIDO' : 'AGENDAMENTO DO SERVIÇO'}
+              </div>
+              ${dadosRecibo.agendamentosFormatados.map((ag) => `
+                <div style="padding: ${isA4 ? '8px 10px' : '5px 7px'}; margin-top: 4px; border: 1px solid #d1fae5; background-color: #ffffff; border-radius: 6px; font-size: ${isA4 ? '11px' : '9.5px'}; line-height: 1.45; color: #1e293b;">
+                  <div><strong>Serviço:</strong> ${ag.servicoNome}</div>
+                  <div><strong>Profissional:</strong> ${ag.profissionalNome}</div>
+                  <div><strong>Data e Horário:</strong> <strong style="color: #047857;">${ag.dataFormatada} ${ag.horarioFormatado}</strong></div>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
         </div>
       `;
 
@@ -1453,6 +1467,18 @@ export class PrintService {
       }
     }
 
+    if (dadosRecibo.agendamentosFormatados.length > 0) {
+      text += divider;
+      text += '\x1B\x45\x01'; // Bold ON
+      text += `${dadosRecibo.agendamentosFormatados.length > 1 ? 'AGENDAMENTOS DO PEDIDO' : 'AGENDAMENTO DO SERVICO'}\n`;
+      text += '\x1B\x45\x00'; // Bold OFF
+      for (const ag of dadosRecibo.agendamentosFormatados) {
+        text += `Servico: ${ag.servicoNome}\n`;
+        text += `Profissional: ${ag.profissionalNome}\n`;
+        text += `Data/Hora: ${ag.dataFormatada} ${ag.horarioFormatado}\n`;
+      }
+    }
+
     text += divider;
     text += '\x1B\x61\x01'; // Center
     text += `${formatarDataRecibo(pedido.data_venda || pedido.criado_em)}\n\n\n`;
@@ -1552,6 +1578,17 @@ export class PrintService {
       `Total: R$ ${Number(pedido.valor_total).toFixed(2)}\n` +
       (pagamentoInfo.ehCaderneta && Number(pedido.saldo_devedor) > 0 ? `Saldo Caderneta: R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n${obterInfoVencimentoFiado(pedido).temVencimento ? `Data de Vencimento: ${obterInfoVencimentoFiado(pedido).formatada}\n` : ''}` : (pagamentoInfo.ehFiado && Number(pedido.saldo_devedor) > 0 ? `Saldo a Pagar (Fiado): R$ ${Number(pedido.saldo_devedor).toFixed(2)}\n${obterInfoVencimentoFiado(pedido).temVencimento ? `Data de Vencimento: ${obterInfoVencimentoFiado(pedido).formatada}\n` : ''}` : '')) +
       pagStr +
+      (dadosRecibo.agendamentosFormatados.length > 0
+        ? `--------------------------------------------------\n` +
+          `${dadosRecibo.agendamentosFormatados.length > 1 ? 'AGENDAMENTOS DO PEDIDO' : 'AGENDAMENTO DO SERVIÇO'}\n` +
+          dadosRecibo.agendamentosFormatados
+            .map(
+              (ag) =>
+                `Serviço: ${ag.servicoNome}\nProfissional: ${ag.profissionalNome}\nData e Horário: ${ag.dataFormatada} ${ag.horarioFormatado}`
+            )
+            .join('\n\n') +
+          `\n`
+        : '') +
       `--------------------------------------------------\n` +
       `${dataFormatada}\n\n` +
       `Obrigado pela preferência!`;
@@ -1611,7 +1648,21 @@ export class PrintService {
         `\nVALOR TOTAL: R$ ${Number(pedido.valor_total || 0).toFixed(2).replace('.', ',')}\n`
       : '';
 
-    return `🧾 RECIBO #${pedido.numero_pedido} - ${nomeLoja}${avisoPesagem}${blocoServicoWhatsApp}
+    const blocoAgendamentoWhatsApp =
+      dadosRecibo.agendamentosFormatados.length > 0
+        ? `\n📅 *${dadosRecibo.agendamentosFormatados.length > 1 ? 'AGENDAMENTOS DO PEDIDO' : 'AGENDAMENTO DO SERVIÇO'}*` +
+          dadosRecibo.agendamentosFormatados
+            .map(
+              (ag) =>
+                `\n• Serviço: *${ag.servicoNome}*` +
+                `\n• Profissional: *${ag.profissionalNome}*` +
+                `\n• Data e Horário: *${ag.dataFormatada} ${ag.horarioFormatado}*`
+            )
+            .join('\n') +
+          `\n`
+        : '';
+
+    return `🧾 RECIBO #${pedido.numero_pedido} - ${nomeLoja}${avisoPesagem}${blocoServicoWhatsApp}${blocoAgendamentoWhatsApp}
 
 Acesse seu Recibo Oficial:
 ${urlReciboOficial}

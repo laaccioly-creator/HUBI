@@ -601,30 +601,49 @@ export const agendamentoService = {
     const produtoIds = [...new Set(agendamentos.map(a => String(a.produto_id || '')).filter(Boolean))];
     const profissionalIds = [...new Set(agendamentos.map(a => String(a.profissional_id || '')).filter(Boolean))];
 
-    const [prodsRes, profsRes] = await Promise.all([
-      produtoIds.length > 0
-        ? supabase
-            .from('produtos')
-            .select('id, nome, preco_venda_varejo, fotos_urls')
-            .eq('loja_id', lojaId)
-            .in('id', produtoIds)
-        : Promise.resolve({ data: [] }),
-      profissionalIds.length > 0
-        ? supabase
-            .from('usuarios_loja')
-            .select('id, nome_completo, especialidade_cargo, whatsapp_atendimento')
-            .eq('loja_id', lojaId)
-            .in('id', profissionalIds)
-        : Promise.resolve({ data: [] })
-    ]);
+    let prodsList: Produto[] = [];
+    let profsList: UsuarioLoja[] = [];
 
-    const prodMap = new Map((prodsRes.data || []).map(p => [p.id, p as Produto]));
-    const profMap = new Map((profsRes.data || []).map(p => [p.id, p as UsuarioLoja]));
+    try {
+      const [prodsRes, profsRes] = await Promise.all([
+        produtoIds.length > 0
+          ? supabase
+              .from('produtos')
+              .select('id, nome, preco_venda_varejo, fotos_urls')
+              .eq('loja_id', lojaId)
+              .in('id', produtoIds)
+          : Promise.resolve({ data: [], error: null }),
+        profissionalIds.length > 0
+          ? supabase
+              .from('usuarios_loja')
+              .select('id, nome_completo, especialidade_cargo, whatsapp_atendimento')
+              .eq('loja_id', lojaId)
+              .in('id', profissionalIds)
+          : Promise.resolve({ data: [], error: null })
+      ]);
+
+      if (prodsRes.error) {
+        console.warn('[agendamentoService] Aviso ao hidratar produtos dos agendamentos:', prodsRes.error.message);
+      } else if (Array.isArray(prodsRes.data)) {
+        prodsList = prodsRes.data as Produto[];
+      }
+
+      if (profsRes.error) {
+        console.warn('[agendamentoService] Aviso ao hidratar profissionais dos agendamentos:', profsRes.error.message);
+      } else if (Array.isArray(profsRes.data)) {
+        profsList = profsRes.data as UsuarioLoja[];
+      }
+    } catch (err) {
+      console.warn('[agendamentoService] Falha secundária ao hidratar serviço/profissional em memória:', err);
+    }
+
+    const prodMap = new Map(prodsList.map(p => [p.id, p]));
+    const profMap = new Map(profsList.map(p => [p.id, p]));
 
     return agendamentos.map(a => ({
       ...(a as unknown as AgendamentoServico),
-      produto: (a.produto as Produto) || (prodMap.get(String(a.produto_id)) as Produto) || undefined,
-      profissional: (a.profissional as UsuarioLoja) || (profMap.get(String(a.profissional_id)) as UsuarioLoja) || undefined
+      produto: (a.produto as Produto) || prodMap.get(String(a.produto_id)) || undefined,
+      profissional: (a.profissional as UsuarioLoja) || profMap.get(String(a.profissional_id)) || undefined
     }));
   },
 
@@ -692,7 +711,6 @@ export const agendamentoService = {
           data_agendamento,
           hora_inicio,
           hora_fim,
-          duracao_minutos,
           data_hora_inicio,
           data_hora_fim,
           modalidade_local,
@@ -750,13 +768,13 @@ export const agendamentoService = {
     clienteWhatsapp?: string | null;
     criadoPorUsuarioId?: string | null;
     itens: Array<{
-      itemPedidoId: string;
+      itemPedidoId?: string | null;
       produtoId: string;
       agendamento?: ItemAgendamentoInfo | null;
     }>;
   }): Promise<{ inseridos: number; erroMensagem?: string }> {
     const itensAgendados = params.itens.filter(
-      (it): it is { itemPedidoId: string; produtoId: string; agendamento: ItemAgendamentoInfo } =>
+      (it): it is { itemPedidoId?: string | null; produtoId: string; agendamento: ItemAgendamentoInfo } =>
         Boolean(it.agendamento && it.agendamento.profissional_id && it.agendamento.data_agendamento)
     );
 
@@ -791,7 +809,7 @@ export const agendamentoService = {
       return {
         loja_id: params.lojaId,
         pedido_id: params.pedidoId,
-        item_pedido_id: it.itemPedidoId,
+        item_pedido_id: it.itemPedidoId || null,
         produto_id: it.produtoId,
         profissional_id: ag.profissional_id,
         cliente_id: ag.cliente_id || params.clienteId || null,
@@ -813,29 +831,38 @@ export const agendamentoService = {
 
     try {
       // Remove vínculos anteriores do mesmo pedido (caso seja edição/reabertura de pedido pendente)
-      await supabase
+      const { error: deleteError } = await supabase
         .from('agendamentos_servicos')
         .delete()
         .eq('loja_id', params.lojaId)
         .eq('pedido_id', params.pedidoId);
+
+      if (deleteError) {
+        logger.error('AgendamentoService', 'limpar_agendamentos_pdv', deleteError, {
+          loja_id: params.lojaId
+        });
+      }
 
       const { error } = await supabase
         .from('agendamentos_servicos')
         .insert(payloads);
 
       if (error) {
+        const detalheBanco = [error.message, error.details, error.hint].filter(Boolean).join(' — ');
+        console.error('[AgendamentoService] Erro ao inserir em agendamentos_servicos:', error);
         logger.error('AgendamentoService', 'sincronizar_agendamentos_pdv', error, {
           loja_id: params.lojaId
         });
         return {
           inseridos: 0,
-          erroMensagem: `O pedido foi salvo, mas houve falha ao gravar o agendamento na Agenda: ${error.message}`
+          erroMensagem: `O pedido foi salvo, mas houve falha ao gravar o agendamento na Agenda: ${detalheBanco}`
         };
       }
 
       return { inseridos: payloads.length };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro desconhecido ao gravar agendamento.';
+      console.error('[AgendamentoService] Exceção ao sincronizar agendamentos_servicos:', err);
       logger.error('AgendamentoService', 'sincronizar_agendamentos_pdv_excecao', err, {
         loja_id: params.lojaId
       });
@@ -859,122 +886,41 @@ export const agendamentoService = {
   }): Promise<AgendamentoServico[]> {
     if (!params.lojaId) return [];
 
-    const montarFiltros = (query: any) => {
-      let q = query.eq('loja_id', params.lojaId);
-      if (params.dataInicio) q = q.gte('data_agendamento', params.dataInicio);
-      if (params.dataFim) q = q.lte('data_agendamento', params.dataFim);
-      if (params.profissionalId) q = q.eq('profissional_id', params.profissionalId);
-      if (params.status) q = q.eq('status_agendamento', params.status);
-      if (params.limite) q = q.limit(params.limite);
-      return q.order('data_agendamento', { ascending: true }).order('hora_inicio', { ascending: true });
-    };
+    let query = supabase
+      .from('agendamentos_servicos')
+      .select('*')
+      .eq('loja_id', params.lojaId);
 
-    // 1. Tenta consulta nomeada com foreign key explícita
-    try {
-      const queryJoined = montarFiltros(
-        supabase
-          .from('agendamentos_servicos')
-          .select(`
-            id,
-            loja_id,
-            pedido_id,
-            item_pedido_id,
-            produto_id,
-            profissional_id,
-            cliente_id,
-            cliente_nome,
-            cliente_whatsapp,
-            data_agendamento,
-            hora_inicio,
-            hora_fim,
-            duracao_minutos,
-            data_hora_inicio,
-            data_hora_fim,
-            modalidade_local,
-            cliente_endereco_id,
-            endereco_prestacao_snapshot,
-            status_agendamento,
-            token_confirmacao,
-            lembrete_enviado,
-            lembrete_enviado_em,
-            confirmado_pelo_cliente_em,
-            cancelado_em,
-            motivo_cancelamento,
-            qtd_remarcacoes,
-            data_hora_anterior,
-            remarcado_em,
-            observacoes,
-            criado_por_usuario_id,
-            criado_em,
-            atualizado_em,
-            produto:produtos(id, nome, preco_venda_varejo, fotos_urls),
-            profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(id, nome_completo, especialidade_cargo, whatsapp_atendimento)
-          `)
-      );
-
-      const { data, error } = await queryJoined;
-
-      if (!error && Array.isArray(data)) {
-        return await this.anexarPedidosHibridosEmAgendamentos(
-          data as unknown as AgendamentoServico[],
-          params.lojaId
-        );
-      }
-    } catch {
-      // Falha no join explícito por nome de constraint, prossegue para fallback
+    if (params.dataInicio && params.dataFim && params.dataInicio === params.dataFim) {
+      query = query.eq('data_agendamento', params.dataInicio);
+    } else {
+      if (params.dataInicio) query = query.gte('data_agendamento', params.dataInicio);
+      if (params.dataFim) query = query.lte('data_agendamento', params.dataFim);
     }
 
-    // 2. Tenta com foreign key direta de coluna (!profissional_id)
-    try {
-      const queryDirectFk = montarFiltros(
-        supabase
-          .from('agendamentos_servicos')
-          .select(`
-            *,
-            produto:produtos(id, nome, preco_venda_varejo, fotos_urls),
-            profissional:usuarios_loja!profissional_id(id, nome_completo, especialidade_cargo, whatsapp_atendimento)
-          `)
-      );
+    if (params.profissionalId) query = query.eq('profissional_id', params.profissionalId);
+    if (params.status) query = query.eq('status_agendamento', params.status);
+    if (params.limite) query = query.limit(params.limite);
 
-      const { data, error } = await queryDirectFk;
-      if (!error && Array.isArray(data)) {
-        return await this.anexarPedidosHibridosEmAgendamentos(
-          data as unknown as AgendamentoServico[],
-          params.lojaId
-        );
-      }
-    } catch {
-      // Prossegue para fallback resiliente em memória
+    const { data: rawData, error: rawError } = await query
+      .order('data_agendamento', { ascending: true })
+      .order('hora_inicio', { ascending: true });
+
+    if (rawError) {
+      const detalhe = [rawError.message, rawError.details, rawError.hint].filter(Boolean).join(' — ');
+      console.error('[AgendamentoService] Erro ao consultar agendamentos_servicos:', rawError);
+      throw new Error(`Falha ao consultar agendamentos no banco: ${detalhe}`);
     }
 
-    // 3. Fallback limpo: Select sem join relacional + hidratação em memória garantida
-    try {
-      const queryLimpa = montarFiltros(
-        supabase
-          .from('agendamentos_servicos')
-          .select('*')
-      );
-
-      const { data: rawData, error: rawError } = await queryLimpa;
-
-      if (rawError) {
-        console.warn('Aviso ao consultar agendamentos_servicos limpa:', rawError.message);
-        return [];
-      }
-
-      if (!rawData || rawData.length === 0) {
-        return [];
-      }
-
-      const hidratados = await this.hidratarAgendamentosEmMemoria(
-        rawData as Array<Record<string, unknown>>,
-        params.lojaId
-      );
-      return await this.anexarPedidosHibridosEmAgendamentos(hidratados, params.lojaId);
-    } catch (err) {
-      console.warn('Erro ao carregar agendamentos (fallback):', err);
+    if (!rawData || rawData.length === 0) {
       return [];
     }
+
+    const hidratados = await this.hidratarAgendamentosEmMemoria(
+      rawData as Array<Record<string, unknown>>,
+      params.lojaId
+    );
+    return await this.anexarPedidosHibridosEmAgendamentos(hidratados, params.lojaId);
   },
 
   async anexarPedidosHibridosEmAgendamentos(

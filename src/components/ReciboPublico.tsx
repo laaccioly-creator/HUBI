@@ -4,7 +4,10 @@ import {
   Download,
   AlertCircle,
   Loader2,
-  Store
+  Store,
+  Calendar,
+  Clock,
+  User
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Pedido, Loja, ItemPedido } from '../types';
@@ -702,6 +705,46 @@ export const ReciboPublico: React.FC = () => {
               </div>
             )}
           </div>
+
+          {dadosRecibo.agendamentosFormatados.length > 0 && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 space-y-2.5">
+              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+                <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>
+                  {dadosRecibo.agendamentosFormatados.length > 1
+                    ? 'AGENDAMENTOS DO PEDIDO'
+                    : 'AGENDAMENTO DO SERVIÇO'}
+                </span>
+              </div>
+              <div className="space-y-2">
+                {dadosRecibo.agendamentosFormatados.map((ag) => (
+                  <div
+                    key={ag.id}
+                    className="rounded-lg border border-emerald-200/80 bg-white/80 p-2.5 text-xs space-y-1"
+                  >
+                    <p className="font-bold text-slate-900 leading-snug">
+                      Serviço: <span className="font-semibold text-emerald-900">{ag.servicoNome}</span>
+                    </p>
+                    <p className="text-slate-700 flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span>
+                        Profissional: <strong className="text-slate-900">{ag.profissionalNome}</strong>
+                      </span>
+                    </p>
+                    <p className="text-slate-700 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span>
+                        Data e Horário:{' '}
+                        <strong className="text-emerald-800">
+                          {ag.dataFormatada} {ag.horarioFormatado}
+                        </strong>
+                      </span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="border-t border-slate-300 my-2" />
 

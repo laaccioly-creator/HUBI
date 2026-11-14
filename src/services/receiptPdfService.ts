@@ -142,11 +142,19 @@ export class ReceiptPdfService {
 
     // 3. Garante agendamento vinculado carregado para pedidos de serviço antes de gerar a mensagem
     let pedidoParaMensagem = pedido;
-    if (pedido.id && (!pedido.agendamentos || pedido.agendamentos.length === 0)) {
-      const { data: agData } = await supabase
+    const agendamentosExistentes = pedido.agendamentos || [];
+    const precisaRecarregarAgendamentos =
+      agendamentosExistentes.length === 0 ||
+      agendamentosExistentes.some((ag) => !(ag as { profissional?: unknown }).profissional);
+
+    if (pedido.id && precisaRecarregarAgendamentos) {
+      const agQuery = supabase
         .from('agendamentos_servicos')
-        .select('*')
+        .select('*, produto:produtos(nome), profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(nome_completo)')
         .eq('pedido_id', pedido.id);
+      const { data: agData } = loja?.id
+        ? await agQuery.eq('loja_id', String(loja.id))
+        : await agQuery;
       if (agData && agData.length > 0) {
         pedidoParaMensagem = { ...pedido, agendamentos: agData };
       }

@@ -143,17 +143,10 @@ export const AgendaServicosLoja: React.FC = () => {
       });
       setAgendamentos(dados || []);
     } catch (err: unknown) {
-      console.warn('Aviso ao carregar agendamentos:', err);
+      console.error('[AgendaServicosLoja] Erro ao carregar agendamentos:', err);
       setAgendamentos([]);
-      const errMsg = err instanceof Error ? err.message : String(err || '');
-      if (
-        errMsg.toLowerCase().includes('failed to fetch') ||
-        errMsg.toLowerCase().includes('network') ||
-        errMsg.toLowerCase().includes('jwt expired') ||
-        errMsg.toLowerCase().includes('permission denied')
-      ) {
-        mostrarErro('Erro de conexão ou autenticação ao buscar agendamentos.', 'Falha de Conexão');
-      }
+      const errMsg = err instanceof Error ? err.message : String(err || 'Erro ao consultar agendamentos.');
+      mostrarErro(errMsg, 'Erro ao Carregar Agenda');
     } finally {
       setCarregando(false);
     }

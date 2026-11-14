@@ -416,17 +416,21 @@ export class VendaService {
 
     // 2.1 Gravar agendamentos de serviços caso existam itens com agendamento
     let avisoAgendamento: string | undefined;
+    const listaItensInseridos = (itensInseridos || []) as Array<{ id?: string; produto_id?: string }>;
     const itensParaSincronizarAgenda = itens
       .map((it, idx) => {
-        const itemInserido = itensInseridos?.[idx] as { id?: string } | undefined;
-        if (!it.agendamento || !itemInserido?.id) return null;
+        if (!it.agendamento) return null;
+        const itemInserido =
+          listaItensInseridos[idx]?.produto_id === it.produto.id
+            ? listaItensInseridos[idx]
+            : listaItensInseridos[idx] || listaItensInseridos.find((row) => row.produto_id === it.produto.id);
         return {
-          itemPedidoId: itemInserido.id,
+          itemPedidoId: itemInserido?.id || null,
           produtoId: it.produto.id,
           agendamento: it.agendamento
         };
       })
-      .filter((x): x is { itemPedidoId: string; produtoId: string; agendamento: ItemAgendamentoInfo } => x !== null);
+      .filter((x): x is { itemPedidoId: string | null; produtoId: string; agendamento: ItemAgendamentoInfo } => x !== null);
 
     if (itensParaSincronizarAgenda.length > 0) {
       const resAgenda = await agendamentoService.sincronizarAgendamentosPedidoPdv({

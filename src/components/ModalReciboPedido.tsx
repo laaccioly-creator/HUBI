@@ -6,7 +6,10 @@ import {
   Edit,
   Loader2,
   Download,
-  Copy
+  Copy,
+  Calendar,
+  Clock,
+  User
 } from 'lucide-react';
 import { Pedido, Loja, ItemPedido, Cliente } from '../types';
 import { supabase } from '../lib/supabase';
@@ -42,7 +45,7 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
   const isDark = tema === 'dark';
   const [pedidoCompleto, setPedidoCompleto] = useState<Pedido | null>(null);
   const [lojaCompleta, setLojaCompleta] = useState<Loja | null>(lojaProp || null);
-  const [agendamentoServico, setAgendamentoServico] = useState<AgendamentoReciboInput | null>(null);
+  const [agendamentosServico, setAgendamentosServico] = useState<AgendamentoReciboInput[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [baixandoPdf, setBaixandoPdf] = useState<boolean>(false);
   const [copiado, setCopiado] = useState<boolean>(false);
@@ -54,7 +57,7 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
     async function carregarDetalhes() {
       if (!isOpen || !pedido) {
         setPedidoCompleto(null);
-        setAgendamentoServico(null);
+        setAgendamentosServico([]);
         return;
       }
 
@@ -75,7 +78,17 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
           !lojaProp && idLojaAlvo
             ? supabase.from('lojas').select('*').eq('id', idLojaAlvo).maybeSingle()
             : Promise.resolve({ data: lojaProp || null }),
-          supabase.from('agendamentos_servicos').select('*').eq('pedido_id', pedido.id).maybeSingle(),
+          (idLojaAlvo
+            ? supabase
+                .from('agendamentos_servicos')
+                .select('*, produto:produtos(nome), profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(nome_completo)')
+                .eq('loja_id', idLojaAlvo)
+                .eq('pedido_id', pedido.id)
+            : supabase
+                .from('agendamentos_servicos')
+                .select('*, produto:produtos(nome), profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(nome_completo)')
+                .eq('pedido_id', pedido.id)
+          ),
           pedido.cliente_id && (!pedido.cliente || !pedido.cliente.endereco_logradouro)
             ? supabase
                 .from('clientes')
@@ -112,10 +125,12 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
           ? (lojaRes.value as { data: Loja }).data
           : lojaProp || null;
 
-        const agendamentoCarregado =
-          agendamentoRes.status === 'fulfilled' && (agendamentoRes.value as { data?: AgendamentoReciboInput | null })?.data
-            ? (agendamentoRes.value as { data: AgendamentoReciboInput }).data
-            : (pedido.agendamentos && pedido.agendamentos[0]) || null;
+        const agendamentosCarregados: AgendamentoReciboInput[] =
+          agendamentoRes.status === 'fulfilled' &&
+          Array.isArray((agendamentoRes.value as { data?: AgendamentoReciboInput[] | null })?.data) &&
+          ((agendamentoRes.value as { data: AgendamentoReciboInput[] }).data.length > 0)
+            ? (agendamentoRes.value as { data: AgendamentoReciboInput[] }).data
+            : pedido.agendamentos || [];
 
         const clienteCarregado =
           clienteRes.status === 'fulfilled' && (clienteRes.value as { data?: Cliente | null })?.data
@@ -151,7 +166,7 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
               } as Cliente)
             : clienteCarregado;
 
-        setAgendamentoServico(agendamentoCarregado);
+        setAgendamentosServico(agendamentosCarregados);
         setLojaCompleta(lojaFinal);
         setPedidoCompleto({
           ...pedido,
@@ -159,7 +174,7 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
           itens,
           pagamentos,
           pedido_entregas: pedidoEntregas,
-          agendamentos: agendamentoCarregado ? [agendamentoCarregado as never] : pedido.agendamentos
+          agendamentos: agendamentosCarregados.length > 0 ? (agendamentosCarregados as never) : pedido.agendamentos
         } as Pedido);
       } catch (err) {
         console.warn('[ModalReciboPedido] Erro ao carregar detalhes do recibo:', err);
@@ -241,7 +256,7 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
     pedAtual,
     pedAtual.itens,
     lojaAtual,
-    agendamentoServico
+    agendamentosServico
   );
   const subtotalProdutos = Number((pedAtual as { subtotal_produtos?: number }).subtotal_produtos || pedAtual.subtotal || pedAtual.valor_total || 0);
   const valorDesconto = Number(pedAtual.valor_desconto || 0);
@@ -555,6 +570,48 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
                   </div>
                 ) : null}
               </div>
+
+              {dadosRecibo.agendamentosFormatados.length > 0 && (
+                <div className="mt-4 pt-3 border-t border-slate-200">
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 space-y-2.5">
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+                      <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span>
+                        {dadosRecibo.agendamentosFormatados.length > 1
+                          ? 'AGENDAMENTOS DO PEDIDO'
+                          : 'AGENDAMENTO DO SERVIÇO'}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {dadosRecibo.agendamentosFormatados.map((ag) => (
+                        <div
+                          key={ag.id}
+                          className="rounded-lg border border-emerald-200/80 bg-white/80 p-2.5 text-xs space-y-1"
+                        >
+                          <p className="font-bold text-slate-900 leading-snug">
+                            Serviço: <span className="font-semibold text-emerald-900">{ag.servicoNome}</span>
+                          </p>
+                          <p className="text-slate-700 flex items-center gap-1.5">
+                            <User className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <span>
+                              Profissional: <strong className="text-slate-900">{ag.profissionalNome}</strong>
+                            </span>
+                          </p>
+                          <p className="text-slate-700 flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <span>
+                              Data e Horário:{' '}
+                              <strong className="text-emerald-800">
+                                {ag.dataFormatada} {ag.horarioFormatado}
+                              </strong>
+                            </span>
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

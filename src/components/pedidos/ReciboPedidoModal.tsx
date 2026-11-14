@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { X, Store, Printer, Share2, Download, CheckCircle2, MessageCircle, Receipt } from 'lucide-react';
+import { X, Store, Printer, Share2, Download, CheckCircle2, MessageCircle, Receipt, Calendar, Clock, User } from 'lucide-react';
 import { Pedido } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { obterDadosPagamentoRecibo, formatarDataRecibo, PrintService } from '../../services/printService';
@@ -7,7 +7,7 @@ import { ReceiptPdfService } from '../../services/receiptPdfService';
 import { obterInfoVencimentoFiado, extrairInfoPagamentoEntrega } from '../../utils/statusPedidoUtils';
 import { extrairObservacaoLimpa, formatarMoeda } from '../../utils/formatters';
 import { extrairInfoVisitaPedido } from '../../utils/taxaDomicilioUtils';
-import { resolverDadosReciboPedido } from '../../utils/reciboServicoHelper';
+import { AgendamentoReciboInput, resolverDadosReciboPedido } from '../../utils/reciboServicoHelper';
 import { detectarServicoPorCodigo } from '../../utils/correiosValidator';
 import { formatarNomeTransportadora } from '../../utils/shippingDisplay';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -39,7 +39,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
   const reciboRef = useRef<HTMLDivElement>(null);
   const ultimoPedidoDisparadoRef = useRef<string | null>(null);
   const [resultadoHibrido, setResultadoHibrido] = useState<ResultadoDisparoHibrido | null>(null);
-  const [agendamentosCarregados, setAgendamentosCarregados] = useState<any[]>([]);
+  const [agendamentosCarregados, setAgendamentosCarregados] = useState<NonNullable<Pedido['agendamentos']>>([]);
   const [clienteCarregado, setClienteCarregado] = useState<Pedido['cliente'] | null>(null);
 
   useEffect(() => {
@@ -52,16 +52,24 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
     }
     let ativo = true;
     void (async () => {
-      if (pedido.agendamentos && pedido.agendamentos.length > 0) {
+      const jaTemDadosCompletos =
+        Boolean(pedido.agendamentos && pedido.agendamentos.length > 0) &&
+        (pedido.agendamentos || []).every((ag) => Boolean((ag as AgendamentoReciboInput).profissional));
+
+      if (jaTemDadosCompletos && pedido.agendamentos) {
         setAgendamentosCarregados(pedido.agendamentos);
       } else {
         const { data } = await supabase
           .from('agendamentos_servicos')
-          .select('id, produto_id, item_pedido_id, modalidade_local, endereco_prestacao_snapshot, data_agendamento, hora_inicio')
+          .select(
+            '*, produto:produtos(nome), profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(nome_completo)'
+          )
           .eq('loja_id', String(loja.id))
           .eq('pedido_id', pedido.id);
-        if (ativo && data) {
-          setAgendamentosCarregados(data);
+        if (ativo && data && data.length > 0) {
+          setAgendamentosCarregados(data as NonNullable<Pedido['agendamentos']>);
+        } else if (ativo && pedido.agendamentos && pedido.agendamentos.length > 0) {
+          setAgendamentosCarregados(pedido.agendamentos);
         }
       }
 
@@ -104,11 +112,12 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
     };
   }, [isOpen, pedido?.id, pedido?.agendamentos, pedido?.cliente_id, pedido?.cliente, loja?.id]);
 
-  const pedidoComAgendamentos = useMemo(() => {
+  const pedidoComAgendamentos = useMemo<Pedido | null>(() => {
     if (!pedido) return null;
-    const comAg = agendamentosCarregados.length > 0 && !(pedido.agendamentos && pedido.agendamentos.length > 0)
-      ? { ...pedido, agendamentos: agendamentosCarregados }
-      : pedido;
+    const comAg: Pedido =
+      agendamentosCarregados.length > 0
+        ? { ...pedido, agendamentos: agendamentosCarregados }
+        : pedido;
     if (clienteCarregado) {
       return { ...comAg, cliente: clienteCarregado };
     }
@@ -757,6 +766,48 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
               ) : null}
             </div>
 
+            {dadosRecibo.agendamentosFormatados.length > 0 && (
+              <div className="border-t border-slate-200 border-dashed pt-3">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 space-y-2.5">
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+                    <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>
+                      {dadosRecibo.agendamentosFormatados.length > 1
+                        ? 'AGENDAMENTOS DO PEDIDO'
+                        : 'AGENDAMENTO DO SERVIÇO'}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {dadosRecibo.agendamentosFormatados.map((ag) => (
+                      <div
+                        key={ag.id}
+                        className="rounded-lg border border-emerald-200/80 bg-white/80 p-2.5 text-xs space-y-1"
+                      >
+                        <p className="font-bold text-slate-900 leading-snug">
+                          Serviço: <span className="font-semibold text-emerald-900">{ag.servicoNome}</span>
+                        </p>
+                        <p className="text-slate-700 flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span>
+                            Profissional: <strong className="text-slate-900">{ag.profissionalNome}</strong>
+                          </span>
+                        </p>
+                        <p className="text-slate-700 flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span>
+                            Data e Horário:{' '}
+                            <strong className="text-emerald-800">
+                              {ag.dataFormatada} {ag.horarioFormatado}
+                            </strong>
+                          </span>
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {obsLimpa && (
               <div className="border-t border-slate-200 border-dashed pt-2 text-[10px] text-slate-600">
                 <strong className="text-slate-800">Obs:</strong> {obsLimpa}
@@ -785,7 +836,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
         }`}>
           <button
             type="button"
-            onClick={() => onImprimir ? onImprimir(pedido) : PrintService.printReceipt(pedido, loja, '80mm')}
+            onClick={() => onImprimir ? onImprimir(pedidoComAgendamentos || pedido) : PrintService.printReceipt(pedidoComAgendamentos || pedido, loja, '80mm')}
             className="flex-1 font-bold px-2 py-2.5 rounded-xl border border-emerald-600 bg-emerald-600 hover:bg-emerald-500 text-white transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs"
             title="Imprimir Cupom Térmico 58mm/80mm"
           >
@@ -795,7 +846,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
 
           <button
             type="button"
-            onClick={() => PrintService.printReceipt(pedido, loja, 'a4')}
+            onClick={() => PrintService.printReceipt(pedidoComAgendamentos || pedido, loja, 'a4')}
             className="flex-1 font-bold px-2 py-2.5 rounded-xl border border-emerald-600 bg-emerald-600 hover:bg-emerald-500 text-white transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs"
             title="Imprimir Folha A4"
           >
@@ -806,10 +857,11 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
           <button
             type="button"
             onClick={async () => {
+              const pedidoEfetivo = pedidoComAgendamentos || pedido;
               if (reciboRef.current) {
-                await ReceiptPdfService.baixarPdfRecibo(reciboRef.current, pedido, loja);
+                await ReceiptPdfService.baixarPdfRecibo(reciboRef.current, pedidoEfetivo, loja);
               } else {
-                PrintService.printReceipt(pedido, loja, 'a4');
+                PrintService.printReceipt(pedidoEfetivo, loja, 'a4');
               }
             }}
             className="flex-1 font-bold px-2 py-2.5 rounded-xl border border-emerald-600 bg-emerald-600 hover:bg-emerald-500 text-white transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs"
@@ -822,13 +874,14 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
           <button
             type="button"
             onClick={() => {
+              const pedidoEfetivo = pedidoComAgendamentos || pedido;
               if (onCompartilharWhatsApp) {
-                onCompartilharWhatsApp(pedido);
+                onCompartilharWhatsApp(pedidoEfetivo);
               } else if (reciboRef.current) {
-                ReceiptPdfService.compartilharReciboWhatsApp(reciboRef.current, pedido, loja);
+                ReceiptPdfService.compartilharReciboWhatsApp(reciboRef.current, pedidoEfetivo, loja);
               } else {
-                const tel = pedido.cliente?.whatsapp || pedido.cliente?.telefone || '';
-                const msg = PrintService.generateWhatsAppMessage(pedido, loja);
+                const tel = pedidoEfetivo.cliente?.whatsapp || pedidoEfetivo.cliente?.telefone || '';
+                const msg = PrintService.generateWhatsAppMessage(pedidoEfetivo, loja);
                 PrintService.openWhatsApp(tel, msg);
               }
             }}
