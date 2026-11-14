@@ -1755,5 +1755,37 @@ Esperamos por você!`.trim();
       itensManuais,
       erros
     };
+  },
+
+  /**
+   * Busca os agendamentos vigentes (não cancelados/faltosos e deduplicados por quantidade contratada)
+   * vinculados a um pedido específico da loja.
+   */
+  async buscarAgendamentosVigentesDoPedido(
+    lojaId: string,
+    pedidoId: string,
+    itensPedido?: ItemPedidoFiltroAgendamentoInput[] | null
+  ): Promise<AgendamentoServico[]> {
+    if (!lojaId || !pedidoId) return [];
+
+    const { data, error } = await supabase
+      .from('agendamentos_servicos')
+      .select(
+        '*, produto:produtos(nome), profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(nome_completo)'
+      )
+      .eq('loja_id', lojaId)
+      .eq('pedido_id', pedidoId)
+      .neq('status_agendamento', 'cancelado')
+      .order('atualizado_em', { ascending: false })
+      .order('criado_em', { ascending: false });
+
+    if (error || !data) {
+      return [];
+    }
+
+    return filtrarAgendamentosVigentesDoPedido(
+      data as Array<AgendamentoServico & AgendamentoVigenteFiltroInput>,
+      itensPedido
+    );
   }
 };

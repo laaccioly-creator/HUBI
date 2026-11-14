@@ -564,7 +564,10 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
   // Identificação de integrações ativas ou configuradas (estritamente booleanas)
   const temUber = Boolean(configLoja?.uber_ativo === true);
-  const temMelhorEnvio = Boolean(configLoja?.melhor_envio_ativo === true);
+  const melhorEnvioConfigurado = Boolean(
+    configLoja?.melhor_envio_ativo === true && Boolean(configLoja?.melhor_envio_token?.trim())
+  );
+  const temMelhorEnvio = melhorEnvioConfigurado;
   const temFreteProprio = Boolean(configLoja?.frete_proprio_ativo === true);
   const temFormasEntregaEnvio = formasEntrega.some(f => f.tipo !== 'retirada');
   const temIntegracoesAtivas = Boolean(temUber || temMelhorEnvio || temFreteProprio || temFormasEntregaEnvio);
@@ -697,7 +700,11 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   }, [formasEntrega, temFreteProprio, configLoja, subtotal, lojaId, appsCadastrados, transportadorasCadastradas]);
 
   const limiteDeclaracaoConteudo = Number(configLoja?.limite_declaracao_conteudo ?? 1000);
-  const excedeLimiteSemNfe = !ehCatalogo && subtotal > limiteDeclaracaoConteudo && !possuiNfe;
+  const excedeLimiteSemNfe =
+    !ehCatalogo &&
+    melhorEnvioConfigurado &&
+    subtotal > limiteDeclaracaoConteudo &&
+    !possuiNfe;
 
   // Se a loja não permite retirada, garantir que a modalidade seja estritamente 'entrega'
   useEffect(() => {
@@ -1799,8 +1806,8 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
             </div>
           ) : (
             <div className="space-y-3">
-              {/* Alerta Orientativo quando o valor dos produtos excede o limite sem NF-e */}
-              {!ehCatalogo && excedeLimiteSemNfe && (
+              {/* Alerta Orientativo quando o valor dos produtos excede o limite sem NF-e com Melhor Envio ativo */}
+              {!ehCatalogo && melhorEnvioConfigurado && excedeLimiteSemNfe && (
                 <div className={`p-3.5 rounded-2xl border flex items-start gap-3 text-xs ${
                   ehDark ? 'bg-amber-950/30 border-amber-500/50 text-amber-200' : 'bg-amber-50 border-amber-300 text-amber-900 shadow-xs'
                 }`}>
@@ -2353,7 +2360,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                   ) : (
                     /* Lista de Cotações Automáticas */
                     <div className="space-y-2">
-                      {subtotal > limiteDeclaracaoConteudo && opcoesCotacaoExibidas.some(c => c.provedor === 'melhor_envio') && (
+                      {melhorEnvioConfigurado && subtotal > limiteDeclaracaoConteudo && !possuiNfe && opcoesCotacaoExibidas.some(c => c.provedor === 'melhor_envio') && (
                         <div className={`p-3 rounded-xl border flex items-start gap-2.5 text-xs ${
                           ehDark ? 'bg-amber-950/20 border-amber-500/40 text-amber-200' : 'bg-amber-50 border-amber-300 text-amber-900'
                         }`}>

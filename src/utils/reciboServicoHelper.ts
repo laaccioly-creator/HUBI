@@ -460,3 +460,159 @@ export const resolverDadosReciboPedido = (
     agendamentosFormatados
   };
 };
+
+export interface ResumoFinanceiroPedido {
+  subtotalProdutos: number;
+  subtotalServicos: number;
+  taxaVisitaDomicilio: number;
+  valorFreteEntrega: number;
+  valorDesconto: number;
+  valorTotal: number;
+  exibirFreteEntrega: boolean;
+}
+
+/**
+ * Calcula a composição financeira padronizada de um pedido (alinhada ao ReciboPedidoModal).
+ */
+export const calcularResumoFinanceiroPedido = (
+  pedido: PedidoReciboInput,
+  agendamentos?: AgendamentoReciboInput[] | null
+): ResumoFinanceiroPedido => {
+  const agendamentosAtivos =
+    agendamentos && agendamentos.length > 0 ? agendamentos : undefined;
+  const dados = resolverDadosReciboPedido(pedido, null, null, agendamentosAtivos);
+
+  return {
+    subtotalProdutos: dados.subtotalProdutos,
+    subtotalServicos: dados.subtotalServicos,
+    taxaVisitaDomicilio: dados.taxaVisitaDomicilio,
+    valorFreteEntrega: dados.valorFreteProdutos,
+    valorDesconto: Number(pedido.valor_desconto || 0),
+    valorTotal: Number(pedido.valor_total || 0),
+    exibirFreteEntrega: dados.subtotalProdutos > 0
+  };
+};
+
+export interface DetalheAgendamentoPedidoCard {
+  id: string;
+  servicoNome: string;
+  profissionalNome: string;
+  dataHorarioTexto: string;
+  modalidadeLocal: 'loja' | 'externo';
+  badgeModalidadeLabel: 'Na Loja' | 'Em Domicílio';
+  localAtendimentoTexto: string;
+  statusAgendamento: string;
+  statusLabel: string;
+}
+
+const mapearStatusAgendamentoLabel = (status?: string | null): string => {
+  switch (status) {
+    case 'confirmado':
+      return 'Confirmado';
+    case 'em_andamento':
+      return 'Em Atendimento';
+    case 'concluido':
+      return 'Concluído';
+    case 'faltou':
+      return 'Faltou';
+    case 'cancelado':
+      return 'Cancelado';
+    default:
+      return 'Agendado';
+  }
+};
+
+/**
+ * Formata os agendamentos vigentes de um pedido para exibição no card "AGENDAMENTO DO SERVIÇO"
+ * das telas de detalhes do pedido (desktop e mobile).
+ */
+export const extrairDetalhesAgendamentosPedido = (
+  pedido: PedidoReciboInput,
+  agendamentos?: AgendamentoReciboInput[] | null,
+  loja?: Loja | null
+): DetalheAgendamentoPedidoCard[] => {
+  const listaItens = pedido.itens || pedido.itens_pedido || [];
+  const fonteBruta: AgendamentoReciboInput[] =
+    agendamentos && agendamentos.length > 0
+      ? agendamentos
+      : ((pedido.agendamentos || []) as AgendamentoReciboInput[]);
+  const vigentes = filtrarEDeduplicarAgendamentosRecibo<AgendamentoReciboInput>(fonteBruta, listaItens);
+
+  if (vigentes.length === 0) {
+    return [];
+  }
+
+  const dados = resolverDadosReciboPedido(pedido, listaItens, loja, vigentes);
+
+  const enderecoFallbackDomicilio =
+    formatarEnderecoCliente(pedido.cliente || pedido.clientes || null) ||
+    (!isSnapshotGenerico(pedido.endereco_entrega) ? pedido.endereco_entrega?.trim() || null : null) ||
+    (dados.isAtendimentoDomicilio ? dados.enderecoFormatado : null);
+
+  return vigentes
+    .filter((ag) => Boolean(ag.data_agendamento || ag.hora_inicio || ag.profissional || ag.produto || ag.produto_id))
+    .map((ag, idx) => {
+      const formatado = dados.agendamentosFormatados[idx];
+      const itemCorrespondente = listaItens.find(
+        (it) =>
+          (Boolean(ag.item_pedido_id) && it.id === ag.item_pedido_id) ||
+          (Boolean(ag.produto_id) && it.produto_id === ag.produto_id)
+      );
+
+      const servicoNome =
+        formatado?.servicoNome ||
+        ag.produto?.nome?.trim() ||
+        ag.produto_nome?.trim() ||
+        itemCorrespondente?.nome_produto?.trim() ||
+        'Serviço Agendado';
+
+      const profissionalNome =
+        formatado?.profissionalNome ||
+        ag.profissional?.nome_completo?.trim() ||
+        ag.profissional?.nome?.trim() ||
+        ag.profissional_nome?.trim() ||
+        'Profissional da Loja';
+
+      const dataFmt = formatado?.dataFormatada || formatarDataAgendamentoRecibo(ag.data_agendamento) || 'A confirmar';
+      const horaIni = formatarHoraCurtaRecibo(ag.hora_inicio);
+      const horaFim = formatarHoraCurtaRecibo(ag.hora_fim);
+      const horarioFmt =
+        formatado?.horarioFormatado ||
+        (horaIni && horaFim ? `das ${horaIni} às ${horaFim}` : horaIni ? `às ${horaIni}` : '');
+
+      const dataHorarioTexto = horarioFmt ? `${dataFmt} ${horarioFmt}`.trim() : dataFmt;
+
+      const modalidadeLocal: 'loja' | 'externo' =
+        ag.modalidade_local === 'externo'
+          ? 'externo'
+          : ag.modalidade_local === 'loja'
+          ? 'loja'
+          : dados.isAtendimentoDomicilio
+          ? 'externo'
+          : 'loja';
+
+      const snapshotValido =
+        ag.endereco_prestacao_snapshot?.trim() && !isSnapshotGenerico(ag.endereco_prestacao_snapshot)
+          ? ag.endereco_prestacao_snapshot.trim()
+          : null;
+
+      const localAtendimentoTexto =
+        modalidadeLocal === 'externo'
+          ? snapshotValido || enderecoFallbackDomicilio || 'Atendimento em Domicílio'
+          : 'Atendimento na Loja';
+
+      const statusAgendamento = ag.status_agendamento || 'agendado';
+
+      return {
+        id: ag.id || `ag-detalhe-${idx}`,
+        servicoNome,
+        profissionalNome,
+        dataHorarioTexto,
+        modalidadeLocal,
+        badgeModalidadeLabel: modalidadeLocal === 'externo' ? 'Em Domicílio' : 'Na Loja',
+        localAtendimentoTexto,
+        statusAgendamento,
+        statusLabel: mapearStatusAgendamentoLabel(statusAgendamento)
+      };
+    });
+};

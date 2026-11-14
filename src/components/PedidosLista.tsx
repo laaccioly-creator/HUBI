@@ -47,7 +47,8 @@ import {
   Navigation,
   ShoppingBag,
   Scale,
-  Home
+  Home,
+  Calendar
 } from 'lucide-react';
 import { extrairInfoVisitaPedido } from '../utils/taxaDomicilioUtils';
 import { supabase } from '../lib/supabase';
@@ -61,6 +62,14 @@ import { MelhorEnvioService } from '../services/melhorEnvioService';
 import { mercadoLivreService } from '../services/mercadoLivreService';
 import { Pedido, StatusPedido, StatusPagamento, TabelaPreco, ItemPedido, Produto, Cliente, UsuarioLoja, EventoGatilhoWhatsapp } from '../types';
 import { PedidoEntrega, Transportadora } from '../types/shipping';
+import { AgendamentoServico } from '../types/agendamento';
+import { agendamentoService, filtrarAgendamentosVigentesDoPedido } from '../services/agendamentoService';
+import {
+  calcularResumoFinanceiroPedido,
+  extrairDetalhesAgendamentosPedido,
+  type AgendamentoReciboInput,
+  type PedidoReciboInput
+} from '../utils/reciboServicoHelper';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { whatsappWalletService } from '../services/whatsappWalletService';
 import { extrairObservacaoLimpa, formatarMoeda } from '../utils/formatters';
@@ -619,6 +628,7 @@ export const PedidosLista: React.FC = () => {
   const [modalContingenciaAberto, setModalContingenciaAberto] = useState<boolean>(false);
   const [executandoContingencia, setExecutandoContingencia] = useState<boolean>(false);
   const [entregaPedido, setEntregaPedido] = useState<PedidoEntrega | null>(null);
+  const [agendamentosPedido, setAgendamentosPedido] = useState<AgendamentoServico[]>([]);
 
   // Modal para capturar CPF/CNPJ do cliente para o Melhor Envio sem travar o lojista
   const [modalCpfClienteAberto, setModalCpfClienteAberto] = useState<boolean>(false);
@@ -690,6 +700,39 @@ export const PedidosLista: React.FC = () => {
       setEntregaPedido(null);
     }
   }, [pedidoSelecionado?.id]);
+
+  useEffect(() => {
+    let ativo = true;
+    const pedidoId = pedidoSelecionado?.id;
+    const lojaId = loja?.id ? String(loja.id) : '';
+
+    if (!pedidoId || !lojaId) {
+      setAgendamentosPedido([]);
+      return;
+    }
+
+    const itensDoPedido = pedidoSelecionado.itens || pedidoSelecionado.itens_pedido || [];
+    const iniciais = filtrarAgendamentosVigentesDoPedido(
+      (pedidoSelecionado.agendamentos || []) as Array<AgendamentoServico & AgendamentoReciboInput>,
+      itensDoPedido
+    );
+    setAgendamentosPedido(iniciais);
+
+    agendamentoService
+      .buscarAgendamentosVigentesDoPedido(lojaId, pedidoId, itensDoPedido)
+      .then((vigentes) => {
+        if (ativo) {
+          setAgendamentosPedido(vigentes);
+        }
+      })
+      .catch(() => {
+        // Mantém fallback em memória caso a consulta falhe
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [pedidoSelecionado?.id, loja?.id]);
 
   const [copiado, setCopiado] = useState<boolean>(false);
   const [somAtivo, setSomAtivo] = useState<boolean>(true);
@@ -3693,6 +3736,96 @@ export const PedidosLista: React.FC = () => {
                 );
               })()}
 
+              {/* Card Agendamento do Serviço */}
+              {(() => {
+                const detalhesAgendamentos = extrairDetalhesAgendamentosPedido(
+                  pedidoSelecionado as PedidoReciboInput,
+                  agendamentosPedido as AgendamentoReciboInput[],
+                  loja
+                );
+                if (detalhesAgendamentos.length === 0) return null;
+
+                return (
+                  <div className={`rounded-3xl p-5 space-y-4 shadow-xs ${isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-emerald-500" />
+                        <h3 className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                          {detalhesAgendamentos.length > 1 ? 'AGENDAMENTOS DO SERVIÇO' : 'AGENDAMENTO DO SERVIÇO'}
+                        </h3>
+                      </div>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide border ${
+                        detalhesAgendamentos[0].modalidadeLocal === 'externo'
+                          ? (isDark ? 'bg-amber-950/50 text-amber-300 border-amber-800/60' : 'bg-amber-50 text-amber-700 border-amber-200')
+                          : (isDark ? 'bg-emerald-950/50 text-emerald-300 border-emerald-800/60' : 'bg-emerald-50 text-emerald-700 border-emerald-200')
+                      }`}>
+                        {detalhesAgendamentos[0].badgeModalidadeLabel}
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {detalhesAgendamentos.map((ag) => (
+                        <div
+                          key={ag.id}
+                          className={`rounded-2xl p-4 space-y-2 border ${
+                            isDark
+                              ? 'bg-emerald-950/20 border-emerald-800/50'
+                              : 'bg-emerald-50/60 border-emerald-200'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <p className={`text-xs font-bold leading-snug ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                              Serviço: {ag.servicoNome}
+                            </p>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {detalhesAgendamentos.length > 1 && (
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                  ag.modalidadeLocal === 'externo'
+                                    ? (isDark ? 'bg-amber-950/50 text-amber-300 border-amber-800/60' : 'bg-amber-50 text-amber-700 border-amber-200')
+                                    : (isDark ? 'bg-emerald-950/50 text-emerald-300 border-emerald-800/60' : 'bg-emerald-50 text-emerald-700 border-emerald-200')
+                                }`}>
+                                  {ag.badgeModalidadeLabel}
+                                </span>
+                              )}
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                isDark ? 'bg-slate-900 text-slate-200 border-slate-700' : 'bg-white text-slate-700 border-slate-200'
+                              }`}>
+                                {ag.statusLabel}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className={`space-y-1.5 text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                            <div className="flex items-center gap-2">
+                              <User className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                              <span>
+                                Profissional: <strong className={isDark ? 'text-slate-100' : 'text-slate-900'}>{ag.profissionalNome}</strong>
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                              <span>
+                                Data e Horário: <strong className={isDark ? 'text-slate-100' : 'text-slate-900'}>{ag.dataHorarioTexto}</strong>
+                              </span>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              {ag.modalidadeLocal === 'externo' ? (
+                                <Home className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                              ) : (
+                                <Store className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                              )}
+                              <span>
+                                Local: <strong className={isDark ? 'text-slate-100' : 'text-slate-900'}>{ag.localAtendimentoTexto}</strong>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Card Itens do Pedido (TELA002 / TELA002A) */}
               <div className={`rounded-3xl p-5 space-y-4 shadow-xs ${isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
                 <div className={`flex items-center justify-between border-b pb-3 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
@@ -3766,81 +3899,70 @@ export const PedidosLista: React.FC = () => {
 
                 <div className="space-y-2 text-xs">
                   {(() => {
-                    const infoVisita = extrairInfoVisitaPedido(pedidoSelecionado, loja);
+                    const resumo = calcularResumoFinanceiroPedido(
+                      pedidoSelecionado as PedidoReciboInput,
+                      agendamentosPedido as AgendamentoReciboInput[]
+                    );
 
                     return (
                       <>
-                        {(!infoVisita.temServicoExterno && infoVisita.totalServicos === 0) ? (
+                        {resumo.subtotalProdutos > 0 && (
                           <div className={`flex justify-between ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
-                            <span>Subtotal de produtos</span>
-                            <span className="font-bold">
-                              R$ {Number(pedidoSelecionado.subtotal || pedidoSelecionado.valor_total || 0).toFixed(2)}
-                            </span>
+                            <span>Subtotal dos Produtos:</span>
+                            <span className="font-bold">{formatarMoeda(resumo.subtotalProdutos)}</span>
                           </div>
-                        ) : (
-                          <>
-                            {infoVisita.subtotalProdutos > 0 && (
-                              <div className={`flex justify-between ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
-                                <span>Subtotal de produtos</span>
-                                <span className="font-bold">
-                                  R$ {Number(infoVisita.subtotalProdutos).toFixed(2)}
-                                </span>
-                              </div>
-                            )}
-                            {infoVisita.subtotalServicos > 0 && (
-                              <div className={`flex justify-between ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
-                                <span>Valor do(s) serviço(s)</span>
-                                <span className="font-bold">
-                                  R$ {Number(infoVisita.subtotalServicos).toFixed(2)}
-                                </span>
-                              </div>
-                            )}
-                          </>
                         )}
 
-                        {Number(pedidoSelecionado.valor_desconto || 0) > 0 && (
+                        {resumo.subtotalServicos > 0 && (
+                          <div className={`flex justify-between ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
+                            <span>Subtotal dos Serviços:</span>
+                            <span className="font-bold">{formatarMoeda(resumo.subtotalServicos)}</span>
+                          </div>
+                        )}
+
+                        {resumo.taxaVisitaDomicilio > 0 && (
+                          <div className={`flex justify-between ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
+                            <span>Taxa de Visita (Domicílio):</span>
+                            <span className="font-bold">+ {formatarMoeda(resumo.taxaVisitaDomicilio)}</span>
+                          </div>
+                        )}
+
+                        {resumo.exibirFreteEntrega && (
+                          <div className={`flex justify-between ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
+                            <span>Frete de Entrega:</span>
+                            <span className={resumo.valorFreteEntrega === 0 ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'font-bold'}>
+                              {resumo.valorFreteEntrega > 0
+                                ? `+ ${formatarMoeda(resumo.valorFreteEntrega)}`
+                                : formatarMoeda(0)}
+                            </span>
+                          </div>
+                        )}
+
+                        {resumo.valorDesconto > 0 && (
                           <div className="flex justify-between text-rose-600 dark:text-rose-400 font-semibold">
-                            <span>Desconto</span>
-                            <span>-R$ {Number(pedidoSelecionado.valor_desconto).toFixed(2)}</span>
+                            <span>Desconto:</span>
+                            <span>- {formatarMoeda(resumo.valorDesconto)}</span>
                           </div>
                         )}
 
-                        {infoVisita.temServicoExterno ? (
-                          <div className={`flex justify-between ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
-                            <span>Taxa de atendimento a domicílio:</span>
-                            <span className={infoVisita.taxaVisitaIsenta ? "text-emerald-600 dark:text-emerald-400 font-bold" : "font-bold"}>
-                              {infoVisita.taxaVisitaIsenta
-                                ? 'Isenta (serviço aprovado)'
-                                : `R$ ${Number(infoVisita.taxaVisitaCobrada).toFixed(2)}`}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className={`flex justify-between ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
-                            <span>Valor do frete</span>
-                            <span className={Number(pedidoSelecionado.valor_frete || 0) === 0 ? "text-emerald-600 dark:text-emerald-400 font-bold" : "font-bold"}>
-                              {Number(pedidoSelecionado.valor_frete || 0) > 0
-                                ? `R$ ${Number(pedidoSelecionado.valor_frete).toFixed(2)}`
-                                : 'Grátis'}
-                            </span>
-                          </div>
-                        )}
+                        <div className={`flex justify-between text-base font-black pt-2 border-t ${isDark ? 'border-slate-800 text-slate-100' : 'border-slate-200 text-black'}`}>
+                          <span>Total</span>
+                          <span className="text-emerald-600 dark:text-emerald-400">
+                            {formatarMoeda(resumo.valorTotal)}
+                          </span>
+                        </div>
                       </>
                     );
                   })()}
 
-                  <div className={`flex justify-between text-base font-black pt-2 border-t ${isDark ? 'border-slate-800 text-slate-100' : 'border-slate-200 text-black'}`}>
-                    <span>Total</span>
-                    <span className="text-emerald-600 dark:text-emerald-400">
-                      R$ {Number(pedidoSelecionado.valor_total || 0).toFixed(2)}
-                    </span>
-                  </div>
-
                   {/* Lucro Estimado (TELA002) */}
-                  <div className="text-right pt-1">
-                    <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                      Lucro estimado: R$ {calcularLucroEstimado(pedidoSelecionado).toFixed(2)}
-                    </span>
-                  </div>
+                  {permissions.podeVerPrecoCusto && (
+                    <div className="text-right pt-1">
+                      <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                        Lucro estimado: {formatarMoeda(calcularLucroEstimado(pedidoSelecionado))}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 

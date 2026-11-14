@@ -492,8 +492,8 @@ export class ShippingOrchestrator {
       );
     }
 
-    // 2. Melhor Envio v2 - APENAS se ativado explicitamente na loja
-    if (config?.melhor_envio_ativo === true) {
+    // 2. Melhor Envio v2 - APENAS se ativado explicitamente e com token configurado na loja
+    if (config?.melhor_envio_ativo === true && Boolean(config?.melhor_envio_token?.trim())) {
       promessas.push(
         MelhorEnvioService.cotarFretes(config, destino_cep, subtotal, itens, pacote)
           .then(opcoes => ({ provedor: 'melhor_envio' as const, valor: opcoes }))
