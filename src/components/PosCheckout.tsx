@@ -46,6 +46,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { useCart, FORMA_ENTREGA_RETIRADA_PADRAO, CartItem } from '../contexts/CartContext';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -277,7 +278,7 @@ export const PosCheckout: React.FC = () => {
   const [freteConfirmado, setFreteConfirmado] = useState<boolean>(false);
   const [subTelaMobile, setSubTelaMobile] = useState<SubTelaMobile>('vender');
 
-  const ehEnvio = pedidoEntrega?.tipo_atendimento === 'entrega';
+  const ehEnvio = temProdutoFisico && pedidoEntrega?.tipo_atendimento === 'entrega' && (!isPedidoHibrido || !levarProdutoNoAtendimento);
   const temCliente = Boolean(clienteSelecionado && clienteSelecionado.id);
   const isFreteConfirmado = freteConfirmado || Boolean(
     ehEnvio &&
@@ -397,9 +398,13 @@ export const PosCheckout: React.FC = () => {
   const [modalCameraBarcode, setModalCameraBarcode] = useState<boolean>(false);
   const [clienteBuscaTexto, setClienteBuscaTexto] = useState<string>('');
   const [clienteDropdownAberto, setClienteDropdownAberto] = useState<boolean>(false);
+  const [tipoVendaDropdownAberto, setTipoVendaDropdownAberto] = useState<boolean>(false);
+  const [formaEntregaDropdownAberto, setFormaEntregaDropdownAberto] = useState<boolean>(false);
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const clienteDropdownRef = useRef<HTMLDivElement>(null);
+  const tipoVendaDropdownRef = useRef<HTMLDivElement>(null);
+  const formaEntregaDropdownRef = useRef<HTMLDivElement>(null);
   const inputClienteBuscaRef = useRef<HTMLInputElement>(null);
 
   const FORMAS_PADRAO: FormaPagamento[] = [
@@ -413,8 +418,15 @@ export const PosCheckout: React.FC = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (clienteDropdownRef.current && !clienteDropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (clienteDropdownRef.current && !clienteDropdownRef.current.contains(target)) {
         setClienteDropdownAberto(false);
+      }
+      if (tipoVendaDropdownRef.current && !tipoVendaDropdownRef.current.contains(target)) {
+        setTipoVendaDropdownAberto(false);
+      }
+      if (formaEntregaDropdownRef.current && !formaEntregaDropdownRef.current.contains(target)) {
+        setFormaEntregaDropdownAberto(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -422,6 +434,10 @@ export const PosCheckout: React.FC = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  useRegisterOverlay(clienteDropdownAberto, () => setClienteDropdownAberto(false), 'pdv-dropdown-cliente');
+  useRegisterOverlay(tipoVendaDropdownAberto, () => setTipoVendaDropdownAberto(false), 'pdv-dropdown-tipo-venda');
+  useRegisterOverlay(formaEntregaDropdownAberto, () => setFormaEntregaDropdownAberto(false), 'pdv-dropdown-forma-entrega');
 
   const clientesFiltrados = useMemo(() => {
     if (!clienteBuscaTexto.trim()) return clientes;
@@ -2696,10 +2712,16 @@ export const PosCheckout: React.FC = () => {
                       setClienteSelecionado(null);
                     }
                     setClienteBuscaTexto(e.target.value);
+                    setTipoVendaDropdownAberto(false);
+                    setFormaEntregaDropdownAberto(false);
                     setClienteDropdownAberto(true);
                   }}
                   onFocus={() => {
-                    if (!isEdicaoTravada) setClienteDropdownAberto(true);
+                    if (!isEdicaoTravada) {
+                      setTipoVendaDropdownAberto(false);
+                      setFormaEntregaDropdownAberto(false);
+                      setClienteDropdownAberto(true);
+                    }
                   }}
                   className={`w-full ${isDark ? 'bg-[#000000] border border-slate-700 text-slate-100 placeholder:text-slate-400' : 'bg-white border-2 border-slate-300 text-slate-900 placeholder:text-slate-400'} rounded-xl pl-9 pr-14 py-2 text-xs focus:outline-none focus:border-emerald-500 transition font-medium ${isEdicaoTravada ? 'opacity-70 cursor-not-allowed' : ''}`}
                 />
@@ -2721,7 +2743,11 @@ export const PosCheckout: React.FC = () => {
                   {!isEdicaoTravada && (
                     <button
                       type="button"
-                      onClick={() => setClienteDropdownAberto(prev => !prev)}
+                      onClick={() => {
+                        setTipoVendaDropdownAberto(false);
+                        setFormaEntregaDropdownAberto(false);
+                        setClienteDropdownAberto(prev => !prev);
+                      }}
                       className="p-1 text-slate-400 hover:text-slate-200 rounded-md transition cursor-pointer"
                       title="Ver lista completa de clientes"
                     >
@@ -2828,7 +2854,7 @@ export const PosCheckout: React.FC = () => {
 
           {/* SELETORES RÁPIDOS: TIPO DA VENDA & FORMA DE ENTREGA */}
           <div className="space-y-2">
-            {/* Linha 1: Tipo da Venda (oculto se apenas 1 modalidade estiver ativa) */}
+            {/* Linha 1: Tipo da Venda (Dropdown compacto unificado; oculto se apenas 1 modalidade estiver ativa) */}
             {(() => {
               const tiposAtivos = loja?.tipos_venda || loja?.configuracoes_extras?.tipos_venda_ativos || { varejo: true, atacado: true, distribuidor: true };
               const opcoes: { id: TabelaPreco; nome: string }[] = [];
@@ -2838,167 +2864,285 @@ export const PosCheckout: React.FC = () => {
 
               if (opcoes.length <= 1) return null;
 
-              return (
-                <div className={`p-2 rounded-xl flex items-center justify-between gap-2 border ${
-                  isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
-                }`}>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <Tag className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                    <span className={`text-[11px] font-semibold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Tipo da Venda:</span>
-                  </div>
+              const podeAlterarTabela = Boolean(permissions.ehAdmin && !isEdicaoTravada);
+              const labelTabelaAtual =
+                tabelaPrecoCalculada === 'autoatacado'
+                  ? 'Distribuidor'
+                  : tabelaPrecoCalculada === 'atacado'
+                  ? 'Atacado'
+                  : 'Varejo';
 
-                  {permissions.ehAdmin && !isEdicaoTravada ? (
-                    <div className={`flex items-center gap-1 p-0.5 rounded-lg border ${
-                      isDark ? 'bg-slate-900 border-slate-700' : 'bg-slate-100 border-slate-300'
-                    }`}>
-                      {opcoes.map((tab) => (
-                        <button
-                          key={tab.id}
-                          type="button"
-                          onClick={() => setTabelaPrecoGlobal(tab.id)}
-                          className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase transition cursor-pointer ${
-                            tabelaPrecoCalculada === tab.id
-                              ? 'bg-emerald-600 text-white shadow-sm'
-                              : isDark
-                              ? 'text-slate-400 hover:text-slate-200'
-                              : 'text-slate-700 hover:text-slate-900'
-                          }`}
-                        >
-                          {tab.nome}
-                        </button>
-                      ))}
+              return (
+                <div className="relative" ref={tipoVendaDropdownRef}>
+                  <button
+                    type="button"
+                    disabled={!podeAlterarTabela}
+                    onClick={() => {
+                      if (!podeAlterarTabela) return;
+                      setClienteDropdownAberto(false);
+                      setFormaEntregaDropdownAberto(false);
+                      setTipoVendaDropdownAberto(prev => !prev);
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl text-xs font-medium border flex items-center justify-between gap-2 transition ${
+                      isDark
+                        ? 'bg-[#000000] border-slate-700 text-slate-100'
+                        : 'bg-white border-2 border-slate-300 text-slate-900'
+                    } ${
+                      podeAlterarTabela
+                        ? 'cursor-pointer hover:border-emerald-500/60'
+                        : 'opacity-70 cursor-not-allowed'
+                    }`}
+                    title={
+                      podeAlterarTabela
+                        ? 'Selecionar tabela de preços da venda'
+                        : 'Tabela de preços definida pelas regras do cliente/status'
+                    }
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Tag className="w-4 h-4 text-slate-400 shrink-0" />
+                      <span className={`truncate ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                        Tipo da Venda:
+                      </span>
+                      <span className={`font-bold truncate ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                        {labelTabelaAtual}
+                      </span>
                     </div>
-                  ) : (
-                    <span className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded-lg border ${
-                      isDark ? 'text-slate-300 bg-slate-900 border-slate-700' : 'text-slate-900 bg-slate-100 border-slate-300'
-                    }`}>
-                      {tabelaPrecoCalculada === 'autoatacado' ? 'Distribuidor' : tabelaPrecoCalculada === 'atacado' ? 'Atacado' : 'Varejo'}
-                    </span>
+                    {podeAlterarTabela && (
+                      <span className="text-slate-400 shrink-0">
+                        {tipoVendaDropdownAberto ? (
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        ) : (
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        )}
+                      </span>
+                    )}
+                  </button>
+
+                  {tipoVendaDropdownAberto && podeAlterarTabela && (
+                    <div
+                      className={`absolute left-0 right-0 top-full mt-1.5 z-40 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in border ${
+                        isDark
+                          ? 'bg-[#000000] border-slate-700 text-white'
+                          : 'bg-white border-2 border-slate-300 text-slate-900'
+                      }`}
+                    >
+                      {opcoes.map((tab, idx) => {
+                        const selecionada = tabelaPrecoCalculada === tab.id;
+                        return (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => {
+                              setTabelaPrecoGlobal(tab.id);
+                              setTipoVendaDropdownAberto(false);
+                            }}
+                            className={`w-full px-3 py-2.5 text-left text-xs flex items-center justify-between gap-2 transition cursor-pointer ${
+                              idx < opcoes.length - 1
+                                ? isDark
+                                  ? 'border-b border-slate-800'
+                                  : 'border-b border-slate-100'
+                                : ''
+                            } ${
+                              selecionada
+                                ? isDark
+                                  ? 'bg-emerald-500/15 text-emerald-400 font-bold'
+                                  : 'bg-emerald-50 text-emerald-700 font-bold'
+                                : isDark
+                                ? 'text-slate-200 hover:bg-slate-900 font-medium'
+                                : 'text-slate-800 hover:bg-slate-50 font-medium'
+                            }`}
+                          >
+                            <span>{tab.nome}</span>
+                            {selecionada && <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
               );
             })()}
 
-            {/* Seletor de Logística para Pedido Híbrido (Produto Físico + Serviço) */}
-            {isPedidoHibrido && (
-              <div className={`p-2 rounded-xl space-y-1.5 shadow-2xs ${
-                isDark ? 'bg-[#000000] border border-emerald-500/40' : 'bg-emerald-50/70 border border-emerald-300'
-              }`}>
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-500">
-                  <Truck className="w-3.5 h-3.5 shrink-0" />
-                  <span>Entrega dos Produtos (Pedido Híbrido)</span>
-                </div>
-                <div className="grid grid-cols-1 gap-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLevarProdutoNoAtendimento?.(true);
-                      setFreteConfirmado(false);
-                    }}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition border cursor-pointer ${
-                      levarProdutoNoAtendimento
-                        ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm'
-                        : isDark
-                        ? 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
-                        : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
-                    {temServicoDomicilio
-                      ? 'Levar junto com o técnico no dia do serviço (Grátis)'
-                      : 'Retirar produto na loja junto com o serviço (Grátis)'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLevarProdutoNoAtendimento?.(false);
-                    }}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition border cursor-pointer ${
-                      !levarProdutoNoAtendimento
-                        ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm'
-                        : isDark
-                        ? 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
-                        : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
-                    {temServicoDomicilio
-                      ? 'Enviar produto antes por entrega / frete'
-                      : 'Entregar produto por frete'}
-                  </button>
-                </div>
-              </div>
-            )}
+            {/* Linha 2: Forma de Entrega (Dropdown compacto consolidado; oculto quando houver apenas serviços) */}
+            {temProdutoFisico && (() => {
+              const opcoesEntrega = isPedidoHibrido
+                ? temServicoDomicilio
+                  ? [
+                      {
+                        id: 'levar_junto',
+                        rotulo: 'Levar junto com o técnico no dia do serviço (Grátis)',
+                        selecionada: Boolean(levarProdutoNoAtendimento),
+                        ehFrete: false
+                      },
+                      {
+                        id: 'enviar_frete',
+                        rotulo: 'Enviar produto antes por frete',
+                        selecionada: !levarProdutoNoAtendimento,
+                        ehFrete: true
+                      }
+                    ]
+                  : [
+                      {
+                        id: 'retirar_junto',
+                        rotulo: 'Retirar produto na loja junto com o serviço (Grátis)',
+                        selecionada: Boolean(levarProdutoNoAtendimento),
+                        ehFrete: false
+                      },
+                      {
+                        id: 'entregar_frete',
+                        rotulo: 'Entregar produto por frete',
+                        selecionada: !levarProdutoNoAtendimento,
+                        ehFrete: true
+                      }
+                    ]
+                : [
+                    {
+                      id: 'retirada',
+                      rotulo: 'Retirada na Loja',
+                      selecionada: pedidoEntrega?.tipo_atendimento !== 'entrega',
+                      ehFrete: false
+                    },
+                    {
+                      id: 'entrega',
+                      rotulo: 'Envio / Entrega',
+                      selecionada: pedidoEntrega?.tipo_atendimento === 'entrega',
+                      ehFrete: true
+                    }
+                  ];
 
-            {/* Linha 2: Forma de Entrega */}
-            {(!isPedidoHibrido || !levarProdutoNoAtendimento) && temProdutoFisico && (
-            <div className={`p-2 rounded-xl flex items-center justify-between gap-2 border ${
-              isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
-            }`}>
-              <div className="flex items-center gap-1.5 min-w-0">
-                {pedidoEntrega?.tipo_atendimento === 'entrega' ? (
-                  <Truck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                ) : (
-                  <Store className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                )}
-                <span className={`text-[11px] font-semibold truncate ${isDark ? 'text-slate-400' : 'text-[#475569]'}`}>Forma de Entrega:</span>
-              </div>
+              const opcaoAtiva = opcoesEntrega.find(o => o.selecionada) || opcoesEntrega[0];
 
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => {
+              const selecionarOpcaoEntrega = (opcaoEhFrete: boolean) => {
+                if (!opcaoEhFrete) {
+                  if (isPedidoHibrido) {
+                    setLevarProdutoNoAtendimento?.(true);
+                  } else {
                     setTaxaEntrega(0);
                     setPedidoEntrega(FORMA_ENTREGA_RETIRADA_PADRAO);
-                    setFreteConfirmado(false);
-                  }}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
-                    pedidoEntrega?.tipo_atendimento !== 'entrega'
-                      ? 'bg-emerald-600 text-white shadow-sm'
-                      : isDark
-                      ? 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
-                      : 'bg-[#F1F5F9] text-[#334155] hover:text-[#0F172A] border border-[#E2E8F0]'
-                  }`}
-                >
-                  <Store className="w-3 h-3" />
-                  Retirada
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!clienteSelecionado?.id) {
-                      setTaxaEntrega(0);
-                      setPedidoEntrega(FORMA_ENTREGA_RETIRADA_PADRAO);
-                      setFreteConfirmado(false);
-                      mostrarToast('Para entregas (Envio), selecione primeiro o cliente para carregar o endereço de entrega.', 'aviso');
-                      if (inputClienteBuscaRef.current) {
-                        inputClienteBuscaRef.current.focus();
-                        inputClienteBuscaRef.current.select();
-                      }
-                      setClienteDropdownAberto(true);
-                      return;
-                    }
+                  }
+                  setFreteConfirmado(false);
+                  setFormaEntregaDropdownAberto(false);
+                  return;
+                }
+
+                if (!clienteSelecionado?.id) {
+                  setFormaEntregaDropdownAberto(false);
+                  if (isPedidoHibrido) {
+                    setLevarProdutoNoAtendimento?.(true);
+                  } else {
                     setTaxaEntrega(0);
-                    setPedidoEntrega({
-                      ...FORMA_ENTREGA_RETIRADA_PADRAO,
-                      tipo_atendimento: 'entrega',
-                      transportadora_nome: 'Envio a Definir',
-                      servico_codigo: 'pendente'
-                    });
-                    setFreteConfirmado(false);
-                  }}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
-                    pedidoEntrega?.tipo_atendimento === 'entrega'
-                      ? 'bg-emerald-600 text-white shadow-sm'
-                      : isDark
-                      ? 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
-                      : 'bg-[#F1F5F9] text-[#334155] hover:text-[#0F172A] border border-[#E2E8F0]'
-                  }`}
-                >
-                  <Truck className="w-3 h-3" />
-                  Envio
-                </button>
-              </div>
-            </div>
-            )}
+                    setPedidoEntrega(FORMA_ENTREGA_RETIRADA_PADRAO);
+                  }
+                  setFreteConfirmado(false);
+                  mostrarToast('Para entregas (Envio), selecione primeiro o cliente para carregar o endereço de entrega.', 'aviso');
+                  if (inputClienteBuscaRef.current) {
+                    inputClienteBuscaRef.current.focus();
+                    inputClienteBuscaRef.current.select();
+                  }
+                  setClienteDropdownAberto(true);
+                  return;
+                }
+
+                if (isPedidoHibrido) {
+                  setLevarProdutoNoAtendimento?.(false);
+                }
+                if (pedidoEntrega?.tipo_atendimento !== 'entrega') {
+                  setTaxaEntrega(0);
+                  setPedidoEntrega({
+                    ...FORMA_ENTREGA_RETIRADA_PADRAO,
+                    tipo_atendimento: 'entrega',
+                    transportadora_nome: 'Envio a Definir',
+                    servico_codigo: 'pendente'
+                  });
+                }
+                setFreteConfirmado(false);
+                setFormaEntregaDropdownAberto(false);
+              };
+
+              return (
+                <div className="relative" ref={formaEntregaDropdownRef}>
+                  <button
+                    type="button"
+                    disabled={isEdicaoTravada}
+                    onClick={() => {
+                      if (isEdicaoTravada) return;
+                      setClienteDropdownAberto(false);
+                      setTipoVendaDropdownAberto(false);
+                      setFormaEntregaDropdownAberto(prev => !prev);
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl text-xs font-medium border flex items-center justify-between gap-2 transition ${
+                      isDark
+                        ? 'bg-[#000000] border-slate-700 text-slate-100'
+                        : 'bg-white border-2 border-slate-300 text-slate-900'
+                    } ${
+                      isEdicaoTravada
+                        ? 'opacity-70 cursor-not-allowed'
+                        : 'cursor-pointer hover:border-emerald-500/60'
+                    }`}
+                    title={opcaoAtiva.rotulo}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {opcaoAtiva.ehFrete ? (
+                        <Truck className="w-4 h-4 text-emerald-500 shrink-0" />
+                      ) : (
+                        <Store className="w-4 h-4 text-slate-400 shrink-0" />
+                      )}
+                      <span className={`shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                        Forma de Entrega:
+                      </span>
+                      <span className={`font-bold truncate ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                        {opcaoAtiva.rotulo}
+                      </span>
+                    </div>
+                    {!isEdicaoTravada && (
+                      <span className="text-slate-400 shrink-0">
+                        {formaEntregaDropdownAberto ? (
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        ) : (
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        )}
+                      </span>
+                    )}
+                  </button>
+
+                  {formaEntregaDropdownAberto && !isEdicaoTravada && (
+                    <div
+                      className={`absolute left-0 right-0 top-full mt-1.5 z-40 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in border ${
+                        isDark
+                          ? 'bg-[#000000] border-slate-700 text-white'
+                          : 'bg-white border-2 border-slate-300 text-slate-900'
+                      }`}
+                    >
+                      {opcoesEntrega.map((opt, idx) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => selecionarOpcaoEntrega(opt.ehFrete)}
+                          className={`w-full px-3 py-2.5 text-left text-xs flex items-center justify-between gap-2 transition cursor-pointer ${
+                            idx < opcoesEntrega.length - 1
+                              ? isDark
+                                ? 'border-b border-slate-800'
+                                : 'border-b border-slate-100'
+                              : ''
+                          } ${
+                            opt.selecionada
+                              ? isDark
+                                ? 'bg-emerald-500/15 text-emerald-400 font-bold'
+                                : 'bg-emerald-50 text-emerald-700 font-bold'
+                              : isDark
+                              ? 'text-slate-200 hover:bg-slate-900 font-medium'
+                              : 'text-slate-800 hover:bg-slate-50 font-medium'
+                          }`}
+                        >
+                          <span className="leading-snug">{opt.rotulo}</span>
+                          {opt.selecionada && <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
 
             {/* TERMÔMETROS COMPACTOS (ATACADO & FRETE GRÁTIS) */}
