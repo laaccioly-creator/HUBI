@@ -458,24 +458,19 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
   const isItemServico = (item: ItemPedido): boolean =>
     String(item.tipo_item || item.produto?.tipo_item || '').toLowerCase() === 'servico';
 
-  const temServico = itensDoPedido.some((item) => isItemServico(item));
-  const temProdutoFisico =
-    itensDoPedido.length > 0
-      ? itensDoPedido.some((item) => !isItemServico(item))
-      : Number(pedRaw?.valor_taxa_domicilio || 0) === 0 || Number(pedRaw?.valor_frete || 0) > 0;
-
-  const rotuloSubtotal =
-    temServico && !temProdutoFisico
-      ? 'Subtotal dos Serviços:'
-      : temServico && temProdutoFisico
-      ? 'Subtotal (Produtos e Serviços):'
-      : 'Subtotal dos Produtos:';
+  const calcularSubtotalItem = (item: ItemPedido): number => {
+    const sub = Number(item.subtotal);
+    if (!Number.isNaN(sub) && item.subtotal !== undefined && item.subtotal !== null) {
+      return sub;
+    }
+    return Number(item.preco_venda_unitario || item.preco_unitario || 0) * Number(item.quantidade || 0);
+  };
 
   const valorFreteNum = Number(pedRaw?.valor_frete || 0);
   const valorTaxaDomicilioNum = Number(pedRaw?.valor_taxa_domicilio || 0);
   const valorDescontoNum = Number(pedRaw?.valor_desconto || 0);
 
-  const subtotalExibido = Number(
+  const subtotalBasePedido = Number(
     pedRaw?.subtotal_produtos ??
       pedRaw?.subtotal ??
       Math.max(
@@ -487,15 +482,38 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
       )
   );
 
+  const subtotalServicos =
+    itensDoPedido.length > 0
+      ? Number(
+          itensDoPedido
+            .filter((item) => isItemServico(item))
+            .reduce((acc, item) => acc + calcularSubtotalItem(item), 0)
+            .toFixed(2)
+        )
+      : 0;
+
+  const subtotalProdutos =
+    itensDoPedido.length > 0
+      ? Number(
+          itensDoPedido
+            .filter((item) => !isItemServico(item))
+            .reduce((acc, item) => acc + calcularSubtotalItem(item), 0)
+            .toFixed(2)
+        )
+      : subtotalBasePedido;
+
+  const somaSubtotais = Number((subtotalProdutos + subtotalServicos).toFixed(2));
+  const subtotalGeralPedido = somaSubtotais > 0 ? somaSubtotais : subtotalBasePedido;
+
   const valorTotalCalculado = Math.max(
     0,
     Number(
-      (subtotalExibido - valorDescontoNum + valorTaxaDomicilioNum + valorFreteNum).toFixed(2)
+      (subtotalGeralPedido - valorDescontoNum + valorTaxaDomicilioNum + valorFreteNum).toFixed(2)
     )
   );
 
   const valorTotal =
-    subtotalExibido > 0 || valorTaxaDomicilioNum > 0 || valorFreteNum > 0
+    subtotalGeralPedido > 0 || valorTaxaDomicilioNum > 0 || valorFreteNum > 0
       ? valorTotalCalculado
       : Number(pedRaw?.valor_total || 0);
 
@@ -554,7 +572,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
   );
 
   const temServicoExternoOuTaxa = valorTaxaDomicilioNum > 0 || possuiAgendamentoExterno;
-  const exibirFreteEntrega = temProdutoFisico || valorFreteNum > 0;
+  const exibirFreteEntrega = subtotalProdutos > 0 || valorFreteNum > 0;
 
   const nomeTranspBruto = String(rawPe?.transportadora_nome || pedSeguro.nome_transportadora || '').trim();
   const nomeTransportadoraReal =
@@ -1482,12 +1500,23 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
             <div className={`p-3.5 rounded-2xl border space-y-2 text-xs ${
               isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
             }`}>
-              <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
-                <span className="font-medium">{rotuloSubtotal}</span>
-                <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-                  {formatarMoeda(subtotalExibido)}
-                </span>
-              </div>
+              {subtotalProdutos > 0 && (
+                <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
+                  <span className="font-medium">Subtotal dos Produtos:</span>
+                  <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                    {formatarMoeda(subtotalProdutos)}
+                  </span>
+                </div>
+              )}
+
+              {subtotalServicos > 0 && (
+                <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
+                  <span className="font-medium">Subtotal dos Serviços:</span>
+                  <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                    {formatarMoeda(subtotalServicos)}
+                  </span>
+                </div>
+              )}
 
               {valorDescontoNum > 0 && (
                 <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
