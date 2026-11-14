@@ -30,13 +30,21 @@ import type { UsuarioLoja } from '../types';
 import { formatarMoeda } from '../utils/formatters';
 
 interface DadosLojaComplementar {
-  logo_url?: string | null;
+  url_logo?: string | null;
   endereco_logradouro?: string | null;
   endereco_numero?: string | null;
   endereco_bairro?: string | null;
   endereco_cidade?: string | null;
   cor_primaria?: string | null;
 }
+
+type AgendamentoPublicoComExtras = AgendamentoPublicoDetalhes & {
+  loja_logo?: string | null;
+  cor_primaria?: string | null;
+  endereco_completo?: string | null;
+  servico_nome?: string;
+  duracao_estimada_minutos?: number;
+};
 
 export const ConfirmarAgendamentoPublico: React.FC = () => {
   const { token } = useParams<{ token: string }>();
@@ -79,14 +87,22 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
         return;
       }
 
-      setAgendamento(dados);
+      const dadosExtras = dados as AgendamentoPublicoComExtras;
+      setAgendamento(dadosExtras);
       setProfissionalRemarcacaoId(dados.profissional_id);
+      if (dadosExtras.loja_logo || dadosExtras.cor_primaria) {
+        setLojaInfo((prev) => ({
+          ...prev,
+          url_logo: dadosExtras.loja_logo ?? prev?.url_logo ?? null,
+          cor_primaria: dadosExtras.cor_primaria ?? prev?.cor_primaria ?? null
+        }));
+      }
 
       // Busca dados complementares da loja (logo e endereço físico)
       try {
         const { data: storeData } = await supabase
           .from('lojas')
-          .select('logo_url, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, cor_primaria')
+          .select('url_logo, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, cor_primaria')
           .eq('id', dados.loja_id)
           .single();
 
@@ -107,7 +123,7 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
       } catch (errProfs) {
         console.warn('Erro ao listar profissionais habilitados:', errProfs);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('Erro ao carregar agendamento:', e);
       setErro('Não foi possível carregar os detalhes do agendamento. Tente novamente mais tarde.');
     } finally {
@@ -171,7 +187,7 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
       } else {
         setErro(res.mensagem || 'Não foi possível confirmar o agendamento.');
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('Erro ao confirmar presença:', e);
       setErro('Falha de comunicação ao confirmar presença. Tente novamente.');
     } finally {
@@ -207,7 +223,7 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
       } else {
         setErro(res.mensagem || 'Não foi possível remarcar o atendimento.');
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('Erro ao remarcar agendamento:', e);
       setErro('Falha de comunicação ao remarcar agendamento. Tente novamente.');
     } finally {
@@ -234,7 +250,7 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
       } else {
         setErro(res.mensagem || 'Não foi possível cancelar o agendamento.');
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('Erro ao cancelar agendamento:', e);
       setErro('Falha de comunicação ao cancelar agendamento. Tente novamente.');
     } finally {
@@ -326,7 +342,7 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
     const numLimpo = agendamento.loja_whatsapp.replace(/\D/g, '');
     const numFinal = numLimpo.startsWith('55') ? numLimpo : `55${numLimpo}`;
     const txt = encodeURIComponent(
-      `Olá, ${agendamento.loja_nome}! Gostaria de tirar uma dúvida sobre o meu agendamento de *${agendamento.produto_nome}* no dia *${formatarDataPtBr(agendamento.data_agendamento)} às ${agendamento.hora_inicio}*.`
+      `Olá, ${agendamento.loja_nome}! Gostaria de tirar uma dúvida sobre o meu agendamento de *${agendamento.produto_nome}* no dia *${formatarDataPtBr(agendamento.data_agendamento)} às ${(agendamento.hora_inicio || '').slice(0, 5)}*.`
     );
     return `https://wa.me/${numFinal}?text=${txt}`;
   }, [agendamento]);
@@ -394,12 +410,20 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
 
   const podeCancelar = status === 'agendado' || status === 'confirmado';
 
-  const enderecoLojaCompleto = [
-    lojaInfo?.endereco_logradouro,
-    lojaInfo?.endereco_numero,
-    lojaInfo?.endereco_bairro,
-    lojaInfo?.endereco_cidade
-  ].filter(Boolean).join(', ');
+  const agendamentoExtras = agendamento as AgendamentoPublicoComExtras;
+  const enderecoLojaCompleto =
+    [
+      lojaInfo?.endereco_logradouro,
+      lojaInfo?.endereco_numero,
+      lojaInfo?.endereco_bairro,
+      lojaInfo?.endereco_cidade
+    ]
+      .filter(Boolean)
+      .join(', ') ||
+    agendamentoExtras.endereco_completo ||
+    '';
+
+  const logoLoja = lojaInfo?.url_logo || agendamentoExtras.loja_logo || null;
 
   return (
     <div className="min-h-screen bg-[#0B0F17] text-slate-100 antialiased py-6 px-4 sm:px-6">
@@ -407,9 +431,9 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
         {/* Topo / Identidade Visual da Loja */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
           <div className="flex items-center gap-3">
-            {lojaInfo?.logo_url ? (
+            {logoLoja ? (
               <img
-                src={lojaInfo.logo_url}
+                src={logoLoja}
                 alt={agendamento.loja_nome}
                 className="w-10 h-10 rounded-2xl object-cover border border-slate-700 bg-slate-800"
               />
@@ -494,7 +518,7 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
               </p>
               <p className="text-xs text-emerald-400 font-bold flex items-center gap-1">
                 <Clock className="w-3 h-3" />
-                {agendamento.hora_inicio} às {agendamento.hora_fim}
+                {(agendamento.hora_inicio || '').slice(0, 5)} às {(agendamento.hora_fim || '').slice(0, 5)}
               </p>
             </div>
 

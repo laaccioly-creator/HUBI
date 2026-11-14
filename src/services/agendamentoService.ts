@@ -56,6 +56,25 @@ export function formatarDataPtBr(dataStr: string): string {
   return dataStr;
 }
 
+/**
+ * Resolve a URL base pública do sistema para links compartilhados em WhatsApp.
+ * Nunca utiliza localhost/127.0.0.1 para garantir links clicáveis em dispositivos externos.
+ */
+export function obterUrlBasePublica(): string {
+  const envUrl = import.meta.env?.VITE_PUBLIC_APP_URL;
+  if (typeof envUrl === 'string' && envUrl.trim()) {
+    return envUrl.trim().replace(/\/+$/, '');
+  }
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'https://hubi-studio.ai.studio';
+    }
+    return window.location.origin.replace(/\/+$/, '');
+  }
+  return 'https://hubi-studio.ai.studio';
+}
+
 export const agendamentoService = {
   /**
    * 1. Lista os colaboradores habilitados para prestar um serviço específico.
@@ -1166,9 +1185,11 @@ export const agendamentoService = {
   ): string {
     const nomeLoja = loja.nome_fantasia || 'Nossa Loja';
     const dataFormatada = formatarDataPtBr(agendamento.data_agendamento);
-    const nomeServico = (agendamento as any).produto?.nome || 'Serviço Agendado';
-    const nomeProfissional = (agendamento as any).profissional?.nome_completo || 'Profissional Designado';
-    const linkPublico = `${window.location.origin}/confirmar-agendamento/${agendamento.token_confirmacao}`;
+    const nomeServico = agendamento.produto?.nome || 'Serviço Agendado';
+    const nomeProfissional = agendamento.profissional?.nome_completo || 'Profissional Designado';
+    const horaInicioFmt = (agendamento.hora_inicio || '').slice(0, 5);
+    const horaFimFmt = (agendamento.hora_fim || '').slice(0, 5);
+    const linkPublico = `${obterUrlBasePublica()}/confirmar-agendamento/${agendamento.token_confirmacao}`;
     const localTexto = agendamento.modalidade_local === 'externo'
       ? (agendamento.endereco_prestacao_snapshot ? `No seu endereço: ${agendamento.endereco_prestacao_snapshot}` : 'No seu endereço')
       : `Na nossa loja: ${loja.endereco_logradouro || ''} ${loja.endereco_numero || ''}`.trim();
@@ -1179,7 +1200,7 @@ export const agendamentoService = {
 Olá, *${agendamento.cliente_nome}*! Seu horário foi reservado com sucesso:
 
 📅 *Data:* ${dataFormatada}
-⏰ *Horário:* ${agendamento.hora_inicio} às ${agendamento.hora_fim}
+⏰ *Horário:* ${horaInicioFmt} às ${horaFimFmt}
 ✂️ *Serviço:* ${nomeServico}
 👤 *Profissional:* ${nomeProfissional}
 📍 *Local:* ${localTexto}
@@ -1190,12 +1211,19 @@ ${linkPublico}
 Agradecemos a sua preferência! Caso precise de qualquer ajuste, estamos à disposição.`.trim();
     }
 
+    const agora = new Date();
+    const hojeStr = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`;
+    const ehHoje = agendamento.data_agendamento === hojeStr;
+    const saudacaoLembrete = ehHoje
+      ? `Olá, *${agendamento.cliente_nome}*! Lembrando que você tem um atendimento agendado:`
+      : `Olá, *${agendamento.cliente_nome}*! Lembrando que você tem um atendimento agendado para amanhã:`;
+
     return `⏰ *Lembrete de Agendamento - ${nomeLoja}*
 
-Olá, *${agendamento.cliente_nome}*! Lembrando que você tem um atendimento agendado para amanhã:
+${saudacaoLembrete}
 
 📅 *Data:* ${dataFormatada}
-⏰ *Horário:* ${agendamento.hora_inicio} às ${agendamento.hora_fim}
+⏰ *Horário:* ${horaInicioFmt} às ${horaFimFmt}
 ✂️ *Serviço:* ${nomeServico}
 👤 *Profissional:* ${nomeProfissional}
 📍 *Local:* ${localTexto}
@@ -1208,23 +1236,150 @@ Esperamos por você!`.trim();
 
   /**
    * 10. Carrega detalhes do agendamento para a página pública do cliente via token opaco
+   * Utiliza a RPC pública `obter_agendamento_por_token_publico` com fallback resiliente
+   * de leitura direta nas tabelas caso a RPC falhe.
    */
   async obterAgendamentoPorTokenPublico(token: string): Promise<AgendamentoPublicoDetalhes | null> {
-    if (!token) return null;
+    const tokenLimpo = token?.trim();
+    if (!tokenLimpo) return null;
+
     const { data, error } = await supabase.rpc('obter_agendamento_por_token_publico', {
-      p_token: token
+      p_token: tokenLimpo
     });
 
+    if (!error && data && (!Array.isArray(data) || data.length > 0)) {
+      const registro = (Array.isArray(data) ? data[0] : data) as AgendamentoPublicoDetalhes & {
+        servico_nome?: string;
+        duracao_estimada_minutos?: number;
+      };
+      return {
+        ...registro,
+        produto_nome: registro.produto_nome || registro.servico_nome || 'Serviço Agendado',
+        duracao_minutos: Number(registro.duracao_minutos || registro.duracao_estimada_minutos || 30)
+      };
+    }
+
     if (error) {
-      console.warn('Erro ao obter agendamento por token público:', error);
-      return null;
+      logger.warn(
+        'agendamentoService',
+        'obterAgendamentoPorTokenPublico:rpc_fallback',
+        'RPC obter_agendamento_por_token_publico falhou; ativando fallback direto por token.',
+        { codigo_erro: error.code || null }
+      );
     }
 
-    if (!data || (Array.isArray(data) && data.length === 0)) {
+    // Fallback seguro de leitura direta por token_confirmacao
+    try {
+      const { data: agRaw, error: agErr } = await supabase
+        .from('agendamentos_servicos')
+        .select('*')
+        .eq('token_confirmacao', tokenLimpo)
+        .maybeSingle();
+
+      if (agErr || !agRaw) {
+        return null;
+      }
+
+      const [lojaRes, prodRes, profRes, vinculoRes] = await Promise.all([
+        supabase
+          .from('lojas')
+          .select('id, nome_fantasia, whatsapp, slug_catalogo, url_logo, cor_primaria, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_estado, limite_remarcacoes_cliente, antecedencia_minima_remarcacao_horas')
+          .eq('id', agRaw.loja_id)
+          .maybeSingle(),
+        supabase
+          .from('produtos')
+          .select('id, nome, duracao_estimada_minutos, preco_venda_varejo')
+          .eq('id', agRaw.produto_id)
+          .eq('loja_id', agRaw.loja_id)
+          .maybeSingle(),
+        supabase
+          .from('usuarios_loja')
+          .select('id, nome_completo, especialidade_cargo')
+          .eq('id', agRaw.profissional_id)
+          .eq('loja_id', agRaw.loja_id)
+          .maybeSingle(),
+        supabase
+          .from('servico_profissionais')
+          .select('duracao_customizada_minutos')
+          .eq('loja_id', agRaw.loja_id)
+          .eq('produto_id', agRaw.produto_id)
+          .eq('usuario_id', agRaw.profissional_id)
+          .eq('ativo', true)
+          .maybeSingle()
+      ]);
+
+      const lojaRow = lojaRes.data;
+      const prodRow = prodRes.data;
+      const profRow = profRes.data;
+      const duracao = Number(
+        vinculoRes.data?.duracao_customizada_minutos ||
+          prodRow?.duracao_estimada_minutos ||
+          30
+      );
+      const enderecoCompleto = [
+        lojaRow?.endereco_logradouro,
+        lojaRow?.endereco_numero,
+        lojaRow?.endereco_bairro,
+        lojaRow?.endereco_cidade,
+        lojaRow?.endereco_estado
+      ]
+        .filter((parte): parte is string => typeof parte === 'string' && parte.trim().length > 0)
+        .join(', ');
+
+      const resultadoFallback: AgendamentoPublicoDetalhes & {
+        loja_logo?: string | null;
+        cor_primaria?: string | null;
+        endereco_completo?: string | null;
+        servico_nome?: string;
+        duracao_estimada_minutos?: number;
+      } = {
+        id: agRaw.id,
+        loja_id: agRaw.loja_id,
+        loja_nome: lojaRow?.nome_fantasia || 'Loja',
+        loja_whatsapp: lojaRow?.whatsapp || '',
+        loja_slug: lojaRow?.slug_catalogo || '',
+        loja_logo: lojaRow?.url_logo || null,
+        cor_primaria: lojaRow?.cor_primaria || null,
+        endereco_completo: enderecoCompleto || null,
+        pedido_id: agRaw.pedido_id || null,
+        produto_id: agRaw.produto_id,
+        produto_nome: prodRow?.nome || 'Serviço Agendado',
+        servico_nome: prodRow?.nome || 'Serviço Agendado',
+        duracao_minutos: duracao,
+        duracao_estimada_minutos: duracao,
+        preco_venda_varejo: Number(prodRow?.preco_venda_varejo || 0),
+        profissional_id: agRaw.profissional_id,
+        profissional_nome: profRow?.nome_completo || 'Profissional',
+        especialidade_cargo: profRow?.especialidade_cargo || null,
+        cliente_id: agRaw.cliente_id || null,
+        cliente_nome: agRaw.cliente_nome,
+        cliente_whatsapp: agRaw.cliente_whatsapp,
+        data_agendamento: agRaw.data_agendamento,
+        hora_inicio: agRaw.hora_inicio,
+        hora_fim: agRaw.hora_fim,
+        data_hora_inicio: agRaw.data_hora_inicio,
+        data_hora_fim: agRaw.data_hora_fim,
+        modalidade_local: agRaw.modalidade_local,
+        endereco_prestacao_snapshot: agRaw.endereco_prestacao_snapshot || null,
+        status_agendamento: agRaw.status_agendamento,
+        token_confirmacao: agRaw.token_confirmacao,
+        lembrete_enviado: Boolean(agRaw.lembrete_enviado),
+        confirmado_pelo_cliente_em: agRaw.confirmado_pelo_cliente_em || null,
+        cancelado_em: agRaw.cancelado_em || null,
+        motivo_cancelamento: agRaw.motivo_cancelamento || null,
+        qtd_remarcacoes: Number(agRaw.qtd_remarcacoes || 0),
+        limite_remarcacoes_cliente: Number(lojaRow?.limite_remarcacoes_cliente ?? 2),
+        antecedencia_minima_remarcacao_horas: Number(lojaRow?.antecedencia_minima_remarcacao_horas ?? 2),
+        data_hora_anterior: agRaw.data_hora_anterior || null,
+        remarcado_em: agRaw.remarcado_em || null,
+        observacoes: agRaw.observacoes || null,
+        criado_em: agRaw.criado_em
+      };
+
+      return resultadoFallback;
+    } catch {
       return null;
     }
-
-    return (Array.isArray(data) ? data[0] : data) as AgendamentoPublicoDetalhes;
   },
 
   /**
