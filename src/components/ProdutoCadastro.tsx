@@ -50,6 +50,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { ProdutoService } from '../services/produtoService';
 import { agendamentoService } from '../services/agendamentoService';
+import { logger } from '../services/loggerService';
 import { Categoria, Fornecedor, UnidadeMedida, UsuarioLoja, LocalPrestacaoServico, ModoTaxaDomicilio } from '../types';
 import {
   obterArvoreCategorias,
@@ -791,6 +792,10 @@ export const ProdutoCadastro: React.FC = () => {
       destaque: Boolean(dados.destaque),
       ativo: dados.ativo !== false,
       tipoItem: dados.tipoItem || 'produto',
+      requerAgendamento: Boolean(dados.requerAgendamento),
+      profissionaisHabilitadosIds: Array.isArray(dados.profissionaisHabilitadosIds)
+        ? [...dados.profissionaisHabilitadosIds].sort()
+        : [],
       fotosUrls: Array.isArray(dados.fotosUrls) ? dados.fotosUrls : [],
       fotoPrincipal: dados.fotoPrincipal || '',
       temVariacoes: Boolean(dados.temVariacoes),
@@ -835,6 +840,8 @@ export const ProdutoCadastro: React.FC = () => {
       destaque,
       ativo,
       tipoItem,
+      requerAgendamento,
+      profissionaisHabilitadosIds,
       fotosUrls,
       fotoPrincipal,
       temVariacoes,
@@ -870,6 +877,8 @@ export const ProdutoCadastro: React.FC = () => {
     destaque,
     ativo,
     tipoItem,
+    requerAgendamento,
+    profissionaisHabilitadosIds,
     fotosUrls,
     fotoPrincipal,
     temVariacoes,
@@ -1266,7 +1275,13 @@ export const ProdutoCadastro: React.FC = () => {
       .eq('ativo', true)
       .eq('presta_servicos', true)
       .order('nome_completo', { ascending: true })
-      .then(({ data: users }) => {
+      .then(({ data: users, error: errUsers }) => {
+        if (errUsers) {
+          logger.error('ProdutoCadastro', 'carregarColaboradoresPrestadores', errUsers, {
+            loja_id: loja.id
+          });
+          return;
+        }
         if (users) setColaboradoresPrestadoresLoja(users as UsuarioLoja[]);
       });
   }, [loja?.id]);
@@ -1297,6 +1312,8 @@ export const ProdutoCadastro: React.FC = () => {
           setCodigoBalanca(prod.codigo_balanca != null ? String(prod.codigo_balanca) : '');
           setTipoItem((prod.tipo_item as any) || 'produto');
 
+          let profissionaisCarregadosIds: string[] = [];
+
           if (prod.tipo_item === 'servico') {
             setRequerAgendamento(Boolean((prod as any).requer_agendamento));
             setDuracaoEstimadaMinutos(Number((prod as any).duracao_estimada_minutos) || 30);
@@ -1318,15 +1335,22 @@ export const ProdutoCadastro: React.FC = () => {
               setAbaterTaxaDomicilioAoFecharServico(Boolean((prod as any).abater_taxa_domicilio_ao_fechar));
             }
 
-            supabase
-              .from('servico_profissionais')
-              .select('usuario_id')
-              .eq('loja_id', loja.id)
-              .eq('produto_id', prod.id)
-              .eq('ativo', true)
-              .then(({ data: vincs }) => {
-                if (vincs) setProfissionaisHabilitadosIds(vincs.map(v => v.usuario_id));
+            try {
+              profissionaisCarregadosIds = await agendamentoService.listarIdsProfissionaisDoServico(loja.id, prod.id);
+              setProfissionaisHabilitadosIds(profissionaisCarregadosIds);
+            } catch (errVincs: unknown) {
+              logger.error('ProdutoCadastro', 'carregarProdutoEdicao:servico_profissionais', errVincs, {
+                loja_id: loja.id
               });
+              mostrarErro(
+                errVincs instanceof Error
+                  ? errVincs.message
+                  : 'Não foi possível carregar os profissionais habilitados deste serviço.',
+                'Erro ao carregar profissionais'
+              );
+            }
+          } else {
+            setProfissionaisHabilitadosIds([]);
           }
 
           setPrecoCusto(prod.preco_custo ? Number(prod.preco_custo).toFixed(2) : '0.00');
@@ -1412,6 +1436,8 @@ export const ProdutoCadastro: React.FC = () => {
             destaque: Boolean(prod.destaque),
             ativo: prod.ativo !== false,
             tipoItem: prod.tipo_item || 'produto',
+            requerAgendamento: Boolean((prod as { requer_agendamento?: boolean }).requer_agendamento),
+            profissionaisHabilitadosIds: profissionaisCarregadosIds,
             fotosUrls: fotos,
             fotoPrincipal: fotos[0] || '',
             temVariacoes: Boolean(prod.tem_variacoes && Array.isArray(prod.variacoes) && prod.variacoes.length > 0),
@@ -2061,6 +2087,8 @@ export const ProdutoCadastro: React.FC = () => {
           : null
       };
 
+      let produtoIdSalvo: string | undefined = id;
+
       if (ehEdicao) {
         let { error: erroUpdate } = await supabase
           .from('produtos')
@@ -2088,9 +2116,6 @@ export const ProdutoCadastro: React.FC = () => {
         if (erroUpdate) throw erroUpdate;
         if (id) {
           salvarVinculoSubcategoriaProdutoLocal(loja.id, id, subcategoriaId || null);
-          if (tipoItem === 'servico' && requerAgendamento) {
-            await agendamentoService.salvarProfissionaisDoServico(loja.id, id, profissionaisHabilitadosIds);
-          }
         }
 
         const variacoesDelta = opcoesVariacao.map(v => ({
@@ -2133,10 +2158,8 @@ export const ProdutoCadastro: React.FC = () => {
         }
 
         if (erroProd || !prodCriado) throw erroProd;
+        produtoIdSalvo = prodCriado.id;
         salvarVinculoSubcategoriaProdutoLocal(loja.id, prodCriado.id, subcategoriaId || null);
-        if (tipoItem === 'servico' && requerAgendamento) {
-          await agendamentoService.salvarProfissionaisDoServico(loja.id, prodCriado.id, profissionaisHabilitadosIds);
-        }
 
         if (temVariacoes && opcoesVariacao.length > 0) {
           const variacoesDelta = opcoesVariacao.map(v => ({
@@ -2155,13 +2178,39 @@ export const ProdutoCadastro: React.FC = () => {
         }
       }
 
+      // Sincronização completa dos profissionais habilitados para serviços (remoção + inserção em lote)
+      if (produtoIdSalvo && tipoItem === 'servico') {
+        try {
+          const idsParaVincular = requerAgendamento ? profissionaisHabilitadosIds : [];
+          await agendamentoService.salvarProfissionaisDoServico(loja.id, produtoIdSalvo, idsParaVincular);
+        } catch (errProf: unknown) {
+          const msgProf = errProf instanceof Error ? errProf.message : 'Erro desconhecido ao vincular profissionais.';
+          logger.error('ProdutoCadastro', 'salvarProduto:servico_profissionais', errProf, {
+            loja_id: loja.id
+          });
+          mostrarErro(
+            `O serviço foi salvo, mas ocorreu um erro ao gravar os profissionais habilitados: ${msgProf}`,
+            'Erro ao vincular profissionais'
+          );
+          return;
+        }
+      }
+
       sessionStorage.removeItem(CHAVE_RASCUNHO);
       sessionStorage.removeItem('hubi_origem_cadastro_produto');
       setTemAlteracoesNaoSalvas(false);
+      mostrarSucesso(
+        tipoItem === 'servico'
+          ? (ehEdicao ? 'Serviço atualizado com sucesso!' : 'Serviço cadastrado com sucesso!')
+          : (ehEdicao ? 'Produto atualizado com sucesso!' : 'Produto cadastrado com sucesso!')
+      );
       navigate('/products');
-    } catch (err: any) {
-      console.error('Erro ao salvar produto:', err);
-      alert(`Erro ao salvar produto: ${err.message || 'Tente novamente.'}`);
+    } catch (err: unknown) {
+      const mensagemErro = err instanceof Error ? err.message : 'Tente novamente.';
+      logger.error('ProdutoCadastro', 'salvarProduto', err, {
+        loja_id: loja?.id ?? null
+      });
+      mostrarErro(`Erro ao salvar ${tipoItem === 'servico' ? 'serviço' : 'produto'}: ${mensagemErro}`);
     } finally {
       setSalvando(false);
     }
@@ -3335,15 +3384,19 @@ export const ProdutoCadastro: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => {
-                              if (profissionaisHabilitadosIds.length === colaboradoresPrestadoresLoja.length) {
+                              const idsPrestadoresAtivos = colaboradoresPrestadoresLoja.map(c => c.id);
+                              const todosMarcados = idsPrestadoresAtivos.every(cid =>
+                                profissionaisHabilitadosIds.includes(cid)
+                              );
+                              if (todosMarcados) {
                                 setProfissionaisHabilitadosIds([]);
                               } else {
-                                setProfissionaisHabilitadosIds(colaboradoresPrestadoresLoja.map(c => c.id));
+                                setProfissionaisHabilitadosIds(Array.from(new Set(idsPrestadoresAtivos)));
                               }
                             }}
                             className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
                           >
-                            {profissionaisHabilitadosIds.length === colaboradoresPrestadoresLoja.length
+                            {colaboradoresPrestadoresLoja.every(c => profissionaisHabilitadosIds.includes(c.id))
                               ? 'Desmarcar todos'
                               : 'Selecionar todos'}
                           </button>
@@ -3378,9 +3431,11 @@ export const ProdutoCadastro: React.FC = () => {
                                   checked={checked}
                                   onChange={(e) => {
                                     if (e.target.checked) {
-                                      setProfissionaisHabilitadosIds(prev => [...prev, colab.id]);
+                                      setProfissionaisHabilitadosIds(prev =>
+                                        prev.includes(colab.id) ? prev : [...prev, colab.id]
+                                      );
                                     } else {
-                                      setProfissionaisHabilitadosIds(prev => prev.filter(id => id !== colab.id));
+                                      setProfissionaisHabilitadosIds(prev => prev.filter(itemId => itemId !== colab.id));
                                     }
                                   }}
                                   className="rounded border-slate-300 dark:border-slate-700 text-emerald-600 focus:ring-emerald-500"

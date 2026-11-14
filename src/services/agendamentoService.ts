@@ -102,6 +102,38 @@ export const agendamentoService = {
   },
 
   /**
+   * 1.1. Lista os IDs dos colaboradores explicitamente vinculados a um serviço
+   */
+  async listarIdsProfissionaisDoServico(
+    lojaId: string,
+    produtoId: string
+  ): Promise<string[]> {
+    if (!lojaId || !produtoId) return [];
+
+    const { data, error } = await supabase
+      .from('servico_profissionais')
+      .select('usuario_id')
+      .eq('loja_id', lojaId)
+      .eq('produto_id', produtoId)
+      .eq('ativo', true);
+
+    if (error) {
+      logger.error('agendamentoService', 'listarIdsProfissionaisDoServico', error, {
+        loja_id: lojaId
+      });
+      throw new Error(`Não foi possível carregar os profissionais habilitados do serviço: ${error.message}`);
+    }
+
+    return Array.from(
+      new Set(
+        (data || [])
+          .map((item: { usuario_id: string }) => item.usuario_id)
+          .filter((uid): uid is string => typeof uid === 'string' && uid.trim().length > 0)
+      )
+    );
+  },
+
+  /**
    * 2. Sincroniza os profissionais habilitados para determinado serviço
    */
   async salvarProfissionaisDoServico(
@@ -109,54 +141,46 @@ export const agendamentoService = {
     produtoId: string,
     usuariosIds: string[]
   ): Promise<void> {
-    // Carregar vínculos existentes
-    const { data: existentes, error: buscaErr } = await supabase
+    if (!lojaId || !produtoId) {
+      throw new Error('Identificação da loja ou do serviço ausente para vincular profissionais.');
+    }
+
+    const idsUnicos = Array.from(
+      new Set(usuariosIds.filter((uid): uid is string => typeof uid === 'string' && uid.trim().length > 0))
+    );
+
+    // 1. Remover vínculos anteriores deste serviço nesta loja
+    const { error: deleteErr } = await supabase
       .from('servico_profissionais')
-      .select('id, usuario_id, ativo')
+      .delete()
       .eq('loja_id', lojaId)
       .eq('produto_id', produtoId);
 
-    if (buscaErr) {
-      throw buscaErr;
+    if (deleteErr) {
+      logger.error('agendamentoService', 'salvarProfissionaisDoServico:delete', deleteErr, {
+        loja_id: lojaId
+      });
+      throw new Error(`Não foi possível limpar os vínculos anteriores dos profissionais: ${deleteErr.message}`);
     }
 
-    const mapaExistentes = new Map<string, { id: string; ativo: boolean }>();
-    (existentes || []).forEach((item) => {
-      mapaExistentes.set(item.usuario_id, { id: item.id, ativo: item.ativo });
-    });
+    // 2. Inserir todos os profissionais selecionados em lote
+    if (idsUnicos.length > 0) {
+      const registros = idsUnicos.map((usuarioId) => ({
+        loja_id: lojaId,
+        produto_id: produtoId,
+        usuario_id: usuarioId,
+        ativo: true
+      }));
 
-    // 1. Ativar ou Inserir selecionados
-    for (const usuarioId of usuariosIds) {
-      if (mapaExistentes.has(usuarioId)) {
-        const item = mapaExistentes.get(usuarioId)!;
-        if (!item.ativo) {
-          await supabase
-            .from('servico_profissionais')
-            .update({ ativo: true })
-            .eq('id', item.id)
-            .eq('loja_id', lojaId);
-        }
-      } else {
-        await supabase
-          .from('servico_profissionais')
-          .insert([{
-            loja_id: lojaId,
-            produto_id: produtoId,
-            usuario_id: usuarioId,
-            ativo: true
-          }]);
-      }
-    }
+      const { error: insertErr } = await supabase
+        .from('servico_profissionais')
+        .insert(registros);
 
-    // 2. Desativar os que não estão mais no array
-    const setNovos = new Set(usuariosIds);
-    for (const [usuarioId, item] of mapaExistentes.entries()) {
-      if (!setNovos.has(usuarioId) && item.ativo) {
-        await supabase
-          .from('servico_profissionais')
-          .update({ ativo: false })
-          .eq('id', item.id)
-          .eq('loja_id', lojaId);
+      if (insertErr) {
+        logger.error('agendamentoService', 'salvarProfissionaisDoServico:insert', insertErr, {
+          loja_id: lojaId
+        });
+        throw new Error(`Não foi possível salvar os profissionais habilitados para o serviço: ${insertErr.message}`);
       }
     }
   },
