@@ -162,6 +162,174 @@ export const agendamentoService = {
   },
 
   /**
+   * 2.1 Conta quantos serviços ativos estão vinculados a cada colaborador da loja
+   */
+  async contarServicosPorProfissional(lojaId: string): Promise<Record<string, number>> {
+    if (!lojaId) return {};
+    const { data, error } = await supabase
+      .from('servico_profissionais')
+      .select('usuario_id, produto_id')
+      .eq('loja_id', lojaId)
+      .eq('ativo', true);
+
+    if (error || !data) return {};
+
+    const mapaPorUsuario = new Map<string, Set<string>>();
+    data.forEach((row: { usuario_id: string; produto_id: string }) => {
+      if (!row.usuario_id || !row.produto_id) return;
+      const setAtual = mapaPorUsuario.get(row.usuario_id) || new Set<string>();
+      setAtual.add(row.produto_id);
+      mapaPorUsuario.set(row.usuario_id, setAtual);
+    });
+
+    const resultado: Record<string, number> = {};
+    mapaPorUsuario.forEach((setProd, userId) => {
+      resultado[userId] = setProd.size;
+    });
+    return resultado;
+  },
+
+  /**
+   * 2.2 Lista todos os serviços ativos da loja e os IDs já vinculados ao profissional
+   */
+  async listarServicosComVinculoProfissional(
+    lojaId: string,
+    usuarioId: string
+  ): Promise<{
+    servicos: Array<{
+      id: string;
+      nome: string;
+      preco_venda_varejo: number;
+      duracao_estimada_minutos: number;
+      categoria_nome: string;
+    }>;
+    vinculadosIds: string[];
+  }> {
+    const [produtosRes, categoriasRes, vinculosRes] = await Promise.all([
+      supabase
+        .from('produtos')
+        .select('id, nome, preco_venda_varejo, duracao_estimada_minutos, categoria_id')
+        .eq('loja_id', lojaId)
+        .eq('tipo_item', 'servico')
+        .eq('ativo', true)
+        .order('nome', { ascending: true }),
+      supabase
+        .from('categorias')
+        .select('id, nome, categoria_pai_id')
+        .eq('loja_id', lojaId),
+      supabase
+        .from('servico_profissionais')
+        .select('produto_id')
+        .eq('loja_id', lojaId)
+        .eq('usuario_id', usuarioId)
+        .eq('ativo', true)
+    ]);
+
+    if (produtosRes.error) {
+      throw produtosRes.error;
+    }
+
+    const catMap = new Map<string, { id: string; nome: string; categoria_pai_id?: string | null }>();
+    (categoriasRes.data || []).forEach((c: { id: string; nome: string; categoria_pai_id?: string | null }) => {
+      catMap.set(c.id, c);
+    });
+
+    const resolverNomeCategoria = (catId?: string | null): string => {
+      if (!catId) return 'Sem categoria';
+      const cat = catMap.get(catId);
+      if (!cat) return 'Sem categoria';
+      if (cat.categoria_pai_id) {
+        const pai = catMap.get(cat.categoria_pai_id);
+        if (pai) return `${pai.nome} › ${cat.nome}`;
+      }
+      return cat.nome;
+    };
+
+    const servicos = (produtosRes.data || []).map((p: {
+      id: string;
+      nome: string;
+      preco_venda_varejo?: number | null;
+      duracao_estimada_minutos?: number | null;
+      categoria_id?: string | null;
+    }) => ({
+      id: p.id,
+      nome: p.nome,
+      preco_venda_varejo: Number(p.preco_venda_varejo || 0),
+      duracao_estimada_minutos: Number(p.duracao_estimada_minutos || 30),
+      categoria_nome: resolverNomeCategoria(p.categoria_id)
+    }));
+
+    const vinculadosIds = Array.from(
+      new Set((vinculosRes.data || []).map((v: { produto_id: string }) => v.produto_id).filter(Boolean))
+    );
+
+    return { servicos, vinculadosIds };
+  },
+
+  /**
+   * 2.3 Salva em lote apenas os serviços alterados para o profissional
+   */
+  async salvarServicosDoProfissional(
+    lojaId: string,
+    usuarioId: string,
+    alteracoes: Array<{ produtoId: string; habilitar: boolean }>
+  ): Promise<void> {
+    if (alteracoes.length === 0) return;
+
+    const produtoIds = alteracoes.map((a) => a.produtoId);
+    const { data: existentes, error: buscaErr } = await supabase
+      .from('servico_profissionais')
+      .select('id, produto_id, ativo')
+      .eq('loja_id', lojaId)
+      .eq('usuario_id', usuarioId)
+      .in('produto_id', produtoIds);
+
+    if (buscaErr) {
+      throw buscaErr;
+    }
+
+    const mapaExistentes = new Map<string, { id: string; ativo: boolean }>();
+    (existentes || []).forEach((row: { id: string; produto_id: string; ativo: boolean }) => {
+      mapaExistentes.set(row.produto_id, { id: row.id, ativo: row.ativo });
+    });
+
+    const paraInserir: Array<{
+      loja_id: string;
+      produto_id: string;
+      usuario_id: string;
+      ativo: boolean;
+    }> = [];
+
+    for (const alt of alteracoes) {
+      const existente = mapaExistentes.get(alt.produtoId);
+      if (existente) {
+        if (existente.ativo !== alt.habilitar) {
+          const { error: updErr } = await supabase
+            .from('servico_profissionais')
+            .update({ ativo: alt.habilitar })
+            .eq('id', existente.id)
+            .eq('loja_id', lojaId);
+          if (updErr) throw updErr;
+        }
+      } else if (alt.habilitar) {
+        paraInserir.push({
+          loja_id: lojaId,
+          produto_id: alt.produtoId,
+          usuario_id: usuarioId,
+          ativo: true
+        });
+      }
+    }
+
+    if (paraInserir.length > 0) {
+      const { error: insErr } = await supabase
+        .from('servico_profissionais')
+        .insert(paraInserir);
+      if (insErr) throw insErr;
+    }
+  },
+
+  /**
    * 3.1. Obtém o expediente semanal do profissional (7 dias, Dom=0 a Sáb=6).
    * Se não houver registro no banco, inicializa com expediente padrão:
    * Seg-Sex 08:00 às 18:00 (intervalo 12:00-13:00) e Sáb/Dom inativos.

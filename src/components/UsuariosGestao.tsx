@@ -8,7 +8,8 @@ import {
   Shield,
   Crown,
   ArrowLeft,
-  Calendar
+  Calendar,
+  ListChecks
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,6 +17,8 @@ import { usePermissions } from '../hooks/usePermissions';
 import { UsuarioLoja, MetricasUsuario } from '../types';
 import { ModalUsuarioDrawer } from './ModalUsuarioDrawer';
 import { ModalExpedienteProfissional } from './agendamento/ModalExpedienteProfissional';
+import { ModalServicosProfissional } from './agendamento/ModalServicosProfissional';
+import { agendamentoService } from '../services/agendamentoService';
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { MobileHeader } from './layout/MobileHeader';
 import { useTheme } from '../contexts/ThemeContext';
@@ -52,6 +55,8 @@ export const UsuariosGestao: React.FC = () => {
   const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
   const [usuarioSelecionadoEdicao, setUsuarioSelecionadoEdicao] = useState<UsuarioLoja | null>(null);
   const [usuarioExpediente, setUsuarioExpediente] = useState<UsuarioLoja | null>(null);
+  const [usuarioServicos, setUsuarioServicos] = useState<UsuarioLoja | null>(null);
+  const [contagemServicos, setContagemServicos] = useState<Record<string, number>>({});
   const [hoveredUserId, setHoveredUserId] = useState<string | null>(null);
 
   // Métricas dos últimos 30 dias gerais da loja
@@ -167,6 +172,13 @@ export const UsuariosGestao: React.FC = () => {
       });
 
       setUsuarios(listaComEstatisticas);
+
+      try {
+        const contagens = await agendamentoService.contarServicosPorProfissional(loja.id);
+        setContagemServicos(contagens);
+      } catch (errCount) {
+        console.error('Erro ao contar serviços por profissional:', errCount);
+      }
     } catch (err) {
       console.error('Erro ao carregar usuários e métricas:', err);
     } finally {
@@ -460,18 +472,35 @@ export const UsuariosGestao: React.FC = () => {
                         <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600 font-bold'}`}>30 dias</span>
                       </div>
                       {u.presta_servicos && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setUsuarioExpediente(u);
-                          }}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 active:scale-95 cursor-pointer"
-                          title="Configurar Expediente de Atendimento"
-                        >
-                          <Calendar className="w-3 h-3" />
-                          <span>Expediente</span>
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setUsuarioExpediente(u);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 active:scale-95 cursor-pointer"
+                            title="Configurar Expediente de Atendimento"
+                          >
+                            <Calendar className="w-3 h-3" />
+                            <span>Expediente</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setUsuarioServicos(u);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 active:scale-95 cursor-pointer"
+                            title="Atribuir Serviços Habilitados"
+                          >
+                            <ListChecks className="w-3 h-3" />
+                            <span>
+                              Serviços{(contagemServicos[u.id] || 0) > 0 ? ` (${contagemServicos[u.id]})` : ''}
+                            </span>
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -564,7 +593,9 @@ export const UsuariosGestao: React.FC = () => {
             
             {/* Título da Tabela */}
             <div className={`flex items-center justify-between border-b pb-3.5 text-xs font-black uppercase tracking-wider px-3 ${isDark ? 'border-slate-800 text-slate-400' : 'border-slate-200 text-slate-700'}`}>
-              <div className="flex-1">Nome</div>
+              <div className="flex-1 min-w-[220px] sm:min-w-[260px] pr-3">Nome</div>
+              <div className="w-28 shrink-0">Expediente</div>
+              <div className="w-32 shrink-0">Serviços</div>
               <div className="w-28 text-right">Faturamento</div>
               <div className="w-16 text-right">Vendas</div>
               <div className="w-16 text-right">%</div>
@@ -605,7 +636,7 @@ export const UsuariosGestao: React.FC = () => {
                       }`}
                     >
                       {/* Nome e Badge de Perfil */}
-                      <div className="flex items-center gap-3.5 flex-1 min-w-0 pr-3">
+                      <div className="flex items-center gap-3.5 flex-1 min-w-[220px] sm:min-w-[260px] pr-3">
                         <div
                           className={`w-10 h-10 rounded-xl border font-black text-xs flex items-center justify-center shrink-0 transition ${isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-black'}`}
                           style={{ borderColor: isHovered ? corUser : (isDark ? '#475569' : '#CBD5E1') }}
@@ -613,70 +644,96 @@ export const UsuariosGestao: React.FC = () => {
                           {formatarIniciais(user.nome_completo)}
                         </div>
 
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
                             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: corUser }} />
                             <span className={`font-black text-sm truncate transition ${isDark ? 'text-white group-hover:text-emerald-400' : 'text-black group-hover:text-emerald-600'}`}>
                               {user.nome_completo}
                             </span>
 
+                            {!user.ativo && (
+                              <span className="text-[10px] bg-rose-500/15 text-rose-800 dark:text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0">
+                                INATIVO
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 mt-1 min-w-0">
                             {ehOwner && (
-                              <span className="inline-flex items-center gap-1 text-[10px] bg-teal-500/15 text-teal-800 dark:text-teal-300 border border-teal-500/30 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
+                              <span className="inline-flex items-center gap-1 text-[10px] bg-teal-500/15 text-teal-800 dark:text-teal-300 border border-teal-500/30 px-2 py-0.5 rounded-full font-black uppercase tracking-wider shrink-0">
                                 <Crown className="w-2.5 h-2.5" />
                                 OWNER
                               </span>
                             )}
 
                             {ehAdmin && !ehOwner && (
-                              <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
+                              <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-black uppercase tracking-wider shrink-0">
                                 <Shield className="w-2.5 h-2.5" />
                                 ADMIN
                               </span>
                             )}
 
                             {!ehOwner && !ehAdmin && user.perfil === 'gerente' && (
-                              <span className="text-[10px] bg-indigo-500/15 text-indigo-800 dark:text-indigo-400 border border-indigo-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                              <span className="text-[10px] bg-indigo-500/15 text-indigo-800 dark:text-indigo-400 border border-indigo-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0">
                                 GERENTE
                               </span>
                             )}
 
                             {!ehOwner && !ehAdmin && user.perfil === 'vendedor' && (
-                              <span className="text-[10px] bg-amber-500/15 text-amber-800 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                              <span className="text-[10px] bg-amber-500/15 text-amber-800 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0">
                                 VENDEDOR
                               </span>
                             )}
 
                             {!ehOwner && !ehAdmin && (user.perfil === 'profissional' || user.perfil === 'comum' || (user.perfil !== 'gerente' && user.perfil !== 'vendedor')) && (
-                              <span className="text-[10px] bg-teal-500/15 text-teal-800 dark:text-teal-400 border border-teal-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                              <span className="text-[10px] bg-teal-500/15 text-teal-800 dark:text-teal-400 border border-teal-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider shrink-0">
                                 PROFISSIONAL
                               </span>
                             )}
 
-                            {!user.ativo && (
-                              <span className="text-[10px] bg-rose-500/15 text-rose-800 dark:text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                                INATIVO
-                              </span>
-                            )}
-
-                            {user.presta_servicos && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setUsuarioExpediente(user);
-                                }}
-                                className="inline-flex items-center gap-1 text-[10px] bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-black uppercase tracking-wider hover:bg-emerald-500/25 transition cursor-pointer"
-                                title="Configurar Grade de Expediente / Agenda deste Colaborador"
-                              >
-                                <Calendar className="w-2.5 h-2.5" />
-                                <span>Expediente / Agenda</span>
-                              </button>
-                            )}
+                            <span className={`text-xs truncate font-semibold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                              {user.whatsapp_atendimento ? formatarTelefone(user.whatsapp_atendimento) : ((user.email?.includes('@hubi.app') || user.email?.includes('@hubi.internal')) ? formatarTelefone(user.email.split('@')[0]) : user.email)}
+                            </span>
                           </div>
-                          <span className={`text-xs truncate block mt-0.5 font-semibold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                            {user.whatsapp_atendimento ? formatarTelefone(user.whatsapp_atendimento) : ((user.email?.includes('@hubi.app') || user.email?.includes('@hubi.internal')) ? formatarTelefone(user.email.split('@')[0]) : user.email)}
-                          </span>
                         </div>
+                      </div>
+
+                      {/* Coluna EXPEDIENTE */}
+                      <div className="w-28 shrink-0 flex justify-start">
+                        {user.presta_servicos && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setUsuarioExpediente(user);
+                            }}
+                            className="inline-flex items-center gap-1.5 text-[10px] bg-emerald-500/15 text-emerald-800 dark:text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-full font-black uppercase tracking-wider hover:bg-emerald-500/25 transition cursor-pointer"
+                            title="Configurar Grade de Expediente / Agenda deste Colaborador"
+                          >
+                            <Calendar className="w-3 h-3" />
+                            <span>EXPEDIENTE</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Coluna SERVIÇOS */}
+                      <div className="w-32 shrink-0 flex justify-start">
+                        {user.presta_servicos && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setUsuarioServicos(user);
+                            }}
+                            className="inline-flex items-center gap-1.5 text-[10px] bg-sky-500/15 text-sky-800 dark:text-sky-400 border border-sky-500/30 px-2.5 py-1 rounded-full font-black uppercase tracking-wider hover:bg-sky-500/25 transition cursor-pointer"
+                            title="Atribuir Serviços Habilitados em Lote"
+                          >
+                            <ListChecks className="w-3 h-3" />
+                            <span>
+                              SERVIÇOS{(contagemServicos[user.id] || 0) > 0 ? ` (${contagemServicos[user.id]})` : ''}
+                            </span>
+                          </button>
+                        )}
                       </div>
 
                       {/* Faturamento */}
@@ -720,6 +777,17 @@ export const UsuariosGestao: React.FC = () => {
           onClose={() => setUsuarioExpediente(null)}
           lojaId={loja.id}
           profissional={usuarioExpediente}
+          onSalvo={carregarUsuariosEMetricas}
+        />
+      )}
+
+      {/* MODAL DE ATRIBUIÇÃO RÁPIDA DE SERVIÇOS EM LOTE */}
+      {usuarioServicos && loja?.id && (
+        <ModalServicosProfissional
+          isOpen={Boolean(usuarioServicos)}
+          onClose={() => setUsuarioServicos(null)}
+          lojaId={loja.id}
+          usuario={usuarioServicos}
           onSalvo={carregarUsuariosEMetricas}
         />
       )}

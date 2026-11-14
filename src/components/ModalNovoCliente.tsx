@@ -3,7 +3,6 @@ import {
   X,
   User,
   Phone,
-  Mail,
   Calendar,
   MapPin,
   FileText,
@@ -197,7 +196,6 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
   const [nome, setNome] = useState('');
   const [cpfCnpj, setCpfCnpj] = useState('');
   const [dataAniversario, setDataAniversario] = useState('');
-  const [email, setEmail] = useState('');
   const [observacoes, setObservacoes] = useState('');
 
   // Telefones com Indicador WhatsApp
@@ -216,8 +214,8 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
     (loja?.configuracoes_extras?.pagamentos?.permitir_fiado ?? true) !== false
   );
 
-  const [permiteFiado, setPermiteFiado] = useState(fiadoAtivoLoja && permissions.podeAtivarFiado);
-  const [limiteCredito, setLimiteCredito] = useState('500,00');
+  const [permiteFiado, setPermiteFiado] = useState(false);
+  const [limiteCredito, setLimiteCredito] = useState('');
   const [permiteCaderneta, setPermiteCaderneta] = useState(cadernetaAtivaLoja);
   const [limiteCaderneta, setLimiteCaderneta] = useState('500,00');
   const [diaVencimentoCaderneta, setDiaVencimentoCaderneta] = useState<number>(Number(loja?.dia_vencimento_padrao_caderneta || 10));
@@ -258,14 +256,18 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
         const nom = clienteEditar.nome || '';
         const doc = clienteEditar.numero_documento || '';
         const niver = clienteEditar.data_aniversario || '';
-        const em = clienteEditar.email || '';
         const obs = clienteEditar.observacoes || '';
         const tel1 = clienteEditar.telefone || clienteEditar.whatsapp || '';
         const tel1Whats = clienteEditar.telefone_is_whatsapp ?? true;
         const tel2 = clienteEditar.telefone2 || '';
         const tel2Whats = clienteEditar.telefone2_is_whatsapp ?? false;
-        const fiado = fiadoAtivoLoja ? (clienteEditar.permite_fiado ?? permissions.podeAtivarFiado) : false;
-        const lim = formatarValorBRL(clienteEditar.limite_credito ?? 500);
+        const fiado = fiadoAtivoLoja ? Boolean(clienteEditar.permite_fiado) : false;
+        const lim =
+          clienteEditar.limite_credito !== undefined &&
+          clienteEditar.limite_credito !== null &&
+          Number(clienteEditar.limite_credito) > 0
+            ? formatarValorBRL(clienteEditar.limite_credito)
+            : '';
         const cad = cadernetaAtivaLoja ? Boolean(clienteEditar.permite_caderneta) : false;
         const limCad = formatarValorBRL(clienteEditar.limite_caderneta ?? 500);
         const diaCad = Number(clienteEditar.dia_vencimento_caderneta || loja?.dia_vencimento_padrao_caderneta || 10);
@@ -310,7 +312,6 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
         setNome(nom);
         setCpfCnpj(doc);
         setDataAniversario(niver);
-        setEmail(em);
         setObservacoes(obs);
         setTelefone1(tel1);
         setTelefone1IsWhatsapp(tel1Whats);
@@ -336,7 +337,6 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
           nome: nom,
           cpfCnpj: doc,
           dataAniversario: niver,
-          email: em,
           observacoes: obs,
           telefone1: tel1,
           telefone1IsWhatsapp: tel1Whats,
@@ -358,14 +358,13 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
         setNome('');
         setCpfCnpj('');
         setDataAniversario('');
-        setEmail('');
         setObservacoes('');
         setTelefone1('');
         setTelefone1IsWhatsapp(true);
         setTelefone2('');
         setTelefone2IsWhatsapp(false);
-        setPermiteFiado(fiadoAtivoLoja && permissions.podeAtivarFiado);
-        setLimiteCredito(fiadoAtivoLoja && permissions.podeAtivarFiado ? '500,00' : '0,00');
+        setPermiteFiado(false);
+        setLimiteCredito('');
         setPermiteCaderneta(cadernetaAtivaLoja);
         setLimiteCaderneta('500,00');
         setDiaVencimentoCaderneta(Number(loja?.dia_vencimento_padrao_caderneta || 10));
@@ -383,14 +382,13 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
           nome: '',
           cpfCnpj: '',
           dataAniversario: '',
-          email: '',
           observacoes: '',
           telefone1: '',
           telefone1IsWhatsapp: true,
           telefone2: '',
           telefone2IsWhatsapp: false,
-          permiteFiado: fiadoAtivoLoja && permissions.podeAtivarFiado,
-          limiteCredito: fiadoAtivoLoja && permissions.podeAtivarFiado ? '500,00' : '0,00',
+          permiteFiado: false,
+          limiteCredito: '',
           tabelaPreco: 'varejo',
           cep: '',
           rua: '',
@@ -411,7 +409,6 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
     nome,
     cpfCnpj,
     dataAniversario,
-    email,
     observacoes,
     telefone1,
     telefone1IsWhatsapp,
@@ -660,7 +657,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
       nome: nome.trim(),
       numero_documento: cpfCnpj.trim() || null,
       data_aniversario: dataAniversario || null,
-      email: email.trim() && !email.trim().endsWith('@hubi.app') ? email.trim() : null,
+      email: null,
       telefone: tel1Norm || telefone1.trim() || null,
       telefone2: tel2Norm || telefone2.trim() || null,
       telefone_is_whatsapp: telefone1IsWhatsapp,
@@ -716,11 +713,11 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
             nome: nome.trim(),
             numero_documento: cpfCnpj.trim() || null,
             data_aniversario: dataAniversario || null,
-            email: email.trim() || null,
+            email: null,
             telefone: telefone1.trim() || null,
             whatsapp: whatsappPrincipal || null,
-            permite_fiado: permiteFiado,
-            limite_credito: limiteCreditoNum,
+            permite_fiado: fiadoAtivoLoja ? permiteFiado : false,
+            limite_credito: fiadoAtivoLoja && permiteFiado ? limiteCreditoNum : 0,
             tabela_preco_padrao: tabelaPreco,
             observacoes: observacoes.trim() || null,
             endereco_principal: enderecoPrincipalFormatado || null
@@ -759,11 +756,11 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
             nome: nome.trim(),
             numero_documento: cpfCnpj.trim() || null,
             data_aniversario: dataAniversario || null,
-            email: email.trim() || null,
+            email: null,
             telefone: telefone1.trim() || null,
             whatsapp: whatsappPrincipal || null,
-            permite_fiado: permiteFiado,
-            limite_credito: limiteCreditoNum,
+            permite_fiado: fiadoAtivoLoja ? permiteFiado : false,
+            limite_credito: fiadoAtivoLoja && permiteFiado ? limiteCreditoNum : 0,
             saldo_devedor_fiado: 0,
             tabela_preco_padrao: tabelaPreco,
             observacoes: observacoes.trim() || null,
@@ -969,25 +966,6 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                   />
                 </div>
               </div>
-
-              {/* E-mail */}
-              <div className="sm:col-span-2 space-y-1">
-                <label className={`text-xs font-black block ${isDark ? 'text-white' : 'text-black'}`}>E-mail</label>
-                <div className="relative">
-                  <Mail className={`w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
-                  <input
-                    type="email"
-                    placeholder="exemplo@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className={`w-full rounded-xl pl-10 pr-3.5 py-2.5 text-xs font-medium focus:outline-none transition ${
-                      isDark
-                        ? 'bg-[#000000] border border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500'
-                        : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-600'
-                    }`}
-                  />
-                </div>
-              </div>
             </div>
           </div>
 
@@ -1133,12 +1111,18 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                       type="button"
                       role="switch"
                       aria-checked={permiteFiado}
-                      onClick={() => setPermiteFiado(!permiteFiado)}
+                      onClick={() => {
+                        const proximo = !permiteFiado;
+                        setPermiteFiado(proximo);
+                        if (!proximo) {
+                          setLimiteCredito('');
+                        }
+                      }}
                       className="flex items-center gap-2 cursor-pointer select-none shrink-0 self-start sm:self-auto"
                       title={permiteFiado ? 'Desativar fiado' : 'Ativar fiado'}
                     >
                       <span className={`text-xs font-bold transition ${permiteFiado ? (isDark ? 'text-emerald-400' : 'text-emerald-700') : (isDark ? 'text-slate-400' : 'text-slate-600')}`}>
-                        {permiteFiado ? 'Habilitado' : 'Bloqueado'}
+                        {permiteFiado ? 'Habilitado' : 'Desabilitado'}
                       </span>
                       <div
                         className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
@@ -1176,7 +1160,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                           type="text"
                           inputMode="decimal"
                           required={permiteFiado}
-                          placeholder="500,00"
+                          placeholder="0,00"
                           value={limiteCredito}
                           onChange={(e) => {
                             const val = e.target.value.replace(/[^0,1-9.,]/g, '');

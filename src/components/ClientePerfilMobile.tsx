@@ -77,7 +77,6 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
   const [mostrarOpcionais, setMostrarOpcionais] = useState<boolean>(false);
   const [mostrarModalEndereco, setMostrarModalEndereco] = useState<boolean>(false);
   const [dataAniversario, setDataAniversario] = useState(cliente.data_aniversario || '');
-  const [email, setEmail] = useState(cliente.email || '');
   const [telefone, setTelefone] = useState(cliente.telefone2 || cliente.telefone || '');
   const [numeroDocumento, setNumeroDocumento] = useState(cliente.numero_documento || '');
   const [observacoes, setObservacoes] = useState(cliente.observacoes || '');
@@ -91,11 +90,11 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
     (loja?.configuracoes_extras?.pagamentos?.permitir_fiado ?? true) !== false
   );
 
-  const [permiteFiado, setPermiteFiado] = useState(fiadoAtivoLoja && cliente.permite_fiado !== false);
+  const [permiteFiado, setPermiteFiado] = useState(fiadoAtivoLoja && Boolean(cliente.permite_fiado));
   const [limiteCredito, setLimiteCredito] = useState(
     cliente.limite_credito !== undefined && cliente.limite_credito !== null && Number(cliente.limite_credito) > 0
       ? String(cliente.limite_credito)
-      : '500.00'
+      : ''
   );
   const [permiteCaderneta, setPermiteCaderneta] = useState<boolean>(cadernetaAtivaLoja && Boolean(cliente.permite_caderneta));
   const [limiteCaderneta, setLimiteCaderneta] = useState<string>(
@@ -122,14 +121,13 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
       enderecoEstado: cliente.endereco_estado || endExtraido?.estado || '',
       enderecoCep: cliente.endereco_cep || endExtraido?.cep || '',
       dataAniversario: cliente.data_aniversario || '',
-      email: cliente.email || '',
       telefone: cliente.telefone2 || cliente.telefone || '',
       numeroDocumento: cliente.numero_documento || '',
       observacoes: cliente.observacoes || '',
-      permiteFiado: cliente.permite_fiado !== false,
+      permiteFiado: Boolean(cliente.permite_fiado),
       limiteCredito: cliente.limite_credito !== undefined && cliente.limite_credito !== null && Number(cliente.limite_credito) > 0
         ? String(cliente.limite_credito)
-        : (cliente.permite_fiado !== false ? '500.00' : ''),
+        : '',
       permiteCaderneta: Boolean(cliente.permite_caderneta),
       limiteCaderneta: cliente.permite_caderneta
         ? (cliente.limite_caderneta !== undefined && cliente.limite_caderneta !== null && Number(cliente.limite_caderneta) > 0
@@ -153,7 +151,6 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
       enderecoEstado,
       enderecoCep,
       dataAniversario,
-      email,
       telefone,
       numeroDocumento,
       observacoes,
@@ -173,7 +170,6 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
     enderecoEstado,
     enderecoCep,
     dataAniversario,
-    email,
     telefone,
     numeroDocumento,
     observacoes,
@@ -377,7 +373,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
         whatsapp: whatsapp.trim(),
         telefone: whatsapp.trim(),
         telefone2: telefone.trim(),
-        email: email.trim() || null,
+        email: null,
         numero_documento: numeroDocumento.trim() || null,
         data_aniversario: dataAniversario || null,
         observacoes: observacoes.trim() || null,
@@ -714,19 +710,6 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                         onChange={(e) => setDataAniversario(e.target.value)}
                         className={`w-full border-b py-1.5 text-xs font-bold focus:outline-none focus:border-emerald-500 transition ${
                           isDark ? 'bg-transparent border-slate-700 text-white' : 'bg-transparent border-slate-300 text-black'
-                        }`}
-                      />
-                    </div>
-
-                    <div>
-                      <label className={`text-[11px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>E-mail</label>
-                      <input
-                        type="email"
-                        placeholder="cliente@exemplo.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className={`w-full border-b py-1.5 text-xs font-bold focus:outline-none focus:border-emerald-500 transition ${
-                          isDark ? 'bg-transparent border-slate-700 text-white placeholder:text-slate-500' : 'bg-transparent border-slate-300 text-black placeholder:text-slate-400'
                         }`}
                       />
                     </div>
