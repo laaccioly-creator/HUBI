@@ -77,6 +77,7 @@ import { PosCheckoutMobile, SubTelaMobile } from './PosCheckoutMobile';
 import { obterOpcoesStatusAlteracao, isStatusPedidoAtivo, obterInfoVencimentoFiado, podeEditarPedido } from '../utils/statusPedidoUtils';
 import { ReceiptPdfService } from '../services/receiptPdfService';
 import { obterInfoEntregaRecibo } from '../services/printService';
+import { formatarEnderecoCliente } from '../utils/reciboServicoHelper';
 import { SeletorCategoriasHibrido } from './ui/SeletorCategoriasHibrido';
 import {
   produtoPertenceAoFiltroCategoria,
@@ -1144,8 +1145,12 @@ export const PosCheckout: React.FC = () => {
           const cep = pedidoEntrega.destino_cep ? ` (CEP: ${pedidoEntrega.destino_cep})` : '';
           return `${pedidoEntrega.destino_logradouro}, ${pedidoEntrega.destino_numero || 'S/N'}${comp}, ${pedidoEntrega.destino_bairro}, ${pedidoEntrega.destino_cidade}-${pedidoEntrega.destino_uf}${cep}`;
         }
-        if (taxaEntrega > 0 && clienteSelecionado?.endereco_principal) {
-          return clienteSelecionado.endereco_principal;
+        const snapshotAg = itens.find(
+          (it) => it.agendamento?.modalidade_local === 'externo' && it.agendamento?.endereco_prestacao_snapshot?.trim()
+        )?.agendamento?.endereco_prestacao_snapshot?.trim();
+        if (snapshotAg) return snapshotAg;
+        if (itens.some((it) => it.agendamento?.modalidade_local === 'externo') || taxaEntrega > 0) {
+          return formatarEnderecoCliente(clienteSelecionado) || null;
         }
         return null;
       })();
@@ -1810,8 +1815,12 @@ export const PosCheckout: React.FC = () => {
           const cep = pedidoEntrega.destino_cep ? ` (CEP: ${pedidoEntrega.destino_cep})` : '';
           return `${pedidoEntrega.destino_logradouro}, ${pedidoEntrega.destino_numero || 'S/N'}${comp}, ${pedidoEntrega.destino_bairro}, ${pedidoEntrega.destino_cidade}-${pedidoEntrega.destino_uf}${cep}`;
         }
-        if (taxaEntrega > 0 && clienteSelecionado?.endereco_principal) {
-          return clienteSelecionado.endereco_principal;
+        const snapshotAg = itens.find(
+          (it) => it.agendamento?.modalidade_local === 'externo' && it.agendamento?.endereco_prestacao_snapshot?.trim()
+        )?.agendamento?.endereco_prestacao_snapshot?.trim();
+        if (snapshotAg) return snapshotAg;
+        if (itens.some((it) => it.agendamento?.modalidade_local === 'externo') || taxaEntrega > 0) {
+          return formatarEnderecoCliente(clienteSelecionado) || null;
         }
         return null;
       })();

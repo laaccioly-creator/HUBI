@@ -10,6 +10,7 @@ import { PedidoEntrega } from '../types/shipping';
 import { ItemAgendamentoInfo } from '../types/agendamento';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { ResultadoTaxaVisita } from '../utils/taxaDomicilioUtils';
+import { formatarEnderecoCliente } from '../utils/reciboServicoHelper';
 
 export interface ItemVendaInput {
   produto: {
@@ -164,7 +165,7 @@ export class VendaService {
       statusFinal = ehEntrega ? 'aguardando_envio' : 'concluido';
     }
 
-    // Endereço de destino
+    // Endereço de destino (inclui serviço externo a domicílio)
     const enderecoEntregaFinal = (() => {
       if (pedidoEntrega?.tipo_atendimento === 'retirada') return null;
       if (pedidoEntrega?.destino_logradouro) {
@@ -172,8 +173,17 @@ export class VendaService {
         const cep = pedidoEntrega.destino_cep ? ` (CEP: ${pedidoEntrega.destino_cep})` : '';
         return `${pedidoEntrega.destino_logradouro}, ${pedidoEntrega.destino_numero || 'S/N'}${comp}, ${pedidoEntrega.destino_bairro}, ${pedidoEntrega.destino_cidade}-${pedidoEntrega.destino_uf}${cep}`;
       }
-      if (taxaEntrega > 0 && clienteSelecionado?.endereco_principal) {
-        return clienteSelecionado.endereco_principal;
+      const snapshotAg = itens.find(
+        (it) => it.agendamento?.modalidade_local === 'externo' && it.agendamento?.endereco_prestacao_snapshot?.trim()
+      )?.agendamento?.endereco_prestacao_snapshot?.trim();
+      if (snapshotAg) return snapshotAg;
+      if (params.infoTaxaVisita?.temServicoExterno) {
+        if (params.infoTaxaVisita.enderecoVisita?.trim()) return params.infoTaxaVisita.enderecoVisita.trim();
+        const endCliente = formatarEnderecoCliente(clienteSelecionado);
+        if (endCliente) return endCliente;
+      }
+      if (taxaEntrega > 0) {
+        return formatarEnderecoCliente(clienteSelecionado) || null;
       }
       return null;
     })();

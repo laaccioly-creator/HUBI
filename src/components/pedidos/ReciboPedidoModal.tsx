@@ -40,39 +40,80 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
   const ultimoPedidoDisparadoRef = useRef<string | null>(null);
   const [resultadoHibrido, setResultadoHibrido] = useState<ResultadoDisparoHibrido | null>(null);
   const [agendamentosCarregados, setAgendamentosCarregados] = useState<any[]>([]);
+  const [clienteCarregado, setClienteCarregado] = useState<Pedido['cliente'] | null>(null);
 
   useEffect(() => {
     if (!isOpen || !pedido?.id || !loja?.id) {
-      if (!isOpen) setAgendamentosCarregados([]);
-      return;
-    }
-    if (pedido.agendamentos && pedido.agendamentos.length > 0) {
-      setAgendamentosCarregados(pedido.agendamentos);
+      if (!isOpen) {
+        setAgendamentosCarregados([]);
+        setClienteCarregado(null);
+      }
       return;
     }
     let ativo = true;
     void (async () => {
-      const { data } = await supabase
-        .from('agendamentos_servicos')
-        .select('id, produto_id, item_pedido_id, modalidade_local, endereco_prestacao_snapshot, data_agendamento, hora_inicio')
-        .eq('loja_id', String(loja.id))
-        .eq('pedido_id', pedido.id);
-      if (ativo && data) {
-        setAgendamentosCarregados(data);
+      if (pedido.agendamentos && pedido.agendamentos.length > 0) {
+        setAgendamentosCarregados(pedido.agendamentos);
+      } else {
+        const { data } = await supabase
+          .from('agendamentos_servicos')
+          .select('id, produto_id, item_pedido_id, modalidade_local, endereco_prestacao_snapshot, data_agendamento, hora_inicio')
+          .eq('loja_id', String(loja.id))
+          .eq('pedido_id', pedido.id);
+        if (ativo && data) {
+          setAgendamentosCarregados(data);
+        }
+      }
+
+      if (pedido.cliente_id && !pedido.cliente?.endereco_logradouro) {
+        const [{ data: cliData }, { data: endData }] = await Promise.all([
+          supabase
+            .from('clientes')
+            .select('id, nome, telefone, whatsapp, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_estado, endereco_cep, endereco_principal')
+            .eq('id', pedido.cliente_id)
+            .maybeSingle(),
+          supabase
+            .from('cliente_enderecos')
+            .select('logradouro, numero, complemento, bairro, cidade, uf, cep, is_principal')
+            .eq('cliente_id', pedido.cliente_id)
+            .order('is_principal', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+        ]);
+        if (ativo) {
+          const base = (cliData || pedido.cliente || null) as Pedido['cliente'] | null;
+          if (endData?.logradouro && (!base || !base.endereco_logradouro)) {
+            setClienteCarregado({
+              ...(base || { id: pedido.cliente_id, loja_id: String(loja.id), nome: 'Cliente', tabela_preco_padrao: 'varejo', saldo_devedor_fiado: 0, limite_credito: 0, permite_fiado: false }),
+              endereco_logradouro: endData.logradouro,
+              endereco_numero: endData.numero,
+              endereco_complemento: endData.complemento,
+              endereco_bairro: endData.bairro,
+              endereco_cidade: endData.cidade,
+              endereco_estado: endData.uf,
+              endereco_cep: endData.cep
+            });
+          } else if (base) {
+            setClienteCarregado(base);
+          }
+        }
       }
     })();
     return () => {
       ativo = false;
     };
-  }, [isOpen, pedido?.id, pedido?.agendamentos, loja?.id]);
+  }, [isOpen, pedido?.id, pedido?.agendamentos, pedido?.cliente_id, pedido?.cliente, loja?.id]);
 
   const pedidoComAgendamentos = useMemo(() => {
     if (!pedido) return null;
-    if (agendamentosCarregados.length > 0 && !(pedido.agendamentos && pedido.agendamentos.length > 0)) {
-      return { ...pedido, agendamentos: agendamentosCarregados };
+    const comAg = agendamentosCarregados.length > 0 && !(pedido.agendamentos && pedido.agendamentos.length > 0)
+      ? { ...pedido, agendamentos: agendamentosCarregados }
+      : pedido;
+    if (clienteCarregado) {
+      return { ...comAg, cliente: clienteCarregado };
     }
-    return pedido;
-  }, [pedido, agendamentosCarregados]);
+    return comAg;
+  }, [pedido, agendamentosCarregados, clienteCarregado]);
 
   useEffect(() => {
     if (!isOpen || !pedido || !loja?.id) {

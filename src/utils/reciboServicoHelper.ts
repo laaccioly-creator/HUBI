@@ -1,4 +1,4 @@
-import type { ItemPedido, Loja, Pedido } from '../types';
+import type { Cliente, ItemPedido, Loja, Pedido } from '../types';
 import type { AgendamentoServico } from '../types/agendamento';
 import type { PedidoEntrega } from '../types/shipping';
 
@@ -20,6 +20,7 @@ export interface PedidoReciboInput
   pedido_entregas?: PedidoEntrega | PedidoEntrega[] | null;
   itens?: ItemPedidoReciboInput[];
   itens_pedido?: ItemPedidoReciboInput[];
+  clientes?: Cliente | null;
 }
 
 export interface DadosReciboPedidoResolvido {
@@ -74,6 +75,37 @@ const normalizarTextoEndereco = (texto?: string | null): string =>
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]/g, '');
 
+export const formatarEnderecoCliente = (cliente?: Cliente | null): string | null => {
+  if (!cliente) return null;
+  const logradouro = cliente.endereco_logradouro?.trim() || cliente.rua?.trim() || cliente.endereco?.trim();
+  const numero = cliente.endereco_numero?.trim() || cliente.numero?.trim();
+  const complemento = cliente.endereco_complemento?.trim() || cliente.complemento?.trim();
+  const bairro = cliente.endereco_bairro?.trim() || cliente.bairro?.trim();
+  const cidade = cliente.endereco_cidade?.trim() || cliente.cidade?.trim();
+  const uf = cliente.endereco_estado?.trim() || cliente.estado?.trim();
+  const cep = cliente.endereco_cep?.trim() || cliente.cep?.trim();
+
+  if (logradouro) {
+    const linhaPrincipal = `${logradouro}${numero ? `, ${numero}` : ''}`;
+    const compFmt = complemento ? ` - ${complemento}` : '';
+    const bairroFmt = bairro ? `, ${bairro}` : '';
+    const cidadeUf = cidade && uf ? `, ${cidade}/${uf}` : cidade ? `, ${cidade}` : '';
+    const cepFmt = cep ? ` - CEP: ${cep}` : '';
+    return `${linhaPrincipal}${compFmt}${bairroFmt}${cidadeUf}${cepFmt}`;
+  }
+
+  if (cliente.endereco_principal?.trim()) {
+    return cliente.endereco_principal.trim();
+  }
+
+  return null;
+};
+
+const isSnapshotGenerico = (texto?: string | null): boolean => {
+  const norm = normalizarTextoEndereco(texto);
+  return !norm || norm === 'enderecodocliente' || norm === 'noenderecodocliente';
+};
+
 /**
  * Resolve de forma centralizada e estritamente tipada os rótulos, locais, endereços
  * e taxas de visita de um recibo no HUBI (Modal, PDF, Térmica, A4 e Recibo Público).
@@ -82,7 +114,8 @@ export const resolverDadosReciboPedido = (
   pedido: PedidoReciboInput,
   itens?: ItemPedidoReciboInput[] | null,
   loja?: Loja | null,
-  agendamento?: AgendamentoReciboInput | AgendamentoReciboInput[] | null
+  agendamento?: AgendamentoReciboInput | AgendamentoReciboInput[] | null,
+  clienteExtra?: Cliente | null
 ): DadosReciboPedidoResolvido => {
   const listaItens: ItemPedidoReciboInput[] =
     itens && itens.length > 0
@@ -140,12 +173,17 @@ export const resolverDadosReciboPedido = (
 
   const enderecoLoja = formatarEnderecoLoja(loja);
   const enderecoPe = formatarEnderecoPedidoEntrega(pe);
-  const enderecoPedidoDireto = pedido.endereco_entrega?.trim() || null;
-  const enderecoDestinoCandidato = enderecoPe || enderecoPedidoDireto;
+  const enderecoPedidoDireto = !isSnapshotGenerico(pedido.endereco_entrega)
+    ? pedido.endereco_entrega?.trim() || null
+    : null;
+  const enderecoCadastroCliente = formatarEnderecoCliente(
+    clienteExtra || pedido.cliente || pedido.clientes || null
+  );
+  const enderecoDestinoCandidato = enderecoPe || enderecoPedidoDireto || enderecoCadastroCliente;
 
   const temDestinoDiferenteDaLoja = Boolean(
-    enderecoDestinoCandidato &&
-      normalizarTextoEndereco(enderecoDestinoCandidato) !== normalizarTextoEndereco(enderecoLoja)
+    (enderecoPe || enderecoPedidoDireto) &&
+      normalizarTextoEndereco(enderecoPe || enderecoPedidoDireto) !== normalizarTextoEndereco(enderecoLoja)
   );
 
   const temAgendamentoExterno = listaAgendamentos.some((ag) => ag.modalidade_local === 'externo');
@@ -154,16 +192,22 @@ export const resolverDadosReciboPedido = (
     temAgendamentoExterno || temDestinoDiferenteDaLoja || taxaVisitaDomicilio > 0;
 
   if (isSomenteServico) {
-    const snapshotAgendamento =
+    const snapshotBruto =
       listaAgendamentos.find(
-        (ag) => ag.modalidade_local === 'externo' && ag.endereco_prestacao_snapshot?.trim()
+        (ag) =>
+          ag.modalidade_local === 'externo' &&
+          ag.endereco_prestacao_snapshot?.trim() &&
+          !isSnapshotGenerico(ag.endereco_prestacao_snapshot)
       )?.endereco_prestacao_snapshot?.trim() ||
-      listaAgendamentos.find((ag) => ag.endereco_prestacao_snapshot?.trim())
-        ?.endereco_prestacao_snapshot?.trim() ||
+      listaAgendamentos.find(
+        (ag) =>
+          ag.endereco_prestacao_snapshot?.trim() &&
+          !isSnapshotGenerico(ag.endereco_prestacao_snapshot)
+      )?.endereco_prestacao_snapshot?.trim() ||
       null;
 
     const enderecoFormatado = isAtendimentoDomicilio
-      ? snapshotAgendamento || enderecoPe || enderecoPedidoDireto || 'Endereço do cliente'
+      ? snapshotBruto || enderecoPe || enderecoPedidoDireto || enderecoCadastroCliente || 'A confirmar com o cliente'
       : enderecoLoja;
 
     return {

@@ -176,6 +176,29 @@ export const ReciboPublico: React.FC = () => {
             : (pedData as any).pedido_entregas;
         }
 
+        // Fallback de endereço principal do cliente caso o pedido não possua snapshot/endereço direto
+        if ((pedData as any).cliente_id && !(pedData as any).cliente?.endereco_logradouro) {
+          const { data: endPrincipal } = await supabase
+            .from('cliente_enderecos')
+            .select('logradouro, numero, complemento, bairro, cidade, uf, cep')
+            .eq('cliente_id', (pedData as any).cliente_id)
+            .order('is_principal', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (endPrincipal?.logradouro) {
+            (pedData as any).cliente = {
+              ...((pedData as any).cliente || {}),
+              endereco_logradouro: endPrincipal.logradouro,
+              endereco_numero: endPrincipal.numero,
+              endereco_complemento: endPrincipal.complemento,
+              endereco_bairro: endPrincipal.bairro,
+              endereco_cidade: endPrincipal.cidade,
+              endereco_estado: endPrincipal.uf,
+              endereco_cep: endPrincipal.cep
+            };
+          }
+        }
+
         setPedido(pedData as unknown as Pedido);
 
         // Busca os dados da loja

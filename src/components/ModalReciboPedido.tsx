@@ -8,7 +8,7 @@ import {
   Download,
   Copy
 } from 'lucide-react';
-import { Pedido, Loja, ItemPedido } from '../types';
+import { Pedido, Loja, ItemPedido, Cliente } from '../types';
 import { supabase } from '../lib/supabase';
 import {
   formatarDataRecibo,
@@ -64,7 +64,7 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
       try {
         const idLojaAlvo = lojaProp?.id || pedido.loja_id || lojaId;
 
-        const [itensRes, pagRes, entregaRes, lojaRes, agendamentoRes] = await Promise.allSettled([
+        const [itensRes, pagRes, entregaRes, lojaRes, agendamentoRes, clienteRes, clienteEndRes] = await Promise.allSettled([
           !pedido.itens || pedido.itens.length === 0
             ? supabase.from('itens_pedido').select('*').eq('pedido_id', pedido.id)
             : Promise.resolve({ data: pedido.itens }),
@@ -75,7 +75,23 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
           !lojaProp && idLojaAlvo
             ? supabase.from('lojas').select('*').eq('id', idLojaAlvo).maybeSingle()
             : Promise.resolve({ data: lojaProp || null }),
-          supabase.from('agendamentos_servicos').select('*').eq('pedido_id', pedido.id).maybeSingle()
+          supabase.from('agendamentos_servicos').select('*').eq('pedido_id', pedido.id).maybeSingle(),
+          pedido.cliente_id && (!pedido.cliente || !pedido.cliente.endereco_logradouro)
+            ? supabase
+                .from('clientes')
+                .select('id, nome, telefone, whatsapp, endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_estado, endereco_cep, endereco_principal')
+                .eq('id', pedido.cliente_id)
+                .maybeSingle()
+            : Promise.resolve({ data: pedido.cliente || null }),
+          pedido.cliente_id
+            ? supabase
+                .from('cliente_enderecos')
+                .select('logradouro, numero, complemento, bairro, cidade, uf, cep, is_principal')
+                .eq('cliente_id', pedido.cliente_id)
+                .order('is_principal', { ascending: false })
+                .limit(1)
+                .maybeSingle()
+            : Promise.resolve({ data: null })
         ]);
 
         if (!ativo) return;
@@ -101,10 +117,45 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
             ? (agendamentoRes.value as { data: AgendamentoReciboInput }).data
             : (pedido.agendamentos && pedido.agendamentos[0]) || null;
 
+        const clienteCarregado =
+          clienteRes.status === 'fulfilled' && (clienteRes.value as { data?: Cliente | null })?.data
+            ? (clienteRes.value as { data: Cliente }).data
+            : pedido.cliente || undefined;
+
+        const endPrincipal =
+          clienteEndRes.status === 'fulfilled'
+            ? (clienteEndRes.value as {
+                data?: {
+                  logradouro?: string | null;
+                  numero?: string | null;
+                  complemento?: string | null;
+                  bairro?: string | null;
+                  cidade?: string | null;
+                  uf?: string | null;
+                  cep?: string | null;
+                } | null;
+              })?.data ?? null
+            : null;
+
+        const clienteFinal: Cliente | undefined =
+          endPrincipal?.logradouro && (!clienteCarregado || !clienteCarregado.endereco_logradouro)
+            ? ({
+                ...(clienteCarregado || { id: pedido.cliente_id || '', loja_id: pedido.loja_id, nome: 'Cliente', tabela_preco_padrao: 'varejo', saldo_devedor_fiado: 0 }),
+                endereco_logradouro: endPrincipal.logradouro,
+                endereco_numero: endPrincipal.numero,
+                endereco_complemento: endPrincipal.complemento,
+                endereco_bairro: endPrincipal.bairro,
+                endereco_cidade: endPrincipal.cidade,
+                endereco_estado: endPrincipal.uf,
+                endereco_cep: endPrincipal.cep
+              } as Cliente)
+            : clienteCarregado;
+
         setAgendamentoServico(agendamentoCarregado);
         setLojaCompleta(lojaFinal);
         setPedidoCompleto({
           ...pedido,
+          cliente: clienteFinal,
           itens,
           pagamentos,
           pedido_entregas: pedidoEntregas,
