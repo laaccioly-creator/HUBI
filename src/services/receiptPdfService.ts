@@ -3,6 +3,10 @@ import html2canvas from 'html2canvas';
 import { Pedido, Loja, ItemPedido } from '../types';
 import { PrintService } from './printService';
 import { supabase } from '../lib/supabase';
+import {
+  AgendamentoReciboInput,
+  filtrarEDeduplicarAgendamentosRecibo
+} from '../utils/reciboServicoHelper';
 
 export interface ArquivosReciboResult {
   pdfBlob: Blob;
@@ -141,22 +145,36 @@ export class ReceiptPdfService {
     }
 
     // 3. Garante agendamento vinculado carregado para pedidos de serviço antes de gerar a mensagem
-    let pedidoParaMensagem = pedido;
-    const agendamentosExistentes = pedido.agendamentos || [];
+    const agendamentosExistentes = filtrarEDeduplicarAgendamentosRecibo(
+      (pedido.agendamentos || []) as AgendamentoReciboInput[]
+    );
+    let pedidoParaMensagem: Pedido = {
+      ...pedido,
+      agendamentos: agendamentosExistentes as NonNullable<Pedido['agendamentos']>
+    };
     const precisaRecarregarAgendamentos =
       agendamentosExistentes.length === 0 ||
-      agendamentosExistentes.some((ag) => !(ag as { profissional?: unknown }).profissional);
+      agendamentosExistentes.some((ag) => !ag.profissional);
 
     if (pedido.id && precisaRecarregarAgendamentos) {
       const agQuery = supabase
         .from('agendamentos_servicos')
         .select('*, produto:produtos(nome), profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(nome_completo)')
-        .eq('pedido_id', pedido.id);
+        .eq('pedido_id', pedido.id)
+        .neq('status_agendamento', 'cancelado')
+        .order('atualizado_em', { ascending: false })
+        .order('criado_em', { ascending: false });
       const { data: agData } = loja?.id
         ? await agQuery.eq('loja_id', String(loja.id))
         : await agQuery;
-      if (agData && agData.length > 0) {
-        pedidoParaMensagem = { ...pedido, agendamentos: agData };
+      if (agData) {
+        const ativosDeduplicados = filtrarEDeduplicarAgendamentosRecibo(
+          agData as AgendamentoReciboInput[]
+        );
+        pedidoParaMensagem = {
+          ...pedido,
+          agendamentos: ativosDeduplicados as NonNullable<Pedido['agendamentos']>
+        };
       }
     }
 

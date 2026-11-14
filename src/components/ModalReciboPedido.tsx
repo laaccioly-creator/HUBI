@@ -21,7 +21,11 @@ import {
 } from '../services/printService';
 import { ReceiptPdfService } from '../services/receiptPdfService';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
-import { AgendamentoReciboInput, resolverDadosReciboPedido } from '../utils/reciboServicoHelper';
+import {
+  AgendamentoReciboInput,
+  filtrarEDeduplicarAgendamentosRecibo,
+  resolverDadosReciboPedido
+} from '../utils/reciboServicoHelper';
 import { useTheme } from '../contexts/ThemeContext';
 
 export interface ModalReciboPedidoProps {
@@ -84,10 +88,16 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
                 .select('*, produto:produtos(nome), profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(nome_completo)')
                 .eq('loja_id', idLojaAlvo)
                 .eq('pedido_id', pedido.id)
+                .neq('status_agendamento', 'cancelado')
+                .order('atualizado_em', { ascending: false })
+                .order('criado_em', { ascending: false })
             : supabase
                 .from('agendamentos_servicos')
                 .select('*, produto:produtos(nome), profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(nome_completo)')
                 .eq('pedido_id', pedido.id)
+                .neq('status_agendamento', 'cancelado')
+                .order('atualizado_em', { ascending: false })
+                .order('criado_em', { ascending: false })
           ),
           pedido.cliente_id && (!pedido.cliente || !pedido.cliente.endereco_logradouro)
             ? supabase
@@ -125,12 +135,12 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
           ? (lojaRes.value as { data: Loja }).data
           : lojaProp || null;
 
-        const agendamentosCarregados: AgendamentoReciboInput[] =
+        const agendamentosBrutos: AgendamentoReciboInput[] =
           agendamentoRes.status === 'fulfilled' &&
-          Array.isArray((agendamentoRes.value as { data?: AgendamentoReciboInput[] | null })?.data) &&
-          ((agendamentoRes.value as { data: AgendamentoReciboInput[] }).data.length > 0)
-            ? (agendamentoRes.value as { data: AgendamentoReciboInput[] }).data
-            : pedido.agendamentos || [];
+          Array.isArray((agendamentoRes.value as { data?: AgendamentoReciboInput[] | null })?.data)
+            ? ((agendamentoRes.value as { data: AgendamentoReciboInput[] }).data || [])
+            : ((pedido.agendamentos || []) as AgendamentoReciboInput[]);
+        const agendamentosCarregados = filtrarEDeduplicarAgendamentosRecibo(agendamentosBrutos);
 
         const clienteCarregado =
           clienteRes.status === 'fulfilled' && (clienteRes.value as { data?: Cliente | null })?.data
@@ -174,7 +184,7 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
           itens,
           pagamentos,
           pedido_entregas: pedidoEntregas,
-          agendamentos: agendamentosCarregados.length > 0 ? (agendamentosCarregados as never) : pedido.agendamentos
+          agendamentos: agendamentosCarregados as never
         } as Pedido);
       } catch (err) {
         console.warn('[ModalReciboPedido] Erro ao carregar detalhes do recibo:', err);

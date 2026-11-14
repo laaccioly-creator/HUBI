@@ -20,7 +20,11 @@ import { ReceiptPdfService } from '../services/receiptPdfService';
 import { obterInfoVencimentoFiado, extrairInfoPagamentoEntrega } from '../utils/statusPedidoUtils';
 import { formatarMoeda } from '../utils/formatters';
 import { extrairInfoVisitaPedido } from '../utils/taxaDomicilioUtils';
-import { resolverDadosReciboPedido } from '../utils/reciboServicoHelper';
+import {
+  AgendamentoReciboInput,
+  filtrarEDeduplicarAgendamentosRecibo,
+  resolverDadosReciboPedido
+} from '../utils/reciboServicoHelper';
 
 export const ReciboPublico: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -146,7 +150,13 @@ export const ReciboPublico: React.FC = () => {
               supabase.from('pagamentos_pedido').select('*, forma_pagamento:formas_pagamento(*)').eq('pedido_id', simplePed.id),
               supabase.from('pedido_entregas').select('*').eq('pedido_id', simplePed.id),
               supabase.from('pedidos_pagamentos_previstos').select('*').eq('pedido_id', simplePed.id),
-              supabase.from('agendamentos_servicos').select('*, produto:produtos(nome), profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(nome_completo)').eq('pedido_id', simplePed.id)
+              supabase
+                .from('agendamentos_servicos')
+                .select('*, produto:produtos(nome), profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(nome_completo)')
+                .eq('pedido_id', simplePed.id)
+                .neq('status_agendamento', 'cancelado')
+                .order('atualizado_em', { ascending: false })
+                .order('criado_em', { ascending: false })
             ]);
 
             if (itensRes.status === 'fulfilled' && (itensRes.value as any)?.data) {
@@ -164,8 +174,14 @@ export const ReciboPublico: React.FC = () => {
             if (prevRes.status === 'fulfilled' && (prevRes.value as any)?.data) {
               (pedData as any).pagamentos_previstos = (prevRes.value as any).data;
             }
-            if (agendRes.status === 'fulfilled' && (agendRes.value as any)?.data) {
-              (pedData as any).agendamentos = (agendRes.value as any).data;
+            if (agendRes.status === 'fulfilled' && Array.isArray((agendRes.value as { data?: AgendamentoReciboInput[] | null })?.data)) {
+              (pedData as { agendamentos?: AgendamentoReciboInput[] }).agendamentos = (
+                agendRes.value as { data: AgendamentoReciboInput[] }
+              ).data;
+            }
+            if (pedData && typeof pedData === 'object') {
+              const pedTipado = pedData as { agendamentos?: AgendamentoReciboInput[] | null };
+              pedTipado.agendamentos = filtrarEDeduplicarAgendamentosRecibo(pedTipado.agendamentos);
             }
           } else {
             throw new Error('Pedido não encontrado no sistema.');
@@ -424,40 +440,47 @@ export const ReciboPublico: React.FC = () => {
           </div>
 
           {/* Horários de Agendamento do Serviço */}
-          {((pedido as any).agendamentos || []).length > 0 && (
-            <div className="p-2.5 rounded-xl bg-teal-50 border border-teal-200 border-dashed text-[11px] space-y-1.5">
-              <div className="flex items-center justify-between font-black text-teal-900 uppercase">
-                <span className="flex items-center gap-1">
-                  📅 Horário(s) de Atendimento Agendado:
-                </span>
-                <span className="text-[10px] bg-teal-200/80 text-teal-800 px-1.5 py-0.5 rounded font-bold">
-                  Agendamento
-                </span>
-              </div>
-              {((pedido as any).agendamentos as any[]).map((ag) => (
-                <div key={ag.id} className="pt-1 border-t border-teal-200/60 text-slate-800 space-y-0.5">
-                  <div className="font-bold flex justify-between">
-                    <span>{ag.produto?.nome || 'Serviço'}</span>
-                    <span className="text-teal-700 font-semibold">{ag.modalidade_local === 'loja' ? 'Na Loja' : 'A Domicílio'}</span>
-                  </div>
-                  <div className="text-slate-600 text-[10px]">
-                    <strong>{formatarDataRecibo(ag.data_agendamento)}</strong> às <strong>{ag.hora_inicio}</strong>
-                    {ag.profissional?.nome_completo ? ` • Profissional: ${ag.profissional.nome_completo}` : ''}
-                  </div>
-                  {ag.token_confirmacao && (
-                    <a
-                      href={`/confirmar-agendamento/${ag.token_confirmacao}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-block text-[10px] text-teal-700 font-bold underline hover:text-teal-900"
-                    >
-                      Gerenciar Agendamento / Confirmar Presença ↗
-                    </a>
-                  )}
+          {(() => {
+            type AgendamentoCardPublico = AgendamentoReciboInput & { token_confirmacao?: string | null };
+            const agendamentosAtivos = filtrarEDeduplicarAgendamentosRecibo(
+              ((pedido as { agendamentos?: AgendamentoCardPublico[] }).agendamentos || [])
+            );
+            if (agendamentosAtivos.length === 0) return null;
+            return (
+              <div className="p-2.5 rounded-xl bg-teal-50 border border-teal-200 border-dashed text-[11px] space-y-1.5">
+                <div className="flex items-center justify-between font-black text-teal-900 uppercase">
+                  <span className="flex items-center gap-1">
+                    📅 Horário(s) de Atendimento Agendado:
+                  </span>
+                  <span className="text-[10px] bg-teal-200/80 text-teal-800 px-1.5 py-0.5 rounded font-bold">
+                    Agendamento
+                  </span>
                 </div>
-              ))}
-            </div>
-          )}
+                {agendamentosAtivos.map((ag) => (
+                  <div key={ag.id} className="pt-1 border-t border-teal-200/60 text-slate-800 space-y-0.5">
+                    <div className="font-bold flex justify-between">
+                      <span>{ag.produto?.nome || 'Serviço'}</span>
+                      <span className="text-teal-700 font-semibold">{ag.modalidade_local === 'loja' ? 'Na Loja' : 'A Domicílio'}</span>
+                    </div>
+                    <div className="text-slate-600 text-[10px]">
+                      <strong>{formatarDataRecibo(ag.data_agendamento)}</strong> às <strong>{(ag.hora_inicio || '').slice(0, 5)}</strong>
+                      {ag.profissional?.nome_completo ? ` • Profissional: ${ag.profissional.nome_completo}` : ''}
+                    </div>
+                    {ag.token_confirmacao && (
+                      <a
+                        href={`/confirmar-agendamento/${ag.token_confirmacao}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-block text-[10px] text-teal-700 font-bold underline hover:text-teal-900"
+                      >
+                        Gerenciar Agendamento / Confirmar Presença ↗
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
 
           {/* Resumo de itens */}
           <div className="font-bold text-slate-600 text-[10px] uppercase tracking-wider">

@@ -7,7 +7,11 @@ import { ReceiptPdfService } from '../../services/receiptPdfService';
 import { obterInfoVencimentoFiado, extrairInfoPagamentoEntrega } from '../../utils/statusPedidoUtils';
 import { extrairObservacaoLimpa, formatarMoeda } from '../../utils/formatters';
 import { extrairInfoVisitaPedido } from '../../utils/taxaDomicilioUtils';
-import { AgendamentoReciboInput, resolverDadosReciboPedido } from '../../utils/reciboServicoHelper';
+import {
+  AgendamentoReciboInput,
+  filtrarEDeduplicarAgendamentosRecibo,
+  resolverDadosReciboPedido
+} from '../../utils/reciboServicoHelper';
 import { detectarServicoPorCodigo } from '../../utils/correiosValidator';
 import { formatarNomeTransportadora } from '../../utils/shippingDisplay';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -52,12 +56,15 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
     }
     let ativo = true;
     void (async () => {
+      const agendamentosPropsFiltrados = filtrarEDeduplicarAgendamentosRecibo(
+        (pedido.agendamentos || []) as AgendamentoReciboInput[]
+      ) as NonNullable<Pedido['agendamentos']>;
       const jaTemDadosCompletos =
-        Boolean(pedido.agendamentos && pedido.agendamentos.length > 0) &&
-        (pedido.agendamentos || []).every((ag) => Boolean((ag as AgendamentoReciboInput).profissional));
+        agendamentosPropsFiltrados.length > 0 &&
+        agendamentosPropsFiltrados.every((ag) => Boolean((ag as AgendamentoReciboInput).profissional));
 
-      if (jaTemDadosCompletos && pedido.agendamentos) {
-        setAgendamentosCarregados(pedido.agendamentos);
+      if (jaTemDadosCompletos) {
+        setAgendamentosCarregados(agendamentosPropsFiltrados);
       } else {
         const { data } = await supabase
           .from('agendamentos_servicos')
@@ -65,11 +72,17 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
             '*, produto:produtos(nome), profissional:usuarios_loja!agendamentos_servicos_profissional_id_fkey(nome_completo)'
           )
           .eq('loja_id', String(loja.id))
-          .eq('pedido_id', pedido.id);
-        if (ativo && data && data.length > 0) {
-          setAgendamentosCarregados(data as NonNullable<Pedido['agendamentos']>);
-        } else if (ativo && pedido.agendamentos && pedido.agendamentos.length > 0) {
-          setAgendamentosCarregados(pedido.agendamentos);
+          .eq('pedido_id', pedido.id)
+          .neq('status_agendamento', 'cancelado')
+          .order('atualizado_em', { ascending: false })
+          .order('criado_em', { ascending: false });
+        if (ativo && data) {
+          const ativosDeduplicados = filtrarEDeduplicarAgendamentosRecibo(
+            data as AgendamentoReciboInput[]
+          ) as NonNullable<Pedido['agendamentos']>;
+          setAgendamentosCarregados(ativosDeduplicados);
+        } else if (ativo && agendamentosPropsFiltrados.length > 0) {
+          setAgendamentosCarregados(agendamentosPropsFiltrados);
         }
       }
 
@@ -114,10 +127,13 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
 
   const pedidoComAgendamentos = useMemo<Pedido | null>(() => {
     if (!pedido) return null;
-    const comAg: Pedido =
+    const agendamentosBase =
       agendamentosCarregados.length > 0
-        ? { ...pedido, agendamentos: agendamentosCarregados }
-        : pedido;
+        ? agendamentosCarregados
+        : (filtrarEDeduplicarAgendamentosRecibo(
+            (pedido.agendamentos || []) as AgendamentoReciboInput[]
+          ) as NonNullable<Pedido['agendamentos']>);
+    const comAg: Pedido = { ...pedido, agendamentos: agendamentosBase };
     if (clienteCarregado) {
       return { ...comAg, cliente: clienteCarregado };
     }
