@@ -27,6 +27,10 @@ import {
   Search,
   Filter,
   X,
+  Ban,
+  Receipt,
+  Copy,
+  Check,
   ExternalLink,
   Loader2,
   CalendarClock,
@@ -42,13 +46,14 @@ import { agendamentoService, formatarDataPtBr, timeStringToMinutes } from '../..
 import { whatsappWalletService } from '../../services/whatsappWalletService';
 import { supabase } from '../../lib/supabase';
 import { ModalLembretesPendentesAgenda } from './ModalLembretesPendentesAgenda';
+import { ReciboPedidoModal } from '../pedidos/ReciboPedidoModal';
 import type {
   AgendamentoServico,
   StatusAgendamento,
   ModalidadeLocalPrestacao,
   SlotHorarioDisponivel
 } from '../../types/agendamento';
-import type { Produto, UsuarioLoja, Cliente } from '../../types';
+import type { Produto, UsuarioLoja, Cliente, Pedido } from '../../types';
 
 export const AgendaServicosLoja: React.FC = () => {
   const { loja, usuario } = useAuth();
@@ -79,6 +84,9 @@ export const AgendaServicosLoja: React.FC = () => {
   const [totalLembretesPendentes, setTotalLembretesPendentes] = useState<number>(0);
   const [agendamentoParaRemarcar, setAgendamentoParaRemarcar] = useState<AgendamentoServico | null>(null);
   const [agendamentoParaCancelar, setAgendamentoParaCancelar] = useState<AgendamentoServico | null>(null);
+  const [agendamentoEnderecoModal, setAgendamentoEnderecoModal] = useState<AgendamentoServico | null>(null);
+  const [pedidoParaRecibo, setPedidoParaRecibo] = useState<Pedido | null>(null);
+  const [carregandoReciboId, setCarregandoReciboId] = useState<string | null>(null);
   const [motivoCancelamento, setMotivoCancelamento] = useState<string>('');
   const [processandoAcaoId, setProcessandoAcaoId] = useState<string | null>(null);
 
@@ -339,6 +347,45 @@ export const AgendaServicosLoja: React.FC = () => {
       setEnviandoWppId(null);
     }
   };
+
+  // Carrega o pedido completo vinculado e abre o ReciboPedidoModal
+  const handleAbrirReciboPedido = useCallback(async (agendamento: AgendamentoServico) => {
+    if (!loja?.id || !agendamento.pedido_id) {
+      mostrarAviso('Este agendamento não possui pedido vinculado.');
+      return;
+    }
+
+    setCarregandoReciboId(agendamento.id);
+    try {
+      const { data, error } = await supabase
+        .from('pedidos')
+        .select(`
+          *,
+          cliente:clientes(*),
+          vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
+          atualizado_por_usuario:usuarios_loja!pedidos_atualizado_por_fkey(*),
+          itens:itens_pedido(*),
+          pagamentos:pagamentos_pedido(
+            *,
+            forma_pagamento:formas_pagamento(*)
+          )
+        `)
+        .eq('loja_id', String(loja.id))
+        .eq('id', agendamento.pedido_id)
+        .maybeSingle();
+
+      if (error || !data) {
+        mostrarErro('Não foi possível carregar os dados do recibo deste pedido.');
+        return;
+      }
+
+      setPedidoParaRecibo(data as unknown as Pedido);
+    } catch {
+      mostrarErro('Não foi possível carregar o recibo do pedido. Tente novamente.');
+    } finally {
+      setCarregandoReciboId(null);
+    }
+  }, [loja?.id, mostrarAviso, mostrarErro]);
 
   // Badge de Status
   const renderBadgeStatus = (status: StatusAgendamento) => {
@@ -798,11 +845,9 @@ export const AgendaServicosLoja: React.FC = () => {
               isDark ? 'divide-slate-800/70' : 'divide-slate-100'
             }`}>
               {agendamentosFiltrados.map((item) => {
-                const isExterno = item.modalidade_local === 'externo';
+                const modalidade = item.modalidade_local as string;
+                const isExterno = modalidade === 'externo' || modalidade === 'domicilio';
                 const duracaoMinutos = calcularDuracaoMinutos(item);
-                const linkMaps = item.endereco_prestacao_snapshot
-                  ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.endereco_prestacao_snapshot)}`
-                  : null;
 
                 return (
                   <div
@@ -908,16 +953,21 @@ export const AgendaServicosLoja: React.FC = () => {
                     </div>
 
                     {/* 4. LOCAL */}
-                    <div className="min-w-0 space-y-1">
+                    <div className="min-w-0">
                       {isExterno ? (
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
-                          isDark
-                            ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                            : 'bg-amber-50 text-amber-700 border-amber-200'
-                        }`}>
+                        <button
+                          type="button"
+                          onClick={() => setAgendamentoEnderecoModal(item)}
+                          title="Clique para ver o endereço e o mapa"
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border cursor-pointer transition-colors ${
+                            isDark
+                              ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/30'
+                              : 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200'
+                          }`}
+                        >
                           <Home className="w-3 h-3 shrink-0" />
-                          Externo / Domicílio
-                        </span>
+                          Em Domicílio
+                        </button>
                       ) : (
                         <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
                           isDark
@@ -927,29 +977,6 @@ export const AgendaServicosLoja: React.FC = () => {
                           <Building2 className="w-3 h-3 shrink-0" />
                           Na Loja
                         </span>
-                      )}
-
-                      {isExterno && item.endereco_prestacao_snapshot && (
-                        <div className={`flex items-center gap-1 text-[11px] ${
-                          isDark ? 'text-amber-400' : 'text-amber-700'
-                        }`}>
-                          <MapPin className="w-3 h-3 shrink-0" />
-                          <span className="truncate" title={item.endereco_prestacao_snapshot}>
-                            {item.endereco_prestacao_snapshot}
-                          </span>
-                          {linkMaps && (
-                            <a
-                              href={linkMaps}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-0.5 text-[10px] font-bold underline shrink-0 hover:opacity-80"
-                              title="Abrir endereço no Google Maps"
-                            >
-                              Mapa
-                              <ExternalLink className="w-2.5 h-2.5" />
-                            </a>
-                          )}
-                        </div>
                       )}
                     </div>
 
@@ -964,7 +991,7 @@ export const AgendaServicosLoja: React.FC = () => {
                           type="button"
                           disabled={processandoAcaoId === item.id}
                           onClick={() => handleAlterarStatus(item.id, 'confirmado')}
-                          className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl px-3.5 py-1.5 text-xs shadow-sm transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
                           title="Confirmar agendamento"
                         >
                           {processandoAcaoId === item.id ? (
@@ -981,7 +1008,7 @@ export const AgendaServicosLoja: React.FC = () => {
                           type="button"
                           disabled={processandoAcaoId === item.id}
                           onClick={() => handleAlterarStatus(item.id, 'em_atendimento')}
-                          className="h-8 px-3 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl px-3.5 py-1.5 text-xs shadow-sm transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
                           title="Iniciar atendimento"
                         >
                           {processandoAcaoId === item.id ? (
@@ -998,7 +1025,7 @@ export const AgendaServicosLoja: React.FC = () => {
                           type="button"
                           disabled={processandoAcaoId === item.id}
                           onClick={() => handleAlterarStatus(item.id, 'concluido')}
-                          className="h-8 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl px-3.5 py-1.5 text-xs shadow-sm transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
                           title="Concluir atendimento"
                         >
                           {processandoAcaoId === item.id ? (
@@ -1007,6 +1034,27 @@ export const AgendaServicosLoja: React.FC = () => {
                             <CheckCheck className="w-3.5 h-3.5" />
                           )}
                           <span>Concluir</span>
+                        </button>
+                      )}
+
+                      {/* Ver Recibo do Pedido */}
+                      {item.pedido_id && (
+                        <button
+                          type="button"
+                          disabled={carregandoReciboId === item.id}
+                          onClick={() => void handleAbrirReciboPedido(item)}
+                          className={`p-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-40 ${
+                            isDark
+                              ? 'text-slate-300 hover:text-white hover:bg-slate-800'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                          }`}
+                          title="Ver Recibo do Pedido"
+                        >
+                          {carregandoReciboId === item.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Receipt className="w-4 h-4" />
+                          )}
                         </button>
                       )}
 
@@ -1059,14 +1107,14 @@ export const AgendaServicosLoja: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => setAgendamentoParaCancelar(item)}
-                          className={`p-1.5 rounded-lg transition cursor-pointer ${
+                          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                             isDark
-                              ? 'text-slate-400 hover:text-rose-400 hover:bg-rose-500/15'
-                              : 'text-slate-500 hover:text-rose-600 hover:bg-rose-50'
+                              ? 'text-rose-400 hover:text-rose-300 hover:bg-rose-500/10'
+                              : 'text-rose-500 hover:text-rose-600 hover:bg-rose-50'
                           }`}
                           title="Cancelar agendamento"
                         >
-                          <X className="w-4 h-4" />
+                          <Ban className="w-4 h-4" />
                         </button>
                       )}
                     </div>
@@ -1192,6 +1240,24 @@ export const AgendaServicosLoja: React.FC = () => {
           }}
         />
       )}
+
+      {/* 9. MODAL COMPACTO: LOCAL DE ATENDIMENTO EM DOMICÍLIO */}
+      {agendamentoEnderecoModal && loja && (
+        <ModalEnderecoDomicilioAgenda
+          isOpen={Boolean(agendamentoEnderecoModal)}
+          agendamento={agendamentoEnderecoModal}
+          lojaId={String(loja.id)}
+          onClose={() => setAgendamentoEnderecoModal(null)}
+        />
+      )}
+
+      {/* 10. MODAL DE RECIBO DO PEDIDO VINCULADO */}
+      <ReciboPedidoModal
+        isOpen={Boolean(pedidoParaRecibo)}
+        pedido={pedidoParaRecibo}
+        loja={loja}
+        onClose={() => setPedidoParaRecibo(null)}
+      />
     </div>
   );
 };
@@ -1797,6 +1863,264 @@ const ModalRemarcarAgendamentoRetaguarda: React.FC<ModalRemarcarAgendamentoRetag
               <span>Salvar Novo Horário</span>
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// =============================================================================
+// SUBCOMPONENTE MODAL: ENDEREÇO & MAPA (ATENDIMENTO EM DOMICÍLIO)
+// =============================================================================
+
+interface ModalEnderecoDomicilioAgendaProps {
+  isOpen: boolean;
+  agendamento: AgendamentoServico;
+  lojaId: string;
+  onClose: () => void;
+}
+
+const formatarEnderecoClienteAgendamento = (dados: Partial<Cliente> | null | undefined): string => {
+  if (!dados) return '';
+  if (dados.endereco_principal?.trim()) return dados.endereco_principal.trim();
+  const partes: string[] = [];
+  const logradouroNumero = [dados.endereco_logradouro, dados.endereco_numero]
+    .filter((v): v is string => Boolean(v && v.trim()))
+    .join(', ');
+  if (logradouroNumero) partes.push(logradouroNumero);
+  if (dados.endereco_complemento?.trim()) partes.push(dados.endereco_complemento.trim());
+  if (dados.endereco_bairro?.trim()) partes.push(dados.endereco_bairro.trim());
+  const cidadeUf = [dados.endereco_cidade, dados.endereco_estado]
+    .filter((v): v is string => Boolean(v && v.trim()))
+    .join('/');
+  if (cidadeUf) partes.push(cidadeUf);
+  if (dados.endereco_cep?.trim()) partes.push(`CEP ${dados.endereco_cep.trim()}`);
+  return partes.join(' - ');
+};
+
+const ModalEnderecoDomicilioAgenda: React.FC<ModalEnderecoDomicilioAgendaProps> = ({
+  isOpen,
+  agendamento,
+  lojaId,
+  onClose
+}) => {
+  const { isDark } = useTheme();
+  const [enderecoCarregado, setEnderecoCarregado] = useState<string>('');
+  const [carregandoEndereco, setCarregandoEndereco] = useState<boolean>(false);
+  const [copiado, setCopiado] = useState<boolean>(false);
+
+  useRegisterOverlay(isOpen, onClose, 'modal-endereco-domicilio-agenda');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setCopiado(false);
+    const snapshot = (agendamento.endereco_prestacao_snapshot || '').trim();
+    const doCliente = formatarEnderecoClienteAgendamento(agendamento.cliente);
+    const inicial = snapshot || doCliente;
+    setEnderecoCarregado(inicial);
+
+    if (inicial || !agendamento.cliente_id) {
+      setCarregandoEndereco(false);
+      return;
+    }
+
+    let ativo = true;
+    setCarregandoEndereco(true);
+    void (async () => {
+      try {
+        const [{ data: cliData }, { data: endData }] = await Promise.all([
+          supabase
+            .from('clientes')
+            .select('endereco_logradouro, endereco_numero, endereco_complemento, endereco_bairro, endereco_cidade, endereco_estado, endereco_cep, endereco_principal')
+            .eq('loja_id', lojaId)
+            .eq('id', agendamento.cliente_id as string)
+            .maybeSingle(),
+          supabase
+            .from('cliente_enderecos')
+            .select('logradouro, numero, complemento, bairro, cidade, uf, cep, is_principal')
+            .eq('cliente_id', agendamento.cliente_id as string)
+            .order('is_principal', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+        ]);
+
+        if (!ativo) return;
+        const formattedCli = formatarEnderecoClienteAgendamento(cliData as Partial<Cliente> | null);
+        if (formattedCli) {
+          setEnderecoCarregado(formattedCli);
+        } else if (endData?.logradouro) {
+          const formattedEnd = formatarEnderecoClienteAgendamento({
+            endereco_logradouro: endData.logradouro,
+            endereco_numero: endData.numero,
+            endereco_complemento: endData.complemento,
+            endereco_bairro: endData.bairro,
+            endereco_cidade: endData.cidade,
+            endereco_estado: endData.uf,
+            endereco_cep: endData.cep
+          });
+          setEnderecoCarregado(formattedEnd);
+        }
+      } finally {
+        if (ativo) setCarregandoEndereco(false);
+      }
+    })();
+
+    return () => {
+      ativo = false;
+    };
+  }, [isOpen, agendamento, lojaId]);
+
+  const enderecoCompleto = enderecoCarregado.trim();
+  const urlMaps = enderecoCompleto
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoCompleto)}`
+    : null;
+
+  const handleCopiarEndereco = async () => {
+    if (!enderecoCompleto) return;
+    try {
+      await navigator.clipboard.writeText(enderecoCompleto);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch {
+      setCopiado(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className={`w-full max-w-md rounded-2xl p-5 border shadow-2xl space-y-4 ${
+          isDark
+            ? 'bg-[#0F172A] border-slate-700 text-white'
+            : 'bg-white border-slate-200 text-slate-900'
+        }`}
+      >
+        <div
+          className={`flex items-center justify-between pb-3 border-b ${
+            isDark ? 'border-slate-800' : 'border-slate-200'
+          }`}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <div
+              className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                isDark ? 'bg-amber-500/15 text-amber-400' : 'bg-amber-50 text-amber-600'
+              }`}
+            >
+              <Home className="w-4 h-4" />
+            </div>
+            <h3 className="font-bold text-sm truncate">Local do Atendimento — Em Domicílio</h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+              isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+            title="Fechar"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="space-y-3 text-xs">
+          <div
+            className={`rounded-xl p-3 border space-y-1 ${
+              isDark ? 'bg-slate-900/70 border-slate-800' : 'bg-slate-50 border-slate-200'
+            }`}
+          >
+            <div className="flex items-center gap-1.5 font-bold text-sm">
+              <User className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              <span className="truncate">{agendamento.cliente_nome || 'Cliente'}</span>
+            </div>
+            <div className={`flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              <Scissors className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">{agendamento.produto?.nome || 'Serviço'}</span>
+            </div>
+          </div>
+
+          <div
+            className={`rounded-xl p-3.5 border space-y-1.5 ${
+              isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+            }`}
+          >
+            <div className={`flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider ${
+              isDark ? 'text-slate-400' : 'text-slate-500'
+            }`}>
+              <MapPin className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <span>Endereço Completo</span>
+            </div>
+            {carregandoEndereco ? (
+              <div className="flex items-center gap-2 py-1 text-slate-400">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Carregando endereço...</span>
+              </div>
+            ) : (
+              <p className={`text-xs leading-relaxed font-medium break-words ${
+                enderecoCompleto
+                  ? isDark ? 'text-slate-200' : 'text-slate-800'
+                  : 'text-slate-400 italic'
+              }`}>
+                {enderecoCompleto || 'Endereço não informado neste agendamento.'}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div
+          className={`flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t ${
+            isDark ? 'border-slate-800' : 'border-slate-200'
+          }`}
+        >
+          <button
+            type="button"
+            disabled={!enderecoCompleto}
+            onClick={() => void handleCopiarEndereco()}
+            className={`px-3.5 py-2 rounded-xl border text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+              isDark
+                ? 'border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-slate-200'
+                : 'border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-700'
+            }`}
+          >
+            {copiado ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Copiado!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5" />
+                <span>Copiar Endereço</span>
+              </>
+            )}
+          </button>
+
+          {urlMaps ? (
+            <a
+              href={urlMaps}
+              target="_blank"
+              rel="noreferrer"
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-sm inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              <span>Abrir no Google Maps</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="px-4 py-2 rounded-xl bg-emerald-600/40 text-white/70 text-xs font-semibold inline-flex items-center justify-center gap-1.5 cursor-not-allowed"
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              <span>Abrir no Google Maps</span>
+            </button>
+          )}
         </div>
       </div>
     </div>
