@@ -42,12 +42,75 @@ type AgendamentoPublicoComExtras = AgendamentoPublicoDetalhes & {
   loja_logo?: string | null;
   cor_primaria?: string | null;
   endereco_completo?: string | null;
-  servico_nome?: string;
-  duracao_estimada_minutos?: number;
+  servico_nome?: string | null;
+  duracao_estimada_minutos?: number | null;
+  produto?: { nome?: string | null; duracao_estimada_minutos?: number | null } | null;
+  servico?: { nome?: string | null; duracao_estimada_minutos?: number | null } | null;
 };
+
+function formatarTelefoneBr(valor?: string | null): string {
+  if (!valor) return '';
+  const digitos = valor.replace(/\D/g, '');
+  const local = digitos.startsWith('55') && digitos.length >= 12 ? digitos.slice(2) : digitos;
+  if (local.length === 11) {
+    return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
+  }
+  if (local.length === 10) {
+    return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
+  }
+  return valor;
+}
 
 export const ConfirmarAgendamentoPublico: React.FC = () => {
   const { token } = useParams<{ token: string }>();
+
+  // Forçar Tema Claro Puro na rota pública de confirmação (independente do tema salvo)
+  useEffect(() => {
+    const root = document.documentElement;
+    const body = document.body;
+    const estavaDark = root.classList.contains('dark') || body.classList.contains('dark');
+    const estavaLight = root.classList.contains('light');
+
+    const aplicarLightMode = () => {
+      root.classList.remove('dark');
+      root.classList.add('light');
+      root.style.colorScheme = 'light';
+      body.classList.remove('dark');
+      body.classList.add('light');
+      body.style.backgroundColor = '#f8fafc';
+      body.style.color = '#0f172a';
+    };
+
+    aplicarLightMode();
+
+    const observer = new MutationObserver(() => {
+      if (root.classList.contains('dark') || body.classList.contains('dark')) {
+        aplicarLightMode();
+      }
+    });
+
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] });
+    observer.observe(body, { attributes: true, attributeFilter: ['class'] });
+
+    return () => {
+      observer.disconnect();
+      body.style.backgroundColor = '';
+      body.style.color = '';
+      if (estavaDark) {
+        root.classList.add('dark');
+        root.classList.remove('light');
+        root.style.colorScheme = 'dark';
+        body.classList.add('dark');
+        body.classList.remove('light');
+      } else if (estavaLight) {
+        root.classList.add('light');
+        root.classList.remove('dark');
+        root.style.colorScheme = 'light';
+        body.classList.add('light');
+        body.classList.remove('dark');
+      }
+    };
+  }, []);
 
   const [loading, setLoading] = useState<boolean>(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -135,6 +198,23 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
     carregarDados();
   }, [carregarDados]);
 
+  const agendamentoExtras = agendamento as AgendamentoPublicoComExtras | null;
+
+  const nomeServico =
+    agendamentoExtras?.produto_nome ||
+    agendamentoExtras?.servico_nome ||
+    agendamentoExtras?.produto?.nome ||
+    agendamentoExtras?.servico?.nome ||
+    'Serviço Agendado';
+
+  const duracaoServico = Number(
+    agendamentoExtras?.duracao_minutos ||
+      agendamentoExtras?.duracao_estimada_minutos ||
+      agendamentoExtras?.produto?.duracao_estimada_minutos ||
+      agendamentoExtras?.servico?.duracao_estimada_minutos ||
+      30
+  );
+
   // Recalcular slots disponíveis para remarcação quando a data ou profissional mudar
   useEffect(() => {
     if (!remarcando || !novaData || !agendamento) return;
@@ -150,7 +230,7 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
           agendamento.produto_id,
           profId,
           novaData,
-          agendamento.duracao_minutos || 30,
+          duracaoServico,
           agendamento.id
         );
         if (!cancelado) {
@@ -168,7 +248,7 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
     return () => {
       cancelado = true;
     };
-  }, [remarcando, novaData, profissionalRemarcacaoId, agendamento]);
+  }, [remarcando, novaData, profissionalRemarcacaoId, agendamento, duracaoServico]);
 
   // Ação 1: Confirmar Presença
   const handleConfirmarPresenca = async () => {
@@ -268,9 +348,9 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
       const formatIsoUtc = (date: Date) =>
         date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 
-      const titulo = encodeURIComponent(`${agendamento.produto_nome} - ${agendamento.loja_nome}`);
+      const titulo = encodeURIComponent(`${nomeServico} - ${agendamento.loja_nome}`);
       const detalhes = encodeURIComponent(
-        `Atendimento com ${agendamento.profissional_nome}.\nServiço: ${agendamento.produto_nome}\nLocal: ${
+        `Atendimento com ${agendamento.profissional_nome}.\nServiço: ${nomeServico}\nLocal: ${
           agendamento.modalidade_local === 'loja'
             ? [lojaInfo?.endereco_logradouro, lojaInfo?.endereco_numero, lojaInfo?.endereco_bairro, lojaInfo?.endereco_cidade].filter(Boolean).join(', ') || 'Na Loja'
             : agendamento.endereco_prestacao_snapshot || 'A Domicílio'
@@ -288,7 +368,7 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
     } catch {
       return '#';
     }
-  }, [agendamento, lojaInfo]);
+  }, [agendamento, lojaInfo, nomeServico]);
 
   // Download do arquivo .ICS (Apple Calendar / Outlook)
   const handleDownloadIcs = () => {
@@ -314,7 +394,7 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
         `DTSTAMP:${formatIsoUtc(new Date())}`,
         `DTSTART:${formatIsoUtc(dataInicio)}`,
         `DTEND:${formatIsoUtc(dataFim)}`,
-        `SUMMARY:${agendamento.produto_nome} - ${agendamento.loja_nome}`,
+        `SUMMARY:${nomeServico} - ${agendamento.loja_nome}`,
         `DESCRIPTION:Profissional: ${agendamento.profissional_nome}\\nLocal: ${localEfetivo}`,
         `LOCATION:${localEfetivo}`,
         'STATUS:CONFIRMED',
@@ -326,7 +406,7 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `agendamento_${agendamento.data_agendamento}_${agendamento.hora_inicio.replace(':', '')}.ics`;
+      a.download = `agendamento_${agendamento.data_agendamento}_${agendamento.hora_inicio.replace(/:/g, '')}.ics`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -342,10 +422,10 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
     const numLimpo = agendamento.loja_whatsapp.replace(/\D/g, '');
     const numFinal = numLimpo.startsWith('55') ? numLimpo : `55${numLimpo}`;
     const txt = encodeURIComponent(
-      `Olá, ${agendamento.loja_nome}! Gostaria de tirar uma dúvida sobre o meu agendamento de *${agendamento.produto_nome}* no dia *${formatarDataPtBr(agendamento.data_agendamento)} às ${(agendamento.hora_inicio || '').slice(0, 5)}*.`
+      `Olá, ${agendamento.loja_nome}! Gostaria de tirar uma dúvida sobre o meu agendamento de *${nomeServico}* no dia *${formatarDataPtBr(agendamento.data_agendamento)} às ${(agendamento.hora_inicio || '').slice(0, 5)}*.`
     );
     return `https://wa.me/${numFinal}?text=${txt}`;
-  }, [agendamento]);
+  }, [agendamento, nomeServico]);
 
   // Carrossel de datas para remarcação (próximos 14 dias)
   const diasDisponiveisRemarcacao = useMemo(() => {
@@ -373,25 +453,31 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 text-white">
-        <Loader2 className="w-10 h-10 text-emerald-400 animate-spin mb-3" />
-        <p className="text-sm text-slate-400 font-medium">Carregando detalhes do agendamento...</p>
+      <div
+        data-theme="light"
+        className="min-h-screen bg-slate-50 text-slate-900 flex flex-col items-center justify-center p-4"
+      >
+        <Loader2 className="w-10 h-10 text-emerald-600 animate-spin mb-3" />
+        <p className="text-sm text-slate-500 font-medium">Carregando detalhes do agendamento...</p>
       </div>
     );
   }
 
   if (erro && !agendamento) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 text-white">
-        <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 text-center space-y-4 shadow-2xl">
-          <div className="w-14 h-14 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto border border-rose-500/30">
+      <div
+        data-theme="light"
+        className="min-h-screen bg-slate-50 text-slate-900 flex flex-col items-center justify-center p-4"
+      >
+        <div className="max-w-md w-full bg-white border border-slate-200/90 rounded-2xl p-6 text-center space-y-4 shadow-sm">
+          <div className="w-14 h-14 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-200">
             <AlertCircle className="w-8 h-8" />
           </div>
-          <h2 className="text-xl font-bold text-white">Agendamento Indisponível</h2>
-          <p className="text-sm text-slate-400 leading-relaxed">{erro}</p>
+          <h2 className="text-xl font-bold text-slate-900">Agendamento Indisponível</h2>
+          <p className="text-sm text-slate-500 leading-relaxed">{erro}</p>
           <Link
             to="/"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition border border-slate-700"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-800 font-semibold text-xs transition border border-slate-200"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Voltar ao Início</span>
@@ -410,7 +496,6 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
 
   const podeCancelar = status === 'agendado' || status === 'confirmado';
 
-  const agendamentoExtras = agendamento as AgendamentoPublicoComExtras;
   const enderecoLojaCompleto =
     [
       lojaInfo?.endereco_logradouro,
@@ -420,46 +505,53 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
     ]
       .filter(Boolean)
       .join(', ') ||
-    agendamentoExtras.endereco_completo ||
+    agendamentoExtras?.endereco_completo ||
     '';
 
-  const logoLoja = lojaInfo?.url_logo || agendamentoExtras.loja_logo || null;
+  const logoLoja = lojaInfo?.url_logo || agendamentoExtras?.loja_logo || null;
+  const horaInicioFormatada = (agendamento.hora_inicio || '').slice(0, 5);
+  const horaFimFormatada = (agendamento.hora_fim || '').slice(0, 5);
 
   return (
-    <div className="min-h-screen bg-[#0B0F17] text-slate-100 antialiased py-6 px-4 sm:px-6">
+    <div
+      data-theme="light"
+      className="min-h-screen bg-slate-50 text-slate-900 antialiased py-6 px-4 sm:px-6"
+    >
       <div className="max-w-lg mx-auto space-y-4">
         {/* Topo / Identidade Visual da Loja */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
-          <div className="flex items-center gap-3">
+        <header className="bg-white border border-slate-200/90 rounded-2xl shadow-sm p-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             {logoLoja ? (
               <img
                 src={logoLoja}
                 alt={agendamento.loja_nome}
-                className="w-10 h-10 rounded-2xl object-cover border border-slate-700 bg-slate-800"
+                className="w-11 h-11 rounded-xl object-cover border border-slate-200 bg-slate-50 shrink-0"
               />
             ) : (
-              <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-emerald-400 font-black">
+              <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
                 <Store className="w-5 h-5" />
               </div>
             )}
-            <div>
-              <h1 className="font-black text-sm text-white tracking-wide">{agendamento.loja_nome}</h1>
-              <p className="text-[11px] text-slate-400">Comprovante de Agendamento</p>
+            <div className="min-w-0">
+              <h1 className="text-lg font-extrabold text-slate-900 truncate leading-tight">
+                {agendamento.loja_nome || 'Estabelecimento'}
+              </h1>
+              <p className="text-xs font-medium text-slate-500">Comprovante de Agendamento</p>
             </div>
           </div>
 
           {/* Badge de Status */}
           <span
-            className={`text-xs font-bold px-3 py-1 rounded-full border shadow-2xs ${
+            className={`shrink-0 text-xs font-bold px-3 py-1.5 rounded-full border ${
               status === 'confirmado'
-                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                 : status === 'concluido'
-                ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                ? 'bg-blue-50 text-blue-700 border-blue-200'
                 : status === 'em_atendimento'
-                ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30 animate-pulse'
+                ? 'bg-indigo-50 text-indigo-700 border-indigo-200 animate-pulse'
                 : status === 'cancelado' || status === 'nao_compareceu'
-                ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
-                : 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                ? 'bg-rose-50 text-rose-700 border-rose-200'
+                : 'bg-amber-50 text-amber-700 border-amber-200'
             }`}
           >
             {status === 'confirmado'
@@ -474,65 +566,71 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
               ? 'Não Compareceu'
               : 'Aguardando Confirmação'}
           </span>
-        </div>
+        </header>
 
         {/* Feedback de Mensagem */}
         {mensagemSucesso && (
-          <div className="p-3.5 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center gap-2.5 text-xs text-emerald-300 animate-in fade-in">
-            <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-400" />
-            <span className="flex-1 leading-relaxed font-medium">{mensagemSucesso}</span>
+          <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-2.5 text-xs text-emerald-800 shadow-xs">
+            <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
+            <span className="flex-1 leading-relaxed font-semibold">{mensagemSucesso}</span>
           </div>
         )}
 
         {erro && (
-          <div className="p-3.5 bg-rose-500/15 border border-rose-500/30 rounded-2xl flex items-center gap-2.5 text-xs text-rose-300 animate-in fade-in">
-            <AlertCircle className="w-5 h-5 shrink-0 text-rose-400" />
-            <span className="flex-1 leading-relaxed">{erro}</span>
+          <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-2.5 text-xs text-rose-800 shadow-xs">
+            <AlertCircle className="w-5 h-5 shrink-0 text-rose-600" />
+            <span className="flex-1 leading-relaxed font-medium">{erro}</span>
           </div>
         )}
 
         {/* Card Principal de Resumo do Atendimento */}
-        <div className="bg-[#0F172A] border border-slate-800 rounded-3xl p-5 space-y-4 shadow-xl">
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-              <Scissors className="w-3 h-3 text-emerald-400" />
+        <div className="bg-white border border-slate-200/90 rounded-2xl shadow-sm p-5 space-y-4">
+          <div className="space-y-1.5">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+              <Scissors className="w-3.5 h-3.5 text-emerald-600" />
               Serviço Contratado
             </span>
-            <h2 className="text-xl font-black text-white">{agendamento.produto_nome}</h2>
-            <div className="flex items-center gap-2 text-xs text-emerald-400 font-bold">
-              <span>{formatarMoeda(Number(agendamento.preco_venda_varejo || 0))}</span>
-              <span className="text-slate-500">•</span>
-              <span className="text-slate-400 font-normal">Duração Estimada: {agendamento.duracao_minutos} min</span>
+            <h2 className="text-xl font-extrabold text-slate-900 leading-snug">
+              {nomeServico}
+            </h2>
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="font-bold text-emerald-600">
+                {formatarMoeda(Number(agendamento.preco_venda_varejo || 0))}
+              </span>
+              <span className="text-slate-400">•</span>
+              <span className="text-slate-600 font-medium">
+                Duração Estimada: {duracaoServico} min
+              </span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-slate-800/80">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-slate-200/80">
             {/* Data e Horário */}
-            <div className="bg-slate-900/80 p-3.5 rounded-2xl border border-slate-800 space-y-1">
-              <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 space-y-1">
+              <span className="text-[11px] text-slate-500 font-semibold flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-emerald-600" />
                 Data & Horário
               </span>
-              <p className="text-sm font-bold text-white capitalize">
+              <p className="text-sm font-bold text-slate-900 capitalize">
                 {formatarDataPtBr(agendamento.data_agendamento)}
               </p>
-              <p className="text-xs text-emerald-400 font-bold flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                {(agendamento.hora_inicio || '').slice(0, 5)} às {(agendamento.hora_fim || '').slice(0, 5)}
+              <p className="text-xs text-emerald-600 font-bold flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5" />
+                {horaInicioFormatada} às {horaFimFormatada}
               </p>
             </div>
 
             {/* Profissional Responsável */}
-            <div className="bg-slate-900/80 p-3.5 rounded-2xl border border-slate-800 space-y-1">
-              <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
-                <User className="w-3.5 h-3.5 text-emerald-400" />
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 space-y-1">
+              <span className="text-[11px] text-slate-500 font-semibold flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-emerald-600" />
                 Profissional Responsável
               </span>
-              <p className="text-sm font-bold text-white truncate">
-                {agendamento.profissional_nome}
+              <p className="text-sm font-bold text-slate-900 truncate">
+                {agendamento.profissional_nome || 'Equipe da Loja'}
               </p>
               {agendamento.especialidade_cargo && (
-                <p className="text-xs text-slate-400 truncate">
+                <p className="text-xs text-slate-500 truncate">
                   {agendamento.especialidade_cargo}
                 </p>
               )}
@@ -540,17 +638,17 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
           </div>
 
           {/* Local de Prestação */}
-          <div className="bg-slate-900/80 p-3.5 rounded-2xl border border-slate-800 space-y-1">
-            <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+          <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 space-y-1">
+            <span className="text-[11px] text-slate-500 font-semibold flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-emerald-600" />
               Local de Execução
             </span>
-            <p className="text-xs font-bold text-white">
+            <p className="text-sm font-bold text-slate-900">
               {agendamento.modalidade_local === 'loja'
                 ? '🏪 Atendimento Presencial na Loja'
                 : '🏠 Atendimento a Domicílio (No seu endereço)'}
             </p>
-            <p className="text-xs text-slate-300 leading-relaxed pt-0.5">
+            <p className="text-sm text-slate-600 leading-relaxed pt-0.5">
               {agendamento.modalidade_local === 'loja'
                 ? enderecoLojaCompleto || 'Consulte o endereço diretamente com o estabelecimento.'
                 : agendamento.endereco_prestacao_snapshot || 'Endereço fornecido no momento do agendamento.'}
@@ -558,17 +656,27 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
           </div>
 
           {/* Dados do Cliente */}
-          <div className="flex items-center justify-between text-xs text-slate-400 pt-1 border-t border-slate-800/60">
-            <span>Cliente: <strong className="text-white">{agendamento.cliente_nome}</strong></span>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-3 border-t border-slate-200/80">
+            <span className="text-slate-500">
+              Cliente:{' '}
+              <strong className="font-semibold text-slate-900">
+                {agendamento.cliente_nome || 'Não informado'}
+              </strong>
+            </span>
             {agendamento.cliente_whatsapp && (
-              <span>WhatsApp: <strong className="text-white">{agendamento.cliente_whatsapp}</strong></span>
+              <span className="text-slate-500">
+                WhatsApp:{' '}
+                <strong className="font-semibold text-slate-900">
+                  {formatarTelefoneBr(agendamento.cliente_whatsapp)}
+                </strong>
+              </span>
             )}
           </div>
 
           {/* Histórico / Aviso de Remarcações */}
           {agendamento.qtd_remarcacoes > 0 && (
-            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-2 text-[11px] text-amber-300">
-              <Info className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center gap-2 text-xs text-amber-800">
+              <Info className="w-4 h-4 shrink-0 text-amber-600" />
               <span>
                 Este agendamento já foi remarcado {agendamento.qtd_remarcacoes} vez(es). (Limite de {agendamento.limite_remarcacoes_cliente || 2} permitida(s))
               </span>
@@ -584,14 +692,14 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
               type="button"
               disabled={processandoAcao}
               onClick={handleConfirmarPresenca}
-              className="w-full py-3.5 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 active:scale-[0.99] text-slate-950 font-black text-sm shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="w-full h-12 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white font-bold text-sm shadow-sm transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {processandoAcao ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
                   <CalendarCheck className="w-5 h-5" />
-                  <span>Confirmar Minha Presença</span>
+                  <span>Confirmar Presença</span>
                 </>
               )}
             </button>
@@ -605,9 +713,9 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
                 setRemarcando(true);
                 setNovaData(diasDisponiveisRemarcacao[0]?.data || '');
               }}
-              className="w-full py-3 px-4 rounded-2xl bg-slate-900 hover:bg-slate-850 text-slate-200 font-bold text-xs border border-slate-800 transition flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full h-11 px-4 rounded-xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 font-semibold text-sm shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
             >
-              <Clock className="w-4 h-4 text-amber-400" />
+              <Clock className="w-4 h-4 text-amber-600" />
               <span>Remarcar Horário</span>
             </button>
           )}
@@ -618,7 +726,7 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCancelando(true)}
-                className="text-xs text-rose-400/80 hover:text-rose-400 hover:underline transition cursor-pointer"
+                className="text-sm font-semibold text-rose-600 hover:text-rose-700 hover:underline transition cursor-pointer"
               >
                 Não poderei comparecer? Cancelar agendamento
               </button>
@@ -628,25 +736,25 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
 
         {/* SELETOR INTERATIVO DE REMARCAÇÃO */}
         {remarcando && (
-          <div className="bg-[#0F172A] border border-amber-500/30 rounded-3xl p-5 space-y-4 animate-in fade-in">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-              <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                <Clock className="w-4 h-4 text-amber-400" />
+          <div className="bg-white border border-amber-200 rounded-2xl p-5 space-y-4 shadow-sm">
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
+              <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-amber-600" />
                 <span>Remarcação de Horário</span>
               </h3>
               <button
                 type="button"
                 onClick={() => setRemarcando(false)}
-                className="text-xs text-slate-400 hover:text-white"
+                className="text-xs font-semibold text-slate-500 hover:text-slate-900 cursor-pointer"
               >
                 Fechar
               </button>
             </div>
 
-            {/* Passo A: Profissional Habilitado (Padrão: Atual, com opção de trocar) */}
+            {/* Passo A: Profissional Habilitado */}
             {profissionaisHabilitados.length > 1 && (
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-400">1. Selecione o Profissional</label>
+                <label className="text-xs font-bold text-slate-600">1. Selecione o Profissional</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {profissionaisHabilitados.map((prof) => {
                     const ativo = profissionalRemarcacaoId === prof.id;
@@ -657,18 +765,18 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
                         onClick={() => setProfissionalRemarcacaoId(prof.id)}
                         className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex items-center gap-2 ${
                           ativo
-                            ? 'bg-amber-500/15 border-amber-500 text-white'
-                            : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+                            ? 'bg-emerald-50 border-emerald-500 text-slate-900'
+                            : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300'
                         }`}
                       >
-                        <User className="w-4 h-4 text-amber-400 shrink-0" />
+                        <User className="w-4 h-4 text-emerald-600 shrink-0" />
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold truncate">{prof.nome_completo}</p>
+                          <p className="text-xs font-bold text-slate-900 truncate">{prof.nome_completo}</p>
                           {prof.especialidade_cargo && (
-                            <p className="text-[10px] text-slate-400 truncate">{prof.especialidade_cargo}</p>
+                            <p className="text-[11px] text-slate-500 truncate">{prof.especialidade_cargo}</p>
                           )}
                         </div>
-                        {ativo && <Check className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                        {ativo && <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
                       </button>
                     );
                   })}
@@ -678,7 +786,7 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
 
             {/* Passo B: Seletor de Nova Data */}
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-400">
+              <label className="text-xs font-bold text-slate-600">
                 {profissionaisHabilitados.length > 1 ? '2. Selecione a Nova Data' : '1. Selecione a Nova Data'}
               </label>
               <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
@@ -691,8 +799,8 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
                       onClick={() => setNovaData(item.data)}
                       className={`shrink-0 px-3 py-2 rounded-xl border text-center transition cursor-pointer min-w-[70px] ${
                         selecionado
-                          ? 'bg-amber-500 text-slate-950 font-black border-amber-400 shadow-md'
-                          : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
+                          ? 'bg-emerald-600 text-white font-bold border-emerald-600 shadow-sm'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
                       <span className="block text-[10px] uppercase">{item.diaSemana}</span>
@@ -705,15 +813,15 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
 
             {/* Passo C: Horários Livres Calculados em Tempo Real */}
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-400">
+              <label className="text-xs font-bold text-slate-600">
                 {profissionaisHabilitados.length > 1 ? '3. Selecione o Novo Horário' : '2. Selecione o Novo Horário'}
               </label>
               {carregandoSlots ? (
                 <div className="py-6 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
                   <span>Consultando horários livres...</span>
                 </div>
-              ) : slotsDisponiveis.filter(s => s.disponivel).length === 0 ? (
+              ) : slotsDisponiveis.filter((s) => s.disponivel).length === 0 ? (
                 <p className="py-4 text-center text-xs text-slate-500">
                   Nenhum horário livre encontrado para esta data. Selecione outro dia acima.
                 </p>
@@ -730,11 +838,11 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
                           onClick={() => setNovaHora(slot.hora_inicio)}
                           className={`py-2 px-1 rounded-xl text-xs font-bold border transition cursor-pointer text-center ${
                             ativo
-                              ? 'bg-amber-500 text-slate-950 border-amber-400 font-black'
-                              : 'bg-slate-900 text-slate-200 border-slate-800 hover:border-amber-500/50'
+                              ? 'bg-emerald-600 text-white border-emerald-600'
+                              : 'bg-slate-50 text-slate-800 border-slate-200 hover:border-emerald-400 hover:bg-emerald-50'
                           }`}
                         >
-                          {slot.hora_inicio}
+                          {slot.hora_inicio.slice(0, 5)}
                         </button>
                       );
                     })}
@@ -747,12 +855,14 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
               type="button"
               disabled={processandoAcao || !novaHora}
               onClick={handleConfirmarRemarcacao}
-              className="w-full py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
+              className="w-full h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
             >
               {processandoAcao ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                <span>Confirmar Novo Horário ({novaHora ? `${formatarDataPtBr(novaData)} às ${novaHora}` : 'Selecione acima'})</span>
+                <span>
+                  Confirmar Novo Horário ({novaHora ? `${formatarDataPtBr(novaData)} às ${novaHora.slice(0, 5)}` : 'Selecione acima'})
+                </span>
               )}
             </button>
           </div>
@@ -760,12 +870,12 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
 
         {/* DIÁLOGO DE CANCELAMENTO */}
         {cancelando && (
-          <div className="bg-[#0F172A] border border-rose-500/30 rounded-3xl p-5 space-y-3 animate-in fade-in">
-            <h3 className="font-bold text-sm text-rose-400 flex items-center gap-2">
-              <CalendarX className="w-4 h-4" />
+          <div className="bg-white border border-rose-200 rounded-2xl p-5 space-y-3 shadow-sm">
+            <h3 className="font-bold text-sm text-rose-700 flex items-center gap-2">
+              <CalendarX className="w-4 h-4 text-rose-600" />
               <span>Confirmar Cancelamento do Agendamento</span>
             </h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
+            <p className="text-xs text-slate-600 leading-relaxed">
               Tem certeza que deseja cancelar? Seu horário será liberado imediatamente para outros clientes.
             </p>
             <input
@@ -773,13 +883,13 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
               placeholder="Motivo do cancelamento (opcional)..."
               value={motivoCancelamento}
               onChange={(e) => setMotivoCancelamento(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-emerald-500"
+              className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500"
             />
             <div className="flex items-center gap-2 pt-1">
               <button
                 type="button"
                 onClick={() => setCancelando(false)}
-                className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300"
+                className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 cursor-pointer transition"
               >
                 Voltar
               </button>
@@ -796,9 +906,9 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
         )}
 
         {/* INTEGRAÇÃO COM CALENDÁRIOS (Google Agenda e .ICS) */}
-        <div className="bg-[#0F172A] border border-slate-800 rounded-3xl p-4 space-y-3">
-          <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-            <Calendar className="w-4 h-4 text-emerald-400" />
+        <div className="bg-white border border-slate-200/90 rounded-2xl shadow-sm p-4 space-y-3">
+          <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+            <Calendar className="w-4 h-4 text-emerald-600" />
             Adicionar à Minha Agenda
           </span>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -806,17 +916,17 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
               href={linkGoogleCalendar}
               target="_blank"
               rel="noreferrer"
-              className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-800 transition"
+              className="py-2.5 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-200 transition"
             >
-              <ExternalLink className="w-3.5 h-3.5 text-blue-400" />
+              <ExternalLink className="w-3.5 h-3.5 text-blue-600" />
               <span>Google Agenda</span>
             </a>
             <button
               type="button"
               onClick={handleDownloadIcs}
-              className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-800 transition cursor-pointer"
+              className="py-2.5 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs font-semibold flex items-center justify-center gap-1.5 border border-slate-200 transition cursor-pointer"
             >
-              <Download className="w-3.5 h-3.5 text-emerald-400" />
+              <Download className="w-3.5 h-3.5 text-emerald-600" />
               <span>Apple / Outlook (.ics)</span>
             </button>
           </div>
@@ -828,7 +938,7 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
             href={linkWhatsAppLoja}
             target="_blank"
             rel="noreferrer"
-            className="w-full py-3 px-4 rounded-2xl bg-[#0F172A] hover:bg-slate-800 text-emerald-400 font-bold text-xs border border-emerald-500/20 transition flex items-center justify-center gap-2 shadow-2xs"
+            className="w-full h-11 px-4 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold text-sm border border-emerald-200 transition flex items-center justify-center gap-2"
           >
             <MessageCircle className="w-4 h-4" />
             <span>Falar com {agendamento.loja_nome} no WhatsApp</span>
@@ -840,9 +950,9 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
           <div className="pt-2 text-center">
             <Link
               to={`/catalog/${agendamento.loja_slug}`}
-              className="text-xs text-slate-500 hover:text-slate-300 transition"
+              className="text-sm font-medium text-slate-600 hover:text-emerald-600 transition"
             >
-              ← Ver mais produtos e serviços em <strong>{agendamento.loja_nome}</strong>
+              ← Ver mais produtos e serviços em <strong className="font-semibold text-slate-900">{agendamento.loja_nome}</strong>
             </Link>
           </div>
         )}
