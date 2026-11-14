@@ -22,6 +22,123 @@ import type {
 } from '../types/agendamento';
 import type { UsuarioLoja, Loja, Produto } from '../types';
 
+export interface AgendamentoVigenteFiltroInput
+  extends Partial<
+    Pick<
+      AgendamentoServico,
+      | 'id'
+      | 'produto_id'
+      | 'item_pedido_id'
+      | 'status_agendamento'
+      | 'remarcado_em'
+      | 'atualizado_em'
+      | 'criado_em'
+      | 'data_agendamento'
+      | 'hora_inicio'
+      | 'data_hora_inicio'
+    >
+  > {
+  produto?: { nome?: string | null } | null;
+  produto_nome?: string | null;
+}
+
+export interface ItemPedidoFiltroAgendamentoInput {
+  produto_id?: string | null;
+  quantidade?: number | null;
+}
+
+const parseTimestampAgendamentoMs = (iso?: string | null): number => {
+  if (!iso) return 0;
+  const ms = Date.parse(iso);
+  return Number.isFinite(ms) ? ms : 0;
+};
+
+/**
+ * Filtra agendamentos vigentes (excluindo cancelado/nao_compareceu),
+ * ordena do mais recente para o mais antigo (remarcado_em -> atualizado_em -> criado_em)
+ * e limita por produto_id à quantidade contratada em itens_pedido.
+ */
+export function filtrarAgendamentosVigentesDoPedido<T extends AgendamentoVigenteFiltroInput>(
+  agendamentos?: T[] | null,
+  itensPedido?: ItemPedidoFiltroAgendamentoInput[] | null
+): T[] {
+  if (!Array.isArray(agendamentos) || agendamentos.length === 0) return [];
+
+  // Passo A: apenas agendamentos vigentes
+  const ativos = agendamentos.filter((ag) => {
+    const status = (ag.status_agendamento || '').toLowerCase();
+    return status !== 'cancelado' && status !== 'nao_compareceu';
+  });
+
+  if (ativos.length === 0) return [];
+
+  // Passo B: ordenar do mais recente para o mais antigo
+  const ordenados = [...ativos].sort((a, b) => {
+    const refB =
+      parseTimestampAgendamentoMs(b.remarcado_em) ||
+      parseTimestampAgendamentoMs(b.atualizado_em) ||
+      parseTimestampAgendamentoMs(b.criado_em);
+    const refA =
+      parseTimestampAgendamentoMs(a.remarcado_em) ||
+      parseTimestampAgendamentoMs(a.atualizado_em) ||
+      parseTimestampAgendamentoMs(a.criado_em);
+    if (refB !== refA) return refB - refA;
+
+    const remDiff = parseTimestampAgendamentoMs(b.remarcado_em) - parseTimestampAgendamentoMs(a.remarcado_em);
+    if (remDiff !== 0) return remDiff;
+
+    const atuDiff = parseTimestampAgendamentoMs(b.atualizado_em) - parseTimestampAgendamentoMs(a.atualizado_em);
+    if (atuDiff !== 0) return atuDiff;
+
+    const criDiff = parseTimestampAgendamentoMs(b.criado_em) - parseTimestampAgendamentoMs(a.criado_em);
+    if (criDiff !== 0) return criDiff;
+
+    const chaveHorarioB = `${b.data_agendamento || ''}T${(b.hora_inicio || '').slice(0, 5)}`;
+    const chaveHorarioA = `${a.data_agendamento || ''}T${(a.hora_inicio || '').slice(0, 5)}`;
+    return chaveHorarioB.localeCompare(chaveHorarioA);
+  });
+
+  // Passo C: trava pela quantidade contratada por produto_id nos itens do pedido
+  const limitePorProduto = new Map<string, number>();
+  const possuiItensPedido = Array.isArray(itensPedido) && itensPedido.length > 0;
+  if (possuiItensPedido) {
+    for (const item of itensPedido) {
+      const prodId = item.produto_id ? String(item.produto_id) : '';
+      if (!prodId) continue;
+      const qtdRaw = Number(item.quantidade ?? 1);
+      const qtdValida = Number.isFinite(qtdRaw) && qtdRaw > 0 ? Math.floor(qtdRaw) : 1;
+      limitePorProduto.set(prodId, (limitePorProduto.get(prodId) || 0) + qtdValida);
+    }
+  }
+
+  const contagemPorChave = new Map<string, number>();
+  const vigentes: T[] = [];
+
+  for (const ag of ordenados) {
+    const prodId = ag.produto_id ? String(ag.produto_id) : '';
+    const chaveGrupo = prodId
+      ? `prod:${prodId}`
+      : ag.item_pedido_id
+      ? `item:${ag.item_pedido_id}`
+      : `id:${ag.id || ''}`;
+
+    const limiteMaximo =
+      prodId && possuiItensPedido
+        ? Math.max(1, limitePorProduto.get(prodId) ?? 1)
+        : 1;
+
+    const jaSelecionados = contagemPorChave.get(chaveGrupo) || 0;
+    if (jaSelecionados >= limiteMaximo) {
+      continue;
+    }
+
+    contagemPorChave.set(chaveGrupo, jaSelecionados + 1);
+    vigentes.push(ag);
+  }
+
+  return vigentes;
+}
+
 /**
  * Converte string 'HH:MM' ou 'HH:MM:SS' para minutos a partir da meia-noite
  */
@@ -1141,27 +1258,29 @@ export const agendamentoService = {
       throw new Error('Agendamento não encontrado para remarcação.');
     }
 
-    const duracao = atual.produto?.duracao_estimada_minutos || 30;
-    const inicioMin = timeStringToMinutes(novaHoraInicio);
+    const duracao = atual.duracao_minutos || atual.produto?.duracao_estimada_minutos || 30;
+    const horaInicioCurta = (novaHoraInicio || '').slice(0, 5);
+    const inicioMin = timeStringToMinutes(horaInicioCurta);
     const fimMin = inicioMin + duracao;
     const novaHoraFim = minutesToTimeString(fimMin);
 
-    const novaDataHoraInicio = new Date(`${novaData}T${novaHoraInicio}:00`).toISOString();
-    const novaDataHoraFim = new Date(`${novaData}T${novaHoraFim}:00`).toISOString();
+    const novaDataHoraInicio = new Date(`${novaData}T${horaInicioCurta}:00-03:00`).toISOString();
+    const novaDataHoraFim = new Date(`${novaData}T${novaHoraFim}:00-03:00`).toISOString();
     const profissionalEfetivo = novoProfissionalId || atual.profissional_id;
+    const agoraIso = new Date().toISOString();
 
     const { error } = await supabase
       .from('agendamentos_servicos')
       .update({
         data_hora_anterior: atual.data_hora_inicio,
         data_agendamento: novaData,
-        hora_inicio: novaHoraInicio,
+        hora_inicio: horaInicioCurta,
         hora_fim: novaHoraFim,
         data_hora_inicio: novaDataHoraInicio,
         data_hora_fim: novaDataHoraFim,
         profissional_id: profissionalEfetivo,
         qtd_remarcacoes: (atual.qtd_remarcacoes || 0) + 1,
-        remarcado_em: new Date().toISOString(),
+        remarcado_em: agoraIso,
         status_agendamento: 'agendado',
         confirmado_pelo_cliente_em: null,
         lembrete_enviado: false,
@@ -1169,13 +1288,30 @@ export const agendamentoService = {
         observacoes: motivo
           ? `${atual.observacoes || ''}\n[Remarcado pelo painel]: ${motivo}`.trim()
           : atual.observacoes,
-        atualizado_em: new Date().toISOString()
+        atualizado_em: agoraIso
       })
       .eq('id', agendamentoId)
       .eq('loja_id', lojaId);
 
     if (error) {
       throw error;
+    }
+
+    // Garante ausência de duplicidade ativa para o mesmo item de pedido
+    if (atual.pedido_id && atual.item_pedido_id) {
+      await supabase
+        .from('agendamentos_servicos')
+        .update({
+          status_agendamento: 'cancelado',
+          cancelado_em: agoraIso,
+          motivo_cancelamento: 'Remarcado para novo horário',
+          atualizado_em: agoraIso
+        })
+        .eq('loja_id', lojaId)
+        .eq('pedido_id', atual.pedido_id)
+        .eq('item_pedido_id', atual.item_pedido_id)
+        .neq('id', agendamentoId)
+        .neq('status_agendamento', 'cancelado');
     }
   },
 

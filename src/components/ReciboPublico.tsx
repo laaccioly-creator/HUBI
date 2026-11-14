@@ -22,9 +22,9 @@ import { formatarMoeda } from '../utils/formatters';
 import { extrairInfoVisitaPedido } from '../utils/taxaDomicilioUtils';
 import {
   AgendamentoReciboInput,
-  filtrarEDeduplicarAgendamentosRecibo,
   resolverDadosReciboPedido
 } from '../utils/reciboServicoHelper';
+import { filtrarAgendamentosVigentesDoPedido } from '../services/agendamentoService';
 
 export const ReciboPublico: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -180,8 +180,16 @@ export const ReciboPublico: React.FC = () => {
               ).data;
             }
             if (pedData && typeof pedData === 'object') {
-              const pedTipado = pedData as { agendamentos?: AgendamentoReciboInput[] | null };
-              pedTipado.agendamentos = filtrarEDeduplicarAgendamentosRecibo(pedTipado.agendamentos);
+              const pedTipado = pedData as {
+                agendamentos?: AgendamentoReciboInput[] | null;
+                itens?: ItemPedido[] | null;
+                itens_pedido?: ItemPedido[] | null;
+              };
+              const itensDoPedido = pedTipado.itens || pedTipado.itens_pedido || [];
+              pedTipado.agendamentos = filtrarAgendamentosVigentesDoPedido(
+                pedTipado.agendamentos,
+                itensDoPedido
+              );
             }
           } else {
             throw new Error('Pedido não encontrado no sistema.');
@@ -442,8 +450,14 @@ export const ReciboPublico: React.FC = () => {
           {/* Horários de Agendamento do Serviço */}
           {(() => {
             type AgendamentoCardPublico = AgendamentoReciboInput & { token_confirmacao?: string | null };
-            const agendamentosAtivos = filtrarEDeduplicarAgendamentosRecibo(
-              ((pedido as { agendamentos?: AgendamentoCardPublico[] }).agendamentos || [])
+            const pedComItens = pedido as {
+              agendamentos?: AgendamentoCardPublico[];
+              itens?: ItemPedido[];
+              itens_pedido?: ItemPedido[];
+            };
+            const agendamentosAtivos = filtrarAgendamentosVigentesDoPedido(
+              pedComItens.agendamentos || [],
+              pedComItens.itens || pedComItens.itens_pedido || []
             );
             if (agendamentosAtivos.length === 0) return null;
             return (

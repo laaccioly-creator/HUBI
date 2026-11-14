@@ -1,6 +1,10 @@
 import type { Cliente, ItemPedido, Loja, Pedido } from '../types';
 import type { AgendamentoServico } from '../types/agendamento';
 import type { PedidoEntrega } from '../types/shipping';
+import {
+  filtrarAgendamentosVigentesDoPedido,
+  type ItemPedidoFiltroAgendamentoInput
+} from '../services/agendamentoService';
 
 export interface ItemPedidoReciboInput extends Partial<ItemPedido> {
   tipo_item?: string | null;
@@ -31,56 +35,14 @@ export interface AgendamentoReciboInput
   profissional_nome?: string | null;
 }
 
-const obterTimestampAgendamentoRecibo = (ag: AgendamentoReciboInput): number => {
-  const candidatos = [ag.remarcado_em, ag.atualizado_em, ag.criado_em];
-  let maior = 0;
-  for (const dataStr of candidatos) {
-    if (!dataStr) continue;
-    const ms = Date.parse(dataStr);
-    if (Number.isFinite(ms) && ms > maior) {
-      maior = ms;
-    }
-  }
-  return maior;
-};
-
 /**
- * Remove agendamentos cancelados/faltosos e mantém apenas o registro vigente
- * mais recente por item de serviço (ou produto) ao renderizar/imprimir recibos.
+ * Remove agendamentos cancelados/faltosos e mantém apenas os registros vigentes
+ * mais recentes respeitando a quantidade contratada por serviço nos itens do pedido.
  */
 export const filtrarEDeduplicarAgendamentosRecibo = <T extends AgendamentoReciboInput>(
-  agendamentos?: T[] | null
-): T[] => {
-  if (!Array.isArray(agendamentos) || agendamentos.length === 0) return [];
-
-  const ativos = agendamentos.filter((ag) => {
-    const status = (ag.status_agendamento || '').toLowerCase();
-    return status !== 'cancelado' && status !== 'nao_compareceu';
-  });
-
-  const porChave = new Map<string, T>();
-  for (const ag of ativos) {
-    const chave = ag.item_pedido_id
-      ? `item:${ag.item_pedido_id}`
-      : ag.produto_id
-      ? `prod:${ag.produto_id}`
-      : `id:${ag.id || ''}`;
-
-    const existente = porChave.get(chave);
-    if (!existente) {
-      porChave.set(chave, ag);
-      continue;
-    }
-
-    const tsAtual = obterTimestampAgendamentoRecibo(ag);
-    const tsExistente = obterTimestampAgendamentoRecibo(existente);
-    if (tsAtual >= tsExistente) {
-      porChave.set(chave, ag);
-    }
-  }
-
-  return Array.from(porChave.values());
-};
+  agendamentos?: T[] | null,
+  itensPedido?: ItemPedidoFiltroAgendamentoInput[] | null
+): T[] => filtrarAgendamentosVigentesDoPedido(agendamentos, itensPedido);
 
 export interface AgendamentoFormatadoRecibo {
   id: string;
@@ -233,7 +195,7 @@ export const resolverDadosReciboPedido = (
     : agendamento
     ? [agendamento]
     : pedido.agendamentos || [];
-  const listaAgendamentos = filtrarEDeduplicarAgendamentosRecibo(listaBrutaAgendamentos);
+  const listaAgendamentos = filtrarAgendamentosVigentesDoPedido(listaBrutaAgendamentos, listaItens);
 
   const isItemServico = (item: ItemPedidoReciboInput): boolean => {
     if (item.tipo_item === 'servico' || item.produto?.tipo_item === 'servico') {

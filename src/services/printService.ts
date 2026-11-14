@@ -13,6 +13,19 @@ import { detectarServicoPorCodigo } from '../utils/correiosValidator';
 import { formatarNomeTransportadora } from '../utils/shippingDisplay';
 import { extrairInfoVisitaPedido } from '../utils/taxaDomicilioUtils';
 import { resolverDadosReciboPedido } from '../utils/reciboServicoHelper';
+import { filtrarAgendamentosVigentesDoPedido } from './agendamentoService';
+
+const obterDadosReciboComAgendamentosVigentes = (pedido: Pedido, loja?: Loja | null) => {
+  const itensPedido = pedido.itens || pedido.itens_pedido || [];
+  const agendamentosVigentes = filtrarAgendamentosVigentesDoPedido(
+    pedido.agendamentos,
+    itensPedido
+  ) as NonNullable<Pedido['agendamentos']>;
+  const pedidoNormalizado: Pedido = pedido.agendamentos
+    ? { ...pedido, agendamentos: agendamentosVigentes }
+    : pedido;
+  return resolverDadosReciboPedido(pedidoNormalizado, itensPedido, loja);
+};
 
 export const formatarDataRecibo = (dataIso?: string | null): string => {
   if (!dataIso) return '';
@@ -332,7 +345,7 @@ export const obterInfoEntregaRecibo = (
   );
   const temEnderecoEntrega = Boolean(pe?.destino_logradouro || pedido.endereco_entrega);
 
-  const dadosRecibo = resolverDadosReciboPedido(pedido, pedido.itens, loja);
+  const dadosRecibo = obterDadosReciboComAgendamentosVigentes(pedido, loja);
   if (dadosRecibo.isSomenteServico) {
     return {
       ehRetirada: !dadosRecibo.isAtendimentoDomicilio,
@@ -551,7 +564,7 @@ export class PrintService {
       const infoEntregaPresencial = extrairInfoPagamentoEntrega(pedido);
 
       // Dados fiéis de frete, forma de entrega e endereçamento
-      const dadosRecibo = resolverDadosReciboPedido(pedido, pedido.itens, loja);
+      const dadosRecibo = obterDadosReciboComAgendamentosVigentes(pedido, loja);
       const {
         ehRetirada,
         formaEntregaTexto,
@@ -1296,7 +1309,7 @@ export class PrintService {
     }
     text += divider;
 
-    const dadosRecibo = resolverDadosReciboPedido(pedido, pedido.itens, loja);
+    const dadosRecibo = obterDadosReciboComAgendamentosVigentes(pedido, loja);
     const {
       ehRetirada,
       formaEntregaTexto,
@@ -1520,7 +1533,7 @@ export class PrintService {
       pagStr = `\nSTATUS DO PAGAMENTO: AGUARDANDO PAGAMENTO\n`;
     }
 
-    const dadosRecibo = resolverDadosReciboPedido(pedido, pedido.itens, loja);
+    const dadosRecibo = obterDadosReciboComAgendamentosVigentes(pedido, loja);
     const infoVisita = extrairInfoVisitaPedido(pedido, loja);
 
     return `RECIBO #${pedido.numero_pedido}\n\n` +
@@ -1617,7 +1630,7 @@ export class PrintService {
       ? '\n⚖️ Seu pedido contém itens por quilo e está em pesagem/separação. Avisaremos assim que os valores exatos forem confirmados!\n'
       : '';
 
-    const dadosRecibo = resolverDadosReciboPedido(pedido, pedido.itens, loja);
+    const dadosRecibo = obterDadosReciboComAgendamentosVigentes(pedido, loja);
     const blocoServicoWhatsApp = dadosRecibo.isPedidoHibrido
       ? `\n📍 ${dadosRecibo.rotuloLocalCabecalho}: ${dadosRecibo.badgeLocalValor}` +
         `\n${dadosRecibo.rotuloEndereco}: ${dadosRecibo.enderecoFormatado}` +

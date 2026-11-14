@@ -9,9 +9,9 @@ import { extrairObservacaoLimpa, formatarMoeda } from '../../utils/formatters';
 import { extrairInfoVisitaPedido } from '../../utils/taxaDomicilioUtils';
 import {
   AgendamentoReciboInput,
-  filtrarEDeduplicarAgendamentosRecibo,
   resolverDadosReciboPedido
 } from '../../utils/reciboServicoHelper';
+import { filtrarAgendamentosVigentesDoPedido } from '../../services/agendamentoService';
 import { detectarServicoPorCodigo } from '../../utils/correiosValidator';
 import { formatarNomeTransportadora } from '../../utils/shippingDisplay';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -56,8 +56,10 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
     }
     let ativo = true;
     void (async () => {
-      const agendamentosPropsFiltrados = filtrarEDeduplicarAgendamentosRecibo(
-        (pedido.agendamentos || []) as AgendamentoReciboInput[]
+      const itensDoPedido = pedido.itens || pedido.itens_pedido || [];
+      const agendamentosPropsFiltrados = filtrarAgendamentosVigentesDoPedido(
+        (pedido.agendamentos || []) as AgendamentoReciboInput[],
+        itensDoPedido
       ) as NonNullable<Pedido['agendamentos']>;
       const jaTemDadosCompletos =
         agendamentosPropsFiltrados.length > 0 &&
@@ -77,8 +79,9 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
           .order('atualizado_em', { ascending: false })
           .order('criado_em', { ascending: false });
         if (ativo && data) {
-          const ativosDeduplicados = filtrarEDeduplicarAgendamentosRecibo(
-            data as AgendamentoReciboInput[]
+          const ativosDeduplicados = filtrarAgendamentosVigentesDoPedido(
+            data as AgendamentoReciboInput[],
+            itensDoPedido
           ) as NonNullable<Pedido['agendamentos']>;
           setAgendamentosCarregados(ativosDeduplicados);
         } else if (ativo && agendamentosPropsFiltrados.length > 0) {
@@ -127,12 +130,13 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
 
   const pedidoComAgendamentos = useMemo<Pedido | null>(() => {
     if (!pedido) return null;
-    const agendamentosBase =
-      agendamentosCarregados.length > 0
+    const itensDoPedido = pedido.itens || pedido.itens_pedido || [];
+    const agendamentosBase = filtrarAgendamentosVigentesDoPedido(
+      (agendamentosCarregados.length > 0
         ? agendamentosCarregados
-        : (filtrarEDeduplicarAgendamentosRecibo(
-            (pedido.agendamentos || []) as AgendamentoReciboInput[]
-          ) as NonNullable<Pedido['agendamentos']>);
+        : pedido.agendamentos || []) as AgendamentoReciboInput[],
+      itensDoPedido
+    ) as NonNullable<Pedido['agendamentos']>;
     const comAg: Pedido = { ...pedido, agendamentos: agendamentosBase };
     if (clienteCarregado) {
       return { ...comAg, cliente: clienteCarregado };

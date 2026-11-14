@@ -23,9 +23,9 @@ import { ReceiptPdfService } from '../services/receiptPdfService';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 import {
   AgendamentoReciboInput,
-  filtrarEDeduplicarAgendamentosRecibo,
   resolverDadosReciboPedido
 } from '../utils/reciboServicoHelper';
+import { filtrarAgendamentosVigentesDoPedido } from '../services/agendamentoService';
 import { useTheme } from '../contexts/ThemeContext';
 
 export interface ModalReciboPedidoProps {
@@ -140,7 +140,7 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
           Array.isArray((agendamentoRes.value as { data?: AgendamentoReciboInput[] | null })?.data)
             ? ((agendamentoRes.value as { data: AgendamentoReciboInput[] }).data || [])
             : ((pedido.agendamentos || []) as AgendamentoReciboInput[]);
-        const agendamentosCarregados = filtrarEDeduplicarAgendamentosRecibo(agendamentosBrutos);
+        const agendamentosCarregados = filtrarAgendamentosVigentesDoPedido(agendamentosBrutos, itens);
 
         const clienteCarregado =
           clienteRes.status === 'fulfilled' && (clienteRes.value as { data?: Cliente | null })?.data

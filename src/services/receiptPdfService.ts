@@ -3,10 +3,8 @@ import html2canvas from 'html2canvas';
 import { Pedido, Loja, ItemPedido } from '../types';
 import { PrintService } from './printService';
 import { supabase } from '../lib/supabase';
-import {
-  AgendamentoReciboInput,
-  filtrarEDeduplicarAgendamentosRecibo
-} from '../utils/reciboServicoHelper';
+import { AgendamentoReciboInput } from '../utils/reciboServicoHelper';
+import { filtrarAgendamentosVigentesDoPedido } from './agendamentoService';
 
 export interface ArquivosReciboResult {
   pdfBlob: Blob;
@@ -145,8 +143,10 @@ export class ReceiptPdfService {
     }
 
     // 3. Garante agendamento vinculado carregado para pedidos de serviço antes de gerar a mensagem
-    const agendamentosExistentes = filtrarEDeduplicarAgendamentosRecibo(
-      (pedido.agendamentos || []) as AgendamentoReciboInput[]
+    const itensDoPedido = pedido.itens || pedido.itens_pedido || [];
+    const agendamentosExistentes = filtrarAgendamentosVigentesDoPedido(
+      (pedido.agendamentos || []) as AgendamentoReciboInput[],
+      itensDoPedido
     );
     let pedidoParaMensagem: Pedido = {
       ...pedido,
@@ -168,8 +168,9 @@ export class ReceiptPdfService {
         ? await agQuery.eq('loja_id', String(loja.id))
         : await agQuery;
       if (agData) {
-        const ativosDeduplicados = filtrarEDeduplicarAgendamentosRecibo(
-          agData as AgendamentoReciboInput[]
+        const ativosDeduplicados = filtrarAgendamentosVigentesDoPedido(
+          agData as AgendamentoReciboInput[],
+          itensDoPedido
         );
         pedidoParaMensagem = {
           ...pedido,
