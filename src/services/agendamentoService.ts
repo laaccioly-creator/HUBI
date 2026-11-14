@@ -375,8 +375,21 @@ export const agendamentoService = {
     }
 
     const mapaDias = new Map<number, ProfissionalHorario>();
-    (data || []).forEach((h) => {
-      mapaDias.set(h.dia_semana, h as ProfissionalHorario);
+    (data || []).forEach((row) => {
+      const registro = row as Partial<ProfissionalHorario>;
+      const horarioNormalizado: ProfissionalHorario = {
+        id: String(registro.id || ''),
+        loja_id: String(registro.loja_id || lojaId),
+        usuario_id: String(registro.usuario_id || usuarioId),
+        dia_semana: Number(registro.dia_semana) as DiaSemana,
+        ativo: Boolean(registro.ativo ?? true),
+        hora_inicio: typeof registro.hora_inicio === 'string' ? registro.hora_inicio.slice(0, 5) : '08:00',
+        hora_fim: typeof registro.hora_fim === 'string' ? registro.hora_fim.slice(0, 5) : '18:00',
+        tem_intervalo: Boolean(registro.tem_intervalo ?? true),
+        intervalo_inicio: typeof registro.intervalo_inicio === 'string' ? registro.intervalo_inicio.slice(0, 5) : null,
+        intervalo_fim: typeof registro.intervalo_fim === 'string' ? registro.intervalo_fim.slice(0, 5) : null
+      };
+      mapaDias.set(horarioNormalizado.dia_semana, horarioNormalizado);
     });
 
     const resultado: ProfissionalHorario[] = [];
@@ -407,36 +420,92 @@ export const agendamentoService = {
 
   /**
    * 3.2. Salva o expediente semanal completo do colaborador
+   * Renova sessão preventivamente, normaliza payload para `public.profissional_horarios`
+   * e persiste via RPC atômica SECURITY DEFINER com fallback exclusivo para `42883` / `PGRST202`.
    */
   async salvarExpedienteProfissional(
     lojaId: string,
     usuarioId: string,
     horariosSemana: Partial<ProfissionalHorario>[]
   ): Promise<void> {
-    for (const h of horariosSemana) {
-      const diaSemana = Number(h.dia_semana) as DiaSemana;
-      const payload = {
+    if (!lojaId || !usuarioId) {
+      throw new Error('Identificação da loja e do profissional são obrigatórias.');
+    }
+
+    try {
+      await supabase.auth.refreshSession();
+    } catch {
+      // Silencioso: garante que sessões híbridas/customizadas não falhem sem refresh token
+    }
+
+    const agoraIso = new Date().toISOString();
+    const payloadNormalizado = horariosSemana.map((h) => {
+      const item = h as Partial<ProfissionalHorario> & { trabalha?: boolean };
+      const temIntervalo = Boolean(item.tem_intervalo);
+      return {
         loja_id: lojaId,
         usuario_id: usuarioId,
-        dia_semana: diaSemana,
-        ativo: Boolean(h.ativo),
-        hora_inicio: h.hora_inicio || '08:00',
-        hora_fim: h.hora_fim || '18:00',
-        tem_intervalo: Boolean(h.tem_intervalo),
-        intervalo_inicio: h.tem_intervalo ? (h.intervalo_inicio || '12:00') : null,
-        intervalo_fim: h.tem_intervalo ? (h.intervalo_fim || '13:00') : null,
-        atualizado_em: new Date().toISOString()
+        dia_semana: Number(item.dia_semana) as DiaSemana,
+        ativo: Boolean(item.ativo ?? item.trabalha ?? true),
+        hora_inicio: (item.hora_inicio || '08:00').slice(0, 5),
+        hora_fim: (item.hora_fim || '18:00').slice(0, 5),
+        tem_intervalo: temIntervalo,
+        intervalo_inicio: temIntervalo ? (item.intervalo_inicio || '12:00').slice(0, 5) : null,
+        intervalo_fim: temIntervalo ? (item.intervalo_fim || '13:00').slice(0, 5) : null,
+        atualizado_em: agoraIso
       };
+    });
 
-      const { error } = await supabase
-        .from('profissional_horarios')
-        .upsert(payload, {
-          onConflict: 'loja_id,usuario_id,dia_semana'
-        });
+    // 1. Chamada prioritária à RPC atômica SECURITY DEFINER
+    const { error: rpcError } = await supabase.rpc('salvar_expediente_profissional_seguro', {
+      p_loja_id: lojaId,
+      p_usuario_id: usuarioId,
+      p_horarios: payloadNormalizado
+    });
 
-      if (error) {
-        throw error;
+    if (!rpcError) {
+      return;
+    }
+
+    const ehFuncaoInexistente =
+      rpcError.code === '42883' ||
+      rpcError.code === 'PGRST202' ||
+      rpcError.message?.includes('Could not find the function');
+
+    if (!ehFuncaoInexistente) {
+      logger.error('agendamentoService', 'salvarExpedienteProfissional:falha_rpc', rpcError, {
+        loja_id: lojaId,
+        usuario_id: usuarioId,
+        codigo_erro: rpcError.code || null
+      });
+      throw new Error('Não foi possível salvar a grade de horários do profissional. Tente novamente.');
+    }
+
+    logger.warn(
+      'agendamentoService',
+      'salvarExpedienteProfissional:rpc_inexistente_fallback',
+      'RPC salvar_expediente_profissional_seguro indisponível; executando upsert direto.',
+      {
+        loja_id: lojaId,
+        usuario_id: usuarioId,
+        codigo_erro: rpcError.code || '42883'
       }
+    );
+
+    // 2. Fallback automático exclusivo para RPC inexistente (42883 / PGRST202)
+    const { error: upsertError } = await supabase
+      .from('profissional_horarios')
+      .upsert(payloadNormalizado, {
+        onConflict: 'loja_id,usuario_id,dia_semana'
+      })
+      .eq('loja_id', lojaId);
+
+    if (upsertError) {
+      logger.error('agendamentoService', 'salvarExpedienteProfissional:falha_upsert', upsertError, {
+        loja_id: lojaId,
+        usuario_id: usuarioId
+      });
+      throw new Error('Não foi possível salvar a grade de horários do profissional. Tente novamente.');
     }
   },
 

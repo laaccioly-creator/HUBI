@@ -60,7 +60,12 @@ export const ModalExpedienteProfissional: React.FC<ModalExpedienteProfissionalPr
       .obterExpedienteProfissional(lojaId, profissional.id)
       .then((dados) => {
         if (montado) {
-          setHorarios(dados);
+          setHorarios(
+            dados.map((d) => ({
+              ...d,
+              ativo: Boolean(d.ativo ?? true)
+            }))
+          );
         }
       })
       .catch((err) => {
@@ -86,10 +91,10 @@ export const ModalExpedienteProfissional: React.FC<ModalExpedienteProfissionalPr
     );
   };
 
-  const handleChangeCampo = (
+  const handleChangeCampo = <K extends keyof ProfissionalHorario>(
     diaSemana: DiaSemana,
-    campo: keyof ProfissionalHorario,
-    valor: any
+    campo: K,
+    valor: ProfissionalHorario[K]
   ) => {
     setHorarios((prev) =>
       prev.map((h) => (h.dia_semana === diaSemana ? { ...h, [campo]: valor } : h))
@@ -154,16 +159,32 @@ export const ModalExpedienteProfissional: React.FC<ModalExpedienteProfissionalPr
         }
       }
 
-      await agendamentoService.salvarExpedienteProfissional(lojaId, profissional.id, horarios);
+      const payloadExpediente: Array<Partial<ProfissionalHorario>> = horarios.map((h) => ({
+        loja_id: lojaId,
+        usuario_id: profissional.id,
+        dia_semana: h.dia_semana,
+        ativo: Boolean(h.ativo ?? true),
+        hora_inicio: h.hora_inicio || '08:00',
+        hora_fim: h.hora_fim || '18:00',
+        tem_intervalo: Boolean(h.tem_intervalo),
+        intervalo_inicio: h.tem_intervalo ? (h.intervalo_inicio || '12:00') : null,
+        intervalo_fim: h.tem_intervalo ? (h.intervalo_fim || '13:00') : null
+      }));
+
+      await agendamentoService.salvarExpedienteProfissional(lojaId, profissional.id, payloadExpediente);
 
       setSucesso(true);
       if (onSalvo) onSalvo();
       setTimeout(() => {
         onClose();
       }, 1000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao salvar expediente:', err);
-      setErro(err?.message || 'Erro ao salvar a grade de horários. Tente novamente.');
+      const mensagemErro =
+        err instanceof Error && err.message
+          ? err.message
+          : 'Erro ao salvar a grade de horários. Tente novamente.';
+      setErro(mensagemErro);
     } finally {
       setSalvando(false);
     }
