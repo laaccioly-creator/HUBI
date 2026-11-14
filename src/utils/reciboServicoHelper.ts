@@ -24,17 +24,28 @@ export interface PedidoReciboInput
 }
 
 export interface DadosReciboPedidoResolvido {
+  isSomenteProduto: boolean;
   isSomenteServico: boolean;
+  isPedidoHibrido: boolean;
   isAtendimentoDomicilio: boolean;
+  levarProdutoNoAtendimento: boolean;
   rotuloLocalCabecalho: 'LOCAL DO SERVIÇO' | 'FORMA DE ENTREGA';
   badgeLocalValor: string;
   rotuloEndereco: 'Local da Prestação' | 'Endereço de Entrega' | 'Local de Retirada';
   enderecoFormatado: string;
+  entregaProdutosDescricao: string | null;
+  entregaProdutosEndereco: string | null;
   rotuloSubtotal: 'Subtotal dos Serviços' | 'Subtotal dos Produtos';
   subtotalItens: number;
+  subtotalProdutos: number;
+  subtotalServicos: number;
   taxaVisitaDomicilio: number;
+  valorFreteProdutos: number;
   rotuloTaxaAdicional: string | null;
-  subtituloRecibo: 'Comprovante de atendimento e serviço' | 'Comprovante de pedido e entrega';
+  subtituloRecibo:
+    | 'Comprovante de atendimento e serviço'
+    | 'Comprovante de pedido e entrega'
+    | 'Comprovante de pedido e atendimento';
 }
 
 const formatarEnderecoLoja = (loja?: Loja | null): string => {
@@ -139,17 +150,36 @@ export const resolverDadosReciboPedido = (
     );
   };
 
-  const isSomenteServico =
+  const temServico =
     listaItens.length > 0
-      ? listaItens.every(isItemServico)
+      ? listaItens.some(isItemServico)
       : listaAgendamentos.length > 0;
+  const temProduto =
+    listaItens.length > 0
+      ? listaItens.some((it) => !isItemServico(it))
+      : false;
 
-  const subtotalCalculadoItens = listaItens.reduce((acc, item) => {
+  const isSomenteServico = temServico && !temProduto;
+  const isPedidoHibrido = temServico && temProduto;
+  const isSomenteProduto = !temServico;
+  const levarProdutoNoAtendimento = Boolean(pedido.levar_produto_no_atendimento);
+
+  const calcSubItem = (item: ItemPedidoReciboInput): number => {
     const qtd = Number(item.quantidade ?? 1);
     const unitario = Number(item.preco_venda_unitario ?? item.preco_unitario ?? 0);
-    const sub = typeof item.subtotal === 'number' ? Number(item.subtotal) : unitario * qtd;
-    return acc + sub;
-  }, 0);
+    return typeof item.subtotal === 'number' ? Number(item.subtotal) : unitario * qtd;
+  };
+
+  const subtotalProdutosRaw = listaItens
+    .filter((it) => !isItemServico(it))
+    .reduce((acc, it) => acc + calcSubItem(it), 0);
+  const subtotalServicosRaw = listaItens
+    .filter((it) => isItemServico(it))
+    .reduce((acc, it) => acc + calcSubItem(it), 0);
+
+  const subtotalProdutos = Number(subtotalProdutosRaw.toFixed(2));
+  const subtotalServicos = Number(subtotalServicosRaw.toFixed(2));
+  const subtotalCalculadoItens = subtotalProdutosRaw + subtotalServicosRaw;
 
   const subtotalItens =
     subtotalCalculadoItens > 0
@@ -157,16 +187,24 @@ export const resolverDadosReciboPedido = (
       : Number((pedido.subtotal ?? 0).toFixed(2));
 
   const freteInformado = Number(pedido.valor_frete || 0);
+  const taxaDomicilioColuna = Number(pedido.valor_taxa_domicilio || 0);
   const diferencaTotal = Math.max(
     0,
     Number(pedido.valor_total || 0) + Number(pedido.valor_desconto || 0) - subtotalItens
   );
+
   const taxaVisitaDomicilio =
-    freteInformado > 0
-      ? Number(freteInformado.toFixed(2))
-      : diferencaTotal > 0.009
-      ? Number(diferencaTotal.toFixed(2))
+    taxaDomicilioColuna > 0
+      ? Number(taxaDomicilioColuna.toFixed(2))
+      : isSomenteServico
+      ? freteInformado > 0
+        ? Number(freteInformado.toFixed(2))
+        : diferencaTotal > 0.009
+        ? Number(diferencaTotal.toFixed(2))
+        : 0
       : 0;
+
+  const valorFreteProdutos = isSomenteServico ? 0 : Number(freteInformado.toFixed(2));
 
   const rawPe = pedido.pedido_entrega ?? pedido.pedido_entregas;
   const pe: PedidoEntrega | null = Array.isArray(rawPe) ? rawPe[0] ?? null : rawPe ?? null;
@@ -189,55 +227,120 @@ export const resolverDadosReciboPedido = (
   const temAgendamentoExterno = listaAgendamentos.some((ag) => ag.modalidade_local === 'externo');
 
   const isAtendimentoDomicilio =
-    temAgendamentoExterno || temDestinoDiferenteDaLoja || taxaVisitaDomicilio > 0;
+    temAgendamentoExterno ||
+    taxaVisitaDomicilio > 0 ||
+    (!isPedidoHibrido && temDestinoDiferenteDaLoja);
+
+  const snapshotBruto =
+    listaAgendamentos.find(
+      (ag) =>
+        ag.modalidade_local === 'externo' &&
+        ag.endereco_prestacao_snapshot?.trim() &&
+        !isSnapshotGenerico(ag.endereco_prestacao_snapshot)
+    )?.endereco_prestacao_snapshot?.trim() ||
+    listaAgendamentos.find(
+      (ag) =>
+        ag.endereco_prestacao_snapshot?.trim() &&
+        !isSnapshotGenerico(ag.endereco_prestacao_snapshot)
+    )?.endereco_prestacao_snapshot?.trim() ||
+    null;
+
+  if (isPedidoHibrido) {
+    const enderecoServico = isAtendimentoDomicilio
+      ? snapshotBruto || enderecoPe || enderecoPedidoDireto || enderecoCadastroCliente || 'A confirmar com o cliente'
+      : enderecoLoja;
+
+    const envioProdutosSeparado =
+      !levarProdutoNoAtendimento &&
+      (pe?.tipo_atendimento === 'entrega' || valorFreteProdutos > 0 || temDestinoDiferenteDaLoja);
+
+    const entregaProdutosDescricao = levarProdutoNoAtendimento
+      ? 'Levar junto no atendimento técnico'
+      : envioProdutosSeparado
+      ? pe?.transportadora_nome || pedido.nome_transportadora || 'Entrega / Frete'
+      : 'Retirada na Loja';
+
+    const entregaProdutosEndereco =
+      envioProdutosSeparado &&
+      enderecoDestinoCandidato &&
+      normalizarTextoEndereco(enderecoDestinoCandidato) !== normalizarTextoEndereco(enderecoServico)
+        ? enderecoDestinoCandidato
+        : !levarProdutoNoAtendimento && !envioProdutosSeparado
+        ? enderecoLoja
+        : null;
+
+    return {
+      isSomenteProduto: false,
+      isSomenteServico: false,
+      isPedidoHibrido: true,
+      isAtendimentoDomicilio,
+      levarProdutoNoAtendimento,
+      rotuloLocalCabecalho: 'LOCAL DO SERVIÇO',
+      badgeLocalValor: isAtendimentoDomicilio ? 'EM DOMICÍLIO' : 'NA LOJA',
+      rotuloEndereco: 'Local da Prestação',
+      enderecoFormatado: enderecoServico,
+      entregaProdutosDescricao,
+      entregaProdutosEndereco,
+      rotuloSubtotal: 'Subtotal dos Produtos',
+      subtotalItens,
+      subtotalProdutos,
+      subtotalServicos,
+      taxaVisitaDomicilio,
+      valorFreteProdutos,
+      rotuloTaxaAdicional: taxaVisitaDomicilio > 0 ? 'Taxa de Visita (Domicílio)' : null,
+      subtituloRecibo: 'Comprovante de pedido e atendimento'
+    };
+  }
 
   if (isSomenteServico) {
-    const snapshotBruto =
-      listaAgendamentos.find(
-        (ag) =>
-          ag.modalidade_local === 'externo' &&
-          ag.endereco_prestacao_snapshot?.trim() &&
-          !isSnapshotGenerico(ag.endereco_prestacao_snapshot)
-      )?.endereco_prestacao_snapshot?.trim() ||
-      listaAgendamentos.find(
-        (ag) =>
-          ag.endereco_prestacao_snapshot?.trim() &&
-          !isSnapshotGenerico(ag.endereco_prestacao_snapshot)
-      )?.endereco_prestacao_snapshot?.trim() ||
-      null;
-
     const enderecoFormatado = isAtendimentoDomicilio
       ? snapshotBruto || enderecoPe || enderecoPedidoDireto || enderecoCadastroCliente || 'A confirmar com o cliente'
       : enderecoLoja;
 
     return {
+      isSomenteProduto: false,
       isSomenteServico: true,
+      isPedidoHibrido: false,
       isAtendimentoDomicilio,
+      levarProdutoNoAtendimento: false,
       rotuloLocalCabecalho: 'LOCAL DO SERVIÇO',
       badgeLocalValor: isAtendimentoDomicilio ? 'EM DOMICÍLIO' : 'NA LOJA',
       rotuloEndereco: 'Local da Prestação',
       enderecoFormatado,
+      entregaProdutosDescricao: null,
+      entregaProdutosEndereco: null,
       rotuloSubtotal: 'Subtotal dos Serviços',
       subtotalItens,
+      subtotalProdutos: 0,
+      subtotalServicos: subtotalServicos > 0 ? subtotalServicos : subtotalItens,
       taxaVisitaDomicilio,
+      valorFreteProdutos: 0,
       rotuloTaxaAdicional: taxaVisitaDomicilio > 0 ? 'Taxa de Visita (Domicílio)' : null,
       subtituloRecibo: 'Comprovante de atendimento e serviço'
     };
   }
 
   return {
+    isSomenteProduto,
     isSomenteServico: false,
+    isPedidoHibrido: false,
     isAtendimentoDomicilio,
+    levarProdutoNoAtendimento: false,
     rotuloLocalCabecalho: 'FORMA DE ENTREGA',
     badgeLocalValor: isAtendimentoDomicilio ? 'ENTREGA' : 'RETIRADA NA LOJA',
     rotuloEndereco: isAtendimentoDomicilio ? 'Endereço de Entrega' : 'Local de Retirada',
     enderecoFormatado: isAtendimentoDomicilio
       ? enderecoDestinoCandidato || 'Endereço a ser confirmado com o cliente'
       : enderecoLoja,
+    entregaProdutosDescricao: null,
+    entregaProdutosEndereco: null,
     rotuloSubtotal: 'Subtotal dos Produtos',
     subtotalItens,
-    taxaVisitaDomicilio,
-    rotuloTaxaAdicional: taxaVisitaDomicilio > 0 ? 'Frete / Entrega' : null,
+    subtotalProdutos: subtotalProdutos > 0 ? subtotalProdutos : subtotalItens,
+    subtotalServicos: 0,
+    taxaVisitaDomicilio: 0,
+    valorFreteProdutos,
+    rotuloTaxaAdicional: valorFreteProdutos > 0 ? 'Frete / Entrega' : null,
     subtituloRecibo: 'Comprovante de pedido e entrega'
   };
 };

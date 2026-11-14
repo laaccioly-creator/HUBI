@@ -702,6 +702,25 @@ export const AgendaServicosLoja: React.FC = () => {
                         </div>
                       )}
 
+                      {/* Alerta Operacional de Material para Levar (Pedido Híbrido) */}
+                      {item.pedido?.levar_produto_no_atendimento === true &&
+                        (item.itens_fisicos_levar?.length || 0) > 0 && (
+                          <div className="mt-1 px-2.5 py-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-500 dark:text-amber-300 text-xs font-semibold flex items-start gap-1.5">
+                            <span className="shrink-0">📦</span>
+                            <span>
+                              Material para levar na visita (Pedido #{item.pedido.numero_pedido}):{' '}
+                              {item.itens_fisicos_levar!
+                                .map(
+                                  (prod) =>
+                                    `${prod.quantidade}x ${prod.nome_produto}${
+                                      prod.rotulo_variacao ? ` (${prod.rotulo_variacao})` : ''
+                                    }`
+                                )
+                                .join(', ')}
+                            </span>
+                          </div>
+                        )}
+
                       {/* Observações */}
                       {item.observacoes && (
                         <p className="text-xs text-slate-400 italic pt-0.5">

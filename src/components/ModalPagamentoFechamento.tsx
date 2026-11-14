@@ -1400,7 +1400,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
               <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
                 <span className="font-medium">Subtotal dos Produtos:</span>
                 <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-                  {formatarMoeda(Number(pedido.subtotal || (valorTotal - Number(pedido.valor_frete || 0) + Number(pedido.valor_desconto || 0))))}
+                  {formatarMoeda(Number(pedido.subtotal || (valorTotal - Number(pedido.valor_frete || 0) - Number(pedido.valor_taxa_domicilio || 0) + Number(pedido.valor_desconto || 0))))}
                 </span>
               </div>
 
@@ -1415,11 +1415,20 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                 </div>
               )}
 
+              {Number(pedSeguro.valor_taxa_domicilio || 0) > 0 && (
+                <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
+                  <span className="font-medium">Taxa de Visita (Domicílio):</span>
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                    + {formatarMoeda(Number(pedSeguro.valor_taxa_domicilio || 0))}
+                  </span>
+                </div>
+              )}
+
               {/* Discriminação explícita do Frete */}
               <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
                 <span className="flex items-center gap-1.5 font-medium">
                   <Truck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span>Taxa de Entrega / Frete:</span>
+                  <span>Frete de Entrega:</span>
                 </span>
                 {freteADefinir ? (
                   <button
@@ -1431,6 +1440,10 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                     <span>A definir</span>
                     <span className="text-[11px]">✏️</span>
                   </button>
+                ) : pedSeguro.levar_produto_no_atendimento && Number(pedSeguro.valor_frete || 0) === 0 ? (
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                    Grátis — Levar na visita técnica
+                  </span>
                 ) : (
                   <div className="flex items-center gap-2">
                     <span className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>

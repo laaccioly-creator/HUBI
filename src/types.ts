@@ -751,6 +751,8 @@ export interface Pedido {
   valor_desconto: number;
   desconto_percentual?: number | null;
   valor_frete: number;
+  valor_taxa_domicilio?: number;
+  levar_produto_no_atendimento?: boolean;
   valor_total: number;
   valor_pago: number;
   saldo_devedor: number;

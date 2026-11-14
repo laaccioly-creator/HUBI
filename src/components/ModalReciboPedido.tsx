@@ -358,23 +358,34 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
                     {dadosRecibo.rotuloLocalCabecalho}:
                   </span>
                   <span className={`font-black px-1.5 py-0.5 rounded text-[10px] ${
-                    dadosRecibo.isSomenteServico ? 'bg-emerald-100 text-emerald-800' : badgeEstilo
+                    dadosRecibo.isSomenteServico || dadosRecibo.isPedidoHibrido ? 'bg-emerald-100 text-emerald-800' : badgeEstilo
                   }`}>
-                    {dadosRecibo.isSomenteServico ? dadosRecibo.badgeLocalValor : formaEntregaTexto}
+                    {dadosRecibo.isSomenteServico || dadosRecibo.isPedidoHibrido ? dadosRecibo.badgeLocalValor : formaEntregaTexto}
                   </span>
                 </div>
                 <div className="text-slate-700 pt-0.5">
                   <strong className="text-slate-900">
-                    {dadosRecibo.isSomenteServico
+                    {dadosRecibo.isSomenteServico || dadosRecibo.isPedidoHibrido
                       ? `${dadosRecibo.rotuloEndereco}:`
                       : (ehRetirada ? 'Local de Retirada:' : 'Endereço de Entrega:')}{' '}
                   </strong>
                   <span className="text-slate-700">
-                    {dadosRecibo.isSomenteServico
+                    {dadosRecibo.isSomenteServico || dadosRecibo.isPedidoHibrido
                       ? dadosRecibo.enderecoFormatado
                       : (ehRetirada ? (enderecoLojaFormatado || 'Balcão da Loja') : enderecoDestino)}
                   </span>
                 </div>
+                {dadosRecibo.isPedidoHibrido && dadosRecibo.entregaProdutosDescricao && (
+                  <div className="text-slate-700 pt-1 border-t border-slate-200/80">
+                    <strong className="text-slate-900 uppercase text-[10px] tracking-wider">ENTREGA DOS PRODUTOS: </strong>
+                    <span className="text-slate-800 font-semibold">{dadosRecibo.entregaProdutosDescricao}</span>
+                    {dadosRecibo.entregaProdutosEndereco && (
+                      <div className="text-slate-600 mt-0.5">
+                        Destino: {dadosRecibo.entregaProdutosEndereco}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {(() => {
                   const rawCod = pe?.codigo_corrida || (pedAtual as any)?.codigo_corrida || (pedAtual as any)?.metadados?.codigo_corrida;
                   const codCorrida = (rawCod && !String(rawCod).startsWith('dqt_') && (String(rawCod).startsWith('del_') || !String(rawCod).includes('_'))) ? rawCod : null;
@@ -419,12 +430,29 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
 
               {/* Fechamento Financeiro */}
               <div className="space-y-1.5 text-xs text-slate-700">
-                <div className="flex justify-between">
-                  <span>{dadosRecibo.rotuloSubtotal}:</span>
-                  <span className="font-semibold text-slate-900">
-                    R$ {(dadosRecibo.isSomenteServico ? dadosRecibo.subtotalItens : subtotalProdutos).toFixed(2)}
-                  </span>
-                </div>
+                {dadosRecibo.isPedidoHibrido ? (
+                  <>
+                    <div className="flex justify-between">
+                      <span>Subtotal dos Produtos:</span>
+                      <span className="font-semibold text-slate-900">
+                        R$ {dadosRecibo.subtotalProdutos.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Subtotal dos Serviços:</span>
+                      <span className="font-semibold text-slate-900">
+                        R$ {dadosRecibo.subtotalServicos.toFixed(2)}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex justify-between">
+                    <span>{dadosRecibo.rotuloSubtotal}:</span>
+                    <span className="font-semibold text-slate-900">
+                      R$ {(dadosRecibo.isSomenteServico ? dadosRecibo.subtotalItens : subtotalProdutos).toFixed(2)}
+                    </span>
+                  </div>
+                )}
 
                 {valorDesconto > 0 && (
                   <div className="flex justify-between text-rose-600 font-bold">
@@ -433,7 +461,28 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
                   </div>
                 )}
 
-                {dadosRecibo.isSomenteServico ? (
+                {dadosRecibo.isPedidoHibrido ? (
+                  <>
+                    {dadosRecibo.taxaVisitaDomicilio > 0 && (
+                      <div className="flex justify-between">
+                        <span>Taxa de Visita (Domicílio):</span>
+                        <span className="font-semibold text-slate-900">
+                          + R$ {dadosRecibo.taxaVisitaDomicilio.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span>Frete de Entrega:</span>
+                      <span className="font-semibold text-slate-900">
+                        {dadosRecibo.valorFreteProdutos > 0
+                          ? `+ R$ ${dadosRecibo.valorFreteProdutos.toFixed(2)}`
+                          : dadosRecibo.levarProdutoNoAtendimento && dadosRecibo.isAtendimentoDomicilio
+                          ? 'R$ 0,00 — Incluso na visita'
+                          : 'R$ 0,00 — Grátis'}
+                      </span>
+                    </div>
+                  </>
+                ) : dadosRecibo.isSomenteServico ? (
                   dadosRecibo.taxaVisitaDomicilio > 0 ? (
                     <div className="flex justify-between">
                       <span>{dadosRecibo.rotuloTaxaAdicional || 'Taxa de Visita (Domicílio)'}:</span>

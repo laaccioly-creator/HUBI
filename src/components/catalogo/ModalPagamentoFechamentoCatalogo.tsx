@@ -1755,7 +1755,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
                   {ehModoCaderneta ? 'Saldo Devedor na Caderneta:' : 'Subtotal dos Produtos:'}
                 </span>
                 <span className={`text-sm sm:text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  {formatarMoeda(Number(pedSeguro.subtotal || (valorTotal - Number(pedSeguro.valor_frete || 0) + Number(pedSeguro.valor_desconto || 0))))}
+                  {formatarMoeda(Number(pedSeguro.subtotal || (valorTotal - Number(pedSeguro.valor_frete || 0) - Number(pedSeguro.valor_taxa_domicilio || 0) + Number(pedSeguro.valor_desconto || 0))))}
                 </span>
               </div>
 
@@ -1771,14 +1771,30 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
                 </div>
               )}
 
+              {/* Taxa de Visita (Domicílio) se houver */}
+              {!ehModoCaderneta && Number(pedSeguro.valor_taxa_domicilio || 0) > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className={`text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Taxa de Visita (Domicílio):
+                  </span>
+                  <span className="text-sm sm:text-base font-bold text-emerald-600 dark:text-emerald-400">
+                    + {formatarMoeda(Number(pedSeguro.valor_taxa_domicilio || 0))}
+                  </span>
+                </div>
+              )}
+
               {/* Discriminação do Frete com Botão de Alteração (Apenas se não for caderneta) */}
               {!ehModoCaderneta && (
                 <div className="flex justify-between items-center">
                   <span className={`flex items-center gap-1.5 text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                     <Truck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                    <span>Taxa de Entrega / Frete:</span>
+                    <span>Frete de Entrega:</span>
                   </span>
-                  {freteADefinir ? (
+                  {pedSeguro.levar_produto_no_atendimento && Number(pedSeguro.valor_frete || 0) === 0 ? (
+                    <span className="text-xs sm:text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
+                      Grátis — Levar na visita técnica
+                    </span>
+                  ) : freteADefinir ? (
                     <button
                       type="button"
                       onClick={() => setModalDefinirEnvioAberto(true)}

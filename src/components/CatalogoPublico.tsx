@@ -61,6 +61,7 @@ import { getCategoriaPeso } from './PosCheckout';
 import { obterDataOperacaoISO, obterDataOperacaoISOParaLoja, definirDataOperacao } from '../utils/dataOperacao';
 import { isUuidValido } from '../services/syncService';
 import { formatarMoeda, ehProdutoFracionado, formatarQuantidadeUnidade, obterSiglaUnidade, formatarLinhaCalculoItem } from '../utils/formatters';
+import { calcularTaxaVisitaPedido } from '../utils/taxaDomicilioUtils';
 import { ModalInputPesoFracionado } from './ui/ModalInputPesoFracionado';
 import { SeletorCategoriasHibrido } from './ui/SeletorCategoriasHibrido';
 import {
@@ -254,6 +255,7 @@ export const CatalogoPublico: React.FC = () => {
   });
   const [formaEntregaEscolhida, setFormaEntregaEscolhida] = useState<FormaEntrega | null>(null);
   const [pedidoEntrega, setPedidoEntrega] = useState<PedidoEntrega | null>(null);
+  const [levarProdutoNoAtendimento, setLevarProdutoNoAtendimento] = useState<boolean>(true);
   const [modalShippingAberto, setModalShippingAberto] = useState<boolean>(false);
   const [draftResultadoShipping, setDraftResultadoShipping] = useState<ShippingSelectionResult | null>(null);
   const [configShippingLoja, setConfigShippingLoja] = useState<LojaShippingConfig | null>(null);
@@ -1445,6 +1447,21 @@ export const CatalogoPublico: React.FC = () => {
   const apenasServicosNaLoja = carrinho.length > 0 && carrinho.every(
     it => it.produto.tipo_item === 'servico' && (!it.agendamento || it.agendamento.modalidade_local === 'loja')
   );
+  const temProdutoFisicoCatalogo = carrinho.some(it => it.produto.tipo_item !== 'servico');
+  const temServicoCatalogo = carrinho.some(it => it.produto.tipo_item === 'servico');
+  const isPedidoHibridoCatalogo = temProdutoFisicoCatalogo && temServicoCatalogo;
+  const temServicoDomicilioCatalogo = carrinho.some(
+    it => it.produto.tipo_item === 'servico' && it.agendamento?.modalidade_local === 'externo'
+  );
+  const infoTaxaVisitaCatalogo = useMemo(
+    () => calcularTaxaVisitaPedido(carrinho, loja),
+    [carrinho, loja]
+  );
+  const valorTaxaDomicilioCatalogo = infoTaxaVisitaCatalogo.temServicoExterno
+    ? infoTaxaVisitaCatalogo.taxaVisitaCobrada
+    : 0;
+  const isEntregaIntegradaNaVisita =
+    isPedidoHibridoCatalogo && temServicoDomicilioCatalogo && levarProdutoNoAtendimento;
 
   const freteGratisAtivoLoja = Boolean(configShippingLoja?.frete_gratis_ativo ?? loja?.frete_gratis_ativo ?? cartContext?.freteGratisAtivo);
   const freteGratisMinimoLoja = Number(configShippingLoja?.frete_gratis_valor_minimo ?? loja?.frete_gratis_valor_minimo ?? cartContext?.freteGratisValorMinimo ?? 0);
@@ -1458,13 +1475,13 @@ export const CatalogoPublico: React.FC = () => {
     ? valorFrete 
     : (elegivelFreteGratisLoja ? 0 : valorFrete);
 
-  const valorFreteEfetivo = apenasServicosNaLoja
+  const valorFreteEfetivo = (apenasServicosNaLoja || !temProdutoFisicoCatalogo || isEntregaIntegradaNaVisita)
     ? 0
     : (freteGratisCupom || (elegivelFreteGratisLoja && (!pedidoEntrega || pedidoEntrega.is_frete_gratis || pedidoEntrega.valor_frete === 0))) 
     ? 0 
     : valorFreteBase;
 
-  const total = Math.max(0, subtotal - descontoCupom) + valorFreteEfetivo;
+  const total = Math.max(0, subtotal - descontoCupom) + valorFreteEfetivo + valorTaxaDomicilioCatalogo;
 
   // Revalidar cupom caso o subtotal mude
   useEffect(() => {
@@ -1902,11 +1919,15 @@ export const CatalogoPublico: React.FC = () => {
     }
 
     if (!pedidoEntrega) {
-      if (apenasServicosNaLoja) {
+      if (apenasServicosNaLoja || !temProdutoFisicoCatalogo || isEntregaIntegradaNaVisita) {
         setPedidoEntrega({
           pedido_id: '',
           tipo_atendimento: 'retirada',
-          transportadora_nome: 'Atendimento na Loja',
+          transportadora_nome: isEntregaIntegradaNaVisita
+            ? 'Levar junto no atendimento técnico'
+            : temServicoDomicilioCatalogo
+            ? 'Atendimento em Domicílio'
+            : 'Atendimento na Loja',
           provedor: 'retirada_loja',
           servico_codigo: 'retirada',
           valor_frete: 0,
@@ -2114,6 +2135,8 @@ export const CatalogoPublico: React.FC = () => {
         subtotal,
         subtotal_produtos: subtotal,
         valor_frete: valorFreteEfetivo,
+        valor_taxa_domicilio: valorTaxaDomicilioCatalogo,
+        levar_produto_no_atendimento: isEntregaIntegradaNaVisita,
         valor_desconto: Number(descontoCupom || 0),
         valor_total: total,
         saldo_devedor: total,
@@ -2214,10 +2237,11 @@ export const CatalogoPublico: React.FC = () => {
         is_frete_gratis: valorFreteEfetivo === 0 && (freteGratisCupom || elegivelFreteGratisLoja)
       };
 
-      // Disparar inserções essenciais em batch simultâneo
+      // Disparar inserções essenciais em batch simultâneo (só grava pedido_entregas se houver entrega/retirada separada de produto físico)
+      const deveGravarEntrega = temProdutoFisicoCatalogo && !isEntregaIntegradaNaVisita;
       const [itensResult] = await Promise.all([
         supabase.from('itens_pedido').insert(itensFormatados).select(),
-        ShippingOrchestrator.salvarPedidoEntrega(pedidoCriado.id, entregaPayload)
+        deveGravarEntrega ? ShippingOrchestrator.salvarPedidoEntrega(pedidoCriado.id, entregaPayload) : Promise.resolve(null)
       ]);
       const itensInseridos = itensResult?.data;
 
@@ -4006,7 +4030,57 @@ Fico no aguardo da confirmação! ✨`;
                     </div>
                   )}
 
+                  {/* Seletor de Entrega para Pedido Híbrido (Produto Físico + Serviço em Domicílio) */}
+                  {isPedidoHibridoCatalogo && temServicoDomicilioCatalogo && (
+                    <div className="p-2.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-700/50 space-y-1.5">
+                      <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 block text-left">
+                        Como deseja receber os produtos físicos?
+                      </span>
+                      <div className="grid grid-cols-1 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLevarProdutoNoAtendimento(true);
+                            setPedidoEntrega(null);
+                          }}
+                          className={`w-full text-left px-2.5 py-2 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                            levarProdutoNoAtendimento
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                              : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700'
+                          }`}
+                        >
+                          Receber produtos junto com o técnico no dia do atendimento (Frete Grátis)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLevarProdutoNoAtendimento(false);
+                          }}
+                          className={`w-full text-left px-2.5 py-2 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                            !levarProdutoNoAtendimento
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                              : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700'
+                          }`}
+                        >
+                          Receber produtos antes por entrega/frete
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {valorTaxaDomicilioCatalogo > 0 && (
+                    <div className="flex items-center justify-between py-2 px-2.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 shadow-xs">
+                      <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 text-left">
+                        Taxa de Visita (Domicílio):
+                      </span>
+                      <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                        + {formatarMoeda(valorTaxaDomicilioCatalogo)}
+                      </span>
+                    </div>
+                  )}
+
                   {/* Linha Forma de Entrega */}
+                  {temProdutoFisicoCatalogo && !isEntregaIntegradaNaVisita && (
                   <div className="flex items-center justify-between py-2 px-2.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 shadow-xs">
                     <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 text-left">
                       Forma de Entrega:
@@ -4061,6 +4135,7 @@ Fico no aguardo da confirmação! ✨`;
                       </div>
                     </div>
                   </div>
+                  )}
 
                   {/* Linha Total do Pedido */}
                   <div className="flex items-center justify-between py-1.5 px-1 border-t border-slate-200 dark:border-slate-800 pt-2.5">

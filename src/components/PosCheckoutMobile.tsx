@@ -129,6 +129,13 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
     descontoPercentual,
     tipoDesconto,
     taxaEntrega,
+    valorTaxaDomicilio = 0,
+    temProdutoFisico = true,
+    isPedidoHibrido = false,
+    temServicoDomicilio = false,
+    levarProdutoNoAtendimento = true,
+    setLevarProdutoNoAtendimento,
+    infoTaxaVisita,
     pedidoEntrega,
     subtotal,
     total,
@@ -1488,7 +1495,52 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               {desconto > 0 ? 'Alterar desconto' : 'Dar desconto'}
             </button>
 
+            {/* Seletor de Logística para Pedido Híbrido no Mobile */}
+            {isPedidoHibrido && (
+              <div className={`p-2 rounded-xl border-2 space-y-1.5 text-xs ${
+                isDark ? 'bg-[#08131A] border-emerald-500/40' : 'bg-emerald-50/70 border-emerald-300'
+              }`}>
+                <div className="flex items-center gap-1.5 font-bold text-emerald-500">
+                  <Truck className="w-3.5 h-3.5 shrink-0" />
+                  <span>Entrega dos Produtos (Pedido Híbrido)</span>
+                </div>
+                <div className="grid grid-cols-1 gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setLevarProdutoNoAtendimento?.(true)}
+                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold transition border cursor-pointer ${
+                      levarProdutoNoAtendimento
+                        ? 'bg-emerald-600 text-white border-emerald-500 shadow-xs'
+                        : isDark
+                        ? 'bg-[#000000] text-slate-300 border-slate-700'
+                        : 'bg-white text-slate-700 border-slate-300'
+                    }`}
+                  >
+                    {temServicoDomicilio
+                      ? 'Levar junto com o técnico no dia do serviço (Grátis)'
+                      : 'Retirar produto na loja junto com o serviço (Grátis)'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLevarProdutoNoAtendimento?.(false)}
+                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold transition border cursor-pointer ${
+                      !levarProdutoNoAtendimento
+                        ? 'bg-emerald-600 text-white border-emerald-500 shadow-xs'
+                        : isDark
+                        ? 'bg-[#000000] text-slate-300 border-slate-700'
+                        : 'bg-white text-slate-700 border-slate-300'
+                    }`}
+                  >
+                    {temServicoDomicilio
+                      ? 'Enviar produto antes por entrega / frete'
+                      : 'Entregar produto por frete'}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Componente de Forma de Entrega no Mobile (Segmentado Retirada / Envio padrão Desktop) */}
+            {(!isPedidoHibrido || !levarProdutoNoAtendimento) && temProdutoFisico && (
             <div className="space-y-1.5">
               <div className={`flex items-center justify-between p-2 rounded-xl border-2 text-xs shadow-2xs ${
                 isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-50 border-slate-300'
@@ -1594,6 +1646,30 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 </div>
               )}
             </div>
+            )}
+
+            {infoTaxaVisita?.temServicoExterno && (
+              <div className="flex justify-between items-center text-xs">
+                <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Taxa de Visita (Domicílio):</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                  {infoTaxaVisita.taxaVisitaIsenta ? 'Isenta' : `+ ${formatarMoeda(valorTaxaDomicilio)}`}
+                </span>
+              </div>
+            )}
+
+            {isPedidoHibrido && levarProdutoNoAtendimento ? (
+              <div className="flex justify-between items-center text-xs">
+                <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Frete de Entrega:</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                  {temServicoDomicilio ? 'Grátis — Levar na visita técnica' : 'Grátis — Retirar no atendimento'}
+                </span>
+              </div>
+            ) : taxaEntrega > 0 ? (
+              <div className="flex justify-between items-center text-xs">
+                <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Frete de Entrega:</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">+ {formatarMoeda(taxaEntrega)}</span>
+              </div>
+            ) : null}
 
             <div className={`flex justify-between text-base font-black pt-1 border-t ${
               isDark ? 'border-slate-800 text-white' : 'border-slate-200 text-black'

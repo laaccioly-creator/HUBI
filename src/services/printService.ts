@@ -724,15 +724,21 @@ export class PrintService {
           <div style="margin-bottom: 14px; padding: 8px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
               <span style="font-size: ${isA4 ? '11px' : '9px'}; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
-                ${dadosRecibo.isSomenteServico ? 'LOCAL DO SERVIÇO:' : 'Forma de Entrega:'}
+                ${dadosRecibo.isSomenteServico || dadosRecibo.isPedidoHibrido ? 'LOCAL DO SERVIÇO:' : 'Forma de Entrega:'}
               </span>
-              <span style="font-size: ${isA4 ? '11px' : '9px'}; font-weight: 800; color: ${dadosRecibo.isSomenteServico ? '#047857' : (ehRetirada ? '#7e22ce' : '#047857')}; background: ${dadosRecibo.isSomenteServico ? '#d1fae5' : (ehRetirada ? '#f3e8ff' : '#d1fae5')}; padding: 1px 6px; border-radius: 4px;">
-                ${dadosRecibo.isSomenteServico ? dadosRecibo.badgeLocalValor : formaEntregaTexto}
+              <span style="font-size: ${isA4 ? '11px' : '9px'}; font-weight: 800; color: ${dadosRecibo.isSomenteServico || dadosRecibo.isPedidoHibrido ? '#047857' : (ehRetirada ? '#7e22ce' : '#047857')}; background: ${dadosRecibo.isSomenteServico || dadosRecibo.isPedidoHibrido ? '#d1fae5' : (ehRetirada ? '#f3e8ff' : '#d1fae5')}; padding: 1px 6px; border-radius: 4px;">
+                ${dadosRecibo.isSomenteServico || dadosRecibo.isPedidoHibrido ? dadosRecibo.badgeLocalValor : formaEntregaTexto}
               </span>
             </div>
-            ${(dadosRecibo.isSomenteServico ? dadosRecibo.enderecoFormatado : enderecoExibicao) ? `
+            ${(dadosRecibo.isSomenteServico || dadosRecibo.isPedidoHibrido ? dadosRecibo.enderecoFormatado : enderecoExibicao) ? `
               <div style="font-size: ${isA4 ? '12px' : '10px'}; color: #334155; margin-top: 4px; border-top: 1px dashed #cbd5e1; padding-top: 4px; line-height: 1.3;">
-                <strong>${dadosRecibo.isSomenteServico ? `${dadosRecibo.rotuloEndereco}:` : labelEndereco}</strong> ${dadosRecibo.isSomenteServico ? dadosRecibo.enderecoFormatado : enderecoExibicao}
+                <strong>${dadosRecibo.isSomenteServico || dadosRecibo.isPedidoHibrido ? `${dadosRecibo.rotuloEndereco}:` : labelEndereco}</strong> ${dadosRecibo.isSomenteServico || dadosRecibo.isPedidoHibrido ? dadosRecibo.enderecoFormatado : enderecoExibicao}
+              </div>
+            ` : ''}
+            ${dadosRecibo.isPedidoHibrido && dadosRecibo.entregaProdutosDescricao ? `
+              <div style="font-size: ${isA4 ? '11px' : '9px'}; color: #334155; margin-top: 4px; border-top: 1px dashed #cbd5e1; padding-top: 4px; line-height: 1.3;">
+                <strong>ENTREGA DOS PRODUTOS:</strong> ${dadosRecibo.entregaProdutosDescricao}
+                ${dadosRecibo.entregaProdutosEndereco ? `<br/><span style="color:#475569;">Destino: ${dadosRecibo.entregaProdutosEndereco}</span>` : ''}
               </div>
             ` : ''}
             ${codigoRastreio ? `
@@ -783,6 +789,17 @@ export class PrintService {
           <div style="margin-top: 8px; padding-top: 6px; font-size: ${isA4 ? '12px' : '11px'}; color: #475569; border-top: 1px dashed #e2e8f0;">
             ${(() => {
               const infoVisita = extrairInfoVisitaPedido(pedido, loja);
+              if (dadosRecibo.isPedidoHibrido) {
+                return `
+                  <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+                    <span>Subtotal dos Produtos:</span>
+                    <span>R$ ${formatNumeroMoeda(dadosRecibo.subtotalProdutos)}</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+                    <span>Subtotal dos Serviços:</span>
+                    <span>R$ ${formatNumeroMoeda(dadosRecibo.subtotalServicos)}</span>
+                  </div>`;
+              }
               if (dadosRecibo.isSomenteServico) {
                 return `
                   <div style="display: flex; justify-content: space-between; margin: 2px 0;">
@@ -822,6 +839,36 @@ export class PrintService {
             ` : ''}
             ${(() => {
               const infoVisita = extrairInfoVisitaPedido(pedido, loja);
+              if (dadosRecibo.isPedidoHibrido) {
+                let htmlHibrido = '';
+                if (dadosRecibo.taxaVisitaDomicilio > 0) {
+                  htmlHibrido += `
+                    <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+                      <span>Taxa de Visita (Domicílio):</span>
+                      <span style="font-weight: 600; color: #0f172a;">
+                        + R$ ${formatNumeroMoeda(dadosRecibo.taxaVisitaDomicilio)}
+                      </span>
+                    </div>`;
+                } else if (dadosRecibo.isAtendimentoDomicilio && infoVisita.taxaVisitaIsenta) {
+                  htmlHibrido += `
+                    <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+                      <span>Taxa de Visita (Domicílio):</span>
+                      <span style="font-weight: 600; color: #059669;">Isenta (serviço aprovado)</span>
+                    </div>`;
+                }
+                const textoFreteHibrido =
+                  dadosRecibo.valorFreteProdutos > 0
+                    ? `+ R$ ${formatNumeroMoeda(dadosRecibo.valorFreteProdutos)}`
+                    : dadosRecibo.levarProdutoNoAtendimento && dadosRecibo.isAtendimentoDomicilio
+                    ? 'R$ 0,00 — Incluso na visita'
+                    : 'R$ 0,00 — Grátis';
+                htmlHibrido += `
+                  <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+                    <span>Frete de Entrega:</span>
+                    <span style="font-weight: 600; color: #0f172a;">${textoFreteHibrido}</span>
+                  </div>`;
+                return htmlHibrido;
+              }
               if (dadosRecibo.isSomenteServico) {
                 if (dadosRecibo.taxaVisitaDomicilio > 0) {
                   return `
@@ -1250,10 +1297,16 @@ export class PrintService {
       const telCli = pedido.cliente?.whatsapp || pedido.cliente?.telefone || (pedido as any).cliente_telefone_avulso;
       if (telCli) text += `Contato: ${telCli}\n`;
     }
-    if (dadosRecibo.isSomenteServico) {
+    if (dadosRecibo.isSomenteServico || dadosRecibo.isPedidoHibrido) {
       text += `LOCAL DO SERVICO: ${dadosRecibo.isAtendimentoDomicilio ? 'EM DOMICILIO' : 'NA LOJA'}\n`;
       if (dadosRecibo.enderecoFormatado) {
         text += `Local da Prestacao: ${dadosRecibo.enderecoFormatado.slice(0, cols - 20)}\n`;
+      }
+      if (dadosRecibo.isPedidoHibrido && dadosRecibo.entregaProdutosDescricao) {
+        text += `ENTREGA PRODUTOS: ${dadosRecibo.entregaProdutosDescricao}\n`;
+        if (dadosRecibo.entregaProdutosEndereco) {
+          text += `Destino Produtos: ${dadosRecibo.entregaProdutosEndereco.slice(0, cols - 18)}\n`;
+        }
       }
     } else {
       text += `Forma de Entrega: ${formaEntregaTexto.toUpperCase()}\n`;
@@ -1278,7 +1331,10 @@ export class PrintService {
 
     const infoVisita = extrairInfoVisitaPedido(pedido, loja);
 
-    if (dadosRecibo.isSomenteServico) {
+    if (dadosRecibo.isPedidoHibrido) {
+      text += `Subtotal Produtos:     R$ ${Number(dadosRecibo.subtotalProdutos).toFixed(2)}\n`;
+      text += `Subtotal Servicos:     R$ ${Number(dadosRecibo.subtotalServicos).toFixed(2)}\n`;
+    } else if (dadosRecibo.isSomenteServico) {
       text += `Subtotal dos Servicos: R$ ${Number(dadosRecibo.subtotalItens).toFixed(2)}\n`;
     } else if (infoVisita.subtotalServicos > 0 && infoVisita.subtotalProdutos > 0) {
       text += `Subtotal Servicos:     R$ ${Number(infoVisita.subtotalServicos).toFixed(2)}\n`;
@@ -1291,7 +1347,18 @@ export class PrintService {
 
     if (Number(pedido.valor_desconto) > 0) text += `Desconto:            - R$ ${Number(pedido.valor_desconto).toFixed(2)}\n`;
 
-    if (dadosRecibo.isSomenteServico) {
+    if (dadosRecibo.isPedidoHibrido) {
+      if (dadosRecibo.taxaVisitaDomicilio > 0) {
+        text += `Taxa de Visita (Domicilio): + R$ ${Number(dadosRecibo.taxaVisitaDomicilio).toFixed(2)}\n`;
+      } else if (dadosRecibo.isAtendimentoDomicilio && infoVisita.taxaVisitaIsenta) {
+        text += `Taxa de Visita (Domicilio): Isenta (Aprovado)\n`;
+      }
+      if (dadosRecibo.valorFreteProdutos > 0) {
+        text += `Frete de Entrega:    + R$ ${Number(dadosRecibo.valorFreteProdutos).toFixed(2)}\n`;
+      } else {
+        text += `Frete de Entrega:    ${dadosRecibo.levarProdutoNoAtendimento && dadosRecibo.isAtendimentoDomicilio ? 'R$ 0,00 - Incluso na visita' : 'R$ 0,00 - Gratis'}\n`;
+      }
+    } else if (dadosRecibo.isSomenteServico) {
       if (dadosRecibo.taxaVisitaDomicilio > 0) {
         text += `Taxa de Visita (Domicilio): + R$ ${Number(dadosRecibo.taxaVisitaDomicilio).toFixed(2)}\n`;
       } else if (dadosRecibo.isAtendimentoDomicilio && infoVisita.taxaVisitaIsenta) {
@@ -1437,8 +1504,12 @@ export class PrintService {
       `\nVendedor: ${vendedorInfo.valor}\n` +
       `Cliente: ${clienteNome}\n` +
       (pedido.cliente?.whatsapp ? `Contato: +55 ${pedido.cliente.whatsapp}\n` : '') +
-      (dadosRecibo.isSomenteServico
-        ? `\n${dadosRecibo.rotuloLocalCabecalho}: ${dadosRecibo.badgeLocalValor}\n${dadosRecibo.rotuloEndereco}: ${dadosRecibo.enderecoFormatado}\n`
+      (dadosRecibo.isSomenteServico || dadosRecibo.isPedidoHibrido
+        ? `\n${dadosRecibo.rotuloLocalCabecalho}: ${dadosRecibo.badgeLocalValor}\n${dadosRecibo.rotuloEndereco}: ${dadosRecibo.enderecoFormatado}\n` +
+          (dadosRecibo.isPedidoHibrido && dadosRecibo.entregaProdutosDescricao
+            ? `ENTREGA DOS PRODUTOS: ${dadosRecibo.entregaProdutosDescricao}\n` +
+              (dadosRecibo.entregaProdutosEndereco ? `Destino: ${dadosRecibo.entregaProdutosEndereco}\n` : '')
+            : '')
         : infoVisita.temServicoExterno
         ? `\nLOCAL DO SERVIÇO: EM DOMICÍLIO\nLocal da Prestação: ${infoVisita.enderecoVisita || pedido.endereco_entrega || 'A combinar'}\n`
         : '') +
@@ -1446,7 +1517,9 @@ export class PrintService {
       `--------------------------------------------------\n` +
       linhasItens + `\n` +
       `--------------------------------------------------\n` +
-      (dadosRecibo.isSomenteServico
+      (dadosRecibo.isPedidoHibrido
+        ? `Subtotal dos Produtos: R$ ${Number(dadosRecibo.subtotalProdutos).toFixed(2)}\nSubtotal dos Serviços: R$ ${Number(dadosRecibo.subtotalServicos).toFixed(2)}\n`
+        : dadosRecibo.isSomenteServico
         ? `${dadosRecibo.rotuloSubtotal}: R$ ${Number(dadosRecibo.subtotalItens).toFixed(2)}\n`
         : infoVisita.subtotalServicos > 0 && infoVisita.subtotalProdutos > 0
         ? `Subtotal dos Serviços: R$ ${Number(infoVisita.subtotalServicos).toFixed(2)}\nSubtotal dos Produtos: R$ ${Number(infoVisita.subtotalProdutos).toFixed(2)}\n`
@@ -1454,7 +1527,16 @@ export class PrintService {
         ? `Subtotal dos Serviços: R$ ${Number(infoVisita.subtotalServicos).toFixed(2)}\n`
         : `Subtotal dos Produtos: R$ ${Number(pedido.subtotal || 0).toFixed(2)}\n`) +
       (Number(pedido.valor_desconto) > 0 ? `Desconto: - R$ ${Number(pedido.valor_desconto).toFixed(2)}\n` : '') +
-      (dadosRecibo.isSomenteServico
+      (dadosRecibo.isPedidoHibrido
+        ? (dadosRecibo.taxaVisitaDomicilio > 0
+            ? `Taxa de Visita (Domicílio): + R$ ${Number(dadosRecibo.taxaVisitaDomicilio).toFixed(2)}\n`
+            : dadosRecibo.isAtendimentoDomicilio && infoVisita.taxaVisitaIsenta
+            ? `Taxa de Visita (Domicílio): Isenta (serviço aprovado)\n`
+            : '') +
+          (dadosRecibo.valorFreteProdutos > 0
+            ? `Frete de Entrega: + R$ ${Number(dadosRecibo.valorFreteProdutos).toFixed(2)}\n`
+            : `Frete de Entrega: ${dadosRecibo.levarProdutoNoAtendimento && dadosRecibo.isAtendimentoDomicilio ? 'R$ 0,00 — Incluso na visita' : 'R$ 0,00 — Grátis'}\n`)
+        : dadosRecibo.isSomenteServico
         ? (dadosRecibo.taxaVisitaDomicilio > 0
             ? `${dadosRecibo.rotuloTaxaAdicional || 'Taxa de Visita (Domicílio)'}: + R$ ${Number(dadosRecibo.taxaVisitaDomicilio).toFixed(2)}\n`
             : dadosRecibo.isAtendimentoDomicilio && infoVisita.taxaVisitaIsenta
@@ -1499,7 +1581,27 @@ export class PrintService {
       : '';
 
     const dadosRecibo = resolverDadosReciboPedido(pedido, pedido.itens, loja);
-    const blocoServicoWhatsApp = dadosRecibo.isSomenteServico
+    const blocoServicoWhatsApp = dadosRecibo.isPedidoHibrido
+      ? `\n📍 ${dadosRecibo.rotuloLocalCabecalho}: ${dadosRecibo.badgeLocalValor}` +
+        `\n${dadosRecibo.rotuloEndereco}: ${dadosRecibo.enderecoFormatado}` +
+        (dadosRecibo.entregaProdutosDescricao
+          ? `\n📦 ENTREGA DOS PRODUTOS: ${dadosRecibo.entregaProdutosDescricao}` +
+            (dadosRecibo.entregaProdutosEndereco ? `\nDestino: ${dadosRecibo.entregaProdutosEndereco}` : '')
+          : '') +
+        `\nSubtotal dos Produtos: R$ ${Number(dadosRecibo.subtotalProdutos).toFixed(2).replace('.', ',')}` +
+        `\nSubtotal dos Serviços: R$ ${Number(dadosRecibo.subtotalServicos).toFixed(2).replace('.', ',')}` +
+        (dadosRecibo.taxaVisitaDomicilio > 0
+          ? `\nTaxa de Visita (Domicílio): + R$ ${Number(dadosRecibo.taxaVisitaDomicilio).toFixed(2).replace('.', ',')}`
+          : '') +
+        `\nFrete de Entrega: ${
+          dadosRecibo.valorFreteProdutos > 0
+            ? `+ R$ ${Number(dadosRecibo.valorFreteProdutos).toFixed(2).replace('.', ',')}`
+            : dadosRecibo.levarProdutoNoAtendimento && dadosRecibo.isAtendimentoDomicilio
+            ? 'R$ 0,00 — Incluso na visita'
+            : 'R$ 0,00 — Grátis'
+        }` +
+        `\nVALOR TOTAL: R$ ${Number(pedido.valor_total || 0).toFixed(2).replace('.', ',')}\n`
+      : dadosRecibo.isSomenteServico
       ? `\n📍 ${dadosRecibo.rotuloLocalCabecalho}: ${dadosRecibo.badgeLocalValor}` +
         `\n${dadosRecibo.rotuloEndereco}: ${dadosRecibo.enderecoFormatado}` +
         `\n${dadosRecibo.rotuloSubtotal}: R$ ${Number(dadosRecibo.subtotalItens).toFixed(2).replace('.', ',')}` +

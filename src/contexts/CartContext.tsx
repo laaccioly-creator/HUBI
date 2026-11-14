@@ -46,6 +46,13 @@ interface CartContextType {
   tipoDesconto: 'valor' | 'percentual';
   taxaEntrega: number;
   valor_frete: number;
+  valorTaxaDomicilio: number;
+  temProdutoFisico: boolean;
+  temServico: boolean;
+  isPedidoHibrido: boolean;
+  temServicoDomicilio: boolean;
+  levarProdutoNoAtendimento: boolean;
+  setLevarProdutoNoAtendimento: (levar: boolean) => void;
   infoTaxaVisita: ResultadoTaxaVisita;
   abaterVisitaManual: boolean | null;
   setAbaterVisitaManual: (abater: boolean | null) => void;
@@ -110,6 +117,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [descontoPercentual, setDescontoPercentualState] = useState<number>(0);
   const [tipoDesconto, setTipoDesconto] = useState<'valor' | 'percentual'>('valor');
   const [taxaEntrega, setTaxaEntregaState] = useState<number>(0);
+  const [levarProdutoNoAtendimentoState, setLevarProdutoNoAtendimentoState] = useState<boolean>(true);
   const [abaterVisitaManual, setAbaterVisitaManual] = useState<boolean | null>(null);
   const [pedidoEntrega, setPedidoEntrega] = useState<PedidoEntrega | null>(FORMA_ENTREGA_RETIRADA_PADRAO);
   const [enderecoEntrega, setEnderecoEntrega] = useState<string | null>(null);
@@ -126,6 +134,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPedidoEntrega(prev => prev ? { ...prev, valor_frete: valLimpo } : prev);
   };
   const setValorFrete = setTaxaEntrega;
+
+  const setLevarProdutoNoAtendimento = (levar: boolean) => {
+    setLevarProdutoNoAtendimentoState(levar);
+    if (levar) {
+      setTaxaEntregaState(0);
+      setPedidoEntrega(FORMA_ENTREGA_RETIRADA_PADRAO);
+    }
+  };
 
   // Re-hidratação com estrito isolamento multi-tenant por Loja e Usuário
   useEffect(() => {
@@ -170,6 +186,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ? draft.taxaEntrega
           : (typeof draft?.valor_frete === 'number' ? draft.valor_frete : (typeof draft?.pedidoEntrega?.valor_frete === 'number' ? draft.pedidoEntrega.valor_frete : null));
         setTaxaEntregaState(typeof taxaRecuperada === 'number' ? taxaRecuperada : 0);
+        setLevarProdutoNoAtendimentoState(
+          typeof draft?.levarProdutoNoAtendimento === 'boolean' ? draft.levarProdutoNoAtendimento : true
+        );
 
         setPedidoEntrega(draft?.pedidoEntrega || FORMA_ENTREGA_RETIRADA_PADRAO);
         setEnderecoEntrega(draft?.enderecoEntrega || null);
@@ -224,6 +243,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       tipoDesconto,
       taxaEntrega,
       valor_frete: taxaEntrega,
+      levarProdutoNoAtendimento: levarProdutoNoAtendimentoState,
       pedidoEntrega,
       enderecoEntrega,
       dadosEndereco,
@@ -247,6 +267,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     descontoPercentual,
     tipoDesconto,
     taxaEntrega,
+    levarProdutoNoAtendimentoState,
     pedidoEntrega,
     enderecoEntrega,
     dadosEndereco,
@@ -747,6 +768,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setDescontoPercentualState(0);
     setTipoDesconto('valor');
     setTaxaEntrega(0);
+    setLevarProdutoNoAtendimentoState(true);
     setAbaterVisitaManual(null);
     setPedidoEntrega(FORMA_ENTREGA_RETIRADA_PADRAO);
     setPedidoEmEdicao(null);
@@ -846,6 +868,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       entregaFinal = FORMA_ENTREGA_RETIRADA_PADRAO;
     }
     setTaxaEntrega(taxaFinal);
+    setLevarProdutoNoAtendimentoState(
+      pedido.levar_produto_no_atendimento !== undefined
+        ? Boolean(pedido.levar_produto_no_atendimento)
+        : taxaFinal === 0
+    );
 
     // Buscar estoque real dos produtos e variações no Supabase
     const produtoIds = Array.from(new Set((pedido.itens || []).map((it: any) => it.produto_id).filter(Boolean)));
@@ -939,6 +966,22 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPedidoEmEdicao((prev: any) => (prev ? { ...prev, status: novoStatus } : null));
   };
 
+  const temProdutoFisico = useMemo(() => {
+    return itensComPrecoDinamico.some(it => it.produto?.tipo_item !== 'servico');
+  }, [itensComPrecoDinamico]);
+
+  const temServico = useMemo(() => {
+    return itensComPrecoDinamico.some(it => it.produto?.tipo_item === 'servico');
+  }, [itensComPrecoDinamico]);
+
+  const isPedidoHibrido = temProdutoFisico && temServico;
+
+  const temServicoDomicilio = useMemo(() => {
+    return itensComPrecoDinamico.some(
+      it => it.produto?.tipo_item === 'servico' && it.agendamento?.modalidade_local === 'externo'
+    );
+  }, [itensComPrecoDinamico]);
+
   const infoTaxaVisita = useMemo(() => {
     return calcularTaxaVisitaPedido(itensComPrecoDinamico, loja, abaterVisitaManual ?? undefined);
   }, [itensComPrecoDinamico, loja, abaterVisitaManual]);
@@ -953,16 +996,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const valorTaxaDomicilio = useMemo(() => {
+    return infoTaxaVisita.temServicoExterno ? infoTaxaVisita.taxaVisitaCobrada : 0;
+  }, [infoTaxaVisita.temServicoExterno, infoTaxaVisita.taxaVisitaCobrada]);
+
   const taxaEntregaEfetiva = useMemo(() => {
-    if (infoTaxaVisita.temServicoExterno) {
-      return infoTaxaVisita.taxaVisitaCobrada;
-    }
+    if (!temProdutoFisico) return 0;
+    if (isPedidoHibrido && levarProdutoNoAtendimentoState) return 0;
     return taxaEntrega;
-  }, [infoTaxaVisita.temServicoExterno, infoTaxaVisita.taxaVisitaCobrada, taxaEntrega]);
+  }, [temProdutoFisico, isPedidoHibrido, levarProdutoNoAtendimentoState, taxaEntrega]);
 
   const total = useMemo(() => {
-    return Math.max(0, subtotal - desconto + taxaEntregaEfetiva);
-  }, [subtotal, desconto, taxaEntregaEfetiva]);
+    return Math.max(0, subtotal - desconto + taxaEntregaEfetiva + valorTaxaDomicilio);
+  }, [subtotal, desconto, taxaEntregaEfetiva, valorTaxaDomicilio]);
 
   const totalItens = useMemo(() => {
     return itensComPrecoDinamico.reduce((acc, item) => acc + item.quantidade, 0);
@@ -981,6 +1027,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         tipoDesconto,
         taxaEntrega: taxaEntregaEfetiva,
         valor_frete: taxaEntregaEfetiva,
+        valorTaxaDomicilio,
+        temProdutoFisico,
+        temServico,
+        isPedidoHibrido,
+        temServicoDomicilio,
+        levarProdutoNoAtendimento: levarProdutoNoAtendimentoState,
+        setLevarProdutoNoAtendimento,
         infoTaxaVisita,
         abaterVisitaManual,
         setAbaterVisitaManual,

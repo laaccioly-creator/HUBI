@@ -5,6 +5,7 @@
 
 import { supabase } from '../lib/supabase';
 import { whatsappWalletService } from './whatsappWalletService';
+import { logger } from './loggerService';
 import type {
   AgendamentoServico,
   ProfissionalHorario,
@@ -16,7 +17,8 @@ import type {
   ModalidadeLocalPrestacao,
   AgendamentoPublicoDetalhes,
   ParametrosProcessarAcaoAgendamento,
-  ResultadoAcaoAgendamento
+  ResultadoAcaoAgendamento,
+  ItemAgendamentoInfo
 } from '../types/agendamento';
 import type { UsuarioLoja, Loja, Produto } from '../types';
 
@@ -546,6 +548,113 @@ export const agendamentoService = {
   },
 
   /**
+   * 5.1 Sincroniza os agendamentos vinculados aos itens de um pedido salvo/finalizado no PDV
+   */
+  async sincronizarAgendamentosPedidoPdv(params: {
+    lojaId: string;
+    pedidoId: string;
+    clienteId?: string | null;
+    clienteNome?: string | null;
+    clienteWhatsapp?: string | null;
+    criadoPorUsuarioId?: string | null;
+    itens: Array<{
+      itemPedidoId: string;
+      produtoId: string;
+      agendamento?: ItemAgendamentoInfo | null;
+    }>;
+  }): Promise<{ inseridos: number; erroMensagem?: string }> {
+    const itensAgendados = params.itens.filter(
+      (it): it is { itemPedidoId: string; produtoId: string; agendamento: ItemAgendamentoInfo } =>
+        Boolean(it.agendamento && it.agendamento.profissional_id && it.agendamento.data_agendamento)
+    );
+
+    if (itensAgendados.length === 0) {
+      return { inseridos: 0 };
+    }
+
+    const normalizarHoraComSegundos = (hora: string): string => {
+      const limpa = (hora || '00:00').trim();
+      if (/^\d{2}:\d{2}:\d{2}$/.test(limpa)) return limpa;
+      if (/^\d{2}:\d{2}$/.test(limpa)) return `${limpa}:00`;
+      return `${limpa.slice(0, 5).padEnd(5, '0')}:00`;
+    };
+
+    const obterOffsetLocal = (): string => {
+      const offsetMin = -new Date().getTimezoneOffset();
+      const sinal = offsetMin >= 0 ? '+' : '-';
+      const abs = Math.abs(offsetMin);
+      const hh = String(Math.floor(abs / 60)).padStart(2, '0');
+      const mm = String(abs % 60).padStart(2, '0');
+      return `${sinal}${hh}:${mm}`;
+    };
+
+    const offsetLocal = obterOffsetLocal();
+    const nomeCliente = (params.clienteNome || '').trim() || 'Cliente Balcão';
+    const whatsappCliente = (params.clienteWhatsapp || '').trim();
+
+    const payloads = itensAgendados.map((it) => {
+      const ag = it.agendamento;
+      const horaInicio = normalizarHoraComSegundos(ag.hora_inicio);
+      const horaFim = normalizarHoraComSegundos(ag.hora_fim);
+      return {
+        loja_id: params.lojaId,
+        pedido_id: params.pedidoId,
+        item_pedido_id: it.itemPedidoId,
+        produto_id: it.produtoId,
+        profissional_id: ag.profissional_id,
+        cliente_id: ag.cliente_id || params.clienteId || null,
+        cliente_nome: nomeCliente,
+        cliente_whatsapp: whatsappCliente,
+        data_agendamento: ag.data_agendamento,
+        hora_inicio: horaInicio,
+        hora_fim: horaFim,
+        data_hora_inicio: `${ag.data_agendamento}T${horaInicio}${offsetLocal}`,
+        data_hora_fim: `${ag.data_agendamento}T${horaFim}${offsetLocal}`,
+        modalidade_local: ag.modalidade_local || 'loja',
+        cliente_endereco_id: ag.cliente_endereco_id || null,
+        endereco_prestacao_snapshot: ag.endereco_prestacao_snapshot || null,
+        status_agendamento: 'confirmado' as StatusAgendamento,
+        observacoes: ag.observacoes || null,
+        criado_por_usuario_id: params.criadoPorUsuarioId || null
+      };
+    });
+
+    try {
+      // Remove vínculos anteriores do mesmo pedido (caso seja edição/reabertura de pedido pendente)
+      await supabase
+        .from('agendamentos_servicos')
+        .delete()
+        .eq('loja_id', params.lojaId)
+        .eq('pedido_id', params.pedidoId);
+
+      const { error } = await supabase
+        .from('agendamentos_servicos')
+        .insert(payloads);
+
+      if (error) {
+        logger.error('AgendamentoService', 'sincronizar_agendamentos_pdv', error, {
+          loja_id: params.lojaId
+        });
+        return {
+          inseridos: 0,
+          erroMensagem: `O pedido foi salvo, mas houve falha ao gravar o agendamento na Agenda: ${error.message}`
+        };
+      }
+
+      return { inseridos: payloads.length };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro desconhecido ao gravar agendamento.';
+      logger.error('AgendamentoService', 'sincronizar_agendamentos_pdv_excecao', err, {
+        loja_id: params.lojaId
+      });
+      return {
+        inseridos: 0,
+        erroMensagem: `O pedido foi salvo, mas houve falha ao gravar o agendamento na Agenda: ${msg}`
+      };
+    }
+  },
+
+  /**
    * 6. Listagem de agendamentos da loja com filtros
    */
   async listarAgendamentosLoja(params: {
@@ -614,7 +723,10 @@ export const agendamentoService = {
       const { data, error } = await queryJoined;
 
       if (!error && Array.isArray(data)) {
-        return data as unknown as AgendamentoServico[];
+        return await this.anexarPedidosHibridosEmAgendamentos(
+          data as unknown as AgendamentoServico[],
+          params.lojaId
+        );
       }
     } catch {
       // Falha no join explícito por nome de constraint, prossegue para fallback
@@ -634,7 +746,10 @@ export const agendamentoService = {
 
       const { data, error } = await queryDirectFk;
       if (!error && Array.isArray(data)) {
-        return data as unknown as AgendamentoServico[];
+        return await this.anexarPedidosHibridosEmAgendamentos(
+          data as unknown as AgendamentoServico[],
+          params.lojaId
+        );
       }
     } catch {
       // Prossegue para fallback resiliente em memória
@@ -659,10 +774,85 @@ export const agendamentoService = {
         return [];
       }
 
-      return await this.hidratarAgendamentosEmMemoria(rawData as Array<Record<string, unknown>>, params.lojaId);
+      const hidratados = await this.hidratarAgendamentosEmMemoria(
+        rawData as Array<Record<string, unknown>>,
+        params.lojaId
+      );
+      return await this.anexarPedidosHibridosEmAgendamentos(hidratados, params.lojaId);
     } catch (err) {
       console.warn('Erro ao carregar agendamentos (fallback):', err);
       return [];
+    }
+  },
+
+  async anexarPedidosHibridosEmAgendamentos(
+    lista: AgendamentoServico[],
+    lojaId: string
+  ): Promise<AgendamentoServico[]> {
+    const pedidoIds = Array.from(
+      new Set(lista.map((ag) => ag.pedido_id).filter((id): id is string => Boolean(id)))
+    );
+    if (pedidoIds.length === 0) return lista;
+
+    try {
+      const { data: pedidosData } = await supabase
+        .from('pedidos')
+        .select('id, numero_pedido, levar_produto_no_atendimento')
+        .eq('loja_id', lojaId)
+        .in('id', pedidoIds);
+
+      const pedidosMap = new Map<
+        string,
+        { id: string; numero_pedido: number; levar_produto_no_atendimento?: boolean }
+      >();
+      (pedidosData || []).forEach((p) => {
+        pedidosMap.set(p.id, {
+          id: p.id,
+          numero_pedido: Number(p.numero_pedido || 0),
+          levar_produto_no_atendimento: Boolean(p.levar_produto_no_atendimento)
+        });
+      });
+
+      const pedidoIdsComMaterial = Array.from(pedidosMap.values())
+        .filter((p) => p.levar_produto_no_atendimento)
+        .map((p) => p.id);
+
+      const itensPorPedido = new Map<
+        string,
+        Array<{ nome_produto: string; rotulo_variacao?: string | null; quantidade: number }>
+      >();
+
+      if (pedidoIdsComMaterial.length > 0) {
+        const { data: itensData } = await supabase
+          .from('itens_pedido')
+          .select('pedido_id, nome_produto, rotulo_variacao, quantidade, tipo_item')
+          .eq('loja_id', lojaId)
+          .in('pedido_id', pedidoIdsComMaterial)
+          .eq('tipo_item', 'produto');
+
+        (itensData || []).forEach((it) => {
+          const arr = itensPorPedido.get(it.pedido_id) || [];
+          arr.push({
+            nome_produto: it.nome_produto || 'Produto',
+            rotulo_variacao: it.rotulo_variacao || null,
+            quantidade: Number(it.quantidade || 1)
+          });
+          itensPorPedido.set(it.pedido_id, arr);
+        });
+      }
+
+      return lista.map((ag) => {
+        if (!ag.pedido_id) return ag;
+        const ped = pedidosMap.get(ag.pedido_id) || null;
+        const itensFisicos = itensPorPedido.get(ag.pedido_id) || [];
+        return {
+          ...ag,
+          pedido: ped,
+          itens_fisicos_levar: itensFisicos
+        };
+      });
+    } catch {
+      return lista;
     }
   },
 

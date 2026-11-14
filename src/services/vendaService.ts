@@ -11,6 +11,7 @@ import { ItemAgendamentoInfo } from '../types/agendamento';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { ResultadoTaxaVisita } from '../utils/taxaDomicilioUtils';
 import { formatarEnderecoCliente } from '../utils/reciboServicoHelper';
+import { agendamentoService } from './agendamentoService';
 
 export interface ItemVendaInput {
   produto: {
@@ -64,6 +65,8 @@ export interface GravarVendaParams {
   linhasPagamento: LinhaPagamentoInput[];
   formasPagamentoDisponiveis?: FormaPagamento[];
   taxaEntrega: number;
+  valorTaxaDomicilio?: number;
+  levarProdutoNoAtendimento?: boolean;
   subtotal: number;
   desconto: number;
   descontoPercentual: number;
@@ -100,6 +103,8 @@ export class VendaService {
       linhasPagamento,
       formasPagamentoDisponiveis = [],
       taxaEntrega,
+      valorTaxaDomicilio = 0,
+      levarProdutoNoAtendimento = false,
       subtotal,
       desconto,
       descontoPercentual,
@@ -242,6 +247,8 @@ export class VendaService {
       nome_transportadora: pedidoEntrega?.nome_transportadora || pedidoEntrega?.transportadora_nome || null,
       tipo_operacao: pedidoEntrega?.tipo_operacao || null,
       valor_frete: taxaEntrega,
+      valor_taxa_domicilio: Number(valorTaxaDomicilio || 0),
+      levar_produto_no_atendimento: Boolean(levarProdutoNoAtendimento),
       endereco_entrega: enderecoEntregaFinal,
       valor_total: total,
       cupom_id: params.cupomId || null,
@@ -408,46 +415,32 @@ export class VendaService {
     }
 
     // 2.1 Gravar agendamentos de serviços caso existam itens com agendamento
-    try {
-      const itensComAgendamento: any[] = [];
-      itens.forEach((it, idx) => {
-        if (it.agendamento && itensInseridos && itensInseridos[idx]) {
-          const itemInserido = itensInseridos[idx];
-          const duracaoEstimada = it.produto.duracao_estimada_minutos || 30;
-          const tokenUnico = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `tok_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-          itensComAgendamento.push({
-            loja_id: lojaId,
-            pedido_id: pedidoId,
-            item_pedido_id: itemInserido.id,
-            cliente_id: clienteIdSanitizado || null,
-            produto_id: it.produto.id,
-            usuario_id: it.agendamento.profissional_id,
-            data_agendamento: it.agendamento.data_agendamento,
-            hora_inicio: it.agendamento.hora_inicio,
-            hora_fim: it.agendamento.hora_fim,
-            duracao_minutos: duracaoEstimada,
-            modalidade_local: it.agendamento.modalidade_local || 'loja',
-            cliente_endereco_id: it.agendamento.cliente_endereco_id || null,
-            endereco_prestacao_snapshot: it.agendamento.endereco_prestacao_snapshot || null,
-            status_agendamento: 'confirmado',
-            observacoes_internas: it.agendamento.observacoes || null,
-            token_confirmacao: tokenUnico
-          });
-        }
+    let avisoAgendamento: string | undefined;
+    const itensParaSincronizarAgenda = itens
+      .map((it, idx) => {
+        const itemInserido = itensInseridos?.[idx] as { id?: string } | undefined;
+        if (!it.agendamento || !itemInserido?.id) return null;
+        return {
+          itemPedidoId: itemInserido.id,
+          produtoId: it.produto.id,
+          agendamento: it.agendamento
+        };
+      })
+      .filter((x): x is { itemPedidoId: string; produtoId: string; agendamento: ItemAgendamentoInfo } => x !== null);
+
+    if (itensParaSincronizarAgenda.length > 0) {
+      const resAgenda = await agendamentoService.sincronizarAgendamentosPedidoPdv({
+        lojaId,
+        pedidoId,
+        clienteId: clienteIdSanitizado,
+        clienteNome: clienteSelecionado?.nome || pedidoGravado?.cliente_nome_avulso || 'Cliente Balcão',
+        clienteWhatsapp: clienteSelecionado?.whatsapp || clienteSelecionado?.telefone || pedidoGravado?.cliente_telefone_avulso || '',
+        criadoPorUsuarioId: vendedorIdSanitizado,
+        itens: itensParaSincronizarAgenda
       });
-
-      if (itensComAgendamento.length > 0) {
-        const { error: erroAgendamentos } = await supabase
-          .from('agendamentos_servicos')
-          .insert(itensComAgendamento);
-
-        if (erroAgendamentos) {
-          logger.error('VendaService', 'inserir_agendamentos', erroAgendamentos, { loja_id: lojaId });
-          console.warn('[VendaService] Erro ao registrar agendamentos vinculados:', erroAgendamentos);
-        }
+      if (resAgenda.erroMensagem) {
+        avisoAgendamento = resAgenda.erroMensagem;
       }
-    } catch (errAgendamento) {
-      console.warn('[VendaService] Exceção ao persistir agendamentos:', errAgendamento);
     }
 
     // 3. Gravar pagamentos na tabela public.pagamentos_pedido
@@ -541,14 +534,17 @@ export class VendaService {
       status_envio: 'pendente'
     };
 
-    const taskEntrega = (async () => {
-      try {
-        entregaGravada = await ShippingOrchestrator.salvarPedidoEntrega(pedidoId, entregaPayload);
-      } catch (eEntrega: any) {
-        logger.warn('VendaService', 'pedido_entregas', `Aviso não-bloqueante ao registrar entrega: ${eEntrega?.message || eEntrega}`, { loja_id: lojaId });
-      }
-    })();
-    promessasPosVenda.push(taskEntrega);
+    const temProdutoFisicoPedido = itens.some((it) => it.produto?.tipo_item !== 'servico');
+    if (temProdutoFisicoPedido && !levarProdutoNoAtendimento) {
+      const taskEntrega = (async () => {
+        try {
+          entregaGravada = await ShippingOrchestrator.salvarPedidoEntrega(pedidoId, entregaPayload);
+        } catch (eEntrega: any) {
+          logger.warn('VendaService', 'pedido_entregas', `Aviso não-bloqueante ao registrar entrega: ${eEntrega?.message || eEntrega}`, { loja_id: lojaId });
+        }
+      })();
+      promessasPosVenda.push(taskEntrega);
+    }
 
     // 4b. Atualização de saldo devedor e limite de crédito se compra no Fiado
     if (clienteSelecionado) {
@@ -694,7 +690,7 @@ export class VendaService {
     // Aguardar conclusão concorrente apenas das tarefas centrais (Entrega, Fiado/Caderneta, Caixa)
     await Promise.allSettled(promessasPosVenda);
 
-    const pedidoCompleto: Pedido = {
+    const pedidoCompleto: Pedido & { _avisoAgendamento?: string } = {
       ...pedidoGravado,
       estoque_baixado: estoqueBaixadoFlag,
       cliente: clienteSelecionado,
@@ -705,7 +701,8 @@ export class VendaService {
         ...pedidoEntrega,
         pedido_id: pedidoId,
         valor_frete: taxaEntrega
-      } as any : null)
+      } as any : null),
+      ...(avisoAgendamento ? { _avisoAgendamento: avisoAgendamento } : {})
     };
 
     return pedidoCompleto;

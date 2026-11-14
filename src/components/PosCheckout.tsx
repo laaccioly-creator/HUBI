@@ -63,7 +63,7 @@ import { ShippingSelectionResult, LojaShippingConfig } from '../types/shipping';
 import { extrairObservacaoLimpa, formatarMoeda, formatarValorBRL, ehProdutoFracionado, obterSiglaUnidade, formatarLinhaCalculoItem } from '../utils/formatters';
 import { ModalInputPesoFracionado } from './ui/ModalInputPesoFracionado';
 import { ModalSelecionarAgendamentoPdv } from './agendamento/ModalSelecionarAgendamentoPdv';
-import { formatarDataPtBr } from '../services/agendamentoService';
+import { agendamentoService, formatarDataPtBr } from '../services/agendamentoService';
 import type { ItemAgendamentoInfo } from '../types/agendamento';
 import { InputQuantidadeCarrinho } from './ui/InputQuantidadeCarrinho';
 import { caixaService } from '../services/caixaService';
@@ -232,6 +232,12 @@ export const PosCheckout: React.FC = () => {
     descontoPercentual,
     tipoDesconto,
     taxaEntrega,
+    valorTaxaDomicilio = 0,
+    temProdutoFisico = true,
+    isPedidoHibrido = false,
+    temServicoDomicilio = false,
+    levarProdutoNoAtendimento = true,
+    setLevarProdutoNoAtendimento,
     infoTaxaVisita,
     alternarAbatimentoVisita,
     pedidoEntrega,
@@ -1173,6 +1179,8 @@ export const PosCheckout: React.FC = () => {
         link_rastreio: pedidoEntrega?.link_rastreio || null,
         entregador_nome: pedidoEntrega?.entregador_nome || null,
         valor_frete: taxaEntrega,
+        valor_taxa_domicilio: Number(valorTaxaDomicilio || 0),
+        levar_produto_no_atendimento: Boolean(levarProdutoNoAtendimento),
         endereco_entrega: enderecoEntregaFinal,
         valor_total: total,
         valor_pago: 0,
@@ -1217,6 +1225,7 @@ export const PosCheckout: React.FC = () => {
       let pedidoIdFinal = '';
 
       if (navigator.onLine) {
+        let itensInseridosPendente: Array<{ id: string; produto_id: string }> = [];
         if (pedidoEmEdicao?.id) {
           pedidoIdFinal = pedidoEmEdicao.id;
           // Atualiza pedido pendente existente
@@ -1233,8 +1242,12 @@ export const PosCheckout: React.FC = () => {
           // Deleta itens antigos e insere os novos
           await supabase.from('itens_pedido').delete().eq('pedido_id', pedidoEmEdicao.id);
           const itensComId = itensFormatados.map(it => ({ ...it, pedido_id: pedidoEmEdicao.id }));
-          const { error: erroItens } = await supabase.from('itens_pedido').insert(itensComId);
+          const { data: insData, error: erroItens } = await supabase
+            .from('itens_pedido')
+            .insert(itensComId)
+            .select('id, produto_id');
           if (erroItens) throw erroItens;
+          itensInseridosPendente = (insData || []) as Array<{ id: string; produto_id: string }>;
         } else {
           // Insere novo pedido pendente
           const { data: pedidoCriado, error: erroPedido } = await supabase
@@ -1247,12 +1260,46 @@ export const PosCheckout: React.FC = () => {
           pedidoIdFinal = pedidoCriado.id;
 
           const itensComId = itensFormatados.map(it => ({ ...it, pedido_id: pedidoCriado.id }));
-          const { error: erroItens } = await supabase.from('itens_pedido').insert(itensComId);
+          const { data: insData, error: erroItens } = await supabase
+            .from('itens_pedido')
+            .insert(itensComId)
+            .select('id, produto_id');
           if (erroItens) throw erroItens;
+          itensInseridosPendente = (insData || []) as Array<{ id: string; produto_id: string }>;
         }
 
-        // Salvar isolamento relacional da entrega em pedido_entregas
-        if (pedidoIdFinal) {
+        // Sincronizar agendamentos de serviços vinculados ao pedido pendente
+        if (pedidoIdFinal && itensInseridosPendente.length > 0) {
+          const itensParaAgenda = itens
+            .map((it, idx) => {
+              const ins = itensInseridosPendente[idx];
+              if (!it.agendamento || !ins?.id) return null;
+              return {
+                itemPedidoId: ins.id,
+                produtoId: it.produto.id,
+                agendamento: it.agendamento
+              };
+            })
+            .filter((x): x is { itemPedidoId: string; produtoId: string; agendamento: ItemAgendamentoInfo } => x !== null);
+
+          if (itensParaAgenda.length > 0) {
+            const resAgenda = await agendamentoService.sincronizarAgendamentosPedidoPdv({
+              lojaId: loja.id,
+              pedidoId: pedidoIdFinal,
+              clienteId: clienteSelecionado?.id || null,
+              clienteNome: clienteSelecionado?.nome || 'Cliente Balcão',
+              clienteWhatsapp: clienteSelecionado?.whatsapp || clienteSelecionado?.telefone || '',
+              criadoPorUsuarioId: usuario?.id || null,
+              itens: itensParaAgenda
+            });
+            if (resAgenda.erroMensagem) {
+              mostrarAviso(resAgenda.erroMensagem, 'Aviso de Agendamento');
+            }
+          }
+        }
+
+        // Salvar isolamento relacional da entrega em pedido_entregas apenas quando há entrega/retirada separada de produto físico
+        if (pedidoIdFinal && temProdutoFisico && !levarProdutoNoAtendimento) {
           try {
             const entregaPayload = pedidoEntrega ? {
               ...pedidoEntrega,
@@ -1434,6 +1481,8 @@ export const PosCheckout: React.FC = () => {
         desconto_percentual: tipoDesconto === 'percentual' ? descontoPercentual : 0,
         valor_desconto: desconto,
         valor_frete: taxaEntrega,
+        valor_taxa_domicilio: Number(valorTaxaDomicilio || 0),
+        levar_produto_no_atendimento: Boolean(levarProdutoNoAtendimento),
         forma_entrega_id: pedidoEntrega?.forma_entrega_id && SyncService.isUuidValido(pedidoEntrega.forma_entrega_id) ? pedidoEntrega.forma_entrega_id : null,
         codigo_rastreio: pedidoEntrega?.codigo_rastreio || null,
         link_rastreio: pedidoEntrega?.link_rastreio || null,
@@ -1504,6 +1553,7 @@ export const PosCheckout: React.FC = () => {
         : [];
 
       let pedidoIdFinal = '';
+      let itensInseridosPagamento: Array<{ id: string; produto_id: string }> = [];
 
       if (pedidoEmEdicao?.id) {
         pedidoIdFinal = pedidoEmEdicao.id;
@@ -1519,8 +1569,12 @@ export const PosCheckout: React.FC = () => {
 
         await supabase.from('itens_pedido').delete().eq('pedido_id', pedidoEmEdicao.id);
         const itensComId = itensFormatados.map(it => ({ ...it, pedido_id: pedidoEmEdicao.id }));
-        const { error: erroItens } = await supabase.from('itens_pedido').insert(itensComId);
+        const { data: insData, error: erroItens } = await supabase
+          .from('itens_pedido')
+          .insert(itensComId)
+          .select('id, produto_id');
         if (erroItens) throw erroItens;
+        itensInseridosPagamento = (insData || []) as Array<{ id: string; produto_id: string }>;
       } else {
         const { data: pedidoCriado, error: erroPedido } = await supabase
           .from('pedidos')
@@ -1533,8 +1587,41 @@ export const PosCheckout: React.FC = () => {
         pedidoCriadoId = pedidoCriado.id;
 
         const itensComId = itensFormatados.map(it => ({ ...it, pedido_id: pedidoCriado.id }));
-        const { error: erroItens } = await supabase.from('itens_pedido').insert(itensComId);
+        const { data: insData, error: erroItens } = await supabase
+          .from('itens_pedido')
+          .insert(itensComId)
+          .select('id, produto_id');
         if (erroItens) throw erroItens;
+        itensInseridosPagamento = (insData || []) as Array<{ id: string; produto_id: string }>;
+      }
+
+      if (pedidoIdFinal && itensInseridosPagamento.length > 0) {
+        const itensParaAgenda = itens
+          .map((it, idx) => {
+            const ins = itensInseridosPagamento[idx];
+            if (!it.agendamento || !ins?.id) return null;
+            return {
+              itemPedidoId: ins.id,
+              produtoId: it.produto.id,
+              agendamento: it.agendamento
+            };
+          })
+          .filter((x): x is { itemPedidoId: string; produtoId: string; agendamento: ItemAgendamentoInfo } => x !== null);
+
+        if (itensParaAgenda.length > 0) {
+          const resAgenda = await agendamentoService.sincronizarAgendamentosPedidoPdv({
+            lojaId: loja.id,
+            pedidoId: pedidoIdFinal,
+            clienteId: clienteSelecionado?.id || null,
+            clienteNome: clienteSelecionado?.nome || 'Cliente Balcão',
+            clienteWhatsapp: clienteSelecionado?.whatsapp || clienteSelecionado?.telefone || '',
+            criadoPorUsuarioId: usuario?.id || null,
+            itens: itensParaAgenda
+          });
+          if (resAgenda.erroMensagem) {
+            mostrarAviso(resAgenda.erroMensagem, 'Aviso de Agendamento');
+          }
+        }
       }
 
       // Inserir registro de auditoria na tabela relacional historico_pedidos
@@ -1847,6 +1934,8 @@ export const PosCheckout: React.FC = () => {
         nome_transportadora: pedidoEntrega?.nome_transportadora || pedidoEntrega?.transportadora_nome || null,
         tipo_operacao: pedidoEntrega?.tipo_operacao || null,
         valor_frete: taxaEntrega,
+        valor_taxa_domicilio: Number(valorTaxaDomicilio || 0),
+        levar_produto_no_atendimento: Boolean(levarProdutoNoAtendimento),
         endereco_entrega: enderecoEntregaFinal,
         valor_total: total,
         valor_pago: valorPago,
@@ -1913,6 +2002,8 @@ export const PosCheckout: React.FC = () => {
             linhasPagamento: linhasAtivas,
             formasPagamentoDisponiveis: formasPagamento,
             taxaEntrega: taxaEntregaFinal,
+            valorTaxaDomicilio: Number(valorTaxaDomicilio || 0),
+            levarProdutoNoAtendimento: Boolean(levarProdutoNoAtendimento),
             subtotal: subtotal,
             desconto: Number(((desconto || 0) + (ehCupomFreteGratis ? 0 : (valorDescontoCupom || 0))).toFixed(2)),
             descontoPercentual: descontoPercentual,
@@ -1927,6 +2018,11 @@ export const PosCheckout: React.FC = () => {
             dataVencimentoFiado: dataVencimentoFiado,
             infoTaxaVisita: infoTaxaVisita
           });
+
+          const avisoAgenda = (pedidoCriado as Pedido & { _avisoAgendamento?: string })?._avisoAgendamento;
+          if (avisoAgenda) {
+            mostrarAviso(avisoAgenda, 'Aviso de Agendamento');
+          }
 
           // Atualizar o Limite de Crédito e Saldo Devedor do Cliente na memória local
           if (clienteSelecionado) {
@@ -2783,7 +2879,57 @@ export const PosCheckout: React.FC = () => {
               );
             })()}
 
+            {/* Seletor de Logística para Pedido Híbrido (Produto Físico + Serviço) */}
+            {isPedidoHibrido && (
+              <div className={`p-2 rounded-xl space-y-1.5 shadow-2xs ${
+                isDark ? 'bg-[#000000] border border-emerald-500/40' : 'bg-emerald-50/70 border border-emerald-300'
+              }`}>
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-500">
+                  <Truck className="w-3.5 h-3.5 shrink-0" />
+                  <span>Entrega dos Produtos (Pedido Híbrido)</span>
+                </div>
+                <div className="grid grid-cols-1 gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLevarProdutoNoAtendimento?.(true);
+                      setFreteConfirmado(false);
+                    }}
+                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition border cursor-pointer ${
+                      levarProdutoNoAtendimento
+                        ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm'
+                        : isDark
+                        ? 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
+                        : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    {temServicoDomicilio
+                      ? 'Levar junto com o técnico no dia do serviço (Grátis)'
+                      : 'Retirar produto na loja junto com o serviço (Grátis)'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLevarProdutoNoAtendimento?.(false);
+                    }}
+                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition border cursor-pointer ${
+                      !levarProdutoNoAtendimento
+                        ? 'bg-emerald-600 text-white border-emerald-500 shadow-sm'
+                        : isDark
+                        ? 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
+                        : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    {temServicoDomicilio
+                      ? 'Enviar produto antes por entrega / frete'
+                      : 'Entregar produto por frete'}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Linha 2: Forma de Entrega */}
+            {(!isPedidoHibrido || !levarProdutoNoAtendimento) && temProdutoFisico && (
             <div className={`p-2 rounded-xl flex items-center justify-between gap-2 border ${
               isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
             }`}>
@@ -2852,6 +2998,7 @@ export const PosCheckout: React.FC = () => {
                 </button>
               </div>
             </div>
+            )}
 
 
             {/* TERMÔMETROS COMPACTOS (ATACADO & FRETE GRÁTIS) */}
@@ -3148,12 +3295,12 @@ export const PosCheckout: React.FC = () => {
               </div>
             )}
 
-            {infoTaxaVisita.temServicoExterno ? (
+            {infoTaxaVisita.temServicoExterno && (
               <div className="space-y-1 pt-0.5">
                 <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-400">Atendimento a Domicílio:</span>
+                  <span className="text-slate-400">Taxa de Visita (Domicílio):</span>
                   <span className="text-emerald-400 font-bold">
-                    {infoTaxaVisita.taxaVisitaIsenta ? "Isenta (serviço aprovado)" : `+${formatarMoeda(infoTaxaVisita.taxaVisitaCobrada)}`}
+                    {infoTaxaVisita.taxaVisitaIsenta ? "Isenta (serviço aprovado)" : `+ ${formatarMoeda(valorTaxaDomicilio)}`}
                   </span>
                 </div>
                 {infoTaxaVisita.podeAbater && (
@@ -3172,16 +3319,20 @@ export const PosCheckout: React.FC = () => {
                     </span>
                   </button>
                 )}
-                {infoTaxaVisita.ehPedidoMisto && (
-                  <div className="text-[10px] text-emerald-400/90 font-medium leading-tight">
-                    📦 Levar produto junto na visita do profissional (Frete Grátis)
-                  </div>
-                )}
+              </div>
+            )}
+
+            {isPedidoHibrido && levarProdutoNoAtendimento ? (
+              <div className="flex justify-between text-xs text-slate-400">
+                <span>Frete de Entrega:</span>
+                <span className="text-emerald-400 font-bold">
+                  {temServicoDomicilio ? 'Grátis — Levar na visita técnica' : 'Grátis — Retirar no atendimento'}
+                </span>
               </div>
             ) : taxaEntrega > 0 ? (
               <div className="flex justify-between text-xs text-slate-400">
-                <span>Taxa de Entrega:</span>
-                <span className="text-emerald-400 font-bold">+{formatarMoeda(taxaEntrega)}</span>
+                <span>Frete de Entrega:</span>
+                <span className="text-emerald-400 font-bold">+ {formatarMoeda(taxaEntrega)}</span>
               </div>
             ) : null}
 
@@ -3880,12 +4031,10 @@ export const PosCheckout: React.FC = () => {
                         {taxaEntrega > 0 && <span className="line-through text-slate-400 text-[11px]">{formatarMoeda(taxaEntrega)}</span>}
                         <span className="text-emerald-500 font-black">Grátis (Cupom)</span>
                       </span>
-                    ) : infoTaxaVisita.temServicoExterno ? (
-                      infoTaxaVisita.taxaVisitaIsenta ? (
-                        <span className="text-emerald-500 font-bold">Isenta (serviço aprovado)</span>
-                      ) : (
-                        formatarMoeda(infoTaxaVisita.taxaVisitaCobrada)
-                      )
+                    ) : isPedidoHibrido && levarProdutoNoAtendimento ? (
+                      <span className="text-emerald-500 font-bold">
+                        {temServicoDomicilio ? 'Grátis — Levar na visita técnica' : 'Grátis — Retirar no atendimento'}
+                      </span>
                     ) : taxaEntrega > 0 ? (
                       formatarMoeda(taxaEntrega)
                     ) : pedidoEntrega?.tipo_atendimento === 'retirada' ? (
@@ -3898,6 +4047,13 @@ export const PosCheckout: React.FC = () => {
                   </span>
                 )}
               </div>
+
+              {valorTaxaDomicilio > 0 && (
+                <div className="flex justify-between items-center text-xs">
+                  <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Taxa de Visita (Domicílio):</span>
+                  <span className="text-emerald-500 font-bold">+ {formatarMoeda(valorTaxaDomicilio)}</span>
+                </div>
+              )}
 
               {/* Alerta de Frete a Definir no Modal de Fechamento */}
               {ehEnvio && !isFreteConfirmado && (

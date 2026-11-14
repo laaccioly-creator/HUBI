@@ -120,6 +120,16 @@ export interface AgendamentoServico {
   produto?: Produto;
   profissional?: UsuarioLoja;
   cliente?: Cliente;
+  pedido?: {
+    id: string;
+    numero_pedido: number;
+    levar_produto_no_atendimento?: boolean;
+  } | null;
+  itens_fisicos_levar?: Array<{
+    nome_produto: string;
+    rotulo_variacao?: string | null;
+    quantidade: number;
+  }>;
 }
 
 /**
