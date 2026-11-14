@@ -215,6 +215,11 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
       30
   );
 
+  const antecedenciaMinimaHoras = Math.max(
+    0,
+    Number(agendamento?.antecedencia_minima_remarcacao_horas ?? 2)
+  );
+
   // Recalcular slots disponíveis para remarcação quando a data ou profissional mudar
   useEffect(() => {
     if (!remarcando || !novaData || !agendamento) return;
@@ -231,7 +236,8 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
           profId,
           novaData,
           duracaoServico,
-          agendamento.id
+          agendamento.id,
+          antecedenciaMinimaHoras
         );
         if (!cancelado) {
           setSlotsDisponiveis(slots);
@@ -248,7 +254,7 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
     return () => {
       cancelado = true;
     };
-  }, [remarcando, novaData, profissionalRemarcacaoId, agendamento, duracaoServico]);
+  }, [remarcando, novaData, profissionalRemarcacaoId, agendamento, duracaoServico, antecedenciaMinimaHoras]);
 
   // Ação 1: Confirmar Presença
   const handleConfirmarPresenca = async () => {
@@ -279,6 +285,23 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
   const handleConfirmarRemarcacao = async () => {
     if (!token || !novaData || !novaHora) {
       setErro('Por favor, selecione uma data e um horário livre para remarcar.');
+      return;
+    }
+
+    // Validação local no fuso -03:00 contra o NOVO horário escolhido em relação a agora
+    const novoInicioMs = new Date(`${novaData}T${novaHora.slice(0, 5)}:00-03:00`).getTime();
+    const agoraMs = Date.now();
+    const limiteAntecedenciaMs = agoraMs + antecedenciaMinimaHoras * 60 * 60 * 1000;
+
+    if (Number.isNaN(novoInicioMs) || novoInicioMs <= agoraMs) {
+      setErro('A nova data e horário devem ser no futuro.');
+      return;
+    }
+
+    if (antecedenciaMinimaHoras > 0 && novoInicioMs < limiteAntecedenciaMs) {
+      setErro(
+        `O novo horário escolhido deve ter no mínimo ${antecedenciaMinimaHoras} hora(s) de antecedência em relação ao horário atual.`
+      );
       return;
     }
 
@@ -710,8 +733,20 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
             <button
               type="button"
               onClick={() => {
+                const hojeStr = diasDisponiveisRemarcacao[0]?.data || '';
+                const dataAgendamentoNaJanela = diasDisponiveisRemarcacao.some(
+                  (d) => d.data === agendamento.data_agendamento
+                );
+                const dataInicial =
+                  agendamento.data_agendamento &&
+                  agendamento.data_agendamento > hojeStr &&
+                  dataAgendamentoNaJanela
+                    ? agendamento.data_agendamento
+                    : hojeStr;
+                setErro(null);
+                setMensagemSucesso(null);
                 setRemarcando(true);
-                setNovaData(diasDisponiveisRemarcacao[0]?.data || '');
+                setNovaData(dataInicial);
               }}
               className="w-full h-11 px-4 rounded-xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 font-semibold text-sm shadow-sm transition flex items-center justify-center gap-2 cursor-pointer"
             >
@@ -813,9 +848,16 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
 
             {/* Passo C: Horários Livres Calculados em Tempo Real */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-600">
-                {profissionaisHabilitados.length > 1 ? '3. Selecione o Novo Horário' : '2. Selecione o Novo Horário'}
-              </label>
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <label className="text-xs font-bold text-slate-600">
+                  {profissionaisHabilitados.length > 1 ? '3. Selecione o Novo Horário' : '2. Selecione o Novo Horário'}
+                </label>
+                {antecedenciaMinimaHoras > 0 && (
+                  <span className="text-[11px] font-medium text-slate-500">
+                    Antecedência mínima: {antecedenciaMinimaHoras}h a partir de agora
+                  </span>
+                )}
+              </div>
               {carregandoSlots ? (
                 <div className="py-6 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
@@ -823,7 +865,9 @@ export const ConfirmarAgendamentoPublico: React.FC = () => {
                 </div>
               ) : slotsDisponiveis.filter((s) => s.disponivel).length === 0 ? (
                 <p className="py-4 text-center text-xs text-slate-500">
-                  Nenhum horário livre encontrado para esta data. Selecione outro dia acima.
+                  {antecedenciaMinimaHoras > 0
+                    ? `Nenhum horário livre com antecedência mínima de ${antecedenciaMinimaHoras}h encontrado para esta data. Selecione outro dia acima.`
+                    : 'Nenhum horário livre encontrado para esta data. Selecione outro dia acima.'}
                 </p>
               ) : (
                 <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-44 overflow-y-auto pr-1">

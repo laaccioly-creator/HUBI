@@ -530,7 +530,7 @@ export const agendamentoService = {
 
   /**
    * 4. Motor de cálculo de slots de agendamento disponíveis.
-   * Evita sobreposições de horários, respeita intervalo e oculta horários passados se a data for hoje.
+   * Evita sobreposições de horários, respeita intervalo e oculta horários passados ou abaixo da antecedência mínima.
    */
   async calcularSlotsDisponiveis(
     lojaId: string,
@@ -538,7 +538,8 @@ export const agendamentoService = {
     profissionalId: string,
     dataStr: string, // 'YYYY-MM-DD'
     duracaoMinutos: number,
-    ignorarAgendamentoId?: string
+    ignorarAgendamentoId?: string,
+    antecedenciaMinimaHoras = 0
   ): Promise<SlotHorarioDisponivel[]> {
     if (!lojaId || !profissionalId || !dataStr) {
       return [];
@@ -586,11 +587,11 @@ export const agendamentoService = {
         // Fallback defensivo com consulta direta
         const { data: directData } = await supabase
           .from('agendamentos_servicos')
-          .select('hora_inicio, hora_fim, status, id')
+          .select('hora_inicio, hora_fim, status_agendamento, id')
           .eq('loja_id', lojaId)
           .eq('profissional_id', profissionalId)
           .eq('data_agendamento', dataStr)
-          .in('status', ['agendado', 'confirmado', 'em_atendimento']);
+          .in('status_agendamento', ['agendado', 'confirmado', 'em_atendimento']);
 
         if (directData) {
           ocupados = directData
@@ -598,7 +599,7 @@ export const agendamentoService = {
             .map((item) => ({
               hora_inicio: item.hora_inicio,
               hora_fim: item.hora_fim,
-              status: item.status
+              status: item.status_agendamento
             }));
         }
       }
@@ -633,11 +634,10 @@ export const agendamentoService = {
       periodosDeTrabalho.push({ inicio: inicioExpediente, fim: fimExpediente });
     }
 
-    // 5. Verificação de horários passados caso a data seja hoje
-    const agora = new Date();
-    const hojeStr = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`;
-    const ehHoje = dataStr === hojeStr;
-    const minutosAtuais = agora.getHours() * 60 + agora.getMinutes();
+    // 5. Verificação de horários passados e antecedência mínima no fuso horário brasileiro (-03:00)
+    const agoraMs = Date.now();
+    const horasAntecedencia = Math.max(0, Number(antecedenciaMinimaHoras || 0));
+    const limiteAntecedenciaMs = agoraMs + horasAntecedencia * 60 * 60 * 1000;
 
     const slots: SlotHorarioDisponivel[] = [];
 
@@ -646,9 +646,13 @@ export const agendamentoService = {
         const slotFim = slotInicio + duracaoEfetiva;
         const horaInicioStr = minutesToTimeString(slotInicio);
         const horaFimStr = minutesToTimeString(slotFim);
+        const slotInicioMs = new Date(`${dataStr}T${horaInicioStr}:00-03:00`).getTime();
 
-        // Se a data selecionada for hoje, descarta horários já decorridos
-        if (ehHoje && slotInicio <= minutosAtuais) {
+        // Descarta horários no passado ou que não atendam à antecedência mínima em relação a agora
+        if (
+          slotInicioMs <= agoraMs ||
+          (horasAntecedencia > 0 && slotInicioMs < limiteAntecedenciaMs)
+        ) {
           continue;
         }
 
