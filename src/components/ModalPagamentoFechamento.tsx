@@ -502,18 +502,26 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
         )
       : subtotalBasePedido;
 
+  const temProdutoFisico = subtotalProdutos > 0;
+  const taxaVisitaEfetiva = !temProdutoFisico
+    ? valorTaxaDomicilioNum > 0
+      ? valorTaxaDomicilioNum
+      : valorFreteNum
+    : valorTaxaDomicilioNum;
+  const freteEfetivo = temProdutoFisico ? valorFreteNum : 0;
+
   const somaSubtotais = Number((subtotalProdutos + subtotalServicos).toFixed(2));
   const subtotalGeralPedido = somaSubtotais > 0 ? somaSubtotais : subtotalBasePedido;
 
   const valorTotalCalculado = Math.max(
     0,
     Number(
-      (subtotalGeralPedido - valorDescontoNum + valorTaxaDomicilioNum + valorFreteNum).toFixed(2)
+      (subtotalGeralPedido - valorDescontoNum + taxaVisitaEfetiva + freteEfetivo).toFixed(2)
     )
   );
 
   const valorTotal =
-    subtotalGeralPedido > 0 || valorTaxaDomicilioNum > 0 || valorFreteNum > 0
+    subtotalGeralPedido > 0 || taxaVisitaEfetiva > 0 || freteEfetivo > 0
       ? valorTotalCalculado
       : Number(pedRaw?.valor_total || 0);
 
@@ -555,24 +563,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
     pedSeguro.link_rastreio
   );
 
-  const metaPedido =
-    typeof meta === 'string'
-      ? (() => {
-          try {
-            return JSON.parse(meta) as Record<string, unknown>;
-          } catch {
-            return {};
-          }
-        })()
-      : ((meta || {}) as Record<string, unknown>);
-
-  const possuiAgendamentoExterno = Boolean(
-    pedSeguro.agendamentos?.some((ag) => ag.modalidade_local === 'externo') ||
-    String(metaPedido?.modalidade_local || '').toLowerCase() === 'externo'
-  );
-
-  const temServicoExternoOuTaxa = valorTaxaDomicilioNum > 0 || possuiAgendamentoExterno;
-  const exibirFreteEntrega = subtotalProdutos > 0 || valorFreteNum > 0;
+  const exibirFreteEntrega = temProdutoFisico;
 
   const nomeTranspBruto = String(rawPe?.transportadora_nome || pedSeguro.nome_transportadora || '').trim();
   const nomeTransportadoraReal =
@@ -1082,16 +1073,16 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
   };
 
   return (
-    <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-[70] animate-in fade-in overflow-y-auto">
-      <div className={`border rounded-3xl w-full max-w-lg p-5 sm:p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 my-6 max-h-[92vh] overflow-y-auto ${
+    <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[70] animate-in fade-in overflow-y-auto">
+      <div className={`border rounded-3xl w-full max-w-xl p-4 sm:p-5 space-y-3 shadow-2xl animate-in zoom-in-95 duration-150 my-2 ${
         isDark ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
       }`}>
         {/* Header Oficial Unificado */}
-        <div className={`flex items-center justify-between border-b pb-3 ${
+        <div className={`flex items-center justify-between border-b pb-2.5 ${
           isDark ? 'border-slate-800' : 'border-slate-200'
         }`}>
           <div className="flex items-center gap-2.5">
-            <div className={`w-10 h-10 rounded-2xl font-bold flex items-center justify-center ${
+            <div className={`w-9 h-9 rounded-2xl font-bold flex items-center justify-center ${
               isDark ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-50 text-emerald-600'
             }`}>
               <CreditCard className="w-5 h-5" />
@@ -1185,9 +1176,9 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
           </div>
         ) : (
           /* FORMULÁRIO DE RECEBIMENTO UNIFICADO (PADRÃO POSCHECKOUT) */
-          <form onSubmit={handleConfirmarRecebimento} className="space-y-4">
+          <form onSubmit={handleConfirmarRecebimento} className="space-y-3">
             {/* Card de Destaque do Valor Total / Saldo Pendente */}
-            <div className={`p-3.5 rounded-2xl border text-center space-y-0.5 ${
+            <div className={`py-2.5 px-3.5 rounded-2xl border text-center space-y-0.5 ${
               isDark
                 ? 'bg-emerald-950/40 border-emerald-800'
                 : 'bg-emerald-50 border-emerald-100'
@@ -1197,7 +1188,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
               }`}>
                 {valorJaPago > 0 ? 'Saldo Restante a Quitar' : 'Valor Total da Venda'}
               </span>
-              <span className={`text-3xl font-bold ${
+              <span className={`text-2xl sm:text-3xl font-bold ${
                 isDark ? 'text-emerald-400' : 'text-emerald-600'
               }`}>
                 {formatarMoeda(saldoDevedorAtual)}
@@ -1214,10 +1205,10 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
             </div>
 
             {/* Linhas de Pagamento */}
-            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+            <div className="space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
-                  Meios de Pagamento ({linhasPagamento.length}):
+                  Meios de Pagamento
                 </span>
                 <span className={`text-[11px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                   Permite dividir o total em vários meios
@@ -1227,7 +1218,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
               {linhasPagamento.map((linha, idx) => (
                 <div
                   key={linha.id}
-                  className={`p-3 rounded-2xl border space-y-2.5 shadow-xs ${
+                  className={`p-2.5 rounded-2xl border space-y-2 shadow-xs ${
                     isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
                   }`}
                 >
@@ -1248,7 +1239,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                   </div>
 
                   {/* Seleção da Forma de Pagamento */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {formasDisponiveis.map((fp: FormaPagamento) => {
                       const estaSelecionado = linha.forma_pagamento_id === fp.id || (!linha.forma_pagamento_id && linha.forma_tipo === fp.tipo);
 
@@ -1257,7 +1248,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                           key={fp.id}
                           type="button"
                           onClick={() => handleAlterarFormaLinha(linha.id, fp)}
-                          className={`px-2.5 py-2.5 rounded-xl border text-[11px] font-bold flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95 text-center ${
+                          className={`px-2 py-2 rounded-xl border text-[11px] font-bold flex items-center justify-center gap-1 transition cursor-pointer active:scale-95 text-center whitespace-nowrap ${
                             estaSelecionado
                               ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-500/40 shadow-xs'
                               : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
@@ -1487,7 +1478,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
               <button
                 type="button"
                 onClick={handleAdicionarLinha}
-                className="w-full py-2.5 px-3 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500/60 bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-98"
+                className="w-full py-2 px-3 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500/60 bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-98"
               >
                 <Plus className="w-4 h-4" />
                 <span>
@@ -1497,7 +1488,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
             </div>
 
             {/* Resumo de Conferência dos Valores com Discriminação */}
-            <div className={`p-3.5 rounded-2xl border space-y-2 text-xs ${
+            <div className={`p-3 rounded-2xl border space-y-1.5 text-xs ${
               isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
             }`}>
               {subtotalProdutos > 0 && (
@@ -1529,17 +1520,17 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                 </div>
               )}
 
-              {/* Linha 1 — Taxa de Visita a Domicílio */}
-              {temServicoExternoOuTaxa && (
+              {/* Linha 1 — Taxa de Visita a Domicílio (somente se > 0) */}
+              {taxaVisitaEfetiva > 0 && (
                 <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
                   <span className="font-medium">Taxa de Visita a Domicílio:</span>
                   <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                    {formatarMoeda(valorTaxaDomicilioNum)}
+                    {formatarMoeda(taxaVisitaEfetiva)}
                   </span>
                 </div>
               )}
 
-              {/* Linha 2 — Frete de Entrega (apenas pedidos com produto físico ou frete legado) */}
+              {/* Linha 2 — Frete de Entrega (somente se houver produtos físicos) */}
               {exibirFreteEntrega && (
                 <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
                   <span className="flex items-center gap-1.5 font-medium">
@@ -1562,12 +1553,12 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                         {nomeTransportadoraReal ? (
                           <span>
                             {nomeTransportadoraReal}
-                            {valorFreteNum > 0
-                              ? ` (+ ${formatarMoeda(valorFreteNum)})`
+                            {freteEfetivo > 0
+                              ? ` (+ ${formatarMoeda(freteEfetivo)})`
                               : ` (${formatarMoeda(0)})`}
                           </span>
-                        ) : valorFreteNum > 0 ? (
-                          `+ ${formatarMoeda(valorFreteNum)}`
+                        ) : freteEfetivo > 0 ? (
+                          `+ ${formatarMoeda(freteEfetivo)}`
                         ) : (
                           formatarMoeda(0)
                         )}
@@ -1630,7 +1621,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
             </div>
 
             {/* Toggle / Checkbox Concluir ao Quitar */}
-            <div className={`p-3 rounded-2xl border flex items-center justify-between ${
+            <div className={`p-2.5 rounded-2xl border flex items-center justify-between ${
               isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
             }`}>
               <div>
@@ -1650,11 +1641,11 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
             </div>
 
             {/* Botões de Rodapé: [ Cancelar ], [ Salvar ] e [ Confirmar Pagamento ] */}
-            <div className="flex items-center gap-2 pt-1">
+            <div className="flex items-center gap-2 pt-0.5">
               <button
                 type="button"
                 onClick={handleFecharTudo}
-                className={`py-3 px-3 rounded-2xl font-bold text-xs border transition cursor-pointer shadow-xs ${
+                className={`py-2.5 px-3 rounded-2xl font-bold text-xs border transition cursor-pointer shadow-xs ${
                   isDark
                     ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
                     : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
@@ -1667,7 +1658,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                 type="button"
                 disabled={salvando || processando || totalLinhasPagamento <= 0}
                 onClick={handleSalvarPrevisto}
-                className={`flex-1 py-3 px-3 rounded-2xl font-bold text-xs border shadow-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50 ${
+                className={`flex-1 py-2.5 px-3 rounded-2xl font-bold text-xs border shadow-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50 ${
                   isDark
                     ? 'bg-slate-900 hover:bg-slate-800 text-emerald-400 border-emerald-500/40'
                     : 'bg-white hover:bg-slate-50 text-emerald-700 border-emerald-300'
@@ -1684,7 +1675,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
               <button
                 type="submit"
                 disabled={processando || salvando || freteADefinir || totalLinhasPagamento <= 0 || Math.abs(diferencaPagamento) > 0.01 || linhasPagamento.some(l => Number(l.valor) <= 0)}
-                className="flex-[2] py-3 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-98"
+                className="flex-[2] py-2.5 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-98"
               >
                 {processando ? (
                   <>
