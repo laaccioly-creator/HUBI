@@ -283,8 +283,9 @@ export const ModalSelecionarAgendamentoPdv: React.FC<ModalSelecionarAgendamentoP
 
         // Se tínhamos um slot selecionado anteriormente, tenta mantê-lo se ainda estiver disponível
         if (agendamentoExistente?.hora_inicio) {
+          const horaAlvoCurta = agendamentoExistente.hora_inicio.slice(0, 5);
           const match = resultadoSlots.find(
-            s => s.hora_inicio === agendamentoExistente.hora_inicio && s.disponivel
+            s => s.hora_inicio === horaAlvoCurta && s.disponivel
           );
           if (match) {
             setSlotSelecionado(match);

@@ -144,9 +144,8 @@ export function filtrarAgendamentosVigentesDoPedido<T extends AgendamentoVigente
  */
 export function timeStringToMinutes(timeStr: string): number {
   if (!timeStr) return 0;
-  const partes = timeStr.split(':');
-  const h = parseInt(partes[0] || '0', 10);
-  const m = parseInt(partes[1] || '0', 10);
+  const [h = 0, m = 0] = timeStr.trim().slice(0, 5).split(':').map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return 0;
   return h * 60 + m;
 }
 
@@ -512,13 +511,14 @@ export const agendamentoService = {
 
     const mapaDias = new Map<number, ProfissionalHorario>();
     (data || []).forEach((row) => {
-      const registro = row as Partial<ProfissionalHorario>;
+      const registro = row as Partial<ProfissionalHorario> & { trabalha?: boolean | null };
+      const diaAtivo = registro.ativo ?? registro.trabalha ?? true;
       const horarioNormalizado: ProfissionalHorario = {
         id: String(registro.id || ''),
         loja_id: String(registro.loja_id || lojaId),
         usuario_id: String(registro.usuario_id || usuarioId),
         dia_semana: Number(registro.dia_semana) as DiaSemana,
-        ativo: Boolean(registro.ativo ?? true),
+        ativo: Boolean(diaAtivo),
         hora_inicio: typeof registro.hora_inicio === 'string' ? registro.hora_inicio.slice(0, 5) : '08:00',
         hora_fim: typeof registro.hora_fim === 'string' ? registro.hora_fim.slice(0, 5) : '18:00',
         tem_intervalo: Boolean(registro.tem_intervalo ?? true),
@@ -662,28 +662,65 @@ export const agendamentoService = {
       return [];
     }
 
-    // 1. Extrair dia da semana com fuso horário seguro pt-BR (forçando meio-dia local)
-    const [ano, mes, dia] = dataStr.split('-').map(Number);
-    const dataLocal = new Date(ano, mes - 1, dia, 12, 0, 0);
-    const diaSemana = dataLocal.getDay() as DiaSemana;
+    // 1. Extrair dia da semana localmente sem deslocamento UTC ('YYYY-MM-DD')
+    const partesData = dataStr.split('-').map(Number);
+    const [ano, mes, dia] = partesData;
+    if (!ano || !mes || !dia || partesData.length !== 3) {
+      return [];
+    }
+    const diaSemana = new Date(ano, mes - 1, dia).getDay() as DiaSemana;
 
-    // 2. Consulta de horários configurados do profissional
+    // 2. Consulta de horários configurados do profissional (lendo coluna real 'ativo')
     const { data: horarios, error: expErr } = await supabase
       .from('profissional_horarios')
       .select('dia_semana, hora_inicio, hora_fim, tem_intervalo, intervalo_inicio, intervalo_fim, ativo')
       .eq('loja_id', lojaId)
-      .eq('usuario_id', profissionalId)
-      .eq('ativo', true);
+      .eq('usuario_id', profissionalId);
 
     if (expErr) {
       console.error('Erro ao consultar expediente do profissional:', expErr);
       return [];
     }
 
-    const expediente = (horarios || []).find((h) => Number(h.dia_semana) === Number(diaSemana));
+    type RegraHorarioSlot = {
+      dia_semana?: number | string | null;
+      hora_inicio?: string | null;
+      hora_fim?: string | null;
+      tem_intervalo?: boolean | null;
+      intervalo_inicio?: string | null;
+      intervalo_fim?: string | null;
+      ativo?: boolean | null;
+      trabalha?: boolean | null;
+    };
 
-    if (!expediente || !expediente.hora_inicio || !expediente.hora_fim) {
-      return []; // Profissional não atende neste dia
+    const listaHorarios = (horarios || []) as RegraHorarioSlot[];
+    let expediente: RegraHorarioSlot | undefined;
+
+    if (listaHorarios.length > 0) {
+      const regraDia = listaHorarios.find((h) => Number(h.dia_semana) === Number(diaSemana));
+      if (!regraDia) {
+        return [];
+      }
+      const diaAtivo = regraDia.ativo ?? regraDia.trabalha ?? true;
+      if (!diaAtivo || !regraDia.hora_inicio || !regraDia.hora_fim) {
+        return []; // Profissional não atende neste dia
+      }
+      expediente = regraDia;
+    } else {
+      // Fallback defensivo alinhado a obterExpedienteProfissional quando o colaborador ainda não salvou expediente
+      const ehDiaUtilPadrao = Number(diaSemana) >= 1 && Number(diaSemana) <= 5;
+      if (!ehDiaUtilPadrao) {
+        return [];
+      }
+      expediente = {
+        dia_semana: diaSemana,
+        ativo: true,
+        hora_inicio: '08:00',
+        hora_fim: '18:00',
+        tem_intervalo: true,
+        intervalo_inicio: '12:00',
+        intervalo_fim: '13:00'
+      };
     }
 
     // 3. Obter agendamentos existentes na data para evitar conflitos
@@ -731,15 +768,15 @@ export const agendamentoService = {
     }));
 
     // 4. Dividir expediente em períodos úteis de trabalho (respeitando intervalo de almoço)
-    const inicioExpediente = timeStringToMinutes(expediente.hora_inicio);
-    const fimExpediente = timeStringToMinutes(expediente.hora_fim);
+    const inicioExpediente = timeStringToMinutes(String(expediente.hora_inicio).slice(0, 5));
+    const fimExpediente = timeStringToMinutes(String(expediente.hora_fim).slice(0, 5));
     const duracaoEfetiva = Math.max(duracaoMinutos || 30, 10);
 
     const periodosDeTrabalho: Array<{ inicio: number; fim: number }> = [];
 
     if (expediente.tem_intervalo && expediente.intervalo_inicio && expediente.intervalo_fim) {
-      const inicioIntervalo = timeStringToMinutes(expediente.intervalo_inicio);
-      const fimIntervalo = timeStringToMinutes(expediente.intervalo_fim);
+      const inicioIntervalo = timeStringToMinutes(String(expediente.intervalo_inicio).slice(0, 5));
+      const fimIntervalo = timeStringToMinutes(String(expediente.intervalo_fim).slice(0, 5));
 
       if (inicioIntervalo > inicioExpediente) {
         periodosDeTrabalho.push({ inicio: inicioExpediente, fim: inicioIntervalo });
