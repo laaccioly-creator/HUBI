@@ -19,7 +19,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { Pedido, FormaPagamento, StatusPagamento, TipoPagamento, Loja } from '../types';
+import { Pedido, ItemPedido, FormaPagamento, StatusPagamento, TipoPagamento, Loja } from '../types';
 import { PrintService } from '../services/printService';
 import { SyncService } from '../services/syncService';
 import { audioService } from '../services/audioService';
@@ -164,7 +164,8 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
           *,
           cliente:clientes(*),
           vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
-          itens:itens_pedido(*),
+          itens:itens_pedido(*, produto:produtos(tipo_item)),
+          agendamentos:agendamentos_servicos(id, modalidade_local),
           pedido_entregas(*),
           pagamentos:pagamentos_pedido(*)
         `)
@@ -189,9 +190,21 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
     }
   };
 
+  useEffect(() => {
+    if (!isOpen || !pedido?.id || !loja?.id) return;
+    const possuiItens = Boolean(
+      (pedido.itens && pedido.itens.length > 0) ||
+      (pedido.itens_pedido && pedido.itens_pedido.length > 0)
+    );
+    const possuiAgendamentos = Array.isArray(pedido.agendamentos);
+    if (!possuiItens || !possuiAgendamentos) {
+      void recarregarPedido();
+    }
+  }, [isOpen, pedido?.id, loja?.id]);
+
   const FORMAS_PADRAO: FormaPagamento[] = [
     { id: `fp_dinheiro_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Dinheiro', tipo: 'dinheiro', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
-    { id: `fp_pix_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'PIX', tipo: 'pix', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
+    { id: `fp_pix_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Pix', tipo: 'pix', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
     { id: `fp_credito_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Cartão de Crédito', tipo: 'cartao_credito', taxa_percentual: 3.2, taxa_fixa: 0, maximo_parcelas: 12, ativo: true, exibir_catalogo: true },
     { id: `fp_debito_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Cartão de Débito', tipo: 'cartao_debito', taxa_percentual: 1.5, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: true },
     { id: `fp_fiado_${loja?.id || 'default'}`, loja_id: loja?.id || '', nome: 'Fiado', tipo: 'fiado', taxa_percentual: 0, taxa_fixa: 0, maximo_parcelas: 1, ativo: true, exibir_catalogo: false },
@@ -412,12 +425,18 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
       })
       .map((fp: FormaPagamento) => {
         let nomeLimpo = fp.nome || '';
-        if (fp.tipo === 'cartao_debito' && (!nomeLimpo || nomeLimpo.toLowerCase().includes('maquininha'))) {
+        if (fp.tipo === 'pix') {
+          nomeLimpo = 'Pix';
+        } else if (fp.tipo === 'cartao_debito' && (!nomeLimpo || nomeLimpo.toLowerCase().includes('maquininha'))) {
           nomeLimpo = 'Cartão de Débito';
         } else if (fp.tipo === 'cartao_credito' && (!nomeLimpo || nomeLimpo.toLowerCase().includes('maquininha'))) {
           nomeLimpo = 'Cartão de Crédito';
         } else {
-          nomeLimpo = nomeLimpo.replace(/\s*\([Mm]aquininha\)/g, '').replace(/\s*[Mm]aquininha/g, '').trim();
+          nomeLimpo = nomeLimpo
+            .replace(/\s*\([Mm]aquininha\)/g, '')
+            .replace(/\s*[Mm]aquininha/g, '')
+            .replace(/\s*\([Ii]mediato\)/g, '')
+            .trim();
         }
         return {
           ...fp,
@@ -427,7 +446,59 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
   }, [formasPagamento, clienteAptoFiado, clienteAptoCaderneta, linhasPagamento, presencialPermitido]);
 
   const pedRaw = pedidoLocal || pedido;
-  const valorTotal = Number(pedRaw?.valor_total || 0);
+
+  const itensDoPedido: ItemPedido[] = useMemo(() => {
+    const lista =
+      pedRaw?.itens_pedido && pedRaw.itens_pedido.length > 0
+        ? pedRaw.itens_pedido
+        : pedRaw?.itens || [];
+    return Array.isArray(lista) ? lista : [];
+  }, [pedRaw]);
+
+  const isItemServico = (item: ItemPedido): boolean =>
+    String(item.tipo_item || item.produto?.tipo_item || '').toLowerCase() === 'servico';
+
+  const temServico = itensDoPedido.some((item) => isItemServico(item));
+  const temProdutoFisico =
+    itensDoPedido.length > 0
+      ? itensDoPedido.some((item) => !isItemServico(item))
+      : Number(pedRaw?.valor_taxa_domicilio || 0) === 0 || Number(pedRaw?.valor_frete || 0) > 0;
+
+  const rotuloSubtotal =
+    temServico && !temProdutoFisico
+      ? 'Subtotal dos Serviços:'
+      : temServico && temProdutoFisico
+      ? 'Subtotal (Produtos e Serviços):'
+      : 'Subtotal dos Produtos:';
+
+  const valorFreteNum = Number(pedRaw?.valor_frete || 0);
+  const valorTaxaDomicilioNum = Number(pedRaw?.valor_taxa_domicilio || 0);
+  const valorDescontoNum = Number(pedRaw?.valor_desconto || 0);
+
+  const subtotalExibido = Number(
+    pedRaw?.subtotal_produtos ??
+      pedRaw?.subtotal ??
+      Math.max(
+        0,
+        Number(pedRaw?.valor_total || 0) -
+          valorFreteNum -
+          valorTaxaDomicilioNum +
+          valorDescontoNum
+      )
+  );
+
+  const valorTotalCalculado = Math.max(
+    0,
+    Number(
+      (subtotalExibido - valorDescontoNum + valorTaxaDomicilioNum + valorFreteNum).toFixed(2)
+    )
+  );
+
+  const valorTotal =
+    subtotalExibido > 0 || valorTaxaDomicilioNum > 0 || valorFreteNum > 0
+      ? valorTotalCalculado
+      : Number(pedRaw?.valor_total || 0);
+
   const valorJaPago = Number(pedRaw?.valor_pago || 0);
   const saldoDevedorAtual = Math.max(0, Number(pedRaw?.saldo_devedor ?? (valorTotal - valorJaPago)));
 
@@ -466,7 +537,35 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
     pedSeguro.link_rastreio
   );
 
-  const freteADefinir = ehEnvio && !isFreteFormalizado;
+  const metaPedido =
+    typeof meta === 'string'
+      ? (() => {
+          try {
+            return JSON.parse(meta) as Record<string, unknown>;
+          } catch {
+            return {};
+          }
+        })()
+      : ((meta || {}) as Record<string, unknown>);
+
+  const possuiAgendamentoExterno = Boolean(
+    pedSeguro.agendamentos?.some((ag) => ag.modalidade_local === 'externo') ||
+    String(metaPedido?.modalidade_local || '').toLowerCase() === 'externo'
+  );
+
+  const temServicoExternoOuTaxa = valorTaxaDomicilioNum > 0 || possuiAgendamentoExterno;
+  const exibirFreteEntrega = temProdutoFisico || valorFreteNum > 0;
+
+  const nomeTranspBruto = String(rawPe?.transportadora_nome || pedSeguro.nome_transportadora || '').trim();
+  const nomeTransportadoraReal =
+    nomeTranspBruto &&
+    !nomeTranspBruto.toLowerCase().includes('retirada na loja') &&
+    !nomeTranspBruto.toLowerCase().includes('envio a definir') &&
+    nomeTranspBruto.toLowerCase() !== 'retirada'
+      ? nomeTranspBruto
+      : '';
+
+  const freteADefinir = exibirFreteEntrega && ehEnvio && !isFreteFormalizado;
 
   const totalLinhasPagamento = linhasPagamento.reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
   const diferencaPagamento = Number((saldoDevedorAtual - totalLinhasPagamento).toFixed(2));
@@ -794,7 +893,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
           *,
           cliente:clientes(*),
           vendedor:usuarios_loja!pedidos_vendedor_id_fkey(*),
-          itens:itens_pedido(*),
+          itens:itens_pedido(*, produto:produtos(tipo_item)),
           pagamentos:pagamentos_pedido(*)
         `)
         .single();
@@ -1115,11 +1214,8 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                      <span className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 flex items-center justify-center text-[10px] font-black">
-                        {idx + 1}
-                      </span>
-                      Pagamento #{idx + 1}
+                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                      {linhasPagamento.length > 1 ? `Pagamento ${idx + 1}` : 'Pagamento'}
                     </span>
                     {linhasPagamento.length > 1 && (
                       <button
@@ -1137,39 +1233,28 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                     {formasDisponiveis.map((fp: FormaPagamento) => {
                       const estaSelecionado = linha.forma_pagamento_id === fp.id || (!linha.forma_pagamento_id && linha.forma_tipo === fp.tipo);
-                      const ehPresencial = fp.tipo === 'dinheiro' || fp.tipo === 'cartao_debito' || fp.tipo === 'cartao_credito';
-                      const textoContextual = ehPresencial
-                        ? (ehRetirada ? 'Pagamento na retirada' : 'Pagamento na entrega')
-                        : null;
 
                       return (
                         <button
                           key={fp.id}
                           type="button"
                           onClick={() => handleAlterarFormaLinha(linha.id, fp)}
-                          className={`p-2 rounded-xl border text-[11px] font-bold flex flex-col items-start gap-1 transition cursor-pointer active:scale-95 text-left ${
+                          className={`px-2.5 py-2.5 rounded-xl border text-[11px] font-bold flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95 text-center ${
                             estaSelecionado
                               ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-500/40 shadow-xs'
-                              : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300 dark:border-slate-700'
+                              : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                           }`}
                         >
-                          <div className="flex items-center gap-1.5 w-full">
-                            {fp.tipo === 'dinheiro' && <Banknote className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}
-                            {fp.tipo === 'pix' && <Zap className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400 shrink-0" />}
-                            {fp.tipo === 'cartao_debito' && <CreditCard className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />}
-                            {fp.tipo === 'cartao_credito' && <CreditCard className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />}
-                            {fp.tipo === 'fiado' && <FileText className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />}
-                            {fp.tipo === 'caderneta' && <BookOpen className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />}
-                            {fp.tipo !== 'dinheiro' && fp.tipo !== 'pix' && fp.tipo !== 'cartao_debito' && fp.tipo !== 'cartao_credito' && fp.tipo !== 'fiado' && fp.tipo !== 'caderneta' && (
-                              <CreditCard className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            )}
-                            <span className="truncate">{fp.nome}</span>
-                          </div>
-                          {textoContextual && (
-                            <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 leading-tight">
-                              {textoContextual}
-                            </span>
+                          {fp.tipo === 'dinheiro' && <Banknote className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}
+                          {fp.tipo === 'pix' && <Zap className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400 shrink-0" />}
+                          {fp.tipo === 'cartao_debito' && <CreditCard className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />}
+                          {fp.tipo === 'cartao_credito' && <CreditCard className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />}
+                          {fp.tipo === 'fiado' && <FileText className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />}
+                          {fp.tipo === 'caderneta' && <BookOpen className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />}
+                          {fp.tipo !== 'dinheiro' && fp.tipo !== 'pix' && fp.tipo !== 'cartao_debito' && fp.tipo !== 'cartao_credito' && fp.tipo !== 'fiado' && fp.tipo !== 'caderneta' && (
+                            <CreditCard className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                           )}
+                          <span className="truncate">{fp.nome}</span>
                         </button>
                       );
                     })}
@@ -1393,86 +1478,83 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
               </button>
             </div>
 
-            {/* Resumo de Conferência dos Valores com Discriminação (Padrão POSCheckout) */}
+            {/* Resumo de Conferência dos Valores com Discriminação */}
             <div className={`p-3.5 rounded-2xl border space-y-2 text-xs ${
               isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
             }`}>
               <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
-                <span className="font-medium">Subtotal dos Produtos:</span>
+                <span className="font-medium">{rotuloSubtotal}</span>
                 <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-                  {formatarMoeda(Number(pedido.subtotal || (valorTotal - Number(pedido.valor_frete || 0) - Number(pedido.valor_taxa_domicilio || 0) + Number(pedido.valor_desconto || 0))))}
+                  {formatarMoeda(subtotalExibido)}
                 </span>
               </div>
 
-              {Number(pedido.valor_desconto || 0) > 0 && (
+              {valorDescontoNum > 0 && (
                 <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
                   <span className="font-medium">
-                    Desconto {pedido.cupom_codigo ? `(Cupom: ${pedido.cupom_codigo})` : 'Aplicado'}:
+                    Desconto {pedSeguro.cupom_codigo ? `(Cupom: ${pedSeguro.cupom_codigo})` : 'Aplicado'}:
                   </span>
                   <span className="font-semibold text-rose-600 dark:text-rose-400">
-                    - {formatarMoeda(Number(pedido.valor_desconto || 0))}
+                    - {formatarMoeda(valorDescontoNum)}
                   </span>
                 </div>
               )}
 
-              {Number(pedSeguro.valor_taxa_domicilio || 0) > 0 && (
+              {/* Linha 1 — Taxa de Visita a Domicílio */}
+              {temServicoExternoOuTaxa && (
                 <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
-                  <span className="font-medium">Taxa de Visita (Domicílio):</span>
+                  <span className="font-medium">Taxa de Visita a Domicílio:</span>
                   <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                    + {formatarMoeda(Number(pedSeguro.valor_taxa_domicilio || 0))}
+                    {formatarMoeda(valorTaxaDomicilioNum)}
                   </span>
                 </div>
               )}
 
-              {/* Discriminação explícita do Frete */}
-              <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
-                <span className="flex items-center gap-1.5 font-medium">
-                  <Truck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span>Frete de Entrega:</span>
-                </span>
-                {freteADefinir ? (
-                  <button
-                    type="button"
-                    onClick={() => setModalDefinirEnvioAberto(true)}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition cursor-pointer active:scale-95 shadow-2xs"
-                    title="Definir opções de frete agora"
-                  >
-                    <span>A definir</span>
-                    <span className="text-[11px]">✏️</span>
-                  </button>
-                ) : pedSeguro.levar_produto_no_atendimento && Number(pedSeguro.valor_frete || 0) === 0 ? (
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                    Grátis — Levar na visita técnica
+              {/* Linha 2 — Frete de Entrega (apenas pedidos com produto físico ou frete legado) */}
+              {exibirFreteEntrega && (
+                <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <Truck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>Frete de Entrega:</span>
                   </span>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      {rawPe?.transportadora_nome || pedSeguro.nome_transportadora ? (
-                        <span>
-                          {rawPe?.transportadora_nome || pedSeguro.nome_transportadora}
-                          {Number(pedSeguro.valor_frete || 0) > 0
-                            ? ` (+ ${formatarMoeda(Number(pedSeguro.valor_frete || 0))})`
-                            : (rawPe?.is_frete_gratis ? ' (Grátis)' : '')}
-                        </span>
-                      ) : Number(pedSeguro.valor_frete || 0) > 0 ? (
-                        formatarMoeda(Number(pedSeguro.valor_frete || 0))
-                      ) : rawPe?.is_frete_gratis ? (
-                        'Grátis'
-                      ) : (
-                        formatarMoeda(0)
-                      )}
-                    </span>
+                  {freteADefinir ? (
                     <button
                       type="button"
                       onClick={() => setModalDefinirEnvioAberto(true)}
-                      className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer"
-                      title="Alterar opção de frete"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition cursor-pointer active:scale-95 shadow-2xs"
+                      title="Definir opções de frete agora"
                     >
+                      <span>A definir</span>
                       <span className="text-[11px]">✏️</span>
                     </button>
-                  </div>
-                )}
-              </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        {nomeTransportadoraReal ? (
+                          <span>
+                            {nomeTransportadoraReal}
+                            {valorFreteNum > 0
+                              ? ` (+ ${formatarMoeda(valorFreteNum)})`
+                              : ` (${formatarMoeda(0)})`}
+                          </span>
+                        ) : valorFreteNum > 0 ? (
+                          `+ ${formatarMoeda(valorFreteNum)}`
+                        ) : (
+                          formatarMoeda(0)
+                        )}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setModalDefinirEnvioAberto(true)}
+                        className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer"
+                        title="Alterar opção de frete"
+                      >
+                        <span className="text-[11px]">✏️</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Alerta de Frete a Definir no Fechamento */}
               {freteADefinir && (
@@ -1507,24 +1589,15 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                 <span className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatarMoeda(totalLinhasPagamento)}</span>
               </div>
 
-              {/* Total Conferido / Diferença */}
-              <div className={`flex justify-between items-center font-medium pt-1 border-t ${
-                isDark ? 'border-slate-800/80 text-slate-300' : 'border-slate-200 text-slate-800'
-              }`}>
-                {Math.abs(diferencaPagamento) < 0.01 ? (
-                  <>
-                    <span className="flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" /> Total Conferido (100%):
-                    </span>
-                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">R$ 0,00</span>
-                  </>
-                ) : diferencaPagamento > 0 ? (
-                  <>
-                    <span className="text-amber-700 dark:text-amber-400 font-medium">Restante a Definir:</span>
-                    <span className="font-semibold text-amber-700 dark:text-amber-400">{formatarMoeda(diferencaPagamento)}</span>
-                  </>
-                ) : null}
-              </div>
+              {/* Saldo Restante (exibido apenas se houver diferença pendente no split de pagamento) */}
+              {diferencaPagamento > 0.009 && (
+                <div className={`flex justify-between items-center font-medium pt-1 border-t ${
+                  isDark ? 'border-slate-800/80 text-slate-300' : 'border-slate-200 text-slate-800'
+                }`}>
+                  <span className="text-amber-700 dark:text-amber-400 font-medium">Saldo Restante:</span>
+                  <span className="font-semibold text-amber-700 dark:text-amber-400">{formatarMoeda(diferencaPagamento)}</span>
+                </div>
+              )}
             </div>
 
             {/* Toggle / Checkbox Concluir ao Quitar */}
