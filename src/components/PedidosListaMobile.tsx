@@ -75,6 +75,7 @@ import { useFeedbackModal } from '../contexts/FeedbackContext';
 import {
   ROTULOS_STATUS_PEDIDO,
   ROTULOS_STATUS_PAGAMENTO,
+  ehPedidoExclusivoServico,
   obterAbasStatusVisiveis,
   obterOpcoesStatusAlteracao,
   obterInfoVencimentoFiado,
@@ -669,7 +670,10 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       (pedidoSelecionado as any)?.tipo_entrega === 'retirada' ||
       pedidoSelecionado?.forma_entrega?.tipo === 'retirada' ||
       pedidoSelecionado?.pedido_entrega?.tipo_atendimento === 'retirada';
-    return obterOpcoesStatusAlteracao(loja, pedidoSelecionado?.status, ehRetirada);
+    const ehExclusivoServico = ehPedidoExclusivoServico(
+      pedidoSelecionado?.itens || pedidoSelecionado?.itens_pedido
+    );
+    return obterOpcoesStatusAlteracao(loja, pedidoSelecionado?.status, ehRetirada, ehExclusivoServico);
   }, [loja, pedidoSelecionado?.status, pedidoSelecionado]);
 
   const alternarVoz = () => {
@@ -1735,8 +1739,11 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   );
                 }
 
-                // Prioridade 3: Se status for aguardando_envio e já estiver pago/fiado
-                if (pedidoSelecionado.status === 'aguardando_envio') {
+                // Prioridade 3: Se status for aguardando_envio e já estiver pago/fiado (não aplicável a serviço exclusivo)
+                if (
+                  pedidoSelecionado.status === 'aguardando_envio' &&
+                  !ehPedidoExclusivoServico(pedidoSelecionado.itens || pedidoSelecionado.itens_pedido)
+                ) {
                   const { prov, pe } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
 
                   if (prov === 'uber') {
@@ -1789,12 +1796,19 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   );
                 }
 
-                // Prioridade 4: Conclusão permitida apenas para status operacionais/finais
+                // Prioridade 4: Conclusão permitida apenas para status operacionais/finais (ou pedidos exclusivos de serviço)
                 const { isRetirada } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
+                const ehExclusivoServicoDetalhe = ehPedidoExclusivoServico(
+                  pedidoSelecionado.itens || pedidoSelecionado.itens_pedido
+                );
+                const estaPagoOuCreditoDetalhe =
+                  statusPag === 'pago' || ehFiado || ehCaderneta;
                 const podeConcluirFinal =
                   pedidoSelecionado.status === 'entregue' ||
                   pedidoSelecionado.status === 'pronto_para_retirar' ||
-                  (pedidoSelecionado.status === 'confirmado' && isRetirada) ||
+                  (pedidoSelecionado.status === 'confirmado' && (isRetirada || ehExclusivoServicoDetalhe)) ||
+                  (pedidoSelecionado.status === 'pendente' && ehExclusivoServicoDetalhe && estaPagoOuCreditoDetalhe) ||
+                  (pedidoSelecionado.status === 'aguardando_envio' && ehExclusivoServicoDetalhe) ||
                   pedidoSelecionado.status === 'enviado';
 
                 if (podeConcluirFinal) {
@@ -2003,7 +2017,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   pe?.status_envio === 'entregue'
                 );
 
+                const ehExclusivoServicoOpcoes = ehPedidoExclusivoServico(
+                  pedidoSelecionado.itens || pedidoSelecionado.itens_pedido
+                );
+
                 const aguardaEnvio =
+                  !ehExclusivoServicoOpcoes &&
                   estaPagoOuFiado &&
                   pedidoSelecionado.status !== 'cancelado' &&
                   pedidoSelecionado.status !== 'concluido' &&
@@ -2018,7 +2037,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
                 const prontoParaConcluir =
                   emTransitoOuEntregue ||
-                  pedidoSelecionado.status === 'pronto_para_retirar';
+                  pedidoSelecionado.status === 'pronto_para_retirar' ||
+                  (pedidoSelecionado.status === 'confirmado' && ehExclusivoServicoOpcoes);
 
                 const temRastreio = Boolean(codigoRastreio || linkRastreio || (ehMelhorEnvio && emTransitoOuEntregue));
 

@@ -12,7 +12,12 @@ import {
   X
 } from 'lucide-react';
 import { Pedido, StatusPedido, Loja } from '../types';
-import { obterOpcoesStatusAlteracao, ROTULOS_STATUS_PEDIDO, obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
+import {
+  ehPedidoExclusivoServico,
+  obterOpcoesStatusAlteracao,
+  ROTULOS_STATUS_PEDIDO,
+  obterInfoVencimentoFiado
+} from '../utils/statusPedidoUtils';
 import { formatarMoeda } from '../utils/formatters';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -164,10 +169,13 @@ export const ModalAlterarStatusPedido: React.FC<ModalAlterarStatusPedidoProps> =
     (pedido as unknown as { tipo_atendimento?: string }).tipo_atendimento === 'retirada' ||
     (pedido as unknown as { tipo_entrega?: string }).tipo_entrega === 'retirada';
 
+  const ehExclusivoServicoModal = ehPedidoExclusivoServico(pedido.itens || pedido.itens_pedido);
+
   const opcoesDisponiveis = obterOpcoesStatusAlteracao(
     loja,
     pedido.status,
-    ehRetiradaModal
+    ehRetiradaModal,
+    ehExclusivoServicoModal
   );
 
   return (

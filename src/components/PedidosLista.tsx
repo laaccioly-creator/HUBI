@@ -99,6 +99,7 @@ import {
   ROTULOS_STATUS_PEDIDO,
   ROTULOS_STATUS_PAGAMENTO,
   isStatusPedidoAtivo,
+  ehPedidoExclusivoServico,
   obterAbasStatusVisiveis,
   obterOpcoesStatusAlteracao,
   obterInfoVencimentoFiado,
@@ -556,7 +557,10 @@ export const PedidosLista: React.FC = () => {
       (pedidoSelecionado as any)?.tipo_entrega === 'retirada' ||
       pedidoSelecionado?.forma_entrega?.tipo === 'retirada' ||
       pedidoSelecionado?.pedido_entrega?.tipo_atendimento === 'retirada';
-    return obterOpcoesStatusAlteracao(loja, pedidoSelecionado?.status, ehRetirada);
+    const ehExclusivoServico = ehPedidoExclusivoServico(
+      pedidoSelecionado?.itens || pedidoSelecionado?.itens_pedido
+    );
+    return obterOpcoesStatusAlteracao(loja, pedidoSelecionado?.status, ehRetirada, ehExclusivoServico);
   }, [loja, pedidoSelecionado?.status, pedidoSelecionado]);
   const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
   const [pedidoEtiquetaModal, setPedidoEtiquetaModal] = useState<Pedido | null>(null);
@@ -1388,7 +1392,27 @@ export const PedidosLista: React.FC = () => {
         pedAlvo.forma_entrega?.tipo === 'retirada' ||
         pedAlvo.pedido_entrega?.tipo_atendimento === 'retirada';
 
-      const validacaoCiclo = validarTransicaoStatusPedido(pedAlvo.status, novoStatus, estaQuitadoOuFiado, ehRetirada, loja, pedAlvo.status_pagamento);
+      let itensPedidoAlvo = pedAlvo.itens || pedAlvo.itens_pedido || [];
+      if (itensPedidoAlvo.length === 0) {
+        const { data: itensDb } = await supabase
+          .from('itens_pedido')
+          .select('id, tipo_item, produto_id, quantidade')
+          .eq('pedido_id', pedAlvo.id);
+        if (itensDb && itensDb.length > 0) {
+          itensPedidoAlvo = itensDb as ItemPedido[];
+        }
+      }
+      const pedExclusivoServico = ehPedidoExclusivoServico(itensPedidoAlvo);
+
+      const validacaoCiclo = validarTransicaoStatusPedido(
+        pedAlvo.status,
+        novoStatus,
+        estaQuitadoOuFiado,
+        ehRetirada,
+        loja,
+        pedAlvo.status_pagamento,
+        pedExclusivoServico
+      );
       if (!validacaoCiclo.permitido) {
         if (validacaoCiclo.requerPagamento) {
           setPedidoReceberModal(pedAlvo);
@@ -1460,6 +1484,35 @@ export const PedidosLista: React.FC = () => {
             .eq('pedido_id', pedidoId);
         } catch (errEntrega) {
           console.warn('Aviso ao atualizar status_envio em pedido_entregas:', errEntrega);
+        }
+      }
+
+      // Ao concluir pedido exclusivo de serviço, conclui automaticamente seus agendamentos em aberto na agenda
+      if (novoStatus === 'concluido' && pedExclusivoServico && loja?.id) {
+        try {
+          await supabase
+            .from('agendamentos_servicos')
+            .update({
+              status_agendamento: 'concluido',
+              atualizado_em: dataIsoAlteracao
+            })
+            .eq('loja_id', String(loja.id))
+            .eq('pedido_id', pedidoId)
+            .in('status_agendamento', ['agendado', 'confirmado', 'em_atendimento']);
+
+          if (pedidoSelecionado?.id === pedidoId) {
+            setAgendamentosPedido((prev) =>
+              prev.map((ag) =>
+                ag.status_agendamento === 'agendado' ||
+                ag.status_agendamento === 'confirmado' ||
+                ag.status_agendamento === 'em_atendimento'
+                  ? { ...ag, status_agendamento: 'concluido', atualizado_em: dataIsoAlteracao }
+                  : ag
+              )
+            );
+          }
+        } catch (errAg) {
+          console.warn('Aviso ao sincronizar agendamentos_servicos na conclusão do pedido:', errAg);
         }
       }
       if (loja?.id) {
@@ -4701,7 +4754,7 @@ export const PedidosLista: React.FC = () => {
                                      <Scale className="w-3.5 h-3.5" />
                                      <span>Informar Peso</span>
                                    </button>
-                                 ) : (pedido.status === 'aguardando_envio' && !pedido.forma_entrega_id && !pedido.nome_transportadora && Number(pedido.valor_frete || 0) === 0 && ((pedido as any).tipo_entrega === 'envio' || (pedido as any).tipo_atendimento === 'entrega')) ? (
+                                 ) : (!ehPedidoExclusivoServico(pedido.itens || pedido.itens_pedido) && pedido.status === 'aguardando_envio' && !pedido.forma_entrega_id && !pedido.nome_transportadora && Number(pedido.valor_frete || 0) === 0 && ((pedido as any).tipo_entrega === 'envio' || (pedido as any).tipo_atendimento === 'entrega')) ? (
                                   /* ETAPA 1: Escolher Envio (obrigatório antes do recebimento quando frete a calcular) */
                                   <button
                                     type="button"
@@ -4715,7 +4768,7 @@ export const PedidosLista: React.FC = () => {
                                     <Truck className="w-3.5 h-3.5" />
                                     <span>Escolher Envio</span>
                                   </button>
-                                ) : (pedido.status === 'aguardando_envio' || (pedido.status === 'confirmado' && !resolverProvedorEntrega(pedido).isRetirada) || (pedido.status === 'pendente' && (statusPag === 'pago' || statusPag === 'fiado' || statusPag === 'caderneta') && !resolverProvedorEntrega(pedido).isRetirada)) ? (
+                                ) : (!ehPedidoExclusivoServico(pedido.itens || pedido.itens_pedido) && (pedido.status === 'aguardando_envio' || (pedido.status === 'confirmado' && !resolverProvedorEntrega(pedido).isRetirada) || (pedido.status === 'pendente' && (statusPag === 'pago' || statusPag === 'fiado' || statusPag === 'caderneta') && !resolverProvedorEntrega(pedido).isRetirada))) ? (
                                   (() => {
                                     const { prov, pe } = resolverProvedorEntrega(pedido);
                                     const isUber = prov === 'uber' || (pe?.transportadora_nome || '').toLowerCase().includes('uber');
@@ -4964,7 +5017,7 @@ export const PedidosLista: React.FC = () => {
                                     <CheckCircle2 className="w-3.5 h-3.5" />
                                     <span>Confirmar</span>
                                   </button>
-                                ) : (pedido.status === 'pronto_para_retirar' || ((pedido.status === 'confirmado' || pedido.status === 'pendente') && resolverProvedorEntrega(pedido).isRetirada)) ? (
+                                ) : (pedido.status === 'pronto_para_retirar' || ((pedido.status === 'confirmado' || pedido.status === 'pendente') && (resolverProvedorEntrega(pedido).isRetirada || ehPedidoExclusivoServico(pedido.itens || pedido.itens_pedido)))) ? (
                                   <button
                                     type="button"
                                     onClick={(e) => {
@@ -5356,7 +5409,10 @@ export const PedidosLista: React.FC = () => {
           if (pedidoAtualizado) {
             if (pedidoAtualizado.status === 'pendente') {
               const { isRetirada } = resolverProvedorEntrega(pedidoAtualizado);
-              const proxStatus = isRetirada ? 'confirmado' : 'aguardando_envio';
+              const ehExclusivoServico = ehPedidoExclusivoServico(
+                pedidoAtualizado.itens || pedidoAtualizado.itens_pedido
+              );
+              const proxStatus = isRetirada || ehExclusivoServico ? 'confirmado' : 'aguardando_envio';
               await atualizarStatus(pedidoAtualizado.id, proxStatus);
             }
             if (pedidoSelecionado?.id === pedidoAtualizado.id) {
