@@ -551,17 +551,6 @@ export const PedidosLista: React.FC = () => {
     }
   };
 
-  // Opções de status permitidas para alteração no pedido selecionado
-  const opcoesStatusSelecionado = useMemo(() => {
-    const ehRetirada = (pedidoSelecionado as any)?.tipo_atendimento === 'retirada' ||
-      (pedidoSelecionado as any)?.tipo_entrega === 'retirada' ||
-      pedidoSelecionado?.forma_entrega?.tipo === 'retirada' ||
-      pedidoSelecionado?.pedido_entrega?.tipo_atendimento === 'retirada';
-    const ehExclusivoServico = ehPedidoExclusivoServico(
-      pedidoSelecionado?.itens || pedidoSelecionado?.itens_pedido
-    );
-    return obterOpcoesStatusAlteracao(loja, pedidoSelecionado?.status, ehRetirada, ehExclusivoServico);
-  }, [loja, pedidoSelecionado?.status, pedidoSelecionado]);
   const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
   const [pedidoEtiquetaModal, setPedidoEtiquetaModal] = useState<Pedido | null>(null);
   const [pedidoRastreioModal, setPedidoRastreioModal] = useState<Pedido | null>(null);
@@ -633,6 +622,25 @@ export const PedidosLista: React.FC = () => {
   const [executandoContingencia, setExecutandoContingencia] = useState<boolean>(false);
   const [entregaPedido, setEntregaPedido] = useState<PedidoEntrega | null>(null);
   const [agendamentosPedido, setAgendamentosPedido] = useState<AgendamentoServico[]>([]);
+
+  // Opções de status permitidas para alteração no pedido selecionado
+  const opcoesStatusSelecionado = useMemo(() => {
+    const rawPeSel = entregaPedido || (pedidoSelecionado as { pedido_entregas?: PedidoEntrega[] | PedidoEntrega | null } | null)?.pedido_entregas || pedidoSelecionado?.pedido_entrega;
+    const peSel = Array.isArray(rawPeSel) ? (rawPeSel[0] || null) : (rawPeSel || null);
+    const metaSel = (pedidoSelecionado?.metadados || {}) as { tipo_atendimento?: string; provedor_frete?: string };
+    const ehRetirada =
+      peSel?.tipo_atendimento === 'retirada' ||
+      peSel?.provedor === 'retirada_loja' ||
+      metaSel.tipo_atendimento === 'retirada' ||
+      metaSel.provedor_frete === 'retirada_loja' ||
+      (pedidoSelecionado as { tipo_atendimento?: string } | null)?.tipo_atendimento === 'retirada' ||
+      (pedidoSelecionado as { tipo_entrega?: string } | null)?.tipo_entrega === 'retirada' ||
+      pedidoSelecionado?.forma_entrega?.tipo === 'retirada';
+    const ehExclusivoServico = ehPedidoExclusivoServico(
+      pedidoSelecionado?.itens || pedidoSelecionado?.itens_pedido
+    );
+    return obterOpcoesStatusAlteracao(loja, pedidoSelecionado?.status, ehRetirada, ehExclusivoServico);
+  }, [loja, pedidoSelecionado, entregaPedido]);
 
   // Modal para capturar CPF/CNPJ do cliente para o Melhor Envio sem travar o lojista
   const [modalCpfClienteAberto, setModalCpfClienteAberto] = useState<boolean>(false);
@@ -1349,7 +1357,12 @@ export const PedidosLista: React.FC = () => {
     }
   };
 
-  const atualizarStatus = async (pedidoId: string, novoStatus: StatusPedido, motivoCancelamento?: string) => {
+  const atualizarStatus = async (
+    pedidoId: string,
+    novoStatus: StatusPedido,
+    motivoCancelamento?: string,
+    acaoConclusaoDireta: boolean = false
+  ) => {
     try {
       const pedAlvo = pedidos.find((p) => p.id === pedidoId) || pedidoSelecionado;
       if (!pedAlvo) return;
@@ -1387,10 +1400,13 @@ export const PedidosLista: React.FC = () => {
         saldoDevedor <= 0.009 ||
         temFiadoValido;
 
-      const ehRetirada = (pedAlvo as any).tipo_atendimento === 'retirada' ||
-        (pedAlvo as any).tipo_entrega === 'retirada' ||
-        pedAlvo.forma_entrega?.tipo === 'retirada' ||
-        pedAlvo.pedido_entrega?.tipo_atendimento === 'retirada';
+      const infoProvedor = resolverProvedorEntrega(pedAlvo, entregaPedido);
+      const ehRetirada =
+        infoProvedor.isRetirada ||
+        infoProvedor.prov === 'retirada_loja' ||
+        (pedAlvo as { tipo_atendimento?: string }).tipo_atendimento === 'retirada' ||
+        (pedAlvo as { tipo_entrega?: string }).tipo_entrega === 'retirada' ||
+        pedAlvo.forma_entrega?.tipo === 'retirada';
 
       let itensPedidoAlvo = pedAlvo.itens || pedAlvo.itens_pedido || [];
       if (itensPedidoAlvo.length === 0) {
@@ -1404,6 +1420,24 @@ export const PedidosLista: React.FC = () => {
       }
       const pedExclusivoServico = ehPedidoExclusivoServico(itensPedidoAlvo);
 
+      const statusEnvioAtual = String(infoProvedor.pe?.status_envio || '').toLowerCase();
+      const temDespachoExternoPendente =
+        !ehRetirada &&
+        !pedExclusivoServico &&
+        (infoProvedor.prov === 'uber' || infoProvedor.prov === 'melhor_envio') &&
+        statusEnvioAtual !== 'entregue' &&
+        statusEnvioAtual !== 'cancelado';
+
+      const permitirConclusaoDireta =
+        novoStatus === 'concluido' &&
+        Boolean(
+          acaoConclusaoDireta ||
+            ehRetirada ||
+            pedExclusivoServico ||
+            !temDespachoExternoPendente ||
+            pedAlvo.status_pagamento === 'pago'
+        );
+
       const validacaoCiclo = validarTransicaoStatusPedido(
         pedAlvo.status,
         novoStatus,
@@ -1411,7 +1445,8 @@ export const PedidosLista: React.FC = () => {
         ehRetirada,
         loja,
         pedAlvo.status_pagamento,
-        pedExclusivoServico
+        pedExclusivoServico,
+        permitirConclusaoDireta
       );
       if (!validacaoCiclo.permitido) {
         if (validacaoCiclo.requerPagamento) {
@@ -1487,8 +1522,8 @@ export const PedidosLista: React.FC = () => {
         }
       }
 
-      // Ao concluir pedido exclusivo de serviço, conclui automaticamente seus agendamentos em aberto na agenda
-      if (novoStatus === 'concluido' && pedExclusivoServico && loja?.id) {
+      // Ao concluir pedido (serviço exclusivo ou híbrido), conclui automaticamente seus agendamentos em aberto na agenda
+      if (novoStatus === 'concluido' && loja?.id) {
         try {
           await supabase
             .from('agendamentos_servicos')
@@ -4995,7 +5030,7 @@ export const PedidosLista: React.FC = () => {
                                       type="button"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        atualizarStatus(pedido.id, 'concluido');
+                                        atualizarStatus(pedido.id, 'concluido', undefined, true);
                                       }}
                                       className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
                                       title="Concluir Pedido Entregue"
@@ -5022,7 +5057,7 @@ export const PedidosLista: React.FC = () => {
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      atualizarStatus(pedido.id, 'concluido');
+                                      atualizarStatus(pedido.id, 'concluido', undefined, true);
                                     }}
                                     className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold shadow-xs transition cursor-pointer active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'}`}
                                     title="Concluir Pedido"

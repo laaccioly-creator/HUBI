@@ -114,7 +114,12 @@ interface PedidosListaMobileProps {
   carregando: boolean;
   pedidoSelecionadoInicial?: Pedido | null;
   onVoltarOrigem?: () => void;
-  onAlterarStatus: (pedidoId: string, novoStatus: StatusPedido) => void;
+  onAlterarStatus: (
+    pedidoId: string,
+    novoStatus: StatusPedido,
+    motivoCancelamento?: string,
+    acaoConclusaoDireta?: boolean
+  ) => Promise<void> | void;
   onCancelarPedido: (pedido: Pedido) => void;
   onAbrirReceberPagamento: (pedido: Pedido) => void;
   onAbrirReceberFiado?: (pedido: Pedido) => void;
@@ -666,15 +671,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
   // Opções para o modal de alteração de status
   const opcoesStatusAlteracao = useMemo(() => {
-    const ehRetirada = (pedidoSelecionado as any)?.tipo_atendimento === 'retirada' ||
-      (pedidoSelecionado as any)?.tipo_entrega === 'retirada' ||
-      pedidoSelecionado?.forma_entrega?.tipo === 'retirada' ||
-      pedidoSelecionado?.pedido_entrega?.tipo_atendimento === 'retirada';
+    const { isRetirada } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
     const ehExclusivoServico = ehPedidoExclusivoServico(
       pedidoSelecionado?.itens || pedidoSelecionado?.itens_pedido
     );
-    return obterOpcoesStatusAlteracao(loja, pedidoSelecionado?.status, ehRetirada, ehExclusivoServico);
-  }, [loja, pedidoSelecionado?.status, pedidoSelecionado]);
+    return obterOpcoesStatusAlteracao(loja, pedidoSelecionado?.status, isRetirada, ehExclusivoServico);
+  }, [loja, pedidoSelecionado, entregaPedido]);
 
   const alternarVoz = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -1819,7 +1821,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         const saldoDevedorAtual = Number(pedidoSelecionado.saldo_devedor ?? (Number(pedidoSelecionado.valor_total || 0) - Number(pedidoSelecionado.valor_pago || 0)));
                         const podeConcluirSemPagamentoImediato = saldoDevedorAtual <= 0.009 || ehFiado || ehCaderneta || statusPag === 'pago';
                         if (podeConcluirSemPagamentoImediato) {
-                          onAlterarStatus(pedidoSelecionado.id, 'concluido');
+                          onAlterarStatus(pedidoSelecionado.id, 'concluido', undefined, true);
                           setPedidoSelecionado({ ...pedidoSelecionado, status: 'concluido' });
                         } else {
                           onAbrirReceberPagamento(pedidoSelecionado);
@@ -2038,7 +2040,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 const prontoParaConcluir =
                   emTransitoOuEntregue ||
                   pedidoSelecionado.status === 'pronto_para_retirar' ||
-                  (pedidoSelecionado.status === 'confirmado' && ehExclusivoServicoOpcoes);
+                  (pedidoSelecionado.status === 'confirmado' && (ehExclusivoServicoOpcoes || isRetirada));
 
                 const temRastreio = Boolean(codigoRastreio || linkRastreio || (ehMelhorEnvio && emTransitoOuEntregue));
 
@@ -2143,7 +2145,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         type="button"
                         onClick={() => {
                           setModalOpcoesPedido(false);
-                          onAlterarStatus(pedidoSelecionado.id, 'concluido');
+                          onAlterarStatus(pedidoSelecionado.id, 'concluido', undefined, true);
                           setPedidoSelecionado({ ...pedidoSelecionado, status: 'concluido' });
                           mostrarToast('Pedido concluído com sucesso!', 'sucesso');
                         }}

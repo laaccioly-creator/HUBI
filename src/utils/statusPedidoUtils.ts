@@ -170,12 +170,12 @@ export function obterOpcoesStatusAlteracao(
     return [];
   }
 
-  // De pendente: permite Confirmado (e Concluído se exclusivo de serviço) ou Cancelado
+  // De pendente: permite Confirmado (e Concluído se exclusivo de serviço ou retirada na loja) ou Cancelado
   if (statusAtual === 'pendente') {
     const opcoesPendente: { id: StatusPedido; label: string }[] = [
       { id: 'confirmado', label: 'Confirmado' }
     ];
-    if (ehExclusivoServico) {
+    if (ehExclusivoServico || ehRetiradaBalcao) {
       opcoesPendente.push({ id: 'concluido', label: 'Concluído' });
     }
     opcoesPendente.push({ id: 'cancelado', label: 'Cancelar Pedido' });
@@ -184,7 +184,7 @@ export function obterOpcoesStatusAlteracao(
 
   const opcoes: { id: StatusPedido; label: string }[] = [];
 
-  // De confirmado: Permite conclusão direta para serviços exclusivos ou etapas logísticas normais
+  // De confirmado: Permite conclusão direta para serviços exclusivos / retirada ou etapas logísticas normais
   if (statusAtual === 'confirmado') {
     if (ehExclusivoServico) {
       opcoes.push({ id: 'concluido', label: 'Concluído' });
@@ -198,14 +198,17 @@ export function obterOpcoesStatusAlteracao(
       if (ehRetiradaBalcao && isStatusPedidoAtivo('pronto_para_retirar', loja)) {
         opcoes.push({ id: 'pronto_para_retirar', label: 'Pronto para retirar' });
       }
+      if (ehRetiradaBalcao) {
+        opcoes.push({ id: 'concluido', label: 'Concluído' });
+      }
     }
     opcoes.push({ id: 'cancelado', label: 'Cancelar Pedido' });
     return opcoes;
   }
 
-  // De em_separacao: Permite transitar para Em expedição (se ativo), Aguardando envio (se ativo), Pronto para retirar (se ativo) ou Cancelado
+  // De em_separacao: Permite transitar para Em expedição (se ativo), Aguardando envio (se ativo), Pronto para retirar (se ativo), Concluído (serviço/retirada) ou Cancelado
   if (statusAtual === 'em_separacao' || statusAtual === 'em_producao') {
-    if (ehExclusivoServico) {
+    if (ehExclusivoServico || ehRetiradaBalcao) {
       opcoes.push({ id: 'concluido', label: 'Concluído' });
     }
     if (isStatusPedidoAtivo('em_expedicao', loja)) {
@@ -221,9 +224,9 @@ export function obterOpcoesStatusAlteracao(
     return opcoes;
   }
 
-  // De em_expedicao: Permite transitar para Aguardando envio (se ativo), Pronto para retirar (se ativo) ou Cancelado
+  // De em_expedicao: Permite transitar para Aguardando envio (se ativo), Pronto para retirar (se ativo), Concluído (serviço/retirada) ou Cancelado
   if (statusAtual === 'em_expedicao') {
-    if (ehExclusivoServico) {
+    if (ehExclusivoServico || ehRetiradaBalcao) {
       opcoes.push({ id: 'concluido', label: 'Concluído' });
     }
     if (isStatusPedidoAtivo('aguardando_envio', loja)) {
@@ -236,9 +239,9 @@ export function obterOpcoesStatusAlteracao(
     return opcoes;
   }
 
-  // De aguardando_envio: Permite transitar para Enviado ou Cancelado (ou Concluído para serviços exclusivos legados)
+  // De aguardando_envio: Permite transitar para Enviado, Concluído (serviço/retirada) ou Cancelado
   if (statusAtual === 'aguardando_envio' || statusAtual === 'envio_pendente') {
-    if (ehExclusivoServico) {
+    if (ehExclusivoServico || ehRetiradaBalcao) {
       opcoes.push({ id: 'concluido', label: 'Concluído' });
     }
     if (isStatusPedidoAtivo('enviado', loja)) {
@@ -299,7 +302,8 @@ export function validarTransicaoStatusPedido(
   ehRetiradaBalcao: boolean = false,
   loja?: Loja | null,
   statusPagamento?: string,
-  ehExclusivoServico: boolean = false
+  ehExclusivoServico: boolean = false,
+  permitirConclusaoDireta: boolean = false
 ): { permitido: boolean; motivo?: string; requerPagamento?: boolean } {
   if (!statusAtual || !novoStatus || statusAtual === novoStatus) {
     return { permitido: true };
@@ -348,9 +352,13 @@ export function validarTransicaoStatusPedido(
     };
   }
 
-  // 1. Status Pendente só pode evoluir para Confirmado (ou Concluído em pedido exclusivo de serviço)
+  const podeConcluirDireto = Boolean(
+    ehExclusivoServico || ehRetiradaBalcao || permitirConclusaoDireta
+  );
+
+  // 1. Status Pendente só pode evoluir para Confirmado (ou Concluído quando liberado para conclusão direta)
   if (statusAtual === 'pendente') {
-    const permitidosPendente = ehExclusivoServico ? ['confirmado', 'concluido'] : ['confirmado'];
+    const permitidosPendente = podeConcluirDireto ? ['confirmado', 'concluido'] : ['confirmado'];
     if (!permitidosPendente.includes(novoStatus)) {
       return {
         permitido: false,
@@ -372,7 +380,7 @@ export function validarTransicaoStatusPedido(
   if (statusAtual === 'confirmado') {
     const permitidos = ['em_separacao', 'aguardando_envio', 'cancelado'];
     if (ehRetiradaBalcao) permitidos.push('pronto_para_retirar');
-    if (ehExclusivoServico) permitidos.push('concluido');
+    if (podeConcluirDireto) permitidos.push('concluido');
     if (!permitidos.includes(novoStatus)) {
       return {
         permitido: false,
@@ -383,7 +391,7 @@ export function validarTransicaoStatusPedido(
 
   if (statusAtual === 'em_separacao' || statusAtual === 'em_producao') {
     const permitidos = ['em_expedicao', 'aguardando_envio', 'pronto_para_retirar', 'cancelado'];
-    if (ehExclusivoServico) permitidos.push('concluido');
+    if (podeConcluirDireto) permitidos.push('concluido');
     if (!permitidos.includes(novoStatus)) {
       return {
         permitido: false,
@@ -394,7 +402,7 @@ export function validarTransicaoStatusPedido(
 
   if (statusAtual === 'em_expedicao') {
     const permitidos = ['aguardando_envio', 'pronto_para_retirar', 'cancelado'];
-    if (ehExclusivoServico) permitidos.push('concluido');
+    if (podeConcluirDireto) permitidos.push('concluido');
     if (!permitidos.includes(novoStatus)) {
       return {
         permitido: false,
@@ -405,7 +413,7 @@ export function validarTransicaoStatusPedido(
 
   if (statusAtual === 'aguardando_envio' || statusAtual === 'envio_pendente') {
     const permitidos = ['enviado', 'cancelado'];
-    if (ehExclusivoServico) permitidos.push('concluido');
+    if (podeConcluirDireto) permitidos.push('concluido');
     if (!permitidos.includes(novoStatus)) {
       return {
         permitido: false,
