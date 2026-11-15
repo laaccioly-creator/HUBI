@@ -10,12 +10,17 @@ import {
   AlertCircle,
   Layers,
   Search,
-  ChevronRight
+  ChevronRight,
+  Landmark,
+  Wallet
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { Produto } from '../types';
+import { Produto, SessaoCaixa } from '../types';
+import { caixaService } from '../services/caixaService';
+import { formatarMoeda } from '../utils/formatters';
+import { obterDataOperacaoISO, obterDataOperacaoYMD } from '../utils/dataOperacao';
 
 interface ModalEntradaEstoqueProps {
   isOpen: boolean;
@@ -26,6 +31,7 @@ interface ModalEntradaEstoqueProps {
 }
 
 type TipoMovimento = 'entrada_compra' | 'ajuste_inventario' | 'baixa_perda';
+type OrigemPagamentoEstoque = 'financeiro_geral' | 'gaveta';
 
 interface LinhaVariacaoEstoque {
   id: string;
@@ -43,7 +49,7 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
   produtos = [],
   onEstoqueAtualizado
 }) => {
-  const { loja } = useAuth();
+  const { loja, usuario } = useAuth();
   const { isDark } = useTheme();
   const [produtoAtual, setProdutoAtual] = useState<Produto | null>(produto);
   const [buscaProduto, setBuscaProduto] = useState<string>('');
@@ -57,6 +63,9 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
   const [custoSimples, setCustoSimples] = useState<string>('0.00');
 
   const [lancarDespesaFinanceira, setLancarDespesaFinanceira] = useState<boolean>(true);
+  const [origemPagamento, setOrigemPagamento] = useState<OrigemPagamentoEstoque>('financeiro_geral');
+  const [sessaoCaixaAberta, setSessaoCaixaAberta] = useState<SessaoCaixa | null>(null);
+  const [verificandoCaixa, setVerificandoCaixa] = useState<boolean>(false);
   const [observacao, setObservacao] = useState<string>('');
   const [salvando, setSalvando] = useState<boolean>(false);
   const [erroMsg, setErroMsg] = useState<string | null>(null);
@@ -65,6 +74,43 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
     setProdutoAtual(produto);
     setBuscaProduto('');
   }, [produto, isOpen]);
+
+  useEffect(() => {
+    let ativo = true;
+    const lojaId = loja?.id ? String(loja.id) : '';
+    if (!isOpen || !lojaId) {
+      setSessaoCaixaAberta(null);
+      return;
+    }
+
+    const carregarSessaoAberta = async () => {
+      try {
+        setVerificandoCaixa(true);
+        let sessao = await caixaService.obterSessaoAtiva(lojaId, undefined, usuario?.id);
+        if (!sessao) {
+          sessao = await caixaService.obterQualquerSessaoAtiva(lojaId);
+        }
+        if (ativo) {
+          setSessaoCaixaAberta(sessao);
+          if (!sessao) {
+            setOrigemPagamento('financeiro_geral');
+          }
+        }
+      } catch {
+        if (ativo) {
+          setSessaoCaixaAberta(null);
+          setOrigemPagamento('financeiro_geral');
+        }
+      } finally {
+        if (ativo) setVerificandoCaixa(false);
+      }
+    };
+
+    carregarSessaoAberta();
+    return () => {
+      ativo = false;
+    };
+  }, [isOpen, loja?.id, usuario?.id]);
 
   const temVariacoes = Boolean(produtoAtual?.tem_variacoes && Array.isArray(produtoAtual?.variacoes) && produtoAtual.variacoes.length > 0);
 
@@ -161,6 +207,19 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
       return;
     }
 
+    if (
+      tipoMovimento === 'entrada_compra' &&
+      lancarDespesaFinanceira &&
+      valorTotalCompra > 0 &&
+      origemPagamento === 'gaveta' &&
+      !sessaoCaixaAberta
+    ) {
+      setErroMsg(
+        'Não há uma sessão de caixa aberta no momento para debitar da gaveta. Selecione "Financeiro Geral" ou abra o caixa antes de confirmar.'
+      );
+      return;
+    }
+
     try {
       setSalvando(true);
       setErroMsg(null);
@@ -173,7 +232,7 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
           if (linha.quantidade === '' && tipoMovimento === 'ajuste_inventario') return;
 
           const novoEst = calcularNovoEstoqueLinha(linha.estoqueAtual, linha.quantidade);
-          const payloadVar: any = {
+          const payloadVar: { quantidade_estoque: number; preco_custo?: number } = {
             quantidade_estoque: novoEst
           };
 
@@ -228,32 +287,86 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
         if (erroProd) throw erroProd;
       }
 
-      // 3. Registrar saída no financeiro se for compra e checkbox estiver ativo
+      // 3. Registrar saída no financeiro e, se escolhido, debitar da gaveta do caixa atual
       if (tipoMovimento === 'entrada_compra' && lancarDespesaFinanceira && valorTotalCompra > 0) {
-        try {
-          const descricaoMov = `Compra de Estoque: ${totalQtdMovimentada}x ${produtoAtual.nome}`;
-          await supabase.from('transacoes_financeiras').insert([
-            {
-              loja_id: loja.id,
-              tipo: 'SAIDA',
-              categoria: 'Compra de Mercadorias (Estoque)',
-              descricao: `${descricaoMov} - ${observacao || 'Entrada manual'}`,
-              valor: valorTotalCompra,
-              data_vencimento: new Date().toISOString().split('T')[0],
-              data_pagamento: new Date().toISOString(),
-              status: 'pago'
-            }
-          ]);
-        } catch (finErr) {
-          console.warn('Aviso ao registrar despesa no financeiro:', finErr);
+        const valorLancamento = Number(valorTotalCompra.toFixed(2));
+        const obsLimpa = observacao.trim();
+        const descricaoBase = `Compra de estoque: ${totalQtdMovimentada}x ${produtoAtual.nome}`;
+        const descricaoCompleta = obsLimpa ? `${descricaoBase} - ${obsLimpa}` : descricaoBase;
+        const dataVencYMD = obterDataOperacaoYMD();
+        const dataPagISO = obterDataOperacaoISO();
+        const formaPag = origemPagamento === 'gaveta' ? 'dinheiro' : 'transferencia';
+
+        const transacaoBase = {
+          loja_id: String(loja.id),
+          tipo: 'SAIDA' as const,
+          categoria: 'Compra de Mercadoria',
+          descricao: descricaoCompleta,
+          valor: valorLancamento,
+          data_vencimento: dataVencYMD,
+          data_pagamento: dataPagISO,
+          status: 'pago' as const,
+          eh_recorrente: false,
+          forma_pagamento: formaPag,
+          fornecedor_id: produtoAtual.fornecedor_id || null
+        };
+
+        let { error: erroFinanceiro } = await supabase
+          .from('transacoes_financeiras')
+          .insert([{ ...transacaoBase, ...(obsLimpa ? { observacoes: obsLimpa } : {}) }]);
+
+        // Fallback seguro caso o schema físico ainda não possua alguma coluna opcional (ex.: observacoes)
+        if (
+          erroFinanceiro &&
+          (erroFinanceiro.code === 'PGRST204' ||
+            erroFinanceiro.message?.toLowerCase().includes('observacoes'))
+        ) {
+          const retry = await supabase
+            .from('transacoes_financeiras')
+            .insert([transacaoBase]);
+          erroFinanceiro = retry.error;
+        }
+
+        if (erroFinanceiro) {
+          throw new Error(
+            'Estoque atualizado, mas não foi possível lançar a despesa no Financeiro. Verifique as permissões e tente registrar em Finanças & Caixa.'
+          );
+        }
+
+        if (origemPagamento === 'gaveta' && sessaoCaixaAberta) {
+          const usuarioOperadorId = usuario?.id || sessaoCaixaAberta.aberto_por_usuario_id;
+          try {
+            await caixaService.registrarMovimentacao({
+              lojaId: String(loja.id),
+              sessaoId: sessaoCaixaAberta.id,
+              tipo: 'DESPESA',
+              metodoPagamento: 'DINHEIRO',
+              valor: valorLancamento,
+              descricao: `${descricaoCompleta} (Compra de Mercadoria)`,
+              usuarioId: usuarioOperadorId,
+              criadoEm: dataPagISO
+            });
+          } catch (errGaveta) {
+            const msgGaveta =
+              errGaveta instanceof Error
+                ? errGaveta.message
+                : 'Não foi possível registrar a saída na gaveta do caixa atual.';
+            throw new Error(
+              `Estoque e financeiro gravados, porém falhou ao debitar da gaveta: ${msgGaveta}`
+            );
+          }
         }
       }
 
       await onEstoqueAtualizado();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Erro ao atualizar estoque:', err);
-      setErroMsg(err.message || 'Erro ao registrar movimentação de estoque.');
+      const mensagemErro =
+        err instanceof Error
+          ? err.message
+          : 'Erro ao registrar movimentação de estoque.';
+      setErroMsg(mensagemErro);
     } finally {
       setSalvando(false);
     }
@@ -625,26 +738,85 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
 
               {/* Lançamento financeiro de compra */}
               {tipoMovimento === 'entrada_compra' && valorTotalCompra > 0 && (
-                <label className={`flex items-start gap-2.5 p-3 rounded-xl cursor-pointer transition shadow-xs ${
-                  isDark
-                    ? 'bg-[#000000] border border-slate-700 hover:bg-slate-900'
-                    : 'bg-white border-2 border-slate-300 hover:bg-slate-50'
-                }`}>
-                  <input
-                    type="checkbox"
-                    checked={lancarDespesaFinanceira}
-                    onChange={(e) => setLancarDespesaFinanceira(e.target.checked)}
-                    className="w-4 h-4 rounded text-emerald-600 focus:ring-0 mt-0.5 cursor-pointer accent-emerald-600"
-                  />
-                  <div className="text-xs">
-                    <span className={`font-black block ${isDark ? 'text-white' : 'text-black'}`}>
-                      Registrar Saída no Caixa / Financeiro (R$ {valorTotalCompra.toFixed(2)})
-                    </span>
-                    <span className={`text-[11px] font-bold block ${isDark ? 'text-white' : 'text-black'}`}>
-                      Lança automaticamente a despesa de compra de mercadoria nas finanças da loja.
-                    </span>
-                  </div>
-                </label>
+                <div className="space-y-2.5">
+                  <label className={`flex items-start gap-2.5 p-3 rounded-xl cursor-pointer transition shadow-xs ${
+                    isDark
+                      ? 'bg-[#000000] border border-slate-700 hover:bg-slate-900'
+                      : 'bg-white border-2 border-slate-300 hover:bg-slate-50'
+                  }`}>
+                    <input
+                      type="checkbox"
+                      checked={lancarDespesaFinanceira}
+                      onChange={(e) => setLancarDespesaFinanceira(e.target.checked)}
+                      className="w-4 h-4 rounded text-emerald-600 focus:ring-0 mt-0.5 cursor-pointer accent-emerald-600"
+                    />
+                    <div className="text-xs">
+                      <span className={`font-black block ${isDark ? 'text-white' : 'text-black'}`}>
+                        Registrar Saída no Caixa / Financeiro ({formatarMoeda(valorTotalCompra)})
+                      </span>
+                      <span className={`text-[11px] font-bold block ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                        Lança automaticamente a despesa de compra de mercadoria nas finanças da loja.
+                      </span>
+                    </div>
+                  </label>
+
+                  {lancarDespesaFinanceira && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setOrigemPagamento('financeiro_geral')}
+                        className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex items-start gap-2 ${
+                          origemPagamento === 'financeiro_geral'
+                            ? isDark
+                              ? 'bg-emerald-950/40 border-emerald-500 text-white'
+                              : 'bg-emerald-50 border-2 border-emerald-600 text-emerald-950'
+                            : isDark
+                            ? 'bg-[#000000] border-slate-700 text-slate-300 hover:bg-slate-900'
+                            : 'bg-white border-2 border-slate-300 text-slate-800 hover:bg-slate-50'
+                        }`}
+                      >
+                        <Landmark className={`w-4 h-4 shrink-0 mt-0.5 ${origemPagamento === 'financeiro_geral' ? 'text-emerald-500' : 'text-slate-400'}`} />
+                        <div className="min-w-0">
+                          <span className="text-xs font-black block leading-tight">Financeiro Geral</span>
+                          <span className={`text-[10px] font-semibold block mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                            Conta / Pix / Boleto (sem alterar gaveta)
+                          </span>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={!sessaoCaixaAberta || verificandoCaixa}
+                        onClick={() => setOrigemPagamento('gaveta')}
+                        className={`p-2.5 rounded-xl border text-left transition flex items-start gap-2 ${
+                          !sessaoCaixaAberta || verificandoCaixa
+                            ? isDark
+                              ? 'bg-[#000000]/60 border-slate-800 text-slate-500 cursor-not-allowed opacity-70'
+                              : 'bg-slate-100 border-2 border-slate-200 text-slate-400 cursor-not-allowed opacity-80'
+                            : origemPagamento === 'gaveta'
+                            ? isDark
+                              ? 'bg-emerald-950/40 border-emerald-500 text-white cursor-pointer'
+                              : 'bg-emerald-50 border-2 border-emerald-600 text-emerald-950 cursor-pointer'
+                            : isDark
+                            ? 'bg-[#000000] border-slate-700 text-slate-300 hover:bg-slate-900 cursor-pointer'
+                            : 'bg-white border-2 border-slate-300 text-slate-800 hover:bg-slate-50 cursor-pointer'
+                        }`}
+                      >
+                        <Wallet className={`w-4 h-4 shrink-0 mt-0.5 ${origemPagamento === 'gaveta' && sessaoCaixaAberta ? 'text-emerald-500' : 'text-slate-400'}`} />
+                        <div className="min-w-0">
+                          <span className="text-xs font-black block leading-tight">Gaveta do Caixa Atual</span>
+                          <span className={`text-[10px] font-semibold block mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                            {verificandoCaixa
+                              ? 'Verificando caixa aberto...'
+                              : sessaoCaixaAberta
+                              ? `Dinheiro (${sessaoCaixaAberta.terminal_id})`
+                              : 'Nenhum caixa aberto no momento'}
+                          </span>
+                        </div>
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
 
               <div className="space-y-1">
