@@ -4,6 +4,10 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  consultarPerfilColetorMp,
+  obterConfigMpPlataforma,
+} from "../_shared/mpPlataformaConfig.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,7 +21,54 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { loja_id } = await req.json().catch(() => ({}));
+    const body = await req.json().catch(() => ({}));
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+    const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
+
+    // 0. Modo de validação de credencial MP do Super Admin
+    if (body?.action === "testar_credencial") {
+      const configMp = await obterConfigMpPlataforma(supabaseAdmin);
+      const tokenParaTeste = String(body?.access_token || "").trim() || configMp.mpAccessToken;
+
+      if (!tokenParaTeste) {
+        return new Response(
+          JSON.stringify({
+            sucesso: false,
+            mensagem: "Informe o Access Token do Mercado Pago para validar a credencial.",
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const perfil = await consultarPerfilColetorMp(tokenParaTeste);
+      if (!perfil.ok) {
+        return new Response(
+          JSON.stringify({
+            sucesso: false,
+            mensagem: `Credencial rejeitada pelo Mercado Pago (HTTP ${perfil.status || "erro"}). Verifique o Access Token informado.`,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          sucesso: true,
+          id: perfil.id,
+          nome: perfil.nomeExibicao,
+          email: perfil.email,
+          nickname: perfil.nickname,
+          is_test_user: perfil.isCollectorTestUser,
+          mensagem: `Conta conectada: ${perfil.nomeExibicao}${perfil.email ? ` (${perfil.email})` : ""} • ${
+            perfil.isCollectorTestUser ? "Usuário de Teste / Sandbox" : "Conta de Produção"
+          }`,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const loja_id = body?.loja_id;
 
     if (!loja_id) {
       return new Response(
@@ -26,16 +77,10 @@ serve(async (req: Request) => {
       );
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-    const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    const envMpAccessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN") || Deno.env.get("MERCADOPAGO_ACCESS_TOKEN") || "";
-
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
-
     // 1. Consulta dados cadastrais da loja
     const { data: loja, error: erroLoja } = await supabaseAdmin
       .from("lojas")
-      .select("id, nome_fantasia, email, whatsapp, organizacao_id, slug_catalogo, configuracoes_extras")
+      .select("id, nome_fantasia, email, whatsapp, organizacao_id, slug_catalogo")
       .eq("id", loja_id)
       .maybeSingle();
 
@@ -46,73 +91,46 @@ serve(async (req: Request) => {
       );
     }
 
-    const storeToken = loja?.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.access_token?.trim();
-    const mpAccessToken = envMpAccessToken?.trim() || storeToken || "";
+    // 2. Parâmetros e Credenciais do Mercado Pago EXCLUSIVOS da plataforma (configuracoes_plataforma)
+    const configMp = await obterConfigMpPlataforma(supabaseAdmin);
+    const mpAccessToken = configMp.mpAccessToken;
+    const valorAnualTotal = configMp.valorAnualTotal;
+    const valorMensalRef = configMp.valorMensalAnual;
+    const parcelasMaximas = configMp.maxParcelasCartao;
 
     if (!mpAccessToken) {
-      console.error("[hubi-criar-assinatura-mp] Chave MERCADO_PAGO_ACCESS_TOKEN não configurada nas variáveis de ambiente nem na loja.");
+      console.error("[hubi-criar-assinatura-mp] Access Token do Mercado Pago da plataforma não configurado.");
       return new Response(
-        JSON.stringify({ error: "Gateway de pagamento em manutenção ou credenciais não configuradas." }),
+        JSON.stringify({ error: "Gateway de pagamento da plataforma em manutenção ou credenciais não configuradas." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // 2. Parâmetros Comerciais HUBI (dinâmicos da tabela configuracoes_plataforma)
-    let valorAnualTotal = 598.80;
-    let valorMensalRef = 49.90;
-    let parcelasMaximas = 12;
+    // 2.1 Identificação do perfil do coletor e ambiente configurado pelo Super Admin
+    const perfilColetor = await consultarPerfilColetorMp(mpAccessToken);
+    const collectorEmail = perfilColetor.email;
+    const isCollectorTestUser = perfilColetor.isCollectorTestUser;
+    const isSandboxMode = configMp.mpAmbiente === "sandbox";
 
-    const { data: configPlataforma } = await supabaseAdmin
-      .from("configuracoes_plataforma")
-      .select("valor_anual_total, valor_mensal_anual, max_parcelas_cartao, parcelas_sem_juros")
-      .eq("id", 1)
-      .maybeSingle();
-
-    if (configPlataforma) {
-      if (Number(configPlataforma.valor_anual_total) > 0) {
-        valorAnualTotal = Number(configPlataforma.valor_anual_total);
-      }
-      if (Number(configPlataforma.valor_mensal_anual) > 0) {
-        valorMensalRef = Number(configPlataforma.valor_mensal_anual);
-      }
-      if (Number(configPlataforma.max_parcelas_cartao) > 0) {
-        parcelasMaximas = Number(configPlataforma.max_parcelas_cartao);
-      }
-    }
-
-    // 2.1 Identificação do perfil do coletor (Produção Real vs Sandbox/Test User)
-    let collectorEmail = "";
-    let isCollectorTestUser = false;
-    try {
-      const meRes = await fetch("https://api.mercadopago.com/users/me", {
-        headers: { Authorization: `Bearer ${mpAccessToken}` },
-      });
-      if (meRes.ok) {
-        const meData = await meRes.json();
-        collectorEmail = String(meData.email || "").toLowerCase();
-        const tags: string[] = Array.isArray(meData.tags) ? meData.tags : [];
-        isCollectorTestUser = collectorEmail.endsWith("@testuser.com") || tags.includes("test_user");
-      }
-    } catch (errPerfil) {
-      console.warn("[hubi-criar-assinatura-mp] Falha ao consultar perfil do coletor:", errPerfil);
-    }
-
-    const isExplicitTestToken = mpAccessToken.startsWith("TEST-");
-    const isSandboxMode = isExplicitTestToken || isCollectorTestUser;
-
-    // 2.2 Payload Estritamente Canônico (espelhado do checkout do Catálogo, eliminando quebras de secure-fields e /fatal/)
+    // 2.2 Payload Canônico da Preferência Checkout Pro
     const preferencePayload: Record<string, any> = {
       items: [
         {
           id: "hubi-licenca-anual",
           title: "HUBI PDV - Licença Anual",
           quantity: 1,
-          unit_price: Number(valorAnualTotal || 598.80),
+          unit_price: Number(valorAnualTotal),
           currency_id: "BRL",
         },
       ],
       external_reference: loja.id,
       notification_url: `${supabaseUrl}/functions/v1/hubi-webhook-mp`,
+      back_urls: {
+        success: "https://hubi.app/dashboard?assinatura=sucesso",
+        failure: "https://hubi.app/dashboard?assinatura=falha",
+        pending: "https://hubi.app/dashboard?assinatura=pendente",
+      },
+      auto_return: "approved",
       metadata: {
         loja_id: loja.id,
         organizacao_id: loja.organizacao_id,
@@ -120,22 +138,22 @@ serve(async (req: Request) => {
       },
     };
 
-    // Só anexa payer e back_urls se NÃO estiver em Sandbox (evita conflitos e /fatal/ no Checkout Pro)
-    if (!isSandboxMode) {
-      if (loja.email && (!collectorEmail || loja.email.toLowerCase() !== collectorEmail)) {
-        preferencePayload.payer = {
-          email: loja.email.trim(),
-        };
-      }
-      preferencePayload.back_urls = {
-        success: "https://hubi.app/dashboard?assinatura=sucesso",
-        failure: "https://hubi.app/dashboard?assinatura=falha",
-        pending: "https://hubi.app/dashboard?assinatura=pendente",
+    if (isSandboxMode) {
+      // Em Sandbox, nunca envia o e-mail real do lojista para evitar erro de auto-pagamento (congrats/recover/error)
+      preferencePayload.payer = {
+        email: `comprador.teste.${Date.now()}@testuser.com`,
       };
-      preferencePayload.auto_return = "approved";
+    } else if (loja.email && (!collectorEmail || loja.email.toLowerCase().trim() !== collectorEmail)) {
+      preferencePayload.payer = {
+        email: loja.email.trim(),
+      };
     }
 
-    console.log("PAYLOAD_PREFERENCE_ENVIADO:", JSON.stringify(preferencePayload, null, 2));
+    console.log("[hubi-criar-assinatura-mp] Preferência solicitada:", {
+      loja_id: loja.id,
+      modo: configMp.mpAmbiente,
+      valor_total: valorAnualTotal,
+    });
 
     // 3. Chamada à API Oficial do Mercado Pago para gerar a preferência de checkout
     const mpResponse = await fetch("https://api.mercadopago.com/checkout/preferences", {
@@ -155,22 +173,18 @@ serve(async (req: Request) => {
       prefData = { raw: respText };
     }
 
-    console.log("RESPOSTA_MP_STATUS:", mpResponse.status);
-    console.log("RESPOSTA_MP_BODY:", JSON.stringify(prefData, null, 2));
-
     if (!mpResponse.ok) {
-      console.error("[hubi-criar-assinatura-mp] Erro do Mercado Pago:", respText);
+      console.error("[hubi-criar-assinatura-mp] Erro do Mercado Pago:", mpResponse.status);
       return new Response(
         JSON.stringify({ error: "Falha na comunicação com o Mercado Pago ao gerar fatura." }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Determina o link correto de acordo com as diretrizes do Sandbox / Produção:
-    // Quando o token for de teste (TEST- ou conta coletora @testuser.com), utilizar estritamente sandbox_init_point
+    // Seleciona URL coerente com mp_ambiente configurado pelo Super Admin
     const checkoutUrl = isSandboxMode
       ? (prefData.sandbox_init_point || prefData.init_point)
-      : prefData.init_point;
+      : (prefData.init_point || prefData.sandbox_init_point);
 
     // 4. Registra histórico auditado na tabela public.hubi_assinaturas_pagamentos
     if (loja.organizacao_id) {
@@ -205,7 +219,7 @@ serve(async (req: Request) => {
         init_point: checkoutUrl,
         checkout_url: checkoutUrl,
         sandbox_init_point: prefData.sandbox_init_point,
-        modo: isSandboxMode ? "sandbox" : "producao",
+        modo: configMp.mpAmbiente,
         is_sandbox: isSandboxMode,
         conta_coletora_teste: isCollectorTestUser,
         token_prefix: mpAccessToken.startsWith("TEST-") ? "TEST-" : mpAccessToken.startsWith("APP_USR-") ? "APP_USR-" : "OUTRO",

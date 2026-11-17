@@ -4,6 +4,10 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  consultarPerfilColetorMp,
+  obterConfigMpPlataforma,
+} from "../_shared/mpPlataformaConfig.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,18 +41,12 @@ serve(async (req: Request) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    const mpAccessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN") || Deno.env.get("MERCADOPAGO_ACCESS_TOKEN") || "";
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-    // 1. Consulta parâmetros globais da plataforma para validar valor mínimo de recarga
-    const { data: configPlataforma } = await supabaseAdmin
-      .from("configuracoes_plataforma")
-      .select("valor_minimo_recarga_whatsapp")
-      .eq("id", 1)
-      .maybeSingle();
-
-    const valorMinimoRecarga = Number(configPlataforma?.valor_minimo_recarga_whatsapp ?? 10.0);
+    // 1. Consulta parâmetros globais e credenciais MP exclusivas da plataforma
+    const configMp = await obterConfigMpPlataforma(supabaseAdmin);
+    const valorMinimoRecarga = configMp.valorMinimoRecargaWhatsapp;
 
     if (valorRecarga < valorMinimoRecarga) {
       return new Response(
@@ -62,7 +60,7 @@ serve(async (req: Request) => {
     // 2. Consulta dados da loja (saldo atual e dados cadastrais para o pagador)
     const { data: loja, error: erroLoja } = await supabaseAdmin
       .from("lojas")
-      .select("id, nome_fantasia, email, whatsapp_saldo, configuracoes_extras")
+      .select("id, nome_fantasia, email, whatsapp_saldo")
       .eq("id", lojaId)
       .maybeSingle();
 
@@ -73,8 +71,7 @@ serve(async (req: Request) => {
       );
     }
 
-    const tokenFinal = mpAccessToken || loja.configuracoes_extras?.pagamentos_digitais?.mercado_pago?.access_token?.trim() || "";
-
+    const tokenFinal = configMp.mpAccessToken;
     const saldoAtual = Number(loja.whatsapp_saldo ?? 0);
 
     // 3. Registra transação pendente no ledger auditável loja_whatsapp_transacoes
@@ -105,30 +102,17 @@ serve(async (req: Request) => {
     if (!tokenFinal) {
       return new Response(
         JSON.stringify({
-          error: "Gateway Mercado Pago da plataforma não configurado (MERCADO_PAGO_ACCESS_TOKEN ausente).",
+          error: "Gateway Mercado Pago da plataforma não configurado no painel Super Admin.",
           transacao_id: transacaoCriada.id,
         }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // 4. Identificação do perfil do coletor (Produção vs Sandbox)
-    let collectorEmail = "";
-    let isCollectorTestUser = false;
-    try {
-      const meRes = await fetch("https://api.mercadopago.com/users/me", {
-        headers: { Authorization: `Bearer ${tokenFinal}` },
-      });
-      if (meRes.ok) {
-        const meData = await meRes.json();
-        collectorEmail = String(meData.email || "").toLowerCase();
-        const tags: string[] = Array.isArray(meData.tags) ? meData.tags : [];
-        isCollectorTestUser = collectorEmail.endsWith("@testuser.com") || tags.includes("test_user");
-      }
-    } catch (_) {}
-
-    const isExplicitTestToken = tokenFinal.startsWith("TEST-");
-    const isSandboxMode = isExplicitTestToken || isCollectorTestUser;
+    // 4. Identificação do perfil do coletor e ambiente configurado pelo Super Admin
+    const perfilColetor = await consultarPerfilColetorMp(tokenFinal);
+    const collectorEmail = perfilColetor.email;
+    const isSandboxMode = configMp.mpAmbiente === "sandbox";
 
     const externalRefObj = {
       loja_id: loja.id,
@@ -151,12 +135,28 @@ serve(async (req: Request) => {
       ],
       external_reference: externalReference,
       notification_url: `${supabaseUrl}/functions/v1/hubi-webhook-mp`,
+      back_urls: {
+        success: "https://hubi.app/dashboard?recarga=sucesso",
+        failure: "https://hubi.app/dashboard?recarga=falha",
+        pending: "https://hubi.app/dashboard?recarga=pendente",
+      },
+      auto_return: "approved",
       metadata: {
         loja_id: loja.id,
         transacao_id: transacaoCriada.id,
         tipo_cobranca: "whatsapp_wallet",
       },
     };
+
+    if (isSandboxMode) {
+      preferencePayload.payer = {
+        email: `comprador.teste.${Date.now()}@testuser.com`,
+      };
+    } else if (loja.email && (!collectorEmail || loja.email.toLowerCase().trim() !== collectorEmail)) {
+      preferencePayload.payer = {
+        email: loja.email.trim(),
+      };
+    }
 
     const mpResponse = await fetch("https://api.mercadopago.com/checkout/preferences", {
       method: "POST",
@@ -176,7 +176,7 @@ serve(async (req: Request) => {
     }
 
     if (!mpResponse.ok || !prefData.id) {
-      console.error("[hubi-criar-recarga-whatsapp-mp] Erro do Mercado Pago:", respText);
+      console.error("[hubi-criar-recarga-whatsapp-mp] Erro do Mercado Pago:", mpResponse.status);
       return new Response(
         JSON.stringify({ error: "Falha na comunicação com o Mercado Pago ao gerar fatura de recarga." }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -185,7 +185,7 @@ serve(async (req: Request) => {
 
     const checkoutUrl = isSandboxMode
       ? (prefData.sandbox_init_point || prefData.init_point)
-      : prefData.init_point;
+      : (prefData.init_point || prefData.sandbox_init_point);
 
     // Vincula a preferência criada à transação no ledger
     await supabaseAdmin
@@ -201,7 +201,7 @@ serve(async (req: Request) => {
         init_point: checkoutUrl,
         checkout_url: checkoutUrl,
         sandbox_init_point: prefData.sandbox_init_point,
-        modo: isSandboxMode ? "sandbox" : "producao",
+        modo: configMp.mpAmbiente,
         is_sandbox: isSandboxMode,
         valor: Number(valorRecarga.toFixed(2)),
         external_reference: externalReference,

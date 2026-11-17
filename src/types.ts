@@ -251,6 +251,10 @@ export interface ConfiguracoesPlataformaHubi {
   meta_access_token?: string | null;
   meta_verify_token?: string | null;
   serpapi_key?: string | null;
+  mp_ambiente?: 'sandbox' | 'producao';
+  mp_public_key?: string | null;
+  mp_access_token?: string | null;
+  mp_webhook_secret?: string | null;
   atualizado_em?: string;
   atualizado_por?: string | null;
 }

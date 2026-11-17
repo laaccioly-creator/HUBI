@@ -71,18 +71,29 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
   const [copiadoUrl, setCopiadoUrl] = useState<boolean>(false);
   const [copiadoToken, setCopiadoToken] = useState<boolean>(false);
 
-  // URL do Webhook dinamicamente montada com o host do Supabase
+  // Estados do Mercado Pago Recebedor da Plataforma
+  const [mpAmbiente, setMpAmbiente] = useState<'sandbox' | 'producao'>('sandbox');
+  const [mpPublicKey, setMpPublicKey] = useState<string>('');
+  const [mpAccessToken, setMpAccessToken] = useState<string>('');
+  const [mpWebhookSecret, setMpWebhookSecret] = useState<string>('');
+  const [mostrarMpToken, setMostrarMpToken] = useState<boolean>(false);
+  const [testandoMp, setTestandoMp] = useState<boolean>(false);
+  const [statusMp, setStatusMp] = useState<{ sucesso: boolean; mensagem: string } | null>(null);
+  const [copiadoMpWebhook, setCopiadoMpWebhook] = useState<boolean>(false);
+
+  // URLs dos Webhooks dinamicamente montadas com o host do Supabase
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://eylpiwynsbnmcacmwiqg.supabase.co';
   const webhookCallbackUrl = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/whatsapp-webhook`;
+  const mpWebhookCallbackUrl = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/hubi-webhook-mp`;
 
   // Calcula valor total anual dinâmico (12x mensal anual)
   const valorAnualCalculado = Number((valorMensalAnual * 12).toFixed(2));
 
-  // Carrega parâmetros iniciais do banco
+  // Carrega parâmetros iniciais do banco (visão completa Super Admin)
   const carregarParametros = async () => {
     try {
       setCarregando(true);
-      const params = await configuracoesPlataformaService.obterParametros();
+      const params = await configuracoesPlataformaService.obterParametrosSuperAdmin();
       setDiasTrial(params.dias_trial);
       setValorMensalAnual(params.valor_mensal_anual);
       setValorPlanoMensalAvulso(params.valor_plano_mensal_avulso);
@@ -99,6 +110,10 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
       setMetaAccessToken(params.meta_access_token || '');
       setMetaVerifyToken(params.meta_verify_token || 'hubi_whatsapp_webhook_token');
       setSerpApiKey(params.serpapi_key || '');
+      setMpAmbiente(params.mp_ambiente === 'producao' ? 'producao' : 'sandbox');
+      setMpPublicKey(params.mp_public_key || '');
+      setMpAccessToken(params.mp_access_token || '');
+      setMpWebhookSecret(params.mp_webhook_secret || '');
       setUltimaAtualizacao(params.atualizado_em || null);
     } catch (err: unknown) {
       console.error('[CardParametrosHubiAdmin] Falha ao carregar parâmetros:', err);
@@ -138,6 +153,23 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
     }
   };
 
+  const handleTestarMp = async () => {
+    try {
+      setTestandoMp(true);
+      setStatusMp(null);
+      const resultado = await configuracoesPlataformaService.testarCredencialMercadoPago(
+        mpAccessToken,
+        mpAmbiente
+      );
+      setStatusMp({ sucesso: resultado.sucesso, mensagem: resultado.mensagem });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Falha ao validar credencial do Mercado Pago.';
+      setStatusMp({ sucesso: false, mensagem: msg });
+    } finally {
+      setTestandoMp(false);
+    }
+  };
+
   const handleSalvar = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -160,6 +192,10 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
         meta_access_token: metaAccessToken.trim() || null,
         meta_verify_token: metaVerifyToken.trim() || 'hubi_whatsapp_webhook_token',
         serpapi_key: serpApiKey.trim() || null,
+        mp_ambiente: mpAmbiente,
+        mp_public_key: mpPublicKey.trim() || null,
+        mp_access_token: mpAccessToken.trim() || null,
+        mp_webhook_secret: mpWebhookSecret.trim() || null,
       });
 
       if (serpApiKey.trim()) {
@@ -543,6 +579,250 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
                 onChange={(e) => setAceitaDebito(e.target.checked)}
                 className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
               />
+            </div>
+          </div>
+        </div>
+
+        {/* Bloco 3.5: Gateway Recebedor da Plataforma (Mercado Pago) */}
+        <div>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <h4
+              className={`text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${
+                isDark ? 'text-slate-300' : 'text-slate-700'
+              }`}
+            >
+              <Shield className="w-3.5 h-3.5 text-emerald-500" />
+              <span>Gateway Recebedor da Plataforma (Mercado Pago)</span>
+            </h4>
+            <span
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${
+                mpAmbiente === 'producao'
+                  ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                  : 'bg-amber-500/10 text-amber-500 border-amber-500/30'
+              }`}
+            >
+              {mpAmbiente === 'producao' ? 'Produção Ativa' : 'Sandbox (Teste)'}
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+            Credenciais exclusivas da conta HUBI para recebimento de assinaturas anuais do sistema e recargas da carteira WhatsApp (totalmente isoladas do Mercado Pago das lojas).
+          </p>
+
+          <div
+            className={`p-4 rounded-xl border space-y-4 ${
+              isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'
+            }`}
+          >
+            {/* Seletor de Ambiente */}
+            <div>
+              <label
+                className={`block text-xs font-bold mb-1.5 ${
+                  isDark ? 'text-slate-300' : 'text-slate-700'
+                }`}
+              >
+                Ambiente do Gateway
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMpAmbiente('sandbox');
+                    setStatusMp(null);
+                  }}
+                  className={`px-3.5 py-2.5 rounded-xl border text-left transition cursor-pointer flex items-center justify-between ${
+                    mpAmbiente === 'sandbox'
+                      ? 'bg-amber-500/15 border-amber-500 text-amber-400'
+                      : isDark
+                        ? 'bg-slate-950 border-slate-700 text-slate-300 hover:border-slate-600'
+                        : 'bg-white border-slate-300 text-slate-700 hover:border-slate-400'
+                  }`}
+                >
+                  <div>
+                    <span className="text-xs font-black block">Modo Teste (Sandbox)</span>
+                    <span className="text-[10px] opacity-80 block">
+                      Usa comprador de teste e checkout sandbox_init_point
+                    </span>
+                  </div>
+                  {mpAmbiente === 'sandbox' && <CheckCircle2 className="w-4 h-4 shrink-0 text-amber-400" />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMpAmbiente('producao');
+                    setStatusMp(null);
+                  }}
+                  className={`px-3.5 py-2.5 rounded-xl border text-left transition cursor-pointer flex items-center justify-between ${
+                    mpAmbiente === 'producao'
+                      ? 'bg-emerald-500/15 border-emerald-500 text-emerald-400'
+                      : isDark
+                        ? 'bg-slate-950 border-slate-700 text-slate-300 hover:border-slate-600'
+                        : 'bg-white border-slate-300 text-slate-700 hover:border-slate-400'
+                  }`}
+                >
+                  <div>
+                    <span className="text-xs font-black block">Modo Produção</span>
+                    <span className="text-[10px] opacity-80 block">
+                      Cobranças reais via Checkout Pro (init_point)
+                    </span>
+                  </div>
+                  {mpAmbiente === 'producao' && <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label
+                  className={`block text-xs font-bold mb-1 ${
+                    isDark ? 'text-slate-300' : 'text-slate-700'
+                  }`}
+                >
+                  Public Key
+                </label>
+                <input
+                  type="text"
+                  placeholder={mpAmbiente === 'sandbox' ? 'TEST-...' : 'APP_USR-...'}
+                  value={mpPublicKey}
+                  onChange={(e) => setMpPublicKey(e.target.value)}
+                  className={`w-full px-3 py-2 text-xs rounded-xl border outline-hidden font-mono ${
+                    isDark
+                      ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
+                      : 'bg-white border-slate-300 text-slate-900 focus:border-emerald-500'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label
+                  className={`block text-xs font-bold mb-1 ${
+                    isDark ? 'text-slate-300' : 'text-slate-700'
+                  }`}
+                >
+                  Webhook Secret (Opcional)
+                </label>
+                <input
+                  type="password"
+                  placeholder="Chave secreta de assinatura MP"
+                  value={mpWebhookSecret}
+                  onChange={(e) => setMpWebhookSecret(e.target.value)}
+                  className={`w-full px-3 py-2 text-xs rounded-xl border outline-hidden font-mono ${
+                    isDark
+                      ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
+                      : 'bg-white border-slate-300 text-slate-900 focus:border-emerald-500'
+                  }`}
+                />
+              </div>
+            </div>
+
+            {/* Access Token + Botão Testar Credencial MP */}
+            <div>
+              <label
+                className={`block text-xs font-bold mb-1 ${
+                  isDark ? 'text-slate-300' : 'text-slate-700'
+                }`}
+              >
+                Access Token (Privado — Restrito ao Super Admin)
+              </label>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type={mostrarMpToken ? 'text' : 'password'}
+                    placeholder={mpAmbiente === 'sandbox' ? 'TEST-...' : 'APP_USR-...'}
+                    value={mpAccessToken}
+                    onChange={(e) => {
+                      setMpAccessToken(e.target.value);
+                      setStatusMp(null);
+                    }}
+                    className={`w-full pl-3 pr-10 py-2 text-xs rounded-xl border outline-hidden font-mono ${
+                      isDark
+                        ? 'bg-slate-950 border-slate-700 text-white focus:border-emerald-500'
+                        : 'bg-white border-slate-300 text-slate-900 focus:border-emerald-500'
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMostrarMpToken(!mostrarMpToken)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300 cursor-pointer"
+                    title={mostrarMpToken ? 'Ocultar token' : 'Exibir token'}
+                  >
+                    {mostrarMpToken ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleTestarMp}
+                  disabled={testandoMp || !mpAccessToken.trim()}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    isDark
+                      ? 'bg-slate-900 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                      : 'bg-slate-200 hover:bg-slate-300 text-slate-800'
+                  } disabled:opacity-50`}
+                >
+                  {testandoMp ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                      <span>Validando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Testar Credencial MP</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {statusMp && (
+                <div
+                  className={`p-2.5 mt-2 rounded-xl flex items-center gap-2 text-xs ${
+                    statusMp.sucesso
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                      : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                  }`}
+                >
+                  {statusMp.sucesso ? (
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                  )}
+                  <span>{statusMp.mensagem}</span>
+                </div>
+              )}
+            </div>
+
+            {/* URL do Webhook Mercado Pago da Plataforma */}
+            <div
+              className={`p-3 rounded-xl border space-y-1.5 ${
+                isDark
+                  ? 'bg-slate-950 border-slate-700 text-slate-200'
+                  : 'bg-white border-slate-200 text-slate-800'
+              }`}
+            >
+              <label className="block text-[11px] font-bold text-slate-400">
+                URL de Notificação Webhook (IPN / Webhooks v2)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={mpWebhookCallbackUrl}
+                  className={`w-full px-3 py-1.5 text-xs rounded-lg border font-mono select-all ${
+                    isDark
+                      ? 'bg-slate-900 border-slate-700 text-emerald-400'
+                      : 'bg-slate-50 border-slate-300 text-emerald-800'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => copiarParaClipboard(mpWebhookCallbackUrl, setCopiadoMpWebhook)}
+                  className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium flex items-center gap-1 shrink-0 cursor-pointer"
+                >
+                  {copiadoMpWebhook ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span className="hidden sm:inline">{copiadoMpWebhook ? 'Copiado' : 'Copiar'}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

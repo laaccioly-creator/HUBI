@@ -4,6 +4,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { obterConfigMpPlataforma } from "../_shared/mpPlataformaConfig.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -47,12 +48,15 @@ serve(async (req: Request) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    const mpAccessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN") || Deno.env.get("MERCADOPAGO_ACCESS_TOKEN") || "";
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
+
+    const configMp = await obterConfigMpPlataforma(supabaseAdmin);
+    const mpAccessToken = configMp.mpAccessToken;
 
     if (!mpAccessToken) {
-      console.error("[hubi-webhook-mp] MERCADO_PAGO_ACCESS_TOKEN não configurada.");
+      console.error("[hubi-webhook-mp] Access Token do Mercado Pago da plataforma não configurado.");
       return new Response(
-        JSON.stringify({ error: "Configuração do gateway pendente." }),
+        JSON.stringify({ error: "Configuração do gateway da plataforma pendente." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -74,7 +78,6 @@ serve(async (req: Request) => {
 
     const payment = await mpPaymentRes.json();
     const statusPagamento = payment.status; // 'approved', 'in_process', 'rejected', 'cancelled'
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
 
     let lojaId = payment.external_reference || payment.metadata?.loja_id;
     if (lojaId && typeof lojaId === "string" && lojaId.startsWith("{")) {
@@ -287,7 +290,7 @@ serve(async (req: Request) => {
             periodo_inicio_em: agora.toISOString(),
             periodo_fim_em: novaDataFim.toISOString(),
             aprovado_em: payment.date_approved || agora.toISOString(),
-            valor_total: Number(payment.transaction_amount || 598.80),
+            valor_total: Number(payment.transaction_amount || configMp.valorAnualTotal),
           };
 
           if (faturaPendente) {
@@ -302,8 +305,8 @@ serve(async (req: Request) => {
                 loja_id: lojaId,
                 organizacao_id: organizacaoAlvoId,
                 mp_preference_id: String(payment.order?.id || payment.id),
-                valor_mensal_referencia: 49.90,
-                parcelas: payment.installments || 12,
+                valor_mensal_referencia: configMp.valorMensalAnual,
+                parcelas: payment.installments || configMp.maxParcelasCartao,
                 ciclo_meses: 12,
                 ...dadosAtualizacao,
               });
