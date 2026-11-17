@@ -51,11 +51,17 @@ import { ModalAdicionarLoja } from '../lojas/ModalAdicionarLoja';
 import { BannerDataOperacao } from '../BannerDataOperacao';
 import { TelaBloqueioAssinatura } from '../assinatura/TelaBloqueioAssinatura';
 import { useAssinaturaStatus } from '../../hooks/useAssinaturaStatus';
+import { useSystemBillingConfig } from '../../hooks/useSystemBillingConfig';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { logger } from '../../services/loggerService';
 import { UsuarioLoja } from '../../types';
 import { ModalRecargaWhatsapp } from '../configuracoes/ModalRecargaWhatsapp';
 import { formatarMoeda as formatCurrency } from '../../utils/formatters';
+
+const formatadorBRL = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+});
 
 export const AppLayout: React.FC = () => {
   const location = useLocation();
@@ -64,6 +70,11 @@ export const AppLayout: React.FC = () => {
   const origemVendas = searchParams.get('origem') === 'sales';
   const { loja, usuario, usuarioLogado, session, carregando, desconectarPdv, selecionarUsuario, lojasDisponiveis, selecionarLoja, recarregarDadosLoja } = useAuth();
   const { status: statusAssinatura, diasRestantesTrial } = useAssinaturaStatus();
+  const {
+    valorMensalAnual,
+    isLoading: carregandoConfigCobranca,
+    error: erroConfigCobranca,
+  } = useSystemBillingConfig();
   const ehTrial = statusAssinatura === 'TRIAL_ATIVO' || (typeof diasRestantesTrial === 'number' && diasRestantesTrial > 0);
   const [modalAssinaturaManualAberto, setModalAssinaturaManualAberto] = useState<boolean>(false);
   const [modalRecargaWhatsappAberto, setModalRecargaWhatsappAberto] = useState<boolean>(false);
@@ -546,9 +557,13 @@ export const AppLayout: React.FC = () => {
                 {ehTrial ? (
                   <div className="flex flex-col mt-0.5" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs lg:text-[13px] font-extrabold text-amber-500 whitespace-nowrap tracking-tight">
-                        Restam {diasRestantesTrial} {diasRestantesTrial === 1 ? 'dia' : 'dias'}
-                      </span>
+                      {carregandoConfigCobranca ? (
+                        <span className="inline-block h-3.5 w-20 rounded bg-amber-500/20 animate-pulse" />
+                      ) : (
+                        <span className="text-xs lg:text-[13px] font-extrabold text-amber-500 whitespace-nowrap tracking-tight">
+                          Restam {diasRestantesTrial} {diasRestantesTrial === 1 ? 'dia' : 'dias'}
+                        </span>
+                      )}
                       <button
                         type="button"
                         onClick={() => setModalAssinaturaManualAberto(true)}
@@ -557,9 +572,13 @@ export const AppLayout: React.FC = () => {
                         Assinar
                       </button>
                     </div>
-                    <span className="text-[10px] lg:text-[11px] font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap mt-0.5">
-                      Garanta por apenas R$ 49,90/mês
-                    </span>
+                    {carregandoConfigCobranca ? (
+                      <span className="inline-block h-3 w-32 rounded bg-slate-500/20 animate-pulse mt-1" />
+                    ) : !erroConfigCobranca && valorMensalAnual > 0 ? (
+                      <span className="text-[10px] lg:text-[11px] font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap mt-0.5">
+                        Garanta por apenas {formatadorBRL.format(valorMensalAnual)}/mês
+                      </span>
+                    ) : null}
                   </div>
                 ) : (
                   <div className="flex items-center gap-1">

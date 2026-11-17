@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Loja, ConfiguracoesPlataformaHubi } from '../types';
+import { Loja } from '../types';
 import { obterDataOperacao } from '../utils/dataOperacao';
-import { configuracoesPlataformaService, CONFIG_PLATAFORMA_PADRAO } from '../services/configuracoesPlataformaService';
+import { useSystemBillingConfig } from './useSystemBillingConfig';
 
 export type StatusCicloAssinatura =
   | 'TRIAL_ATIVO'
@@ -28,6 +28,7 @@ export interface UseAssinaturaStatusReturn {
   valorMensalReferencia: number;
   valorAnualTotal: number;
   diasTrialPadrao: number;
+  carregandoConfigCobranca: boolean;
   lojasEmAlerta: AlertaLojaConglomerado[];
   lojasBloqueadas: AlertaLojaConglomerado[];
   iniciarCheckoutAssinatura: (lojaAlvoId?: string) => Promise<void>;
@@ -42,20 +43,7 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
   const { loja, lojasDisponiveis, recarregarDadosLoja } = useAuth();
   const [carregandoCheckout, setCarregandoCheckout] = useState<boolean>(false);
   const [erroCheckout, setErroCheckout] = useState<string | null>(null);
-  const [configPlataforma, setConfigPlataforma] = useState<ConfiguracoesPlataformaHubi>(CONFIG_PLATAFORMA_PADRAO);
-
-  // Carrega os parâmetros comerciais globais da plataforma
-  useEffect(() => {
-    let montado = true;
-    configuracoesPlataformaService.obterParametros().then((res) => {
-      if (montado && res) {
-        setConfigPlataforma(res);
-      }
-    });
-    return () => {
-      montado = false;
-    };
-  }, []);
+  const billingConfig = useSystemBillingConfig();
 
   // Escuta alterações em tempo real via Supabase Realtime para a loja ativa
   useEffect(() => {
@@ -164,7 +152,7 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
     }
 
     // 3. Verificação de Período Trial (Degustação dinâmica baseada em dias_trial da plataforma)
-    const diasTrialConfig = configPlataforma.dias_trial || 7;
+    const diasTrialConfig = billingConfig.diasTrial > 0 ? billingConfig.diasTrial : 7;
     let trialFimMs: number | null = null;
 
     if (loja.criado_em) {
@@ -211,7 +199,7 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
       deveExibirBanner: true,
       tipoBanner: 'trial' as const
     };
-  }, [loja, configPlataforma]);
+  }, [loja, billingConfig.diasTrial]);
 
   // Mapeamento dos status de todas as lojas do conglomerado para alertas globais
   const { lojasEmAlerta, lojasBloqueadas } = useMemo(() => {
@@ -336,9 +324,10 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
     estaBloqueada: calculoStatusLojaAtiva.estaBloqueada,
     deveExibirBanner: calculoStatusLojaAtiva.deveExibirBanner,
     tipoBanner: calculoStatusLojaAtiva.tipoBanner,
-    valorMensalReferencia: configPlataforma.valor_mensal_anual,
-    valorAnualTotal: configPlataforma.valor_anual_total,
-    diasTrialPadrao: configPlataforma.dias_trial,
+    valorMensalReferencia: billingConfig.valorMensalAnual,
+    valorAnualTotal: billingConfig.valorTotalAnual,
+    diasTrialPadrao: billingConfig.diasTrial,
+    carregandoConfigCobranca: billingConfig.isLoading,
     lojasEmAlerta,
     lojasBloqueadas,
     iniciarCheckoutAssinatura,

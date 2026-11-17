@@ -16,7 +16,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
 import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
+import { useSystemBillingConfig } from '../../hooks/useSystemBillingConfig';
 import { Loja } from '../../types';
+
+const formatadorBRL = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+});
 
 interface ModalAdicionarLojaProps {
   isOpen: boolean;
@@ -60,8 +66,19 @@ export const ModalAdicionarLoja: React.FC<ModalAdicionarLojaProps> = ({
   const [erro, setErro] = useState<string | null>(null);
 
   useRegisterOverlay(isOpen, onClose, 'modal-adicionar-loja');
+  const {
+    valorMensalAnual,
+    valorTotalAnual,
+    maxParcelas,
+    diasTrial,
+    isLoading: carregandoConfigCobranca,
+    error: erroConfigCobranca,
+  } = useSystemBillingConfig();
 
   if (!isOpen) return null;
+
+  const valoresDisponiveis = !carregandoConfigCobranca && !erroConfigCobranca && valorMensalAnual > 0;
+  const diasTrialExibicao = !carregandoConfigCobranca && diasTrial > 0 ? diasTrial : 7;
 
   const formatarCep = (valor: string) => {
     const limpo = valor.replace(/\D/g, '').slice(0, 8);
@@ -144,7 +161,7 @@ export const ModalAdicionarLoja: React.FC<ModalAdicionarLojaProps> = ({
       mostrarAlerta({
         tipo: 'sucesso',
         titulo: 'Nova Filial Adicionada!',
-        mensagem: `A unidade "${novaLoja.nome_fantasia}" foi criada com sucesso com 7 dias de degustação gratuita. Você já pode cadastrar produtos e operar o PDV!`
+        mensagem: `A unidade "${novaLoja.nome_fantasia}" foi criada com sucesso com ${diasTrialExibicao} dias de degustação gratuita. Você já pode cadastrar produtos e operar o PDV!`
       });
 
       if (onLojaCriada) {
@@ -188,9 +205,13 @@ export const ModalAdicionarLoja: React.FC<ModalAdicionarLojaProps> = ({
             <div>
               <h2 className="text-base font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
                 <span>Adicionar Nova Loja</span>
-                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 uppercase tracking-wider">
-                  +7 Dias Trial
-                </span>
+                {carregandoConfigCobranca ? (
+                  <span className="inline-block h-4 w-20 rounded-full bg-emerald-500/20 animate-pulse" />
+                ) : (
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 uppercase tracking-wider">
+                    +{diasTrialExibicao} Dias Trial
+                  </span>
+                )}
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {organizacao?.nome ? `Vinculada ao grupo: ${organizacao.nome}` : 'Expanda sua rede com múltiplos PDVs e catálogos'}
@@ -213,12 +234,24 @@ export const ModalAdicionarLoja: React.FC<ModalAdicionarLojaProps> = ({
           <div className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-teal-500/10 border border-emerald-500/30 flex items-start gap-3">
             <Sparkles className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
             <div className="text-xs text-slate-600 dark:text-slate-300 space-y-1">
-              <p className="font-bold text-slate-900 dark:text-emerald-400">
-                Degustação Gratuita de 7 Dias por Unidade
-              </p>
-              <p className="text-[11px] leading-relaxed">
-                Cada nova filial possui ciclo de vida independente. Esta unidade terá 7 dias de acesso total e irrestrito. Ao final, você poderá ativar a anuidade por apenas R$ 49,90/mês (R$ 598,80/ano em até 12x no Mercado Pago).
-              </p>
+              {carregandoConfigCobranca ? (
+                <div className="space-y-1.5 py-0.5">
+                  <div className="h-3.5 w-48 rounded bg-emerald-500/20 animate-pulse" />
+                  <div className="h-3 w-full rounded bg-slate-500/20 animate-pulse" />
+                </div>
+              ) : (
+                <>
+                  <p className="font-bold text-slate-900 dark:text-emerald-400">
+                    Degustação Gratuita de {diasTrialExibicao} Dias por Unidade
+                  </p>
+                  <p className="text-[11px] leading-relaxed">
+                    Cada nova filial possui ciclo de vida independente. Esta unidade terá {diasTrialExibicao} dias de acesso total e irrestrito.
+                    {valoresDisponiveis
+                      ? ` Ao final, você poderá ativar a anuidade por apenas ${formatadorBRL.format(valorMensalAnual)}/mês (${formatadorBRL.format(valorTotalAnual)}/ano em até ${maxParcelas}x no Mercado Pago).`
+                      : ' Ao final, você poderá ativar a anuidade diretamente via Mercado Pago.'}
+                  </p>
+                </>
+              )}
             </div>
           </div>
 

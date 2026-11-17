@@ -13,8 +13,14 @@ import {
   X
 } from 'lucide-react';
 import { useAssinaturaStatus } from '../../hooks/useAssinaturaStatus';
+import { useSystemBillingConfig } from '../../hooks/useSystemBillingConfig';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+
+const formatadorBRL = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+});
 
 interface TelaBloqueioAssinaturaProps {
   aberturaManual?: boolean;
@@ -28,8 +34,19 @@ export const TelaBloqueioAssinatura: React.FC<TelaBloqueioAssinaturaProps> = ({
   const { isDark } = useTheme();
   const { loja, lojasDisponiveis, selecionarLoja, desconectarPdv } = useAuth();
   const { estaBloqueada, iniciarCheckoutAssinatura, carregandoCheckout, erroCheckout } = useAssinaturaStatus();
+  const {
+    valorMensalAnual,
+    valorTotalAnual,
+    maxParcelas,
+    isLoading: carregandoConfigCobranca,
+    error: erroConfigCobranca,
+  } = useSystemBillingConfig();
 
   if (!estaBloqueada && !aberturaManual) return null;
+
+  const valoresDisponiveis = !carregandoConfigCobranca && !erroConfigCobranca && valorMensalAnual > 0;
+  const valorMensalAnualFormatado = valoresDisponiveis ? formatadorBRL.format(valorMensalAnual) : '';
+  const valorTotalAnualFormatado = valoresDisponiveis ? formatadorBRL.format(valorTotalAnual) : '';
 
   // Lojas alternativas do conglomerado que não estão bloqueadas
   const outrasLojasAtivas = lojasDisponiveis.filter(
@@ -76,7 +93,16 @@ export const TelaBloqueioAssinatura: React.FC<TelaBloqueioAssinaturaProps> = ({
           </h2>
           <p className="text-white/90 text-sm mt-1 max-w-md mx-auto">
             {aberturaManual ? (
-              <>Tenha acesso ilimitado para a unidade <strong>{loja?.nome_fantasia}</strong> por apenas R$ 49,90/mês.</>
+              <>
+                Tenha acesso ilimitado para a unidade <strong>{loja?.nome_fantasia}</strong>
+                {carregandoConfigCobranca ? (
+                  <> <span className="inline-block h-3.5 w-24 rounded bg-white/30 animate-pulse align-middle" /></>
+                ) : valoresDisponiveis ? (
+                  <> por apenas {valorMensalAnualFormatado}/mês.</>
+                ) : (
+                  <> com o plano anual HUBI.</>
+                )}
+              </>
             ) : (
               <>O período de operação da unidade <strong>{loja?.nome_fantasia}</strong> terminou. Ative o plano anual para desbloquear o PDV e os relatórios imediatamente.</>
             )}
@@ -101,18 +127,35 @@ export const TelaBloqueioAssinatura: React.FC<TelaBloqueioAssinaturaProps> = ({
                     <Sparkles className="w-3.5 h-3.5" /> Acesso Ilimitado
                   </span>
                 </div>
-                <h3 className="text-xl font-black mt-2">
-                  R$ 49,90 <span className="text-xs font-normal text-slate-400">/mês</span>
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Faturado anualmente em R$ 598,80 (em até 12x no cartão ou Pix).
-                </p>
+                {carregandoConfigCobranca ? (
+                  <div className="space-y-2 mt-2">
+                    <div className="h-7 w-32 rounded-lg bg-slate-500/20 animate-pulse" />
+                    <div className="h-3.5 w-64 max-w-full rounded bg-slate-500/20 animate-pulse" />
+                  </div>
+                ) : valoresDisponiveis ? (
+                  <>
+                    <h3 className="text-xl font-black mt-2">
+                      {valorMensalAnualFormatado} <span className="text-xs font-normal text-slate-400">/mês</span>
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Faturado anualmente em {valorTotalAnualFormatado} (em até {maxParcelas}x no cartão ou Pix).
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-xs text-slate-400 mt-2">
+                    Valores atualizados no checkout seguro do Mercado Pago.
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center gap-3 shrink-0">
                 <div className="flex items-center gap-1.5 text-xs text-slate-400">
                   <CreditCard className="w-4 h-4 text-emerald-500" />
-                  <span>Até 12x</span>
+                  {carregandoConfigCobranca ? (
+                    <span className="inline-block h-3.5 w-12 rounded bg-slate-500/20 animate-pulse" />
+                  ) : (
+                    <span>{valoresDisponiveis ? `Até ${maxParcelas}x` : 'Cartão'}</span>
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-slate-400">
                   <QrCode className="w-4 h-4 text-emerald-500" />
@@ -172,7 +215,11 @@ export const TelaBloqueioAssinatura: React.FC<TelaBloqueioAssinaturaProps> = ({
             ) : (
               <>
                 <ShieldCheck className="w-5 h-5" />
-                <span>Desbloquear Agora via Mercado Pago (12x R$ 49,90)</span>
+                <span>
+                  {carregandoConfigCobranca || !valoresDisponiveis
+                    ? 'Desbloquear Agora via Mercado Pago'
+                    : `Desbloquear Agora via Mercado Pago (${maxParcelas}x ${valorMensalAnualFormatado})`}
+                </span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}

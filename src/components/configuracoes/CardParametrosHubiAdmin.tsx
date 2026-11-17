@@ -46,8 +46,8 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
 
   // Estados dos campos comerciais
   const [diasTrial, setDiasTrial] = useState<number>(7);
-  const [valorMensalAnual, setValorMensalAnual] = useState<number>(49.9);
-  const [valorPlanoMensalAvulso, setValorPlanoMensalAvulso] = useState<number>(69.9);
+  const [valorMensalAnual, setValorMensalAnual] = useState<number>(0);
+  const [valorPlanoMensalAvulso, setValorPlanoMensalAvulso] = useState<number>(0);
   const [descontoPixPercentual, setDescontoPixPercentual] = useState<number>(5.0);
   const [aceitaDebito, setAceitaDebito] = useState<boolean>(true);
   const [maxParcelas, setMaxParcelas] = useState<number>(12);
@@ -358,7 +358,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
                 />
               </div>
               <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                Valor exibido no banner de trial (Ex: R$ 49,90/mês).
+                Valor exibido no banner de trial e no modal de assinatura.
               </p>
             </div>
 

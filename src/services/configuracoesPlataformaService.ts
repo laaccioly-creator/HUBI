@@ -3,7 +3,35 @@
 // Governança: supabase-rls-guard (RLS protegida via eh_super_admin_plataforma) e anti-jsonb-linter
 
 import { supabase } from '../lib/supabase';
+import {
+  SystemBillingValues,
+  validarConfiguracaoCobrancaPlataforma,
+} from '../lib/validations';
 import { ConfiguracoesPlataformaHubi } from '../types';
+import { DomainError, Result, err } from '../types/domain-contracts';
+
+const COLUNAS_COBRANCA_PUBLICAS =
+  'dias_trial, valor_mensal_anual, valor_anual_total, valor_plano_mensal_avulso, desconto_pix_percentual, aceita_cartao_debito, max_parcelas_cartao, parcelas_sem_juros';
+
+let billingConfigCache: SystemBillingValues | null = null;
+let billingConfigInFlight: Promise<Result<SystemBillingValues, DomainError>> | null = null;
+const billingConfigListeners = new Set<() => void>();
+
+const notificarListenersCobranca = () => {
+  billingConfigListeners.forEach((listener) => {
+    try {
+      listener();
+    } catch {
+      // Silencioso para não interromper outros assinantes
+    }
+  });
+};
+
+const toNumberSafe = (val: unknown, fallback: number): number => {
+  if (val === null || val === undefined || val === '') return fallback;
+  const num = Number(val);
+  return Number.isFinite(num) ? num : fallback;
+};
 
 export const CONFIG_PLATAFORMA_PADRAO: ConfiguracoesPlataformaHubi = {
   id: 1,
@@ -49,18 +77,18 @@ export const configuracoesPlataformaService = {
 
       return {
         id: data.id,
-        dias_trial: Number(data.dias_trial) || 7,
-        valor_mensal_anual: Number(data.valor_mensal_anual) || 49.90,
-        valor_anual_total: Number(data.valor_anual_total) || 598.80,
-        valor_plano_mensal_avulso: Number(data.valor_plano_mensal_avulso) || 69.90,
-        desconto_pix_percentual: Number(data.desconto_pix_percentual) || 5.00,
+        dias_trial: toNumberSafe(data.dias_trial, 7),
+        valor_mensal_anual: toNumberSafe(data.valor_mensal_anual, 49.90),
+        valor_anual_total: toNumberSafe(data.valor_anual_total, 598.80),
+        valor_plano_mensal_avulso: toNumberSafe(data.valor_plano_mensal_avulso, 69.90),
+        desconto_pix_percentual: toNumberSafe(data.desconto_pix_percentual, 5.00),
         aceita_cartao_debito: Boolean(data.aceita_cartao_debito),
-        max_parcelas_cartao: Number(data.max_parcelas_cartao) || 12,
-        parcelas_sem_juros: Number(data.parcelas_sem_juros) || 12,
+        max_parcelas_cartao: toNumberSafe(data.max_parcelas_cartao, 12),
+        parcelas_sem_juros: toNumberSafe(data.parcelas_sem_juros, 12),
         email_super_admin: data.email_super_admin || '5585997374372@hubi.app',
-        custo_disparo_whatsapp: Number(data.custo_disparo_whatsapp ?? 0.15),
-        valor_minimo_recarga_whatsapp: Number(data.valor_minimo_recarga_whatsapp ?? 10.00),
-        credito_bonus_trial_whatsapp: Number(data.credito_bonus_trial_whatsapp ?? 2.00),
+        custo_disparo_whatsapp: toNumberSafe(data.custo_disparo_whatsapp, 0.15),
+        valor_minimo_recarga_whatsapp: toNumberSafe(data.valor_minimo_recarga_whatsapp, 10.00),
+        credito_bonus_trial_whatsapp: toNumberSafe(data.credito_bonus_trial_whatsapp, 2.00),
         meta_phone_number_id: data.meta_phone_number_id || null,
         meta_waba_id: data.meta_waba_id || null,
         meta_access_token: data.meta_access_token || null,
@@ -73,6 +101,80 @@ export const configuracoesPlataformaService = {
       console.error('[configuracoesPlataformaService] Erro inesperado ao obter parâmetros:', err);
       return CONFIG_PLATAFORMA_PADRAO;
     }
+  },
+
+  /**
+   * Retorna o cache em memória já validado das configurações comerciais, caso exista.
+   */
+  obterCacheConfiguracaoCobranca(): SystemBillingValues | null {
+    return billingConfigCache;
+  },
+
+  /**
+   * Limpa o cache em memória das configurações comerciais (ex.: troca de sessão).
+   */
+  limparCacheConfiguracaoCobranca(): void {
+    billingConfigCache = null;
+    billingConfigInFlight = null;
+  },
+
+  /**
+   * Permite que hooks/componentes assinem atualizações após edição pelo Super Admin.
+   */
+  assinarAtualizacoesConfiguracaoCobranca(listener: () => void): () => void {
+    billingConfigListeners.add(listener);
+    return () => {
+      billingConfigListeners.delete(listener);
+    };
+  },
+
+  /**
+   * Obtém exclusivamente os parâmetros públicos de planos e condições de pagamento
+   * diretamente do Supabase com validação de fronteira via Zod e deduplicação de requests.
+   */
+  async obterConfiguracaoCobranca(
+    forcarAtualizacao = false
+  ): Promise<Result<SystemBillingValues, DomainError>> {
+    if (!forcarAtualizacao && billingConfigCache) {
+      return { ok: true, data: billingConfigCache };
+    }
+
+    if (!forcarAtualizacao && billingConfigInFlight) {
+      return billingConfigInFlight;
+    }
+
+    const requisicao = (async (): Promise<Result<SystemBillingValues, DomainError>> => {
+      try {
+        const { data, error } = await supabase
+          .from('configuracoes_plataforma')
+          .select(COLUNAS_COBRANCA_PUBLICAS)
+          .eq('id', 1)
+          .maybeSingle();
+
+        if (error || !data) {
+          return err({
+            codigo: 'ERRO_PERSISTENCIA',
+            mensagem: 'Não foi possível carregar os valores dos planos no momento.',
+          });
+        }
+
+        const validado = validarConfiguracaoCobrancaPlataforma(data);
+        if (validado.ok) {
+          billingConfigCache = validado.data;
+        }
+        return validado;
+      } catch {
+        return err({
+          codigo: 'ERRO_PERSISTENCIA',
+          mensagem: 'Não foi possível carregar os valores dos planos no momento.',
+        });
+      } finally {
+        billingConfigInFlight = null;
+      }
+    })();
+
+    billingConfigInFlight = requisicao;
+    return requisicao;
   },
 
   /**
@@ -125,6 +227,9 @@ export const configuracoesPlataformaService = {
       console.error('[configuracoesPlataformaService] Erro ao salvar parâmetros:', error.message);
       throw new Error('Não foi possível salvar os parâmetros globais da plataforma. Verifique suas permissões ou tente novamente.');
     }
+
+    this.limparCacheConfiguracaoCobranca();
+    notificarListenersCobranca();
 
     if (!data) {
       return await this.obterParametros();
