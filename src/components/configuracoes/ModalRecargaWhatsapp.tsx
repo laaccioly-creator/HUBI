@@ -140,8 +140,13 @@ export const ModalRecargaWhatsapp: React.FC<ModalRecargaWhatsappProps> = ({
         usuarioId
       );
 
-      if (res.checkoutUrl) {
-        window.location.href = res.checkoutUrl;
+      const urlDestino =
+        res.modo === 'sandbox' && res.sandboxInitPoint
+          ? res.sandboxInitPoint
+          : res.checkoutUrl;
+
+      if (urlDestino) {
+        window.location.href = urlDestino;
       } else {
         throw new Error('Link de checkout do Mercado Pago não retornado.');
       }

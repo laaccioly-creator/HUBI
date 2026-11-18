@@ -108,9 +108,16 @@ serve(async (req: Request) => {
 
     // 2.1 Identificação do perfil do coletor e ambiente configurado pelo Super Admin
     const perfilColetor = await consultarPerfilColetorMp(mpAccessToken);
+    const collectorEmail = perfilColetor.email;
     const isCollectorTestUser = perfilColetor.isCollectorTestUser;
     const isSandboxMode = configMp.mpAmbiente === "sandbox";
     const backUrlBase = String(body?.back_url || "https://hubi.app/dashboard").trim().replace(/\/+$/, "");
+
+    const payerEmail = isSandboxMode
+      ? "cliente.sandbox.hubi@gmail.com"
+      : (loja.email && (!collectorEmail || loja.email.toLowerCase().trim() !== collectorEmail)
+        ? loja.email.trim()
+        : "cliente.sandbox.hubi@gmail.com");
 
     // 2.2 Payload Canônico da Preferência Checkout Pro (espelhado de public.criar_link_mercado_pago do Catálogo Online)
     const preferencePayload: Record<string, any> = {
@@ -122,6 +129,9 @@ serve(async (req: Request) => {
           unit_price: Number(Number(valorAnualTotal).toFixed(2)),
         },
       ],
+      payer: {
+        email: payerEmail,
+      },
       external_reference: String(loja.id),
       back_urls: {
         success: `${backUrlBase}?assinatura=sucesso`,
@@ -200,8 +210,8 @@ serve(async (req: Request) => {
       );
     }
 
-    // Seleciona init_point padrão TSB do Catálogo Online (fallback para sandbox_init_point se necessário)
-    const checkoutUrl = prefData.init_point || prefData.sandbox_init_point;
+    // Seleção obrigatória de URL por ambiente: sandbox -> sandbox_init_point; producao -> init_point
+    const checkoutUrl = isSandboxMode ? prefData.sandbox_init_point : prefData.init_point;
 
     // 4. Registra histórico auditado na tabela public.hubi_assinaturas_pagamentos
     if (loja.organizacao_id) {

@@ -43,6 +43,8 @@ export interface RespostaRecargaPixWhatsapp {
   qrCodeBase64?: string;
   ticketUrl?: string;
   checkoutUrl?: string;
+  sandboxInitPoint?: string;
+  modo?: string;
   preferenceId?: string;
   valor: number;
   erro?: string;
@@ -558,7 +560,11 @@ export const whatsappWalletService = {
       throw new Error(data?.error || 'Falha ao gerar link do Mercado Pago.');
     }
 
-    const checkoutUrl = data.init_point || data.checkout_url || data.sandbox_init_point || '';
+    const isSandbox = Boolean(data.is_sandbox || data.modo === 'sandbox');
+    const checkoutUrl =
+      isSandbox && data.sandbox_init_point
+        ? data.sandbox_init_point
+        : (data.init_point || data.checkout_url || data.sandbox_init_point || '');
 
     const registroDebug = {
       timestamp: new Date().toISOString(),
@@ -589,6 +595,8 @@ export const whatsappWalletService = {
       transacaoId: data.transacao_id || '',
       preferenceId: data.preference_id || '',
       checkoutUrl,
+      sandboxInitPoint: data.sandbox_init_point,
+      modo: data.modo,
       valor: Number(data.valor ?? valorRecarga),
     };
   },

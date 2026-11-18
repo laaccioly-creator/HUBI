@@ -111,10 +111,16 @@ serve(async (req: Request) => {
 
     // 4. Identificação do perfil do coletor e ambiente configurado pelo Super Admin
     const perfilColetor = await consultarPerfilColetorMp(tokenFinal);
+    const collectorEmail = perfilColetor.email;
     const isSandboxMode = configMp.mpAmbiente === "sandbox";
     const backUrlBase = String(body?.back_url || "https://hubi.app/dashboard").trim().replace(/\/+$/, "");
 
     const externalReference = `whatsapp_wallet:${loja.id}:${transacaoCriada.id}`;
+    const payerEmail = isSandboxMode
+      ? "cliente.sandbox.hubi@gmail.com"
+      : (loja.email && (!collectorEmail || loja.email.toLowerCase().trim() !== collectorEmail)
+        ? loja.email.trim()
+        : "cliente.sandbox.hubi@gmail.com");
 
     // 5. Gera preferência oficial do Mercado Pago Checkout Pro (espelhado de public.criar_link_mercado_pago do Catálogo Online)
     const preferencePayload: Record<string, any> = {
@@ -126,6 +132,9 @@ serve(async (req: Request) => {
           unit_price: Number(valorRecarga.toFixed(2)),
         },
       ],
+      payer: {
+        email: payerEmail,
+      },
       external_reference: externalReference,
       back_urls: {
         success: `${backUrlBase}?recarga=sucesso`,
@@ -203,7 +212,7 @@ serve(async (req: Request) => {
       );
     }
 
-    const checkoutUrl = prefData.init_point || prefData.sandbox_init_point;
+    const checkoutUrl = isSandboxMode ? prefData.sandbox_init_point : prefData.init_point;
 
     // Vincula a preferência criada à transação no ledger
     await supabaseAdmin

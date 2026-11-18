@@ -400,7 +400,10 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
         }
 
         const isModoTeste = Boolean(data?.is_sandbox || data?.modo === 'sandbox');
-        const linkCheckout = data?.init_point || data?.checkout_url || data?.sandbox_init_point;
+        const linkCheckout =
+          isModoTeste && data?.sandbox_init_point
+            ? data.sandbox_init_point
+            : (data?.init_point || data?.checkout_url || data?.sandbox_init_point);
 
         const registroDebug = {
           timestamp: new Date().toISOString(),
