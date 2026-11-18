@@ -400,7 +400,9 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
         }
 
         const isModoTeste = Boolean(data?.is_sandbox || data?.modo === 'sandbox');
-        const linkCheckout = data?.init_point || data?.checkout_url;
+        const urlFinal = data?.modo === 'sandbox' && data?.sandbox_init_point
+          ? data.sandbox_init_point
+          : (data?.checkout_url || data?.init_point);
 
         const registroDebug = {
           timestamp: new Date().toISOString(),
@@ -410,7 +412,7 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
           token_prefix: data?.token_prefix || data?.diagnostico_mp?.token_prefix || 'N/A',
           origem_credencial: data?.diagnostico_mp?.origem_credencial || 'N/A',
           preference_id: data?.preference_id,
-          url_redirecionamento: linkCheckout,
+          url_redirecionamento: urlFinal,
           init_point: data?.init_point,
           sandbox_init_point: data?.sandbox_init_point,
           payload_enviado_edge: payloadInvoke,
@@ -422,7 +424,7 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
         console.log('Ambiente configurado:', registroDebug.modo, '| is_sandbox:', isModoTeste);
         console.log('Origem credencial:', registroDebug.origem_credencial, '| Tipo de token:', registroDebug.token_prefix);
         console.log('Preference ID:', registroDebug.preference_id);
-        console.log('URL de redirecionamento:', linkCheckout, {
+        console.log('URL de redirecionamento:', urlFinal, {
           init_point: data?.init_point,
           sandbox_init_point: data?.sandbox_init_point,
         });
@@ -437,9 +439,9 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
           sessionStorage.setItem('hubi_last_mp_debug', JSON.stringify(registroDebug));
         } catch {}
 
-        if (linkCheckout) {
+        if (urlFinal) {
           // Redireciona o lojista para o checkout seguro oficial do Mercado Pago (Sandbox estrito ou Produção)
-          window.location.href = linkCheckout;
+          window.location.href = urlFinal;
         } else {
           throw new Error('Link de pagamento não retornado pelo gateway.');
         }

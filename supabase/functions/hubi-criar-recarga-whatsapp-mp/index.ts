@@ -202,8 +202,9 @@ serve(async (req: Request) => {
       );
     }
 
-    // Clone estrito do retorno do Catálogo Online (public.criar_link_mercado_pago): v_body->>'init_point'
-    const checkoutUrl = prefData.init_point;
+    const checkoutUrlFinal = configMp.mpAmbiente === "sandbox"
+      ? (prefData.sandbox_init_point || prefData.init_point)
+      : prefData.init_point;
 
     // Vincula a preferência criada à transação no ledger
     await supabaseAdmin
@@ -216,8 +217,8 @@ serve(async (req: Request) => {
         sucesso: true,
         transacao_id: transacaoCriada.id,
         preference_id: prefData.id,
-        init_point: checkoutUrl,
-        checkout_url: checkoutUrl,
+        init_point: checkoutUrlFinal,
+        checkout_url: checkoutUrlFinal,
         sandbox_init_point: prefData.sandbox_init_point,
         modo: configMp.mpAmbiente,
         is_sandbox: isSandboxMode,

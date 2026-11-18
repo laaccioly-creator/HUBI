@@ -199,8 +199,9 @@ serve(async (req: Request) => {
       );
     }
 
-    // Clone estrito do retorno do Catálogo Online (public.criar_link_mercado_pago): v_body->>'init_point'
-    const checkoutUrl = prefData.init_point;
+    const checkoutUrlFinal = configMp.mpAmbiente === "sandbox"
+      ? (prefData.sandbox_init_point || prefData.init_point)
+      : prefData.init_point;
 
     // 4. Registra histórico auditado na tabela public.hubi_assinaturas_pagamentos
     if (loja.organizacao_id) {
@@ -215,7 +216,7 @@ serve(async (req: Request) => {
           valor_mensal_referencia: valorMensalRef,
           parcelas: parcelasMaximas,
           ciclo_meses: 12,
-          link_checkout: checkoutUrl,
+          link_checkout: checkoutUrlFinal,
         });
 
       if (erroAudit) {
@@ -232,8 +233,8 @@ serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         preference_id: prefData.id,
-        init_point: checkoutUrl,
-        checkout_url: checkoutUrl,
+        init_point: checkoutUrlFinal,
+        checkout_url: checkoutUrlFinal,
         sandbox_init_point: prefData.sandbox_init_point,
         modo: configMp.mpAmbiente,
         is_sandbox: isSandboxMode,
