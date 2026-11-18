@@ -173,11 +173,15 @@ serve(async (req: Request) => {
       prefData = { raw: respText };
     }
 
-    if (!mpResponse.ok) {
+    if (!mpResponse.ok || !prefData?.id) {
       console.error("[hubi-criar-assinatura-mp] Erro do Mercado Pago:", mpResponse.status);
       return new Response(
-        JSON.stringify({ error: "Falha na comunicação com o Mercado Pago ao gerar fatura." }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: prefData?.message || "Falha na comunicação com o Mercado Pago ao gerar fatura.",
+          status_mp: mpResponse.status,
+          detalhe_mp: prefData,
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

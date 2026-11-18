@@ -178,8 +178,12 @@ serve(async (req: Request) => {
     if (!mpResponse.ok || !prefData.id) {
       console.error("[hubi-criar-recarga-whatsapp-mp] Erro do Mercado Pago:", mpResponse.status);
       return new Response(
-        JSON.stringify({ error: "Falha na comunicação com o Mercado Pago ao gerar fatura de recarga." }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: prefData?.message || "Falha na comunicação com o Mercado Pago ao gerar fatura de recarga.",
+          status_mp: mpResponse.status,
+          detalhe_mp: prefData,
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
