@@ -29,6 +29,11 @@ serve(async (req: Request) => {
     const url = new URL(req.url);
     const body = await req.json().catch(() => ({}));
 
+    console.log("[hubi-webhook-mp][MP DIAGNÓSTICO] Payload bruto recebido:", {
+      query: Object.fromEntries(url.searchParams.entries()),
+      body,
+    });
+
     // Captura o payment_id do payload (v2 webhook ou parâmetros de query)
     const paymentId =
       body.data?.id ||
@@ -68,16 +73,35 @@ serve(async (req: Request) => {
       },
     });
 
+    console.log("[hubi-webhook-mp][MP DIAGNÓSTICO] Consulta GET /v1/payments/{id}:", {
+      payment_id: paymentId,
+      status_http_mp: mpPaymentRes.status,
+      origem_credencial: configMp.mpTokenOrigem,
+      token_prefix: configMp.mpTokenPrefixo,
+      mp_ambiente: configMp.mpAmbiente,
+    });
+
     if (!mpPaymentRes.ok) {
-      console.warn(`[hubi-webhook-mp] Falha ao consultar pagamento ${paymentId} no Mercado Pago.`);
+      const erroDetalhe = await mpPaymentRes.text().catch(() => "");
+      console.warn(`[hubi-webhook-mp] Falha ao consultar pagamento ${paymentId} no Mercado Pago:`, mpPaymentRes.status, erroDetalhe);
       return new Response(
-        JSON.stringify({ received: true, warning: "payment_lookup_failed" }),
+        JSON.stringify({ received: true, warning: "payment_lookup_failed", status_mp: mpPaymentRes.status }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const payment = await mpPaymentRes.json();
     const statusPagamento = payment.status; // 'approved', 'in_process', 'rejected', 'cancelled'
+
+    console.log("[hubi-webhook-mp][MP DIAGNÓSTICO] Detalhes do pagamento:", {
+      payment_id: payment.id,
+      status: payment.status,
+      status_detail: payment.status_detail,
+      transaction_amount: payment.transaction_amount,
+      payment_method_id: payment.payment_method_id,
+      payment_type_id: payment.payment_type_id,
+      external_reference: payment.external_reference,
+    });
 
     let lojaId = payment.external_reference || payment.metadata?.loja_id;
     if (lojaId && typeof lojaId === "string" && lojaId.startsWith("{")) {

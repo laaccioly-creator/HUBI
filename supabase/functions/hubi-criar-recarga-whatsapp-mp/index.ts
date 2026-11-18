@@ -158,6 +158,22 @@ serve(async (req: Request) => {
       };
     }
 
+    const tokenPrefix = configMp.mpTokenPrefixo;
+
+    console.log("[hubi-criar-recarga-whatsapp-mp][MP DIAGNÓSTICO] Credencial e ambiente:", {
+      origem_credencial: configMp.mpTokenOrigem,
+      token_prefix: tokenPrefix,
+      mp_ambiente: configMp.mpAmbiente,
+      is_sandbox: isSandboxMode,
+      collector_id: perfilColetor.id,
+      conta_coletora_teste: perfilColetor.isCollectorTestUser,
+    });
+
+    console.log(
+      "[hubi-criar-recarga-whatsapp-mp][MP DIAGNÓSTICO] Payload enviado para POST /checkout/preferences:",
+      JSON.stringify(preferencePayload, null, 2)
+    );
+
     const mpResponse = await fetch("https://api.mercadopago.com/checkout/preferences", {
       method: "POST",
       headers: {
@@ -175,13 +191,35 @@ serve(async (req: Request) => {
       prefData = { raw: respText };
     }
 
+    console.log("[hubi-criar-recarga-whatsapp-mp][MP DIAGNÓSTICO] Resposta Mercado Pago:", {
+      status_http_mp: mpResponse.status,
+      id: prefData?.id,
+      collector_id: prefData?.collector_id,
+      init_point: prefData?.init_point,
+      sandbox_init_point: prefData?.sandbox_init_point,
+      body: prefData,
+    });
+
+    const diagnosticoMp = {
+      origem_credencial: configMp.mpTokenOrigem,
+      token_prefix: tokenPrefix,
+      mp_ambiente: configMp.mpAmbiente,
+      is_sandbox: isSandboxMode,
+      collector_id: perfilColetor.id || prefData?.collector_id || null,
+      conta_coletora_teste: perfilColetor.isCollectorTestUser,
+      payload_enviado: preferencePayload,
+      status_http_mp: mpResponse.status,
+      resposta_mp: prefData,
+    };
+
     if (!mpResponse.ok || !prefData.id) {
-      console.error("[hubi-criar-recarga-whatsapp-mp] Erro do Mercado Pago:", mpResponse.status);
+      console.error("[hubi-criar-recarga-whatsapp-mp] Erro do Mercado Pago:", mpResponse.status, prefData);
       return new Response(
         JSON.stringify({
           error: prefData?.message || "Falha na comunicação com o Mercado Pago ao gerar fatura de recarga.",
           status_mp: mpResponse.status,
           detalhe_mp: prefData,
+          diagnostico_mp: diagnosticoMp,
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -207,8 +245,10 @@ serve(async (req: Request) => {
         sandbox_init_point: prefData.sandbox_init_point,
         modo: configMp.mpAmbiente,
         is_sandbox: isSandboxMode,
+        token_prefix: tokenPrefix,
         valor: Number(valorRecarga.toFixed(2)),
         external_reference: externalReference,
+        diagnostico_mp: diagnosticoMp,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

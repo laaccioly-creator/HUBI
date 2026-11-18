@@ -54,6 +54,11 @@ export const TelaBloqueioAssinatura: React.FC<TelaBloqueioAssinaturaProps> = ({
   );
 
   const handleDesbloquear = () => {
+    console.log('[TelaBloqueioAssinatura] Disparando checkout de assinatura:', {
+      lojaId: loja?.id,
+      nomeLoja: loja?.nome_fantasia,
+      aberturaManual,
+    });
     iniciarCheckoutAssinatura();
   };
 

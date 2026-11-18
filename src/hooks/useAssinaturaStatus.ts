@@ -266,6 +266,22 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
     return { lojasEmAlerta: alertas, lojasBloqueadas: bloqueadas };
   }, [lojasDisponiveis]);
 
+  // Exibe histórico do último redirecionamento de checkout MP ao reabrir/retornar para a aba
+  useEffect(() => {
+    try {
+      const ultimoLogRaw = sessionStorage.getItem('hubi_last_mp_debug');
+      if (ultimoLogRaw) {
+        const ultimoLog = JSON.parse(ultimoLogRaw);
+        console.groupCollapsed('[HUBI MP CHECKOUT DEBUG - ÚLTIMO CHECKOUT REGISTRADO]');
+        console.log('Registrado em:', ultimoLog?.timestamp);
+        console.log('Dados persistidos:', ultimoLog);
+        console.groupEnd();
+      }
+    } catch {
+      // Silencioso caso sessionStorage esteja indisponível
+    }
+  }, []);
+
   // Função para acionar o checkout do Mercado Pago
   const iniciarCheckoutAssinatura = useCallback(
     async (lojaAlvoId?: string) => {
@@ -279,15 +295,42 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
         setCarregandoCheckout(true);
         setErroCheckout(null);
 
+        const payloadInvoke = { loja_id: idLoja };
+
         // Chama a Edge Function que gera a preferência do Mercado Pago
         const { data, error } = await supabase.functions.invoke('hubi-criar-assinatura-mp', {
-          body: {
-            loja_id: idLoja
-          }
+          body: payloadInvoke
         });
 
         if (error) {
-          throw new Error(error.message || 'Erro ao gerar fatura do Mercado Pago.');
+          let detalheErro: any = null;
+          try {
+            if (error.context && typeof error.context.json === 'function') {
+              detalheErro = await error.context.json();
+            }
+          } catch {
+            // Ignora falha ao ler corpo JSON de erro
+          }
+
+          const registroErro = {
+            timestamp: new Date().toISOString(),
+            loja_id: idLoja,
+            payload_enviado_edge: payloadInvoke,
+            erro_mensagem: detalheErro?.error || error.message,
+            status_mp: detalheErro?.status_mp ?? null,
+            detalhe_mp: detalheErro?.detalhe_mp ?? null,
+            diagnostico_mp: detalheErro?.diagnostico_mp ?? null,
+          };
+
+          console.group('[HUBI MP CHECKOUT DEBUG - ERRO]');
+          console.error('Erro retornado pela Edge Function:', registroErro);
+          console.groupEnd();
+
+          try {
+            sessionStorage.setItem('hubi_last_mp_debug', JSON.stringify(registroErro));
+          } catch {}
+
+          throw new Error(detalheErro?.error || error.message || 'Erro ao gerar fatura do Mercado Pago.');
         }
 
         const isModoTeste = Boolean(data?.is_sandbox || data?.modo === 'sandbox');
@@ -295,11 +338,40 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
           ? (data?.sandbox_init_point || data?.checkout_url)
           : (data?.checkout_url || data?.init_point);
 
-        console.log("🔗 REDIRECIONANDO PARA CHECKOUT MP:", {
-          modo: isModoTeste ? 'SANDBOX' : 'PRODUÇÃO',
-          linkFinal: linkCheckout,
-          dadosRetornados: data
+        const registroDebug = {
+          timestamp: new Date().toISOString(),
+          loja_id: idLoja,
+          modo: data?.modo || (isModoTeste ? 'sandbox' : 'producao'),
+          is_sandbox: isModoTeste,
+          token_prefix: data?.token_prefix || data?.diagnostico_mp?.token_prefix || 'N/A',
+          origem_credencial: data?.diagnostico_mp?.origem_credencial || 'N/A',
+          preference_id: data?.preference_id,
+          url_redirecionamento: linkCheckout,
+          init_point: data?.init_point,
+          sandbox_init_point: data?.sandbox_init_point,
+          payload_enviado_edge: payloadInvoke,
+          payload_enviado_mp: data?.diagnostico_mp?.payload_enviado || null,
+          resposta_completa: data,
+        };
+
+        console.group('[HUBI MP CHECKOUT DEBUG]');
+        console.log('Ambiente configurado:', registroDebug.modo, '| is_sandbox:', isModoTeste);
+        console.log('Origem credencial:', registroDebug.origem_credencial, '| Tipo de token:', registroDebug.token_prefix);
+        console.log('Preference ID:', registroDebug.preference_id);
+        console.log('URL de redirecionamento:', linkCheckout, {
+          init_point: data?.init_point,
+          sandbox_init_point: data?.sandbox_init_point,
         });
+        console.log('Payload enviado:', {
+          edge_function: payloadInvoke,
+          mercado_pago: registroDebug.payload_enviado_mp,
+        });
+        console.log('Resposta completa da Edge Function:', data);
+        console.groupEnd();
+
+        try {
+          sessionStorage.setItem('hubi_last_mp_debug', JSON.stringify(registroDebug));
+        } catch {}
 
         if (linkCheckout) {
           // Redireciona o lojista para o checkout seguro oficial do Mercado Pago (Sandbox estrito ou Produção)

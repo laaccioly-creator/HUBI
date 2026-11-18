@@ -149,11 +149,21 @@ serve(async (req: Request) => {
       };
     }
 
-    console.log("[hubi-criar-assinatura-mp] Preferência solicitada:", {
-      loja_id: loja.id,
-      modo: configMp.mpAmbiente,
-      valor_total: valorAnualTotal,
+    const tokenPrefix = configMp.mpTokenPrefixo;
+
+    console.log("[hubi-criar-assinatura-mp][MP DIAGNÓSTICO] Credencial e ambiente:", {
+      origem_credencial: configMp.mpTokenOrigem,
+      token_prefix: tokenPrefix,
+      mp_ambiente: configMp.mpAmbiente,
+      is_sandbox: isSandboxMode,
+      collector_id: perfilColetor.id,
+      conta_coletora_teste: isCollectorTestUser,
     });
+
+    console.log(
+      "[hubi-criar-assinatura-mp][MP DIAGNÓSTICO] Payload enviado para POST /checkout/preferences:",
+      JSON.stringify(preferencePayload, null, 2)
+    );
 
     // 3. Chamada à API Oficial do Mercado Pago para gerar a preferência de checkout
     const mpResponse = await fetch("https://api.mercadopago.com/checkout/preferences", {
@@ -173,13 +183,35 @@ serve(async (req: Request) => {
       prefData = { raw: respText };
     }
 
+    console.log("[hubi-criar-assinatura-mp][MP DIAGNÓSTICO] Resposta Mercado Pago:", {
+      status_http_mp: mpResponse.status,
+      id: prefData?.id,
+      collector_id: prefData?.collector_id,
+      init_point: prefData?.init_point,
+      sandbox_init_point: prefData?.sandbox_init_point,
+      body: prefData,
+    });
+
+    const diagnosticoMp = {
+      origem_credencial: configMp.mpTokenOrigem,
+      token_prefix: tokenPrefix,
+      mp_ambiente: configMp.mpAmbiente,
+      is_sandbox: isSandboxMode,
+      collector_id: perfilColetor.id || prefData?.collector_id || null,
+      conta_coletora_teste: isCollectorTestUser,
+      payload_enviado: preferencePayload,
+      status_http_mp: mpResponse.status,
+      resposta_mp: prefData,
+    };
+
     if (!mpResponse.ok || !prefData?.id) {
-      console.error("[hubi-criar-assinatura-mp] Erro do Mercado Pago:", mpResponse.status);
+      console.error("[hubi-criar-assinatura-mp] Erro do Mercado Pago:", mpResponse.status, prefData);
       return new Response(
         JSON.stringify({
           error: prefData?.message || "Falha na comunicação com o Mercado Pago ao gerar fatura.",
           status_mp: mpResponse.status,
           detalhe_mp: prefData,
+          diagnostico_mp: diagnosticoMp,
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -226,7 +258,8 @@ serve(async (req: Request) => {
         modo: configMp.mpAmbiente,
         is_sandbox: isSandboxMode,
         conta_coletora_teste: isCollectorTestUser,
-        token_prefix: mpAccessToken.startsWith("TEST-") ? "TEST-" : mpAccessToken.startsWith("APP_USR-") ? "APP_USR-" : "OUTRO",
+        token_prefix: tokenPrefix,
+        diagnostico_mp: diagnosticoMp,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

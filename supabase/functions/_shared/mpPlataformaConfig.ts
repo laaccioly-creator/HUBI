@@ -8,6 +8,8 @@ export type AmbienteMercadoPago = "sandbox" | "producao";
 export interface MpPlataformaConfig {
   mpAmbiente: AmbienteMercadoPago;
   mpAccessToken: string;
+  mpTokenOrigem: "banco_configuracoes_plataforma" | "secret_env_fallback" | "ausente";
+  mpTokenPrefixo: string;
   mpPublicKey: string | null;
   mpWebhookSecret: string | null;
   valorMensalAnual: number;
@@ -17,6 +19,14 @@ export interface MpPlataformaConfig {
   aceitaCartaoDebito: boolean;
   descontoPixPercentual: number;
   valorMinimoRecargaWhatsapp: number;
+}
+
+export function obterPrefixoTokenMascarado(token: string): string {
+  const limpo = (token || "").trim();
+  if (!limpo) return "AUSENTE";
+  if (limpo.startsWith("TEST-")) return "TEST-***";
+  if (limpo.startsWith("APP_USR-")) return "APP_USR-***";
+  return `${limpo.slice(0, 6)}***`;
 }
 
 export interface PerfilColetorMp {
@@ -59,6 +69,12 @@ export async function obterConfigMpPlataforma(supabaseAdmin: any): Promise<MpPla
 
   const dbToken = typeof data?.mp_access_token === "string" ? data.mp_access_token.trim() : "";
   const mpAccessToken = dbToken || envToken;
+  const mpTokenOrigem: MpPlataformaConfig["mpTokenOrigem"] = dbToken
+    ? "banco_configuracoes_plataforma"
+    : envToken
+      ? "secret_env_fallback"
+      : "ausente";
+  const mpTokenPrefixo = obterPrefixoTokenMascarado(mpAccessToken);
 
   const mpAmbiente: AmbienteMercadoPago =
     data?.mp_ambiente === "producao" ? "producao" : "sandbox";
@@ -97,6 +113,8 @@ export async function obterConfigMpPlataforma(supabaseAdmin: any): Promise<MpPla
   return {
     mpAmbiente,
     mpAccessToken,
+    mpTokenOrigem,
+    mpTokenPrefixo,
     mpPublicKey: typeof data?.mp_public_key === "string" && data.mp_public_key.trim()
       ? data.mp_public_key.trim()
       : null,
