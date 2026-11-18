@@ -1,23 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShoppingBag,
   X,
   Link,
   PlusCircle,
-  ExternalLink,
   CheckCircle2,
   AlertCircle,
   Loader2,
-  Percent,
-  Layers,
-  ArrowRight
+  Layers
 } from 'lucide-react';
 import { Produto, VariacaoProduto } from '../../types';
 import { mercadoLivreService } from '../../services/mercadoLivreService';
 import {
   converterProdutoHubiParaGdmMl,
   converterGdmParaPayloadApiMl,
-  calcularPrecoMercadoLivre
+  calcularBreakdownPrecoMercadoLivre,
+  traduzirErroMercadoLivre
 } from '../../utils/gdmMercadoLivreMapper';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
 
@@ -35,7 +33,7 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
   onFechar,
   produto,
   lojaId,
-  isDark = true,
+  isDark: _isDark = true,
   onSucesso,
 }) => {
   const { mostrarErro, mostrarSucesso, mostrarAviso } = useFeedbackModal();
@@ -53,6 +51,32 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
   const [marca, setMarca] = useState<string>('');
   const [modelo, setModelo] = useState<string>('');
 
+  // Carrega comissão padrão e custo fixo (< R$ 79,00) das preferências do Mercado Livre da loja
+  useEffect(() => {
+    if (!aberto || !lojaId) return;
+
+    let ativo = true;
+    const carregarPreferenciasMl = async () => {
+      try {
+        const conta = await mercadoLivreService.obterConta(lojaId);
+        if (!ativo || !conta) return;
+
+        const comissaoSalva = Number(conta.taxa_comissao_padrao_percentual);
+        const custoFixoSalvo = Number(conta.taxa_fixa_padrao);
+
+        setMargemComissao(Number.isFinite(comissaoSalva) ? comissaoSalva : 16.0);
+        setTaxaFixa(Number.isFinite(custoFixoSalvo) ? custoFixoSalvo : 6.0);
+      } catch (err) {
+        console.warn('[ModalVincularAnuncioMl] Não foi possível carregar preferências ML da loja:', err);
+      }
+    };
+
+    carregarPreferenciasMl();
+    return () => {
+      ativo = false;
+    };
+  }, [aberto, lojaId]);
+
   if (!aberto || !produto) return null;
 
   const variacaoAtual: VariacaoProduto | null =
@@ -62,8 +86,11 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
     ? (variacaoAtual.preco_promocional && variacaoAtual.preco_promocional > 0 ? variacaoAtual.preco_promocional : variacaoAtual.preco_venda_varejo)
     : (produto.promocao_ativa && produto.preco_promocional && produto.preco_promocional > 0 ? produto.preco_promocional : produto.preco_venda_varejo);
 
-  const precoCalculadoMl = calcularPrecoMercadoLivre(precoBaseReferencia, margemComissao, taxaFixa);
+  const breakdownPreco = calcularBreakdownPrecoMercadoLivre(precoBaseReferencia, margemComissao, taxaFixa);
+  const precoCalculadoMl = breakdownPreco.precoFinalMl;
   const estoqueFisico = variacaoAtual ? variacaoAtual.quantidade_estoque : produto.quantidade_estoque;
+
+  const formatarMoeda = (valor: number) => `R$ ${valor.toFixed(2).replace('.', ',')}`;
 
   // Validações estritas para publicação no Mercado Livre
   const temFotos = Boolean(
@@ -110,7 +137,10 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
       if (onSucesso) onSucesso();
       onFechar();
     } catch (err: any) {
-      mostrarErro(err.message || 'Erro ao vincular anúncio.', 'Falha de Vínculo');
+      const { mensagemAmigavel, detalheTecnico } = traduzirErroMercadoLivre(
+        err?.message || 'Erro ao vincular anúncio.'
+      );
+      mostrarErro(mensagemAmigavel, 'Falha de Vínculo', detalheTecnico);
     } finally {
       setSalvando(false);
     }
@@ -150,28 +180,31 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
       if (onSucesso) onSucesso();
       onFechar();
     } catch (err: any) {
-      mostrarErro(err.message || 'Erro ao publicar novo anúncio no Mercado Livre.', 'Falha na Publicação');
+      const { mensagemAmigavel, detalheTecnico } = traduzirErroMercadoLivre(
+        err?.message || 'Erro ao publicar novo anúncio no Mercado Livre.'
+      );
+      mostrarErro(mensagemAmigavel, 'Falha na Publicação', detalheTecnico);
     } finally {
       setSalvando(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
       <div
-        className={`w-full max-w-xl rounded-3xl p-6 shadow-2xl border flex flex-col max-h-[90vh] overflow-y-auto ${
-          isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-        }`}
+        className="w-full max-w-xl rounded-3xl p-6 shadow-2xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-black text-slate-900 dark:text-white flex flex-col max-h-[92vh] overflow-y-auto"
       >
         {/* CABEÇALHO */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex items-center justify-between pb-4 border-b-2 border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#FFE600] flex items-center justify-center text-slate-950 font-black shadow-xs shrink-0">
+            <div className="w-11 h-11 rounded-2xl bg-[#FFE600] border border-amber-400 flex items-center justify-center text-slate-950 font-black shadow-xs shrink-0">
               <ShoppingBag className="w-5 h-5 text-[#2D3277]" />
             </div>
             <div>
-              <h3 className="font-black text-base">Integração Mercado Livre</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[280px] sm:max-w-md">
+              <h3 className="font-black text-lg leading-tight text-slate-900 dark:text-white">
+                Integração Mercado Livre
+              </h3>
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-300 truncate max-w-[280px] sm:max-w-md mt-0.5">
                 {produto.nome}
               </p>
             </div>
@@ -179,7 +212,9 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
           <button
             type="button"
             onClick={onFechar}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+            aria-label="Fechar"
+            title="Fechar"
+            className="p-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -187,15 +222,15 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
 
         {/* SELETOR DE VARIAÇÃO SE EXISTIR */}
         {produto.tem_variacoes && produto.variacoes && produto.variacoes.length > 0 && (
-          <div className="mt-4 p-3 rounded-2xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-emerald-500" />
+          <div className="mt-4 p-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-950 border-2 border-slate-300 dark:border-slate-700 space-y-2">
+            <label className="text-xs font-black text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+              <Layers className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>Vincular Variação Específica:</span>
             </label>
             <select
               value={variacaoSelecionadaId}
               onChange={(e) => setVariacaoSelecionadaId(e.target.value)}
-              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-slate-100 outline-hidden"
+              className="w-full bg-white dark:bg-black border-2 border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-900 dark:text-white outline-hidden focus:border-emerald-500"
             >
               <option value="">Produto Principal (Sem variação vinculada)</option>
               {produto.variacoes.map((v) => (
@@ -208,38 +243,38 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
         )}
 
         {/* ABAS */}
-        <div className="flex border-b border-slate-200 dark:border-slate-800 mt-4">
+        <div className="flex border-b-2 border-slate-200 dark:border-slate-800 mt-4">
           <button
             type="button"
             onClick={() => setAbaAtiva('vincular')}
-            className={`flex-1 py-2.5 text-xs font-black border-b-2 flex items-center justify-center gap-2 transition cursor-pointer ${
+            className={`flex-1 py-3 text-sm font-black border-b-2 -mb-[2px] flex items-center justify-center gap-2 transition cursor-pointer ${
               abaAtiva === 'vincular'
-                ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
-                : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                ? 'border-emerald-500 text-emerald-700 dark:text-emerald-400'
+                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
-            <Link className="w-3.5 h-3.5" />
+            <Link className="w-4 h-4" />
             <span>Vincular Anúncio Existente</span>
           </button>
           <button
             type="button"
             onClick={() => setAbaAtiva('publicar')}
-            className={`flex-1 py-2.5 text-xs font-black border-b-2 flex items-center justify-center gap-2 transition cursor-pointer ${
+            className={`flex-1 py-3 text-sm font-black border-b-2 -mb-[2px] flex items-center justify-center gap-2 transition cursor-pointer ${
               abaAtiva === 'publicar'
-                ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
-                : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                ? 'border-emerald-500 text-emerald-700 dark:text-emerald-400'
+                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
-            <PlusCircle className="w-3.5 h-3.5" />
+            <PlusCircle className="w-4 h-4" />
             <span>Publicar Novo Anúncio</span>
           </button>
         </div>
 
         {/* CONTEÚDO DA ABA 1: VINCULAR EXISTENTE */}
         {abaAtiva === 'vincular' && (
-          <div className="py-4 space-y-4 animate-in fade-in">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+          <div className="py-5 space-y-4 animate-in fade-in">
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-wide text-slate-800 dark:text-slate-200 block">
                 ID do Anúncio no Mercado Livre (MLB...)
               </label>
               <input
@@ -247,29 +282,37 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
                 value={mlItemIdInput}
                 onChange={(e) => setMlItemIdInput(e.target.value)}
                 placeholder="Ex: MLB384920192"
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-hidden uppercase focus:border-emerald-500"
+                className="w-full bg-slate-50 dark:bg-zinc-950 border-2 border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-mono font-black text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-hidden uppercase focus:border-emerald-500"
               />
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                Localize o ID na URL do seu anúncio no Mercado Livre (ex: <code>mercadolivre.com.br/MLB-123456789...</code>).
+              <p className="text-xs font-medium text-slate-600 dark:text-slate-300 leading-relaxed">
+                Localize o ID na URL do seu anúncio no Mercado Livre (ex:{' '}
+                <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-900 border border-slate-300 dark:border-slate-700 font-mono text-slate-800 dark:text-slate-200">
+                  mercadolivre.com.br/MLB-123456789...
+                </code>
+                ).
               </p>
             </div>
 
-            <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-700 dark:text-emerald-300 space-y-1">
-              <div className="flex items-center gap-1.5 font-bold">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+            <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-500/40 text-emerald-900 dark:text-emerald-200 space-y-1.5">
+              <div className="flex items-center gap-2 text-sm font-black">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <span>Estoque Físico Local Sincronizado</span>
               </div>
-              <p className="text-[11px] opacity-90">
-                Ao vincular, o Mercado Livre passará a espelhar os <strong>{estoqueFisico} itens</strong> do seu estoque físico local. Qualquer venda física no balcão abaterá o saldo do anúncio instantaneamente.
+              <p className="text-xs font-medium leading-relaxed">
+                Ao vincular, o Mercado Livre passará a espelhar os{' '}
+                <strong className="font-black underline decoration-emerald-500/60">
+                  {estoqueFisico} itens
+                </strong>{' '}
+                do seu estoque físico local. Qualquer venda física no balcão abaterá o saldo do anúncio instantaneamente.
               </p>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={onFechar}
                 disabled={salvando}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                className="px-4 py-2.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-sm font-bold text-slate-800 dark:text-slate-100 transition cursor-pointer"
               >
                 Cancelar
               </button>
@@ -277,16 +320,16 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
                 type="button"
                 onClick={handleVincularExistente}
                 disabled={salvando}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-sm transition cursor-pointer disabled:opacity-50"
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm flex items-center gap-2 shadow-sm transition cursor-pointer disabled:opacity-50"
               >
                 {salvando ? (
                   <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin" />
                     <span>Vinculando...</span>
                   </>
                 ) : (
                   <>
-                    <Link className="w-3.5 h-3.5" />
+                    <Link className="w-4 h-4" />
                     <span>Confirmar Vínculo</span>
                   </>
                 )}
@@ -297,92 +340,146 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
 
         {/* CONTEÚDO DA ABA 2: PUBLICAR NOVO ANÚNCIO */}
         {abaAtiva === 'publicar' && (
-          <div className="py-4 space-y-4 animate-in fade-in">
+          <div className="py-5 space-y-4 animate-in fade-in">
             {/* Tipo de Anúncio ML */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-wide text-slate-800 dark:text-slate-200 block">
                 Tipo de Exposição no Mercado Livre
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2.5">
                 <button
                   type="button"
                   onClick={() => setTipoAnuncio('gold_special')}
-                  className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                  className={`p-3.5 rounded-2xl border-2 text-left transition cursor-pointer ${
                     tipoAnuncio === 'gold_special'
-                      ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500 text-emerald-700 dark:text-emerald-300 font-bold'
-                      : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-500'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-900 dark:text-emerald-200'
+                      : 'bg-slate-50 dark:bg-zinc-950 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-400 dark:hover:border-slate-600'
                   }`}
                 >
-                  <span className="block text-xs font-black">Clássico</span>
-                  <span className="block text-[10px] opacity-80">Exposição padrão (~11% a 14%)</span>
+                  <span className="block text-sm font-black">Clássico</span>
+                  <span className="block text-xs font-medium opacity-90 mt-0.5">
+                    Exposição padrão (~11% a 14%)
+                  </span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setTipoAnuncio('gold_pro')}
-                  className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                  className={`p-3.5 rounded-2xl border-2 text-left transition cursor-pointer ${
                     tipoAnuncio === 'gold_pro'
-                      ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-500 text-emerald-700 dark:text-emerald-300 font-bold'
-                      : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-500'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-900 dark:text-emerald-200'
+                      : 'bg-slate-50 dark:bg-zinc-950 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-400 dark:hover:border-slate-600'
                   }`}
                 >
-                  <span className="block text-xs font-black">Premium</span>
-                  <span className="block text-[10px] opacity-80">Até 12x sem juros (~16% a 19%)</span>
+                  <span className="block text-sm font-black">Premium</span>
+                  <span className="block text-xs font-medium opacity-90 mt-0.5">
+                    Até 12x sem juros (~16% a 19%)
+                  </span>
                 </button>
               </div>
             </div>
 
-            {/* Calculadora de Preço com Comissão */}
-            <div className="grid grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-500 block">Margem / Comissão (%)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="50"
-                  step="0.5"
-                  value={margemComissao}
-                  onChange={(e) => setMargemComissao(parseFloat(e.target.value) || 0)}
-                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-900 dark:text-slate-100 outline-hidden"
-                />
+            {/* Calculadora de Preço com Comissão + Custo Fixo */}
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-zinc-950 border-2 border-slate-300 dark:border-slate-700 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-slate-800 dark:text-slate-200 block">
+                    Margem / Comissão (%)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="50"
+                    step="0.5"
+                    value={margemComissao}
+                    onChange={(e) => setMargemComissao(Math.max(0, parseFloat(e.target.value) || 0))}
+                    className="w-full bg-white dark:bg-black border-2 border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm font-black text-slate-900 dark:text-white outline-hidden focus:border-emerald-500"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-slate-800 dark:text-slate-200 block">
+                    Custo Fixo (&lt; R$ 79,00) (R$)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="50"
+                    step="0.5"
+                    value={taxaFixa}
+                    onChange={(e) => setTaxaFixa(Math.max(0, parseFloat(e.target.value) || 0))}
+                    className="w-full bg-white dark:bg-black border-2 border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm font-black text-slate-900 dark:text-white outline-hidden focus:border-emerald-500"
+                  />
+                </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-500 block">Preço Final no ML</label>
-                <div className="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-black text-sm font-mono">
-                  R$ {precoCalculadoMl.toFixed(2)}
+              {/* Card de Preço Final em Destaque */}
+              <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border-2 border-emerald-500/50">
+                <span className="text-xs font-black uppercase tracking-wide text-emerald-900 dark:text-emerald-200">
+                  Preço Final no ML
+                </span>
+                <span className="text-lg font-black font-mono text-emerald-700 dark:text-emerald-400">
+                  {formatarMoeda(precoCalculadoMl)}
+                </span>
+              </div>
+
+              {/* Breakdown Claro do Cálculo */}
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                <div className="flex items-center justify-between">
+                  <span>Preço Base HUBI</span>
+                  <span className="font-mono font-bold">{formatarMoeda(breakdownPreco.precoBaseHubi)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>+ Comissão ({margemComissao}%)</span>
+                  <span className="font-mono font-bold">{formatarMoeda(breakdownPreco.valorComissao)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>+ Custo Fixo ML (&lt; R$ 79,00)</span>
+                  <span className="font-mono font-bold">
+                    {breakdownPreco.isentoCustoFixo
+                      ? 'Isento (≥ R$ 79,00)'
+                      : formatarMoeda(breakdownPreco.custoFixoAplicado)}
+                  </span>
                 </div>
               </div>
             </div>
 
             {/* Marca e Modelo (Obrigatórios no Mercado Livre) */}
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-black text-slate-800 dark:text-slate-200 flex items-center justify-between">
                   <span>Marca</span>
-                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">* obrigatório</span>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 border border-amber-400/60 text-amber-800 dark:text-amber-300 font-bold">
+                    * Obrigatório
+                  </span>
                 </label>
                 <input
                   type="text"
                   value={marca}
                   onChange={(e) => setMarca(e.target.value)}
                   placeholder="Ex: Samsung, Genérico..."
-                  className={`w-full bg-slate-50 dark:bg-slate-950 border rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-slate-100 outline-hidden transition ${
-                    !marca.trim() ? 'border-amber-400/60 focus:border-amber-500' : 'border-slate-200 dark:border-slate-700 focus:border-emerald-500'
+                  className={`w-full bg-slate-50 dark:bg-zinc-950 border-2 rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-hidden transition ${
+                    !marca.trim()
+                      ? 'border-amber-500/70 focus:border-amber-500'
+                      : 'border-slate-300 dark:border-slate-700 focus:border-emerald-500'
                   }`}
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+              <div className="space-y-1.5">
+                <label className="text-xs font-black text-slate-800 dark:text-slate-200 flex items-center justify-between">
                   <span>Modelo</span>
-                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">* obrigatório</span>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 border border-amber-400/60 text-amber-800 dark:text-amber-300 font-bold">
+                    * Obrigatório
+                  </span>
                 </label>
                 <input
                   type="text"
                   value={modelo}
                   onChange={(e) => setModelo(e.target.value)}
                   placeholder="Ex: Pro, V2, Standard..."
-                  className={`w-full bg-slate-50 dark:bg-slate-950 border rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-slate-100 outline-hidden transition ${
-                    !modelo.trim() ? 'border-amber-400/60 focus:border-amber-500' : 'border-slate-200 dark:border-slate-700 focus:border-emerald-500'
+                  className={`w-full bg-slate-50 dark:bg-zinc-950 border-2 rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-hidden transition ${
+                    !modelo.trim()
+                      ? 'border-amber-500/70 focus:border-amber-500'
+                      : 'border-slate-300 dark:border-slate-700 focus:border-emerald-500'
                   }`}
                 />
               </div>
@@ -390,12 +487,12 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
 
             {/* Aviso de Requisitos Pendentes para Publicação */}
             {!formularioPublicacaoValido && (
-              <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs space-y-1.5 animate-in fade-in">
-                <div className="flex items-center gap-1.5 font-bold">
-                  <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
+              <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-500/60 text-amber-900 dark:text-amber-200 text-xs space-y-1.5 animate-in fade-in">
+                <div className="flex items-center gap-2 font-black text-sm">
+                  <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
                   <span>Pendências para publicação no Mercado Livre:</span>
                 </div>
-                <ul className="list-disc list-inside text-[11px] space-y-0.5 opacity-90 pl-1">
+                <ul className="list-disc list-inside text-xs font-semibold space-y-0.5 pl-1">
                   {camposPendentesPublicacao.map((item, idx) => (
                     <li key={idx}>{item}</li>
                   ))}
@@ -403,12 +500,12 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
               </div>
             )}
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={onFechar}
                 disabled={salvando}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                className="px-4 py-2.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-sm font-bold text-slate-800 dark:text-slate-100 transition cursor-pointer"
               >
                 Cancelar
               </button>
@@ -421,16 +518,16 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
                     ? `Preencha os campos obrigatórios: ${camposPendentesPublicacao.join(', ')}`
                     : 'Publicar anúncio no Mercado Livre'
                 }
-                className="px-4 py-2 rounded-xl bg-[#FFE600] hover:bg-[#F5DC00] text-slate-950 font-black text-xs flex items-center gap-2 shadow-sm transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                className="px-5 py-2.5 rounded-xl bg-[#FFE600] hover:bg-[#F5DC00] border border-amber-500/70 text-slate-950 font-black text-sm flex items-center gap-2 shadow-sm transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
               >
                 {salvando ? (
                   <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-950" />
+                    <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
                     <span>Publicando...</span>
                   </>
                 ) : (
                   <>
-                    <ShoppingBag className="w-3.5 h-3.5 text-slate-950" />
+                    <ShoppingBag className="w-4 h-4 text-slate-950" />
                     <span>Publicar no Mercado Livre</span>
                   </>
                 )}

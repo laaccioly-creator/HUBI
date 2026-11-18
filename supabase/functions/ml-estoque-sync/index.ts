@@ -12,6 +12,146 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+function sanitizarTextoMl(texto: string, maxLen = 60): string {
+  const limpo = String(texto || "")
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}]/gu, " ")
+    .replace(/[/\\|<>]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!limpo) return "Produto";
+  if (limpo.length <= maxLen) return limpo;
+
+  const truncado = limpo.slice(0, maxLen - 3);
+  const ultimoEspaco = truncado.lastIndexOf(" ");
+  if (ultimoEspaco > Math.floor(maxLen * 0.55)) {
+    return truncado.slice(0, ultimoEspaco).trim();
+  }
+  return truncado.trim();
+}
+
+interface MlAtributo {
+  id: string;
+  value_name?: string;
+  value_id?: string;
+}
+
+function garantirAtributosObrigatorios(
+  atributosOriginais: MlAtributo[] = [],
+  marcaFallback?: string,
+  modeloFallback?: string
+): MlAtributo[] {
+  const mapa = new Map<string, MlAtributo>();
+
+  for (const attr of atributosOriginais) {
+    if (!attr || !attr.id) continue;
+    const idUpper = String(attr.id).trim().toUpperCase();
+    const valorLimpo = typeof attr.value_name === "string" ? attr.value_name.replace(/\s+/g, " ").trim() : undefined;
+    if (valorLimpo || attr.value_id) {
+      mapa.set(idUpper, {
+        id: idUpper,
+        ...(valorLimpo ? { value_name: valorLimpo } : {}),
+        ...(attr.value_id ? { value_id: attr.value_id } : {}),
+      });
+    }
+  }
+
+  if (!mapa.has("ITEM_CONDITION")) {
+    mapa.set("ITEM_CONDITION", { id: "ITEM_CONDITION", value_name: "Novo" });
+  }
+
+  const marcaLimpa = typeof marcaFallback === "string" ? marcaFallback.replace(/\s+/g, " ").trim() : "";
+  if (marcaLimpa && !mapa.has("BRAND")) {
+    mapa.set("BRAND", { id: "BRAND", value_name: marcaLimpa });
+  }
+
+  const modeloLimpo = typeof modeloFallback === "string" ? modeloFallback.replace(/\s+/g, " ").trim() : "";
+  if (modeloLimpo && !mapa.has("MODEL")) {
+    mapa.set("MODEL", { id: "MODEL", value_name: modeloLimpo });
+  }
+
+  return Array.from(mapa.values());
+}
+
+async function verificarCategoriaFolha(categoriaId: string, token: string): Promise<{ valida: boolean; info?: any }> {
+  try {
+    const resp = await fetch(`https://api.mercadolibre.com/categories/${encodeURIComponent(categoriaId)}`, {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Accept": "application/json",
+      },
+    });
+    if (!resp.ok) return { valida: false };
+    const info = await resp.json();
+    const ehFolha = !Array.isArray(info.children_categories) || info.children_categories.length === 0;
+    const permiteAnuncio = info.settings?.listing_allowed !== false;
+    return { valida: ehFolha && permiteAnuncio, info };
+  } catch {
+    return { valida: false };
+  }
+}
+
+async function resolverCategoriasCandidatas(
+  categoriaInicial: string | undefined,
+  termoBusca: string,
+  token: string
+): Promise<string[]> {
+  const candidatas: string[] = [];
+  const adicionarUnica = (id?: string | null) => {
+    if (id && typeof id === "string" && !candidatas.includes(id)) {
+      candidatas.push(id);
+    }
+  };
+
+  const inicialLimpa = categoriaInicial?.trim();
+
+  if (!inicialLimpa || inicialLimpa === "MLB3530") {
+    try {
+      const respPreditor = await fetch(
+        `https://api.mercadolibre.com/sites/MLB/domain_discovery/search?limit=1&q=${encodeURIComponent(termoBusca)}`,
+        {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Accept": "application/json",
+          },
+        }
+      );
+
+      if (respPreditor.ok) {
+        const predicoes = await respPreditor.json();
+        const catPredita = Array.isArray(predicoes) ? predicoes[0]?.category_id : null;
+        if (catPredita) {
+          const check = await verificarCategoriaFolha(catPredita, token);
+          if (check.valida) {
+            adicionarUnica(catPredita);
+          }
+        }
+      }
+    } catch (errPred) {
+      console.warn("[ml-estoque-sync] Falha ao consultar preditor de categoria ML:", errPred);
+    }
+  } else {
+    const checkInicial = await verificarCategoriaFolha(inicialLimpa, token);
+    if (checkInicial.valida) {
+      adicionarUnica(inicialLimpa);
+    }
+  }
+
+  adicionarUnica(inicialLimpa);
+  adicionarUnica("MLB1953");
+  adicionarUnica("MLB3530");
+
+  return candidatas;
+}
+
+function extrairTextoErroMl(dadosErro: any): string {
+  const causas = Array.isArray(dadosErro?.cause)
+    ? dadosErro.cause.map((c: any) => `${c?.code || ""} ${c?.message || ""}`.trim()).filter(Boolean)
+    : [];
+  const partes = [dadosErro?.error, dadosErro?.message, ...causas].filter(Boolean);
+  return partes.join(" | ");
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -275,7 +415,7 @@ serve(async (req: Request) => {
     // AÇÃO 3: CRIAR NOVO ANÚNCIO NO MERCADO LIVRE VIA GDM (create_listing)
     // =========================================================================
     if (action === "create_listing") {
-      const { payload_ml, produto_id, variacao_id, margem_sobrepreco } = corpo;
+      const { payload_ml, produto_id, variacao_id, margem_sobrepreco, marca, modelo } = corpo;
 
       if (!payload_ml || !produto_id) {
         return new Response(
@@ -286,26 +426,156 @@ serve(async (req: Request) => {
 
       const { token, conta } = await obterAccessTokenValido(supabaseAdmin, loja_id);
 
-      // Envia requisição para a API oficial do Mercado Livre
-      const respPost = await fetch("https://api.mercadolibre.com/items", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-        },
-        body: JSON.stringify(payload_ml),
-      });
+      const { description: descricaoObj, title: tituloOriginal, family_name: familiaOriginal, ...restantePayload } = payload_ml;
+      const descricaoPlainText = typeof descricaoObj?.plain_text === "string" ? descricaoObj.plain_text.trim() : "";
 
-      const dadosCriado = await respPost.json();
+      const nomeFamiliaLimpo = sanitizarTextoMl(familiaOriginal || tituloOriginal || "Produto", 60);
+      const tituloLimpo = sanitizarTextoMl(tituloOriginal || nomeFamiliaLimpo, 60);
 
-      if (!respPost.ok) {
-        console.error("[ml-estoque-sync] Erro ao criar item no ML:", dadosCriado);
-        const detalhe = dadosCriado.cause?.[0]?.message || dadosCriado.message || "Erro desconhecido na API do Mercado Livre.";
+      let atributosBase = garantirAtributosObrigatorios(
+        Array.isArray(restantePayload.attributes) ? restantePayload.attributes : [],
+        marca,
+        modelo
+      );
+
+      const categoriasCandidatas = await resolverCategoriasCandidatas(
+        restantePayload.category_id,
+        nomeFamiliaLimpo,
+        token
+      );
+
+      type ModoTituloMl = "only_family_name" | "both" | "only_title";
+      let respPostOk = false;
+      let dadosCriado: any = null;
+      let ultimoErroMl: any = null;
+
+      for (const categoriaId of categoriasCandidatas) {
+        const modosParaTentar: ModoTituloMl[] = ["only_family_name", "both", "only_title"];
+        let erroDeCategoria = false;
+
+        for (let idxModo = 0; idxModo < modosParaTentar.length; idxModo++) {
+          const modo = modosParaTentar[idxModo];
+          let tentarNovamenteMesmoModoComGtin = false;
+
+          do {
+            tentarNovamenteMesmoModoComGtin = false;
+            const payloadTentativa: Record<string, any> = {
+              ...restantePayload,
+              category_id: categoriaId,
+              attributes: atributosBase,
+            };
+
+            if (modo === "only_family_name") {
+              delete payloadTentativa.title;
+              payloadTentativa.family_name = nomeFamiliaLimpo;
+            } else if (modo === "both") {
+              payloadTentativa.family_name = nomeFamiliaLimpo;
+              payloadTentativa.title = tituloLimpo;
+            } else {
+              delete payloadTentativa.family_name;
+              payloadTentativa.title = tituloLimpo;
+            }
+
+            const respPost = await fetch("https://api.mercadolibre.com/items", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+              },
+              body: JSON.stringify(payloadTentativa),
+            });
+
+            const jsonResp = await respPost.json().catch(() => ({}));
+
+            if (respPost.ok) {
+              respPostOk = true;
+              dadosCriado = jsonResp;
+              break;
+            }
+
+            ultimoErroMl = jsonResp;
+            const textoErro = extrairTextoErroMl(jsonResp);
+            console.warn(`[ml-estoque-sync] Tentativa (${categoriaId} / ${modo}) falhou:`, textoErro);
+
+            // Se a categoria exigir GTIN e ainda não enviamos GTIN nem EMPTY_GTIN_REASON, adiciona e repete
+            const jaTemGtinOuMotivo = atributosBase.some((a) => a.id === "GTIN" || a.id === "EMPTY_GTIN_REASON");
+            if (!jaTemGtinOuMotivo && /\bgtin\b|empty_gtin_reason|product_identifier/i.test(textoErro)) {
+              atributosBase = [
+                ...atributosBase,
+                { id: "EMPTY_GTIN_REASON", value_name: "O produto não tem código cadastrado" },
+              ];
+              tentarNovamenteMesmoModoComGtin = true;
+              continue;
+            }
+
+            const erroRelacionadoCategoria = /category|not_leaf|listing_allowed|catalog_required|cannot_publish_in_category|domain/i.test(textoErro);
+            const erroRelacionadoTituloOuFamilia = /family_name|\btitle\b|invalid_fields/i.test(textoErro);
+
+            if (erroRelacionadoCategoria && !erroRelacionadoTituloOuFamilia) {
+              erroDeCategoria = true;
+              break;
+            }
+
+            if (!erroRelacionadoTituloOuFamilia) {
+              // Erro de outra natureza (ex: foto, preço, permissão) — não adianta trocar title/family_name
+              break;
+            }
+
+            // Decide se o próximo modo faz sentido
+            if (modo === "only_family_name") {
+              const rejeitouFamilyName = /family_name.*not.*allowed|not_allowed.*family_name|invalid.*family_name|cannot.*family_name/i.test(textoErro);
+              if (rejeitouFamilyName && !/\btitle\b/i.test(textoErro)) {
+                // Pula direto para only_title
+                idxModo = 1;
+              }
+            }
+          } while (tentarNovamenteMesmoModoComGtin);
+
+          if (respPostOk || erroDeCategoria) {
+            break;
+          }
+
+          const textoUltimoErro = extrairTextoErroMl(ultimoErroMl);
+          if (!/family_name|\btitle\b|invalid_fields/i.test(textoUltimoErro)) {
+            break;
+          }
+        }
+
+        if (respPostOk) {
+          break;
+        }
+        if (!erroDeCategoria) {
+          break;
+        }
+      }
+
+      if (!respPostOk || !dadosCriado) {
+        console.error("[ml-estoque-sync] Erro definitivo ao criar item no ML:", ultimoErroMl);
+        const detalhe = ultimoErroMl?.cause?.[0]?.message || ultimoErroMl?.message || "Erro desconhecido na API do Mercado Livre.";
         return new Response(
-          JSON.stringify({ error: `Não foi possível publicar no Mercado Livre: ${detalhe}` }),
+          JSON.stringify({
+            error: `Não foi possível publicar no Mercado Livre: ${detalhe}`,
+            detail_raw: detalhe,
+            ml_cause: ultimoErroMl?.cause || null,
+          }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
+      }
+
+      // Envia descrição separadamente (recomendado no modelo User Products)
+      if (descricaoPlainText && dadosCriado.id) {
+        await fetch(`https://api.mercadolibre.com/items/${dadosCriado.id}/description`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+          },
+          body: JSON.stringify({ plain_text: descricaoPlainText }),
+        }).catch((errDesc) => {
+          console.warn("[ml-estoque-sync] Aviso ao publicar descrição do anúncio:", errDesc);
+        });
       }
 
       // Grava o novo anúncio na tabela public.marketplace_anuncios
@@ -319,7 +589,7 @@ serve(async (req: Request) => {
           ml_item_id: dadosCriado.id,
           ml_category_id: dadosCriado.category_id,
           ml_listing_type_id: dadosCriado.listing_type_id,
-          titulo_anuncio: dadosCriado.title,
+          titulo_anuncio: dadosCriado.title || dadosCriado.family_name || nomeFamiliaLimpo,
           preco_anuncio: dadosCriado.price,
           margem_sobrepreco_percentual: Number(margem_sobrepreco || 0),
           estoque_ultimo_enviado: dadosCriado.available_quantity || 0,

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { ModalAlertaFeedback, TipoFeedback } from '../components/ModalAlertaFeedback';
+import { traduzirErroMercadoLivre } from '../utils/gdmMercadoLivreMapper';
 
 interface AlertaOpcoes {
   tipo?: TipoFeedback;
@@ -34,7 +35,7 @@ interface FeedbackContextData {
   mostrarAlerta: (opcoes: AlertaOpcoes) => void;
   mostrarSucesso: (mensagem: string, titulo?: string, onConfirmar?: () => void) => void;
   mostrarToast: (mensagem: string, tipo?: 'sucesso' | 'info' | 'aviso' | 'erro') => void;
-  mostrarErro: (mensagem: string, titulo?: string) => void;
+  mostrarErro: (mensagem: string, titulo?: string, detalhes?: string) => void;
   mostrarAviso: (mensagem: string, titulo?: string) => void;
   confirmar: (opcoes: ConfirmarOpcoes) => void;
   temAlteracoesNaoSalvas: boolean;
@@ -77,11 +78,24 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [mostrarToast]);
 
-  const mostrarErro = useCallback((mensagem: string, titulo?: string) => {
+  const mostrarErro = useCallback((mensagem: string, titulo?: string, detalhes?: string) => {
+    if (detalhes !== undefined) {
+      mostrarAlerta({
+        tipo: 'erro',
+        titulo: titulo || 'Erro',
+        mensagem,
+        detalhes,
+        textoBotaoConfirmar: 'Fechar'
+      });
+      return;
+    }
+
+    const traduzido = traduzirErroMercadoLivre(mensagem);
     mostrarAlerta({
       tipo: 'erro',
       titulo: titulo || 'Erro',
-      mensagem,
+      mensagem: traduzido.mensagemAmigavel,
+      detalhes: traduzido.detalheTecnico,
       textoBotaoConfirmar: 'Fechar'
     });
   }, [mostrarAlerta]);
