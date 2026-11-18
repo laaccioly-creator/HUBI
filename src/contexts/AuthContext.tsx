@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { Loja, UsuarioLoja, Organizacao } from '../types';
 import { authClientIsolado } from '../services/usuarioService';
@@ -47,11 +47,46 @@ interface AuthContextType {
 
 const STORAGE_KEY_LOJA_ID = 'hubi_active_loja_id';
 const STORAGE_KEY_USUARIO_ID = 'hubi_active_usuario_id';
+const UUID_LOJA_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const extrairLojaIdRetornoUrl = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const lojaIdParam = params.get('loja_id')?.trim();
+    if (lojaIdParam && UUID_LOJA_REGEX.test(lojaIdParam)) {
+      localStorage.setItem(STORAGE_KEY_LOJA_ID, lojaIdParam);
+      return lojaIdParam;
+    }
+    const extRef = params.get('external_reference')?.trim();
+    if (extRef && UUID_LOJA_REGEX.test(extRef)) {
+      localStorage.setItem(STORAGE_KEY_LOJA_ID, extRef);
+      return extRef;
+    }
+    const ultimoCheckoutRaw = sessionStorage.getItem('hubi_last_mp_debug');
+    if (
+      ultimoCheckoutRaw &&
+      (params.has('payment_id') || params.has('collection_id') || params.has('assinatura') || params.has('status'))
+    ) {
+      const parsed = JSON.parse(ultimoCheckoutRaw);
+      const idCheckout = typeof parsed?.loja_id === 'string' ? parsed.loja_id.trim() : '';
+      if (idCheckout && UUID_LOJA_REGEX.test(idCheckout)) {
+        localStorage.setItem(STORAGE_KEY_LOJA_ID, idCheckout);
+        return idCheckout;
+      }
+    }
+  } catch {
+    // Silencioso caso storage esteja indisponível
+  }
+  return null;
+};
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [loja, setLoja] = useState<Loja | null>(null);
+  const lojaRef = useRef<Loja | null>(null);
+  lojaRef.current = loja;
   const [usuario, setUsuario] = useState<UsuarioLoja | null>(null);
   const [session, setSession] = useState<any | null>(null);
   const [organizacao, setOrganizacao] = useState<Organizacao | null>(null);
@@ -59,6 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const lojasDisponiveisRef = useRef<Loja[]>([]);
   lojasDisponiveisRef.current = lojasDisponiveis;
   const [carregando, setCarregando] = useState<boolean>(true);
+  const sincronizandoLojaRef = useRef<boolean>(false);
 
   const usuarioLogado = usuario
     ? ({ ...usuario, nome: usuario.nome || usuario.nome_completo } as UsuarioLoja & { nome: string })
@@ -137,10 +173,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Carregar lojas e identificar se há uma loja ativa salva ou selecionada
-  const carregarLoja = async () => {
+  const carregarLoja = async (silencioso = false) => {
+    if (sincronizandoLojaRef.current) {
+      return;
+    }
+    sincronizandoLojaRef.current = true;
     try {
-      setCarregando(true);
-      const activeLojaId = localStorage.getItem(STORAGE_KEY_LOJA_ID);
+      if (!silencioso && !lojaRef.current) {
+        setCarregando(true);
+      }
+      const lojaIdRetorno = extrairLojaIdRetornoUrl();
+      const activeLojaId = lojaIdRetorno || localStorage.getItem(STORAGE_KEY_LOJA_ID);
       const activeUsuarioId = localStorage.getItem(STORAGE_KEY_USUARIO_ID);
 
       // Autocura inicial se houver sessão ativa no Supabase Auth
@@ -286,11 +329,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (err) {
       console.error('Erro de inicialização do PDV:', err);
-      setLoja(null);
+      if (!lojaRef.current) {
+        setLoja(null);
+      }
     } finally {
+      sincronizandoLojaRef.current = false;
       setCarregando(false);
     }
   };
+
+  const carregarLojaRef = useRef(carregarLoja);
+  carregarLojaRef.current = carregarLoja;
+
+  const recarregarDadosLoja = useCallback(async () => {
+    await carregarLojaRef.current(true);
+  }, []);
 
   // Selecionar um usuário/operador da loja
   const selecionarUsuario = async (usuarioId: string): Promise<boolean> => {
@@ -1145,7 +1198,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setLojasDisponiveis(listaLojasUsuario);
           }
 
-          const savedLojaId = localStorage.getItem(STORAGE_KEY_LOJA_ID) || activeLojaLocal;
+          const savedLojaId =
+            extrairLojaIdRetornoUrl() ||
+            localStorage.getItem(STORAGE_KEY_LOJA_ID) ||
+            activeLojaLocal;
 
           // Se houver uma loja salva no localStorage e ela pertencer à lista do usuário,
           // selecione OBRIGATORIAMENTE essa loja salva!
@@ -1266,7 +1322,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         entrarComEmail,
         entrarComGoogle,
         desconectarPdv,
-        recarregarDadosLoja: carregarLoja
+        recarregarDadosLoja
       }}
     >
       {children}

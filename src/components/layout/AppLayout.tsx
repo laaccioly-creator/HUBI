@@ -69,7 +69,7 @@ export const AppLayout: React.FC = () => {
   const searchParams = new URLSearchParams(location.search);
   const origemVendas = searchParams.get('origem') === 'sales';
   const { loja, usuario, usuarioLogado, session, carregando, desconectarPdv, selecionarUsuario, lojasDisponiveis, selecionarLoja, recarregarDadosLoja } = useAuth();
-  const { status: statusAssinatura, diasRestantesTrial } = useAssinaturaStatus();
+  const { status: statusAssinatura, diasRestantesTrial, confirmandoRetornoPagamento } = useAssinaturaStatus();
   const {
     valorMensalAnual,
     isLoading: carregandoConfigCobranca,
@@ -1011,10 +1011,36 @@ export const AppLayout: React.FC = () => {
         onClose={() => setModalAdicionarLojaAberto(false)}
       />
 
+      {/* OVERLAY ÚNICO E ESTÁVEL DE CONFIRMAÇÃO DE RETORNO DO MERCADO PAGO */}
+      {confirmandoRetornoPagamento && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
+          <div
+            className={`w-full max-w-md rounded-3xl border p-8 text-center shadow-2xl space-y-4 ${
+              isDark ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
+            }`}
+          >
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+              <Loader2 className="w-7 h-7 animate-spin text-emerald-500" />
+            </div>
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-black tracking-tight">
+                Confirmando pagamento e liberando acesso...
+              </h3>
+              <p className="text-xs text-slate-400">
+                Estamos validando o retorno do Mercado Pago e sincronizando sua loja.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* OVERLAY DE BLOQUEIO OPERACIONAL SELETIVO POR LOJA E MODAL DE ASSINATURA MANUAL */}
-      <TelaBloqueioAssinatura
-        aberturaManual={modalAssinaturaManualAberto}
-        onCloseManual={() => setModalAssinaturaManualAberto(false)} />
+      {!confirmandoRetornoPagamento && (
+        <TelaBloqueioAssinatura
+          aberturaManual={modalAssinaturaManualAberto}
+          onCloseManual={() => setModalAssinaturaManualAberto(false)}
+        />
+      )}
       {loja && (
         <ModalRecargaWhatsapp
           aberto={modalRecargaWhatsappAberto}

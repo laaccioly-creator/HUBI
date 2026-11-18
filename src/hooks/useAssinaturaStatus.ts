@@ -1,9 +1,75 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Loja } from '../types';
 import { obterDataOperacao } from '../utils/dataOperacao';
 import { useSystemBillingConfig } from './useSystemBillingConfig';
+
+const detectarParametrosRetornoMp = () => {
+  if (typeof window === 'undefined') {
+    return { ativo: false, paymentId: null as string | null, aprovado: false };
+  }
+  const params = new URLSearchParams(window.location.search);
+  const statusParam = (params.get('status') || params.get('collection_status') || '').toLowerCase();
+  const paymentId = params.get('payment_id') || params.get('collection_id');
+  const retornoAssinatura = params.get('assinatura');
+  const retornoRecarga = params.get('recarga');
+  const temPaymentIdValido = Boolean(paymentId && paymentId !== 'null');
+  const aprovado =
+    statusParam === 'approved' ||
+    retornoAssinatura === 'sucesso' ||
+    retornoRecarga === 'sucesso';
+  const ativo =
+    aprovado ||
+    temPaymentIdValido ||
+    Boolean(retornoAssinatura) ||
+    Boolean(retornoRecarga);
+
+  return {
+    ativo,
+    paymentId: temPaymentIdValido ? paymentId : null,
+    aprovado,
+  };
+};
+
+const limparParametrosRetornoMpDaUrl = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    const urlLimpa = new URL(window.location.href);
+    [
+      'assinatura',
+      'recarga',
+      'loja_id',
+      'collection_id',
+      'collection_status',
+      'payment_id',
+      'status',
+      'external_reference',
+      'payment_type',
+      'merchant_order_id',
+      'preference_id',
+      'site_id',
+      'processing_mode',
+      'merchant_account_id',
+    ].forEach((chave) => urlLimpa.searchParams.delete(chave));
+    window.history.replaceState({}, document.title, urlLimpa.pathname + (urlLimpa.search || ''));
+  } catch {
+    // Silencioso
+  }
+};
+
+let retornoMpEmAndamento = false;
+let retornoMpJaProcessado = false;
+const retornoMpListeners = new Set<(val: boolean) => void>();
+
+const definirRetornoMpEmAndamento = (val: boolean) => {
+  retornoMpEmAndamento = val;
+  retornoMpListeners.forEach((cb) => {
+    try {
+      cb(val);
+    } catch {}
+  });
+};
 
 export type StatusCicloAssinatura =
   | 'TRIAL_ATIVO'
@@ -31,6 +97,7 @@ export interface UseAssinaturaStatusReturn {
   carregandoConfigCobranca: boolean;
   lojasEmAlerta: AlertaLojaConglomerado[];
   lojasBloqueadas: AlertaLojaConglomerado[];
+  confirmandoRetornoPagamento: boolean;
   iniciarCheckoutAssinatura: (lojaAlvoId?: string) => Promise<void>;
   carregandoCheckout: boolean;
   erroCheckout: string | null;
@@ -43,6 +110,12 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
   const { loja, lojasDisponiveis, recarregarDadosLoja } = useAuth();
   const [carregandoCheckout, setCarregandoCheckout] = useState<boolean>(false);
   const [erroCheckout, setErroCheckout] = useState<string | null>(null);
+  const [confirmandoRetornoPagamento, setConfirmandoRetornoPagamento] = useState<boolean>(() => {
+    if (retornoMpEmAndamento) return true;
+    if (retornoMpJaProcessado) return false;
+    return detectarParametrosRetornoMp().ativo;
+  });
+  const isSyncingRef = useRef<boolean>(false);
   const billingConfig = useSystemBillingConfig();
 
   // Escuta alterações em tempo real via Supabase Realtime para a loja ativa
@@ -63,15 +136,25 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
           filter: `id=eq.${loja.id}`
         },
         async (payload) => {
+          if (retornoMpEmAndamento || isSyncingRef.current) {
+            return;
+          }
           const novo = payload.new as Partial<Loja>;
           // Se o status da assinatura ou data de término foi alterado
           if (
             novo.status_assinatura !== loja.status_assinatura ||
             novo.assinatura_fim_em !== loja.assinatura_fim_em
           ) {
-            console.log('[useAssinaturaStatus] Realtime: Atualização de assinatura detectada para loja:', loja.id);
-            if (recarregarDadosLoja) {
-              await recarregarDadosLoja();
+            isSyncingRef.current = true;
+            try {
+              console.log('[useAssinaturaStatus] Realtime: Atualização de assinatura detectada para loja:', loja.id);
+              if (recarregarDadosLoja) {
+                await recarregarDadosLoja();
+              }
+            } finally {
+              window.setTimeout(() => {
+                isSyncingRef.current = false;
+              }, 300);
             }
           }
         }
@@ -81,7 +164,7 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
     return () => {
       supabase.removeChannel(canal);
     };
-  }, [loja?.id, recarregarDadosLoja]);
+  }, [loja?.id, loja?.status_assinatura, loja?.assinatura_fim_em, recarregarDadosLoja]);
 
   // Avaliação do status da loja ativa
   const calculoStatusLojaAtiva = useMemo(() => {
@@ -283,27 +366,31 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
   }, []);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    const retornoAssinatura = params.get('assinatura');
-    const retornoRecarga = params.get('recarga');
-    if (!retornoAssinatura && !retornoRecarga) return;
+    retornoMpListeners.add(setConfirmandoRetornoPagamento);
 
-    const paymentId = params.get('payment_id') || params.get('collection_id');
-    const statusParam = params.get('status') || params.get('collection_status');
+    const { ativo, paymentId, aprovado } = detectarParametrosRetornoMp();
+    if (!ativo || retornoMpJaProcessado || retornoMpEmAndamento) {
+      return () => {
+        retornoMpListeners.delete(setConfirmandoRetornoPagamento);
+      };
+    }
+
+    definirRetornoMpEmAndamento(true);
+    isSyncingRef.current = true;
+
+    const timeoutSeguranca = window.setTimeout(() => {
+      retornoMpJaProcessado = true;
+      isSyncingRef.current = false;
+      limparParametrosRetornoMpDaUrl();
+      definirRetornoMpEmAndamento(false);
+    }, 4000);
 
     const processarRetornoMp = async () => {
       try {
-        if (
-          paymentId &&
-          paymentId !== 'null' &&
-          (statusParam === 'approved' || retornoAssinatura === 'sucesso' || retornoRecarga === 'sucesso')
-        ) {
+        if (paymentId && aprovado) {
           console.log('[useAssinaturaStatus] Retorno MP aprovado detectado, confirmando pagamento:', {
             paymentId,
-            statusParam,
-            retornoAssinatura,
-            retornoRecarga,
+            aprovado,
           });
           await supabase.functions.invoke('hubi-webhook-mp', {
             body: {
@@ -311,36 +398,26 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
               data: { id: paymentId },
             },
           });
-          if (recarregarDadosLoja) {
-            await recarregarDadosLoja();
-          }
+        }
+        if (recarregarDadosLoja) {
+          await recarregarDadosLoja();
         }
       } catch (errRetorno) {
         console.warn('[useAssinaturaStatus] Aviso ao confirmar retorno automático do Mercado Pago:', errRetorno);
       } finally {
-        try {
-          const urlLimpa = new URL(window.location.href);
-          [
-            'assinatura',
-            'recarga',
-            'collection_id',
-            'collection_status',
-            'payment_id',
-            'status',
-            'external_reference',
-            'payment_type',
-            'merchant_order_id',
-            'preference_id',
-            'site_id',
-            'processing_mode',
-            'merchant_account_id',
-          ].forEach((chave) => urlLimpa.searchParams.delete(chave));
-          window.history.replaceState({}, document.title, urlLimpa.pathname + (urlLimpa.search || ''));
-        } catch {}
+        window.clearTimeout(timeoutSeguranca);
+        retornoMpJaProcessado = true;
+        isSyncingRef.current = false;
+        limparParametrosRetornoMpDaUrl();
+        definirRetornoMpEmAndamento(false);
       }
     };
 
     void processarRetornoMp();
+
+    return () => {
+      retornoMpListeners.delete(setConfirmandoRetornoPagamento);
+    };
   }, [recarregarDadosLoja]);
 
   // Função para acionar o checkout do Mercado Pago
@@ -459,15 +536,16 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
     status: calculoStatusLojaAtiva.status,
     diasRestantesTrial: calculoStatusLojaAtiva.diasRestantesTrial,
     diasRestantesAnuidade: calculoStatusLojaAtiva.diasRestantesAnuidade,
-    estaBloqueada: calculoStatusLojaAtiva.estaBloqueada,
-    deveExibirBanner: calculoStatusLojaAtiva.deveExibirBanner,
-    tipoBanner: calculoStatusLojaAtiva.tipoBanner,
+    estaBloqueada: confirmandoRetornoPagamento ? false : calculoStatusLojaAtiva.estaBloqueada,
+    deveExibirBanner: confirmandoRetornoPagamento ? false : calculoStatusLojaAtiva.deveExibirBanner,
+    tipoBanner: confirmandoRetornoPagamento ? 'nenhum' : calculoStatusLojaAtiva.tipoBanner,
     valorMensalReferencia: billingConfig.valorMensalAnual,
     valorAnualTotal: billingConfig.valorTotalAnual,
     diasTrialPadrao: billingConfig.diasTrial,
     carregandoConfigCobranca: billingConfig.isLoading,
     lojasEmAlerta,
     lojasBloqueadas,
+    confirmandoRetornoPagamento,
     iniciarCheckoutAssinatura,
     carregandoCheckout,
     erroCheckout
