@@ -111,38 +111,28 @@ serve(async (req: Request) => {
 
     // 4. Identificação do perfil do coletor e ambiente configurado pelo Super Admin
     const perfilColetor = await consultarPerfilColetorMp(tokenFinal);
-    const collectorEmail = perfilColetor.email;
     const isSandboxMode = configMp.mpAmbiente === "sandbox";
     const backUrlBase = String(body?.back_url || "https://hubi.app/dashboard").trim().replace(/\/+$/, "");
 
     const externalReference = `whatsapp_wallet:${loja.id}:${transacaoCriada.id}`;
-    const payerEmail = isSandboxMode
-      ? "cliente.sandbox.hubi@gmail.com"
-      : (loja.email && (!collectorEmail || loja.email.toLowerCase().trim() !== collectorEmail)
-        ? loja.email.trim()
-        : "cliente.sandbox.hubi@gmail.com");
 
-    // 5. Gera preferência oficial do Mercado Pago Checkout Pro (espelhado de public.criar_link_mercado_pago do Catálogo Online)
+    // 5. Gera preferência oficial do Mercado Pago Checkout Pro (clone estrito de public.criar_link_mercado_pago do Catálogo Online)
     const preferencePayload: Record<string, any> = {
       items: [
         {
-          title: `HUBI - Recarga de Créditos WhatsApp (R$ ${valorRecarga.toFixed(2).replace(".", ",")})`,
+          title: "HUBI - Recarga Creditos WhatsApp",
           quantity: 1,
           currency_id: "BRL",
           unit_price: Number(valorRecarga.toFixed(2)),
         },
       ],
-      payer: {
-        email: payerEmail,
-      },
       external_reference: externalReference,
       back_urls: {
-        success: `${backUrlBase}?recarga=sucesso`,
-        failure: `${backUrlBase}?recarga=falha`,
-        pending: `${backUrlBase}?recarga=pendente`,
+        success: `${backUrlBase}?status=aprovado&recarga=sucesso&transacao_id=${transacaoCriada.id}`,
+        failure: `${backUrlBase}?status=falha&recarga=falha&transacao_id=${transacaoCriada.id}`,
+        pending: `${backUrlBase}?status=pendente&recarga=pendente&transacao_id=${transacaoCriada.id}`,
       },
       auto_return: "approved",
-      notification_url: `${supabaseUrl}/functions/v1/hubi-webhook-mp`,
     };
 
     const tokenPrefix = configMp.mpTokenPrefixo;
@@ -212,7 +202,8 @@ serve(async (req: Request) => {
       );
     }
 
-    const checkoutUrl = isSandboxMode ? prefData.sandbox_init_point : prefData.init_point;
+    // Clone estrito do retorno do Catálogo Online (public.criar_link_mercado_pago): v_body->>'init_point'
+    const checkoutUrl = prefData.init_point;
 
     // Vincula a preferência criada à transação no ledger
     await supabaseAdmin

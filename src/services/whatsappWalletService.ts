@@ -560,11 +560,7 @@ export const whatsappWalletService = {
       throw new Error(data?.error || 'Falha ao gerar link do Mercado Pago.');
     }
 
-    const isSandbox = Boolean(data.is_sandbox || data.modo === 'sandbox');
-    const checkoutUrl =
-      isSandbox && data.sandbox_init_point
-        ? data.sandbox_init_point
-        : (data.init_point || data.checkout_url || data.sandbox_init_point || '');
+    const checkoutUrl = data.init_point || data.checkout_url || '';
 
     const registroDebug = {
       timestamp: new Date().toISOString(),

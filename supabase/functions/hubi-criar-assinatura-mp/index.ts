@@ -108,38 +108,27 @@ serve(async (req: Request) => {
 
     // 2.1 Identificação do perfil do coletor e ambiente configurado pelo Super Admin
     const perfilColetor = await consultarPerfilColetorMp(mpAccessToken);
-    const collectorEmail = perfilColetor.email;
     const isCollectorTestUser = perfilColetor.isCollectorTestUser;
     const isSandboxMode = configMp.mpAmbiente === "sandbox";
     const backUrlBase = String(body?.back_url || "https://hubi.app/dashboard").trim().replace(/\/+$/, "");
 
-    const payerEmail = isSandboxMode
-      ? "cliente.sandbox.hubi@gmail.com"
-      : (loja.email && (!collectorEmail || loja.email.toLowerCase().trim() !== collectorEmail)
-        ? loja.email.trim()
-        : "cliente.sandbox.hubi@gmail.com");
-
-    // 2.2 Payload Canônico da Preferência Checkout Pro (espelhado de public.criar_link_mercado_pago do Catálogo Online)
+    // 2.2 Payload Canônico da Preferência Checkout Pro (clone estrito de public.criar_link_mercado_pago do Catálogo Online)
     const preferencePayload: Record<string, any> = {
       items: [
         {
-          title: `HUBI PDV - Licença Anual (${loja.nome_fantasia})`,
+          title: `HUBI PDV - Licenca Anual ${loja.nome_fantasia || ""}`.trim(),
           quantity: 1,
           currency_id: "BRL",
           unit_price: Number(Number(valorAnualTotal).toFixed(2)),
         },
       ],
-      payer: {
-        email: payerEmail,
-      },
       external_reference: String(loja.id),
       back_urls: {
-        success: `${backUrlBase}?assinatura=sucesso`,
-        failure: `${backUrlBase}?assinatura=falha`,
-        pending: `${backUrlBase}?assinatura=pendente`,
+        success: `${backUrlBase}?status=aprovado&assinatura=sucesso&loja_id=${loja.id}`,
+        failure: `${backUrlBase}?status=falha&assinatura=falha&loja_id=${loja.id}`,
+        pending: `${backUrlBase}?status=pendente&assinatura=pendente&loja_id=${loja.id}`,
       },
       auto_return: "approved",
-      notification_url: `${supabaseUrl}/functions/v1/hubi-webhook-mp`,
     };
 
     const tokenPrefix = configMp.mpTokenPrefixo;
@@ -210,8 +199,8 @@ serve(async (req: Request) => {
       );
     }
 
-    // Seleção obrigatória de URL por ambiente: sandbox -> sandbox_init_point; producao -> init_point
-    const checkoutUrl = isSandboxMode ? prefData.sandbox_init_point : prefData.init_point;
+    // Clone estrito do retorno do Catálogo Online (public.criar_link_mercado_pago): v_body->>'init_point'
+    const checkoutUrl = prefData.init_point;
 
     // 4. Registra histórico auditado na tabela public.hubi_assinaturas_pagamentos
     if (loja.organizacao_id) {
