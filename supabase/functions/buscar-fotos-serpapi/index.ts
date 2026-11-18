@@ -39,53 +39,27 @@ serve(async (req: Request) => {
       engine = url.searchParams.get("engine") || "google_images";
     }
 
-    // 1. Resolução da Chave de API:
-    // Recebe a chave enviada no payload (BYOK do lojista armazenada em lojas.serpapi_key)
-    // ou utiliza o segredo global configurado (SERPER_API_KEY, SERPAPI_KEY ou configuracoes_plataforma)
-    if (!apiKey) {
-      apiKey = Deno.env.get("SERPER_API_KEY") || Deno.env.get("SERPAPI_KEY") || "";
+    // 1. Resolução da Chave de API (exclusivamente BYOK da loja em lojas.serper_api_key):
+    if (!apiKey && lojaId) {
+      const supabaseAdmin = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      );
 
-      if (!apiKey && lojaId) {
-        const supabaseAdmin = createClient(
-          Deno.env.get("SUPABASE_URL") ?? "",
-          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-        );
+      const { data: loja } = await supabaseAdmin
+        .from("lojas")
+        .select("serper_api_key")
+        .eq("id", lojaId)
+        .maybeSingle();
 
-        const { data: loja } = await supabaseAdmin
-          .from("lojas")
-          .select("serpapi_key, configuracoes_extras")
-          .eq("id", lojaId)
-          .maybeSingle();
-
-        apiKey =
-          loja?.serpapi_key ||
-          loja?.configuracoes_extras?.ia?.serpapi_key ||
-          loja?.configuracoes_extras?.ia?.serper_api_key ||
-          "";
-      }
-
-      // Fallback: Chave Global da Plataforma HUBI (Super Admin)
-      if (!apiKey) {
-        try {
-          const supabaseAdmin = createClient(
-            Deno.env.get("SUPABASE_URL") ?? "",
-            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-          );
-          const { data: configPlataforma } = await supabaseAdmin
-            .from("configuracoes_plataforma")
-            .select("serpapi_key")
-            .eq("id", 1)
-            .maybeSingle();
-
-          apiKey = configPlataforma?.serpapi_key || "";
-        } catch {}
-      }
+      apiKey = typeof loja?.serper_api_key === "string" ? loja.serper_api_key.trim() : "";
     }
 
     if (!apiKey) {
       return new Response(
         JSON.stringify({
-          error: "Chave do Serper.dev não configurada para esta loja.",
+          error:
+            "Chave do Serper.dev não configurada para esta loja. Cadastre sua chave gratuita (2.500 consultas grátis em https://serper.dev/api-key) nas Configurações da Loja.",
           error_type: "auth",
         }),
         {

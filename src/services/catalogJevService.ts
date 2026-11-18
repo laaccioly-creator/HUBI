@@ -1229,7 +1229,7 @@ export const catalogJevService = {
     nomeProduto: string;
     categoriaNome?: string;
     segmentoLoja?: string;
-    loja?: { id?: string; serpapi_key?: string | null };
+    loja?: { id?: string; serper_api_key?: string | null };
     etapa: EtapaPipelineJev;
     permitirComplementoGemini?: boolean;
     forcarAtualizacao?: boolean;

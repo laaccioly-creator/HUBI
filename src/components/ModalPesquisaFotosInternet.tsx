@@ -150,7 +150,10 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
         setErro('Limite de cota de pesquisas gratuitas do Serper.dev atingido. Suas buscas gratuitas renovam ou adquira novos créditos.');
       } else if (err instanceof SerpApiAuthError || err?.name === 'SerpApiAuthError') {
         setErroAutenticacao(true);
-        setErro('Chave do Serper.dev inválida ou expirada. Clique no botão abaixo para redefinir sua chave.');
+        setErro(
+          err?.message ||
+            'Chave do Serper.dev não configurada ou inválida. Cadastre sua chave gratuita (2.500 consultas gratuitas em https://serper.dev/api-key) nas Configurações da Loja.'
+        );
       } else if (err?.message?.includes('Tempo limite')) {
         setErro('A busca na web demorou mais de 30 segundos para responder. Tente pesquisar novamente ou cole a imagem diretamente com Ctrl+V.');
       } else {

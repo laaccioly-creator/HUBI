@@ -1,8 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { Loja } from '../types';
-import { configuracoesPlataformaService } from './configuracoesPlataformaService';
 
-export const STORAGE_KEY_SERPAPI_KEY = 'hubi_serpapi_key';
+export const STORAGE_KEY_SERPAPI_KEY = 'hubi_serper_api_key';
 
 export interface FotoResultadoSerpApi {
   urlOriginal: string;
@@ -314,65 +313,38 @@ export const formatarResultadosSerpApi = (
 };
 
 /**
- * Obtém a chave da SerpApi configurada na loja ou no armazenamento local
+ * Obtém a chave do Serper.dev configurada exclusivamente na loja (lojas.serper_api_key)
  */
 export const obterSerpApiKey = (loja?: Loja | null): string => {
-  const chaveLoja =
-    loja?.serpapi_key ||
-    loja?.configuracoes_extras?.ia?.serpapi_key ||
-    localStorage.getItem(STORAGE_KEY_SERPAPI_KEY) ||
-    '';
-  return chaveLoja.trim();
+  return (loja?.serper_api_key || '').trim();
 };
 
 /**
- * Obtém a chave da SerpApi de forma assíncrona, consultando o banco de dados Supabase
- * caso não esteja no localStorage (essencial para dispositivos móveis ou novos navegadores)
+ * Obtém a chave do Serper.dev de forma assíncrona consultando exclusivamente
+ * a coluna `serper_api_key` da tabela `lojas` para a loja informada.
  */
 export const obterOuBuscarSerpApiKey = async (loja?: Loja | null): Promise<string> => {
   const chaveSincrona = obterSerpApiKey(loja);
   if (chaveSincrona) return chaveSincrona;
 
-  // 1. Prioridade: Parâmetros Globais da Plataforma HUBI (Super Admin)
-  try {
-    const params = await configuracoesPlataformaService.obterParametros();
-    if (params?.serpapi_key && params.serpapi_key.trim()) {
-      const limpa = params.serpapi_key.trim();
-      localStorage.setItem(STORAGE_KEY_SERPAPI_KEY, limpa);
-      logSerpSucesso('Chave SerpApi obtida dos Parâmetros Globais HUBI e sincronizada localmente!');
-      return limpa;
-    }
-  } catch (errPlat: any) {
-    logSerpAviso('Aviso ao consultar serpapi_key em configuracoes_plataforma:', errPlat?.message);
-  }
-
-  // 2. Fallback Transitório: Consultar Supabase na tabela lojas
   if (loja?.id) {
     try {
-      logSerp('Chave global não encontrada. Consultando Supabase lojas como fallback:', loja.id);
+      logSerp('Consultando lojas.serper_api_key no Supabase:', loja.id);
       const { data, error } = await supabase
         .from('lojas')
-        .select('serpapi_key, configuracoes_extras')
+        .select('serper_api_key')
         .eq('id', loja.id)
         .maybeSingle();
 
-      if (!error && data) {
-        const chaveDb =
-          data.serpapi_key ||
-          (data.configuracoes_extras as any)?.ia?.serpapi_key ||
-          '';
-
-        if (chaveDb && typeof chaveDb === 'string') {
-          const limpa = chaveDb.trim();
-          if (limpa) {
-            localStorage.setItem(STORAGE_KEY_SERPAPI_KEY, limpa);
-            logSerpSucesso('Chave SerpApi obtida do Supabase lojas (fallback)!');
-            return limpa;
-          }
+      if (!error && data?.serper_api_key && typeof data.serper_api_key === 'string') {
+        const limpa = data.serper_api_key.trim();
+        if (limpa) {
+          logSerpSucesso('Chave Serper.dev obtida de lojas.serper_api_key!');
+          return limpa;
         }
       }
     } catch (e: any) {
-      logSerpAviso('Erro ao buscar chave SerpApi do Supabase:', e.message);
+      logSerpAviso('Erro ao buscar lojas.serper_api_key no Supabase:', e.message);
     }
   }
 
@@ -380,7 +352,7 @@ export const obterOuBuscarSerpApiKey = async (loja?: Loja | null): Promise<strin
 };
 
 /**
- * Salva a chave SerpApi na tabela `lojas` e no armazenamento local
+ * Salva a chave do Serper.dev exclusivamente na coluna `lojas.serper_api_key` da loja.
  */
 export const salvarSerpApiKey = async (
   chave: string,
@@ -389,49 +361,50 @@ export const salvarSerpApiKey = async (
   apenasLocalStorage = false
 ): Promise<void> => {
   const chaveLimpa = chave.trim();
-  logSerp('Salvando chave SerpApi...', { 
-    lojaId, 
-    chaveMascarada: chaveLimpa ? `${chaveLimpa.slice(0, 4)}...${chaveLimpa.slice(-4)}` : '(vazia)' 
+  logSerp('Salvando chave Serper.dev em lojas.serper_api_key...', {
+    lojaId,
+    chaveMascarada: chaveLimpa ? `${chaveLimpa.slice(0, 4)}...${chaveLimpa.slice(-4)}` : '(vazia)'
   });
 
-  // 1. Salvar no localStorage para acesso síncrono rápido
-  if (chaveLimpa) {
-    localStorage.setItem(STORAGE_KEY_SERPAPI_KEY, chaveLimpa);
-  } else {
+  // Limpa qualquer resquício legado no armazenamento local
+  try {
+    localStorage.removeItem('hubi_serpapi_key');
     localStorage.removeItem(STORAGE_KEY_SERPAPI_KEY);
-  }
+  } catch {}
 
   if (apenasLocalStorage) return;
 
-  // 2. Persistir no Supabase com isolamento multi-tenant
+  // Persistir no Supabase com isolamento multi-tenant exclusivamente em lojas.serper_api_key
   if (lojaId) {
     const extrasAtual = (lojaAtual?.configuracoes_extras || {}) as any;
+    const iaAtual = { ...(extrasAtual.ia || {}) };
+    delete iaAtual.serpapi_key;
     const novosExtras = {
       ...extrasAtual,
       ia: {
-        ...(extrasAtual.ia || {}),
-        serpapi_key: chaveLimpa || undefined
+        ...iaAtual,
+        serper_api_key: chaveLimpa || undefined
       }
     };
 
     const { error } = await supabase
       .from('lojas')
       .update({
-        serpapi_key: chaveLimpa || null,
+        serper_api_key: chaveLimpa || null,
         configuracoes_extras: novosExtras
       })
       .eq('id', lojaId);
 
     if (error) {
-      logSerpErro('Erro ao persistir chave SerpApi no Supabase:', error);
+      logSerpErro('Erro ao persistir chave Serper.dev em lojas.serper_api_key:', error);
       throw new Error(`Não foi possível salvar a chave no banco: ${error.message}`);
     }
-    logSerpSucesso('Chave SerpApi persistida no Supabase com sucesso.');
+    logSerpSucesso('Chave Serper.dev persistida em lojas.serper_api_key com sucesso.');
   }
 };
 
 /**
- * Testa a conexão com a SerpApi utilizando a chave fornecida
+ * Testa a conexão com o Serper.dev utilizando a chave fornecida
  */
 export const testarConexaoSerpApi = async (
   apiKey: string
@@ -446,18 +419,16 @@ export const testarConexaoSerpApi = async (
     ? `${chaveLimpa.slice(0, 4)}...${chaveLimpa.slice(-4)}`
     : '***';
 
-  logSerp('🔑 Iniciando teste de conexão com a SerpApi...', { chave: chaveMascarada });
+  logSerp('🔑 Iniciando teste de conexão com o Serper.dev...', { chave: chaveMascarada });
 
   if (!chaveLimpa) {
     logSerpErro('Chave de API não informada para o teste.');
-    return { sucesso: false, mensagem: 'Informe uma chave de API para testar.' };
+    return { sucesso: false, mensagem: 'Informe a sua chave API do Serper.dev para testar.' };
   }
 
-  // -------------------------------------------------------------------------
-  // MÉTODO 1: Supabase Edge Function (Serper.dev) - Padrão Canônico
-  // -------------------------------------------------------------------------
+  // MÉTODO 1: Supabase Edge Function (Serper.dev)
   try {
-    logSerp('📡 [Método 1/4] Supabase Edge Function Serper.dev (buscar-fotos-serpapi)...');
+    logSerp('📡 [Método 1/2] Supabase Edge Function Serper.dev (buscar-fotos-serpapi)...');
     const { data: edgeData, error: edgeError } = await supabase.functions.invoke('buscar-fotos-serpapi', {
       body: { q: 'teste', api_key: chaveLimpa, num: 1 }
     });
@@ -486,146 +457,49 @@ export const testarConexaoSerpApi = async (
     logSerpAviso('Exceção ao testar Edge Function Serper.dev:', e.message);
   }
 
-  // -------------------------------------------------------------------------
-  // MÉTODO 2: Supabase RPC (PostgreSQL extensions.http) - Fallback Legado
-  // -------------------------------------------------------------------------
+  // MÉTODO 2: Chamada direta ao endpoint oficial do Serper.dev
   try {
-    logSerp('📡 [Método 2/4] Supabase RPC legado (testar_conexao_serpapi_rpc)...');
-    const { data: rpcData, error: rpcError } = await supabase.rpc('testar_conexao_serpapi_rpc', {
-      p_api_key: chaveLimpa
+    logSerp('📡 [Método 2/2] Validando chave diretamente na API do Serper.dev...');
+    const ctrl = new AbortController();
+    const timeoutId = setTimeout(() => ctrl.abort(), 6000);
+    const res = await fetch('https://google.serper.dev/images', {
+      method: 'POST',
+      headers: {
+        'X-API-KEY': chaveLimpa,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ q: 'teste', gl: 'br', hl: 'pt-br', num: 1 }),
+      signal: ctrl.signal
     });
+    clearTimeout(timeoutId);
 
-    if (!rpcError && rpcData) {
-      logSerp('📥 Resposta bruta do Supabase RPC:', rpcData);
-      if (rpcData.sucesso) {
-        logSerpSucesso('Conexão estabelecida com sucesso via Supabase RPC!', {
-          plano: rpcData.plano,
-          buscasRestantes: rpcData.buscasRestantes,
-          buscasMes: rpcData.buscasMes
-        });
-        return {
-          sucesso: true,
-          mensagem: rpcData.mensagem || 'Conexão estabelecida com sucesso com a SerpApi!',
-          plano: rpcData.plano || 'Plano Gratuito (Free)',
-          buscasRestantes: typeof rpcData.buscasRestantes === 'number' ? rpcData.buscasRestantes : undefined
-        };
-      } else {
-        logSerpErro('Supabase RPC validou com erro:', rpcData.mensagem);
-        return {
-          sucesso: false,
-          mensagem: rpcData.mensagem || 'Chave de API inválida.'
-        };
-      }
-    }
-
-    if (rpcError) {
-      logSerpAviso('Função RPC ainda não existe no banco ou retornou erro:', rpcError.message);
-    }
-  } catch (err: any) {
-    logSerpAviso('Exceção ao chamar Supabase RPC:', err.message);
-  }
-
-  // -------------------------------------------------------------------------
-  // MÉTODO 2: Supabase Edge Function (se implantada)
-  // -------------------------------------------------------------------------
-  try {
-    logSerp('📡 [Método 2/4] Tentando Supabase Edge Function (buscar-fotos-serpapi)...');
-    const { data: edgeData, error: edgeError } = await supabase.functions.invoke('buscar-fotos-serpapi', {
-      body: { action: 'account', api_key: chaveLimpa }
-    });
-
-    if (!edgeError && edgeData && edgeData.account) {
-      logSerpSucesso('Conexão testada com sucesso via Edge Function!', edgeData);
+    if (res.status === 401 || res.status === 403) {
       return {
-        sucesso: true,
-        mensagem: 'Conexão estabelecida com sucesso com a SerpApi!',
-        plano: edgeData.account?.plan_name || 'Plano Gratuito (Free)',
-        buscasRestantes: edgeData.account?.total_searches_left
+        sucesso: false,
+        mensagem: 'Chave do Serper.dev inválida. Verifique o código copiado em https://serper.dev/api-key.'
       };
     }
-    if (edgeError) {
-      logSerpAviso('Edge Function não disponível:', edgeError.message);
-    }
-  } catch (e: any) {
-    logSerpAviso('Exceção ao invocar Edge Function:', e.message);
-  }
-
-  // -------------------------------------------------------------------------
-  // MÉTODO 3: Proxy local de desenvolvimento (/api/buscar-fotos-serpapi)
-  // -------------------------------------------------------------------------
-  try {
-    logSerp('📡 [Método 3/4] Tentando proxy local de desenvolvimento (/api/buscar-fotos-serpapi)...');
-    const accountUrl = `/api/buscar-fotos-serpapi?action=account&api_key=${encodeURIComponent(chaveLimpa)}`;
-    const ctrl = new AbortController();
-    const timeoutId = setTimeout(() => ctrl.abort(), 6000);
-    const res = await fetch(accountUrl, { signal: ctrl.signal });
-    clearTimeout(timeoutId);
-
-    const contentType = res.headers.get('content-type') || '';
-    if (contentType.includes('application/json')) {
-      const data = await res.json();
-      logSerp('📥 Resposta do proxy local:', data);
-
-      if (res.status === 401 || res.status === 403 || data.error?.toLowerCase?.().includes('invalid api key')) {
-        return {
-          sucesso: false,
-          mensagem: 'Chave de API inválida. Verifique o código copiado do painel da SerpApi.'
-        };
-      }
-      if (res.status === 429 || data.error?.toLowerCase?.().includes('searches limit')) {
-        return {
-          sucesso: false,
-          mensagem: 'Limite mensal da cota gratuita atingido na SerpApi.'
-        };
-      }
-      if (res.ok) {
-        logSerpSucesso('Conexão testada com sucesso via proxy local!', data);
-        return {
-          sucesso: true,
-          mensagem: 'Conexão estabelecida com sucesso com a SerpApi!',
-          plano: data.plan_name || 'Plano Gratuito (Free)',
-          buscasRestantes: typeof data.total_searches_left === 'number' ? data.total_searches_left : undefined
-        };
-      }
-    } else {
-      logSerpAviso('Proxy local retornou HTML (fallback SPA estático). Ignorando...');
-    }
-  } catch (e: any) {
-    logSerpAviso('Proxy local indisponível:', e.message);
-  }
-
-  // -------------------------------------------------------------------------
-  // MÉTODO 4: Chamada direta ao endpoint da SerpApi (sujeita a CORS no browser)
-  // -------------------------------------------------------------------------
-  try {
-    logSerp('📡 [Método 4/4] Tentando chamada direta à SerpApi (account.json)...');
-    const directUrl = `https://serpapi.com/account.json?api_key=${encodeURIComponent(chaveLimpa)}`;
-    const ctrl = new AbortController();
-    const timeoutId = setTimeout(() => ctrl.abort(), 6000);
-    const res = await fetch(directUrl, { signal: ctrl.signal });
-    clearTimeout(timeoutId);
-
-    const data = await res.json();
-    if (res.status === 401 || res.status === 403) {
-      return { sucesso: false, mensagem: 'Chave de API inválida na SerpApi.' };
+    if (res.status === 429) {
+      return {
+        sucesso: false,
+        mensagem: 'Limite de cota gratuita do Serper.dev atingido.'
+      };
     }
     if (res.ok) {
-      logSerpSucesso('Conexão testada com sucesso via direct fetch!', data);
       return {
         sucesso: true,
-        mensagem: 'Conexão estabelecida com sucesso com a SerpApi!',
-        plano: data.plan_name || 'Plano Gratuito (Free)',
-        buscasRestantes: typeof data.total_searches_left === 'number' ? data.total_searches_left : undefined
+        mensagem: 'Conexão estabelecida com sucesso com o Serper.dev!',
+        plano: 'Plano Gratuito (2.500 buscas)',
+        buscasRestantes: 2500
       };
     }
   } catch (e: any) {
-    logSerpAviso('Chamada direta falhou (CORS esperado no browser):', e.message);
+    logSerpAviso('Validação direta ao Serper.dev falhou:', e.message);
   }
 
-  logSerpErro('Nenhum método conseguiu validar a chave SerpApi com sucesso.');
   return {
     sucesso: false,
-    mensagem: 'Não foi possível validar a chave. Por favor, execute o SQL das funções RPC no Supabase para habilitar a conexão direta do servidor.'
+    mensagem: 'Não foi possível validar a chave do Serper.dev. Confira se a chave foi copiada corretamente em https://serper.dev/api-key.'
   };
 };
 
@@ -738,17 +612,24 @@ export const buscarFotosGoogleImagesSerpApi = async (
   let chaveLimpa = (apiKey || '').trim();
   const lojaId = opcoes?.lojaId;
 
-  // Se não tem chave no argumento, tenta pegar do localStorage
-  if (!chaveLimpa) {
-    chaveLimpa = (localStorage.getItem(STORAGE_KEY_SERPAPI_KEY) || '').trim();
+  // Se não foi passada diretamente, consulta exclusivamente lojas.serper_api_key
+  if (!chaveLimpa && lojaId) {
+    chaveLimpa = await obterOuBuscarSerpApiKey({ id: lojaId } as Loja);
   }
 
   const chaveMascarada = chaveLimpa.length > 8
     ? `${chaveLimpa.slice(0, 4)}...${chaveLimpa.slice(-4)}`
-    : chaveLimpa ? '***' : '(busca via lojaId no banco)';
+    : chaveLimpa ? '***' : '(ausente)';
 
   const queryFinal = limparTermoParaBuscaGoogle(termo);
   const num = Math.min(opcoes?.numResultados || 20, 20);
+
+  if (!chaveLimpa) {
+    logSerpErro('Chave do Serper.dev não configurada para esta loja (lojas.serper_api_key).');
+    throw new SerpApiAuthError(
+      'Chave do Serper.dev não configurada. Cadastre sua chave gratuita (2.500 consultas grátis) nas Configurações da Loja.'
+    );
+  }
 
   // 1. Verificação instantânea no Cache Local (Memória + sessionStorage)
   const fotosEmCache = obterCacheSerp(queryFinal);
@@ -757,18 +638,13 @@ export const buscarFotosGoogleImagesSerpApi = async (
     return fotosEmCache;
   }
 
-  logSerp(`🔍 Iniciando busca de fotos Google Images na SerpApi...`, {
+  logSerp(`🔍 Iniciando busca de fotos Google Images no Serper.dev...`, {
     termoOriginal: termo,
     termoPesquisa: queryFinal,
     chave: chaveMascarada,
     lojaId: lojaId || 'N/A',
     quantidadeDesejada: num
   });
-
-  if (!chaveLimpa && !lojaId) {
-    logSerpErro('Chave SerpApi não configurada e Loja ID não fornecido.');
-    throw new SerpApiAuthError('Chave SerpApi não configurada.');
-  }
 
   if (!queryFinal) {
     logSerpAviso('Termo de busca vazio após sanitização.');
@@ -786,7 +662,6 @@ export const buscarFotosGoogleImagesSerpApi = async (
 
   // =========================================================================
   // MÉTODO 1: Proxy local de desenvolvimento (/api/buscar-fotos-serpapi)
-  // Utilizado apenas em ambiente DEV quando a chave local está presente
   // =========================================================================
   if (import.meta.env.DEV && chaveLimpa) {
     try {
@@ -817,8 +692,7 @@ export const buscarFotosGoogleImagesSerpApi = async (
           rawJson.error?.toLowerCase?.().includes('invalid api key') ||
           rawJson.error?.toLowerCase?.().includes('unauthorized')
         ) {
-          if (!lojaId) throw new SerpApiAuthError();
-          logSerpAviso('Proxy local sem chave válida, recorrendo ao Supabase...');
+          throw new SerpApiAuthError(rawJson.error || 'Chave do Serper.dev inválida ou expirada.');
         } else if (response.ok && (Array.isArray(rawJson.images_results) || Array.isArray(rawJson.results))) {
           const itens = rawJson.images_results || rawJson.results;
           const fotos = formatarResultadosSerpApi(itens, queryFinal, num);
@@ -833,145 +707,73 @@ export const buscarFotosGoogleImagesSerpApi = async (
       if (e instanceof SerpApiQuotaError || e instanceof SerpApiAuthError) {
         throw e;
       }
-      logSerpAviso('Proxy local indisponível, recorrendo aos canais Supabase:', e.message);
+      logSerpAviso('Proxy local indisponível, recorrendo à Edge Function Supabase:', e.message);
     }
   }
 
   // =========================================================================
-  // MÉTODO 2: Conexão Concorrente Segura (Supabase RPC + Supabase Edge Function)
-  // Ambas são disparadas simultaneamente; a primeira a entregar fotos válidas vence.
-  // Garante velocidade máxima (~5s a 7s em buscas inéditas, ~800ms em cache)
-  // Timeout unificado de 14s (tempo seguro para qualquer raspagem de novos termos)
+  // MÉTODO 2: Supabase Edge Function (buscar-fotos-serpapi no Deno Runtime / Serper.dev)
   // =========================================================================
   try {
-    logSerp('📡 [Canais de Alta Performance] Disparando Supabase RPC e Edge Function em paralelo...');
+    logSerp('📡 [Serper.dev] Consultando Edge Function buscar-fotos-serpapi...');
 
-    // Canal A: Supabase RPC (PostgreSQL direto com extensions.http)
-    const promessaRpc = (async (): Promise<FotoResultadoSerpApi[]> => {
-      try {
-        const { data: rpcData, error: rpcError } = await supabase.rpc('buscar_fotos_serpapi_rpc', {
-          p_termo: queryFinal,
-          p_loja_id: lojaId || null,
-          p_api_key: chaveLimpa || null,
-          p_num: num
-        });
-
-        if (!rpcError && rpcData) {
-          if (rpcData.error_type === 'quota' || rpcData.status === 429) {
-            throw new SerpApiQuotaError(rpcData.mensagem);
-          }
-          if (rpcData.error_type === 'auth' || rpcData.status === 401 || rpcData.status === 403) {
-            logSerpAviso('RPC legado SerpApi retornou não autorizado (chave pode ser do Serper.dev):', rpcData.mensagem);
-            return [];
-          }
-          if (rpcData.sucesso && Array.isArray(rpcData.results) && rpcData.results.length > 0) {
-            return formatarResultadosSerpApi(rpcData.results, queryFinal, num);
-          }
-        }
-      } catch (err: any) {
-        if (err instanceof SerpApiQuotaError) throw err;
-      }
-      return [];
-    })();
-
-    // Canal B: Supabase Edge Function (buscar-fotos-serpapi no Deno Runtime / Serper.dev)
     const promessaEdge = (async (): Promise<FotoResultadoSerpApi[]> => {
-      try {
-        const { data: edgeData, error: edgeError } = await supabase.functions.invoke('buscar-fotos-serpapi', {
-          body: {
-            q: queryFinal,
-            serpApiKey: chaveLimpa || undefined,
-            api_key: chaveLimpa || undefined,
-            loja_id: lojaId || undefined,
-            num
-          }
-        });
+      const { data: edgeData, error: edgeError } = await supabase.functions.invoke('buscar-fotos-serpapi', {
+        body: {
+          q: queryFinal,
+          serpApiKey: chaveLimpa,
+          api_key: chaveLimpa,
+          loja_id: lojaId || undefined,
+          num
+        }
+      });
 
-        if (edgeError) {
-          let errorMsg = 'Chave do Serper.dev inválida ou expirada.';
-          let isAuth = false;
-          let isQuota = false;
-          try {
-            if ((edgeError as any)?.context?.json) {
-              const bodyJson = await (edgeError as any).context.json();
-              if (bodyJson?.error) errorMsg = bodyJson.error;
-              if (bodyJson?.error_type === 'auth') isAuth = true;
-              if (bodyJson?.error_type === 'quota') isQuota = true;
-            }
-          } catch {
-            // contexto já consumido
+      if (edgeError) {
+        let errorMsg = 'Chave do Serper.dev inválida ou expirada.';
+        let isAuth = false;
+        let isQuota = false;
+        try {
+          if ((edgeError as any)?.context?.json) {
+            const bodyJson = await (edgeError as any).context.json();
+            if (bodyJson?.error) errorMsg = bodyJson.error;
+            if (bodyJson?.error_type === 'auth') isAuth = true;
+            if (bodyJson?.error_type === 'quota') isQuota = true;
           }
-
-          const status = (edgeError as any)?.context?.status;
-          if (status === 401 || status === 403 || isAuth || errorMsg.toLowerCase().includes('chave')) {
-            throw new SerpApiAuthError(errorMsg);
-          }
-          if (status === 429 || isQuota || errorMsg.toLowerCase().includes('cota') || errorMsg.toLowerCase().includes('quota')) {
-            throw new SerpApiQuotaError(errorMsg);
-          }
+        } catch {
+          // contexto já consumido
         }
 
-        if (edgeData) {
-          if (edgeData.error_type === 'quota' || edgeData.status === 429) {
-            throw new SerpApiQuotaError(edgeData.error || 'Limite de cota de pesquisas gratuitas do Serper.dev atingido.');
-          }
-          if (edgeData.error_type === 'auth' || edgeData.status === 401 || edgeData.status === 403) {
-            throw new SerpApiAuthError(edgeData.error || 'Chave do Serper.dev inválida ou expirada.');
-          }
-          const listaResultados = edgeData.results || edgeData.images || [];
-          if (Array.isArray(listaResultados) && listaResultados.length > 0) {
-            return formatarResultadosSerpApi(listaResultados, queryFinal, num);
-          }
+        const status = (edgeError as any)?.context?.status;
+        if (status === 401 || status === 403 || isAuth || errorMsg.toLowerCase().includes('chave')) {
+          throw new SerpApiAuthError(errorMsg);
         }
-      } catch (e: any) {
-        if (e instanceof SerpApiQuotaError || e instanceof SerpApiAuthError) throw e;
+        if (status === 429 || isQuota || errorMsg.toLowerCase().includes('cota') || errorMsg.toLowerCase().includes('quota')) {
+          throw new SerpApiQuotaError(errorMsg);
+        }
+      }
+
+      if (edgeData) {
+        if (edgeData.error_type === 'quota' || edgeData.status === 429) {
+          throw new SerpApiQuotaError(edgeData.error || 'Limite de cota de pesquisas gratuitas do Serper.dev atingido.');
+        }
+        if (edgeData.error_type === 'auth' || edgeData.status === 401 || edgeData.status === 403) {
+          throw new SerpApiAuthError(edgeData.error || 'Chave do Serper.dev inválida ou expirada.');
+        }
+        const listaResultados = edgeData.results || edgeData.images || [];
+        if (Array.isArray(listaResultados) && listaResultados.length > 0) {
+          return formatarResultadosSerpApi(listaResultados, queryFinal, num);
+        }
       }
       return [];
     })();
-
-    // Resolver com a primeira fonte que devolver fotos > 0
-    const corridaResultados = new Promise<FotoResultadoSerpApi[]>((resolve, reject) => {
-      let pendentes = 2;
-      let erroFinal: any = null;
-
-      const verificarResultado = (fotos: FotoResultadoSerpApi[]) => {
-        if (fotos && fotos.length > 0) {
-          resolve(fotos);
-        } else {
-          pendentes--;
-          if (pendentes <= 0) {
-            if (erroFinal) reject(erroFinal);
-            else resolve([]);
-          }
-        }
-      };
-
-      promessaRpc.then(verificarResultado).catch((err) => {
-        if (err instanceof SerpApiQuotaError || err instanceof SerpApiAuthError) erroFinal = err;
-        pendentes--;
-        if (pendentes <= 0) {
-          if (erroFinal) reject(erroFinal);
-          else resolve([]);
-        }
-      });
-
-      promessaEdge.then(verificarResultado).catch((err) => {
-        if (err instanceof SerpApiQuotaError || err instanceof SerpApiAuthError) erroFinal = err;
-        pendentes--;
-        if (pendentes <= 0) {
-          if (erroFinal) reject(erroFinal);
-          else resolve([]);
-        }
-      });
-    });
 
     const timeoutGlobal = new Promise<FotoResultadoSerpApi[]>((_, reject) =>
       setTimeout(() => reject(new Error('Tempo limite de busca na web esgotado (30s)')), 30000)
     );
 
-    const fotos = await Promise.race([corridaResultados, timeoutGlobal]);
+    const fotos = await Promise.race([promessaEdge, timeoutGlobal]);
     if (fotos && fotos.length > 0) {
-      logSerpSucesso(`⚡ Encontradas ${fotos.length} fotos via canal de alta performance!`, fotos);
+      logSerpSucesso(`⚡ Encontradas ${fotos.length} fotos via Serper.dev!`, fotos);
       salvarCacheSerp(queryFinal, fotos);
       return fotos;
     }
@@ -980,7 +782,7 @@ export const buscarFotosGoogleImagesSerpApi = async (
     const termoEnxuto = extrairTermoEnxutoBusca(queryFinal, 4);
     if (termoEnxuto && termoEnxuto.toLowerCase() !== queryFinal.toLowerCase()) {
       logSerpAviso(`[FALLBACK AUTOMÁTICO] Query longa "${queryFinal}" sem fotos. Buscando termo enxuto: "${termoEnxuto}"...`);
-      const fotosEnxutas = await buscarFotosGoogleImagesSerpApi(termoEnxuto, apiKey, opcoes);
+      const fotosEnxutas = await buscarFotosGoogleImagesSerpApi(termoEnxuto, chaveLimpa, opcoes);
       if (fotosEnxutas && fotosEnxutas.length > 0) {
         salvarCacheSerp(queryFinal, fotosEnxutas);
         return fotosEnxutas;
@@ -991,10 +793,10 @@ export const buscarFotosGoogleImagesSerpApi = async (
       throw err;
     }
     if (err?.message?.includes('Tempo limite')) {
-      logSerpErro('Timeout de 30s atingido na busca SerpApi:', err.message);
+      logSerpErro('Timeout de 30s atingido na busca Serper.dev:', err.message);
       throw err;
     }
-    logSerpAviso('Busca concorrente Supabase finalizada sem resultados:', err.message);
+    logSerpAviso('Busca Serper.dev finalizada sem resultados:', err.message);
   }
 
   logSerpErro('Nenhum método conseguiu localizar fotos para o termo.');
@@ -1417,6 +1219,12 @@ export const buscarPrecosShoppingSerpApi = async (
     try {
       chaveLimpa = await obterOuBuscarSerpApiKey(loja);
     } catch {}
+  }
+
+  if (!chaveLimpa) {
+    throw new SerpApiAuthError(
+      'Chave do Serper.dev não configurada para esta loja. Cadastre sua chave gratuita (2.500 consultas grátis em https://serper.dev/api-key) nas Configurações da Loja para usar o Radar de Preços.'
+    );
   }
 
   const lojaId = loja?.id;

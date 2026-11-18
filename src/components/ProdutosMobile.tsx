@@ -210,13 +210,15 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     if (!chave && loja?.id) {
       chave = await obterOuBuscarSerpApiKey(loja);
       if (chave && setLoja && loja) {
-        setLoja({ ...loja, serpapi_key: chave });
+        setLoja({ ...loja, serper_api_key: chave });
       }
     }
 
-    if (!chave && !loja?.id) {
-      setModalOnboardingSerpApiAberto(true);
-    } else if (!chave) {
+    if (!chave) {
+      mostrarAviso(
+        'Cadastre a sua chave gratuita do Serper.dev (2.500 consultas gratuitas em https://serper.dev/api-key) nas Configurações da Loja (ou no assistente a seguir) para buscar fotos de produtos.',
+        'Chave Serper.dev Necessária'
+      );
       setModalOnboardingSerpApiAberto(true);
     } else {
       setModalFotosInternetAberto(true);
@@ -563,7 +565,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       });
   }, [loja?.id]);
 
-  const { confirmar } = useFeedbackModal();
+  const { confirmar, mostrarAviso } = useFeedbackModal();
   const [snapshotInicialForm, setSnapshotInicialForm] = useState<string>('');
 
   const snapshotAtualForm = useMemo(() => {
@@ -1000,6 +1002,20 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
     if (!formData.nome.trim()) {
       setErroMercado('Por favor, informe o nome do produto no formulário primeiro para pesquisar os concorrentes.');
+      return;
+    }
+
+    let serperKey = obterSerpApiKey(loja);
+    if (!serperKey && loja?.id) {
+      serperKey = await obterOuBuscarSerpApiKey(loja);
+      if (serperKey && setLoja && loja) {
+        setLoja({ ...loja, serper_api_key: serperKey });
+      }
+    }
+    if (!serperKey) {
+      setErroMercado(
+        'Chave do Serper.dev não configurada para esta loja. Cadastre sua chave gratuita (2.500 consultas gratuitas em https://serper.dev/api-key) nas Configurações da Loja para usar o Radar de Preços.'
+      );
       return;
     }
 
@@ -5522,7 +5538,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             if (loja) {
               setLoja({
                 ...loja,
-                serpapi_key: novaChave
+                serper_api_key: novaChave
               });
             }
             setModalFotosInternetAberto(true);

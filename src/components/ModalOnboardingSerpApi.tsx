@@ -87,10 +87,10 @@ export const ModalOnboardingSerpApi: React.FC<ModalOnboardingSerpApiProps> = ({
             </div>
             <div className="flex-1 min-w-0">
               <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight leading-snug">
-                Ativar Busca Automática de Fotos
+                Serper.dev API Key (Busca de Fotos e Radar de Preços)
               </h2>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
-                Configure sua cota gratuita de 2.500 buscas do Serper.dev em menos de 1 minuto.
+                Configure a chave gratuita da sua loja com 2.500 consultas gratuitas no Serper.dev em menos de 1 minuto.
               </p>
             </div>
           </div>
@@ -119,12 +119,12 @@ export const ModalOnboardingSerpApi: React.FC<ModalOnboardingSerpApiProps> = ({
                 </p>
                 <div>
                   <a
-                    href="https://serper.dev/signup"
+                    href="https://serper.dev/api-key"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition active:scale-95 cursor-pointer"
                   >
-                    <span>Criar Conta no Serper.dev (2.500 buscas grátis)</span>
+                    <span>Criar Conta no Serper.dev (2.500 consultas gratuitas)</span>
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 </div>
@@ -155,7 +155,7 @@ export const ModalOnboardingSerpApi: React.FC<ModalOnboardingSerpApiProps> = ({
             <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 flex items-start gap-3">
               <Info className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
               <p className="text-xs sm:text-sm leading-relaxed">
-                <strong>Sem cartão de crédito:</strong> Não é necessário cartão de crédito. Você ganha <strong>2.500 pesquisas gratuitas</strong> imediatamente ao cadastrar.
+                <strong>Sem cartão de crédito:</strong> Não é necessário cartão de crédito. Você ganha <strong>2.500 consultas gratuitas</strong> imediatamente ao cadastrar para buscar fotos e usar o Radar de Preços.
               </p>
             </div>
 
@@ -166,7 +166,7 @@ export const ModalOnboardingSerpApi: React.FC<ModalOnboardingSerpApiProps> = ({
             <div className="flex items-center justify-between">
               <label className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                 <Key className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span>Cole sua API Key do Serper.dev aqui:</span>
+                <span>Serper.dev API Key (Busca de Fotos e Radar de Preços):</span>
               </label>
               <button
                 type="button"
@@ -186,7 +186,7 @@ export const ModalOnboardingSerpApi: React.FC<ModalOnboardingSerpApiProps> = ({
                   setApiKey(e.target.value);
                   if (erro) setErro(null);
                 }}
-                placeholder="Ex: a1b2c3d4e5f6..."
+                placeholder="Cole a sua chave API do Serper.dev..."
                 className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl p-3.5 pr-11 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-emerald-500 focus:outline-none transition font-mono shadow-2xs"
               />
               <button

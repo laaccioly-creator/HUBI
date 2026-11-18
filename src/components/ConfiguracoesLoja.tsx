@@ -50,7 +50,9 @@ import {
   Target,
   Tag,
   Bot,
-  Home
+  Home,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { MoneyInput } from './ui/MoneyInput';
 import { supabase } from '../lib/supabase';
@@ -78,7 +80,7 @@ import { MobileHeader } from './layout/MobileHeader';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { setGoogleSearchConfig } from '../services/geminiService';
-import { testarConexaoSerpApi, salvarSerpApiKey, obterSerpApiKey } from '../services/serpApiService';
+import { testarConexaoSerpApi, salvarSerpApiKey } from '../services/serpApiService';
 import { useTheme } from '../contexts/ThemeContext';
 import { CardConexaoMercadoLivre } from './mercadolivre/CardConexaoMercadoLivre';
 import { CardParametrosHubiAdmin } from './configuracoes/CardParametrosHubiAdmin';
@@ -739,9 +741,9 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const [googleSearchApiKey, setGoogleSearchApiKey] = useState<string>('');
   const [googleSearchCx, setGoogleSearchCx] = useState<string>('');
 
-  // 2.2 BUSCA DE FOTOS SERPAPI (BYOK)
+  // 2.2 BUSCA DE FOTOS E RADAR DE PREÇOS SERPER.DEV (BYOK)
   const [serpApiKey, setSerpApiKey] = useState<string>('');
-  const [editandoSerpApiKey, setEditandoSerpApiKey] = useState<boolean>(false);
+  const [mostrarSerperKey, setMostrarSerperKey] = useState<boolean>(false);
   const [testandoSerpApi, setTestandoSerpApi] = useState<boolean>(false);
   const [resultadoTesteSerpApi, setResultadoTesteSerpApi] = useState<{
     sucesso: boolean;
@@ -749,6 +751,22 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
     plano?: string;
     buscasRestantes?: number;
   } | null>(null);
+
+  const handleTestarSerperKey = async () => {
+    try {
+      setTestandoSerpApi(true);
+      setResultadoTesteSerpApi(null);
+      const res = await testarConexaoSerpApi(serpApiKey);
+      setResultadoTesteSerpApi(res);
+    } catch (err: any) {
+      setResultadoTesteSerpApi({
+        sucesso: false,
+        mensagem: err?.message || 'Erro ao testar a chave do Serper.dev.'
+      });
+    } finally {
+      setTestandoSerpApi(false);
+    }
+  };
 
   // 3. RECIBO
   const [reciboAdicionarCliente, setReciboAdicionarCliente] = useState<boolean>(true);
@@ -949,7 +967,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       setGeminiApiKey(loja.gemini_api_key || iaConfig.gemini_api_key || '');
       setGoogleSearchApiKey(iaConfig.google_search_api_key || localStorage.getItem('hubi_google_search_api_key') || '');
       setGoogleSearchCx(iaConfig.google_search_cx || localStorage.getItem('hubi_google_search_cx') || '');
-      setSerpApiKey(loja.serpapi_key || iaConfig.serpapi_key || localStorage.getItem('hubi_serpapi_key') || '');
+      setSerpApiKey(loja.serper_api_key || '');
 
       // Recibo
       setReciboAdicionarCliente(recibo.adicionar_cliente ?? true);
@@ -1147,7 +1165,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           geminiApiKey: loja.gemini_api_key || iaConfig.gemini_api_key || '',
           googleSearchApiKey: iaConfig.google_search_api_key || localStorage.getItem('hubi_google_search_api_key') || '',
           googleSearchCx: iaConfig.google_search_cx || localStorage.getItem('hubi_google_search_cx') || '',
-          serpApiKey: loja.serpapi_key || iaConfig.serpapi_key || localStorage.getItem('hubi_serpapi_key') || '',
+          serpApiKey: loja.serper_api_key || '',
           nomeLoja: loja.nome_fantasia || '',
           urlLogo: loja.url_logo || '',
           telefone: loja.telefone || '',
@@ -1438,7 +1456,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           gemini_api_key: geminiApiKey.trim(),
           google_search_api_key: googleSearchApiKey.trim(),
           google_search_cx: googleSearchCx.trim(),
-          serpapi_key: serpApiKey.trim() || undefined
+          serper_api_key: serpApiKey.trim() || undefined
         }
       };
 
@@ -1463,7 +1481,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
           endereco_cidade: enderecoCidade,
           endereco_estado: enderecoEstado,
           gemini_api_key: geminiApiKey.trim(),
-          serpapi_key: serpApiKey.trim() || null,
+          serper_api_key: serpApiKey.trim() || null,
           retirada_loja_ativa: Boolean(trabalhoComRetirada),
           exigir_pesagem_previa_pagamento: Boolean(exigirPesagemPreviaPagamento),
           frete_gratis_ativo: Boolean(freteGratisAtivo),
@@ -1514,7 +1532,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               endereco_cidade: enderecoCidade,
               endereco_estado: enderecoEstado,
               gemini_api_key: geminiApiKey.trim(),
-          serpapi_key: serpApiKey.trim() || null,
+              serper_api_key: serpApiKey.trim() || null,
               retirada_loja_ativa: Boolean(trabalhoComRetirada),
               exigir_pesagem_previa_pagamento: Boolean(exigirPesagemPreviaPagamento),
               frete_gratis_ativo: Boolean(freteGratisAtivo),
@@ -1624,6 +1642,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       setGoogleSearchConfig(googleSearchApiKey.trim(), googleSearchCx.trim());
       setLoja({
         ...loja,
+        serper_api_key: serpApiKey.trim() || null,
         caderneta_ativa: Boolean(cadernetaAtiva),
         dia_vencimento_padrao_caderneta: Number(diaVencimentoPadraoCaderneta || 10),
         configuracoes_extras: novasExtras
@@ -2307,6 +2326,31 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   value={enderecoLogradouro}
                   onChange={(e) => setEnderecoLogradouro(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:border-emerald-500 focus:bg-white"
+                />
+              </div>
+
+              <div className="pt-2 border-t border-slate-200 space-y-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <Key className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Serper.dev API Key (Busca de Fotos e Radar de Preços)</span>
+                  </label>
+                  <a
+                    href="https://serper.dev/api-key"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:underline"
+                  >
+                    <span>Criar conta gratuita (2.500 consultas grátis)</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <input
+                  type={mostrarSerperKey ? 'text' : 'password'}
+                  value={serpApiKey}
+                  onChange={(e) => setSerpApiKey(e.target.value)}
+                  placeholder="Cole a sua chave API do Serper.dev..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 font-mono focus:border-emerald-500 focus:bg-white"
                 />
               </div>
 
@@ -4391,6 +4435,97 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   />
                   <p className="text-[10px] text-slate-800 dark:text-slate-400 mt-1 leading-relaxed">
                     Credencial oficial e obrigatória do <strong>Google AI Studio</strong>. Ponto único e exclusivo de configuração utilizado de forma transparente por todas as inteligências do HUBI (Rubi IA, Vendedora IA no Catálogo Online, Reconhecimento Multimodal de Produtos e Atendimento no WhatsApp).
+                  </p>
+                </div>
+
+                {/* Chave de API Serper.dev (Busca de Fotos e Radar de Preços por Loja) */}
+                <div className="pt-3 border-t border-slate-200 dark:border-slate-800">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1.5">
+                    <label className="text-[11px] font-bold text-slate-900 dark:text-slate-300 flex items-center gap-1.5">
+                      <Key className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>Serper.dev API Key (Busca de Fotos e Radar de Preços)</span>
+                    </label>
+                    <a
+                      href="https://serper.dev/api-key"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 font-bold transition hover:underline cursor-pointer self-start sm:self-auto"
+                    >
+                      <span>Criar conta gratuita no Serper.dev (2.500 consultas grátis)</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type={mostrarSerperKey ? 'text' : 'password'}
+                        value={serpApiKey}
+                        onChange={(e) => {
+                          setSerpApiKey(e.target.value);
+                          if (resultadoTesteSerpApi) setResultadoTesteSerpApi(null);
+                        }}
+                        placeholder="Cole a sua chave API do Serper.dev..."
+                        className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-3 pr-10 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:border-emerald-500 outline-hidden transition font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setMostrarSerperKey(!mostrarSerperKey)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                        title={mostrarSerperKey ? 'Ocultar chave' : 'Exibir chave'}
+                      >
+                        {mostrarSerperKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleTestarSerperKey}
+                      disabled={testandoSerpApi || !serpApiKey.trim()}
+                      className="px-3.5 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-100 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50 shrink-0"
+                    >
+                      {testandoSerpApi ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500" />
+                          <span>Testando...</span>
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>Testar Chave</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {resultadoTesteSerpApi && (
+                    <div
+                      className={`mt-2 p-2.5 rounded-xl border text-xs font-semibold flex items-center gap-2 ${
+                        resultadoTesteSerpApi.sucesso
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
+                          : 'bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300'
+                      }`}
+                    >
+                      {resultadoTesteSerpApi.sucesso ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                      )}
+                      <span>{resultadoTesteSerpApi.mensagem}</span>
+                    </div>
+                  )}
+
+                  <p className="text-[10px] text-slate-800 dark:text-slate-400 mt-1.5 leading-relaxed">
+                    Chave individual da sua loja no <strong>Serper.dev</strong> utilizada exclusivamente para buscar fotografias de produtos na internet e pesquisar concorrentes no Radar de Preços. Cadastre-se grátis em{' '}
+                    <a
+                      href="https://serper.dev/api-key"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-emerald-600 dark:text-emerald-400 font-bold underline"
+                    >
+                      https://serper.dev/api-key
+                    </a>{' '}
+                    e ganhe <strong>2.500 consultas gratuitas</strong>.
                   </p>
                 </div>
               </div>

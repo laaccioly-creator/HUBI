@@ -193,7 +193,7 @@ export const ModalChecklistConfiguracao: React.FC<ModalChecklistConfiguracaoProp
       }
       await recarregar();
       setChaveSerperInput('');
-      setMensagemSucesso('Chave do Serper.dev ativada! Busca de fotos habilitada.');
+      setMensagemSucesso('Chave do Serper.dev ativada! Busca de fotos e Radar de Preços habilitados.');
       // Seleciona a próxima etapa pendente
       const proxima = etapas.find((e) => e.ordem > 2 && !e.concluido);
       if (proxima) {
@@ -604,23 +604,22 @@ export const ModalChecklistConfiguracao: React.FC<ModalChecklistConfiguracaoProp
                         <div className="space-y-4">
                           <div className="p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-xs leading-relaxed space-y-1">
                             <p className="font-semibold text-slate-900 dark:text-slate-200">
-                              O Serper.dev é o provedor que busca fotos de boa qualidade diretamente no Google Imagens
-                              para o seu catálogo.
+                              O Serper.dev é o provedor oficial da sua loja para buscar fotos de produtos no Google Imagens e pesquisar concorrentes no Radar de Preços.
                             </p>
                             <p className="text-[11px] text-teal-600 dark:text-teal-400 font-bold">
-                              📸 Você recebe 2.500 buscas gratuitas ao cadastrar com sua conta Google em 1 clique.
+                              📸 Você recebe 2.500 consultas gratuitas ao criar sua conta no Serper.dev.
                             </p>
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                             <a
-                              href="https://serper.dev/signup"
+                              href="https://serper.dev/api-key"
                               target="_blank"
                               rel="noopener noreferrer"
                               className="p-3 rounded-2xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-md shadow-teal-500/20 text-center"
                             >
                               <ExternalLink className="w-4 h-4 shrink-0" />
-                              <span>Criar Conta Serper.dev (Grátis)</span>
+                              <span>Criar Conta Serper.dev (2.500 consultas grátis)</span>
                             </a>
 
                             <button
@@ -641,7 +640,7 @@ export const ModalChecklistConfiguracao: React.FC<ModalChecklistConfiguracaoProp
                           <div className="space-y-2 pt-2">
                             <div className="flex items-center justify-between text-xs">
                               <span className="font-bold text-slate-700 dark:text-slate-300">
-                                Cole a API Key do Serper.dev:
+                                Serper.dev API Key (Busca de Fotos e Radar de Preços):
                               </span>
                               <button
                                 type="button"
@@ -658,7 +657,7 @@ export const ModalChecklistConfiguracao: React.FC<ModalChecklistConfiguracaoProp
                                 type="password"
                                 value={chaveSerperInput}
                                 onChange={(e) => setChaveSerperInput(e.target.value)}
-                                placeholder="Cole sua chave aqui..."
+                                placeholder="Cole a sua chave API do Serper.dev..."
                                 className={`w-full pl-10 pr-28 py-2.5 rounded-xl border text-xs font-mono transition focus:outline-none focus:ring-2 focus:ring-teal-500 ${
                                   isDark
                                     ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-600'

@@ -1335,17 +1335,23 @@ export const pesquisarFotosProdutoNaInternet = async (
     }
   }
 
-  // PASSO 2 (A): SerpApi (Google Images Engine) no modelo BYOK
+  // PASSO 2 (A): Serper.dev (Google Images Engine) exclusivamente via lojas.serper_api_key
   let serpApiKey = obterSerpApiKey(loja);
   if (!serpApiKey && loja?.id) {
     serpApiKey = await obterOuBuscarSerpApiKey(loja);
   }
 
-  // O termo prioritário para SerpApi é o termo otimizado
+  if (!serpApiKey) {
+    throw new SerpApiAuthError(
+      'Cadastre sua chave gratuita do Serper.dev (2.500 consultas grátis) nas Configurações da Loja para buscar fotos de produtos.'
+    );
+  }
+
+  // O termo prioritário para Serper.dev é o termo otimizado
   const termoPrincipal = termosParaPesquisar[0] || termoLimpo;
 
   console.log(
-    '%c[HUBI IMAGENS]%c Buscando fotos no Google Images...',
+    '%c[HUBI IMAGENS]%c Buscando fotos no Google Images via Serper.dev...',
     'background: #0284c7; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;',
     'color: #0284c7; font-weight: bold;',
     { 
@@ -1356,8 +1362,7 @@ export const pesquisarFotosProdutoNaInternet = async (
     }
   );
 
-  // Se temos a chave OU temos o lojaId (pois os canais Supabase leem direto de public.lojas pelo loja_id)
-  if (serpApiKey || loja?.id) {
+  if (serpApiKey) {
     try {
       const resultadosSerpApi = await buscarFotosGoogleImagesSerpApi(
         termoPrincipal,

@@ -50,8 +50,8 @@ const ETAPAS_INICIAIS: EtapaProntidao[] = [
   {
     id: 'etapa-2-serper',
     ordem: 2,
-    titulo: 'Ativar Busca de Fotos (Serper.dev)',
-    descricao: 'Cota gratuita de 2.500 buscas para encontrar fotos de produtos e serviços na internet.',
+    titulo: 'Serper.dev API Key (Busca de Fotos e Radar de Preços)',
+    descricao: 'Cota gratuita de 2.500 consultas gratuitas no Serper.dev para buscar fotos de produtos e pesquisar preços no Radar.',
     concluido: false,
     tipoAcao: 'chave_serper',
   },
@@ -284,11 +284,7 @@ export const useLojaProntidao = (lojaOverride?: Loja | null): UseLojaProntidaoRe
   ).trim();
   const concluidoGemini = Boolean(geminiKey.length > 0);
 
-  const serperKey = (
-    loja?.serpapi_key ||
-    loja?.configuracoes_extras?.ia?.serpapi_key ||
-    ''
-  ).trim();
+  const serperKey = (loja?.serper_api_key || '').trim();
   const concluidoSerper = Boolean(serperKey.length > 0);
 
   const nomeFantasia = (loja?.nome_fantasia || '').trim();

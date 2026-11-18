@@ -225,7 +225,7 @@ export interface ConfiguracoesExtrasLoja {
     gemini_api_key?: string;
     google_search_api_key?: string;
     google_search_cx?: string;
-    serpapi_key?: string;
+    serper_api_key?: string;
     segmento?: string;
   };
 }
@@ -250,7 +250,6 @@ export interface ConfiguracoesPlataformaHubi {
   meta_waba_id?: string | null;
   meta_access_token?: string | null;
   meta_verify_token?: string | null;
-  serpapi_key?: string | null;
   mp_ambiente?: 'sandbox' | 'producao';
   mp_public_key?: string | null;
   mp_access_token?: string | null;
@@ -379,7 +378,7 @@ export interface Loja {
   qtd_minima_padrao_autoatacado?: number | null;
   qtd_minima_sku_padrao_autoatacado?: number | null;
   valor_minimo_padrao_autoatacado?: number | null;
-  serpapi_key?: string | null;
+  serper_api_key?: string | null;
   retirada_loja_ativa?: boolean;
   caderneta_ativa?: boolean;
   dia_vencimento_padrao_caderneta?: number;

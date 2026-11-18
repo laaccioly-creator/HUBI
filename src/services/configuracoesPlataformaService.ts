@@ -14,7 +14,7 @@ const COLUNAS_COBRANCA_PUBLICAS =
   'dias_trial, valor_mensal_anual, valor_anual_total, valor_plano_mensal_avulso, desconto_pix_percentual, aceita_cartao_debito, max_parcelas_cartao, parcelas_sem_juros';
 
 const COLUNAS_OPERACIONAIS_LOJISTA =
-  'id, dias_trial, valor_mensal_anual, valor_anual_total, valor_plano_mensal_avulso, desconto_pix_percentual, aceita_cartao_debito, max_parcelas_cartao, parcelas_sem_juros, email_super_admin, custo_disparo_whatsapp, valor_minimo_recarga_whatsapp, credito_bonus_trial_whatsapp, meta_phone_number_id, meta_waba_id, meta_access_token, meta_verify_token, serpapi_key, mp_ambiente, mp_public_key, atualizado_em, atualizado_por';
+  'id, dias_trial, valor_mensal_anual, valor_anual_total, valor_plano_mensal_avulso, desconto_pix_percentual, aceita_cartao_debito, max_parcelas_cartao, parcelas_sem_juros, email_super_admin, custo_disparo_whatsapp, valor_minimo_recarga_whatsapp, credito_bonus_trial_whatsapp, meta_phone_number_id, meta_waba_id, meta_access_token, meta_verify_token, mp_ambiente, mp_public_key, atualizado_em, atualizado_por';
 
 const COLUNAS_SUPER_ADMIN_COMPLETAS =
   `${COLUNAS_OPERACIONAIS_LOJISTA}, mp_access_token, mp_webhook_secret`;
@@ -70,7 +70,6 @@ const mapearLinhaPlataforma = (
   meta_waba_id: data.meta_waba_id || null,
   meta_access_token: data.meta_access_token || null,
   meta_verify_token: data.meta_verify_token || 'hubi_whatsapp_webhook_token',
-  serpapi_key: data.serpapi_key || null,
   mp_ambiente: data.mp_ambiente === 'producao' ? 'producao' : 'sandbox',
   mp_public_key: data.mp_public_key || null,
   mp_access_token: incluirSegredosMp ? (data.mp_access_token || null) : null,
@@ -97,7 +96,6 @@ export const CONFIG_PLATAFORMA_PADRAO: ConfiguracoesPlataformaHubi = {
   meta_waba_id: null,
   meta_access_token: null,
   meta_verify_token: 'hubi_whatsapp_webhook_token',
-  serpapi_key: null,
   mp_ambiente: 'sandbox',
   mp_public_key: null,
   mp_access_token: null,

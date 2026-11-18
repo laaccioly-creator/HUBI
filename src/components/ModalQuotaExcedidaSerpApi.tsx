@@ -27,7 +27,7 @@ export const ModalQuotaExcedidaSerpApi: React.FC<ModalQuotaExcedidaSerpApiProps>
                 Limite de buscas gratuitas atingido!
               </h3>
               <p className="text-[11px] text-amber-700 dark:text-amber-400/90 font-medium mt-0.5">
-                Cota de pesquisas do Serper.dev / SerpApi
+                Cota de consultas do Serper.dev
               </p>
             </div>
           </div>
@@ -44,14 +44,14 @@ export const ModalQuotaExcedidaSerpApi: React.FC<ModalQuotaExcedidaSerpApiProps>
         {/* CORPO */}
         <div className="p-5 space-y-4">
           <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-            A sua cota de pesquisas gratuitas no provedor de imagens (Serper.dev / SerpApi) foi atingida.
+            A cota de consultas gratuitas da sua chave do Serper.dev foi atingida.
           </p>
           <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 leading-relaxed space-y-2">
             <p>
-              ✨ Se você estiver usando o <strong>Serper.dev</strong>, a cota gratuita inicial é de <strong>2.500 buscas</strong>.
+              ✨ O <strong>Serper.dev</strong> oferece cota inicial gratuita de <strong>2.500 consultas</strong> por conta.
             </p>
             <p>
-              Caso precise de buscas adicionais com urgência, você pode acessar seu painel do Serper.dev para renovar créditos ou subir fotos manualmente pela Galeria ou Câmera do seu aparelho.
+              Você pode acessar sua conta no Serper.dev para gerenciar créditos, cadastrar uma nova chave nas <strong>Configurações da Loja</strong> ou subir fotos manualmente pela Galeria ou Câmera do seu aparelho.
             </p>
           </div>
         </div>
@@ -59,7 +59,7 @@ export const ModalQuotaExcedidaSerpApi: React.FC<ModalQuotaExcedidaSerpApiProps>
         {/* BOTÕES */}
         <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 flex items-center justify-end gap-2.5">
           <a
-            href="https://serper.dev"
+            href="https://serper.dev/api-key"
             target="_blank"
             rel="noopener noreferrer"
             className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer border border-slate-200 dark:border-slate-700 shadow-2xs"
