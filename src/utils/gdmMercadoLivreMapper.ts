@@ -12,6 +12,7 @@ export interface OpcoesMapeamentoMl {
   taxaFixaMl?: number;
   marca?: string;
   modelo?: string;
+  atributosExtras?: Array<{ id: string; value_id?: string; value_name: string }>;
 }
 
 export interface PayloadItemMercadoLivre {
@@ -28,13 +29,13 @@ export interface PayloadItemMercadoLivre {
     plain_text: string;
   };
   pictures: { source: string }[];
-  attributes: { id: string; value_name: string }[];
+  attributes: { id: string; value_id?: string; value_name: string }[];
   variations?: {
     attribute_combinations: { id: string; value_name: string }[];
     price: number;
     available_quantity: number;
     picture_ids?: string[];
-    attributes?: { id: string; value_name: string }[];
+    attributes?: { id: string; value_id?: string; value_name: string }[];
   }[];
 }
 
@@ -70,7 +71,8 @@ export function formatarTituloMercadoLivre(nome: string): string {
 }
 
 /**
- * Calcula o preço de venda no Mercado Livre embutindo a margem de comissão configurada e taxa fixa
+ * Calcula o preço de venda no Mercado Livre pela fórmula de repasse líquido
+ * embutindo comissão (%) e custo fixo (< R$ 79,00) configurados para a loja.
  */
 export function calcularPrecoMercadoLivre(
   precoBaseHubi: number,
@@ -78,9 +80,11 @@ export function calcularPrecoMercadoLivre(
   taxaFixa: number = 0
 ): number {
   if (precoBaseHubi <= 0) return 0;
-  const precoComMargem = precoBaseHubi * (1 + margemSobreprecoPercentual / 100);
-  // Se o item for de baixo ticket (< R$ 79,00), o Mercado Livre aplica taxa fixa adicional
-  const precoFinal = precoComMargem < 79.0 ? precoComMargem + taxaFixa : precoComMargem;
+  const comissaoDecimal = Math.min(0.95, Math.max(0, (margemSobreprecoPercentual || 0) / 100));
+  const divisor = 1 - comissaoDecimal;
+  const custoFixoSeguro = Math.max(0, taxaFixa || 0);
+  const precoSemCustoFixo = precoBaseHubi / divisor;
+  const precoFinal = precoSemCustoFixo < 79.0 ? (precoBaseHubi + custoFixoSeguro) / divisor : precoSemCustoFixo;
   return Math.round(precoFinal * 100) / 100;
 }
 
@@ -123,6 +127,23 @@ export function converterProdutoHubiParaGdmMl(
     atributos.push({ id: 'GTIN', value_name: ean.trim() });
   }
 
+  if (Array.isArray(opcoes.atributosExtras)) {
+    const idsJaIncluidos = new Set(atributos.map((a) => a.id.toUpperCase()));
+    for (const extra of opcoes.atributosExtras) {
+      if (!extra || !extra.id) continue;
+      const idUpper = extra.id.trim().toUpperCase();
+      const valorLimpo = extra.value_name?.replace(/\s+/g, ' ').trim();
+      if (!valorLimpo && !extra.value_id) continue;
+      if (idsJaIncluidos.has(idUpper)) continue;
+      idsJaIncluidos.add(idUpper);
+      atributos.push({
+        id: idUpper,
+        ...(extra.value_id ? { value_id: extra.value_id } : {}),
+        value_name: valorLimpo || '',
+      });
+    }
+  }
+
   const tituloFormatado = formatarTituloMercadoLivre(
     variacao?.combinacao_nome ? `${produto.nome} ${variacao.combinacao_nome}` : produto.nome
   );
@@ -131,7 +152,7 @@ export function converterProdutoHubiParaGdmMl(
     produto_id: produto.id,
     variacao_id: variacao?.id || null,
     titulo_anuncio: tituloFormatado,
-    categoria_ml_id: opcoes.categoriaMlId || 'MLB3530', // Categoria padrão Outros
+    categoria_ml_id: opcoes.categoriaMlId || '',
     tipo_anuncio: opcoes.tipoAnuncio || 'gold_special',
     preco_base_hubi: precoBase,
     margem_sobrepreco_percentual: margem,
@@ -163,6 +184,7 @@ export function converterGdmParaPayloadApiMl(
     pictures: (anuncioGdm.fotos_urls || []).map((url) => ({ source: url })),
     attributes: anuncioGdm.atributos_ml.map((attr) => ({
       id: attr.id,
+      ...(attr.value_id ? { value_id: attr.value_id } : {}),
       value_name: attr.value_name,
     })),
   };
@@ -204,18 +226,20 @@ export function calcularBreakdownPrecoMercadoLivre(
     };
   }
 
-  const margemSegura = Math.max(0, margemSobreprecoPercentual || 0);
+  const margemSegura = Math.min(95, Math.max(0, margemSobreprecoPercentual || 0));
+  const comissaoDecimal = margemSegura / 100;
+  const divisor = 1 - comissaoDecimal;
   const custoFixoSeguro = Math.max(0, custoFixoVenda || 0);
-  const valorComissao = precoBaseHubi * (margemSegura / 100);
-  const precoComMargem = precoBaseHubi + valorComissao;
-  const isentoCustoFixo = precoComMargem >= 79.0;
+  const precoSemCustoFixo = precoBaseHubi / divisor;
+  const isentoCustoFixo = precoSemCustoFixo >= 79.0;
   const custoFixoAplicado = isentoCustoFixo ? 0 : custoFixoSeguro;
   const precoFinalMl = calcularPrecoMercadoLivre(precoBaseHubi, margemSegura, custoFixoSeguro);
+  const valorComissao = Math.max(0, precoFinalMl - precoBaseHubi - custoFixoAplicado);
 
   return {
     precoBaseHubi,
     valorComissao: Math.round(valorComissao * 100) / 100,
-    precoComMargem: Math.round(precoComMargem * 100) / 100,
+    precoComMargem: Math.round(precoSemCustoFixo * 100) / 100,
     custoFixoAplicado: Math.round(custoFixoAplicado * 100) / 100,
     isentoCustoFixo,
     precoFinalMl,

@@ -44,6 +44,40 @@ export interface MarketplaceAnuncioItem {
   ultimo_erro_sincronizacao?: string | null;
 }
 
+export interface MlAtributoValorOpcao {
+  id: string;
+  name: string;
+}
+
+export interface MlAtributoObrigatorioCategoria {
+  id: string;
+  name: string;
+  value_type: string;
+  default_unit?: string | null;
+  hint?: string | null;
+  values: MlAtributoValorOpcao[];
+}
+
+export interface MlSugestaoCategoria {
+  category_id: string;
+  category_name: string;
+  domain_name: string;
+}
+
+export interface MlConsultaCategoriaResultado {
+  sucesso: boolean;
+  categoria: {
+    id: string;
+    name: string;
+    caminho_completo: string;
+    path_from_root: Array<{ id: string; name: string }>;
+    eh_folha: boolean;
+    permite_anuncio: boolean;
+  };
+  sugestoes: MlSugestaoCategoria[];
+  atributos_obrigatorios: MlAtributoObrigatorioCategoria[];
+}
+
 /**
  * Helper para obter a sessão JWT válida do usuário autenticado.
  * Tenta refreshSession() caso a sessão inicial esteja nula ou expirada.
@@ -286,6 +320,37 @@ export const mercadoLivreService = {
   },
 
   /**
+   * Consulta a categoria predita no Mercado Livre e retorna seus atributos obrigatórios reais
+   */
+  async consultarCategoria(params: {
+    lojaId: string;
+    titulo?: string;
+    categoryId?: string;
+  }): Promise<MlConsultaCategoriaResultado> {
+    try {
+      await supabase.auth.refreshSession();
+    } catch (errSession) {
+      console.warn('[mercadoLivreService] Aviso ao renovar sessão antes de consultar categoria:', errSession);
+    }
+
+    const { data, error } = await supabase.functions.invoke('ml-estoque-sync', {
+      body: {
+        action: 'consultar_categoria',
+        loja_id: params.lojaId,
+        titulo: params.titulo,
+        category_id: params.categoryId,
+      },
+    });
+
+    if (error || !data?.sucesso) {
+      const msgErro = await extrairMensagemErroEdgeFunction(error, data);
+      throw new Error(msgErro);
+    }
+
+    return data as MlConsultaCategoriaResultado;
+  },
+
+  /**
    * Publica um novo anúncio no Mercado Livre a partir do payload GDM gerado
    */
   async criarAnuncio(params: {
@@ -294,6 +359,8 @@ export const mercadoLivreService = {
     variacaoId?: string | null;
     payloadMl: any;
     margemSobrepreco?: number;
+    categoryId?: string;
+    atributosExtras?: Array<{ id: string; value_id?: string; value_name: string }>;
   }): Promise<{ sucesso: boolean; mensagem: string; item: any }> {
     try {
       await supabase.auth.refreshSession();
@@ -309,6 +376,8 @@ export const mercadoLivreService = {
         variacao_id: params.variacaoId,
         payload_ml: params.payloadMl,
         margem_sobrepreco: params.margemSobrepreco,
+        category_id: params.categoryId,
+        atributos_extras: params.atributosExtras,
       },
     });
 

@@ -36,23 +36,46 @@ interface MlAtributo {
   value_id?: string;
 }
 
+function temTagAtributoMl(tags: any, tagAlvo: string): boolean {
+  if (!tags) return false;
+  if (Array.isArray(tags)) {
+    return tags.includes(tagAlvo);
+  }
+  if (typeof tags === "object") {
+    return tags[tagAlvo] === true;
+  }
+  return false;
+}
+
 function garantirAtributosObrigatorios(
   atributosOriginais: MlAtributo[] = [],
   marcaFallback?: string,
-  modeloFallback?: string
+  modeloFallback?: string,
+  atributosExtras: MlAtributo[] = []
 ): MlAtributo[] {
   const mapa = new Map<string, MlAtributo>();
 
-  for (const attr of atributosOriginais) {
-    if (!attr || !attr.id) continue;
+  const registrarAtributo = (attr?: MlAtributo | null) => {
+    if (!attr || !attr.id) return;
     const idUpper = String(attr.id).trim().toUpperCase();
     const valorLimpo = typeof attr.value_name === "string" ? attr.value_name.replace(/\s+/g, " ").trim() : undefined;
-    if (valorLimpo || attr.value_id) {
+    const valueIdLimpo = attr.value_id !== undefined && attr.value_id !== null ? String(attr.value_id).trim() : undefined;
+    if (valorLimpo || valueIdLimpo) {
       mapa.set(idUpper, {
         id: idUpper,
         ...(valorLimpo ? { value_name: valorLimpo } : {}),
-        ...(attr.value_id ? { value_id: attr.value_id } : {}),
+        ...(valueIdLimpo ? { value_id: valueIdLimpo } : {}),
       });
+    }
+  };
+
+  for (const attr of atributosOriginais) {
+    registrarAtributo(attr);
+  }
+
+  if (Array.isArray(atributosExtras)) {
+    for (const extra of atributosExtras) {
+      registrarAtributo(extra);
     }
   }
 
@@ -73,75 +96,170 @@ function garantirAtributosObrigatorios(
   return Array.from(mapa.values());
 }
 
-async function verificarCategoriaFolha(categoriaId: string, token: string): Promise<{ valida: boolean; info?: any }> {
-  try {
-    const resp = await fetch(`https://api.mercadolibre.com/categories/${encodeURIComponent(categoriaId)}`, {
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Accept": "application/json",
-      },
+interface MlAtributoCategoriaInfo {
+  id: string;
+  name: string;
+  value_type: string;
+  default_unit: string | null;
+  hint: string | null;
+  values: Array<{ id: string; name: string }>;
+}
+
+interface MlDetalhesCategoriaResultado {
+  categoria: {
+    id: string;
+    name: string;
+    caminho_completo: string;
+    path_from_root: Array<{ id: string; name: string }>;
+    eh_folha: boolean;
+    permite_anuncio: boolean;
+  };
+  atributos_obrigatorios: MlAtributoCategoriaInfo[];
+  mapa_nomes_atributos: Record<string, string>;
+}
+
+async function consultarDetalhesEAtributosCategoria(
+  categoryId: string,
+  token?: string
+): Promise<MlDetalhesCategoriaResultado> {
+  const headers: Record<string, string> = {
+    "Accept": "application/json",
+    ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+  };
+
+  const [respCat, respAttrs] = await Promise.all([
+    fetch(`https://api.mercadolibre.com/categories/${encodeURIComponent(categoryId)}`, { headers }),
+    fetch(`https://api.mercadolibre.com/categories/${encodeURIComponent(categoryId)}/attributes`, { headers }),
+  ]);
+
+  if (!respCat.ok) {
+    throw new MercadoLivreError(`Categoria ${categoryId} não encontrada no Mercado Livre.`, 404);
+  }
+
+  const dadosCat = await respCat.json();
+  const pathFromRoot = Array.isArray(dadosCat.path_from_root)
+    ? dadosCat.path_from_root.map((p: any) => ({
+        id: String(p?.id || ""),
+        name: String(p?.name || ""),
+      })).filter((p: { id: string; name: string }) => p.name)
+    : [];
+
+  const caminhoCompleto = pathFromRoot.length > 0
+    ? pathFromRoot.map((p: { name: string }) => p.name).join(" > ")
+    : String(dadosCat.name || categoryId);
+
+  const ehFolha = !Array.isArray(dadosCat.children_categories) || dadosCat.children_categories.length === 0;
+  const permiteAnuncio = dadosCat.settings?.listing_allowed !== false;
+
+  const listaAttrsRaw = respAttrs.ok ? await respAttrs.json().catch(() => []) : [];
+  const attrsArray = Array.isArray(listaAttrsRaw) ? listaAttrsRaw : [];
+
+  const mapaNomesAtributos: Record<string, string> = {};
+  const atributosObrigatorios: MlAtributoCategoriaInfo[] = [];
+
+  for (const attr of attrsArray) {
+    if (!attr || !attr.id) continue;
+    const idUpper = String(attr.id).trim().toUpperCase();
+    const nomeAtributo = String(attr.name || idUpper).trim();
+    mapaNomesAtributos[idUpper] = nomeAtributo;
+
+    if (idUpper === "ITEM_CONDITION" || idUpper === "GTIN") continue;
+
+    const ehObrigatorio =
+      temTagAtributoMl(attr.tags, "required") ||
+      temTagAtributoMl(attr.tags, "catalog_required") ||
+      temTagAtributoMl(attr.tags, "new_required");
+
+    const ehOcultoOuLeitura =
+      temTagAtributoMl(attr.tags, "hidden") ||
+      temTagAtributoMl(attr.tags, "read_only") ||
+      temTagAtributoMl(attr.tags, "fixed");
+
+    if (!ehObrigatorio || ehOcultoOuLeitura) continue;
+
+    atributosObrigatorios.push({
+      id: idUpper,
+      name: nomeAtributo,
+      value_type: String(attr.value_type || "string"),
+      default_unit: attr.default_unit ? String(attr.default_unit) : null,
+      hint: attr.hint ? String(attr.hint) : (attr.tooltip ? String(attr.tooltip) : null),
+      values: Array.isArray(attr.values)
+        ? attr.values
+            .filter((v: any) => v && v.id && v.name)
+            .map((v: any) => ({ id: String(v.id), name: String(v.name) }))
+        : [],
     });
-    if (!resp.ok) return { valida: false };
-    const info = await resp.json();
-    const ehFolha = !Array.isArray(info.children_categories) || info.children_categories.length === 0;
-    const permiteAnuncio = info.settings?.listing_allowed !== false;
-    return { valida: ehFolha && permiteAnuncio, info };
-  } catch {
-    return { valida: false };
+  }
+
+  return {
+    categoria: {
+      id: String(dadosCat.id || categoryId),
+      name: String(dadosCat.name || categoryId),
+      caminho_completo: caminhoCompleto,
+      path_from_root: pathFromRoot,
+      eh_folha: ehFolha,
+      permite_anuncio: permiteAnuncio,
+    },
+    atributos_obrigatorios: atributosObrigatorios,
+    mapa_nomes_atributos: mapaNomesAtributos,
+  };
+}
+
+async function buscarSugestoesCategoriaMl(
+  titulo: string,
+  token?: string,
+  limit: number = 5
+): Promise<Array<{ category_id: string; category_name: string; domain_name: string }>> {
+  const termoLimpo = sanitizarTextoMl(titulo, 80);
+  if (!termoLimpo) return [];
+
+  const headers: Record<string, string> = {
+    "Accept": "application/json",
+    ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+  };
+
+  try {
+    const resp = await fetch(
+      `https://api.mercadolibre.com/sites/MLB/domain_discovery/search?limit=${limit}&q=${encodeURIComponent(termoLimpo)}`,
+      { headers }
+    );
+    if (!resp.ok) return [];
+    const lista = await resp.json();
+    if (!Array.isArray(lista)) return [];
+
+    const vistos = new Set<string>();
+    const sugestoes: Array<{ category_id: string; category_name: string; domain_name: string }> = [];
+
+    for (const item of lista) {
+      const catId = String(item?.category_id || "").trim();
+      if (!catId || vistos.has(catId)) continue;
+      vistos.add(catId);
+      sugestoes.push({
+        category_id: catId,
+        category_name: String(item?.category_name || catId),
+        domain_name: String(item?.domain_name || ""),
+      });
+    }
+
+    return sugestoes;
+  } catch (errPred) {
+    console.warn("[ml-estoque-sync] Falha ao consultar domain_discovery:", errPred);
+    return [];
   }
 }
 
-async function resolverCategoriasCandidatas(
-  categoriaInicial: string | undefined,
+async function resolverCategoriaAlvoUnica(
+  categoriaExplicita: string | undefined,
   termoBusca: string,
   token: string
-): Promise<string[]> {
-  const candidatas: string[] = [];
-  const adicionarUnica = (id?: string | null) => {
-    if (id && typeof id === "string" && !candidatas.includes(id)) {
-      candidatas.push(id);
-    }
-  };
-
-  const inicialLimpa = categoriaInicial?.trim();
-
-  if (!inicialLimpa || inicialLimpa === "MLB3530") {
-    try {
-      const respPreditor = await fetch(
-        `https://api.mercadolibre.com/sites/MLB/domain_discovery/search?limit=1&q=${encodeURIComponent(termoBusca)}`,
-        {
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Accept": "application/json",
-          },
-        }
-      );
-
-      if (respPreditor.ok) {
-        const predicoes = await respPreditor.json();
-        const catPredita = Array.isArray(predicoes) ? predicoes[0]?.category_id : null;
-        if (catPredita) {
-          const check = await verificarCategoriaFolha(catPredita, token);
-          if (check.valida) {
-            adicionarUnica(catPredita);
-          }
-        }
-      }
-    } catch (errPred) {
-      console.warn("[ml-estoque-sync] Falha ao consultar preditor de categoria ML:", errPred);
-    }
-  } else {
-    const checkInicial = await verificarCategoriaFolha(inicialLimpa, token);
-    if (checkInicial.valida) {
-      adicionarUnica(inicialLimpa);
-    }
+): Promise<string | null> {
+  const limpa = typeof categoriaExplicita === "string" ? categoriaExplicita.trim() : "";
+  if (limpa && limpa !== "MLB3530") {
+    return limpa;
   }
 
-  adicionarUnica(inicialLimpa);
-  adicionarUnica("MLB1953");
-  adicionarUnica("MLB3530");
-
-  return candidatas;
+  const sugestoes = await buscarSugestoesCategoriaMl(termoBusca, token, 1);
+  return sugestoes[0]?.category_id || null;
 }
 
 function extrairTextoErroMl(dadosErro: any): string {
@@ -150,6 +268,58 @@ function extrairTextoErroMl(dadosErro: any): string {
     : [];
   const partes = [dadosErro?.error, dadosErro?.message, ...causas].filter(Boolean);
   return partes.join(" | ");
+}
+
+function extrairCamposFaltantesMl(
+  dadosErro: any,
+  mapaNomesAtributos: Record<string, string>
+): string[] {
+  const encontrados = new Set<string>();
+  const textos: string[] = [];
+
+  if (typeof dadosErro?.message === "string") textos.push(dadosErro.message);
+  if (Array.isArray(dadosErro?.cause)) {
+    for (const c of dadosErro.cause) {
+      if (typeof c?.message === "string") textos.push(c.message);
+      if (Array.isArray(c?.references)) {
+        for (const ref of c.references) {
+          if (typeof ref === "string") textos.push(ref);
+        }
+      }
+    }
+  }
+
+  const textoCompleto = textos.join(" ");
+
+  // Captura IDs entre colchetes: [GENDER, WATCH_BAND_MATERIAL]
+  const matchesColchetes = textoCompleto.matchAll(/\[([^\]]+)\]/g);
+  for (const m of matchesColchetes) {
+    const tokens = m[1].split(",").map((t) => t.trim().toUpperCase()).filter(Boolean);
+    for (const token of tokens) {
+      if (mapaNomesAtributos[token]) {
+        encontrados.add(mapaNomesAtributos[token]);
+      } else if (/^[A-Z][A-Z0-9_]{1,40}$/.test(token) && token !== "MLB") {
+        encontrados.add(token);
+      }
+    }
+  }
+
+  // Captura referências diretas como attributes.GENDER ou item.attributes.MODEL
+  const matchesRefs = textoCompleto.matchAll(/attributes\.([A-Z0-9_]+)/gi);
+  for (const m of matchesRefs) {
+    const token = m[1].trim().toUpperCase();
+    encontrados.add(mapaNomesAtributos[token] || token);
+  }
+
+  // Varredura por IDs conhecidos da categoria mencionados no texto do erro
+  for (const [idAttr, nomeAttr] of Object.entries(mapaNomesAtributos)) {
+    const regexId = new RegExp(`\\b${idAttr}\\b`);
+    if (regexId.test(textoCompleto)) {
+      encontrados.add(nomeAttr);
+    }
+  }
+
+  return Array.from(encontrados);
 }
 
 serve(async (req: Request) => {
@@ -172,6 +342,66 @@ serve(async (req: Request) => {
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
+
+    // =========================================================================
+    // AÇÃO 0: CONSULTAR CATEGORIA E ATRIBUTOS OBRIGATÓRIOS (consultar_categoria)
+    // =========================================================================
+    if (action === "consultar_categoria") {
+      const { titulo, category_id } = corpo;
+      const tituloLimpo = typeof titulo === "string" ? titulo.trim() : "";
+      const categoryIdSolicitado = typeof category_id === "string" ? category_id.trim() : "";
+
+      if (!tituloLimpo && !categoryIdSolicitado) {
+        return new Response(
+          JSON.stringify({ error: "Informe o título do produto ou o código da categoria para consulta." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const authResult = await obterAccessTokenValido(supabaseAdmin, loja_id).catch(() => ({ token: "" }));
+      const token = authResult.token || "";
+
+      const sugestoes = tituloLimpo
+        ? await buscarSugestoesCategoriaMl(tituloLimpo, token, 5)
+        : [];
+
+      const categoryIdAlvo = categoryIdSolicitado || sugestoes[0]?.category_id || "";
+
+      if (!categoryIdAlvo) {
+        return new Response(
+          JSON.stringify({
+            error: "Não foi possível identificar uma categoria no Mercado Livre para este produto. Tente buscar por outro termo.",
+            sugestoes: [],
+            atributos_obrigatorios: [],
+          }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const detalhes = await consultarDetalhesEAtributosCategoria(categoryIdAlvo, token);
+
+      // Se a categoria selecionada manualmente não estiver na lista de sugestões, inclui no topo
+      const sugestoesCompletas = sugestoes.some((s) => s.category_id === detalhes.categoria.id)
+        ? sugestoes
+        : [
+            {
+              category_id: detalhes.categoria.id,
+              category_name: detalhes.categoria.name,
+              domain_name: "",
+            },
+            ...sugestoes,
+          ];
+
+      return new Response(
+        JSON.stringify({
+          sucesso: true,
+          categoria: detalhes.categoria,
+          sugestoes: sugestoesCompletas,
+          atributos_obrigatorios: detalhes.atributos_obrigatorios,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // =========================================================================
     // AÇÃO 1: SINCRONIZAR ESTOQUE LOCAL -> MERCADO LIVRE (sync_inventory)
@@ -415,7 +645,16 @@ serve(async (req: Request) => {
     // AÇÃO 3: CRIAR NOVO ANÚNCIO NO MERCADO LIVRE VIA GDM (create_listing)
     // =========================================================================
     if (action === "create_listing") {
-      const { payload_ml, produto_id, variacao_id, margem_sobrepreco, marca, modelo } = corpo;
+      const {
+        payload_ml,
+        produto_id,
+        variacao_id,
+        margem_sobrepreco,
+        marca,
+        modelo,
+        category_id,
+        atributos_extras,
+      } = corpo;
 
       if (!payload_ml || !produto_id) {
         return new Response(
@@ -435,117 +674,119 @@ serve(async (req: Request) => {
       let atributosBase = garantirAtributosObrigatorios(
         Array.isArray(restantePayload.attributes) ? restantePayload.attributes : [],
         marca,
-        modelo
+        modelo,
+        Array.isArray(atributos_extras) ? atributos_extras : []
       );
 
-      const categoriasCandidatas = await resolverCategoriasCandidatas(
-        restantePayload.category_id,
+      // Bloqueio estrito do fallback para "Outros" (MLB3530 / MLB1953)
+      const categoriaAlvo = await resolverCategoriaAlvoUnica(
+        category_id || restantePayload.category_id,
         nomeFamiliaLimpo,
         token
       );
 
+      if (!categoriaAlvo) {
+        return new Response(
+          JSON.stringify({
+            error: "Não foi possível identificar a categoria oficial no Mercado Livre para este produto. Selecione uma categoria válida no modal antes de publicar.",
+            campos_faltantes: [],
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       type ModoTituloMl = "only_family_name" | "both" | "only_title";
+      const modosParaTentar: ModoTituloMl[] = ["only_family_name", "both", "only_title"];
       let respPostOk = false;
       let dadosCriado: any = null;
       let ultimoErroMl: any = null;
 
-      for (const categoriaId of categoriasCandidatas) {
-        const modosParaTentar: ModoTituloMl[] = ["only_family_name", "both", "only_title"];
-        let erroDeCategoria = false;
+      for (let idxModo = 0; idxModo < modosParaTentar.length; idxModo++) {
+        const modo = modosParaTentar[idxModo];
+        let tentarNovamenteMesmoModoComGtin = false;
 
-        for (let idxModo = 0; idxModo < modosParaTentar.length; idxModo++) {
-          const modo = modosParaTentar[idxModo];
-          let tentarNovamenteMesmoModoComGtin = false;
+        do {
+          tentarNovamenteMesmoModoComGtin = false;
+          const payloadTentativa: Record<string, any> = {
+            ...restantePayload,
+            category_id: categoriaAlvo,
+            attributes: atributosBase,
+          };
 
-          do {
-            tentarNovamenteMesmoModoComGtin = false;
-            const payloadTentativa: Record<string, any> = {
-              ...restantePayload,
-              category_id: categoriaId,
-              attributes: atributosBase,
-            };
+          if (modo === "only_family_name") {
+            delete payloadTentativa.title;
+            payloadTentativa.family_name = nomeFamiliaLimpo;
+          } else if (modo === "both") {
+            payloadTentativa.family_name = nomeFamiliaLimpo;
+            payloadTentativa.title = tituloLimpo;
+          } else {
+            delete payloadTentativa.family_name;
+            payloadTentativa.title = tituloLimpo;
+          }
 
-            if (modo === "only_family_name") {
-              delete payloadTentativa.title;
-              payloadTentativa.family_name = nomeFamiliaLimpo;
-            } else if (modo === "both") {
-              payloadTentativa.family_name = nomeFamiliaLimpo;
-              payloadTentativa.title = tituloLimpo;
-            } else {
-              delete payloadTentativa.family_name;
-              payloadTentativa.title = tituloLimpo;
-            }
+          const respPost = await fetch("https://api.mercadolibre.com/items", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${token}`,
+              "Content-Type": "application/json",
+              "Accept": "application/json",
+            },
+            body: JSON.stringify(payloadTentativa),
+          });
 
-            const respPost = await fetch("https://api.mercadolibre.com/items", {
-              method: "POST",
-              headers: {
-                "Authorization": `Bearer ${token}`,
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-              },
-              body: JSON.stringify(payloadTentativa),
-            });
+          const jsonResp = await respPost.json().catch(() => ({}));
 
-            const jsonResp = await respPost.json().catch(() => ({}));
-
-            if (respPost.ok) {
-              respPostOk = true;
-              dadosCriado = jsonResp;
-              break;
-            }
-
-            ultimoErroMl = jsonResp;
-            const textoErro = extrairTextoErroMl(jsonResp);
-            console.warn(`[ml-estoque-sync] Tentativa (${categoriaId} / ${modo}) falhou:`, textoErro);
-
-            // Se a categoria exigir GTIN e ainda não enviamos GTIN nem EMPTY_GTIN_REASON, adiciona e repete
-            const jaTemGtinOuMotivo = atributosBase.some((a) => a.id === "GTIN" || a.id === "EMPTY_GTIN_REASON");
-            if (!jaTemGtinOuMotivo && /\bgtin\b|empty_gtin_reason|product_identifier/i.test(textoErro)) {
-              atributosBase = [
-                ...atributosBase,
-                { id: "EMPTY_GTIN_REASON", value_name: "O produto não tem código cadastrado" },
-              ];
-              tentarNovamenteMesmoModoComGtin = true;
-              continue;
-            }
-
-            const erroRelacionadoCategoria = /category|not_leaf|listing_allowed|catalog_required|cannot_publish_in_category|domain/i.test(textoErro);
-            const erroRelacionadoTituloOuFamilia = /family_name|\btitle\b|invalid_fields/i.test(textoErro);
-
-            if (erroRelacionadoCategoria && !erroRelacionadoTituloOuFamilia) {
-              erroDeCategoria = true;
-              break;
-            }
-
-            if (!erroRelacionadoTituloOuFamilia) {
-              // Erro de outra natureza (ex: foto, preço, permissão) — não adianta trocar title/family_name
-              break;
-            }
-
-            // Decide se o próximo modo faz sentido
-            if (modo === "only_family_name") {
-              const rejeitouFamilyName = /family_name.*not.*allowed|not_allowed.*family_name|invalid.*family_name|cannot.*family_name/i.test(textoErro);
-              if (rejeitouFamilyName && !/\btitle\b/i.test(textoErro)) {
-                // Pula direto para only_title
-                idxModo = 1;
-              }
-            }
-          } while (tentarNovamenteMesmoModoComGtin);
-
-          if (respPostOk || erroDeCategoria) {
+          if (respPost.ok) {
+            respPostOk = true;
+            dadosCriado = jsonResp;
             break;
           }
 
-          const textoUltimoErro = extrairTextoErroMl(ultimoErroMl);
-          if (!/family_name|\btitle\b|invalid_fields/i.test(textoUltimoErro)) {
+          ultimoErroMl = jsonResp;
+          const textoErro = extrairTextoErroMl(jsonResp);
+          console.warn(`[ml-estoque-sync] Tentativa (${categoriaAlvo} / ${modo}) falhou:`, textoErro);
+
+          // Se a categoria exigir GTIN e ainda não enviamos GTIN nem EMPTY_GTIN_REASON, adiciona e repete
+          const jaTemGtinOuMotivo = atributosBase.some((a) => a.id === "GTIN" || a.id === "EMPTY_GTIN_REASON");
+          if (!jaTemGtinOuMotivo && /\bgtin\b|empty_gtin_reason|product_identifier/i.test(textoErro)) {
+            atributosBase = [
+              ...atributosBase,
+              { id: "EMPTY_GTIN_REASON", value_name: "O produto não tem código cadastrado" },
+            ];
+            tentarNovamenteMesmoModoComGtin = true;
+            continue;
+          }
+
+          const erroDeAtributoObrigatorio = /missing_required|attributes.*required|are required for category/i.test(textoErro);
+          const erroRelacionadoTituloOuFamilia =
+            /family_name|\btitle\b/i.test(textoErro) ||
+            (/invalid_fields/i.test(textoErro) && !erroDeAtributoObrigatorio);
+
+          if (!erroRelacionadoTituloOuFamilia) {
+            // Não tenta outros modos de título nem faz fallback de categoria
             break;
           }
-        }
+
+          if (modo === "only_family_name") {
+            const rejeitouFamilyName = /family_name.*not.*allowed|not_allowed.*family_name|invalid.*family_name|cannot.*family_name/i.test(textoErro);
+            if (rejeitouFamilyName && !/\btitle\b/i.test(textoErro)) {
+              // Pula direto para only_title
+              idxModo = 1;
+            }
+          }
+        } while (tentarNovamenteMesmoModoComGtin);
 
         if (respPostOk) {
           break;
         }
-        if (!erroDeCategoria) {
+
+        const textoUltimoErro = extrairTextoErroMl(ultimoErroMl);
+        const erroDeAtributoObrigatorio = /missing_required|attributes.*required|are required for category/i.test(textoUltimoErro);
+        const erroRelacionadoTituloOuFamilia =
+          /family_name|\btitle\b/i.test(textoUltimoErro) ||
+          (/invalid_fields/i.test(textoUltimoErro) && !erroDeAtributoObrigatorio);
+
+        if (!erroRelacionadoTituloOuFamilia) {
           break;
         }
       }
@@ -553,9 +794,24 @@ serve(async (req: Request) => {
       if (!respPostOk || !dadosCriado) {
         console.error("[ml-estoque-sync] Erro definitivo ao criar item no ML:", ultimoErroMl);
         const detalhe = ultimoErroMl?.cause?.[0]?.message || ultimoErroMl?.message || "Erro desconhecido na API do Mercado Livre.";
+
+        let camposFaltantes: string[] = [];
+        try {
+          const infoCat = await consultarDetalhesEAtributosCategoria(categoriaAlvo, token);
+          camposFaltantes = extrairCamposFaltantesMl(ultimoErroMl, infoCat.mapa_nomes_atributos);
+        } catch {
+          camposFaltantes = extrairCamposFaltantesMl(ultimoErroMl, {});
+        }
+
+        const erroAmigavel = camposFaltantes.length > 0
+          ? `Não foi possível publicar na categoria selecionada (${categoriaAlvo}) porque faltam campos obrigatórios: ${camposFaltantes.join(", ")}.`
+          : `Não foi possível publicar no Mercado Livre (${categoriaAlvo}): ${detalhe}`;
+
         return new Response(
           JSON.stringify({
-            error: `Não foi possível publicar no Mercado Livre: ${detalhe}`,
+            error: erroAmigavel,
+            campos_faltantes: camposFaltantes,
+            category_id: categoriaAlvo,
             detail_raw: detalhe,
             ml_cause: ultimoErroMl?.cause || null,
           }),

@@ -59,6 +59,7 @@ export type MlListingTypeId = 'gold_pro' | 'gold_special' | 'free';
 
 export interface GdmAtributoMercadoLivre {
   id: string; // Ex: 'BRAND', 'MODEL', 'GTIN'
+  value_id?: string;
   value_name: string;
 }
 

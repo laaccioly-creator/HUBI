@@ -20,7 +20,8 @@ import {
   Filter,
   Check,
   X,
-  ShoppingBag
+  ShoppingBag,
+  ExternalLink
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -38,6 +39,33 @@ import {
   produtoCorrespondeAoFiltroCategorias,
   CategoriaFiltroConsolidada
 } from '../utils/categoriasHierarquia';
+
+interface AnuncioMlResumo {
+  id: string;
+  produto_id: string;
+  variacao_id?: string | null;
+  ml_item_id: string;
+  status_anuncio: 'active' | 'paused' | 'closed' | 'under_review' | 'erro_sincronia' | string;
+  permalink?: string | null;
+  sincronizacao_ativa: boolean;
+}
+
+function obterLabelStatusMl(status: string): string {
+  switch (status) {
+    case 'active':
+      return 'Ativo';
+    case 'paused':
+      return 'Pausado';
+    case 'under_review':
+      return 'Em revisão';
+    case 'closed':
+      return 'Finalizado';
+    case 'erro_sincronia':
+      return 'Erro de sincronia';
+    default:
+      return status || 'Desconhecido';
+  }
+}
 
 export const ProdutosEstoque: React.FC = () => {
   const { loja, usuario } = useAuth();
@@ -87,6 +115,20 @@ export const ProdutosEstoque: React.FC = () => {
       return 'todos';
     }
   });
+  const [filtroMl, setFiltroMl] = useState<'todos' | 'publicados' | 'nao_publicados'>(() => {
+    try {
+      if (!usuario?.id) return 'todos';
+      const salvo = sessionStorage.getItem(`hubi_filtro_produtos_sessao_${usuario.id}`);
+      if (salvo) {
+        const dados = JSON.parse(salvo);
+        if (dados.ml === 'publicados' || dados.ml === 'nao_publicados') return dados.ml;
+      }
+      return 'todos';
+    } catch {
+      return 'todos';
+    }
+  });
+  const [mapaAnunciosMl, setMapaAnunciosMl] = useState<Record<string, AnuncioMlResumo[]>>({});
   const [modalFiltroAberto, setModalFiltroAberto] = useState<boolean>(false);
 
   // Modais
@@ -166,6 +208,28 @@ export const ProdutosEstoque: React.FC = () => {
         });
         setProdutos(produtosEnriquecidos as unknown as Produto[]);
       }
+
+      // 3. Carregar vínculos ativos do Mercado Livre por produto
+      try {
+        const { data: anunciosMlData, error: erroAnunciosMl } = await supabase
+          .from('marketplace_anuncios')
+          .select('id, produto_id, variacao_id, ml_item_id, status_anuncio, permalink, sincronizacao_ativa')
+          .eq('loja_id', loja.id);
+
+        if (!erroAnunciosMl && Array.isArray(anunciosMlData)) {
+          const mapaAgrupado: Record<string, AnuncioMlResumo[]> = {};
+          for (const item of anunciosMlData as AnuncioMlResumo[]) {
+            if (!item.produto_id) continue;
+            if (!mapaAgrupado[item.produto_id]) {
+              mapaAgrupado[item.produto_id] = [];
+            }
+            mapaAgrupado[item.produto_id].push(item);
+          }
+          setMapaAnunciosMl(mapaAgrupado);
+        }
+      } catch (eMl) {
+        console.warn('[ProdutosEstoque] Falha ao carregar vínculos do Mercado Livre:', eMl);
+      }
     } catch (err) {
       console.error('Erro ao carregar produtos:', err);
     } finally {
@@ -194,6 +258,7 @@ export const ProdutosEstoque: React.FC = () => {
       setCategoriasFiltro([]);
       setFiltroEstoque('todos');
       setFiltroAtivo('todos');
+      setFiltroMl('todos');
       return;
     }
     try {
@@ -203,15 +268,18 @@ export const ProdutosEstoque: React.FC = () => {
         setCategoriasFiltro(Array.isArray(dados.categorias) ? dados.categorias : []);
         setFiltroEstoque(typeof dados.estoque === 'string' ? dados.estoque : 'todos');
         setFiltroAtivo(dados.ativo === 'ativos' || dados.ativo === 'inativos' ? dados.ativo : 'todos');
+        setFiltroMl(dados.ml === 'publicados' || dados.ml === 'nao_publicados' ? dados.ml : 'todos');
       } else {
         setCategoriasFiltro([]);
         setFiltroEstoque('todos');
         setFiltroAtivo('todos');
+        setFiltroMl('todos');
       }
     } catch {
       setCategoriasFiltro([]);
       setFiltroEstoque('todos');
       setFiltroAtivo('todos');
+      setFiltroMl('todos');
     }
   }, [usuario?.id]);
 
@@ -222,13 +290,14 @@ export const ProdutosEstoque: React.FC = () => {
       const dados = {
         categorias: categoriasFiltro,
         estoque: filtroEstoque,
-        ativo: filtroAtivo
+        ativo: filtroAtivo,
+        ml: filtroMl
       };
       sessionStorage.setItem(`hubi_filtro_produtos_sessao_${usuario.id}`, JSON.stringify(dados));
     } catch (e) {
       console.error('Erro ao persistir filtros de sessão:', e);
     }
-  }, [categoriasFiltro, filtroEstoque, filtroAtivo, usuario?.id]);
+  }, [categoriasFiltro, filtroEstoque, filtroAtivo, filtroMl, usuario?.id]);
 
   // Tecla ESC para fechar modal de filtro
   useEffect(() => {
@@ -366,14 +435,28 @@ export const ProdutosEstoque: React.FC = () => {
       (filtroAtivo === 'ativos' && p.ativo !== false) ||
       (filtroAtivo === 'inativos' && p.ativo === false);
 
-    return matchBusca && matchCategoria && matchEstoque && matchAtivo;
+    const possuiVinculoMl = Boolean(mapaAnunciosMl[p.id] && mapaAnunciosMl[p.id].length > 0);
+    const matchMl =
+      filtroMl === 'todos' ||
+      (filtroMl === 'publicados' && possuiVinculoMl) ||
+      (filtroMl === 'nao_publicados' && !possuiVinculoMl);
+
+    return matchBusca && matchCategoria && matchEstoque && matchAtivo && matchMl;
   });
 
   const qtdCategoriasFiltroAtivas = categoriasPrincipaisFiltro.filter(c =>
     c.todosIds.some(id => categoriasFiltro.includes(id))
   ).length;
-  const temFiltroAtivo = qtdCategoriasFiltroAtivas > 0 || filtroEstoque !== 'todos' || filtroAtivo !== 'todos';
-  const qtdFiltrosAtivos = qtdCategoriasFiltroAtivas + (filtroEstoque !== 'todos' ? 1 : 0) + (filtroAtivo !== 'todos' ? 1 : 0);
+  const temFiltroAtivo =
+    qtdCategoriasFiltroAtivas > 0 ||
+    filtroEstoque !== 'todos' ||
+    filtroAtivo !== 'todos' ||
+    filtroMl !== 'todos';
+  const qtdFiltrosAtivos =
+    qtdCategoriasFiltroAtivas +
+    (filtroEstoque !== 'todos' ? 1 : 0) +
+    (filtroAtivo !== 'todos' ? 1 : 0) +
+    (filtroMl !== 'todos' ? 1 : 0);
 
   return (
     <div className={`h-full w-full overflow-hidden select-none ${isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-black'}`}>
@@ -624,6 +707,24 @@ export const ProdutosEstoque: React.FC = () => {
                 </button>
               </div>
             )}
+
+            {filtroMl !== 'todos' && (
+              <div className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold shadow-xs shrink-0 animate-in fade-in ${
+                isDark
+                  ? 'bg-[#000000] text-amber-300 border border-amber-400/60'
+                  : 'bg-amber-50 text-amber-950 border-2 border-amber-400'
+              }`}>
+                <span>{filtroMl === 'publicados' ? 'Publicados no ML' : 'Não publicados no ML'}</span>
+                <button
+                  type="button"
+                  onClick={() => setFiltroMl('todos')}
+                  className="p-0.5 rounded-md hover:opacity-80 transition cursor-pointer"
+                  title="Remover filtro do Mercado Livre"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -665,6 +766,26 @@ export const ProdutosEstoque: React.FC = () => {
                     const estoqueQtd = getEstoqueReal(produto);
                     const estoqueBaixo = estoqueQtd <= Number(produto.estoque_minimo_alerta || 0);
                     const temVariacoesGrade = Boolean(produto.tem_variacoes && Array.isArray(produto.variacoes) && produto.variacoes.length > 0);
+                    const anunciosMl = mapaAnunciosMl[produto.id] || [];
+                    const anuncioPrincipalMl = anunciosMl.find((a) => a.status_anuncio === 'active') || anunciosMl[0] || null;
+                    const codigoMlLimpo = anuncioPrincipalMl ? anuncioPrincipalMl.ml_item_id.replace(/^MLB-?/i, '') : '';
+                    const urlAnuncioMl = anuncioPrincipalMl
+                      ? anuncioPrincipalMl.permalink ||
+                        `https://produto.mercadolivre.com.br/${anuncioPrincipalMl.ml_item_id.replace(/^MLB(\d+)/i, 'MLB-$1')}`
+                      : '';
+                    const statusMl = anuncioPrincipalMl?.status_anuncio || '';
+                    const classeBadgeMl =
+                      statusMl === 'active'
+                        ? isDark
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 hover:bg-emerald-500/30'
+                          : 'bg-emerald-100 text-emerald-900 border-2 border-emerald-400 hover:bg-emerald-200'
+                        : statusMl === 'paused' || statusMl === 'under_review'
+                        ? isDark
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50 hover:bg-amber-500/30'
+                          : 'bg-amber-100 text-amber-900 border-2 border-amber-400 hover:bg-amber-200'
+                        : isDark
+                        ? 'bg-rose-500/20 text-rose-300 border border-rose-500/50 hover:bg-rose-500/30'
+                        : 'bg-rose-100 text-rose-900 border-2 border-rose-400 hover:bg-rose-200';
 
                     return (
                       <tr key={produto.id} className={`transition group ${isDark ? 'hover:bg-slate-900/60' : 'hover:bg-slate-50'}`}>
@@ -699,6 +820,22 @@ export const ProdutosEstoque: React.FC = () => {
                                 <span className={`text-[10px] font-mono block ${isDark ? 'text-slate-400' : 'text-slate-600 font-medium'}`}>
                                   Cód: {produto.codigo_interno}
                                 </span>
+                              )}
+                              {anuncioPrincipalMl && (
+                                <a
+                                  href={urlAnuncioMl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  title={`Abrir anúncio ${anuncioPrincipalMl.ml_item_id} (${obterLabelStatusMl(statusMl)}) no Mercado Livre`}
+                                  className={`mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black font-mono transition ${classeBadgeMl}`}
+                                >
+                                  <span>
+                                    ML • #{codigoMlLimpo}
+                                    {anunciosMl.length > 1 ? ` (+${anunciosMl.length - 1})` : ''}
+                                  </span>
+                                  <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                                </a>
                               )}
                             </div>
                           </div>
@@ -899,12 +1036,26 @@ export const ProdutosEstoque: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => setProdutoMlModal(produto)}
-                                  className={`p-1.5 rounded-lg transition cursor-pointer ${
-                                    isDark ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-400/10' : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
-                                  }`}
-                                  title="Integrar com Mercado Livre (Vincular ou Publicar)"
+                                  className={
+                                    anuncioPrincipalMl
+                                      ? 'p-1.5 rounded-lg transition cursor-pointer bg-[#FFE600] hover:bg-[#F5DC00] text-slate-950 border border-amber-500 shadow-xs'
+                                      : `p-1.5 rounded-lg transition cursor-pointer ${
+                                          isDark
+                                            ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-400/10'
+                                            : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
+                                        }`
+                                  }
+                                  title={
+                                    anuncioPrincipalMl
+                                      ? `Mercado Livre: ${anuncioPrincipalMl.ml_item_id} (${obterLabelStatusMl(statusMl)})`
+                                      : 'Publicar ou vincular no Mercado Livre'
+                                  }
                                 >
-                                  <ShoppingBag className="w-4 h-4 text-[#FFE600]" />
+                                  <ShoppingBag
+                                    className={`w-4 h-4 ${
+                                      anuncioPrincipalMl ? 'text-[#2D3277] fill-[#2D3277]/15' : 'text-[#FFE600]'
+                                    }`}
+                                  />
                                 </button>
 
                                 <button
@@ -981,7 +1132,7 @@ export const ProdutosEstoque: React.FC = () => {
             if (e.target === e.currentTarget) setModalFiltroAberto(false);
           }}
         >
-          <div className={`rounded-3xl w-full max-w-lg p-6 space-y-5 shadow-2xl animate-in zoom-in-95 duration-150 ${
+          <div className={`rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 space-y-5 shadow-2xl animate-in zoom-in-95 duration-150 ${
             isDark ? 'bg-[#08131A] border-2 border-slate-400 text-white' : 'bg-slate-100 border-2 border-slate-300 text-black'
           }`}>
             {/* Cabeçalho do Modal */}
@@ -1194,6 +1345,65 @@ export const ProdutosEstoque: React.FC = () => {
                   </button>
                 </div>
               </div>
+
+              {/* Status no Mercado Livre */}
+              <div className="space-y-2">
+                <label className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}>
+                  Mercado Livre
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFiltroMl('todos')}
+                    className={`p-3 rounded-xl text-xs font-black text-center transition cursor-pointer flex flex-col items-center gap-1 shadow-xs ${
+                      filtroMl === 'todos'
+                        ? 'bg-emerald-600 border border-emerald-500 text-white'
+                        : isDark
+                        ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-white'
+                        : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black'
+                    }`}
+                  >
+                    <span>Todos</span>
+                    <span className={`text-[10px] ${filtroMl === 'todos' ? 'text-white font-bold' : isDark ? 'text-white font-semibold' : 'text-black font-medium'}`}>
+                      Sem filtro ML
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFiltroMl('publicados')}
+                    className={`p-3 rounded-xl text-xs font-black text-center transition cursor-pointer flex flex-col items-center gap-1 shadow-xs ${
+                      filtroMl === 'publicados'
+                        ? 'bg-emerald-600 border border-emerald-500 text-white'
+                        : isDark
+                        ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-emerald-400'
+                        : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-emerald-900'
+                    }`}
+                  >
+                    <span>Publicados no ML</span>
+                    <span className={`text-[10px] ${filtroMl === 'publicados' ? 'text-white font-bold' : isDark ? 'text-emerald-400 font-bold' : 'text-emerald-800 font-bold'}`}>
+                      Com anúncio ativo
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFiltroMl('nao_publicados')}
+                    className={`p-3 rounded-xl text-xs font-black text-center transition cursor-pointer flex flex-col items-center gap-1 shadow-xs ${
+                      filtroMl === 'nao_publicados'
+                        ? 'bg-amber-600 border border-amber-500 text-white'
+                        : isDark
+                        ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-amber-400'
+                        : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-amber-900'
+                    }`}
+                  >
+                    <span>Não publicados no ML</span>
+                    <span className={`text-[10px] ${filtroMl === 'nao_publicados' ? 'text-white font-bold' : isDark ? 'text-amber-400 font-bold' : 'text-amber-800 font-bold'}`}>
+                      Sem vínculo
+                    </span>
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Rodapé do Modal */}
@@ -1206,6 +1416,7 @@ export const ProdutosEstoque: React.FC = () => {
                   setCategoriasFiltro([]);
                   setFiltroEstoque('todos');
                   setFiltroAtivo('todos');
+                  setFiltroMl('todos');
                 }}
                 className={`px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                   isDark
