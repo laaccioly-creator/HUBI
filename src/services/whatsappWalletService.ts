@@ -507,6 +507,18 @@ export const whatsappWalletService = {
       );
     }
 
+    const backUrl =
+      typeof window !== 'undefined'
+        ? `${window.location.origin}/dashboard`
+        : 'https://hubi.app/dashboard';
+
+    const payloadInvoke = {
+      loja_id: loja.id,
+      valor_recarga: Number(valorRecarga.toFixed(2)),
+      usuario_id: usuarioId || null,
+      back_url: backUrl,
+    };
+
     const { data, error } = await supabase.functions.invoke<{
       sucesso?: boolean;
       transacao_id?: string;
@@ -514,21 +526,63 @@ export const whatsappWalletService = {
       init_point?: string;
       checkout_url?: string;
       sandbox_init_point?: string;
+      modo?: string;
+      is_sandbox?: boolean;
+      token_prefix?: string;
+      diagnostico_mp?: Record<string, unknown>;
       valor?: number;
       error?: string;
     }>('hubi-criar-recarga-whatsapp-mp', {
-      body: {
-        loja_id: loja.id,
-        valor_recarga: Number(valorRecarga.toFixed(2)),
-        usuario_id: usuarioId || null,
-      },
+      body: payloadInvoke,
     });
 
-    if (error || !data || !data.sucesso) {
-      throw new Error(data?.error || error?.message || 'Falha ao gerar link do Mercado Pago.');
+    if (error) {
+      let detalheErro: any = null;
+      try {
+        if ((error as any)?.context && typeof (error as any).context.json === 'function') {
+          detalheErro = await (error as any).context.json();
+        }
+      } catch {}
+
+      console.group('[HUBI MP RECARGA WHATSAPP DEBUG - ERRO]');
+      console.error('Erro na recarga Mercado Pago:', {
+        payload_enviado: payloadInvoke,
+        erro: detalheErro || error,
+      });
+      console.groupEnd();
+
+      throw new Error(detalheErro?.error || error.message || 'Falha ao gerar link do Mercado Pago.');
     }
 
-    const checkoutUrl = data.checkout_url || data.init_point || data.sandbox_init_point || '';
+    if (!data || !data.sucesso) {
+      throw new Error(data?.error || 'Falha ao gerar link do Mercado Pago.');
+    }
+
+    const checkoutUrl = data.init_point || data.checkout_url || data.sandbox_init_point || '';
+
+    const registroDebug = {
+      timestamp: new Date().toISOString(),
+      fluxo: 'whatsapp_wallet_recarga',
+      loja_id: loja.id,
+      modo: data.modo,
+      is_sandbox: Boolean(data.is_sandbox),
+      token_prefix: data.token_prefix || 'N/A',
+      preference_id: data.preference_id,
+      url_redirecionamento: checkoutUrl,
+      init_point: data.init_point,
+      sandbox_init_point: data.sandbox_init_point,
+      payload_enviado_edge: payloadInvoke,
+      diagnostico_mp: data.diagnostico_mp || null,
+      resposta_completa: data,
+    };
+
+    console.group('[HUBI MP RECARGA WHATSAPP DEBUG]');
+    console.log('Dados da preferência:', registroDebug);
+    console.groupEnd();
+
+    try {
+      sessionStorage.setItem('hubi_last_mp_debug', JSON.stringify(registroDebug));
+    } catch {}
 
     return {
       sucesso: true,

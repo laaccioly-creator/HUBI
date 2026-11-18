@@ -111,52 +111,30 @@ serve(async (req: Request) => {
 
     // 4. Identificação do perfil do coletor e ambiente configurado pelo Super Admin
     const perfilColetor = await consultarPerfilColetorMp(tokenFinal);
-    const collectorEmail = perfilColetor.email;
     const isSandboxMode = configMp.mpAmbiente === "sandbox";
+    const backUrlBase = String(body?.back_url || "https://hubi.app/dashboard").trim().replace(/\/+$/, "");
 
-    const externalRefObj = {
-      loja_id: loja.id,
-      tipo: "recarga_whatsapp",
-      transacao_id: transacaoCriada.id,
-      valor: valorRecarga,
-    };
-    const externalReference = JSON.stringify(externalRefObj);
+    const externalReference = `whatsapp_wallet:${loja.id}:${transacaoCriada.id}`;
 
-    // 5. Gera preferência oficial do Mercado Pago Checkout Pro (suporte a Pix, Cartão, etc.)
+    // 5. Gera preferência oficial do Mercado Pago Checkout Pro (espelhado de public.criar_link_mercado_pago do Catálogo Online)
     const preferencePayload: Record<string, any> = {
       items: [
         {
-          id: `recarga-wpp-${transacaoCriada.id}`,
           title: `HUBI - Recarga de Créditos WhatsApp (R$ ${valorRecarga.toFixed(2).replace(".", ",")})`,
           quantity: 1,
-          unit_price: Number(valorRecarga.toFixed(2)),
           currency_id: "BRL",
+          unit_price: Number(valorRecarga.toFixed(2)),
         },
       ],
       external_reference: externalReference,
-      notification_url: `${supabaseUrl}/functions/v1/hubi-webhook-mp`,
       back_urls: {
-        success: "https://hubi.app/dashboard?recarga=sucesso",
-        failure: "https://hubi.app/dashboard?recarga=falha",
-        pending: "https://hubi.app/dashboard?recarga=pendente",
+        success: `${backUrlBase}?recarga=sucesso`,
+        failure: `${backUrlBase}?recarga=falha`,
+        pending: `${backUrlBase}?recarga=pendente`,
       },
       auto_return: "approved",
-      metadata: {
-        loja_id: loja.id,
-        transacao_id: transacaoCriada.id,
-        tipo_cobranca: "whatsapp_wallet",
-      },
+      notification_url: `${supabaseUrl}/functions/v1/hubi-webhook-mp`,
     };
-
-    if (isSandboxMode) {
-      preferencePayload.payer = {
-        email: `comprador.teste.${Date.now()}@testuser.com`,
-      };
-    } else if (loja.email && (!collectorEmail || loja.email.toLowerCase().trim() !== collectorEmail)) {
-      preferencePayload.payer = {
-        email: loja.email.trim(),
-      };
-    }
 
     const tokenPrefix = configMp.mpTokenPrefixo;
 
@@ -225,9 +203,7 @@ serve(async (req: Request) => {
       );
     }
 
-    const checkoutUrl = isSandboxMode
-      ? (prefData.sandbox_init_point || prefData.init_point)
-      : (prefData.init_point || prefData.sandbox_init_point);
+    const checkoutUrl = prefData.init_point || prefData.sandbox_init_point;
 
     // Vincula a preferência criada à transação no ledger
     await supabaseAdmin

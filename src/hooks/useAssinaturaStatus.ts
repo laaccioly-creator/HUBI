@@ -266,7 +266,7 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
     return { lojasEmAlerta: alertas, lojasBloqueadas: bloqueadas };
   }, [lojasDisponiveis]);
 
-  // Exibe histórico do último redirecionamento de checkout MP ao reabrir/retornar para a aba
+  // Exibe histórico do último redirecionamento de checkout MP e processa retorno automático aprovado
   useEffect(() => {
     try {
       const ultimoLogRaw = sessionStorage.getItem('hubi_last_mp_debug');
@@ -282,6 +282,67 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
     }
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const retornoAssinatura = params.get('assinatura');
+    const retornoRecarga = params.get('recarga');
+    if (!retornoAssinatura && !retornoRecarga) return;
+
+    const paymentId = params.get('payment_id') || params.get('collection_id');
+    const statusParam = params.get('status') || params.get('collection_status');
+
+    const processarRetornoMp = async () => {
+      try {
+        if (
+          paymentId &&
+          paymentId !== 'null' &&
+          (statusParam === 'approved' || retornoAssinatura === 'sucesso' || retornoRecarga === 'sucesso')
+        ) {
+          console.log('[useAssinaturaStatus] Retorno MP aprovado detectado, confirmando pagamento:', {
+            paymentId,
+            statusParam,
+            retornoAssinatura,
+            retornoRecarga,
+          });
+          await supabase.functions.invoke('hubi-webhook-mp', {
+            body: {
+              type: 'payment',
+              data: { id: paymentId },
+            },
+          });
+          if (recarregarDadosLoja) {
+            await recarregarDadosLoja();
+          }
+        }
+      } catch (errRetorno) {
+        console.warn('[useAssinaturaStatus] Aviso ao confirmar retorno automático do Mercado Pago:', errRetorno);
+      } finally {
+        try {
+          const urlLimpa = new URL(window.location.href);
+          [
+            'assinatura',
+            'recarga',
+            'collection_id',
+            'collection_status',
+            'payment_id',
+            'status',
+            'external_reference',
+            'payment_type',
+            'merchant_order_id',
+            'preference_id',
+            'site_id',
+            'processing_mode',
+            'merchant_account_id',
+          ].forEach((chave) => urlLimpa.searchParams.delete(chave));
+          window.history.replaceState({}, document.title, urlLimpa.pathname + (urlLimpa.search || ''));
+        } catch {}
+      }
+    };
+
+    void processarRetornoMp();
+  }, [recarregarDadosLoja]);
+
   // Função para acionar o checkout do Mercado Pago
   const iniciarCheckoutAssinatura = useCallback(
     async (lojaAlvoId?: string) => {
@@ -295,7 +356,12 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
         setCarregandoCheckout(true);
         setErroCheckout(null);
 
-        const payloadInvoke = { loja_id: idLoja };
+        const backUrl =
+          typeof window !== 'undefined'
+            ? `${window.location.origin}/dashboard`
+            : 'https://hubi.app/dashboard';
+
+        const payloadInvoke = { loja_id: idLoja, back_url: backUrl };
 
         // Chama a Edge Function que gera a preferência do Mercado Pago
         const { data, error } = await supabase.functions.invoke('hubi-criar-assinatura-mp', {
@@ -334,9 +400,7 @@ export function useAssinaturaStatus(): UseAssinaturaStatusReturn {
         }
 
         const isModoTeste = Boolean(data?.is_sandbox || data?.modo === 'sandbox');
-        const linkCheckout = isModoTeste
-          ? (data?.sandbox_init_point || data?.checkout_url)
-          : (data?.checkout_url || data?.init_point);
+        const linkCheckout = data?.init_point || data?.checkout_url || data?.sandbox_init_point;
 
         const registroDebug = {
           timestamp: new Date().toISOString(),
