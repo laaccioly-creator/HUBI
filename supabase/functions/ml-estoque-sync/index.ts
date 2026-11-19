@@ -96,6 +96,223 @@ function garantirAtributosObrigatorios(
   return Array.from(mapa.values());
 }
 
+const USER_AGENT_NAVEGADOR =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
+
+type MlPictureEntrada = { id: string } | { source: string };
+
+function inferirMimeEExtensaoImagem(
+  contentTypeHeader: string | null,
+  url: string,
+  bytes: Uint8Array
+): { mime: string; ext: string } | null {
+  const ct = (contentTypeHeader || "").split(";")[0].trim().toLowerCase();
+
+  if (
+    ct === "text/html" ||
+    ct === "application/json" ||
+    ct === "text/plain" ||
+    ct === "application/xml"
+  ) {
+    return null;
+  }
+
+  if (ct === "image/jpeg" || ct === "image/jpg") return { mime: "image/jpeg", ext: "jpg" };
+  if (ct === "image/png") return { mime: "image/png", ext: "png" };
+  if (ct === "image/webp") return { mime: "image/webp", ext: "webp" };
+  if (ct === "image/gif") return { mime: "image/gif", ext: "gif" };
+
+  if (!ct || ct === "application/octet-stream" || ct.startsWith("image/")) {
+    if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+      return { mime: "image/jpeg", ext: "jpg" };
+    }
+    if (
+      bytes.length >= 4 &&
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x4e &&
+      bytes[3] === 0x47
+    ) {
+      return { mime: "image/png", ext: "png" };
+    }
+    if (
+      bytes.length >= 12 &&
+      bytes[0] === 0x52 &&
+      bytes[1] === 0x49 &&
+      bytes[2] === 0x46 &&
+      bytes[3] === 0x46 &&
+      bytes[8] === 0x57 &&
+      bytes[9] === 0x45 &&
+      bytes[10] === 0x42 &&
+      bytes[11] === 0x50
+    ) {
+      return { mime: "image/webp", ext: "webp" };
+    }
+    if (bytes.length >= 4 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38) {
+      return { mime: "image/gif", ext: "gif" };
+    }
+  }
+
+  const caminhoSemQuery = url.split("?")[0].split("#")[0].toLowerCase();
+  if (caminhoSemQuery.endsWith(".png")) return { mime: "image/png", ext: "png" };
+  if (caminhoSemQuery.endsWith(".webp")) return { mime: "image/webp", ext: "webp" };
+  if (caminhoSemQuery.endsWith(".gif")) return { mime: "image/gif", ext: "gif" };
+
+  return { mime: "image/jpeg", ext: "jpg" };
+}
+
+async function fazerUploadUnicaFotoMl(
+  url: string,
+  token: string,
+  indice: number
+): Promise<MlPictureEntrada> {
+  const controllerImg = new AbortController();
+  const timerImg = setTimeout(() => controllerImg.abort(), 10000);
+
+  try {
+    const respImg = await fetch(url, {
+      method: "GET",
+      redirect: "follow",
+      headers: {
+        "User-Agent": USER_AGENT_NAVEGADOR,
+        "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+      },
+      signal: controllerImg.signal,
+    });
+
+    if (!respImg.ok) {
+      console.warn(`[ml-estoque-sync] Download da foto ${indice + 1} retornou HTTP ${respImg.status}; usando fallback { source }.`);
+      return { source: url };
+    }
+
+    const arrayBuffer = await respImg.arrayBuffer();
+    if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+      console.warn(`[ml-estoque-sync] Foto ${indice + 1} veio vazia; usando fallback { source }.`);
+      return { source: url };
+    }
+
+    const infoImg = inferirMimeEExtensaoImagem(
+      respImg.headers.get("content-type"),
+      url,
+      new Uint8Array(arrayBuffer)
+    );
+
+    if (!infoImg) {
+      console.warn(`[ml-estoque-sync] Content-Type inválido para foto ${indice + 1}; usando fallback { source }.`);
+      return { source: url };
+    }
+
+    const blob = new Blob([arrayBuffer], { type: infoImg.mime });
+    const formData = new FormData();
+    formData.append("file", blob, `foto_${indice + 1}.${infoImg.ext}`);
+
+    const controllerUpload = new AbortController();
+    const timerUpload = setTimeout(() => controllerUpload.abort(), 15000);
+
+    try {
+      const respUpload = await fetch("https://api.mercadolibre.com/pictures/items/upload", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Accept": "application/json",
+        },
+        body: formData,
+        signal: controllerUpload.signal,
+      });
+
+      const dadosUpload = await respUpload.json().catch(() => null);
+      if (respUpload.ok && typeof dadosUpload?.id === "string" && dadosUpload.id.trim()) {
+        return { id: dadosUpload.id.trim() };
+      }
+
+      console.warn(`[ml-estoque-sync] Upload binário da foto ${indice + 1} falhou (HTTP ${respUpload.status}); usando fallback { source }.`);
+      return { source: url };
+    } finally {
+      clearTimeout(timerUpload);
+    }
+  } catch (errFoto) {
+    const msgFoto = errFoto instanceof Error ? errFoto.message : "Erro ao processar imagem";
+    console.warn(`[ml-estoque-sync] Falha no upload binário da foto ${indice + 1} (${msgFoto}); usando fallback { source }.`);
+    return { source: url };
+  } finally {
+    clearTimeout(timerImg);
+  }
+}
+
+async function prepararPicturesBinariasMl(
+  fotosUrlsBanco: unknown,
+  picturesPayload: unknown,
+  token: string
+): Promise<MlPictureEntrada[]> {
+  const entradas: MlPictureEntrada[] = [];
+  const urlsVistas = new Set<string>();
+
+  if (Array.isArray(fotosUrlsBanco)) {
+    for (const urlRaw of fotosUrlsBanco) {
+      if (entradas.length >= 10) break;
+      const urlLimpa = typeof urlRaw === "string" ? urlRaw.trim() : "";
+      if (/^https?:\/\//i.test(urlLimpa) && !urlsVistas.has(urlLimpa)) {
+        urlsVistas.add(urlLimpa);
+        entradas.push({ source: urlLimpa });
+      }
+    }
+  }
+
+  if (entradas.length === 0 && Array.isArray(picturesPayload)) {
+    for (const pic of picturesPayload) {
+      if (entradas.length >= 10) break;
+      if (!pic || typeof pic !== "object") continue;
+      const idPic = typeof (pic as any).id === "string" ? (pic as any).id.trim() : "";
+      if (idPic) {
+        entradas.push({ id: idPic });
+        continue;
+      }
+      const sourcePic = typeof (pic as any).source === "string" ? (pic as any).source.trim() : "";
+      if (/^https?:\/\//i.test(sourcePic) && !urlsVistas.has(sourcePic)) {
+        urlsVistas.add(sourcePic);
+        entradas.push({ source: sourcePic });
+      }
+    }
+  }
+
+  if (entradas.length === 0) return [];
+
+  return await Promise.all(
+    entradas.map((entrada, indice) =>
+      "id" in entrada
+        ? Promise.resolve(entrada)
+        : fazerUploadUnicaFotoMl(entrada.source, token, indice)
+    )
+  );
+}
+
+function aplicarAtributoGtinOuIsencao(
+  atributos: MlAtributo[],
+  codigoBarrasPreferencial?: string | null
+): MlAtributo[] {
+  const codigoPreferencialLimpo =
+    typeof codigoBarrasPreferencial === "string" ? codigoBarrasPreferencial.trim() : "";
+  const gtinExistente = atributos.find((a) => a.id?.trim().toUpperCase() === "GTIN")?.value_name;
+  const codigoPayloadLimpo = typeof gtinExistente === "string" ? gtinExistente.trim() : "";
+
+  const codigoValido = /^\d{8,14}$/.test(codigoPreferencialLimpo)
+    ? codigoPreferencialLimpo
+    : /^\d{8,14}$/.test(codigoPayloadLimpo)
+    ? codigoPayloadLimpo
+    : null;
+
+  const filtrados = atributos.filter((a) => {
+    const idUpper = String(a?.id || "").trim().toUpperCase();
+    return idUpper !== "GTIN" && idUpper !== "EMPTY_GTIN_REASON";
+  });
+
+  if (codigoValido) {
+    return [...filtrados, { id: "GTIN", value_name: codigoValido }];
+  }
+
+  return [...filtrados, { id: "EMPTY_GTIN_REASON", value_id: "17055160" }];
+}
+
 interface MlAtributoCategoriaInfo {
   id: string;
   name: string;
@@ -665,17 +882,37 @@ serve(async (req: Request) => {
 
       const { token, conta } = await obterAccessTokenValido(supabaseAdmin, loja_id);
 
+      const [resProdDb, resVarDb] = await Promise.all([
+        supabaseAdmin
+          .from("produtos")
+          .select("fotos_urls, codigo_barras")
+          .eq("id", produto_id)
+          .eq("loja_id", loja_id)
+          .maybeSingle(),
+        variacao_id
+          ? supabaseAdmin
+              .from("variacoes_produto")
+              .select("codigo_barras")
+              .eq("id", variacao_id)
+              .eq("loja_id", loja_id)
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+      ]);
+
       const { description: descricaoObj, title: tituloOriginal, family_name: familiaOriginal, ...restantePayload } = payload_ml;
       const descricaoPlainText = typeof descricaoObj?.plain_text === "string" ? descricaoObj.plain_text.trim() : "";
 
       const nomeFamiliaLimpo = sanitizarTextoMl(familiaOriginal || tituloOriginal || "Produto", 60);
       const tituloLimpo = sanitizarTextoMl(tituloOriginal || nomeFamiliaLimpo, 60);
 
-      let atributosBase = garantirAtributosObrigatorios(
-        Array.isArray(restantePayload.attributes) ? restantePayload.attributes : [],
-        marca,
-        modelo,
-        Array.isArray(atributos_extras) ? atributos_extras : []
+      let atributosBase = aplicarAtributoGtinOuIsencao(
+        garantirAtributosObrigatorios(
+          Array.isArray(restantePayload.attributes) ? restantePayload.attributes : [],
+          marca,
+          modelo,
+          Array.isArray(atributos_extras) ? atributos_extras : []
+        ),
+        resVarDb?.data?.codigo_barras || resProdDb?.data?.codigo_barras || null
       );
 
       // Bloqueio estrito do fallback para "Outros" (MLB3530 / MLB1953)
@@ -695,6 +932,13 @@ serve(async (req: Request) => {
         );
       }
 
+      // Upload binário direto das fotos do produto (até 10) antes de criar o item no ML
+      const picturesProcessadas = await prepararPicturesBinariasMl(
+        resProdDb?.data?.fotos_urls,
+        restantePayload.pictures,
+        token
+      );
+
       type ModoTituloMl = "only_family_name" | "both" | "only_title";
       const modosParaTentar: ModoTituloMl[] = ["only_family_name", "both", "only_title"];
       let respPostOk = false;
@@ -704,11 +948,13 @@ serve(async (req: Request) => {
       for (let idxModo = 0; idxModo < modosParaTentar.length; idxModo++) {
         const modo = modosParaTentar[idxModo];
         let tentarNovamenteMesmoModoComGtin = false;
+        let tentouRemoverEmptyGtin = false;
 
         do {
           tentarNovamenteMesmoModoComGtin = false;
           const payloadTentativa: Record<string, any> = {
             ...restantePayload,
+            ...(picturesProcessadas.length > 0 ? { pictures: picturesProcessadas } : {}),
             category_id: categoriaAlvo,
             attributes: atributosBase,
           };
@@ -751,8 +997,20 @@ serve(async (req: Request) => {
           if (!jaTemGtinOuMotivo && /\bgtin\b|empty_gtin_reason|product_identifier/i.test(textoErro)) {
             atributosBase = [
               ...atributosBase,
-              { id: "EMPTY_GTIN_REASON", value_name: "O produto não tem código cadastrado" },
+              { id: "EMPTY_GTIN_REASON", value_id: "17055160" },
             ];
+            tentarNovamenteMesmoModoComGtin = true;
+            continue;
+          }
+
+          const temEmptyGtin = atributosBase.some((a) => a.id === "EMPTY_GTIN_REASON");
+          if (
+            !tentouRemoverEmptyGtin &&
+            temEmptyGtin &&
+            /empty_gtin_reason.*(not.*allowed|invalid|ignored)|invalid.*empty_gtin_reason/i.test(textoErro)
+          ) {
+            atributosBase = atributosBase.filter((a) => a.id !== "EMPTY_GTIN_REASON");
+            tentouRemoverEmptyGtin = true;
             tentarNovamenteMesmoModoComGtin = true;
             continue;
           }

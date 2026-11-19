@@ -327,11 +327,10 @@ export const mercadoLivreService = {
     titulo?: string;
     categoryId?: string;
   }): Promise<MlConsultaCategoriaResultado> {
-    try {
-      await supabase.auth.refreshSession();
-    } catch (errSession) {
-      console.warn('[mercadoLivreService] Aviso ao renovar sessão antes de consultar categoria:', errSession);
-    }
+    await obterSessaoValida().catch((errSession) => {
+      console.warn('[mercadoLivreService] Aviso ao validar sessão antes de consultar categoria:', errSession);
+      return null;
+    });
 
     const { data, error } = await supabase.functions.invoke('ml-estoque-sync', {
       body: {

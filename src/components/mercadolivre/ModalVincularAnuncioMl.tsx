@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ShoppingBag,
   X,
@@ -19,12 +19,66 @@ import {
   MlSugestaoCategoria
 } from '../../services/mercadoLivreService';
 import {
+  mercadoLivreJevService,
+  FichaProdutoMlHubi,
+  ValorAtributoPreenchidoMl
+} from '../../services/mercadoLivreJevService';
+import {
   converterProdutoHubiParaGdmMl,
   converterGdmParaPayloadApiMl,
   calcularBreakdownPrecoMercadoLivre,
   traduzirErroMercadoLivre
 } from '../../utils/gdmMercadoLivreMapper';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
+
+function construirFichaProdutoMl(produto: Produto, variacao: VariacaoProduto | null): FichaProdutoMlHubi {
+  return {
+    produtoId: produto.id,
+    variacaoId: variacao?.id || null,
+    nome: variacao?.combinacao_nome ? `${produto.nome} ${variacao.combinacao_nome}` : produto.nome,
+    descricao: produto.descricao || null,
+    categoriaLocal: produto.categoria_nome || produto.categoria?.nome || null,
+    subcategoriaLocal: produto.subcategoria_nome || produto.subcategoria?.nome || null,
+    codigoBarras: variacao?.codigo_barras || produto.codigo_barras || null,
+    codigoInterno: variacao?.sku || produto.codigo_interno || null,
+    variacaoNome: variacao?.combinacao_nome || null,
+    rotuloVariacao1: produto.rotulo_variacao_1 || null,
+    valorVariacao1: variacao?.valor_variacao_1 || null,
+    rotuloVariacao2: produto.rotulo_variacao_2 || null,
+    valorVariacao2: variacao?.valor_variacao_2 || null,
+    pesoKg: produto.peso_kg ?? null,
+    alturaCm: produto.altura_cm ?? null,
+    larguraCm: produto.largura_cm ?? null,
+    comprimentoCm: produto.comprimento_cm ?? null,
+  };
+}
+
+function filtrarValoresAtributosCompativeis(
+  valores: Record<string, ValorAtributoPreenchidoMl>,
+  atributosCategoria: MlAtributoObrigatorioCategoria[]
+): Record<string, ValorAtributoPreenchidoMl> {
+  const proximo: Record<string, ValorAtributoPreenchidoMl> = {};
+  for (const attr of atributosCategoria) {
+    const atual = valores[attr.id];
+    const valorNome = atual?.value_name?.trim();
+    if (!valorNome) continue;
+
+    if (attr.values.length === 0) {
+      proximo[attr.id] = atual;
+      continue;
+    }
+
+    const opcaoValida = attr.values.find(
+      (v) =>
+        (atual.value_id && v.id === atual.value_id) ||
+        v.name.trim().toLowerCase() === valorNome.toLowerCase()
+    );
+    if (opcaoValida) {
+      proximo[attr.id] = { value_id: opcaoValida.id, value_name: opcaoValida.name };
+    }
+  }
+  return proximo;
+}
 
 interface ModalVincularAnuncioMlProps {
   aberto: boolean;
@@ -67,8 +121,22 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
   const [sugestoesCategoria, setSugestoesCategoria] = useState<MlSugestaoCategoria[]>([]);
   const [atributosCategoria, setAtributosCategoria] = useState<MlAtributoObrigatorioCategoria[]>([]);
   const [valoresAtributosExtras, setValoresAtributosExtras] = useState<
-    Record<string, { value_id?: string; value_name: string }>
+    Record<string, ValorAtributoPreenchidoMl>
   >({});
+
+  const requisicaoCategoriaSeqRef = useRef<number>(0);
+  const marcaRef = useRef<string>('');
+  const modeloRef = useRef<string>('');
+  const valoresAtributosExtrasRef = useRef<Record<string, ValorAtributoPreenchidoMl>>({});
+  const fichaProdutoRef = useRef<FichaProdutoMlHubi | null>(null);
+
+  marcaRef.current = marca;
+  modeloRef.current = modelo;
+  valoresAtributosExtrasRef.current = valoresAtributosExtras;
+
+  const variacaoAtual: VariacaoProduto | null =
+    produto?.variacoes?.find((v) => v.id === variacaoSelecionadaId) || null;
+  fichaProdutoRef.current = produto ? construirFichaProdutoMl(produto, variacaoAtual) : null;
 
   // Carrega comissão padrão e custo fixo (< R$ 79,00) das preferências do Mercado Livre da loja
   useEffect(() => {
@@ -98,11 +166,16 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
 
   // Reinicia estados específicos do produto quando troca de item ou abre o modal
   useEffect(() => {
+    requisicaoCategoriaSeqRef.current += 1;
+    setCarregandoCategoria(false);
     if (!aberto || !produto) return;
     setVariacaoSelecionadaId('');
     setMlItemIdInput('');
     setMarca('');
     setModelo('');
+    marcaRef.current = '';
+    modeloRef.current = '';
+    valoresAtributosExtrasRef.current = {};
     setTermoBuscaCategoria(produto.nome || '');
     setCategoriaSelecionadaId('');
     setCaminhoCategoriaMl('');
@@ -114,45 +187,105 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
 
   const consultarCategoriaMl = useCallback(
     async (tituloConsulta?: string, categoryIdEspecifico?: string) => {
-      if (!lojaId) return;
+      const fichaProduto = fichaProdutoRef.current;
+      if (!lojaId || !fichaProduto) return;
       const tituloLimpo = (tituloConsulta ?? '').trim();
       if (!tituloLimpo && !categoryIdEspecifico) return;
+
+      const seq = ++requisicaoCategoriaSeqRef.current;
 
       try {
         setCarregandoCategoria(true);
         setErroCategoria(null);
 
-        const res = await mercadoLivreService.consultarCategoria({
+        const res = await mercadoLivreJevService.descobrirECarregarCategoriaMl({
           lojaId,
-          titulo: tituloLimpo || undefined,
-          categoryId: categoryIdEspecifico || undefined,
+          tituloConsulta: tituloLimpo || undefined,
+          categoryIdEspecifico: categoryIdEspecifico || undefined,
+          fichaProduto,
         });
+
+        if (requisicaoCategoriaSeqRef.current !== seq) return;
+
+        const novosAttrs = Array.isArray(res.atributos_obrigatorios) ? res.atributos_obrigatorios : [];
+        const valoresCompativeis = filtrarValoresAtributosCompativeis(
+          valoresAtributosExtrasRef.current,
+          novosAttrs
+        );
+
+        const preenchimento = await mercadoLivreJevService.preencherAtributosCalibradosComJev({
+          categoryId: res.categoria.id,
+          atributosObrigatorios: novosAttrs,
+          fichaProduto,
+          marcaAtual: marcaRef.current,
+          modeloAtual: modeloRef.current,
+          valoresAtuais: valoresCompativeis,
+        });
+
+        if (requisicaoCategoriaSeqRef.current !== seq) return;
 
         setCategoriaSelecionadaId(res.categoria.id);
         setCaminhoCategoriaMl(res.categoria.caminho_completo);
         if (Array.isArray(res.sugestoes) && res.sugestoes.length > 0) {
           setSugestoesCategoria(res.sugestoes);
         }
-        const novosAttrs = Array.isArray(res.atributos_obrigatorios) ? res.atributos_obrigatorios : [];
         setAtributosCategoria(novosAttrs);
 
-        // Mantém valores preenchidos apenas para atributos compatíveis na categoria atual
-        setValoresAtributosExtras((prev) => {
-          const proximo: Record<string, { value_id?: string; value_name: string }> = {};
-          for (const attr of novosAttrs) {
-            if (prev[attr.id]?.value_name) {
-              proximo[attr.id] = prev[attr.id];
-            }
-          }
-          return proximo;
-        });
-      } catch (err: any) {
-        const { mensagemAmigavel } = traduzirErroMercadoLivre(
-          err?.message || 'Não foi possível consultar a categoria deste produto no Mercado Livre.'
-        );
+        if (preenchimento.marca) {
+          setMarca((prev) => (prev.trim() ? prev : preenchimento.marca || prev));
+        }
+        if (preenchimento.modelo) {
+          setModelo((prev) => (prev.trim() ? prev : preenchimento.modelo || prev));
+        }
+
+        // Mantém valores compatíveis já preenchidos pelo usuário e aplica os preenchidos pelo Jev
+        setValoresAtributosExtras((prev) => ({
+          ...preenchimento.atributosPreenchidos,
+          ...filtrarValoresAtributosCompativeis(prev, novosAttrs),
+        }));
+
+        // Fallback não-bloqueante via gemini-proxy apenas se restarem atributos obrigatórios de texto livre vazios
+        if (preenchimento.atributosTextoLivrePendentes.length > 0) {
+          void mercadoLivreJevService
+            .preencherAtributosTextoLivreViaGemini({
+              lojaId,
+              categoryId: res.categoria.id,
+              fichaProduto,
+              marcaAtual: marcaRef.current || preenchimento.marca || undefined,
+              modeloAtual: modeloRef.current || preenchimento.modelo || undefined,
+              atributosPendentes: preenchimento.atributosTextoLivrePendentes,
+            })
+            .then((extrasGemini) => {
+              if (requisicaoCategoriaSeqRef.current !== seq) return;
+              const chaves = Object.keys(extrasGemini);
+              if (chaves.length === 0) return;
+
+              setValoresAtributosExtras((prev) => {
+                const proximo = { ...prev };
+                for (const attrId of chaves) {
+                  if (!proximo[attrId]?.value_name?.trim() && extrasGemini[attrId]?.value_name?.trim()) {
+                    proximo[attrId] = extrasGemini[attrId];
+                  }
+                }
+                return proximo;
+              });
+            })
+            .catch(() => {
+              // Falha silenciosa: usuário pode preencher manualmente os campos restantes
+            });
+        }
+      } catch (err: unknown) {
+        if (requisicaoCategoriaSeqRef.current !== seq) return;
+        const mensagemOriginal =
+          err instanceof Error
+            ? err.message
+            : 'Não foi possível consultar a categoria deste produto no Mercado Livre.';
+        const { mensagemAmigavel } = traduzirErroMercadoLivre(mensagemOriginal);
         setErroCategoria(mensagemAmigavel);
       } finally {
-        setCarregandoCategoria(false);
+        if (requisicaoCategoriaSeqRef.current === seq) {
+          setCarregandoCategoria(false);
+        }
       }
     },
     [lojaId]
@@ -176,9 +309,6 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
   ]);
 
   if (!aberto || !produto) return null;
-
-  const variacaoAtual: VariacaoProduto | null =
-    produto.variacoes?.find((v) => v.id === variacaoSelecionadaId) || null;
 
   const precoBaseReferencia = variacaoAtual
     ? (variacaoAtual.preco_promocional && variacaoAtual.preco_promocional > 0 ? variacaoAtual.preco_promocional : variacaoAtual.preco_venda_varejo)

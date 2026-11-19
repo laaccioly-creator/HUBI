@@ -28,8 +28,8 @@ export interface PayloadItemMercadoLivre {
   description?: {
     plain_text: string;
   };
-  pictures: { source: string }[];
-  attributes: { id: string; value_id?: string; value_name: string }[];
+  pictures: Array<{ id: string } | { source: string }>;
+  attributes: { id: string; value_id?: string; value_name?: string }[];
   variations?: {
     attribute_combinations: { id: string; value_name: string }[];
     price: number;
@@ -122,9 +122,12 @@ export function converterProdutoHubiParaGdmMl(
     atributos.push({ id: 'MODEL', value_name: modeloLimpo });
   }
 
-  const ean = variacao?.codigo_barras || produto.codigo_barras;
-  if (ean && ean.trim().length >= 8 && ean.trim().length <= 14) {
-    atributos.push({ id: 'GTIN', value_name: ean.trim() });
+  const eanLimpo = (variacao?.codigo_barras || produto.codigo_barras || '').trim();
+  const eanValido = /^\d{8,14}$/.test(eanLimpo) ? eanLimpo : null;
+  if (eanValido) {
+    atributos.push({ id: 'GTIN', value_name: eanValido });
+  } else {
+    atributos.push({ id: 'EMPTY_GTIN_REASON', value_id: '17055160' });
   }
 
   if (Array.isArray(opcoes.atributosExtras)) {
@@ -158,7 +161,7 @@ export function converterProdutoHubiParaGdmMl(
     margem_sobrepreco_percentual: margem,
     preco_final_ml: precoFinal,
     estoque_fisico_disponivel: estoqueDisponivel,
-    codigo_barras_ean: ean || null,
+    codigo_barras_ean: eanValido,
     fotos_urls: Array.isArray(produto.fotos_urls) ? produto.fotos_urls.slice(0, 10) : [],
     atributos_ml: atributos,
   };
@@ -185,7 +188,7 @@ export function converterGdmParaPayloadApiMl(
     attributes: anuncioGdm.atributos_ml.map((attr) => ({
       id: attr.id,
       ...(attr.value_id ? { value_id: attr.value_id } : {}),
-      value_name: attr.value_name,
+      ...(attr.value_name ? { value_name: attr.value_name } : {}),
     })),
   };
 

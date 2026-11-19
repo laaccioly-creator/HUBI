@@ -768,6 +768,7 @@ export const ProdutosEstoque: React.FC = () => {
                     const temVariacoesGrade = Boolean(produto.tem_variacoes && Array.isArray(produto.variacoes) && produto.variacoes.length > 0);
                     const anunciosMl = mapaAnunciosMl[produto.id] || [];
                     const anuncioPrincipalMl = anunciosMl.find((a) => a.status_anuncio === 'active') || anunciosMl[0] || null;
+                    const possuiMarketplaceVinculado = Boolean(anuncioPrincipalMl);
                     const codigoMlLimpo = anuncioPrincipalMl ? anuncioPrincipalMl.ml_item_id.replace(/^MLB-?/i, '') : '';
                     const urlAnuncioMl = anuncioPrincipalMl
                       ? anuncioPrincipalMl.permalink ||
@@ -816,26 +817,25 @@ export const ProdutosEstoque: React.FC = () => {
                               <span className={`font-bold block text-xs group-hover/prod:underline transition truncate ${isDark ? 'text-white group-hover/prod:text-emerald-400' : 'text-black group-hover/prod:text-emerald-700'}`}>
                                 {produto.nome}
                               </span>
-                              {produto.codigo_interno && (
-                                <span className={`text-[10px] font-mono block ${isDark ? 'text-slate-400' : 'text-slate-600 font-medium'}`}>
-                                  Cód: {produto.codigo_interno}
-                                </span>
-                              )}
-                              {anuncioPrincipalMl && (
-                                <a
-                                  href={urlAnuncioMl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  title={`Abrir anúncio ${anuncioPrincipalMl.ml_item_id} (${obterLabelStatusMl(statusMl)}) no Mercado Livre`}
-                                  className={`mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black font-mono transition ${classeBadgeMl}`}
-                                >
-                                  <span>
-                                    ML • #{codigoMlLimpo}
-                                    {anunciosMl.length > 1 ? ` (+${anunciosMl.length - 1})` : ''}
-                                  </span>
-                                  <ExternalLink className="w-2.5 h-2.5 shrink-0" />
-                                </a>
+                              {possuiMarketplaceVinculado && (
+                                <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                  {anuncioPrincipalMl && (
+                                    <a
+                                      href={urlAnuncioMl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      title={`Abrir anúncio ${anuncioPrincipalMl.ml_item_id} (${obterLabelStatusMl(statusMl)}) no Mercado Livre`}
+                                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black font-mono transition ${classeBadgeMl}`}
+                                    >
+                                      <span>
+                                        ML • #{codigoMlLimpo}
+                                        {anunciosMl.length > 1 ? ` (+${anunciosMl.length - 1})` : ''}
+                                      </span>
+                                      <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                                    </a>
+                                  )}
+                                </div>
                               )}
                             </div>
                           </div>
