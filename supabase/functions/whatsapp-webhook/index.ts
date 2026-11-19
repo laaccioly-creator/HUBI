@@ -4,6 +4,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolverTokenMetaReceptivo } from "../_shared/whatsappMetaConfig.ts";
 
 // Declaração global para suporte a background tasks no Supabase Deno EdgeRuntime
 declare const EdgeRuntime: {
@@ -21,6 +22,76 @@ const corsHeaders = {
  */
 function normalizarTelefone(numero: string): string {
   return (numero || '').replace(/\D/g, '');
+}
+
+/**
+ * Extrai DDD (2 dígitos após DDI 55) e os últimos 8 dígitos para comparação resiliente
+ * entre formatos com/sem DDI 55 e com/sem 9º dígito.
+ */
+function normalizarComparacaoTelefoneBr(numero: string): { ddd: string; ultimos8: string } {
+  const digitos = normalizarTelefone(numero);
+  if (!digitos) return { ddd: "", ultimos8: "" };
+
+  let local = digitos;
+  if (local.startsWith("55") && local.length >= 12) {
+    local = local.slice(2);
+  }
+
+  const ultimos8 = local.slice(-8);
+  const ddd = local.length >= 10 ? local.slice(0, 2) : "";
+  return { ddd, ultimos8 };
+}
+
+function telefonesSaoEquivalentesBr(foneA: string, foneB: string): boolean {
+  const a = normalizarComparacaoTelefoneBr(foneA);
+  const b = normalizarComparacaoTelefoneBr(foneB);
+  if (a.ultimos8.length < 8 || b.ultimos8.length < 8) return false;
+  if (a.ultimos8 !== b.ultimos8) return false;
+  if (a.ddd && b.ddd && a.ddd !== b.ddd) return false;
+  return true;
+}
+
+function normalizarTextoSimples(texto: string): string {
+  return (texto || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function extrairTagSlugMensagem(texto: string): { slug: string; textoSemTag: string } {
+  const match = (texto || "").match(/#([a-z0-9_-]{2,60})/i);
+  if (!match) {
+    return { slug: "", textoSemTag: (texto || "").trim() };
+  }
+  const slug = match[1].toLowerCase().trim();
+  const textoSemTag = (texto || "").replace(match[0], " ").replace(/\s+/g, " ").trim();
+  return { slug, textoSemTag };
+}
+
+function corresponderEscolhaUnidade(texto: string, lojasVinculadas: any[]): any | null {
+  const limpo = normalizarTextoSimples(texto);
+  if (!limpo) return null;
+
+  // Verifica escolha numérica (ex: "1", "2", "1 - HOTAMAZON", "unidade 2")
+  const matchNumero = limpo.match(/^(?:unidade|loja|opcao)?\s*(\d{1,2})(?:\s*[-.):].*)?$/i);
+  if (matchNumero) {
+    const indice = parseInt(matchNumero[1], 10) - 1;
+    if (indice >= 0 && indice < lojasVinculadas.length) {
+      return lojasVinculadas[indice];
+    }
+  }
+
+  // Verifica correspondência exata ou por slug/nome fantasia
+  for (const lojaItem of lojasVinculadas) {
+    const nomeNorm = normalizarTextoSimples(lojaItem.nome_fantasia || "");
+    const slugNorm = normalizarTextoSimples(lojaItem.slug_catalogo || "");
+    if ((nomeNorm && limpo === nomeNorm) || (slugNorm && limpo === slugNorm)) {
+      return lojaItem;
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -177,19 +248,27 @@ serve(async (req: Request) => {
         });
       }
 
-      // Se for diferente do token global, verificar se existe alguma loja com esse verify token
+      // Se for diferente do token env, verificar se existe na configuracoes_plataforma ou alguma loja
       try {
         const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
         const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
         const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
-        const { data: loja } = await supabaseAdmin
-          .from("lojas")
-          .select("id")
-          .eq("meta_verify_token", token)
-          .maybeSingle();
+        const [{ data: configPlat }, { data: loja }] = await Promise.all([
+          supabaseAdmin
+            .from("configuracoes_plataforma")
+            .select("meta_verify_token")
+            .eq("id", 1)
+            .maybeSingle(),
+          supabaseAdmin
+            .from("lojas")
+            .select("id")
+            .eq("meta_verify_token", token)
+            .limit(1)
+            .maybeSingle(),
+        ]);
 
-        if (loja) {
+        if (loja || (configPlat?.meta_verify_token && configPlat.meta_verify_token === token)) {
           return new Response(challenge || "", {
             status: 200,
             headers: { ...corsHeaders, "Content-Type": "text/plain" }
@@ -281,20 +360,153 @@ async function processarEventoWhatsApp(payload: any) {
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
   const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
-  // 1. Identificar o Tenant correspondente pelo Phone Number ID sanitizado
-  const { data: loja, error: erroLoja } = await supabaseAdmin
-    .from("lojas")
-    .select("*")
-    .eq("meta_phone_number_id", rawPhoneId)
-    .maybeSingle();
+  // 1. Buscar TODAS as lojas vinculadas ao phone_number_id com atendimento receptivo ativo
+  const [{ data: lojasVinculadas, error: erroLojas }, { data: configPlat }] = await Promise.all([
+    supabaseAdmin
+      .from("lojas")
+      .select("*")
+      .eq("meta_phone_number_id", rawPhoneId)
+      .eq("whatsapp_ia_receptiva_ativa", true)
+      .order("nome_fantasia", { ascending: true })
+      .order("id", { ascending: true }),
+    supabaseAdmin
+      .from("configuracoes_plataforma")
+      .select("meta_phone_number_id, meta_access_token, meta_verify_token")
+      .eq("id", 1)
+      .maybeSingle(),
+  ]);
 
-  if (erroLoja || !loja) {
-    console.error("[WhatsAppWebhook] Loja não encontrada para phone_number_id:", {
+  if (erroLojas || !lojasVinculadas || lojasVinculadas.length === 0) {
+    console.info("[WhatsAppWebhook] Nenhuma loja com atendimento receptivo ativo vinculada ao phone_number_id:", {
       procurado: rawPhoneId,
-      erro: erroLoja?.message || erroLoja
+      erro: erroLojas?.message || null
     });
     return;
   }
+
+  const TIMEOUT_SESSAO_MS = 40 * 60 * 1000;
+  const dataAtualIso = new Date().toISOString();
+  const timestampAtual = Date.now();
+  let loja: any = null;
+  let textoMensagemEfetivo = textoMensagem;
+  let escolhaExplicitaUnidade = false;
+
+  if (lojasVinculadas.length === 1) {
+    loja = lojasVinculadas[0];
+  } else {
+    // 2 ou mais lojas/filiais vinculadas ao mesmo phone_number_id
+    const lojasIds = lojasVinculadas.map((l: any) => l.id);
+
+    // 1a) Verificar identificador explícito na mensagem (#SLUG)
+    const { slug: slugNaMensagem, textoSemTag } = extrairTagSlugMensagem(textoMensagem);
+    if (slugNaMensagem) {
+      const lojaPorSlug = lojasVinculadas.find(
+        (l: any) => (l.slug_catalogo || "").toLowerCase().trim() === slugNaMensagem
+      );
+      if (lojaPorSlug) {
+        loja = lojaPorSlug;
+        textoMensagemEfetivo = textoSemTag || `Olá! Gostaria de falar com ${lojaPorSlug.nome_fantasia}.`;
+        // Encerra eventuais sessões ativas anteriores em outras unidades
+        await supabaseAdmin
+          .from("whatsapp_sessoes")
+          .update({ status: "encerrado", atualizado_em: dataAtualIso })
+          .in("loja_id", lojasIds.filter((id: string) => id !== lojaPorSlug.id))
+          .eq("numero_cliente", fromCliente)
+          .eq("status", "ativo");
+      }
+    }
+
+    // 1b) Verificar sessão ativa recente em qualquer uma das lojas vinculadas
+    if (!loja) {
+      const { data: sessaoRecente } = await supabaseAdmin
+        .from("whatsapp_sessoes")
+        .select("id, loja_id, status, atualizado_em, criado_em")
+        .in("loja_id", lojasIds)
+        .eq("numero_cliente", fromCliente)
+        .eq("status", "ativo")
+        .order("atualizado_em", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (sessaoRecente) {
+        const dataUltima = new Date(sessaoRecente.atualizado_em || sessaoRecente.criado_em).getTime();
+        if (timestampAtual - dataUltima <= TIMEOUT_SESSAO_MS) {
+          const lojaDaSessao = lojasVinculadas.find((l: any) => l.id === sessaoRecente.loja_id);
+          if (lojaDaSessao) {
+            // Permite trocar de unidade caso o usuário informe explicitamente outro número/nome ou peça troca? Não, mantém sessão ativa até expirar ou #SLUG
+            loja = lojaDaSessao;
+          }
+        } else {
+          await supabaseAdmin
+            .from("whatsapp_sessoes")
+            .update({ status: "encerrado", atualizado_em: dataAtualIso })
+            .eq("id", sessaoRecente.id);
+        }
+      }
+    }
+
+    // 2) Consultar o telefone do remetente na tabela clientes dessas lojas vinculadas
+    if (!loja) {
+      const { ultimos8 } = normalizarComparacaoTelefoneBr(fromCliente);
+      const lojasCadastradas = new Set<string>();
+
+      if (ultimos8.length >= 8) {
+        const { data: clientesMatch } = await supabaseAdmin
+          .from("clientes")
+          .select("id, loja_id, telefone, whatsapp")
+          .in("loja_id", lojasIds)
+          .or(`telefone.ilike.%${ultimos8}%,whatsapp.ilike.%${ultimos8}%`);
+
+        if (Array.isArray(clientesMatch)) {
+          for (const cli of clientesMatch) {
+            if (
+              telefonesSaoEquivalentesBr(fromCliente, cli.whatsapp || "") ||
+              telefonesSaoEquivalentesBr(fromCliente, cli.telefone || "")
+            ) {
+              lojasCadastradas.add(cli.loja_id);
+            }
+          }
+        }
+      }
+
+      if (lojasCadastradas.size === 1) {
+        const lojaUnicaId = Array.from(lojasCadastradas)[0];
+        loja = lojasVinculadas.find((l: any) => l.id === lojaUnicaId) || null;
+      } else {
+        // Cliente pertence a mais de uma loja ou ainda não tem cadastro em nenhuma delas
+        const lojaEscolhida = corresponderEscolhaUnidade(textoMensagem, lojasVinculadas);
+        if (lojaEscolhida) {
+          loja = lojaEscolhida;
+          escolhaExplicitaUnidade = true;
+          textoMensagemEfetivo = `Olá! Selecionei a unidade ${lojaEscolhida.nome_fantasia}. Como você pode me ajudar?`;
+        } else {
+          const listaNumerada = lojasVinculadas
+            .map((l: any, idx: number) => `${idx + 1} - ${l.nome_fantasia || `Unidade ${idx + 1}`}`)
+            .join("\n");
+          const msgEscolha =
+            `Olá! Com qual unidade você deseja falar? Responda apenas com o número correspondente:\n\n${listaNumerada}`;
+
+          const lojaComToken =
+            lojasVinculadas.find((l: any) => Boolean((l.meta_access_token || "").trim())) ||
+            lojasVinculadas[0];
+          const tokenEnvioEscolha = resolverTokenMetaReceptivo(lojaComToken, configPlat);
+
+          if (tokenEnvioEscolha) {
+            await enviarMensagemMeta(rawPhoneId, tokenEnvioEscolha, fromCliente, msgEscolha);
+          } else {
+            console.warn("[WhatsAppWebhook] Token Meta ausente para enviar menu de escolha de unidades.");
+          }
+          return;
+        }
+      }
+    }
+  }
+
+  if (!loja) {
+    return;
+  }
+
+  const tokenMetaEfetivo = resolverTokenMetaReceptivo(loja, configPlat);
 
   // 2. Buscar ou Criar a Conversa no banco e atualizar janela receptiva de 24h em public.clientes
   const agoraInboundIso = new Date().toISOString();
@@ -353,7 +565,7 @@ async function processarEventoWhatsApp(payload: any) {
   // Se já existir no banco (UNIQUE constraint), a inserção falhará e abortaremos o processamento
   const conteudoEntrada = isAudio
     ? "🎤 [Mensagem de Áudio]"
-    : (textoMensagem || "[Mídia / Anexo sem legenda]");
+    : (textoMensagemEfetivo || "[Mídia / Anexo sem legenda]");
 
   const { error: insertMsgError } = await supabaseAdmin
     .from("mensagens_whatsapp")
@@ -373,9 +585,6 @@ async function processarEventoWhatsApp(payload: any) {
   }
 
   // 3.1. Gestão de Sessões Contextuais (whatsapp_sessoes) com Timeout de Inatividade (40 minutos)
-  const TIMEOUT_SESSAO_MS = 40 * 60 * 1000;
-  const dataAtualIso = new Date().toISOString();
-  const timestampAtual = Date.now();
   let sessaoId: string | null = null;
 
   try {
@@ -494,7 +703,9 @@ async function processarEventoWhatsApp(payload: any) {
     const msgPausa = loja.mensagem_pausa_humano ||
       "Nosso atendimento por IA atingiu a capacidade do período. Em breve um atendente da nossa equipe continuará o seu atendimento por aqui!";
 
-    await enviarMensagemMeta(loja.meta_phone_number_id, loja.meta_access_token, fromCliente, msgPausa);
+    if (tokenMetaEfetivo) {
+      await enviarMensagemMeta(rawPhoneId, tokenMetaEfetivo, fromCliente, msgPausa);
+    }
     await salvarMensagemIa(supabaseAdmin, conversa.id, loja.id, msgPausa);
     if (sessaoId) {
       await supabaseAdmin
@@ -516,7 +727,7 @@ async function processarEventoWhatsApp(payload: any) {
   }
 
   // 7. Detecção de Intenção de Handoff Humano ("atendente", "falar com pessoa")
-  const textoLimpoLower = textoMensagem.toLowerCase();
+  const textoLimpoLower = textoMensagemEfetivo.toLowerCase();
   const termosHandoff = [
     "atendente",
     "falar com atendente",
@@ -527,7 +738,7 @@ async function processarEventoWhatsApp(payload: any) {
     "falar com alguém"
   ];
 
-  const solicitaHumano = termosHandoff.some((termo) => textoLimpoLower.includes(termo));
+  const solicitaHumano = !escolhaExplicitaUnidade && termosHandoff.some((termo) => textoLimpoLower.includes(termo));
   if (solicitaHumano) {
     await supabaseAdmin
       .from("conversas_whatsapp")
@@ -542,7 +753,9 @@ async function processarEventoWhatsApp(payload: any) {
     }
 
     const msgHandoff = "Entendido! Estou transferindo você para nossa equipe de atendimento. Um de nossos colaboradores responderá em breve por aqui.";
-    await enviarMensagemMeta(loja.meta_phone_number_id, loja.meta_access_token, fromCliente, msgHandoff);
+    if (tokenMetaEfetivo) {
+      await enviarMensagemMeta(rawPhoneId, tokenMetaEfetivo, fromCliente, msgHandoff);
+    }
     await salvarMensagemIa(supabaseAdmin, conversa.id, loja.id, msgHandoff);
     if (sessaoId) {
       await supabaseAdmin
@@ -558,15 +771,15 @@ async function processarEventoWhatsApp(payload: any) {
     return;
   }
 
-  // 8. Se a loja não possui Gemini API Key ou Meta Access Token cadastrados, não prosseguir
-  if (!loja.gemini_api_key || !loja.meta_access_token) {
+  // 8. Se a loja não possui Gemini API Key ou token Meta efetivo (loja ou plataforma), não prosseguir
+  if (!loja.gemini_api_key || !tokenMetaEfetivo) {
     return;
   }
 
   // 9. Download do Áudio Meta (se mensagem for de voz/áudio)
   let audioBase64: { data: string; mimeType: string } | null = null;
   if (isAudio && audioId) {
-    audioBase64 = await baixarAudioMeta(audioId, loja.meta_access_token, audioMimeTypeRaw);
+    audioBase64 = await baixarAudioMeta(audioId, tokenMetaEfetivo, audioMimeTypeRaw);
   }
 
   // 10. RAG Dinâmico: Consultar Catálogo Ativo (com cache em memória TTL 5m) e Histórico da Sessão
@@ -608,8 +821,8 @@ async function processarEventoWhatsApp(payload: any) {
           data: audioBase64.data
         }
       });
-      if (textoMensagem && textoMensagem.trim()) {
-        parts.push({ text: textoMensagem.trim() });
+      if (textoMensagemEfetivo && textoMensagemEfetivo.trim()) {
+        parts.push({ text: textoMensagemEfetivo.trim() });
       } else {
         parts.push({ text: "O cliente enviou o áudio acima. Por favor, ouça com atenção e responda ao que foi solicitado com base nos produtos da loja." });
       }
@@ -641,7 +854,7 @@ async function processarEventoWhatsApp(payload: any) {
         }
       });
     }
-    fallbackParts.push({ text: textoMensagem || "Olá!" });
+    fallbackParts.push({ text: textoMensagemEfetivo || "Olá!" });
     contents.push({ role: "user", parts: fallbackParts });
   }
 
@@ -649,7 +862,7 @@ async function processarEventoWhatsApp(payload: any) {
   if (contents[contents.length - 1].role !== "user") {
     contents.push({
       role: "user",
-      parts: [{ text: textoMensagem || "Continuando atendimento..." }]
+      parts: [{ text: textoMensagemEfetivo || "Continuando atendimento..." }]
     });
   }
 
@@ -683,8 +896,8 @@ async function processarEventoWhatsApp(payload: any) {
 
   // 14. Enviar Resposta via Meta Cloud API
   const envioSucesso = await enviarMensagemMeta(
-    loja.meta_phone_number_id,
-    loja.meta_access_token,
+    rawPhoneId,
+    tokenMetaEfetivo,
     fromCliente,
     respostaGemini
   );

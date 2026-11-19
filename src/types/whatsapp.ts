@@ -37,6 +37,7 @@ export interface MensagemWhatsApp {
 
 export interface WhatsAppConfigForm {
   ia_whatsapp_ativa: boolean;
+  whatsapp_ia_receptiva_ativa?: boolean;
   pausar_ao_atingir_limite: boolean;
   limite_mensal_alerta: number;
   gemini_api_key: string;

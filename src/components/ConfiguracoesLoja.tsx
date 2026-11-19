@@ -2353,31 +2353,6 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 font-mono focus:border-emerald-500 focus:bg-white"
                 />
               </div>
-
-              <div className="pt-2 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={handleSalvarTodasConfiguracoes}
-                  disabled={!isDirty || salvando}
-                  className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition shadow-xs active:scale-95 ${
-                    isDirty && !salvando
-                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/20 cursor-pointer'
-                      : 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-60'
-                  }`}
-                >
-                  {salvando ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Salvando Alterações...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-3.5 h-3.5" />
-                      <span>Salvar Alterações</span>
-                    </>
-                  )}
-                </button>
-              </div>
             </div>
           )}
 
@@ -4529,32 +4504,6 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   </p>
                 </div>
               </div>
-            </div>
-
-            {/* Rodapé do Formulário Dados da Loja - Salvar Alterações */}
-            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end">
-              <button
-                type="button"
-                onClick={handleSalvarTodasConfiguracoes}
-                disabled={!isDirty || salvando}
-                className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition shadow-md active:scale-95 ${
-                  isDirty && !salvando
-                    ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white shadow-emerald-500/20 cursor-pointer'
-                    : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 cursor-not-allowed opacity-60'
-                }`}
-              >
-                {salvando ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Salvando Alterações...</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    <span>Salvar Alterações</span>
-                  </>
-                )}
-              </button>
             </div>
           </div>
         )}

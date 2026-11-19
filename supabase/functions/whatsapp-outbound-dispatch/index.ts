@@ -4,6 +4,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolverCredenciaisMetaSaida } from "../_shared/whatsappMetaConfig.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,7 +18,8 @@ interface DisparoPayload {
   pedido_id?: string | null;
   usuario_id?: string | null;
   telefone_destino: string;
-  mensagem_texto: string;
+  mensagem_texto?: string;
+  mensagem?: string;
   evento_gatilho: string;
   descricao_auditoria?: string;
   template_nome?: string;
@@ -99,6 +101,7 @@ serve(async (req: Request) => {
       usuario_id,
       telefone_destino,
       mensagem_texto,
+      mensagem,
       evento_gatilho,
       descricao_auditoria,
       template_nome,
@@ -106,19 +109,21 @@ serve(async (req: Request) => {
       template_parametros = [],
     } = body;
 
-    if (!loja_id || !telefone_destino || !mensagem_texto) {
+    const mensagemTextoEfetiva = (mensagem_texto || mensagem || "").trim();
+
+    if (!loja_id || !telefone_destino || !mensagemTextoEfetiva) {
       return new Response(
         JSON.stringify({
           sucesso: false,
           modoEnvio: "manual_link",
           motivo: "parametros_incompletos",
-          urlManual: construirUrlManualWhatsApp(telefone_destino || "", mensagem_texto || ""),
+          urlManual: construirUrlManualWhatsApp(telefone_destino || "", mensagemTextoEfetiva || ""),
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const urlManual = construirUrlManualWhatsApp(telefone_destino, mensagem_texto);
+    const urlManual = construirUrlManualWhatsApp(telefone_destino, mensagemTextoEfetiva);
     const foneMeta = normalizarTelefoneBrasil(telefone_destino);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
@@ -136,7 +141,7 @@ serve(async (req: Request) => {
         .maybeSingle(),
       supabaseAdmin
         .from("configuracoes_plataforma")
-        .select("custo_disparo_whatsapp")
+        .select("custo_disparo_whatsapp, meta_phone_number_id, meta_access_token")
         .eq("id", 1)
         .maybeSingle(),
     ]);
@@ -208,8 +213,7 @@ serve(async (req: Request) => {
       }
     }
 
-    const phoneNumberId = (loja.meta_phone_number_id || Deno.env.get("META_PHONE_NUMBER_ID") || "").trim();
-    const metaAccessToken = (loja.meta_access_token || Deno.env.get("META_ACCESS_TOKEN") || "").trim();
+    const { phoneNumberId, accessToken: metaAccessToken } = resolverCredenciaisMetaSaida(loja, configPlat);
     const possuiCredenciaisCloudApi = Boolean(phoneNumberId && metaAccessToken);
 
     // PASSO 2: Validação da Janela Gratuita de 24 Horas
@@ -273,7 +277,7 @@ serve(async (req: Request) => {
             recipient_type: "individual",
             to: foneMeta,
             type: "text",
-            text: { preview_url: false, body: mensagem_texto },
+            text: { preview_url: false, body: mensagemTextoEfetiva },
           }),
         }
       );
@@ -358,7 +362,7 @@ serve(async (req: Request) => {
             recipient_type: "individual",
             to: foneMeta,
             type: "text",
-            text: { preview_url: false, body: mensagem_texto },
+            text: { preview_url: false, body: mensagemTextoEfetiva },
           };
 
       const metaRes = await fetch(

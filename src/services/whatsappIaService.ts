@@ -1,6 +1,7 @@
 // Serviço de Frontend para Gestão e Conexão do Atendimento WhatsApp IA (BYOK + Meta Cloud API)
 import { supabase } from '../lib/supabase';
 import { ConsumoWhatsApp, WhatsAppConfigForm } from '../types/whatsapp';
+import { configuracoesPlataformaService } from './configuracoesPlataformaService';
 
 import {
   testarChaveGemini,
@@ -61,6 +62,39 @@ export const testarConexaoMeta = async (
 };
 
 /**
+ * Testa o Phone Number ID na Graph API da Meta utilizando o token da loja
+ * ou, se vazio, o token global configurado em `configuracoes_plataforma`.
+ */
+export const testarConexaoMetaComFallbackGlobal = async (
+  metaPhoneNumberId: string,
+  metaAccessTokenLoja?: string
+): Promise<{ sucesso: boolean; mensagem: string }> => {
+  const phoneId = (metaPhoneNumberId || '').trim();
+  if (!phoneId) {
+    return { sucesso: false, mensagem: 'Informe o Phone Number ID para validar na Meta Graph API.' };
+  }
+
+  let tokenParaTeste = (metaAccessTokenLoja || '').trim();
+  if (!tokenParaTeste) {
+    try {
+      const paramsPlataforma = await configuracoesPlataformaService.obterParametros();
+      tokenParaTeste = (paramsPlataforma?.meta_access_token || '').trim();
+    } catch (err) {
+      console.warn('[testarConexaoMetaComFallbackGlobal] Aviso ao ler token global:', err);
+    }
+  }
+
+  if (!tokenParaTeste) {
+    return {
+      sucesso: false,
+      mensagem: 'Informe o Token Permanente Meta da loja (nenhum token global encontrado na plataforma).'
+    };
+  }
+
+  return await testarConexaoMeta(phoneId, tokenParaTeste);
+};
+
+/**
  * Carrega os dados de consumo de mensagens da loja no mês corrente (YYYY-MM)
  */
 export const carregarConsumoMesAtual = async (lojaId: string): Promise<ConsumoWhatsApp | null> => {
@@ -98,6 +132,7 @@ export const carregarConfiguracoesWhatsApp = async (lojaId: string): Promise<Wha
       .from('lojas')
       .select(`
         ia_whatsapp_ativa,
+        whatsapp_ia_receptiva_ativa,
         pausar_ao_atingir_limite,
         limite_mensal_alerta,
         gemini_api_key,
@@ -120,6 +155,7 @@ export const carregarConfiguracoesWhatsApp = async (lojaId: string): Promise<Wha
 
     return {
       ia_whatsapp_ativa: data.ia_whatsapp_ativa !== false,
+      whatsapp_ia_receptiva_ativa: Boolean(data.whatsapp_ia_receptiva_ativa),
       pausar_ao_atingir_limite: data.pausar_ao_atingir_limite === true,
       limite_mensal_alerta: data.limite_mensal_alerta || 1000,
       gemini_api_key: (data.gemini_api_key || '').trim(),
@@ -173,5 +209,44 @@ export const salvarConfiguracoesWhatsApp = async (
     return { sucesso: true };
   } catch (err: any) {
     return { sucesso: false, erro: err?.message || 'Falha ao salvar configurações.' };
+  }
+};
+
+/**
+ * Salva exclusivamente os campos da Conexão Própria Meta Cloud API da loja.
+ */
+export const salvarConexaoMetaLoja = async (
+  lojaId: string,
+  params: {
+    whatsapp_ia_receptiva_ativa: boolean;
+    meta_phone_number_id?: string | null;
+    meta_waba_id?: string | null;
+    meta_access_token?: string | null;
+  }
+): Promise<{ sucesso: boolean; erro?: string }> => {
+  if (!lojaId) return { sucesso: false, erro: 'Identificador da loja ausente.' };
+
+  try {
+    const payload = {
+      whatsapp_ia_receptiva_ativa: Boolean(params.whatsapp_ia_receptiva_ativa),
+      meta_phone_number_id: params.meta_phone_number_id?.trim() || null,
+      meta_waba_id: params.meta_waba_id?.trim() || null,
+      meta_access_token: params.meta_access_token?.trim() || null,
+      atualizado_em: new Date().toISOString()
+    };
+
+    const { error } = await supabase
+      .from('lojas')
+      .update(payload)
+      .eq('id', lojaId);
+
+    if (error) {
+      console.error('[salvarConexaoMetaLoja] Erro Supabase:', error);
+      throw error;
+    }
+
+    return { sucesso: true };
+  } catch (err: any) {
+    return { sucesso: false, erro: err?.message || 'Falha ao salvar conexão Meta da loja.' };
   }
 };
