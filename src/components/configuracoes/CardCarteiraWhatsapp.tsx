@@ -22,6 +22,7 @@ import { formatarMoeda as formatCurrency } from '../../utils/formatters';
 import { ModalRecargaWhatsapp } from './ModalRecargaWhatsapp';
 import { PainelGatilhosWhatsapp } from './PainelGatilhosWhatsapp';
 import { useTheme } from '../../contexts/ThemeContext';
+import { notificarConfiguracaoSalvaParaOnboarding } from '../../services/onboardingSetupService';
 
 interface CardCarteiraWhatsappProps {
   loja: Loja;
@@ -171,6 +172,9 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
       await whatsappWalletService.alternarAutomacaoWhatsapp(loja.id, novoEstado);
       setAutoAtivo(novoEstado);
       aoAtualizarLoja?.({ whatsapp_auto_ativo: novoEstado });
+      if (novoEstado) {
+        notificarConfiguracaoSalvaParaOnboarding('whatsapp_auto');
+      }
       setMensagemFeedback(
         novoEstado
           ? 'Envios automáticos via WhatsApp ativados com sucesso!'

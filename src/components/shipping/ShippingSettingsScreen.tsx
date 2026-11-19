@@ -37,6 +37,7 @@ import { LojaShippingConfig, AppEntrega, Transportadora } from '../../types/ship
 import { ModalTutorialUberDirect } from './ModalTutorialUberDirect';
 import { ModalTutorialMelhorEnvio } from './ModalTutorialMelhorEnvio';
 import { ModalConfirmacaoExclusao } from '../ModalConfirmacaoExclusao';
+import { notificarConfiguracaoSalvaParaOnboarding } from '../../services/onboardingSetupService';
 
 export const ShippingSettingsScreen: React.FC = () => {
   const { loja } = useAuth();
@@ -259,6 +260,7 @@ export const ShippingSettingsScreen: React.FC = () => {
       setAppsEntrega(lista);
       setNovoAppNome('');
       mostrarSucesso('Aplicativo de corrida cadastrado com sucesso!');
+      notificarConfiguracaoSalvaParaOnboarding('apps_corrida');
     } catch (err) {
       mostrarErro(err instanceof Error ? err.message : 'Erro ao cadastrar aplicativo.');
     } finally {
@@ -352,6 +354,7 @@ export const ShippingSettingsScreen: React.FC = () => {
       setTransportadoras(lista);
       setModalTranspAberto(false);
       setTranspEditando(null);
+      notificarConfiguracaoSalvaParaOnboarding('transportadoras_manuais');
     } catch (err) {
       mostrarErro(err instanceof Error ? err.message : 'Erro ao salvar transportadora.');
     } finally {
@@ -460,6 +463,7 @@ export const ShippingSettingsScreen: React.FC = () => {
         .eq('id', loja.id);
 
       setSucesso(true);
+      notificarConfiguracaoSalvaParaOnboarding('frete_entrega');
       setTimeout(() => setSucesso(false), 3000);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);

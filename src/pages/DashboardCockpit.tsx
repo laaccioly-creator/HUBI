@@ -47,6 +47,7 @@ import { ModalAdicionarLoja } from '../components/lojas/ModalAdicionarLoja';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { useLojaProntidao } from '../hooks/useLojaProntidao';
 import { ModalChecklistConfiguracao } from '../components/configuracoes/ModalChecklistConfiguracao';
+import { solicitarAberturaQuestionarioOnboarding } from '../services/onboardingSetupService';
 import { supabase } from '../lib/supabase';
 
 export const DashboardCockpit: React.FC = () => {
@@ -98,7 +99,7 @@ export const DashboardCockpit: React.FC = () => {
   const [modalMetasAberto, setModalMetasAberto] = useState<boolean>(false);
 
   // Checklist de Prontidão da Loja (Onboarding Guiado)
-  const { totalConcluidas, percentual, tudoPronto, etapaFoco } = useLojaProntidao();
+  const { totalConcluidas, totalEtapasAtivas, percentual, tudoPronto, etapaFoco } = useLojaProntidao();
   const [modalChecklistAberto, setModalChecklistAberto] = useState<boolean>(false);
   const storageKeyChecklistMin = `hubi_checklist_min_${loja?.id || 'default'}`;
   const [checklistMinimizado, setChecklistMinimizado] = useState<boolean>(() => {
@@ -926,7 +927,7 @@ export const DashboardCockpit: React.FC = () => {
                 <Sparkles className="w-4 h-4 text-emerald-500 shrink-0" />
                 <span className="font-bold">Primeiros Passos:</span>
                 <span className="hidden sm:inline">Checklist de Prontidão da Loja:</span>
-                <span className="font-black text-white">{totalConcluidas}/6 etapas ({percentual}%)</span>
+                <span className="font-black text-white">{totalConcluidas}/{totalEtapasAtivas} etapas ({percentual}%)</span>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -978,7 +979,7 @@ export const DashboardCockpit: React.FC = () => {
               <div className="mt-4 pt-3 border-t border-emerald-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-black text-emerald-300">
-                    {totalConcluidas}/6 etapas concluídas ({percentual}%)
+                    {totalConcluidas}/{totalEtapasAtivas} etapas concluídas ({percentual}%)
                   </span>
                   <div className="w-32 sm:w-44 h-2.5 rounded-full bg-slate-800 overflow-hidden">
                     <div
@@ -988,14 +989,25 @@ export const DashboardCockpit: React.FC = () => {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setModalChecklistAberto(true)}
-                  className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95 self-start sm:self-auto"
-                >
-                  <span>Abrir Guia de Configuração (Passo {etapaFoco?.ordem || 1})</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+                <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => solicitarAberturaQuestionarioOnboarding()}
+                    className="px-3.5 py-2 rounded-xl border border-emerald-500/40 bg-slate-900/60 hover:bg-slate-800 text-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Abrir Assistente / Questionário</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setModalChecklistAberto(true)}
+                    className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95"
+                  >
+                    <span>Abrir Guia de Configuração (Passo {etapaFoco?.ordem || 1})</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           )

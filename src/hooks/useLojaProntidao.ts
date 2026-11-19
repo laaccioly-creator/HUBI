@@ -2,6 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Loja } from '../types';
+import {
+  avaliarProgressoCompletoOnboarding,
+  EtapaOnboardingItem,
+  StatusOnboardingCompleto,
+  EVENTO_ONBOARDING_ATUALIZADO,
+} from '../services/onboardingSetupService';
 
 export type TipoAcaoProntidao =
   | 'chave_gemini'
@@ -22,9 +28,13 @@ export interface EtapaProntidao {
 
 export interface UseLojaProntidaoReturn {
   etapas: EtapaProntidao[];
+  etapasOnboarding: EtapaOnboardingItem[];
+  totalEtapasAtivas: number;
   totalConcluidas: number;
   percentual: number;
   tudoPronto: boolean;
+  questionarioRespondido: boolean;
+  statusOnboarding: StatusOnboardingCompleto | null;
   etapaFoco: EtapaProntidao | null;
   rubiDestravada: boolean;
   carregando: boolean;
@@ -107,13 +117,14 @@ export const useLojaProntidao = (lojaOverride?: Loja | null): UseLojaProntidaoRe
     shippingAtivo: false,
   });
 
+  const [statusOnboarding, setStatusOnboarding] = useState<StatusOnboardingCompleto | null>(null);
   const [carregando, setCarregando] = useState<boolean>(true);
   const requestIdRef = useRef<number>(0);
 
   const consultarDadosSupabase = useCallback(
     async (lojaId: string, currentRequestId: number): Promise<void> => {
       try {
-        const [resCat, resProd, resPag, resShip] = await Promise.all([
+        const [resCat, resProd, resPag, resShip, resOnboarding] = await Promise.all([
           supabase
             .from('categorias')
             .select('id', { count: 'exact', head: true })
@@ -134,6 +145,7 @@ export const useLojaProntidao = (lojaOverride?: Loja | null): UseLojaProntidaoRe
             )
             .eq('loja_id', lojaId)
             .maybeSingle(),
+          avaliarProgressoCompletoOnboarding(lojaId).catch(() => null),
         ]);
 
         // Descarta resultados obsoletos caso a loja tenha sido alternada ou nova requisição iniciada
@@ -182,6 +194,7 @@ export const useLojaProntidao = (lojaOverride?: Loja | null): UseLojaProntidaoRe
             totalFormasPagamento: countPagamentos,
             shippingAtivo: shippingConfigAtivo,
           });
+          setStatusOnboarding(resOnboarding);
         }
       } catch (err) {
         console.warn('[useLojaProntidao] Erro ao consultar prontidão no Supabase:', err);
@@ -216,6 +229,7 @@ export const useLojaProntidao = (lojaOverride?: Loja | null): UseLojaProntidaoRe
         totalFormasPagamento: 0,
         shippingAtivo: false,
       });
+      setStatusOnboarding(null);
       return;
     }
 
@@ -267,11 +281,34 @@ export const useLojaProntidao = (lojaOverride?: Loja | null): UseLojaProntidaoRe
           consultarDadosSupabase(lojaId, idAtual);
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'loja_onboarding_setup', filter: `loja_id=eq.${lojaId}` },
+        () => {
+          const idAtual = ++requestIdRef.current;
+          consultarDadosSupabase(lojaId, idAtual);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'loja_metas', filter: `loja_id=eq.${lojaId}` },
+        () => {
+          const idAtual = ++requestIdRef.current;
+          consultarDadosSupabase(lojaId, idAtual);
+        }
+      )
       .subscribe();
+
+    const handleAtualizacaoOnboarding = () => {
+      const idAtual = ++requestIdRef.current;
+      consultarDadosSupabase(lojaId, idAtual);
+    };
+    window.addEventListener(EVENTO_ONBOARDING_ATUALIZADO, handleAtualizacaoOnboarding);
 
     return () => {
       // Invalida requisições assíncronas ativas desta loja
       requestIdRef.current++;
+      window.removeEventListener(EVENTO_ONBOARDING_ATUALIZADO, handleAtualizacaoOnboarding);
       supabase.removeChannel(channel);
     };
   }, [loja?.id, consultarDadosSupabase]);
@@ -322,17 +359,27 @@ export const useLojaProntidao = (lojaOverride?: Loja | null): UseLojaProntidaoRe
     },
   ];
 
-  const totalConcluidas = etapas.filter((e) => e.concluido).length;
-  const percentual = Math.round((totalConcluidas / 6) * 100);
-  const tudoPronto = totalConcluidas === 6;
+  const totalConcluidasLegado = etapas.filter((e) => e.concluido).length;
+  const etapasOnboarding = statusOnboarding ? statusOnboarding.etapasAtivas : [];
+  const totalEtapasAtivas = statusOnboarding ? statusOnboarding.totalAtivas : 6;
+  const totalConcluidas = statusOnboarding ? statusOnboarding.totalConcluidas : totalConcluidasLegado;
+  const percentual = statusOnboarding
+    ? statusOnboarding.percentual
+    : Math.round((totalConcluidasLegado / 6) * 100);
+  const tudoPronto = statusOnboarding ? statusOnboarding.tudoPronto : totalConcluidasLegado === 6;
+  const questionarioRespondido = Boolean(statusOnboarding?.setup.questionario_respondido);
   const etapaFoco = etapas.find((e) => !e.concluido) || null;
   const rubiDestravada = Boolean(etapas[0]?.concluido);
 
   return {
     etapas,
+    etapasOnboarding,
+    totalEtapasAtivas,
     totalConcluidas,
     percentual,
     tudoPronto,
+    questionarioRespondido,
+    statusOnboarding,
     etapaFoco,
     rubiDestravada,
     carregando,

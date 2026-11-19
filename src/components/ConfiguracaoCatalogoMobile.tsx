@@ -44,6 +44,7 @@ import {
 import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { MobileHeader } from './layout/MobileHeader';
 import { useTheme } from '../contexts/ThemeContext';
+import { notificarConfiguracaoSalvaParaOnboarding } from '../services/onboardingSetupService';
 
 type SubTelaCatalogoMobile =
   | 'hub'                  // TELA001
@@ -384,6 +385,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
 
       await recarregarDadosLoja();
       mostrarToast(mensagemSucesso, 'sucesso');
+      notificarConfiguracaoSalvaParaOnboarding('catalogo_online');
       if (voltarParaHub) {
         setSubTela('hub');
       }

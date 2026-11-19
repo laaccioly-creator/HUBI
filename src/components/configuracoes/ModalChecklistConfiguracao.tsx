@@ -27,6 +27,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 import { useLojaProntidao, EtapaProntidao, TipoAcaoProntidao } from '../../hooks/useLojaProntidao';
+import {
+  EtapaOnboardingItem,
+  registrarRetornoOnboarding,
+  solicitarAberturaQuestionarioOnboarding,
+} from '../../services/onboardingSetupService';
 import { salvarGeminiApiKey } from '../../services/geminiService';
 import { salvarSerpApiKey } from '../../services/serpApiService';
 import { ModalComoObterGeminiApiKey } from './ModalComoObterGeminiApiKey';
@@ -50,6 +55,8 @@ export const ModalChecklistConfiguracao: React.FC<ModalChecklistConfiguracaoProp
   const { loja, recarregarDadosLoja } = useAuth();
   const {
     etapas,
+    etapasOnboarding,
+    totalEtapasAtivas,
     totalConcluidas,
     percentual,
     tudoPronto,
@@ -234,6 +241,20 @@ export const ModalChecklistConfiguracao: React.FC<ModalChecklistConfiguracaoProp
     onClose();
   };
 
+  const executarEtapaOnboarding = (etapa: EtapaOnboardingItem) => {
+    if (etapa.acaoDiretaModal === 'gemini') {
+      setModalGeminiAberto(true);
+      return;
+    }
+    if (etapa.acaoDiretaModal === 'serper') {
+      setModalSerperAberto(true);
+      return;
+    }
+    registrarRetornoOnboarding(etapa.id, etapa.titulo);
+    onClose();
+    navigate(etapa.rotaDestino);
+  };
+
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -290,7 +311,7 @@ export const ModalChecklistConfiguracao: React.FC<ModalChecklistConfiguracaoProp
                   Progresso de Implantação
                 </span>
                 <span className="text-emerald-500 font-black">
-                  {totalConcluidas} de 6 passos concluídos ({percentual}%)
+                  {totalConcluidas} de {totalEtapasAtivas} etapas concluídas ({percentual}%)
                 </span>
               </div>
               <div
@@ -404,7 +425,7 @@ export const ModalChecklistConfiguracao: React.FC<ModalChecklistConfiguracaoProp
                     Sua Loja está 100% Configurada e Pronta!
                   </h3>
                   <p className={`text-xs sm:text-sm max-w-md mx-auto ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                    Todos os 6 pilares de inteligência, catálogo, estoque e pagamentos estão operando em harmonia.
+                    Todas as etapas essenciais e módulos escolhidos da sua loja estão operando em harmonia.
                   </p>
                 </div>
                 <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
@@ -467,7 +488,7 @@ export const ModalChecklistConfiguracao: React.FC<ModalChecklistConfiguracaoProp
                     </div>
                     <div>
                       <span className="text-[11px] font-black uppercase tracking-wider text-emerald-500">
-                        Etapa {etapaAtiva.ordem} de 6 {etapaAtiva.concluido ? '✓ Concluída' : '• Ação Necessária'}
+                        Etapa {etapaAtiva.ordem} de {etapas.length} {etapaAtiva.concluido ? '✓ Concluída' : '• Ação Necessária'}
                       </span>
                       <h3 className="text-base sm:text-lg font-black tracking-tight">{etapaAtiva.titulo}</h3>
                     </div>
@@ -797,7 +818,7 @@ export const ModalChecklistConfiguracao: React.FC<ModalChecklistConfiguracaoProp
               </div>
             )}
 
-            {/* LISTA RESUMIDA RETRÁTIL DOS 6 PASSOS */}
+            {/* LISTA RESUMIDA RETRÁTIL DINÂMICA (ESSENCIAIS + MÓDULOS ESCOLHIDOS) */}
             <div
               className={`rounded-3xl border overflow-hidden transition-all ${
                 isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50/80 border-slate-200'
@@ -812,10 +833,10 @@ export const ModalChecklistConfiguracao: React.FC<ModalChecklistConfiguracaoProp
               >
                 <div className="flex items-center gap-2.5">
                   <span className="text-xs font-black tracking-wide uppercase text-slate-400">
-                    Todos os 6 Passos de Configuração
+                    Etapas do Seu Plano de Implantação
                   </span>
                   <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-bold">
-                    {totalConcluidas}/6
+                    {totalConcluidas}/{totalEtapasAtivas}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-slate-400">
@@ -825,70 +846,206 @@ export const ModalChecklistConfiguracao: React.FC<ModalChecklistConfiguracaoProp
               </button>
 
               {listaAberta && (
-                <div className="divide-y divide-slate-200 dark:divide-slate-800/60 border-t border-slate-200 dark:border-slate-800">
-                  {etapas.map((etapa) => {
-                    const isSelecionada = etapa.id === etapaAtiva?.id;
-
-                    return (
-                      <div
-                        key={etapa.id}
-                        onClick={() => setEtapaSelecionadaId(etapa.id)}
-                        className={`p-3.5 sm:p-4 flex items-center justify-between gap-3 cursor-pointer transition ${
-                          isSelecionada
-                            ? isDark
-                              ? 'bg-slate-800/70'
-                              : 'bg-emerald-500/10'
-                            : isDark
-                            ? 'hover:bg-slate-800/30'
-                            : 'hover:bg-slate-100/50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
+                <div className="border-t border-slate-200 dark:border-slate-800">
+                  {etapasOnboarding.length > 0 ? (
+                    <div className="divide-y divide-slate-200 dark:divide-slate-800/60">
+                      {/* Subgrupo 1: Etapas Essenciais */}
+                      <div className={`px-4 py-2 text-[10px] font-black uppercase tracking-wider ${
+                        isDark ? 'bg-slate-900 text-emerald-400' : 'bg-slate-100 text-emerald-700'
+                      }`}>
+                        Etapas Essenciais ({etapasOnboarding.filter((e) => e.grupo === 'essencial').length})
+                      </div>
+                      {etapasOnboarding
+                        .filter((e) => e.grupo === 'essencial')
+                        .map((etapa) => (
                           <div
-                            className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 text-xs font-black ${
-                              etapa.concluido
-                                ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
-                                : 'bg-slate-200 dark:bg-slate-800 text-slate-400'
+                            key={etapa.id}
+                            onClick={() => executarEtapaOnboarding(etapa)}
+                            className={`p-3.5 sm:p-4 flex items-center justify-between gap-3 cursor-pointer transition ${
+                              isDark ? 'hover:bg-slate-800/40' : 'hover:bg-slate-100/70'
                             }`}
                           >
-                            {etapa.concluido ? <Check className="w-4 h-4 stroke-[3]" /> : etapa.ordem}
-                          </div>
-                          <div className="min-w-0">
-                            <h4
-                              className={`text-xs sm:text-sm font-bold truncate ${
-                                etapa.concluido
-                                  ? 'text-emerald-500'
-                                  : isDark
-                                  ? 'text-slate-200'
-                                  : 'text-slate-800'
-                              }`}
-                            >
-                              {etapa.titulo}
-                            </h4>
-                            <p
-                              className={`text-[11px] truncate ${
-                                isDark ? 'text-slate-400' : 'text-slate-500'
-                              }`}
-                            >
-                              {etapa.descricao}
-                            </p>
-                          </div>
-                        </div>
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div
+                                className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 text-xs font-black ${
+                                  etapa.concluido
+                                    ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
+                                    : 'bg-slate-200 dark:bg-slate-800 text-slate-400'
+                                }`}
+                              >
+                                {etapa.concluido ? <Check className="w-4 h-4 stroke-[3]" /> : etapa.ordem}
+                              </div>
+                              <div className="min-w-0">
+                                <h4
+                                  className={`text-xs sm:text-sm font-bold truncate ${
+                                    etapa.concluido
+                                      ? 'text-emerald-500'
+                                      : isDark
+                                      ? 'text-slate-200'
+                                      : 'text-slate-800'
+                                  }`}
+                                >
+                                  {etapa.titulo}
+                                </h4>
+                                <p
+                                  className={`text-[11px] truncate ${
+                                    isDark ? 'text-slate-400' : 'text-slate-500'
+                                  }`}
+                                >
+                                  {etapa.descricao}
+                                </p>
+                              </div>
+                            </div>
 
-                        <div className="shrink-0 flex items-center gap-2">
-                          {etapa.concluido ? (
-                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                              Concluído
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                              Pendente
-                            </span>
-                          )}
-                        </div>
+                            <div className="shrink-0 flex items-center gap-2">
+                              {etapa.concluido ? (
+                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                                  Concluído
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                                  Configurar
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+
+                      {/* Subgrupo 2: Módulos Opcionais Escolhidos */}
+                      <div className={`px-4 py-2 text-[10px] font-black uppercase tracking-wider ${
+                        isDark ? 'bg-slate-900 text-emerald-400' : 'bg-slate-100 text-emerald-700'
+                      }`}>
+                        Módulos Opcionais Escolhidos ({etapasOnboarding.filter((e) => e.grupo === 'opcional').length})
                       </div>
-                    );
-                  })}
+                      {etapasOnboarding.filter((e) => e.grupo === 'opcional').length === 0 ? (
+                        <div className="p-4 text-xs text-slate-500 dark:text-slate-400">
+                          Nenhum módulo opcional escolhido no momento. Use <strong>Abrir Assistente / Refazer Questionário</strong> se quiser ativar integrações extras.
+                        </div>
+                      ) : (
+                        etapasOnboarding
+                          .filter((e) => e.grupo === 'opcional')
+                          .map((etapa) => (
+                            <div
+                              key={etapa.id}
+                              onClick={() => executarEtapaOnboarding(etapa)}
+                              className={`p-3.5 sm:p-4 flex items-center justify-between gap-3 cursor-pointer transition ${
+                                isDark ? 'hover:bg-slate-800/40' : 'hover:bg-slate-100/70'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div
+                                  className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 text-xs font-black ${
+                                    etapa.concluido
+                                      ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
+                                      : 'bg-slate-200 dark:bg-slate-800 text-slate-400'
+                                  }`}
+                                >
+                                  {etapa.concluido ? <Check className="w-4 h-4 stroke-[3]" /> : etapa.ordem}
+                                </div>
+                                <div className="min-w-0">
+                                  <h4
+                                    className={`text-xs sm:text-sm font-bold truncate ${
+                                      etapa.concluido
+                                        ? 'text-emerald-500'
+                                        : isDark
+                                        ? 'text-slate-200'
+                                        : 'text-slate-800'
+                                    }`}
+                                  >
+                                    {etapa.titulo}
+                                  </h4>
+                                  <p
+                                    className={`text-[11px] truncate ${
+                                      isDark ? 'text-slate-400' : 'text-slate-500'
+                                    }`}
+                                  >
+                                    {etapa.descricao}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="shrink-0 flex items-center gap-2">
+                                {etapa.concluido ? (
+                                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                                    Concluído
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                                    Configurar
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                      )}
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-200 dark:divide-slate-800/60">
+                      {etapas.map((etapa) => {
+                        const isSelecionada = etapa.id === etapaAtiva?.id;
+
+                        return (
+                          <div
+                            key={etapa.id}
+                            onClick={() => setEtapaSelecionadaId(etapa.id)}
+                            className={`p-3.5 sm:p-4 flex items-center justify-between gap-3 cursor-pointer transition ${
+                              isSelecionada
+                                ? isDark
+                                  ? 'bg-slate-800/70'
+                                  : 'bg-emerald-500/10'
+                                : isDark
+                                ? 'hover:bg-slate-800/30'
+                                : 'hover:bg-slate-100/50'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div
+                                className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 text-xs font-black ${
+                                  etapa.concluido
+                                    ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
+                                    : 'bg-slate-200 dark:bg-slate-800 text-slate-400'
+                                }`}
+                              >
+                                {etapa.concluido ? <Check className="w-4 h-4 stroke-[3]" /> : etapa.ordem}
+                              </div>
+                              <div className="min-w-0">
+                                <h4
+                                  className={`text-xs sm:text-sm font-bold truncate ${
+                                    etapa.concluido
+                                      ? 'text-emerald-500'
+                                      : isDark
+                                      ? 'text-slate-200'
+                                      : 'text-slate-800'
+                                  }`}
+                                >
+                                  {etapa.titulo}
+                                </h4>
+                                <p
+                                  className={`text-[11px] truncate ${
+                                    isDark ? 'text-slate-400' : 'text-slate-500'
+                                  }`}
+                                >
+                                  {etapa.descricao}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="shrink-0 flex items-center gap-2">
+                              {etapa.concluido ? (
+                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                                  Concluído
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                                  Pendente
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -896,14 +1053,25 @@ export const ModalChecklistConfiguracao: React.FC<ModalChecklistConfiguracaoProp
 
           {/* RODAPÉ DO MODAL */}
           <div
-            className={`p-4 sm:p-5 border-t shrink-0 flex items-center justify-between gap-3 ${
+            className={`p-4 sm:p-5 border-t shrink-0 flex flex-wrap items-center justify-between gap-3 ${
               isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-100 bg-slate-50/70'
             }`}
           >
-            <div className="flex items-center gap-2 text-xs text-slate-400">
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                solicitarAberturaQuestionarioOnboarding();
+              }}
+              className={`px-3.5 py-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                isDark
+                  ? 'border-emerald-700/60 bg-emerald-950/50 hover:bg-emerald-900/60 text-emerald-300'
+                  : 'border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800'
+              }`}
+            >
               <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
-              <span className="hidden sm:inline">Passos essenciais para destravar 100% dos recursos do HUBI</span>
-            </div>
+              <span>Abrir Assistente / Refazer Questionário</span>
+            </button>
 
             <div className="flex items-center gap-2.5">
               <button

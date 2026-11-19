@@ -87,6 +87,10 @@ import { CardParametrosHubiAdmin } from './configuracoes/CardParametrosHubiAdmin
 import { ModalComoObterGeminiApiKey } from './configuracoes/ModalComoObterGeminiApiKey';
 import { ModalChecklistConfiguracao } from './configuracoes/ModalChecklistConfiguracao';
 import { useLojaProntidao } from '../hooks/useLojaProntidao';
+import {
+  notificarConfiguracaoSalvaParaOnboarding,
+  solicitarAberturaQuestionarioOnboarding,
+} from '../services/onboardingSetupService';
 
 type SubTelaConfig =
   | 'menu'
@@ -338,7 +342,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const [subTela, setSubTela] = useState<SubTelaConfig>('menu');
   const [salvando, setSalvando] = useState<boolean>(false);
   const [modalChecklistAberto, setModalChecklistAberto] = useState<boolean>(false);
-  const { totalConcluidas, tudoPronto } = useLojaProntidao();
+  const { totalConcluidas, totalEtapasAtivas, percentual, tudoPronto } = useLojaProntidao();
   const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
   const [mensagemToast, setMensagemToast] = useState<string>('');
   const [copiadoTexto, setCopiadoTexto] = useState<string>('');
@@ -703,6 +707,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       setTemAlteracoesNaoSalvas(false);
 
       mostrarToast('Tipos de venda e regras de precificação salvas com sucesso!');
+      notificarConfiguracaoSalvaParaOnboarding('tipos_venda');
       mostrarSucesso('As modalidades e regras de precificação foram salvas e sincronizadas com o PDV e Catálogo.', 'Configurações Salvas');
     } catch (err: any) {
       console.error('Erro ao salvar tipos de venda:', err);
@@ -1659,6 +1664,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       setTemAlteracoesNaoSalvas(false);
       await recarregarDadosLoja();
       mostrarToast('Configurações salvas com sucesso!');
+      notificarConfiguracaoSalvaParaOnboarding('configuracoes_loja');
       setSubTela('menu');
     } catch (err: any) {
       console.error('Erro ao salvar:', err);
@@ -2095,7 +2101,52 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         <div className="p-4 space-y-4 flex-1">
           {/* MENU EM GRADE MOBILE */}
           {subTela === 'menu' && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-4">
+              <div
+                className={`rounded-2xl p-4 border shadow-sm space-y-3 ${
+                  isDark
+                    ? 'bg-[#000000] border-emerald-800/60 text-white'
+                    : 'bg-white border-2 border-emerald-200 text-black'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span className="font-black text-sm">Passo a Passo da Implantação</span>
+                  </div>
+                  <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
+                    {totalConcluidas}/{totalEtapasAtivas} ({percentual}%)
+                  </span>
+                </div>
+                <div className={`w-full h-2.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
+                  <div
+                    className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500"
+                    style={{ width: `${percentual}%` }}
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => solicitarAberturaQuestionarioOnboarding()}
+                    className="flex-1 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs text-center cursor-pointer transition"
+                  >
+                    Abrir Assistente / Refazer Questionário
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalChecklistAberto(true)}
+                    className={`px-3 py-2 rounded-xl border font-bold text-xs cursor-pointer transition ${
+                      isDark
+                        ? 'border-slate-700 bg-slate-900 text-slate-200'
+                        : 'border-slate-300 bg-slate-50 text-slate-700'
+                    }`}
+                  >
+                    Ver Passo a Passo
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
               {itensMenu.map((item) => (
                 <button
                   key={item.id}
@@ -2131,6 +2182,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   </span>
                 </button>
               ))}
+              </div>
             </div>
           )}
 
@@ -3293,6 +3345,21 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => solicitarAberturaQuestionarioOnboarding()}
+            className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 font-bold text-xs transition cursor-pointer shadow-sm active:scale-95 ${
+              isDark
+                ? 'bg-emerald-950/60 border-emerald-700/60 text-emerald-300 hover:bg-emerald-900/60'
+                : 'bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100'
+            }`}
+            title="Abrir Assistente / Refazer Questionário de Implantação"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
+            <span className="hidden md:inline">Assistente / Refazer Questionário</span>
+            <span className="md:hidden">Assistente</span>
+          </button>
+
           {!tudoPronto && (
             <button
               type="button"
@@ -3307,7 +3374,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               <Sparkles className="w-3.5 h-3.5 text-amber-500" />
               <span className="hidden sm:inline">Checklist de Configuração</span>
               <span className="bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold px-2 py-0.5 rounded-full text-xs">
-                {totalConcluidas}/6
+                {totalConcluidas}/{totalEtapasAtivas}
               </span>
             </button>
           )}
@@ -3392,7 +3459,54 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         {/* MENU PRINCIPAL (GRID DE BOTÕES DE CONFIGURAÇÃO) */}
         {/* ========================================================================= */}
         {subTela === 'menu' && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4 animate-in fade-in duration-150">
+          <div className="space-y-5 animate-in fade-in duration-150">
+            <div
+              className={`rounded-3xl p-5 border shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4 ${
+                isDark
+                  ? 'bg-[#000000] border-emerald-800/60 text-white'
+                  : 'bg-white border-2 border-emerald-200 text-black'
+              }`}
+            >
+              <div className="space-y-2 flex-1">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <Sparkles className="w-5 h-5 text-emerald-500 shrink-0" />
+                  <h2 className="font-black text-base">Passo a Passo da Implantação</h2>
+                  <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                    {totalConcluidas} de {totalEtapasAtivas} etapas ({percentual}%)
+                  </span>
+                </div>
+                <div className={`w-full max-w-md h-2.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
+                  <div
+                    className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500"
+                    style={{ width: `${percentual}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => solicitarAberturaQuestionarioOnboarding()}
+                  className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-2 transition cursor-pointer shadow-sm"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Abrir Assistente / Refazer Questionário</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModalChecklistAberto(true)}
+                  className={`px-4 py-2.5 rounded-xl border font-bold text-xs flex items-center gap-2 transition cursor-pointer ${
+                    isDark
+                      ? 'border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200'
+                      : 'border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-800'
+                  }`}
+                >
+                  <span>Ver Passo a Passo</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
             {itensMenu.map((item) => (
               <button
                 key={item.id}
@@ -3428,6 +3542,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 </span>
               </button>
             ))}
+            </div>
           </div>
         )}
 
@@ -5419,108 +5534,122 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 </span>
               </div>
 
-              {/* Status Operacionais Opcionais (Cada um com Checkbox / Switch individual) */}
+              {/* Status Operacionais Opcionais (Toggle Switches individuais) */}
               <div className="pt-2">
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider block mb-2">
                   Status Operacionais Opcionais
                 </span>
               </div>
 
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-xs">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-rose-500 shrink-0"></div>
-                  <div>
-                    <span className="font-bold text-base text-slate-900 dark:text-slate-100 block">Em separação</span>
-                    <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">Separação de itens no estoque</span>
-                  </div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={statusEmSeparacao}
-                  onChange={(e) => setStatusEmSeparacao(e.target.checked)}
-                  className="rounded text-emerald-500 w-5 h-5 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 cursor-pointer accent-emerald-500"
-                />
-              </div>
+              {[
+                {
+                  id: 'em_separacao',
+                  titulo: 'Em separação',
+                  descricao: 'Separação de itens no estoque',
+                  dotClass: 'bg-rose-500',
+                  ativo: statusEmSeparacao,
+                  setAtivo: setStatusEmSeparacao
+                },
+                {
+                  id: 'em_expedicao',
+                  titulo: 'Em expedição',
+                  descricao: 'Conferência interna e embalagem',
+                  dotClass: 'bg-amber-500',
+                  ativo: statusEmExpedicao,
+                  setAtivo: setStatusEmExpedicao
+                },
+                {
+                  id: 'aguardando_envio',
+                  titulo: 'Aguardando envio',
+                  descricao: 'Etapa intermediária de coleta/espera',
+                  dotClass: 'bg-yellow-400',
+                  ativo: statusAguardandoEnvio,
+                  setAtivo: setStatusAguardandoEnvio
+                },
+                {
+                  id: 'enviado',
+                  titulo: 'Enviado',
+                  descricao: 'Mercadoria despachada em trânsito com transportadora, Correios ou motoboy',
+                  dotClass: 'bg-blue-500',
+                  ativo: statusEnviado,
+                  setAtivo: setStatusEnviado
+                },
+                {
+                  id: 'entregue',
+                  titulo: 'Entregue',
+                  descricao: 'Mercadoria entregue ao cliente final',
+                  dotClass: 'bg-teal-500',
+                  ativo: statusEntregue,
+                  setAtivo: setStatusEntregue
+                },
+                {
+                  id: 'pronto_para_retirar',
+                  titulo: 'Pronto para retirar',
+                  descricao: 'Pacote disponível no balcão da loja física para retirada presencial',
+                  dotClass: 'bg-sky-400',
+                  ativo: statusProntoRetirar,
+                  setAtivo: setStatusProntoRetirar
+                }
+              ].map((item) => {
+                const alternarStatus = () => {
+                  item.setAtivo(!item.ativo);
+                  marcarInteracaoFisica();
+                };
 
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-xs">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-amber-500 shrink-0"></div>
-                  <div>
-                    <span className="font-bold text-base text-slate-900 dark:text-slate-100 block">Em expedição</span>
-                    <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">Conferência interna e embalagem</span>
-                  </div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={statusEmExpedicao}
-                  onChange={(e) => setStatusEmExpedicao(e.target.checked)}
-                  className="rounded text-emerald-500 w-5 h-5 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 cursor-pointer accent-emerald-500"
-                />
-              </div>
+                return (
+                  <div
+                    key={item.id}
+                    onClick={alternarStatus}
+                    className={`p-4 rounded-2xl border flex items-center justify-between gap-4 shadow-xs cursor-pointer transition-colors duration-200 select-none ${
+                      item.ativo
+                        ? 'border-emerald-300 dark:border-emerald-700/60 bg-emerald-50/30 dark:bg-emerald-950/10'
+                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-3 h-3 rounded-full ${item.dotClass} shrink-0`} />
+                      <div className="min-w-0">
+                        <span className="font-bold text-base text-slate-900 dark:text-slate-100 block">{item.titulo}</span>
+                        <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">{item.descricao}</span>
+                      </div>
+                    </div>
 
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-xs">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-yellow-400 shrink-0"></div>
-                  <div>
-                    <span className="font-bold text-base text-slate-900 dark:text-slate-100 block">Aguardando envio</span>
-                    <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">Etapa intermediária de coleta/espera</span>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span
+                        className={`text-xs font-semibold transition-colors ${
+                          item.ativo
+                            ? 'text-emerald-700 dark:text-emerald-400'
+                            : 'text-slate-500 dark:text-slate-400'
+                        }`}
+                      >
+                        {item.ativo ? 'Ativo' : 'Desativado'}
+                      </span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={item.ativo}
+                        aria-label={`${item.titulo}: ${item.ativo ? 'Ativo' : 'Desativado'}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          alternarStatus();
+                        }}
+                        className={`relative inline-flex h-6 w-[42px] shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-950 ${
+                          item.ativo
+                            ? 'bg-emerald-500 dark:bg-emerald-600'
+                            : 'bg-slate-300 dark:bg-slate-600'
+                        }`}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white manter-branco shadow-sm ring-0 transition-transform duration-200 ease-in-out ${
+                            item.ativo ? 'translate-x-5' : 'translate-x-0.5'
+                          }`}
+                        />
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={statusAguardandoEnvio}
-                  onChange={(e) => setStatusAguardandoEnvio(e.target.checked)}
-                  className="rounded text-emerald-500 w-5 h-5 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 cursor-pointer accent-emerald-500"
-                />
-              </div>
-
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-xs">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-blue-500 shrink-0"></div>
-                  <div>
-                    <span className="font-bold text-base text-slate-900 dark:text-slate-100 block">Enviado</span>
-                    <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">Mercadoria despachada em trânsito com transportadora, Correios ou motoboy</span>
-                  </div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={statusEnviado}
-                  onChange={(e) => setStatusEnviado(e.target.checked)}
-                  className="rounded text-emerald-500 w-5 h-5 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 cursor-pointer accent-emerald-500"
-                />
-              </div>
-
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-xs">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-teal-500 shrink-0"></div>
-                  <div>
-                    <span className="font-bold text-base text-slate-900 dark:text-slate-100 block">Entregue</span>
-                    <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">Mercadoria entregue ao cliente final</span>
-                  </div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={statusEntregue}
-                  onChange={(e) => setStatusEntregue(e.target.checked)}
-                  className="rounded text-emerald-500 w-5 h-5 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 cursor-pointer accent-emerald-500"
-                />
-              </div>
-
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-xs">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-sky-400 shrink-0"></div>
-                  <div>
-                    <span className="font-bold text-base text-slate-900 dark:text-slate-100 block">Pronto para retirar</span>
-                    <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">Pacote disponível no balcão da loja física para retirada presencial</span>
-                  </div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={statusProntoRetirar}
-                  onChange={(e) => setStatusProntoRetirar(e.target.checked)}
-                  className="rounded text-emerald-500 w-5 h-5 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 cursor-pointer accent-emerald-500"
-                />
-              </div>
+                );
+              })}
             </div>
           </div>
         )}

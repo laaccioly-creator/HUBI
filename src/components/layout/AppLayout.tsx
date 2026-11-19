@@ -31,7 +31,9 @@ import {
   Building2,
   Plus,
   AlertTriangle,
-  Wallet
+  Wallet,
+  ArrowLeft,
+  CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme, ModoTema } from '../../contexts/ThemeContext';
@@ -57,6 +59,18 @@ import { logger } from '../../services/loggerService';
 import { UsuarioLoja } from '../../types';
 import { ModalRecargaWhatsapp } from '../configuracoes/ModalRecargaWhatsapp';
 import { formatarMoeda as formatCurrency } from '../../utils/formatters';
+import { ModalQuestionarioOnboarding } from '../onboarding/ModalQuestionarioOnboarding';
+import {
+  obterOuCriarSetupLoja,
+  obterRetornoOnboardingAtivo,
+  consumirRetornoOnboarding,
+  limparRetornoOnboarding,
+  EVENTO_RETORNO_ONBOARDING,
+  EVENTO_ABRIR_QUESTIONARIO,
+  EVENTO_ONBOARDING_SALVO,
+  EtapaOnboardingId,
+  RetornoOnboardingEstado,
+} from '../../services/onboardingSetupService';
 
 const formatadorBRL = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
@@ -90,6 +104,14 @@ export const AppLayout: React.FC = () => {
   const [storeDropdownOpen, setStoreDropdownOpen] = useState<boolean>(false);
   const [modalAdicionarLojaAberto, setModalAdicionarLojaAberto] = useState<boolean>(false);
   const [listaUsuariosLoja, setListaUsuariosLoja] = useState<UsuarioLoja[]>([]);
+  const [modalQuestionarioOnboardingAberto, setModalQuestionarioOnboardingAberto] = useState<boolean>(false);
+  const [etapaDestaqueOnboarding, setEtapaDestaqueOnboarding] = useState<EtapaOnboardingId | null>(null);
+  const [retornoOnboardingAtivo, setRetornoOnboardingAtivo] = useState<RetornoOnboardingEstado | null>(() =>
+    obterRetornoOnboardingAtivo()
+  );
+  const [etapaRecemSalvaOnboarding, setEtapaRecemSalvaOnboarding] = useState<boolean>(false);
+  const verificouPrimeiroAcessoRef = useRef<string | null>(null);
+  const timerRetornoAutomaticoRef = useRef<number | null>(null);
 
   const podeTrocarLoja = permissions.ehOwner || Boolean(usuario?.pode_trocar_loja || usuarioLogado?.pode_trocar_loja);
 
@@ -237,6 +259,131 @@ export const AppLayout: React.FC = () => {
       window.removeEventListener('touchstart', handleFirstTouch);
     };
   }, []);
+
+  // Abertura automática do Questionário de Implantação Inicial no 1º acesso da loja
+  useEffect(() => {
+    if (
+      carregando ||
+      !loja?.id ||
+      !permissions.podeAcessarConfig ||
+      confirmandoRetornoPagamento ||
+      statusAssinatura === 'BLOQUEADO'
+    ) {
+      return;
+    }
+
+    if (verificouPrimeiroAcessoRef.current === loja.id) {
+      return;
+    }
+
+    if (obterRetornoOnboardingAtivo()) {
+      verificouPrimeiroAcessoRef.current = loja.id;
+      return;
+    }
+
+    try {
+      if (sessionStorage.getItem(`hubi_onboarding_adiado_${loja.id}`) === 'true') {
+        verificouPrimeiroAcessoRef.current = loja.id;
+        return;
+      }
+    } catch {
+      // Silencioso caso sessionStorage esteja bloqueado
+    }
+
+    let cancelado = false;
+    verificouPrimeiroAcessoRef.current = loja.id;
+
+    obterOuCriarSetupLoja(loja.id)
+      .then((setup) => {
+        if (!cancelado && !setup.questionario_respondido) {
+          setEtapaDestaqueOnboarding(null);
+          setModalQuestionarioOnboardingAberto(true);
+        }
+      })
+      .catch(() => {
+        // Degradação graciosa em caso de erro transitório
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [
+    loja?.id,
+    carregando,
+    permissions.podeAcessarConfig,
+    confirmandoRetornoPagamento,
+    statusAssinatura,
+  ]);
+
+  // Listeners globais do fluxo "Ida e Volta" do Questionário de Implantação
+  useEffect(() => {
+    const handleRetornoAlterado = () => {
+      setRetornoOnboardingAtivo(obterRetornoOnboardingAtivo());
+      setEtapaRecemSalvaOnboarding(false);
+    };
+
+    const handleAbrirQuestionario = (evento: Event) => {
+      const customEvent = evento as CustomEvent<{ etapaDestaque?: EtapaOnboardingId | null }>;
+      setEtapaDestaqueOnboarding(customEvent.detail?.etapaDestaque ?? null);
+      setModalQuestionarioOnboardingAberto(true);
+    };
+
+    const handleOnboardingSalvo = () => {
+      const retorno = obterRetornoOnboardingAtivo();
+      if (!retorno) return;
+      setEtapaRecemSalvaOnboarding(true);
+
+      if (timerRetornoAutomaticoRef.current !== null) {
+        window.clearTimeout(timerRetornoAutomaticoRef.current);
+      }
+
+      timerRetornoAutomaticoRef.current = window.setTimeout(() => {
+        timerRetornoAutomaticoRef.current = null;
+        const consumido = consumirRetornoOnboarding();
+        setRetornoOnboardingAtivo(null);
+        setEtapaRecemSalvaOnboarding(false);
+        if (consumido) {
+          setEtapaDestaqueOnboarding(consumido.etapaId);
+          setModalQuestionarioOnboardingAberto(true);
+        }
+      }, 900);
+    };
+
+    window.addEventListener(EVENTO_RETORNO_ONBOARDING, handleRetornoAlterado);
+    window.addEventListener(EVENTO_ABRIR_QUESTIONARIO, handleAbrirQuestionario);
+    window.addEventListener(EVENTO_ONBOARDING_SALVO, handleOnboardingSalvo);
+
+    return () => {
+      window.removeEventListener(EVENTO_RETORNO_ONBOARDING, handleRetornoAlterado);
+      window.removeEventListener(EVENTO_ABRIR_QUESTIONARIO, handleAbrirQuestionario);
+      window.removeEventListener(EVENTO_ONBOARDING_SALVO, handleOnboardingSalvo);
+      if (timerRetornoAutomaticoRef.current !== null) {
+        window.clearTimeout(timerRetornoAutomaticoRef.current);
+      }
+    };
+  }, []);
+
+  const handleVoltarParaQuestionario = () => {
+    if (timerRetornoAutomaticoRef.current !== null) {
+      window.clearTimeout(timerRetornoAutomaticoRef.current);
+      timerRetornoAutomaticoRef.current = null;
+    }
+    const consumido = consumirRetornoOnboarding();
+    setRetornoOnboardingAtivo(null);
+    setEtapaRecemSalvaOnboarding(false);
+    setEtapaDestaqueOnboarding(consumido?.etapaId ?? null);
+    setModalQuestionarioOnboardingAberto(true);
+  };
+
+  const handleDispensarBannerRetorno = () => {
+    if (timerRetornoAutomaticoRef.current !== null) {
+      window.clearTimeout(timerRetornoAutomaticoRef.current);
+      timerRetornoAutomaticoRef.current = null;
+    }
+    limparRetornoOnboarding();
+    setRetornoOnboardingAtivo(null);
+    setEtapaRecemSalvaOnboarding(false);
+  };
 
   useEffect(() => {
     if (!loja?.id) return;
@@ -992,6 +1139,57 @@ export const AppLayout: React.FC = () => {
           </div>
         )}
 
+      {/* BARRA SUPERIOR DE RETORNO AO QUESTIONÁRIO DE IMPLANTAÇÃO ("IDA E VOLTA") */}
+      {retornoOnboardingAtivo && !modalQuestionarioOnboardingAberto && (
+        <div
+          className={`px-4 py-2.5 border-b flex flex-wrap items-center justify-between gap-3 z-30 transition-all ${
+            isDark
+              ? 'bg-emerald-950/75 border-emerald-800/80 text-emerald-100'
+              : 'bg-emerald-50 border-emerald-200 text-emerald-950'
+          }`}
+        >
+          <div className="flex flex-wrap items-center gap-2.5 text-xs">
+            <span className="inline-flex items-center gap-1.5 font-black text-emerald-600 dark:text-emerald-400">
+              {etapaRecemSalvaOnboarding ? (
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+              ) : (
+                <Sparkles className="w-4 h-4 shrink-0" />
+              )}
+              <span>Questionário de Implantação:</span>
+            </span>
+            <span className="font-bold">{retornoOnboardingAtivo.etapaTitulo}</span>
+            <span className="opacity-80 hidden sm:inline">
+              {etapaRecemSalvaOnboarding
+                ? '— Configuração salva! Retornando ao questionário...'
+                : '— Salve esta configuração e volte para acompanhar o ✓ atualizado.'}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleVoltarParaQuestionario}
+              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs inline-flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Voltar para o Questionário</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleDispensarBannerRetorno}
+              className={`p-1.5 rounded-lg transition cursor-pointer ${
+                isDark
+                  ? 'text-emerald-300/70 hover:text-white hover:bg-emerald-900/60'
+                  : 'text-emerald-700/70 hover:text-emerald-950 hover:bg-emerald-100'
+              }`}
+              title="Ocultar barra de retorno"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ÁREA DE CONTEÚDO PRINCIPAL (BACKGROUND UNIFICADO #F8FAFC NO LIGHT / #020617 NO DARK) */}
       <main className={`flex-1 overflow-y-auto ${isDark ? 'bg-slate-950 text-slate-100' : (isDashboardRoute || isPosRoute) ? 'bg-slate-100 text-slate-900' : 'bg-slate-50 text-slate-900'} pb-0`}>
         <ErrorBoundary origem="AppLayoutConteudo">
@@ -1049,6 +1247,30 @@ export const AppLayout: React.FC = () => {
           usuarioId={usuario?.id || null}
           aoConcluirRecarga={() => {
             recarregarDadosLoja?.();
+          }}
+        />
+      )}
+      {loja && permissions.podeAcessarConfig && (
+        <ModalQuestionarioOnboarding
+          isOpen={modalQuestionarioOnboardingAberto}
+          onClose={() => {
+            setModalQuestionarioOnboardingAberto(false);
+            setEtapaDestaqueOnboarding(null);
+          }}
+          etapaDestaque={etapaDestaqueOnboarding}
+          onAdiarSessao={() => {
+            try {
+              sessionStorage.setItem(`hubi_onboarding_adiado_${loja.id}`, 'true');
+            } catch {
+              // Silencioso
+            }
+          }}
+          onConcluirQuestionario={() => {
+            try {
+              sessionStorage.removeItem(`hubi_onboarding_adiado_${loja.id}`);
+            } catch {
+              // Silencioso
+            }
           }}
         />
       )}

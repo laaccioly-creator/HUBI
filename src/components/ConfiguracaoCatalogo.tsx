@@ -36,6 +36,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Loja, ModoExibicaoCatalogo, ComportamentoSemEstoque } from '../types';
 import { ConfiguracaoCatalogoMobile } from './ConfiguracaoCatalogoMobile';
 import { useTheme } from '../contexts/ThemeContext';
+import { notificarConfiguracaoSalvaParaOnboarding } from '../services/onboardingSetupService';
 
 const CORES_PALETA = [
   { hex: '#F59E0B', nome: 'Amarelo Ouro' },
@@ -50,7 +51,7 @@ const CORES_PALETA = [
 ];
 
 export const ConfiguracaoCatalogo: React.FC = () => {
-  const { loja, usuario } = useAuth();
+  const { loja, usuario, recarregarDadosLoja } = useAuth();
   const { isDark } = useTheme();
   const navigate = useNavigate();
 
@@ -226,7 +227,9 @@ export const ConfiguracaoCatalogo: React.FC = () => {
       if (error) throw error;
 
       setSnapshotInicial(snapshotAtual);
+      await recarregarDadosLoja?.();
       mostrarFeedback('Configurações do Catálogo salvas com sucesso!');
+      notificarConfiguracaoSalvaParaOnboarding('catalogo_online');
     } catch (err) {
       console.error('Erro ao salvar catálogo:', err);
       alert('Houve um erro ao salvar as configurações do catálogo.');

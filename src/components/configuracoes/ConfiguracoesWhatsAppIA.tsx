@@ -22,6 +22,7 @@ import {
   salvarConexaoMetaLoja,
   testarConexaoMetaComFallbackGlobal
 } from '../../services/whatsappIaService';
+import { notificarConfiguracaoSalvaParaOnboarding } from '../../services/onboardingSetupService';
 
 export interface ConfiguracoesWhatsAppIAProps {
   lojaId?: string;
@@ -127,6 +128,7 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
         'As configurações da Conexão Própria Meta Cloud API foram salvas com sucesso.',
         'Configurações Salvas'
       );
+      notificarConfiguracaoSalvaParaOnboarding('whatsapp_auto');
     } catch (err: any) {
       mostrarErro(
         err?.message || 'Erro ao salvar as configurações Meta Cloud API.',
