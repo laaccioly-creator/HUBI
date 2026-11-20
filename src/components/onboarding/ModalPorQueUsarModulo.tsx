@@ -481,11 +481,11 @@ export const ModalPorQueUsarModulo: React.FC<ModalPorQueUsarModuloProps> = ({
 
   const classeBotaoPrimariaNeutra = isDark
     ? 'bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 shadow-xs'
-    : 'bg-slate-200 hover:bg-slate-300 text-slate-900 border border-slate-300 shadow-xs';
+    : 'bg-slate-200 hover:bg-slate-300 text-black border border-slate-300 shadow-xs';
 
   const classeBotaoSecundariaNeutra = isDark
-    ? 'bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700'
-    : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-300';
+    ? 'bg-slate-900 hover:bg-slate-800 text-slate-100 border border-slate-700'
+    : 'bg-white hover:bg-slate-100 text-black border border-slate-300';
 
   return (
     <div
@@ -500,7 +500,7 @@ export const ModalPorQueUsarModulo: React.FC<ModalPorQueUsarModuloProps> = ({
         className={`relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl shadow-2xl border overflow-hidden ${
           isDark
             ? 'bg-slate-950 border-slate-800 text-slate-100'
-            : 'bg-white border-slate-200 text-slate-900'
+            : 'bg-white border-slate-200 text-black'
         }`}
       >
         {/* CABEÇALHO */}
@@ -513,8 +513,8 @@ export const ModalPorQueUsarModulo: React.FC<ModalPorQueUsarModuloProps> = ({
             <div
               className={`w-11 h-11 rounded-2xl border flex items-center justify-center shrink-0 ${
                 isDark
-                  ? 'bg-slate-800 border-slate-700 text-slate-200'
-                  : 'bg-slate-100 border-slate-200 text-slate-800'
+                  ? 'bg-slate-800 border-slate-700 text-slate-100'
+                  : 'bg-slate-100 border-slate-200 text-black'
               }`}
             >
               {Icone ? <Icone className="w-5 h-5" /> : <Lightbulb className="w-5 h-5" />}
@@ -523,10 +523,10 @@ export const ModalPorQueUsarModulo: React.FC<ModalPorQueUsarModuloProps> = ({
             <div className="min-w-0 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span
-                  className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
+                  className={`text-[11px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
                     isDark
-                      ? 'bg-slate-800 border-slate-700 text-slate-300'
-                      : 'bg-slate-100 border-slate-200 text-slate-700'
+                      ? 'bg-slate-800 border-slate-700 text-slate-100'
+                      : 'bg-slate-100 border-slate-300 text-black'
                   }`}
                 >
                   {conteudo.grupo === 'essencial' ? 'Configuração Essencial' : 'Módulo Opcional'}
@@ -542,11 +542,17 @@ export const ModalPorQueUsarModulo: React.FC<ModalPorQueUsarModuloProps> = ({
 
               <h3
                 id="titulo-modal-por-que-usar"
-                className="text-base sm:text-lg font-black tracking-tight leading-snug"
+                className={`text-lg sm:text-xl font-black tracking-tight leading-snug ${
+                  isDark ? 'text-white' : 'text-black'
+                }`}
               >
                 {conteudo.titulo}
               </h3>
-              <p className={`text-xs sm:text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              <p
+                className={`text-sm sm:text-[15px] leading-relaxed font-normal ${
+                  isDark ? 'text-slate-100' : 'text-black'
+                }`}
+              >
                 {conteudo.subtitulo}
               </p>
             </div>
@@ -558,8 +564,8 @@ export const ModalPorQueUsarModulo: React.FC<ModalPorQueUsarModuloProps> = ({
             title="Fechar (Esc)"
             className={`p-2 rounded-xl transition cursor-pointer shrink-0 ${
               isDark
-                ? 'text-slate-400 hover:text-white hover:bg-slate-800'
-                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200'
+                ? 'text-slate-300 hover:text-white hover:bg-slate-800'
+                : 'text-slate-900 hover:text-black hover:bg-slate-200'
             }`}
           >
             <X className="w-5 h-5" />
@@ -577,12 +583,20 @@ export const ModalPorQueUsarModulo: React.FC<ModalPorQueUsarModuloProps> = ({
             }`}
           >
             <div className="flex items-center gap-2 mb-1.5">
-              <Lightbulb className={`w-4 h-4 shrink-0 ${isDark ? 'text-slate-300' : 'text-slate-700'}`} />
-              <h4 className="text-xs font-black uppercase tracking-wider">
+              <Lightbulb className={`w-4 h-4 shrink-0 ${isDark ? 'text-slate-100' : 'text-black'}`} />
+              <h4
+                className={`text-xs sm:text-sm font-extrabold uppercase tracking-wide ${
+                  isDark ? 'text-white' : 'text-black'
+                }`}
+              >
                 Por que ativar na sua loja?
               </h4>
             </div>
-            <p className={`text-xs sm:text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+            <p
+              className={`text-[15px] leading-relaxed font-normal ${
+                isDark ? 'text-slate-100' : 'text-black'
+              }`}
+            >
               {conteudo.resumoPratico}
             </p>
           </div>
@@ -597,22 +611,26 @@ export const ModalPorQueUsarModulo: React.FC<ModalPorQueUsarModuloProps> = ({
               }`}
             >
               <div className="flex items-center gap-2">
-                <AlertCircle className={`w-4 h-4 shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
-                <h4 className="text-xs font-black uppercase tracking-wider">
+                <AlertCircle className={`w-4 h-4 shrink-0 ${isDark ? 'text-slate-100' : 'text-black'}`} />
+                <h4
+                  className={`text-xs sm:text-sm font-extrabold uppercase tracking-wide ${
+                    isDark ? 'text-white' : 'text-black'
+                  }`}
+                >
                   Problemas que resolve
                 </h4>
               </div>
-              <ul className="space-y-2">
+              <ul className="space-y-2.5">
                 {conteudo.problemasResolvidos.map((item, idx) => (
                   <li
                     key={idx}
-                    className={`flex items-start gap-2 text-xs leading-relaxed ${
-                      isDark ? 'text-slate-300' : 'text-slate-700'
+                    className={`flex items-start gap-2.5 text-[15px] leading-relaxed font-normal ${
+                      isDark ? 'text-slate-100' : 'text-black'
                     }`}
                   >
                     <span
-                      className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${
-                        isDark ? 'bg-slate-500' : 'bg-slate-400'
+                      className={`w-1.5 h-1.5 rounded-full mt-2 shrink-0 ${
+                        isDark ? 'bg-slate-300' : 'bg-black'
                       }`}
                     />
                     <span>{item}</span>
@@ -629,22 +647,26 @@ export const ModalPorQueUsarModulo: React.FC<ModalPorQueUsarModuloProps> = ({
               }`}
             >
               <div className="flex items-center gap-2">
-                <TrendingUp className={`w-4 h-4 shrink-0 ${isDark ? 'text-slate-300' : 'text-slate-700'}`} />
-                <h4 className="text-xs font-black uppercase tracking-wider">
+                <TrendingUp className={`w-4 h-4 shrink-0 ${isDark ? 'text-slate-100' : 'text-black'}`} />
+                <h4
+                  className={`text-xs sm:text-sm font-extrabold uppercase tracking-wide ${
+                    isDark ? 'text-white' : 'text-black'
+                  }`}
+                >
                   Ganhos reais no dia a dia
                 </h4>
               </div>
-              <ul className="space-y-2">
+              <ul className="space-y-2.5">
                 {conteudo.ganhosReais.map((item, idx) => (
                   <li
                     key={idx}
-                    className={`flex items-start gap-2 text-xs leading-relaxed ${
-                      isDark ? 'text-slate-300' : 'text-slate-700'
+                    className={`flex items-start gap-2.5 text-[15px] leading-relaxed font-normal ${
+                      isDark ? 'text-slate-100' : 'text-black'
                     }`}
                   >
                     <Check
-                      className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${
-                        isDark ? 'text-slate-300' : 'text-slate-700'
+                      className={`w-4 h-4 mt-1 shrink-0 ${
+                        isDark ? 'text-slate-100' : 'text-black'
                       }`}
                     />
                     <span>{item}</span>
@@ -662,14 +684,18 @@ export const ModalPorQueUsarModulo: React.FC<ModalPorQueUsarModuloProps> = ({
                 : 'bg-slate-50 border-slate-200'
             }`}
           >
-            <span
-              className={`text-[10px] font-black uppercase tracking-wider block mb-1 ${
-                isDark ? 'text-slate-400' : 'text-slate-500'
+            <h4
+              className={`text-xs sm:text-sm font-extrabold uppercase tracking-wide mb-1.5 ${
+                isDark ? 'text-white' : 'text-black'
               }`}
             >
               Exemplo prático de uso
-            </span>
-            <p className={`text-xs sm:text-sm leading-relaxed ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+            </h4>
+            <p
+              className={`text-[15px] leading-relaxed font-normal ${
+                isDark ? 'text-slate-100' : 'text-black'
+              }`}
+            >
               {conteudo.exemploPratico}
             </p>
           </div>
@@ -684,7 +710,7 @@ export const ModalPorQueUsarModulo: React.FC<ModalPorQueUsarModuloProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${classeBotaoSecundariaNeutra}`}
+            className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition cursor-pointer ${classeBotaoSecundariaNeutra}`}
           >
             Fechar
           </button>
@@ -696,7 +722,7 @@ export const ModalPorQueUsarModulo: React.FC<ModalPorQueUsarModuloProps> = ({
                 type="button"
                 disabled={acao.disabled}
                 onClick={acao.onClick}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50 ${
+                className={`px-3.5 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50 ${
                   acao.variante === 'primaria_neutra'
                     ? classeBotaoPrimariaNeutra
                     : classeBotaoSecundariaNeutra

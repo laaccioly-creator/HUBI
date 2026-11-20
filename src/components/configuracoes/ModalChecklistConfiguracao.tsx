@@ -911,15 +911,15 @@ export const ModalChecklistConfiguracao: React.FC<ModalChecklistConfiguracaoProp
                           </div>
                         ))}
 
-                      {/* Subgrupo 2: Módulos Opcionais Escolhidos */}
+                      {/* Subgrupo 2: Módulos Opcionais Ativos */}
                       <div className={`px-4 py-2 text-[10px] font-black uppercase tracking-wider ${
                         isDark ? 'bg-slate-900 text-emerald-400' : 'bg-slate-100 text-emerald-700'
                       }`}>
-                        Módulos Opcionais Escolhidos ({etapasOnboarding.filter((e) => e.grupo === 'opcional').length})
+                        Módulos Opcionais Ativos ({etapasOnboarding.filter((e) => e.grupo === 'opcional').length})
                       </div>
                       {etapasOnboarding.filter((e) => e.grupo === 'opcional').length === 0 ? (
-                        <div className="p-4 text-xs text-slate-500 dark:text-slate-400">
-                          Nenhum módulo opcional escolhido no momento. Use <strong>Abrir Assistente / Refazer Questionário</strong> se quiser ativar integrações extras.
+                        <div className={`p-4 text-xs font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                          Nenhum módulo opcional ativo no momento. Use <strong>Abrir Assistente / Refazer Questionário</strong> se quiser configurar integrações extras.
                         </div>
                       ) : (
                         etapasOnboarding

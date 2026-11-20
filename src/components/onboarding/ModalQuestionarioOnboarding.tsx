@@ -40,9 +40,7 @@ import { Categoria } from '../../types';
 import { salvarGeminiApiKey } from '../../services/geminiService';
 import {
   EtapaOnboardingId,
-  ChaveInteresseOnboarding,
   StatusOnboardingCompleto,
-  SnapshotLojaOnboarding,
   TiposVendaLoja,
   avaliarProgressoCompletoOnboarding,
   salvarRespostasOnboarding,
@@ -118,19 +116,16 @@ const ITENS_STATUS_OPCIONAIS: ItemStatusOperacionalConfig[] = [
 
 interface ModuloOpcionalCardDef {
   id: EtapaOnboardingId;
-  chaveInteresse: ChaveInteresseOnboarding;
   titulo: string;
   descricaoComercial: string;
   rotaDestino: string;
   icone: React.ComponentType<{ className?: string }>;
   tutorialTipo?: 'melhor_envio' | 'uber_direct';
-  campoDiretoLoja?: 'exigir_pesagem_previa_pagamento' | 'caderneta_ativa';
 }
 
 const MODULOS_OPCIONAIS_DEFINICAO: ModuloOpcionalCardDef[] = [
   {
     id: 'catalogo_online',
-    chaveInteresse: 'interesse_catalogo_online',
     titulo: 'Vitrine Virtual (Catálogo Online PWA)',
     descricaoComercial:
       'Receba pedidos 24h por dia com link próprio e vitrine responsiva sem precisar atender um por um no chat.',
@@ -139,7 +134,6 @@ const MODULOS_OPCIONAIS_DEFINICAO: ModuloOpcionalCardDef[] = [
   },
   {
     id: 'gateway_pagamento',
-    chaveInteresse: 'interesse_gateway_pagamento',
     titulo: 'Gateway de Pagamentos Online (Mercado Pago, Asaas e outros)',
     descricaoComercial:
       'Receba via Pix dinâmico (com baixa automática instantânea) e Cartão de Crédito/Débito direto no catálogo.',
@@ -148,7 +142,6 @@ const MODULOS_OPCIONAIS_DEFINICAO: ModuloOpcionalCardDef[] = [
   },
   {
     id: 'melhor_envio',
-    chaveInteresse: 'interesse_melhor_envio',
     titulo: 'Cotação Automática Nacional (Melhor Envio)',
     descricaoComercial:
       'Seu cliente calcula PAC, SEDEX e Jadlog direto no catálogo e fecha o pedido sozinho, sem intervenção humana para cotar frete, além de emitir etiquetas em 1 clique.',
@@ -158,7 +151,6 @@ const MODULOS_OPCIONAIS_DEFINICAO: ModuloOpcionalCardDef[] = [
   },
   {
     id: 'uber_direct',
-    chaveInteresse: 'interesse_uber_direct',
     titulo: 'Entregas Expressas Locais (Uber Direct)',
     descricaoComercial:
       'Chame entregadores parceiros ponto a ponto automaticamente no fechamento do pedido com rastreio ao vivo.',
@@ -168,7 +160,6 @@ const MODULOS_OPCIONAIS_DEFINICAO: ModuloOpcionalCardDef[] = [
   },
   {
     id: 'apps_corrida',
-    chaveInteresse: 'interesse_apps_corrida',
     titulo: 'Apps de Corrida Externos (99, Lalamove, etc.)',
     descricaoComercial:
       'Registre código da corrida e link de acompanhamento nos pedidos despachados para transparência com o cliente.',
@@ -177,7 +168,6 @@ const MODULOS_OPCIONAIS_DEFINICAO: ModuloOpcionalCardDef[] = [
   },
   {
     id: 'transportadoras_manuais',
-    chaveInteresse: 'interesse_transportadoras_manuais',
     titulo: 'Transportadoras Manuais / Frota Própria',
     descricaoComercial:
       'Cadastre transportadoras próprias (ônibus, Braspress, motoboy) com link de rastreio e prazo personalizados.',
@@ -186,7 +176,6 @@ const MODULOS_OPCIONAIS_DEFINICAO: ModuloOpcionalCardDef[] = [
   },
   {
     id: 'whatsapp_auto',
-    chaveInteresse: 'interesse_whatsapp_auto',
     titulo: 'Notificações Automáticas no WhatsApp (Meta Cloud API)',
     descricaoComercial:
       'Avise o cliente automaticamente quando o pedido sair para entrega, ficar pronto para retirada ou lembrar do agendamento.',
@@ -195,7 +184,6 @@ const MODULOS_OPCIONAIS_DEFINICAO: ModuloOpcionalCardDef[] = [
   },
   {
     id: 'mercado_livre',
-    chaveInteresse: 'interesse_mercado_livre',
     titulo: 'Integração com Mercado Livre',
     descricaoComercial:
       'Sincronize o estoque físico com seus anúncios em tempo real e imprima etiquetas direto pelo HUBI.',
@@ -204,7 +192,6 @@ const MODULOS_OPCIONAIS_DEFINICAO: ModuloOpcionalCardDef[] = [
   },
   {
     id: 'agendamento_servicos',
-    chaveInteresse: 'interesse_agendamento_servicos',
     titulo: 'Agendamento de Serviços com Hora Marcada',
     descricaoComercial:
       'Agenda online 24h por profissional, sem conflito de horário e confirmação automática via link no WhatsApp.',
@@ -213,23 +200,19 @@ const MODULOS_OPCIONAIS_DEFINICAO: ModuloOpcionalCardDef[] = [
   },
   {
     id: 'venda_por_peso',
-    chaveInteresse: 'interesse_venda_por_peso',
     titulo: 'Venda por Peso / Balança',
     descricaoComercial:
       'O cliente pede no catálogo e o pagamento só é liberado após você pesar o item na balança e confirmar o valor real.',
     rotaDestino: '/catalog-config',
     icone: Scale,
-    campoDiretoLoja: 'exigir_pesagem_previa_pagamento',
   },
   {
     id: 'caderneta_fiado',
-    chaveInteresse: 'interesse_caderneta_fiado',
     titulo: 'Caderneta de Mercadinho / Fiado',
     descricaoComercial:
       'Conta corrente mensal com dia fixo de vencimento, histórico de lançamentos e limite de crédito por cliente.',
     rotaDestino: '/config?tab=pagamentos',
     icone: BookOpen,
-    campoDiretoLoja: 'caderneta_ativa',
   },
 ];
 
@@ -263,7 +246,6 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
   const [etapaPorQueUsarId, setEtapaPorQueUsarId] = useState<EtapaOnboardingId | null>(null);
 
   const cardRefs = useRef<Partial<Record<EtapaOnboardingId, HTMLDivElement | null>>>({});
-  const chavesDesmarcadasSessaoRef = useRef<Set<ChaveInteresseOnboarding>>(new Set());
 
   const algumSubModalAberto =
     modalGeminiAberto ||
@@ -286,17 +268,12 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose, algumSubModalAberto]);
 
-  useEffect(() => {
-    chavesDesmarcadasSessaoRef.current.clear();
-  }, [loja?.id]);
-
   const carregarProgresso = useCallback(async () => {
     if (!loja?.id) return;
     try {
       setErroMensagem(null);
       const resultado = await avaliarProgressoCompletoOnboarding(loja.id, {
         sincronizarDetectados: true,
-        ignorarAutoDeteccaoChaves: Array.from(chavesDesmarcadasSessaoRef.current),
       });
       setStatusCompleto(resultado);
     } catch (err) {
@@ -504,98 +481,6 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
     }
   };
 
-  const handleSelecionarInteresseModulo = async (
-    modulo: ModuloOpcionalCardDef,
-    querUsar: boolean
-  ) => {
-    if (!loja?.id || !statusCompleto) return;
-    setErroMensagem(null);
-    setSalvandoChaveInline(modulo.id);
-
-    if (querUsar) {
-      chavesDesmarcadasSessaoRef.current.delete(modulo.chaveInteresse);
-    } else {
-      chavesDesmarcadasSessaoRef.current.add(modulo.chaveInteresse);
-    }
-
-    setStatusCompleto((prev) => {
-      if (!prev) return prev;
-      const nextSetup = {
-        ...prev.setup,
-        [modulo.chaveInteresse]: querUsar,
-      };
-      const nextSnapshot: SnapshotLojaOnboarding = { ...prev.lojaSnapshot };
-      if (modulo.campoDiretoLoja === 'exigir_pesagem_previa_pagamento') {
-        nextSnapshot.exigir_pesagem_previa_pagamento = querUsar;
-      }
-      if (modulo.campoDiretoLoja === 'caderneta_ativa') {
-        nextSnapshot.caderneta_ativa = querUsar;
-      }
-      const nextOpcionaisTodas = prev.etapasOpcionaisTodas.map((etapa) => {
-        if (etapa.id !== modulo.id) return etapa;
-        return {
-          ...etapa,
-          interesseAtivo: querUsar,
-          ...(modulo.campoDiretoLoja && querUsar ? { concluido: true } : {}),
-        };
-      });
-      const nextOpcionaisAtivas = nextOpcionaisTodas.filter((e) => e.interesseAtivo);
-      const nextEtapasAtivas = [...prev.etapasEssenciais, ...nextOpcionaisAtivas].map(
-        (e, idx) => ({
-          ...e,
-          ordem: idx + 1,
-        })
-      );
-      const nextTotalAtivas = nextEtapasAtivas.length;
-      const nextTotalConcluidas = nextEtapasAtivas.filter((e) => e.concluido).length;
-      const nextPercentual =
-        nextTotalAtivas > 0 ? Math.round((nextTotalConcluidas / nextTotalAtivas) * 100) : 100;
-      const nextTudoPronto = nextTotalAtivas > 0 && nextTotalConcluidas === nextTotalAtivas;
-      const nextProximaPendente = nextEtapasAtivas.find((e) => !e.concluido) || null;
-
-      return {
-        ...prev,
-        setup: nextSetup,
-        lojaSnapshot: nextSnapshot,
-        etapasOpcionaisTodas: nextOpcionaisTodas,
-        etapasOpcionaisAtivas: nextOpcionaisAtivas,
-        etapasAtivas: nextEtapasAtivas,
-        totalAtivas: nextTotalAtivas,
-        totalConcluidas: nextTotalConcluidas,
-        percentual: nextPercentual,
-        tudoPronto: nextTudoPronto,
-        proximaEtapaPendente: nextProximaPendente,
-      };
-    });
-
-    try {
-      await salvarRespostasOnboarding(loja.id, {
-        [modulo.chaveInteresse]: querUsar,
-      });
-
-      if (modulo.campoDiretoLoja === 'exigir_pesagem_previa_pagamento') {
-        await atualizarConfiguracaoDiretaLoja(loja.id, {
-          exigir_pesagem_previa_pagamento: querUsar,
-        });
-        await recarregarDadosLoja();
-      } else if (modulo.campoDiretoLoja === 'caderneta_ativa') {
-        await atualizarConfiguracaoDiretaLoja(loja.id, {
-          caderneta_ativa: querUsar,
-        });
-        await recarregarDadosLoja();
-      }
-
-      await carregarProgresso();
-    } catch (err) {
-      setErroMensagem(
-        err instanceof Error ? err.message : 'Não foi possível salvar a escolha do módulo.'
-      );
-      await carregarProgresso();
-    } finally {
-      setSalvandoChaveInline(null);
-    }
-  };
-
   const handleConcluirQuestionario = async () => {
     if (!loja?.id) {
       onClose();
@@ -677,15 +562,15 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
 
   const classeBotaoAcaoNeutra = isDark
     ? 'bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 shadow-xs'
-    : 'bg-slate-200 hover:bg-slate-300 text-slate-900 border border-slate-300 shadow-xs';
+    : 'bg-slate-200 hover:bg-slate-300 text-black border border-slate-300 shadow-xs';
 
   const classeBotaoSecundarioNeutro = isDark
     ? 'bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200'
-    : 'bg-white hover:bg-slate-100 border border-slate-300 text-slate-700';
+    : 'bg-white hover:bg-slate-100 border border-slate-300 text-slate-950';
 
   const classeBotaoPorQueUsar = isDark
-    ? 'bg-transparent hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white'
-    : 'bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 hover:text-slate-950';
+    ? 'bg-transparent hover:bg-slate-800 border border-slate-700/80 text-slate-200 hover:text-white'
+    : 'bg-white hover:bg-slate-100 border border-slate-300 text-slate-950 hover:text-black';
 
   const obterConfigModalPorQueUsar = (
     etapaId: EtapaOnboardingId | null
@@ -916,7 +801,6 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
         if (!modulo) {
           return { icone: null, configurado: false, acoes: [] };
         }
-        const querUsar = Boolean(statusCompleto?.setup[modulo.chaveInteresse]);
         const configurado = Boolean(obterEtapaPorId(modulo.id)?.concluido);
         const acoesModulo: AcaoModalPorQueUsar[] = [];
 
@@ -937,25 +821,12 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
           });
         }
 
-        if (!querUsar) {
+        if (configurado) {
           acoesModulo.push({
-            id: `selecionar-${modulo.id}`,
-            rotulo: 'Sim, quero usar',
-            variante: 'secundaria_neutra',
-            icone: 'check',
-            disabled: salvandoChaveInline === modulo.id,
-            onClick: () => {
-              handleSelecionarInteresseModulo(modulo, true);
-            },
-          });
-          acoesModulo.push({
-            id: `ativar-configurar-${modulo.id}`,
-            rotulo: 'Ativar e Configurar Agora',
+            id: `atualizar-${modulo.id}`,
+            rotulo: 'Atualizar',
             variante: 'primaria_neutra',
-            icone: 'arrow',
-            disabled: salvandoChaveInline === modulo.id,
-            onClick: async () => {
-              await handleSelecionarInteresseModulo(modulo, true);
+            onClick: () => {
               setEtapaPorQueUsarId(null);
               navegarParaConfigurarEtapa(modulo.id, modulo.titulo, modulo.rotaDestino);
             },
@@ -994,7 +865,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
           className={`relative w-full max-w-4xl max-h-[94vh] flex flex-col rounded-3xl shadow-2xl border overflow-hidden ${
             isDark
               ? 'bg-slate-950 border-slate-800 text-slate-100'
-              : 'bg-white border-slate-200 text-slate-900'
+              : 'bg-white border-slate-200 text-black'
           }`}
         >
           {/* CABEÇALHO + TERMÔMETRO EM TEMPO REAL */}
@@ -1022,7 +893,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                       </span>
                     )}
                   </div>
-                  <p className={`text-xs sm:text-sm mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  <p className={`text-sm sm:text-[15px] mt-1 font-normal ${isDark ? 'text-slate-200' : 'text-black'}`}>
                     Responda o perfil da sua operação, configure no clique e acompanhe seu progresso em tempo real.
                   </p>
                 </div>
@@ -1035,7 +906,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                 className={`p-2 rounded-xl transition cursor-pointer shrink-0 ${
                   isDark
                     ? 'text-slate-400 hover:text-white hover:bg-slate-800'
-                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200'
+                    : 'text-slate-900 hover:text-black hover:bg-slate-200'
                 }`}
               >
                 <X className="w-5 h-5" />
@@ -1044,9 +915,9 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
 
             {/* Termômetro de Progresso */}
             <div className="mt-4 space-y-2">
-              <div className="flex items-center justify-between text-xs font-bold">
-                <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>
-                  Termômetro de Prontidão ({statusCompleto?.etapasEssenciais.length ?? 8} Essenciais + {statusCompleto?.etapasOpcionaisAtivas.length ?? 0} Módulos Escolhidos)
+              <div className="flex items-center justify-between text-xs sm:text-sm font-bold">
+                <span className={isDark ? 'text-slate-200' : 'text-black'}>
+                  Termômetro de Prontidão ({statusCompleto?.etapasEssenciais.length ?? 8} Essenciais + {statusCompleto?.etapasOpcionaisAtivas.length ?? 0} Módulos Ativos)
                 </span>
                 <span className="text-emerald-600 dark:text-emerald-400 font-black">
                   {totalConcluidas} de {totalAtivas} etapas configuradas ({percentual}%)
@@ -1103,7 +974,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
             {carregando && !statusCompleto ? (
               <div className="py-16 flex flex-col items-center justify-center gap-3">
                 <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
-                <p className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                <p className={`text-[15px] font-medium ${isDark ? 'text-slate-200' : 'text-black'}`}>
                   Diagnosticando configurações da sua loja...
                 </p>
               </div>
@@ -1122,7 +993,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                         Configurações Essenciais (Obrigatórias para rodar 100%)
                       </h3>
                     </div>
-                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                    <span className={`text-sm font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>
                       {statusCompleto?.etapasEssenciais.filter((e) => e.concluido).length ?? 0}/{statusCompleto?.etapasEssenciais.length ?? 8} concluídas
                     </span>
                   </div>
@@ -1140,10 +1011,10 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                           <Bot className="w-5 h-5" />
                         </div>
                         <div className="space-y-1">
-                          <h4 className="font-black text-sm sm:text-base">
+                          <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                             1. Inteligência Artificial Base (Google Gemini)
                           </h4>
-                          <p className={`text-xs sm:text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                          <p className={`text-sm sm:text-[15px] leading-relaxed font-normal ${isDark ? 'text-slate-200' : 'text-black'}`}>
                             Libera a <strong>Rubi IA</strong> para ajudar no setup, gerar descrições profissionais de produtos e atender clientes automaticamente.
                           </p>
                         </div>
@@ -1171,7 +1042,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                         onClick={() => setModalGeminiAberto(true)}
                         className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${classeBotaoSecundarioNeutro}`}
                       >
-                        <HelpCircle className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                        <HelpCircle className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-slate-950'}`} />
                         <span>Como obter</span>
                       </button>
                       <button
@@ -1198,10 +1069,10 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                           <Camera className="w-5 h-5" />
                         </div>
                         <div className="space-y-1">
-                          <h4 className="font-black text-sm sm:text-base">
+                          <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                             2. Busca Automática de Fotos (Serper.dev)
                           </h4>
-                          <p className={`text-xs sm:text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                          <p className={`text-sm sm:text-[15px] leading-relaxed font-normal ${isDark ? 'text-slate-200' : 'text-black'}`}>
                             Puxa fotos profissionais pelo código de barras ou nome do produto em segundos e ativa o Radar de Preços.
                           </p>
                         </div>
@@ -1229,7 +1100,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                         onClick={() => setModalSerperAberto(true)}
                         className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${classeBotaoSecundarioNeutro}`}
                       >
-                        <HelpCircle className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                        <HelpCircle className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-slate-950'}`} />
                         <span>Como obter</span>
                       </button>
                       <button
@@ -1256,10 +1127,10 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                           <MapPin className="w-5 h-5" />
                         </div>
                         <div className="space-y-1">
-                          <h4 className="font-black text-sm sm:text-base">
+                          <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                             3. Dados da Loja e Endereço/CEP de Origem
                           </h4>
-                          <p className={`text-xs sm:text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                          <p className={`text-sm sm:text-[15px] leading-relaxed font-normal ${isDark ? 'text-slate-200' : 'text-black'}`}>
                             O WhatsApp comercial e o <strong>CEP de origem</strong> são obrigatórios para calcular qualquer frete, entrega local ou retirada na loja.
                           </p>
                         </div>
@@ -1306,10 +1177,10 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                           <Tags className="w-5 h-5" />
                         </div>
                         <div className="space-y-1">
-                          <h4 className="font-black text-sm sm:text-base">
+                          <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                             4. Tabelas de Preço e Tipos de Venda
                           </h4>
-                          <p className={`text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                          <p className={`text-sm sm:text-[15px] font-semibold ${isDark ? 'text-slate-100' : 'text-black'}`}>
                             Quais tabelas de venda você utiliza?
                           </p>
                         </div>
@@ -1345,8 +1216,8 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                               className="mt-0.5 w-4 h-4 rounded accent-emerald-600 cursor-pointer shrink-0"
                             />
                             <div className="min-w-0">
-                              <span className="text-xs font-black block">{opt.titulo}</span>
-                              <span className={`text-[11px] block ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                              <span className={`text-sm font-bold block ${isDark ? 'text-white' : 'text-black'}`}>{opt.titulo}</span>
+                              <span className={`text-xs sm:text-[13px] font-normal block ${isDark ? 'text-slate-200' : 'text-slate-950'}`}>
                                 {opt.desc}
                               </span>
                             </div>
@@ -1356,7 +1227,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                     </div>
 
                     <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
-                      <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      <span className={`text-xs sm:text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-950'}`}>
                         Alterações salvas automaticamente na loja.
                       </span>
                       <div className="flex flex-wrap items-center gap-2">
@@ -1371,7 +1242,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                           }
                           className={`px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition cursor-pointer ${classeBotaoSecundarioNeutro}`}
                         >
-                          <Sliders className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                          <Sliders className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-slate-950'}`} />
                           <span>Configurar Regras de Desconto</span>
                         </button>
                         <button
@@ -1399,10 +1270,10 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                           <CreditCard className="w-5 h-5" />
                         </div>
                         <div className="space-y-1">
-                          <h4 className="font-black text-sm sm:text-base">
+                          <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                             5. Formas de Pagamento e Taxas de Maquininha
                           </h4>
-                          <p className={`text-xs sm:text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                          <p className={`text-sm sm:text-[15px] leading-relaxed font-normal ${isDark ? 'text-slate-200' : 'text-black'}`}>
                             Cadastre Pix, Dinheiro, Cartões e taxas das operadoras para calcular seu lucro líquido real nas vendas.
                           </p>
                         </div>
@@ -1450,7 +1321,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                         </div>
                         <div className="space-y-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h4 className="font-black text-sm sm:text-base">
+                            <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                               6. Fluxo de Status dos Pedidos (Kanban)
                             </h4>
                             {qtdStatusOpcionaisAtivos === 0 && (
@@ -1460,7 +1331,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                               </span>
                             )}
                           </div>
-                          <p className={`text-xs sm:text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                          <p className={`text-sm sm:text-[15px] leading-relaxed font-normal ${isDark ? 'text-slate-200' : 'text-black'}`}>
                             Defina quais etapas opcionais aparecem no seu painel de pedidos (os status <strong>Pendente, Confirmado, Cancelado e Concluído</strong> já vêm ativos por padrão no sistema).
                           </p>
                         </div>
@@ -1471,11 +1342,11 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                     <div
                       className={`mt-3 p-3 rounded-xl border flex flex-wrap items-center justify-between gap-2.5 ${
                         isDark
-                          ? 'bg-slate-950/60 border-slate-800 text-slate-300'
-                          : 'bg-white border-slate-200 text-slate-700'
+                          ? 'bg-slate-950/60 border-slate-800 text-slate-200'
+                          : 'bg-white border-slate-200 text-black'
                       }`}
                     >
-                      <span className="text-xs font-medium">
+                      <span className="text-sm font-medium">
                         {qtdStatusOpcionaisAtivos === 0
                           ? 'Operando com os 4 status padrão do sistema (Pendente, Confirmado, Cancelado e Concluído). Ative etapas extras abaixo apenas se precisar.'
                           : `${qtdStatusOpcionaisAtivos} ${
@@ -1529,8 +1400,8 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                             <div className="flex items-center gap-2.5 min-w-0">
                               <span className={`w-2.5 h-2.5 rounded-full ${item.dotClass} shrink-0`} />
                               <div className="min-w-0">
-                                <span className="text-xs font-bold block truncate">{item.titulo}</span>
-                                <span className={`text-[11px] block truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                <span className={`text-sm font-bold block truncate ${isDark ? 'text-white' : 'text-black'}`}>{item.titulo}</span>
+                                <span className={`text-xs sm:text-[13px] font-normal block truncate ${isDark ? 'text-slate-200' : 'text-slate-950'}`}>
                                   {item.descricao}
                                 </span>
                               </div>
@@ -1538,10 +1409,12 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
 
                             <div className="flex items-center gap-2 shrink-0">
                               <span
-                                className={`text-[11px] font-semibold ${
+                                className={`text-xs font-semibold ${
                                   ativo
                                     ? 'text-emerald-700 dark:text-emerald-400'
-                                    : 'text-slate-500 dark:text-slate-400'
+                                    : isDark
+                                    ? 'text-slate-200'
+                                    : 'text-slate-950'
                                 }`}
                               >
                                 {ativo ? 'Ativo' : 'Desativado'}
@@ -1590,7 +1463,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                         </div>
                         <div className="space-y-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h4 className="font-black text-sm sm:text-base">
+                            <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                               7. Categorias e Unidades de Medida
                             </h4>
                             {statusCompleto?.setup.unidades_conferidas && (
@@ -1600,7 +1473,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                               </span>
                             )}
                           </div>
-                          <p className={`text-xs sm:text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                          <p className={`text-sm sm:text-[15px] leading-relaxed font-normal ${isDark ? 'text-slate-200' : 'text-black'}`}>
                             Organize seus produtos em categorias e revise as unidades de medida (UN, KG, CX, L) usadas no PDV e estoque.
                           </p>
                         </div>
@@ -1629,7 +1502,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                         onClick={handleConferirUnidades}
                         className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${classeBotaoSecundarioNeutro}`}
                       >
-                        <Ruler className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                        <Ruler className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-slate-950'}`} />
                         <span>Conferir Unidades</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </button>
@@ -1658,10 +1531,10 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                           <Target className="w-5 h-5" />
                         </div>
                         <div className="space-y-1">
-                          <h4 className="font-black text-sm sm:text-base">
+                          <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                             8. Metas da Loja (Cockpit Executivo F1)
                           </h4>
-                          <p className={`text-xs sm:text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                          <p className={`text-sm sm:text-[15px] leading-relaxed font-normal ${isDark ? 'text-slate-200' : 'text-black'}`}>
                             Defina suas metas de faturamento, pedidos e lucro para alimentar os velocímetros em tempo real do Dashboard.
                           </p>
                         </div>
@@ -1708,22 +1581,20 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                       <h3 className="text-base sm:text-lg font-black">
                         Módulos e Integrações Opcionais (Sob Demanda)
                       </h3>
-                      <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                        Escolha apenas o que faz sentido para sua loja hoje. O Passo a Passo Guiado mostrará somente os módulos selecionados.
+                      <p className={`text-sm mt-1 leading-relaxed font-normal ${isDark ? 'text-slate-200' : 'text-black'}`}>
+                        Ative e configure apenas os recursos que fazem sentido para sua operação. Módulos configurados entram automaticamente no termômetro.
                       </p>
                     </div>
-                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 shrink-0">
-                      {statusCompleto?.etapasOpcionaisAtivas.length ?? 0} de {MODULOS_OPCIONAIS_DEFINICAO.length} escolhidos
+                    <span className={`text-sm font-bold shrink-0 ${isDark ? 'text-slate-200' : 'text-black'}`}>
+                      {statusCompleto?.etapasOpcionaisAtivas.length ?? 0} de {MODULOS_OPCIONAIS_DEFINICAO.length} ativos
                     </span>
                   </div>
 
                   <div className="space-y-3.5">
                     {MODULOS_OPCIONAIS_DEFINICAO.map((modulo, idx) => {
                       const etapaStatus = obterEtapaPorId(modulo.id);
-                      const querUsar = Boolean(statusCompleto?.setup[modulo.chaveInteresse]);
                       const configurado = Boolean(etapaStatus?.concluido);
                       const Icone = modulo.icone;
-                      const emSalvamento = salvandoChaveInline === modulo.id;
 
                       return (
                         <div
@@ -1731,7 +1602,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                           ref={(el) => {
                             cardRefs.current[modulo.id] = el;
                           }}
-                          className={classeCardBase(modulo.id, querUsar && configurado)}
+                          className={classeCardBase(modulo.id, configurado)}
                         >
                           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                             <div className="flex items-start gap-3">
@@ -1739,97 +1610,64 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                                 <Icone className="w-5 h-5" />
                               </div>
                               <div className="space-y-1">
-                                <h4 className="font-black text-sm sm:text-base">
+                                <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                                   {idx + 1}. {modulo.titulo}
                                 </h4>
-                                <p className={`text-xs sm:text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                                <p className={`text-sm sm:text-[15px] leading-relaxed font-normal ${isDark ? 'text-slate-200' : 'text-black'}`}>
                                   {modulo.descricaoComercial}
                                 </p>
                               </div>
                             </div>
 
-                            {querUsar && renderBadgeStatus(configurado, 'Aguardando configuração')}
+                            {configurado && renderBadgeStatus(true)}
                           </div>
 
-                          {/* Escolha Sim / Não + Ações */}
-                          <div className="mt-4 pt-3 border-t border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <button
-                                type="button"
-                                disabled={emSalvamento}
-                                onClick={() => handleSelecionarInteresseModulo(modulo, true)}
-                                className={`px-3 py-1.5 rounded-xl text-xs border transition cursor-pointer flex items-center gap-1.5 ${
-                                  querUsar
-                                    ? isDark
-                                      ? 'bg-slate-700 hover:bg-slate-600 border-slate-500 text-white font-bold shadow-xs'
-                                      : 'bg-slate-200 hover:bg-slate-300 border-slate-400 text-slate-950 font-bold shadow-xs'
-                                    : isDark
-                                    ? 'bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-300 font-semibold'
-                                    : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 font-semibold'
-                                }`}
-                              >
-                                {querUsar && <Check className="w-3.5 h-3.5" />}
-                                <span>Sim, quero usar</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                disabled={emSalvamento}
-                                onClick={() => handleSelecionarInteresseModulo(modulo, false)}
-                                className={`px-3 py-1.5 rounded-xl text-xs border transition cursor-pointer ${
-                                  !querUsar
-                                    ? isDark
-                                      ? 'bg-slate-700 hover:bg-slate-600 border-slate-500 text-white font-bold shadow-xs'
-                                      : 'bg-slate-200 hover:bg-slate-300 border-slate-400 text-slate-950 font-bold shadow-xs'
-                                    : isDark
-                                    ? 'bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200 font-semibold'
-                                    : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 font-semibold'
-                                }`}
-                              >
-                                Não preciso agora
-                              </button>
-
-                              {modulo.tutorialTipo && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (modulo.tutorialTipo === 'melhor_envio') {
-                                      setModalMelhorEnvioAberto(true);
-                                    } else {
-                                      setModalUberDirectAberto(true);
-                                    }
-                                  }}
-                                  className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${classeBotaoSecundarioNeutro}`}
-                                >
-                                  <HelpCircle className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                                  <span>Ver Tutorial</span>
-                                </button>
+                          {/* Ação Única Contextual + Ajuda */}
+                          <div className="mt-4 pt-3 border-t border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center gap-2.5">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                navegarParaConfigurarEtapa(
+                                  modulo.id,
+                                  modulo.titulo,
+                                  modulo.rotaDestino
+                                )
+                              }
+                              className={`px-3.5 py-2 rounded-xl font-semibold text-sm flex items-center gap-1.5 transition cursor-pointer ${classeBotaoAcaoNeutra}`}
+                            >
+                              {configurado ? (
+                                <span>Atualizar</span>
+                              ) : (
+                                <>
+                                  <span>Configurar Agora</span>
+                                  <ArrowRight className="w-4 h-4" />
+                                </>
                               )}
+                            </button>
 
+                            <button
+                              type="button"
+                              onClick={() => setEtapaPorQueUsarId(modulo.id)}
+                              className={`px-3.5 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 transition cursor-pointer ${classeBotaoPorQueUsar}`}
+                            >
+                              <Info className="w-4 h-4" />
+                              <span>Por que usar?</span>
+                            </button>
+
+                            {modulo.tutorialTipo && (
                               <button
                                 type="button"
-                                onClick={() => setEtapaPorQueUsarId(modulo.id)}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${classeBotaoPorQueUsar}`}
+                                onClick={() => {
+                                  if (modulo.tutorialTipo === 'melhor_envio') {
+                                    setModalMelhorEnvioAberto(true);
+                                  } else {
+                                    setModalUberDirectAberto(true);
+                                  }
+                                }}
+                                className={`px-3.5 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 transition cursor-pointer ${classeBotaoSecundarioNeutro}`}
                               >
-                                <Info className="w-3.5 h-3.5" />
-                                <span>Por que usar?</span>
-                              </button>
-                            </div>
-
-                            {querUsar && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  navegarParaConfigurarEtapa(
-                                    modulo.id,
-                                    modulo.titulo,
-                                    modulo.rotaDestino
-                                  )
-                                }
-                                className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer ${classeBotaoAcaoNeutra}`}
-                              >
-                                <span>Configurar Agora</span>
-                                <ArrowRight className="w-3.5 h-3.5" />
+                                <HelpCircle className={`w-4 h-4 ${isDark ? 'text-slate-200' : 'text-black'}`} />
+                                <span>Ver Tutorial</span>
                               </button>
                             )}
                           </div>
@@ -1848,7 +1686,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
               isDark ? 'border-slate-800 bg-slate-900/80' : 'border-slate-200 bg-slate-50'
             }`}
           >
-            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+            <div className={`flex items-center gap-2 text-xs sm:text-sm font-medium ${isDark ? 'text-slate-200' : 'text-black'}`}>
               <Sparkles className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
               <span>
                 Você pode reabrir este assistente a qualquer momento em Configurações.
@@ -1862,7 +1700,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                 className={`px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                   isDark
                     ? 'bg-slate-800 hover:bg-slate-700 text-slate-200'
-                    : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+                    : 'bg-slate-200 hover:bg-slate-300 text-black'
                 }`}
               >
                 Continuar depois

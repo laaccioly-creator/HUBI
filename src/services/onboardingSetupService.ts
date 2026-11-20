@@ -798,11 +798,20 @@ export async function avaliarProgressoCompletoOnboarding(
 
   const patchAutoSync: AtualizacaoOnboardingSetupPayload = {};
   if (sincronizarDetectados) {
+    const chavesEssenciaisInteresse = new Set<ChaveInteresseOnboarding>([
+      'interesse_ia_gemini',
+      'interesse_busca_fotos_serper',
+    ]);
     (
       Object.entries(modulosDetectados) as Array<[ChaveInteresseOnboarding, boolean | undefined]>
     ).forEach(([chave, detectado]) => {
-      if (detectado === true && setup[chave] !== true && !ignorarSet.has(chave)) {
-        patchAutoSync[chave] = true;
+      if (ignorarSet.has(chave) || detectado === undefined) return;
+      if (chavesEssenciaisInteresse.has(chave)) {
+        if (detectado === true && setup[chave] !== true) {
+          patchAutoSync[chave] = true;
+        }
+      } else if (Boolean(setup[chave]) !== Boolean(detectado)) {
+        patchAutoSync[chave] = Boolean(detectado);
       }
     });
   }
@@ -936,7 +945,7 @@ export async function avaliarProgressoCompletoOnboarding(
     },
   ];
 
-  // Grupo 2 — Opcionais (retornam na lista ativa somente quando o interesse correspondente é true)
+  // Grupo 2 — Módulos e Integrações Opcionais (ativos no termômetro quando configurados)
   const etapasOpcionaisTodas: EtapaOnboardingItem[] = [
     {
       id: 'catalogo_online',
@@ -948,7 +957,7 @@ export async function avaliarProgressoCompletoOnboarding(
       concluido: catalogoOnlineConfigurado,
       rotaDestino: '/catalog-config',
       chaveInteresse: 'interesse_catalogo_online',
-      interesseAtivo: setupEfetivo.interesse_catalogo_online,
+      interesseAtivo: catalogoOnlineConfigurado,
     },
     {
       id: 'gateway_pagamento',
@@ -960,7 +969,7 @@ export async function avaliarProgressoCompletoOnboarding(
       concluido: gatewayPagamentoConfigurado,
       rotaDestino: '/config?tab=pagamentos',
       chaveInteresse: 'interesse_gateway_pagamento',
-      interesseAtivo: setupEfetivo.interesse_gateway_pagamento,
+      interesseAtivo: gatewayPagamentoConfigurado,
     },
     {
       id: 'melhor_envio',
@@ -972,7 +981,7 @@ export async function avaliarProgressoCompletoOnboarding(
       concluido: melhorEnvioConfigurado,
       rotaDestino: '/config/frete',
       chaveInteresse: 'interesse_melhor_envio',
-      interesseAtivo: setupEfetivo.interesse_melhor_envio,
+      interesseAtivo: melhorEnvioConfigurado,
     },
     {
       id: 'uber_direct',
@@ -984,7 +993,7 @@ export async function avaliarProgressoCompletoOnboarding(
       concluido: uberDirectConfigurado,
       rotaDestino: '/config/frete',
       chaveInteresse: 'interesse_uber_direct',
-      interesseAtivo: setupEfetivo.interesse_uber_direct,
+      interesseAtivo: uberDirectConfigurado,
     },
     {
       id: 'apps_corrida',
@@ -996,7 +1005,7 @@ export async function avaliarProgressoCompletoOnboarding(
       concluido: appsCorridaConfigurado,
       rotaDestino: '/config/frete',
       chaveInteresse: 'interesse_apps_corrida',
-      interesseAtivo: setupEfetivo.interesse_apps_corrida,
+      interesseAtivo: appsCorridaConfigurado,
     },
     {
       id: 'transportadoras_manuais',
@@ -1008,7 +1017,7 @@ export async function avaliarProgressoCompletoOnboarding(
       concluido: transportadorasManuaisConfigurado,
       rotaDestino: '/config/frete',
       chaveInteresse: 'interesse_transportadoras_manuais',
-      interesseAtivo: setupEfetivo.interesse_transportadoras_manuais,
+      interesseAtivo: transportadorasManuaisConfigurado,
     },
     {
       id: 'whatsapp_auto',
@@ -1020,7 +1029,7 @@ export async function avaliarProgressoCompletoOnboarding(
       concluido: whatsappAutoConfigurado,
       rotaDestino: '/config?tab=whatsapp-ia',
       chaveInteresse: 'interesse_whatsapp_auto',
-      interesseAtivo: setupEfetivo.interesse_whatsapp_auto,
+      interesseAtivo: whatsappAutoConfigurado,
     },
     {
       id: 'mercado_livre',
@@ -1032,7 +1041,7 @@ export async function avaliarProgressoCompletoOnboarding(
       concluido: mercadoLivreConfigurado,
       rotaDestino: '/config?tab=parceiros',
       chaveInteresse: 'interesse_mercado_livre',
-      interesseAtivo: setupEfetivo.interesse_mercado_livre,
+      interesseAtivo: mercadoLivreConfigurado,
     },
     {
       id: 'agendamento_servicos',
@@ -1044,7 +1053,7 @@ export async function avaliarProgressoCompletoOnboarding(
       concluido: agendamentoServicosConfigurado,
       rotaDestino: '/users',
       chaveInteresse: 'interesse_agendamento_servicos',
-      interesseAtivo: setupEfetivo.interesse_agendamento_servicos,
+      interesseAtivo: agendamentoServicosConfigurado,
     },
     {
       id: 'venda_por_peso',
@@ -1056,7 +1065,7 @@ export async function avaliarProgressoCompletoOnboarding(
       concluido: vendaPorPesoConfigurado,
       rotaDestino: '/catalog-config',
       chaveInteresse: 'interesse_venda_por_peso',
-      interesseAtivo: setupEfetivo.interesse_venda_por_peso,
+      interesseAtivo: vendaPorPesoConfigurado,
     },
     {
       id: 'caderneta_fiado',
@@ -1068,11 +1077,11 @@ export async function avaliarProgressoCompletoOnboarding(
       concluido: cadernetaFiadoConfigurado,
       rotaDestino: '/config?tab=pagamentos',
       chaveInteresse: 'interesse_caderneta_fiado',
-      interesseAtivo: setupEfetivo.interesse_caderneta_fiado,
+      interesseAtivo: cadernetaFiadoConfigurado,
     },
   ];
 
-  const etapasOpcionaisAtivas = etapasOpcionaisTodas.filter((etapa) => etapa.interesseAtivo);
+  const etapasOpcionaisAtivas = etapasOpcionaisTodas.filter((etapa) => etapa.concluido);
   const etapasAtivas: EtapaOnboardingItem[] = [
     ...etapasEssenciais,
     ...etapasOpcionaisAtivas,
