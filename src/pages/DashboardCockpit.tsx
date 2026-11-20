@@ -99,7 +99,21 @@ export const DashboardCockpit: React.FC = () => {
   const [modalMetasAberto, setModalMetasAberto] = useState<boolean>(false);
 
   // Checklist de Prontidão da Loja (Onboarding Guiado)
-  const { totalConcluidas, totalEtapasAtivas, percentual, tudoPronto, etapaFoco } = useLojaProntidao();
+  const {
+    totalConcluidas,
+    totalEtapasAtivas,
+    percentual,
+    tudoPronto,
+    etapaFoco,
+    statusOnboarding,
+    carregando: carregandoOnboarding,
+  } = useLojaProntidao();
+  const exibirBannerOnboarding = Boolean(
+    loja?.id &&
+      !carregandoOnboarding &&
+      statusOnboarding !== null &&
+      !tudoPronto
+  );
   const [modalChecklistAberto, setModalChecklistAberto] = useState<boolean>(false);
   const storageKeyChecklistMin = `hubi_checklist_min_${loja?.id || 'default'}`;
   const [checklistMinimizado, setChecklistMinimizado] = useState<boolean>(() => {
@@ -920,14 +934,14 @@ export const DashboardCockpit: React.FC = () => {
         )}
 
         {/* 🚀 Primeiros Passos: Checklist de Prontidão da Loja */}
-        {!tudoPronto && (
+        {exibirBannerOnboarding && (
           checklistMinimizado ? (
             <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-3.5 sm:p-4 flex items-center justify-between text-xs text-emerald-400 animate-in fade-in">
               <div className="flex items-center gap-2.5">
                 <Sparkles className="w-4 h-4 text-emerald-500 shrink-0" />
                 <span className="font-bold">Primeiros Passos:</span>
                 <span className="hidden sm:inline">Checklist de Prontidão da Loja:</span>
-                <span className="font-black text-white">{totalConcluidas}/{totalEtapasAtivas} etapas ({percentual}%)</span>
+                <span className="font-black text-slate-900 dark:text-white">{totalConcluidas}/{totalEtapasAtivas} etapas ({percentual}%)</span>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -1004,7 +1018,7 @@ export const DashboardCockpit: React.FC = () => {
                     onClick={() => setModalChecklistAberto(true)}
                     className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95"
                   >
-                    <span>Abrir Guia de Configuração (Passo {etapaFoco?.ordem || 1})</span>
+                    <span>Abrir Guia de Configuração (Passo {statusOnboarding?.proximaEtapaPendente?.ordem || etapaFoco?.ordem || 1})</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>

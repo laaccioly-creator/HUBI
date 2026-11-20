@@ -234,6 +234,7 @@ export const useLojaProntidao = (lojaOverride?: Loja | null): UseLojaProntidaoRe
     }
 
     setCarregando(true);
+    setStatusOnboarding(null);
     const currentRequestId = ++requestIdRef.current;
     consultarDadosSupabase(lojaId, currentRequestId);
 
@@ -321,7 +322,11 @@ export const useLojaProntidao = (lojaOverride?: Loja | null): UseLojaProntidaoRe
   ).trim();
   const concluidoGemini = Boolean(geminiKey.length > 0);
 
-  const serperKey = (loja?.serper_api_key || '').trim();
+  const serperKey = (
+    loja?.serper_api_key ||
+    loja?.configuracoes_extras?.ia?.serper_api_key ||
+    ''
+  ).trim();
   const concluidoSerper = Boolean(serperKey.length > 0);
 
   const nomeFantasia = (loja?.nome_fantasia || '').trim();

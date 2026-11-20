@@ -260,6 +260,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
   const [modalUberDirectAberto, setModalUberDirectAberto] = useState<boolean>(false);
 
   const cardRefs = useRef<Partial<Record<EtapaOnboardingId, HTMLDivElement | null>>>({});
+  const chavesDesmarcadasSessaoRef = useRef<Set<ChaveInteresseOnboarding>>(new Set());
 
   const algumSubModalAberto =
     modalGeminiAberto ||
@@ -281,11 +282,18 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose, algumSubModalAberto]);
 
+  useEffect(() => {
+    chavesDesmarcadasSessaoRef.current.clear();
+  }, [loja?.id]);
+
   const carregarProgresso = useCallback(async () => {
     if (!loja?.id) return;
     try {
       setErroMensagem(null);
-      const resultado = await avaliarProgressoCompletoOnboarding(loja.id);
+      const resultado = await avaliarProgressoCompletoOnboarding(loja.id, {
+        sincronizarDetectados: true,
+        ignorarAutoDeteccaoChaves: Array.from(chavesDesmarcadasSessaoRef.current),
+      });
       setStatusCompleto(resultado);
     } catch (err) {
       const msg =
@@ -412,6 +420,49 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
     }
   };
 
+  const handleManterApenasStatusPadrao = async () => {
+    if (!loja?.id || !statusCompleto) return;
+    setErroMensagem(null);
+    setSalvandoChaveInline('status_padrao');
+    setStatusCompleto((prev) =>
+      prev
+        ? {
+            ...prev,
+            lojaSnapshot: {
+              ...prev.lojaSnapshot,
+              status_em_separacao: false,
+              status_em_expedicao: false,
+              status_aguardando_envio: false,
+              status_enviado: false,
+              status_entregue: false,
+              status_pronto_para_retirar: false,
+            },
+          }
+        : prev
+    );
+
+    try {
+      await atualizarConfiguracaoDiretaLoja(loja.id, {
+        status_em_separacao: false,
+        status_em_expedicao: false,
+        status_aguardando_envio: false,
+        status_enviado: false,
+        status_entregue: false,
+        status_pronto_para_retirar: false,
+      });
+      await recarregarDadosLoja();
+      await carregarProgresso();
+      exibirSucessoTemporario('Fluxo configurado para usar apenas os status padrão do sistema.');
+    } catch (err) {
+      setErroMensagem(
+        err instanceof Error ? err.message : 'Erro ao restaurar os status padrão do sistema.'
+      );
+      await carregarProgresso();
+    } finally {
+      setSalvandoChaveInline(null);
+    }
+  };
+
   const handleAbrirModalCategorias = async () => {
     if (!loja?.id) return;
     try {
@@ -457,6 +508,12 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
     setErroMensagem(null);
     setSalvandoChaveInline(modulo.id);
 
+    if (querUsar) {
+      chavesDesmarcadasSessaoRef.current.delete(modulo.chaveInteresse);
+    } else {
+      chavesDesmarcadasSessaoRef.current.add(modulo.chaveInteresse);
+    }
+
     setStatusCompleto((prev) => {
       if (!prev) return prev;
       const nextSetup = {
@@ -470,10 +527,40 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
       if (modulo.campoDiretoLoja === 'caderneta_ativa') {
         nextSnapshot.caderneta_ativa = querUsar;
       }
+      const nextOpcionaisTodas = prev.etapasOpcionaisTodas.map((etapa) => {
+        if (etapa.id !== modulo.id) return etapa;
+        return {
+          ...etapa,
+          interesseAtivo: querUsar,
+          ...(modulo.campoDiretoLoja && querUsar ? { concluido: true } : {}),
+        };
+      });
+      const nextOpcionaisAtivas = nextOpcionaisTodas.filter((e) => e.interesseAtivo);
+      const nextEtapasAtivas = [...prev.etapasEssenciais, ...nextOpcionaisAtivas].map(
+        (e, idx) => ({
+          ...e,
+          ordem: idx + 1,
+        })
+      );
+      const nextTotalAtivas = nextEtapasAtivas.length;
+      const nextTotalConcluidas = nextEtapasAtivas.filter((e) => e.concluido).length;
+      const nextPercentual =
+        nextTotalAtivas > 0 ? Math.round((nextTotalConcluidas / nextTotalAtivas) * 100) : 100;
+      const nextTudoPronto = nextTotalAtivas > 0 && nextTotalConcluidas === nextTotalAtivas;
+      const nextProximaPendente = nextEtapasAtivas.find((e) => !e.concluido) || null;
+
       return {
         ...prev,
         setup: nextSetup,
         lojaSnapshot: nextSnapshot,
+        etapasOpcionaisTodas: nextOpcionaisTodas,
+        etapasOpcionaisAtivas: nextOpcionaisAtivas,
+        etapasAtivas: nextEtapasAtivas,
+        totalAtivas: nextTotalAtivas,
+        totalConcluidas: nextTotalConcluidas,
+        percentual: nextPercentual,
+        tudoPronto: nextTudoPronto,
+        proximaEtapaPendente: nextProximaPendente,
       };
     });
 
@@ -580,6 +667,9 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
   const etapaStatusPedidos = obterEtapaPorId('status_pedidos');
   const etapaCategorias = obterEtapaPorId('categorias_unidades');
   const etapaMetas = obterEtapaPorId('metas_loja');
+  const qtdStatusOpcionaisAtivos = ITENS_STATUS_OPCIONAIS.filter((item) =>
+    Boolean(statusCompleto?.lojaSnapshot[item.campo])
+  ).length;
 
   return (
     <>
@@ -643,7 +733,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
             <div className="mt-4 space-y-2">
               <div className="flex items-center justify-between text-xs font-bold">
                 <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>
-                  Termômetro de Prontidão (Essenciais + Módulos Escolhidos)
+                  Termômetro de Prontidão ({statusCompleto?.etapasEssenciais.length ?? 8} Essenciais + {statusCompleto?.etapasOpcionaisAtivas.length ?? 0} Módulos Escolhidos)
                 </span>
                 <span className="text-emerald-600 dark:text-emerald-400 font-black">
                   {totalConcluidas} de {totalAtivas} etapas configuradas ({percentual}%)
@@ -720,7 +810,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                       </h3>
                     </div>
                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                      {statusCompleto?.etapasEssenciais.filter((e) => e.concluido).length ?? 0}/8 concluídas
+                      {statusCompleto?.etapasEssenciais.filter((e) => e.concluido).length ?? 0}/{statusCompleto?.etapasEssenciais.length ?? 8} concluídas
                     </span>
                   </div>
 
@@ -758,7 +848,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                             '/config?tab=dados-loja'
                           )
                         }
-                        className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                        className="px-3.5 py-2 rounded-xl bg-[#22C59E] hover:bg-[#1EB38F] text-slate-950 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm"
                       >
                         <span>Configurar Chave</span>
                         <ArrowRight className="w-3.5 h-3.5" />
@@ -812,7 +902,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                             '/config?tab=dados-loja'
                           )
                         }
-                        className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                        className="px-3.5 py-2 rounded-xl bg-[#22C59E] hover:bg-[#1EB38F] text-slate-950 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm"
                       >
                         <span>Configurar Serper.dev</span>
                         <ArrowRight className="w-3.5 h-3.5" />
@@ -866,7 +956,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                             '/config?tab=dados-loja'
                           )
                         }
-                        className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                        className="px-3.5 py-2 rounded-xl bg-[#22C59E] hover:bg-[#1EB38F] text-slate-950 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer shadow-sm"
                       >
                         <span>Preencher Dados e CEP</span>
                         <ArrowRight className="w-3.5 h-3.5" />
@@ -995,7 +1085,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                             '/config?tab=pagamentos'
                           )
                         }
-                        className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                        className="px-3.5 py-2 rounded-xl bg-[#22C59E] hover:bg-[#1EB38F] text-slate-950 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer shadow-sm"
                       >
                         <span>Configurar Pagamentos</span>
                         <ArrowRight className="w-3.5 h-3.5" />
@@ -1016,15 +1106,55 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                           <ListChecks className="w-5 h-5" />
                         </div>
                         <div className="space-y-1">
-                          <h4 className="font-black text-sm sm:text-base">
-                            6. Fluxo de Status dos Pedidos (Kanban)
-                          </h4>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h4 className="font-black text-sm sm:text-base">
+                              6. Fluxo de Status dos Pedidos (Kanban)
+                            </h4>
+                            {qtdStatusOpcionaisAtivos === 0 && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                                <CheckCircle2 className="w-3 h-3" />
+                                Usando status padrão do sistema
+                              </span>
+                            )}
+                          </div>
                           <p className={`text-xs sm:text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                            Defina quais etapas opcionais aparecem no seu painel de pedidos (os status Pendente, Confirmado, Cancelado e Concluído são padrão).
+                            Defina quais etapas opcionais aparecem no seu painel de pedidos (os status <strong>Pendente, Confirmado, Cancelado e Concluído</strong> já vêm ativos por padrão no sistema).
                           </p>
                         </div>
                       </div>
                       {renderBadgeStatus(Boolean(etapaStatusPedidos?.concluido))}
+                    </div>
+
+                    <div
+                      className={`mt-3 p-3 rounded-xl border flex flex-wrap items-center justify-between gap-2.5 ${
+                        isDark
+                          ? 'bg-slate-950/60 border-slate-800 text-slate-300'
+                          : 'bg-white border-slate-200 text-slate-700'
+                      }`}
+                    >
+                      <span className="text-xs font-medium">
+                        {qtdStatusOpcionaisAtivos === 0
+                          ? 'Operando com os 4 status padrão do sistema (Pendente, Confirmado, Cancelado e Concluído). Ative etapas extras abaixo apenas se precisar.'
+                          : `${qtdStatusOpcionaisAtivos} ${
+                              qtdStatusOpcionaisAtivos === 1 ? 'status opcional ativo' : 'status opcionais ativos'
+                            } além dos 4 status padrão.`}
+                      </span>
+                      {qtdStatusOpcionaisAtivos > 0 && (
+                        <button
+                          type="button"
+                          disabled={salvandoChaveInline === 'status_padrao'}
+                          onClick={handleManterApenasStatusPadrao}
+                          className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition cursor-pointer disabled:opacity-50 ${
+                            isDark
+                              ? 'border-slate-700 bg-slate-900 hover:bg-slate-800 text-emerald-400'
+                              : 'border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800'
+                          }`}
+                        >
+                          {salvandoChaveInline === 'status_padrao'
+                            ? 'Aplicando...'
+                            : 'Manter apenas os status padrão'}
+                        </button>
+                      )}
                     </div>
 
                     <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -1134,7 +1264,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                         type="button"
                         disabled={carregandoCategorias}
                         onClick={handleAbrirModalCategorias}
-                        className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm disabled:opacity-60"
+                        className="px-3.5 py-2 rounded-xl bg-[#22C59E] hover:bg-[#1EB38F] text-slate-950 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm disabled:opacity-60"
                       >
                         {carregandoCategorias ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1195,7 +1325,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                             '/config?tab=metas'
                           )
                         }
-                        className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                        className="px-3.5 py-2 rounded-xl bg-[#22C59E] hover:bg-[#1EB38F] text-slate-950 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer shadow-sm"
                       >
                         <span>Definir Minhas Metas</span>
                         <ArrowRight className="w-3.5 h-3.5" />
@@ -1221,7 +1351,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                       </p>
                     </div>
                     <span className="text-xs font-bold text-slate-500 dark:text-slate-400 shrink-0">
-                      {statusCompleto?.etapasOpcionaisAtivas.length ?? 0} de 11 escolhidos
+                      {statusCompleto?.etapasOpcionaisAtivas.length ?? 0} de {MODULOS_OPCIONAIS_DEFINICAO.length} escolhidos
                     </span>
                   </div>
 
@@ -1268,7 +1398,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                                 onClick={() => handleSelecionarInteresseModulo(modulo, true)}
                                 className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center gap-1.5 ${
                                   querUsar
-                                    ? 'bg-emerald-600 border-emerald-500 text-white shadow-sm'
+                                    ? 'bg-[#22C59E] border-[#19A986] text-slate-950 dark:bg-emerald-600 dark:border-emerald-500 dark:text-white shadow-sm'
                                     : isDark
                                     ? 'bg-slate-900 border-slate-700 text-slate-300 hover:border-emerald-500/50'
                                     : 'bg-white border-slate-300 text-slate-700 hover:border-emerald-500/50'
@@ -1327,7 +1457,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                                     modulo.rotaDestino
                                   )
                                 }
-                                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                                className="px-3.5 py-2 rounded-xl bg-[#22C59E] hover:bg-[#1EB38F] text-slate-950 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm"
                               >
                                 <span>Configurar Agora</span>
                                 <ArrowRight className="w-3.5 h-3.5" />
@@ -1373,7 +1503,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                 type="button"
                 disabled={salvandoConclusao || carregando}
                 onClick={handleConcluirQuestionario}
-                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black text-xs flex items-center gap-2 transition cursor-pointer shadow-md shadow-emerald-500/20"
+                className="px-5 py-2.5 rounded-xl bg-[#22C59E] hover:bg-[#1EB38F] text-slate-950 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white disabled:opacity-50 font-black text-xs flex items-center gap-2 transition cursor-pointer shadow-md shadow-emerald-500/20"
               >
                 {salvandoConclusao ? (
                   <Loader2 className="w-4 h-4 animate-spin" />

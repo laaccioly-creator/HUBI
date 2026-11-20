@@ -342,7 +342,14 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const [subTela, setSubTela] = useState<SubTelaConfig>('menu');
   const [salvando, setSalvando] = useState<boolean>(false);
   const [modalChecklistAberto, setModalChecklistAberto] = useState<boolean>(false);
-  const { totalConcluidas, totalEtapasAtivas, percentual, tudoPronto } = useLojaProntidao();
+  const {
+    totalConcluidas,
+    totalEtapasAtivas,
+    percentual,
+    tudoPronto,
+    statusOnboarding,
+    carregando: carregandoProntidao,
+  } = useLojaProntidao();
   const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
   const [mensagemToast, setMensagemToast] = useState<string>('');
   const [copiadoTexto, setCopiadoTexto] = useState<string>('');
@@ -2128,7 +2135,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   <button
                     type="button"
                     onClick={() => solicitarAberturaQuestionarioOnboarding()}
-                    className="flex-1 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs text-center cursor-pointer transition"
+                    className="flex-1 px-3 py-2 rounded-xl bg-[#22C59E] hover:bg-[#1EB38F] text-slate-950 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white font-black text-xs text-center cursor-pointer transition"
                   >
                     Abrir Assistente / Refazer Questionário
                   </button>
@@ -3345,22 +3352,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => solicitarAberturaQuestionarioOnboarding()}
-            className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 font-bold text-xs transition cursor-pointer shadow-sm active:scale-95 ${
-              isDark
-                ? 'bg-emerald-950/60 border-emerald-700/60 text-emerald-300 hover:bg-emerald-900/60'
-                : 'bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100'
-            }`}
-            title="Abrir Assistente / Refazer Questionário de Implantação"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
-            <span className="hidden md:inline">Assistente / Refazer Questionário</span>
-            <span className="md:hidden">Assistente</span>
-          </button>
-
-          {!tudoPronto && (
+          {!carregandoProntidao && statusOnboarding !== null && !tudoPronto && (
             <button
               type="button"
               onClick={() => setModalChecklistAberto(true)}
@@ -3487,7 +3479,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 <button
                   type="button"
                   onClick={() => solicitarAberturaQuestionarioOnboarding()}
-                  className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-2 transition cursor-pointer shadow-sm"
+                  className="px-4 py-2.5 rounded-xl bg-[#22C59E] hover:bg-[#1EB38F] text-slate-950 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white font-black text-xs flex items-center gap-2 transition cursor-pointer shadow-sm"
                 >
                   <Sparkles className="w-4 h-4" />
                   <span>Abrir Assistente / Refazer Questionário</span>

@@ -91,9 +91,9 @@ html.light header .bg-emerald-500\/15 {
 }
 
 html.light header .bg-emerald-500\/15:hover {
-  background-color: #10b981 !important;
-  color: #ffffff !important;
-  border-color: #10b981 !important;
+  background-color: var(--hubi-btn-green-light-bg) !important;
+  color: var(--hubi-btn-green-light-text) !important;
+  border-color: var(--hubi-btn-green-light-border) !important;
 }
 
 /* Botões da direita no header (Data Operacional e Perfil) */
@@ -321,16 +321,24 @@ html.light .bg-emerald-500\/10 {
   border-color: #6ee7b7 !important;
 }
 
-/* Botões de Ação Verde (ex: "Receber" na tabela) */
-html.light .bg-emerald-500\/20 {
-  background-color: #059669 !important;
-  color: #ffffff !important;
-  border-color: #047857 !important;
-  box-shadow: 0 1px 2px rgba(5, 150, 105, 0.2) !important;
+/* Badges e Pílulas com bg-emerald-500/20 no Modo Claro (excluindo botões) */
+html.light :not(button):not(a):not([role="button"]).bg-emerald-500\/20 {
+  background-color: #d1fae5 !important;
+  color: #065f46 !important;
+  border-color: #6ee7b7 !important;
 }
 
-html.light .bg-emerald-500\/20:hover {
-  background-color: #047857 !important;
+/* Botões de Ação Verde com bg-emerald-500/20 (ex: "Receber" na tabela) */
+html.light :is(button:not([role="switch"]), a, [role="button"]).bg-emerald-500\/20 {
+  background-color: var(--hubi-btn-green-light-bg) !important;
+  color: var(--hubi-btn-green-light-text) !important;
+  border-color: var(--hubi-btn-green-light-border) !important;
+  box-shadow: 0 1px 2px rgba(16, 185, 129, 0.2) !important;
+}
+
+html.light :is(button:not([role="switch"]), a, [role="button"]).bg-emerald-500\/20:hover:not(:disabled):not([aria-disabled="true"]) {
+  background-color: var(--hubi-btn-green-light-bg-hover) !important;
+  color: var(--hubi-btn-green-light-text) !important;
 }
 
 /* Badges e Botões Amarelos (Pendente, Aguardando, Alterar) com Alto Contraste */
@@ -421,6 +429,90 @@ html.light .bg-gradient-to-r.from-emerald-950 span.text-white {
 
 html.light .bg-gradient-to-r.from-emerald-950 span.text-slate-300 {
   color: #047857 !important;
+}
+
+/* ==========================================================================
+   PADRONIZAÇÃO GLOBAL DE BOTÕES VERDES NO TEMA CLARO
+   Substitui verde escuro chapado (#059669/#047857) por verde menta vibrante (#22C59E)
+   com texto e ícones em preto de alto contraste (#020617), preservando 100% o Tema Escuro.
+   ========================================================================== */
+html.light :is(button:not([role="switch"]), a, [role="button"], label.cursor-pointer):is(
+  .bg-emerald-600,
+  .bg-emerald-700,
+  .bg-green-600,
+  .bg-green-700,
+  .bg-emerald-500.text-white,
+  .bg-green-500.text-white
+) {
+  background-color: var(--hubi-btn-green-light-bg) !important;
+  color: var(--hubi-btn-green-light-text) !important;
+}
+
+html.light :is(button:not([role="switch"]), a, [role="button"]).bg-gradient-to-r.from-emerald-600.to-teal-500 {
+  background-image: none !important;
+  background-color: var(--hubi-btn-green-light-bg) !important;
+  color: var(--hubi-btn-green-light-text) !important;
+}
+
+html.light :is(button:not([role="switch"]), a, [role="button"], label.cursor-pointer):is(
+  .bg-emerald-600,
+  .bg-emerald-700,
+  .bg-green-600,
+  .bg-green-700,
+  .bg-emerald-500.text-white,
+  .bg-green-500.text-white
+):is(.border-emerald-500, .border-emerald-600, .border-emerald-700, .border-green-500, .border-green-600, .border-green-700) {
+  border-color: var(--hubi-btn-green-light-border) !important;
+}
+
+html.light :is(button:not([role="switch"]), a, [role="button"], label.cursor-pointer):is(
+  .bg-emerald-600,
+  .bg-emerald-700,
+  .bg-green-600,
+  .bg-green-700,
+  .bg-emerald-500.text-white,
+  .bg-green-500.text-white
+):not(.font-semibold):not(.font-bold):not(.font-extrabold):not(.font-black) {
+  font-weight: 700 !important;
+}
+
+html.light :is(button:not([role="switch"]), a, [role="button"], label.cursor-pointer):is(
+  .bg-emerald-600,
+  .bg-emerald-700,
+  .bg-green-600,
+  .bg-green-700,
+  .bg-emerald-500.text-white,
+  .bg-green-500.text-white,
+  .bg-gradient-to-r.from-emerald-600.to-teal-500
+):hover:not(:disabled):not([aria-disabled="true"]) {
+  background-color: var(--hubi-btn-green-light-bg-hover) !important;
+  color: var(--hubi-btn-green-light-text) !important;
+}
+
+html.light :is(button:not([role="switch"]), a, [role="button"], label.cursor-pointer):is(
+  .bg-emerald-600,
+  .bg-emerald-700,
+  .bg-green-600,
+  .bg-green-700,
+  .bg-emerald-500.text-white,
+  .bg-green-500.text-white,
+  .bg-gradient-to-r.from-emerald-600.to-teal-500
+):active:not(:disabled):not([aria-disabled="true"]) {
+  background-color: var(--hubi-btn-green-light-bg-active) !important;
+  color: var(--hubi-btn-green-light-text) !important;
+}
+
+html.light :is(button:not([role="switch"]), a, [role="button"], label.cursor-pointer):is(
+  .bg-emerald-600,
+  .bg-emerald-700,
+  .bg-green-600,
+  .bg-green-700,
+  .bg-emerald-500.text-white,
+  .bg-green-500.text-white,
+  .bg-gradient-to-r.from-emerald-600.to-teal-500,
+  .bg-emerald-500\/20
+) :is(svg, span, p, strong, small, div):not([class*="bg-slate-"]):not([class*="bg-black"]):not([class*="bg-rose-"]):not([class*="bg-red-"]) {
+  color: var(--hubi-btn-green-light-text) !important;
 }
 
 
@@ -671,6 +763,11 @@ input[type="checkbox"]:not(.sr-only):not(.hidden):focus {
   --hubi-accent-green-hover: #059669;
   --hubi-badge-bg: #ECFDF5;
   --hubi-badge-text: #047857;
+  --hubi-btn-green-light-bg: #22C59E;
+  --hubi-btn-green-light-bg-hover: #1EB38F;
+  --hubi-btn-green-light-bg-active: #18A17F;
+  --hubi-btn-green-light-border: #19A986;
+  --hubi-btn-green-light-text: #020617;
 }
 
 .hubi-card-light {

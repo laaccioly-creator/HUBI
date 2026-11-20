@@ -148,6 +148,10 @@ interface LojaOnboardingQueryRow {
   tipos_venda?: Partial<TiposVendaLoja> | null;
   aceita_pedidos_online?: boolean | null;
   whatsapp_auto_ativo?: boolean | null;
+  ia_whatsapp_ativa?: boolean | null;
+  whatsapp_ia_receptiva_ativa?: boolean | null;
+  meta_phone_number_id?: string | null;
+  meta_access_token?: string | null;
   exigir_pesagem_previa_pagamento?: boolean | null;
   caderneta_ativa?: boolean | null;
   status_em_separacao?: boolean | null;
@@ -164,6 +168,7 @@ interface ShippingOnboardingQueryRow {
   melhor_envio_ativo?: boolean | null;
   melhor_envio_token?: string | null;
   uber_ativo?: boolean | null;
+  uber_customer_id?: string | null;
   uber_client_id?: string | null;
   frete_proprio_ativo?: boolean | null;
 }
@@ -180,9 +185,9 @@ interface LojaMetasOnboardingQueryRow {
   meta_faturamento?: number | null;
 }
 
-interface MarketplaceContaQueryRow {
-  id: string;
-  status_conexao?: string | null;
+export interface OpcoesAvaliacaoOnboarding {
+  sincronizarDetectados?: boolean;
+  ignorarAutoDeteccaoChaves?: ChaveInteresseOnboarding[];
 }
 
 const criarRegistroPadraoSetup = (lojaId: string): OnboardingSetupRecord => {
@@ -306,10 +311,12 @@ const verificarGatewayPagamentoConfigurado = (
     return (
       fp.exibir_catalogo &&
       (nomeLower.includes('mercado pago') ||
+        nomeLower.includes('mercadopago') ||
         nomeLower.includes('asaas') ||
         nomeLower.includes('pagseguro') ||
         nomeLower.includes('stripe') ||
         nomeLower.includes('picpay') ||
+        nomeLower.includes('google pay') ||
         nomeLower.includes('gateway'))
     );
   });
@@ -318,29 +325,31 @@ const verificarGatewayPagamentoConfigurado = (
   if (!pagDigitais) return false;
 
   const prov = pagDigitais.provedor_ativo;
-  if (!prov || prov === 'nenhum') return false;
+  if (prov === 'nenhum') return false;
 
   const mpConfigurado = Boolean(
-    pagDigitais.mercado_pago?.ativo &&
-      (pagDigitais.mercado_pago.public_key?.trim() || pagDigitais.mercado_pago.access_token?.trim())
+    (pagDigitais.mercado_pago?.ativo === true || prov === 'mercado_pago' || prov === 'todos') &&
+      (pagDigitais.mercado_pago?.public_key?.trim() || pagDigitais.mercado_pago?.access_token?.trim())
   );
   const asaasConfigurado = Boolean(
-    pagDigitais.asaas?.ativo && pagDigitais.asaas.api_key?.trim()
+    (pagDigitais.asaas?.ativo === true || prov === 'asaas' || prov === 'todos') &&
+      pagDigitais.asaas?.api_key?.trim()
   );
   const pagseguroConfigurado = Boolean(
-    pagDigitais.pagseguro?.ativo &&
-      (pagDigitais.pagseguro.token?.trim() || pagDigitais.pagseguro.email?.trim())
+    (pagDigitais.pagseguro?.ativo === true || prov === 'pagseguro' || prov === 'todos') &&
+      (pagDigitais.pagseguro?.token?.trim() || pagDigitais.pagseguro?.email?.trim())
   );
   const stripeConfigurado = Boolean(
-    pagDigitais.stripe?.ativo &&
-      (pagDigitais.stripe.publishable_key?.trim() || pagDigitais.stripe.secret_key?.trim())
+    (pagDigitais.stripe?.ativo === true || prov === 'stripe' || prov === 'todos') &&
+      (pagDigitais.stripe?.publishable_key?.trim() || pagDigitais.stripe?.secret_key?.trim())
   );
   const picpayConfigurado = Boolean(
-    pagDigitais.picpay?.ativo &&
-      (pagDigitais.picpay.token?.trim() || pagDigitais.picpay.seller_token?.trim())
+    (pagDigitais.picpay?.ativo === true || prov === 'picpay' || prov === 'todos') &&
+      (pagDigitais.picpay?.token?.trim() || pagDigitais.picpay?.seller_token?.trim())
   );
   const gpayConfigurado = Boolean(
-    pagDigitais.google_pay?.ativo && pagDigitais.google_pay.merchant_id?.trim()
+    (pagDigitais.google_pay?.ativo === true || prov === 'google_pay' || prov === 'todos') &&
+      pagDigitais.google_pay?.merchant_id?.trim()
   );
 
   return (
@@ -530,7 +539,8 @@ export async function atualizarConfiguracaoDiretaLoja(
  * essenciais (Grupo 1) e opcionais selecionadas pelo lojista (Grupo 2).
  */
 export async function avaliarProgressoCompletoOnboarding(
-  lojaId: string
+  lojaId: string,
+  opcoes?: OpcoesAvaliacaoOnboarding
 ): Promise<StatusOnboardingCompleto> {
   if (!lojaId) {
     throw new Error('Identificador da loja inválido para avaliar o progresso.');
@@ -552,9 +562,7 @@ export async function avaliarProgressoCompletoOnboarding(
     try {
       const { data, error } = await supabase
         .from('loja_shipping_configs')
-        .select(
-          'origem_cep, melhor_envio_ativo, melhor_envio_token, uber_ativo, uber_client_id, frete_proprio_ativo'
-        )
+        .select('*')
         .eq('loja_id', lojaId)
         .maybeSingle();
       if (error) return null;
@@ -592,28 +600,11 @@ export async function avaliarProgressoCompletoOnboarding(
     }
   };
 
-  const consultarMarketplaceSeguro = async (): Promise<MarketplaceContaQueryRow | null> => {
-    try {
-      const { data, error } = await supabase
-        .from('marketplace_contas')
-        .select('id, status_conexao')
-        .eq('loja_id', lojaId)
-        .eq('provedor', 'mercadolivre')
-        .maybeSingle();
-      if (error) return null;
-      return (data as MarketplaceContaQueryRow | null) ?? null;
-    } catch {
-      return null;
-    }
-  };
-
   const consultarLojaSegura = async (): Promise<LojaOnboardingQueryRow | null> => {
     try {
       const { data, error } = await supabase
         .from('lojas')
-        .select(
-          'id, whatsapp, endereco_cep, gemini_api_key, serper_api_key, tipos_venda, aceita_pedidos_online, whatsapp_auto_ativo, exigir_pesagem_previa_pagamento, caderneta_ativa, status_em_separacao, status_em_expedicao, status_aguardando_envio, status_enviado, status_entregue, status_pronto_para_retirar, configuracoes_extras'
-        )
+        .select('*')
         .eq('id', lojaId)
         .maybeSingle();
       if (error) return null;
@@ -632,8 +623,11 @@ export async function avaliarProgressoCompletoOnboarding(
     lojaMetas,
     countAppsEntrega,
     countTransportadoras,
-    marketplaceConta,
+    countMarketplaceConectadas,
     countProfissionais,
+    countProdutosAgendamento,
+    countProdutosPeso,
+    countClientesFiadoCaderneta,
   ] = await Promise.all([
     obterOuCriarSetupLoja(lojaId),
     consultarLojaSegura(),
@@ -661,13 +655,40 @@ export async function avaliarProgressoCompletoOnboarding(
         .eq('loja_id', lojaId)
         .eq('ativo', true)
     ),
-    consultarMarketplaceSeguro(),
+    consultarContagemSegura(
+      supabase
+        .from('marketplace_contas')
+        .select('id', { count: 'exact', head: true })
+        .eq('loja_id', lojaId)
+        .eq('status_conexao', 'conectado')
+    ),
     consultarContagemSegura(
       supabase
         .from('usuarios_loja')
         .select('id', { count: 'exact', head: true })
         .eq('loja_id', lojaId)
         .eq('presta_servicos', true)
+    ),
+    consultarContagemSegura(
+      supabase
+        .from('produtos')
+        .select('id', { count: 'exact', head: true })
+        .eq('loja_id', lojaId)
+        .eq('requer_agendamento', true)
+    ),
+    consultarContagemSegura(
+      supabase
+        .from('produtos')
+        .select('id', { count: 'exact', head: true })
+        .eq('loja_id', lojaId)
+        .or('venda_por_peso.eq.true,permite_fracionado.eq.true')
+    ),
+    consultarContagemSegura(
+      supabase
+        .from('clientes')
+        .select('id', { count: 'exact', head: true })
+        .eq('loja_id', lojaId)
+        .or('permite_fiado.eq.true,permite_caderneta.eq.true')
     ),
   ]);
 
@@ -688,6 +709,13 @@ export async function avaliarProgressoCompletoOnboarding(
     if (typeof fallbackExtra === 'boolean') return fallbackExtra;
     return true;
   };
+
+  const whatsappAutoConfigurado = Boolean(
+    lojaData?.whatsapp_auto_ativo === true ||
+      lojaData?.whatsapp_ia_receptiva_ativa === true ||
+      (lojaData?.ia_whatsapp_ativa === true &&
+        Boolean(lojaData?.meta_phone_number_id?.trim() || lojaData?.meta_access_token?.trim()))
+  );
 
   const lojaSnapshot: SnapshotLojaOnboarding = {
     tipos_venda: tiposVendaSnapshot,
@@ -718,21 +746,92 @@ export async function avaliarProgressoCompletoOnboarding(
     exigir_pesagem_previa_pagamento: Boolean(lojaData?.exigir_pesagem_previa_pagamento),
     caderneta_ativa: Boolean(lojaData?.caderneta_ativa),
     aceita_pedidos_online: Boolean(lojaData?.aceita_pedidos_online),
-    whatsapp_auto_ativo: Boolean(lojaData?.whatsapp_auto_ativo),
+    whatsapp_auto_ativo: whatsappAutoConfigurado,
     gemini_configurado: Boolean(
       (lojaData?.gemini_api_key || extras.ia?.gemini_api_key || '').trim()
     ),
-    serper_configurado: Boolean((lojaData?.serper_api_key || '').trim()),
+    serper_configurado: Boolean(
+      (lojaData?.serper_api_key || extras.ia?.serper_api_key || '').trim()
+    ),
   };
 
-  const algumStatusOpcionalAtivado = [
-    lojaData?.status_em_separacao,
-    lojaData?.status_em_expedicao,
-    lojaData?.status_aguardando_envio,
-    lojaData?.status_enviado,
-    lojaData?.status_entregue,
-    lojaData?.status_pronto_para_retirar,
-  ].some((flag) => flag === true);
+  const catalogoOnlineConfigurado = lojaData?.aceita_pedidos_online === true;
+  const gatewayPagamentoConfigurado = verificarGatewayPagamentoConfigurado(
+    formasPagamentoAtivas,
+    extras.pagamentos_digitais
+  );
+  const melhorEnvioConfigurado = Boolean(
+    shippingConfig?.melhor_envio_ativo === true && shippingConfig?.melhor_envio_token?.trim()
+  );
+  const uberDirectConfigurado = Boolean(
+    shippingConfig?.uber_ativo === true &&
+      (shippingConfig?.uber_customer_id?.trim() || shippingConfig?.uber_client_id?.trim())
+  );
+  const appsCorridaConfigurado = countAppsEntrega >= 1;
+  const transportadorasManuaisConfigurado =
+    shippingConfig?.frete_proprio_ativo === true || countTransportadoras >= 1;
+  const mercadoLivreConfigurado = countMarketplaceConectadas >= 1;
+  const agendamentoServicosConfigurado =
+    countProfissionais >= 1 || countProdutosAgendamento >= 1;
+  const vendaPorPesoConfigurado =
+    lojaSnapshot.exigir_pesagem_previa_pagamento || countProdutosPeso >= 1;
+  const cadernetaFiadoConfigurado =
+    lojaSnapshot.caderneta_ativa || countClientesFiadoCaderneta >= 1;
+
+  const sincronizarDetectados = opcoes?.sincronizarDetectados !== false;
+  const ignorarSet = new Set<ChaveInteresseOnboarding>(opcoes?.ignorarAutoDeteccaoChaves ?? []);
+  const modulosDetectados: Partial<Record<ChaveInteresseOnboarding, boolean>> = {
+    interesse_ia_gemini: lojaSnapshot.gemini_configurado,
+    interesse_busca_fotos_serper: lojaSnapshot.serper_configurado,
+    interesse_catalogo_online: catalogoOnlineConfigurado,
+    interesse_gateway_pagamento: gatewayPagamentoConfigurado,
+    interesse_melhor_envio: melhorEnvioConfigurado,
+    interesse_uber_direct: uberDirectConfigurado,
+    interesse_apps_corrida: appsCorridaConfigurado,
+    interesse_transportadoras_manuais: transportadorasManuaisConfigurado,
+    interesse_whatsapp_auto: whatsappAutoConfigurado,
+    interesse_mercado_livre: mercadoLivreConfigurado,
+    interesse_agendamento_servicos: agendamentoServicosConfigurado,
+    interesse_venda_por_peso: vendaPorPesoConfigurado,
+    interesse_caderneta_fiado: cadernetaFiadoConfigurado,
+  };
+
+  const patchAutoSync: AtualizacaoOnboardingSetupPayload = {};
+  if (sincronizarDetectados) {
+    (
+      Object.entries(modulosDetectados) as Array<[ChaveInteresseOnboarding, boolean | undefined]>
+    ).forEach(([chave, detectado]) => {
+      if (detectado === true && setup[chave] !== true && !ignorarSet.has(chave)) {
+        patchAutoSync[chave] = true;
+      }
+    });
+  }
+
+  const setupEfetivo: OnboardingSetupRecord = {
+    ...setup,
+    ...patchAutoSync,
+  };
+
+  if (Object.keys(patchAutoSync).length > 0) {
+    try {
+      const { error: erroSync } = await supabase
+        .from('loja_onboarding_setup')
+        .upsert(
+          {
+            loja_id: lojaId,
+            ...patchAutoSync,
+            atualizado_em: new Date().toISOString(),
+          },
+          { onConflict: 'loja_id' }
+        );
+
+      if (erroSync && isErroTabelaAusente(erroSync)) {
+        salvarSetupFallbackLocal(lojaId, patchAutoSync);
+      }
+    } catch {
+      // Degradação graciosa: mantém o setupEfetivo em memória sem interromper o diagnóstico
+    }
+  }
 
   // Grupo 1 — Essenciais (sempre exibidas)
   const etapasEssenciais: EtapaOnboardingItem[] = [
@@ -807,8 +906,8 @@ export async function avaliarProgressoCompletoOnboarding(
       ordem: 6,
       titulo: 'Fluxo de Status dos Pedidos',
       descricao:
-        'Personalize quais etapas opcionais aparecem no Kanban operacional (Em separação, Expedição, Enviado, etc.).',
-      concluido: setup.questionario_respondido === true || algumStatusOpcionalAtivado,
+        'Os status Pendente, Confirmado, Cancelado e Concluído já são padrão do sistema. Personalize etapas opcionais do Kanban apenas se desejar.',
+      concluido: true,
       rotaDestino: '/config?tab=pedidos-vendas',
       interesseAtivo: true,
     },
@@ -846,10 +945,10 @@ export async function avaliarProgressoCompletoOnboarding(
       titulo: 'Vitrine Virtual (Catálogo Online PWA)',
       descricao:
         'Receba pedidos 24h por dia com link próprio e vitrine responsiva sem precisar atender um por um no chat.',
-      concluido: lojaSnapshot.aceita_pedidos_online,
+      concluido: catalogoOnlineConfigurado,
       rotaDestino: '/catalog-config',
       chaveInteresse: 'interesse_catalogo_online',
-      interesseAtivo: setup.interesse_catalogo_online,
+      interesseAtivo: setupEfetivo.interesse_catalogo_online,
     },
     {
       id: 'gateway_pagamento',
@@ -858,13 +957,10 @@ export async function avaliarProgressoCompletoOnboarding(
       titulo: 'Gateway de Pagamentos Online (Mercado Pago, Asaas e outros)',
       descricao:
         'Receba via Pix dinâmico com baixa automática instantânea e Cartão de Crédito/Débito direto no catálogo.',
-      concluido: verificarGatewayPagamentoConfigurado(
-        formasPagamentoAtivas,
-        extras.pagamentos_digitais
-      ),
+      concluido: gatewayPagamentoConfigurado,
       rotaDestino: '/config?tab=pagamentos',
       chaveInteresse: 'interesse_gateway_pagamento',
-      interesseAtivo: setup.interesse_gateway_pagamento,
+      interesseAtivo: setupEfetivo.interesse_gateway_pagamento,
     },
     {
       id: 'melhor_envio',
@@ -873,13 +969,10 @@ export async function avaliarProgressoCompletoOnboarding(
       titulo: 'Cotação Automática Nacional (Melhor Envio)',
       descricao:
         'Seu cliente calcula PAC, SEDEX e Jadlog direto no catálogo e fecha o pedido sozinho, sem intervenção humana para cotar frete, além de emitir etiquetas em 1 clique.',
-      concluido: Boolean(
-        shippingConfig?.melhor_envio_ativo === true &&
-          shippingConfig?.melhor_envio_token?.trim()
-      ),
+      concluido: melhorEnvioConfigurado,
       rotaDestino: '/config/frete',
       chaveInteresse: 'interesse_melhor_envio',
-      interesseAtivo: setup.interesse_melhor_envio,
+      interesseAtivo: setupEfetivo.interesse_melhor_envio,
     },
     {
       id: 'uber_direct',
@@ -888,12 +981,10 @@ export async function avaliarProgressoCompletoOnboarding(
       titulo: 'Entregas Expressas Locais (Uber Direct)',
       descricao:
         'Chame entregadores parceiros ponto a ponto automaticamente no fechamento do pedido com rastreio ao vivo.',
-      concluido: Boolean(
-        shippingConfig?.uber_ativo === true && shippingConfig?.uber_client_id?.trim()
-      ),
+      concluido: uberDirectConfigurado,
       rotaDestino: '/config/frete',
       chaveInteresse: 'interesse_uber_direct',
-      interesseAtivo: setup.interesse_uber_direct,
+      interesseAtivo: setupEfetivo.interesse_uber_direct,
     },
     {
       id: 'apps_corrida',
@@ -902,10 +993,10 @@ export async function avaliarProgressoCompletoOnboarding(
       titulo: 'Apps de Corrida Externos (99, Lalamove, etc.)',
       descricao:
         'Registre o código da corrida e o link de acompanhamento diretamente nos pedidos despachados.',
-      concluido: countAppsEntrega >= 1,
+      concluido: appsCorridaConfigurado,
       rotaDestino: '/config/frete',
       chaveInteresse: 'interesse_apps_corrida',
-      interesseAtivo: setup.interesse_apps_corrida,
+      interesseAtivo: setupEfetivo.interesse_apps_corrida,
     },
     {
       id: 'transportadoras_manuais',
@@ -914,11 +1005,10 @@ export async function avaliarProgressoCompletoOnboarding(
       titulo: 'Transportadoras Manuais / Frota Própria',
       descricao:
         'Cadastre transportadoras próprias (ônibus, Braspress, motoboy da loja) com link de rastreio personalizado.',
-      concluido:
-        countTransportadoras >= 1 || shippingConfig?.frete_proprio_ativo === true,
+      concluido: transportadorasManuaisConfigurado,
       rotaDestino: '/config/frete',
       chaveInteresse: 'interesse_transportadoras_manuais',
-      interesseAtivo: setup.interesse_transportadoras_manuais,
+      interesseAtivo: setupEfetivo.interesse_transportadoras_manuais,
     },
     {
       id: 'whatsapp_auto',
@@ -927,10 +1017,10 @@ export async function avaliarProgressoCompletoOnboarding(
       titulo: 'Notificações Automáticas no WhatsApp (Meta Cloud API)',
       descricao:
         'Avise o cliente automaticamente quando o pedido sair para entrega, ficar pronto para retirada ou lembrar do agendamento.',
-      concluido: lojaSnapshot.whatsapp_auto_ativo,
+      concluido: whatsappAutoConfigurado,
       rotaDestino: '/config?tab=whatsapp-ia',
       chaveInteresse: 'interesse_whatsapp_auto',
-      interesseAtivo: setup.interesse_whatsapp_auto,
+      interesseAtivo: setupEfetivo.interesse_whatsapp_auto,
     },
     {
       id: 'mercado_livre',
@@ -939,10 +1029,10 @@ export async function avaliarProgressoCompletoOnboarding(
       titulo: 'Integração com Mercado Livre',
       descricao:
         'Sincronize o estoque físico com seus anúncios em tempo real e imprima etiquetas direto pelo HUBI.',
-      concluido: marketplaceConta?.status_conexao === 'conectado',
+      concluido: mercadoLivreConfigurado,
       rotaDestino: '/config?tab=parceiros',
       chaveInteresse: 'interesse_mercado_livre',
-      interesseAtivo: setup.interesse_mercado_livre,
+      interesseAtivo: setupEfetivo.interesse_mercado_livre,
     },
     {
       id: 'agendamento_servicos',
@@ -951,10 +1041,10 @@ export async function avaliarProgressoCompletoOnboarding(
       titulo: 'Agendamento de Serviços com Hora Marcada',
       descricao:
         'Agenda online 24h por profissional, sem conflito de horário e confirmação rápida via link no WhatsApp.',
-      concluido: countProfissionais >= 1,
+      concluido: agendamentoServicosConfigurado,
       rotaDestino: '/users',
       chaveInteresse: 'interesse_agendamento_servicos',
-      interesseAtivo: setup.interesse_agendamento_servicos,
+      interesseAtivo: setupEfetivo.interesse_agendamento_servicos,
     },
     {
       id: 'venda_por_peso',
@@ -963,10 +1053,10 @@ export async function avaliarProgressoCompletoOnboarding(
       titulo: 'Venda por Peso / Balança',
       descricao:
         'O cliente pede no catálogo e o pagamento só é liberado após você pesar o item na balança e confirmar o valor exato.',
-      concluido: lojaSnapshot.exigir_pesagem_previa_pagamento,
+      concluido: vendaPorPesoConfigurado,
       rotaDestino: '/catalog-config',
       chaveInteresse: 'interesse_venda_por_peso',
-      interesseAtivo: setup.interesse_venda_por_peso,
+      interesseAtivo: setupEfetivo.interesse_venda_por_peso,
     },
     {
       id: 'caderneta_fiado',
@@ -975,10 +1065,10 @@ export async function avaliarProgressoCompletoOnboarding(
       titulo: 'Caderneta de Mercadinho / Fiado',
       descricao:
         'Conta corrente mensal com dia fixo de vencimento, controle de saldo devedor e limite de crédito por cliente.',
-      concluido: lojaSnapshot.caderneta_ativa,
+      concluido: cadernetaFiadoConfigurado,
       rotaDestino: '/config?tab=pagamentos',
       chaveInteresse: 'interesse_caderneta_fiado',
-      interesseAtivo: setup.interesse_caderneta_fiado,
+      interesseAtivo: setupEfetivo.interesse_caderneta_fiado,
     },
   ];
 
@@ -998,7 +1088,7 @@ export async function avaliarProgressoCompletoOnboarding(
   const proximaEtapaPendente = etapasAtivas.find((etapa) => !etapa.concluido) || null;
 
   return {
-    setup,
+    setup: setupEfetivo,
     lojaSnapshot,
     etapasEssenciais,
     etapasOpcionaisAtivas,
