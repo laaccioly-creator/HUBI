@@ -225,7 +225,9 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
 }) => {
   const navigate = useNavigate();
   const { isDark } = useTheme();
-  const { loja, recarregarDadosLoja } = useAuth();
+  const { loja, carregando: carregandoAuth, recarregarDadosLoja } = useAuth();
+  const lojaRef = useRef(loja);
+  lojaRef.current = loja;
 
   const [carregando, setCarregando] = useState<boolean>(true);
   const [salvandoConclusao, setSalvandoConclusao] = useState<boolean>(false);
@@ -246,6 +248,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
   const [etapaPorQueUsarId, setEtapaPorQueUsarId] = useState<EtapaOnboardingId | null>(null);
 
   const cardRefs = useRef<Partial<Record<EtapaOnboardingId, HTMLDivElement | null>>>({});
+  const requisicaoIdRef = useRef<number>(0);
 
   const algumSubModalAberto =
     modalGeminiAberto ||
@@ -270,28 +273,47 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
 
   const carregarProgresso = useCallback(async () => {
     if (!loja?.id) return;
+    const reqId = ++requisicaoIdRef.current;
     try {
       setErroMensagem(null);
       const resultado = await avaliarProgressoCompletoOnboarding(loja.id, {
         sincronizarDetectados: true,
+        lojaFallback: lojaRef.current,
       });
-      setStatusCompleto(resultado);
+      if (reqId === requisicaoIdRef.current) {
+        setStatusCompleto(resultado);
+      }
     } catch (err) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : 'Não foi possível carregar o diagnóstico da implantação.';
-      setErroMensagem(msg);
+      if (reqId === requisicaoIdRef.current) {
+        const msg =
+          err instanceof Error
+            ? err.message
+            : 'Não foi possível carregar o diagnóstico da implantação.';
+        setErroMensagem(msg);
+      }
     } finally {
-      setCarregando(false);
+      if (reqId === requisicaoIdRef.current) {
+        setCarregando(false);
+      }
     }
   }, [loja?.id]);
 
   useEffect(() => {
-    if (!isOpen || !loja?.id) return;
+    if (!isOpen) return;
+    if (carregandoAuth) {
+      setCarregando(true);
+      return;
+    }
+    if (!loja?.id) {
+      setCarregando(false);
+      return;
+    }
     setCarregando(true);
     carregarProgresso();
-  }, [isOpen, loja?.id, carregarProgresso]);
+    return () => {
+      requisicaoIdRef.current++;
+    };
+  }, [isOpen, carregandoAuth, loja?.id, carregarProgresso]);
 
   useEffect(() => {
     if (!isOpen || !etapaDestaque || carregando) return;

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { logger } from './loggerService';
 import { ConfiguracoesExtrasLoja, PagamentosDigitaisConfig } from '../types';
 
 export type EtapaOnboardingId =
@@ -139,7 +140,7 @@ export const EVENTO_ONBOARDING_ATUALIZADO = 'hubi:onboarding-atualizado';
 const STORAGE_KEY_RETORNO = 'hubi_retorno_onboarding';
 const STORAGE_PREFIX_FALLBACK = 'hubi_onboarding_setup_';
 
-interface LojaOnboardingQueryRow {
+export interface LojaOnboardingQueryRow {
   id: string;
   whatsapp?: string | null;
   endereco_cep?: string | null;
@@ -188,7 +189,16 @@ interface LojaMetasOnboardingQueryRow {
 export interface OpcoesAvaliacaoOnboarding {
   sincronizarDetectados?: boolean;
   ignorarAutoDeteccaoChaves?: ChaveInteresseOnboarding[];
+  lojaFallback?: Partial<LojaOnboardingQueryRow> | null;
 }
+
+interface ResultadoSetupLoja {
+  setup: OnboardingSetupRecord;
+  persistidoNoBanco: boolean;
+}
+
+const MARGEM_EXPIRACAO_SESSAO_SEGUNDOS = 60;
+let promessaVerificacaoSessaoAtiva: Promise<boolean> | null = null;
 
 const criarRegistroPadraoSetup = (lojaId: string): OnboardingSetupRecord => {
   const agora = new Date().toISOString();
@@ -226,6 +236,83 @@ const isErroTabelaAusente = (err: { code?: string; message?: string } | null): b
     msg.includes('could not find the table')
   );
 };
+
+const isErroRlsOuPermissao = (
+  err: { code?: string; message?: string; status?: number } | null
+): boolean => {
+  if (!err) return false;
+  const msg = (err.message || '').toLowerCase();
+  return (
+    err.code === '42501' ||
+    err.code === 'PGRST301' ||
+    err.status === 401 ||
+    err.status === 403 ||
+    msg.includes('row-level security') ||
+    msg.includes('permission denied') ||
+    msg.includes('jwt')
+  );
+};
+
+/**
+ * Garante que a sessão Auth do Supabase esteja hidratada e renovada preventivamente
+ * antes de consultas/escritas protegidas por RLS (ex.: auth.uid() IS NOT NULL).
+ */
+async function garantirSessaoAuthAtiva(lojaId: string): Promise<boolean> {
+  if (promessaVerificacaoSessaoAtiva) {
+    return promessaVerificacaoSessaoAtiva;
+  }
+
+  promessaVerificacaoSessaoAtiva = (async () => {
+    let sessaoAtual: { access_token?: string; expires_at?: number } | null = null;
+    const agoraSegundos = Math.floor(Date.now() / 1000);
+
+    try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      sessaoAtual = sessionData?.session ?? null;
+
+      if (!sessionError && sessaoAtual?.access_token) {
+        const expiraEm = sessaoAtual.expires_at ?? 0;
+        if (expiraEm === 0 || expiraEm - agoraSegundos > MARGEM_EXPIRACAO_SESSAO_SEGUNDOS) {
+          return true;
+        }
+      }
+
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      if (!refreshError && refreshData?.session?.access_token) {
+        return true;
+      }
+
+      if (refreshError) {
+        const errMeta = refreshError as { code?: string; status?: number; message?: string };
+        logger.warn(
+          'onboardingSetupService',
+          'garantirSessaoAuthAtiva',
+          `[${errMeta.code || errMeta.status || 'AUTH'}] Falha ao renovar sessão Auth: ${
+            errMeta.message || 'erro desconhecido'
+          }`,
+          {
+            loja_id: lojaId,
+            codigo_erro: errMeta.code || (errMeta.status ? String(errMeta.status) : null),
+          }
+        );
+      }
+    } catch (err) {
+      logger.warn(
+        'onboardingSetupService',
+        'garantirSessaoAuthAtiva',
+        err instanceof Error ? err.message : 'Exceção ao validar/renovar sessão Auth.',
+        { loja_id: lojaId }
+      );
+    }
+
+    const expiraEm = sessaoAtual?.expires_at ?? 0;
+    return Boolean(sessaoAtual?.access_token && (expiraEm === 0 || expiraEm > agoraSegundos));
+  })().finally(() => {
+    promessaVerificacaoSessaoAtiva = null;
+  });
+
+  return promessaVerificacaoSessaoAtiva;
+}
 
 const lerSetupFallbackLocal = (lojaId: string): OnboardingSetupRecord => {
   const padrao = criarRegistroPadraoSetup(lojaId);
@@ -362,45 +449,138 @@ const verificarGatewayPagamentoConfigurado = (
   );
 };
 
+async function consultarOuInicializarSetupLojaInterno(
+  lojaId: string,
+  sessaoJaVerificada?: boolean
+): Promise<ResultadoSetupLoja> {
+  try {
+    const sessaoAtiva =
+      sessaoJaVerificada !== undefined
+        ? sessaoJaVerificada
+        : await garantirSessaoAuthAtiva(lojaId);
+
+    // 1. Sempre realiza SELECT primeiro antes de qualquer INSERT
+    const { data: existente, error: erroConsulta } = await supabase
+      .from('loja_onboarding_setup')
+      .select('*')
+      .eq('loja_id', lojaId)
+      .maybeSingle();
+
+    if (erroConsulta) {
+      if (!isErroTabelaAusente(erroConsulta)) {
+        logger.warn(
+          'onboardingSetupService',
+          'obterOuCriarSetupLoja:select',
+          `[${erroConsulta.code || 'SEM_CODIGO'}] ${
+            erroConsulta.message || 'Falha ao consultar loja_onboarding_setup'
+          }`,
+          {
+            loja_id: lojaId,
+            codigo_erro: erroConsulta.code ?? null,
+          }
+        );
+      }
+      return {
+        setup: lerSetupFallbackLocal(lojaId),
+        persistidoNoBanco: false,
+      };
+    }
+
+    if (existente) {
+      return {
+        setup: normalizarRegistroSetup(lojaId, existente as Partial<OnboardingSetupRecord>),
+        persistidoNoBanco: true,
+      };
+    }
+
+    // 2. Somente cria o registro inicial se houver sessão authenticated válida
+    if (!sessaoAtiva) {
+      logger.warn(
+        'onboardingSetupService',
+        'obterOuCriarSetupLoja:sem_sessao',
+        'Sessão Supabase authenticated indisponível para inicializar registro; seguindo com leitura não-bloqueante.',
+        { loja_id: lojaId }
+      );
+      return {
+        setup: lerSetupFallbackLocal(lojaId),
+        persistidoNoBanco: false,
+      };
+    }
+
+    const { data: criado, error: erroCriacao } = await supabase
+      .from('loja_onboarding_setup')
+      .insert({ loja_id: lojaId })
+      .select('*')
+      .single();
+
+    if (!erroCriacao && criado) {
+      return {
+        setup: normalizarRegistroSetup(lojaId, criado as Partial<OnboardingSetupRecord>),
+        persistidoNoBanco: true,
+      };
+    }
+
+    // Trata concorrência de abas/requisições simultâneas (UNIQUE loja_id)
+    if (erroCriacao?.code === '23505') {
+      const { data: aposConcorrencia } = await supabase
+        .from('loja_onboarding_setup')
+        .select('*')
+        .eq('loja_id', lojaId)
+        .maybeSingle();
+
+      if (aposConcorrencia) {
+        return {
+          setup: normalizarRegistroSetup(
+            lojaId,
+            aposConcorrencia as Partial<OnboardingSetupRecord>
+          ),
+          persistidoNoBanco: true,
+        };
+      }
+    }
+
+    if (erroCriacao && !isErroTabelaAusente(erroCriacao)) {
+      logger.warn(
+        'onboardingSetupService',
+        'obterOuCriarSetupLoja:insert',
+        `[${erroCriacao.code || 'SEM_CODIGO'}] ${
+          erroCriacao.message || 'Falha ao inicializar registro em loja_onboarding_setup'
+        }`,
+        {
+          loja_id: lojaId,
+          codigo_erro: erroCriacao.code ?? null,
+        }
+      );
+    }
+
+    return {
+      setup: lerSetupFallbackLocal(lojaId),
+      persistidoNoBanco: false,
+    };
+  } catch (err) {
+    logger.warn(
+      'onboardingSetupService',
+      'obterOuCriarSetupLoja:excecao',
+      err instanceof Error ? err.message : 'Exceção ao consultar/inicializar onboarding.',
+      { loja_id: lojaId }
+    );
+    return {
+      setup: lerSetupFallbackLocal(lojaId),
+      persistidoNoBanco: false,
+    };
+  }
+}
+
 /**
- * Obtém o registro de setup de onboarding da loja ou cria um registro inicial caso não exista.
+ * Obtém o registro de setup de onboarding da loja ou cria um registro inicial de forma não-bloqueante.
  */
 export async function obterOuCriarSetupLoja(lojaId: string): Promise<OnboardingSetupRecord> {
   if (!lojaId) {
     throw new Error('Identificador da loja inválido para consulta de implantação.');
   }
 
-  const { data: existente, error: erroConsulta } = await supabase
-    .from('loja_onboarding_setup')
-    .select('*')
-    .eq('loja_id', lojaId)
-    .maybeSingle();
-
-  if (erroConsulta) {
-    if (isErroTabelaAusente(erroConsulta)) {
-      return lerSetupFallbackLocal(lojaId);
-    }
-    throw new Error('Não foi possível consultar o questionário inicial desta loja.');
-  }
-
-  if (existente) {
-    return normalizarRegistroSetup(lojaId, existente as Partial<OnboardingSetupRecord>);
-  }
-
-  const { data: criado, error: erroCriacao } = await supabase
-    .from('loja_onboarding_setup')
-    .upsert({ loja_id: lojaId }, { onConflict: 'loja_id' })
-    .select('*')
-    .single();
-
-  if (erroCriacao) {
-    if (isErroTabelaAusente(erroCriacao)) {
-      return salvarSetupFallbackLocal(lojaId, {});
-    }
-    throw new Error('Não foi possível inicializar o registro do questionário desta loja.');
-  }
-
-  return normalizarRegistroSetup(lojaId, criado as Partial<OnboardingSetupRecord>);
+  const { setup } = await consultarOuInicializarSetupLojaInterno(lojaId);
+  return setup;
 }
 
 /**
@@ -412,6 +592,19 @@ export async function salvarRespostasOnboarding(
 ): Promise<OnboardingSetupRecord> {
   if (!lojaId) {
     throw new Error('Identificador da loja não informado.');
+  }
+
+  const sessaoAtiva = await garantirSessaoAuthAtiva(lojaId);
+  if (!sessaoAtiva) {
+    logger.warn(
+      'onboardingSetupService',
+      'salvarRespostasOnboarding:sem_sessao',
+      'Sessão authenticated indisponível ao salvar preferências; persistindo fallback local.',
+      { loja_id: lojaId }
+    );
+    const localAtualizado = salvarSetupFallbackLocal(lojaId, dados);
+    dispararEventoJanela(EVENTO_ONBOARDING_ATUALIZADO, { lojaId });
+    return localAtualizado;
   }
 
   const payload: AtualizacaoOnboardingSetupPayload & {
@@ -430,11 +623,29 @@ export async function salvarRespostasOnboarding(
     .single();
 
   if (error) {
-    if (isErroTabelaAusente(error)) {
+    if (isErroTabelaAusente(error) || isErroRlsOuPermissao(error)) {
+      if (!isErroTabelaAusente(error)) {
+        logger.warn(
+          'onboardingSetupService',
+          'salvarRespostasOnboarding:upsert',
+          `[${error.code || 'SEM_CODIGO'}] ${
+            error.message || 'Erro de permissão/RLS ao salvar preferências'
+          }`,
+          {
+            loja_id: lojaId,
+            codigo_erro: error.code ?? null,
+          }
+        );
+      }
       const localAtualizado = salvarSetupFallbackLocal(lojaId, dados);
       dispararEventoJanela(EVENTO_ONBOARDING_ATUALIZADO, { lojaId });
       return localAtualizado;
     }
+
+    logger.error('onboardingSetupService', 'salvarRespostasOnboarding:upsert', error, {
+      loja_id: lojaId,
+      codigo_erro: error.code ?? null,
+    });
     throw new Error('Não foi possível salvar as preferências do questionário inicial.');
   }
 
@@ -485,6 +696,8 @@ export async function atualizarConfiguracaoDiretaLoja(
   }
 
   if (Object.keys(payloadUpdate).length === 0) return;
+
+  await garantirSessaoAuthAtiva(lojaId);
 
   const { error } = await supabase
     .from('lojas')
@@ -614,8 +827,10 @@ export async function avaliarProgressoCompletoOnboarding(
     }
   };
 
+  const sessaoAtiva = await garantirSessaoAuthAtiva(lojaId);
+
   const [
-    setup,
+    setupResultado,
     lojaData,
     shippingConfig,
     formasPagamentoAtivas,
@@ -629,7 +844,7 @@ export async function avaliarProgressoCompletoOnboarding(
     countProdutosPeso,
     countClientesFiadoCaderneta,
   ] = await Promise.all([
-    obterOuCriarSetupLoja(lojaId),
+    consultarOuInicializarSetupLojaInterno(lojaId, sessaoAtiva),
     consultarLojaSegura(),
     consultarShippingSeguro(),
     consultarFormasPagamentoSeguras(),
@@ -692,8 +907,11 @@ export async function avaliarProgressoCompletoOnboarding(
     ),
   ]);
 
-  const extras = lojaData?.configuracoes_extras || {};
-  const tiposVendaBruto = lojaData?.tipos_venda ?? extras.tipos_venda_ativos ?? null;
+  const { setup, persistidoNoBanco } = setupResultado;
+  const lojaEfetiva: Partial<LojaOnboardingQueryRow> | null = lojaData ?? opcoes?.lojaFallback ?? null;
+
+  const extras = lojaEfetiva?.configuracoes_extras || {};
+  const tiposVendaBruto = lojaEfetiva?.tipos_venda ?? extras.tipos_venda_ativos ?? null;
   const tiposVendaSnapshot: TiposVendaLoja = {
     varejo: tiposVendaBruto ? Boolean(tiposVendaBruto.varejo) : true,
     atacado: tiposVendaBruto ? Boolean(tiposVendaBruto.atacado) : true,
@@ -711,51 +929,51 @@ export async function avaliarProgressoCompletoOnboarding(
   };
 
   const whatsappAutoConfigurado = Boolean(
-    lojaData?.whatsapp_auto_ativo === true ||
-      lojaData?.whatsapp_ia_receptiva_ativa === true ||
-      (lojaData?.ia_whatsapp_ativa === true &&
-        Boolean(lojaData?.meta_phone_number_id?.trim() || lojaData?.meta_access_token?.trim()))
+    lojaEfetiva?.whatsapp_auto_ativo === true ||
+      lojaEfetiva?.whatsapp_ia_receptiva_ativa === true ||
+      (lojaEfetiva?.ia_whatsapp_ativa === true &&
+        Boolean(lojaEfetiva?.meta_phone_number_id?.trim() || lojaEfetiva?.meta_access_token?.trim()))
   );
 
   const lojaSnapshot: SnapshotLojaOnboarding = {
     tipos_venda: tiposVendaSnapshot,
     status_em_separacao: resolverFlagStatus(
-      lojaData?.status_em_separacao,
+      lojaEfetiva?.status_em_separacao,
       statusAtivosExtras.em_separacao ?? statusAtivosExtras.em_producao
     ),
     status_em_expedicao: resolverFlagStatus(
-      lojaData?.status_em_expedicao,
+      lojaEfetiva?.status_em_expedicao,
       statusAtivosExtras.em_expedicao
     ),
     status_aguardando_envio: resolverFlagStatus(
-      lojaData?.status_aguardando_envio,
+      lojaEfetiva?.status_aguardando_envio,
       statusAtivosExtras.aguardando_envio
     ),
     status_enviado: resolverFlagStatus(
-      lojaData?.status_enviado,
+      lojaEfetiva?.status_enviado,
       statusAtivosExtras.enviado ?? statusAtivosExtras.saiu_para_entrega
     ),
     status_entregue: resolverFlagStatus(
-      lojaData?.status_entregue,
+      lojaEfetiva?.status_entregue,
       statusAtivosExtras.entregue
     ),
     status_pronto_para_retirar: resolverFlagStatus(
-      lojaData?.status_pronto_para_retirar,
+      lojaEfetiva?.status_pronto_para_retirar,
       statusAtivosExtras.pronto_para_retirar
     ),
-    exigir_pesagem_previa_pagamento: Boolean(lojaData?.exigir_pesagem_previa_pagamento),
-    caderneta_ativa: Boolean(lojaData?.caderneta_ativa),
-    aceita_pedidos_online: Boolean(lojaData?.aceita_pedidos_online),
+    exigir_pesagem_previa_pagamento: Boolean(lojaEfetiva?.exigir_pesagem_previa_pagamento),
+    caderneta_ativa: Boolean(lojaEfetiva?.caderneta_ativa),
+    aceita_pedidos_online: Boolean(lojaEfetiva?.aceita_pedidos_online),
     whatsapp_auto_ativo: whatsappAutoConfigurado,
     gemini_configurado: Boolean(
-      (lojaData?.gemini_api_key || extras.ia?.gemini_api_key || '').trim()
+      (lojaEfetiva?.gemini_api_key || extras.ia?.gemini_api_key || '').trim()
     ),
     serper_configurado: Boolean(
-      (lojaData?.serper_api_key || extras.ia?.serper_api_key || '').trim()
+      (lojaEfetiva?.serper_api_key || extras.ia?.serper_api_key || '').trim()
     ),
   };
 
-  const catalogoOnlineConfigurado = lojaData?.aceita_pedidos_online === true;
+  const catalogoOnlineConfigurado = lojaEfetiva?.aceita_pedidos_online === true;
   const gatewayPagamentoConfigurado = verificarGatewayPagamentoConfigurado(
     formasPagamentoAtivas,
     extras.pagamentos_digitais
@@ -821,7 +1039,7 @@ export async function avaliarProgressoCompletoOnboarding(
     ...patchAutoSync,
   };
 
-  if (Object.keys(patchAutoSync).length > 0) {
+  if (Object.keys(patchAutoSync).length > 0 && sessaoAtiva && persistidoNoBanco) {
     try {
       const { error: erroSync } = await supabase
         .from('loja_onboarding_setup')
@@ -834,8 +1052,22 @@ export async function avaliarProgressoCompletoOnboarding(
           { onConflict: 'loja_id' }
         );
 
-      if (erroSync && isErroTabelaAusente(erroSync)) {
-        salvarSetupFallbackLocal(lojaId, patchAutoSync);
+      if (erroSync) {
+        if (isErroTabelaAusente(erroSync)) {
+          salvarSetupFallbackLocal(lojaId, patchAutoSync);
+        } else {
+          logger.warn(
+            'onboardingSetupService',
+            'avaliarProgresso:autoSync',
+            `[${erroSync.code || 'SEM_CODIGO'}] ${
+              erroSync.message || 'Falha na sincronização silenciosa do onboarding'
+            }`,
+            {
+              loja_id: lojaId,
+              codigo_erro: erroSync.code ?? null,
+            }
+          );
+        }
       }
     } catch {
       // Degradação graciosa: mantém o setupEfetivo em memória sem interromper o diagnóstico
@@ -878,8 +1110,8 @@ export async function avaliarProgressoCompletoOnboarding(
       descricao:
         'WhatsApp comercial e CEP de origem são obrigatórios para calcular fretes, rotas locais e retirada na loja.',
       concluido: Boolean(
-        lojaData?.whatsapp?.trim() &&
-          (lojaData?.endereco_cep?.trim() || shippingConfig?.origem_cep?.trim())
+        lojaEfetiva?.whatsapp?.trim() &&
+          (lojaEfetiva?.endereco_cep?.trim() || shippingConfig?.origem_cep?.trim())
       ),
       rotaDestino: '/config?tab=dados-loja',
       interesseAtivo: true,

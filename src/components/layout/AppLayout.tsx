@@ -295,7 +295,7 @@ export const AppLayout: React.FC = () => {
 
     obterOuCriarSetupLoja(loja.id)
       .then((setup) => {
-        if (!cancelado && !setup.questionario_respondido) {
+        if (!cancelado && !setup.id.startsWith('local-') && !setup.questionario_respondido) {
           setEtapaDestaqueOnboarding(null);
           setModalQuestionarioOnboardingAberto(true);
         }

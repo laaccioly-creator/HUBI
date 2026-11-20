@@ -107,8 +107,11 @@ const ETAPAS_INICIAIS: EtapaProntidao[] = [
  * com foco no destravamento da Rubi IA e na jornada de onboarding guiado.
  */
 export const useLojaProntidao = (lojaOverride?: Loja | null): UseLojaProntidaoReturn => {
-  const { loja: lojaAuth } = useAuth();
+  const { loja: lojaAuth, carregando: carregandoAuth } = useAuth();
+  const aguardandoAuth = lojaOverride === undefined && carregandoAuth;
   const loja = lojaOverride !== undefined ? lojaOverride : lojaAuth;
+  const lojaRef = useRef<Loja | null>(loja);
+  lojaRef.current = loja;
 
   const [dadosDb, setDadosDb] = useState<DadosContagemSupabase>({
     totalCategorias: 0,
@@ -145,7 +148,9 @@ export const useLojaProntidao = (lojaOverride?: Loja | null): UseLojaProntidaoRe
             )
             .eq('loja_id', lojaId)
             .maybeSingle(),
-          avaliarProgressoCompletoOnboarding(lojaId).catch(() => null),
+          avaliarProgressoCompletoOnboarding(lojaId, {
+            lojaFallback: lojaRef.current,
+          }).catch(() => null),
         ]);
 
         // Descarta resultados obsoletos caso a loja tenha sido alternada ou nova requisição iniciada
@@ -208,6 +213,9 @@ export const useLojaProntidao = (lojaOverride?: Loja | null): UseLojaProntidaoRe
   );
 
   const recarregar = useCallback(async (): Promise<void> => {
+    if (aguardandoAuth) {
+      return;
+    }
     if (!loja?.id) {
       setCarregando(false);
       return;
@@ -215,10 +223,16 @@ export const useLojaProntidao = (lojaOverride?: Loja | null): UseLojaProntidaoRe
     setCarregando(true);
     const newRequestId = ++requestIdRef.current;
     await consultarDadosSupabase(loja.id, newRequestId);
-  }, [loja?.id, consultarDadosSupabase]);
+  }, [aguardandoAuth, loja?.id, consultarDadosSupabase]);
 
   // Efeito principal: executa consulta ao montar ou alternar loja e gerencia subscription Realtime
   useEffect(() => {
+    if (aguardandoAuth) {
+      setCarregando(true);
+      setStatusOnboarding(null);
+      return;
+    }
+
     const lojaId = loja?.id;
 
     if (!lojaId) {
@@ -312,7 +326,7 @@ export const useLojaProntidao = (lojaOverride?: Loja | null): UseLojaProntidaoRe
       window.removeEventListener(EVENTO_ONBOARDING_ATUALIZADO, handleAtualizacaoOnboarding);
       supabase.removeChannel(channel);
     };
-  }, [loja?.id, consultarDadosSupabase]);
+  }, [aguardandoAuth, loja?.id, consultarDadosSupabase]);
 
   // Avaliação das 6 etapas essenciais
   const geminiKey = (
