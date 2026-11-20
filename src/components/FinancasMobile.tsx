@@ -152,6 +152,18 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
   const navigate = useNavigate();
   const [menuDrawerAberto, setMenuDrawerAberto] = useState(false);
 
+  const classeBotaoNeutroClaro = isDark
+    ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black'
+    : 'bg-slate-200 hover:bg-slate-300 border border-slate-300 text-black font-semibold';
+
+  const classeMiniBotaoNeutroClaro = isDark
+    ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold'
+    : 'bg-slate-200 hover:bg-slate-300 border border-slate-300 text-black font-semibold';
+
+  const classeChipAtivoNeutroClaro = isDark
+    ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black border border-emerald-500 shadow-xs'
+    : 'bg-slate-200 hover:bg-slate-300 text-black font-bold border border-slate-400 shadow-xs';
+
   // Estados locais para busca e filtros de abas
   const [termoBuscaFluxo, setTermoBuscaFluxo] = useState('');
   const [termoBuscaPagar, setTermoBuscaPagar] = useState('');
@@ -256,7 +268,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
               onClick={onRecarregar}
               disabled={carregando}
               className={`p-1.5 rounded-xl active:scale-95 transition cursor-pointer ${
-                isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-200'
+                isDark ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-900 hover:bg-slate-200'
               }`}
               title="Recarregar dados"
             >
@@ -290,10 +302,10 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
             <button
               type="button"
               onClick={onSuprimento}
-              className={`py-2 px-1 rounded-xl font-bold text-[11px] flex flex-col items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-xs ${
+              className={`py-2 px-1 rounded-xl text-[11px] flex flex-col items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-xs ${
                 isDark
-                  ? 'bg-[#000000] border border-slate-700 text-white hover:bg-slate-900'
-                  : 'bg-white border-2 border-slate-300 text-black hover:bg-slate-100'
+                  ? 'bg-[#000000] border border-slate-700 text-white hover:bg-slate-900 font-bold'
+                  : 'bg-slate-200 border border-slate-300 text-black font-semibold hover:bg-slate-300'
               }`}
               title="Adicionar Troco Extra na Gaveta"
             >
@@ -305,10 +317,10 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
             <button
               type="button"
               onClick={onSangria}
-              className={`py-2 px-1 rounded-xl font-bold text-[11px] flex flex-col items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-xs ${
+              className={`py-2 px-1 rounded-xl text-[11px] flex flex-col items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-xs ${
                 isDark
-                  ? 'bg-[#000000] border border-slate-700 text-white hover:bg-slate-900'
-                  : 'bg-white border-2 border-slate-300 text-black hover:bg-slate-100'
+                  ? 'bg-[#000000] border border-slate-700 text-white hover:bg-slate-900 font-bold'
+                  : 'bg-slate-200 border border-slate-300 text-black font-semibold hover:bg-slate-300'
               }`}
               title="Retirar Dinheiro para o Cofre"
             >
@@ -320,10 +332,10 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
             <button
               type="button"
               onClick={onDespesaGaveta}
-              className={`py-2 px-1 rounded-xl font-bold text-[11px] flex flex-col items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-xs ${
+              className={`py-2 px-1 rounded-xl text-[11px] flex flex-col items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-xs ${
                 isDark
-                  ? 'bg-[#000000] border border-slate-700 text-white hover:bg-slate-900'
-                  : 'bg-white border-2 border-slate-300 text-black hover:bg-slate-100'
+                  ? 'bg-[#000000] border border-slate-700 text-white hover:bg-slate-900 font-bold'
+                  : 'bg-slate-200 border border-slate-300 text-black font-semibold hover:bg-slate-300'
               }`}
               title="Despesa Paga com Dinheiro da Gaveta"
             >
@@ -335,10 +347,10 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
             <button
               type="button"
               onClick={onFechamentoCego}
-              className="py-2 px-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[11px] flex flex-col items-center justify-center gap-1 transition active:scale-95 cursor-pointer border border-emerald-500 shadow-xs"
+              className={`py-2 px-1 rounded-xl text-[11px] flex flex-col items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
               title="Fechar Turno / Conferência Cega"
             >
-              <Lock className="w-4 h-4 text-white" />
+              <Lock className="w-4 h-4" />
               <span className="truncate">Fechar Caixa</span>
             </button>
           </div>
@@ -346,7 +358,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
           <button
             type="button"
             onClick={onAbrirCaixa}
-            className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 flex items-center justify-center gap-2 transition active:scale-98 cursor-pointer"
+            className={`w-full py-2.5 px-4 rounded-xl text-xs shadow-md flex items-center justify-center gap-2 transition active:scale-98 cursor-pointer ${classeBotaoNeutroClaro}`}
           >
             <Unlock className="w-4 h-4" />
             <span>Abrir Novo Turno de Caixa</span>
@@ -368,14 +380,14 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                   type="button"
                   onClick={onExportarEntradas}
                   title="Exportar Excel"
-                  className="p-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-bold cursor-pointer border border-emerald-500 transition"
+                  className={`p-1 rounded-lg text-[9px] cursor-pointer transition ${classeMiniBotaoNeutroClaro}`}
                 >
                   <FileSpreadsheet className="w-3 h-3" />
                 </button>
                 <button
                   type="button"
                   onClick={() => onDetalhesMetrica('entradas')}
-                  className="px-1.5 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-bold cursor-pointer border border-emerald-500 transition"
+                  className={`px-1.5 py-0.5 rounded-lg text-[9px] cursor-pointer transition ${classeMiniBotaoNeutroClaro}`}
                 >
                   Detalhar
                 </button>
@@ -396,14 +408,14 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 <button
                   type="button"
                   onClick={onNovaDespesa}
-                  className="px-1.5 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-bold flex items-center gap-0.5 cursor-pointer border border-emerald-500 transition"
+                  className={`px-1.5 py-0.5 rounded-lg text-[9px] flex items-center gap-0.5 cursor-pointer transition ${classeMiniBotaoNeutroClaro}`}
                 >
                   <Plus className="w-2.5 h-2.5" /> Nova
                 </button>
                 <button
                   type="button"
                   onClick={() => onDetalhesMetrica('saidas')}
-                  className="px-1.5 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-bold cursor-pointer border border-emerald-500 transition"
+                  className={`px-1.5 py-0.5 rounded-lg text-[9px] cursor-pointer transition ${classeMiniBotaoNeutroClaro}`}
                 >
                   Detalhar
                 </button>
@@ -424,14 +436,14 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 <button
                   type="button"
                   onClick={onNovaContaPagar}
-                  className="px-1.5 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-bold flex items-center gap-0.5 cursor-pointer border border-emerald-500 transition"
+                  className={`px-1.5 py-0.5 rounded-lg text-[9px] flex items-center gap-0.5 cursor-pointer transition ${classeMiniBotaoNeutroClaro}`}
                 >
                   <Plus className="w-2.5 h-2.5" /> Nova
                 </button>
                 <button
                   type="button"
                   onClick={() => onDetalhesMetrica('pagar')}
-                  className="px-1.5 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-bold cursor-pointer border border-emerald-500 transition"
+                  className={`px-1.5 py-0.5 rounded-lg text-[9px] cursor-pointer transition ${classeMiniBotaoNeutroClaro}`}
                 >
                   Detalhar
                 </button>
@@ -460,7 +472,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
               <button
                 type="button"
                 onClick={() => onDetalhesMetrica('lucro')}
-                className="px-1.5 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-bold cursor-pointer border border-emerald-500 transition"
+                className={`px-1.5 py-0.5 rounded-lg text-[9px] cursor-pointer transition ${classeMiniBotaoNeutroClaro}`}
               >
                 Detalhar
               </button>
@@ -480,7 +492,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
           onClick={() => setAbaAtiva('caixa_atual')}
           className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
             abaAtiva === 'caixa_atual'
-              ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black border border-emerald-500 shadow-xs'
+              ? classeChipAtivoNeutroClaro
               : isDark
               ? 'bg-[#000000] text-white border border-slate-700 hover:bg-slate-900'
               : 'bg-white text-black border-2 border-slate-300 hover:bg-slate-100'
@@ -489,7 +501,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
           <span>Turno / Gaveta</span>
           <span
             className={`w-1.5 h-1.5 rounded-full ${
-              sessaoAtiva ? 'bg-emerald-300 animate-pulse' : 'bg-slate-400'
+              sessaoAtiva ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
             }`}
           />
         </button>
@@ -500,7 +512,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
           onClick={() => setAbaAtiva('fluxo')}
           className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
             abaAtiva === 'fluxo'
-              ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black border border-emerald-500 shadow-xs'
+              ? classeChipAtivoNeutroClaro
               : isDark
               ? 'bg-[#000000] text-white border border-slate-700 hover:bg-slate-900'
               : 'bg-white text-black border-2 border-slate-300 hover:bg-slate-100'
@@ -518,7 +530,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
           onClick={() => setAbaAtiva('pagar')}
           className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
             abaAtiva === 'pagar'
-              ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black border border-emerald-500 shadow-xs'
+              ? classeChipAtivoNeutroClaro
               : isDark
               ? 'bg-[#000000] text-white border border-slate-700 hover:bg-slate-900'
               : 'bg-white text-black border-2 border-slate-300 hover:bg-slate-100'
@@ -526,7 +538,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
         >
           <span>Contas a Pagar</span>
           {totalDespesasPendentes > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full bg-emerald-600 text-white text-[9px] font-black">
+            <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${isDark ? 'bg-emerald-600 text-white' : 'bg-slate-300 text-black'}`}>
               {listaTransacoesUnificada.filter((t) => t.tipo === 'SAIDA' && t.status === 'pendente').length}
             </span>
           )}
@@ -538,7 +550,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
           onClick={() => setAbaAtiva('historico_caixas')}
           className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
             abaAtiva === 'historico_caixas'
-              ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black border border-emerald-500 shadow-xs'
+              ? classeChipAtivoNeutroClaro
               : isDark
               ? 'bg-[#000000] text-white border border-slate-700 hover:bg-slate-900'
               : 'bg-white text-black border-2 border-slate-300 hover:bg-slate-100'
@@ -554,7 +566,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       {/* 5. CORPO / CONTEÚDO DA ABA SELECIONADA */}
       <div className={`flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 ${isDark ? 'bg-[#08131A] text-white' : 'bg-slate-100 text-black'}`}>
         {carregando ? (
-          <div className="text-center py-16 text-slate-400 text-xs flex flex-col items-center gap-2">
+          <div className={`text-center py-16 text-xs flex flex-col items-center gap-2 font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
             <RefreshCw className="w-5 h-5 animate-spin text-emerald-600" />
             <span>Carregando dados financeiros...</span>
           </div>
@@ -588,14 +600,18 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                     }`}>
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <span className={`text-[10px] uppercase font-bold tracking-wider flex items-center gap-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                          <span className={`text-[10px] uppercase font-bold tracking-wider flex items-center gap-1.5 ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                             <Banknote className="w-4 h-4 text-emerald-500" /> Saldo Esperado em Dinheiro na Gaveta
                           </span>
                           <span className={`text-2xl font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                             R$ {saldoDinheiroExibicao.toFixed(2)}
                           </span>
                         </div>
-                        <span className="text-[10px] font-bold text-white bg-emerald-600 border border-emerald-500 px-2.5 py-1 rounded-xl shadow-xs">
+                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-xl shadow-xs ${
+                          isDark
+                            ? 'text-white bg-emerald-600 border border-emerald-500'
+                            : 'text-emerald-900 bg-emerald-50 border border-emerald-300'
+                        }`}>
                           Físico na Gaveta
                         </span>
                       </div>
@@ -603,31 +619,31 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                       {/* FÓRMULA DETALHADA DA GAVETA */}
                       <div className={`grid grid-cols-2 sm:grid-cols-3 gap-1.5 pt-2 border-t text-[10px] ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                         <div className={`p-2 rounded-xl shadow-xs ${isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-50 border border-slate-200 text-black'}`}>
-                          <span className={`block text-[9px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Fundo Inicial</span>
+                          <span className={`block text-[9px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Fundo Inicial</span>
                           <span className="font-bold">
                             + R$ {(resumoSessao.fundoInicial ?? Number(sessaoAtiva.fundo_inicial || 0)).toFixed(2)}
                           </span>
                         </div>
                         <div className={`p-2 rounded-xl shadow-xs ${isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-50 border border-slate-200 text-black'}`}>
-                          <span className={`block text-[9px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Vendas em Dinheiro</span>
+                          <span className={`block text-[9px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Vendas em Dinheiro</span>
                           <span className="font-bold text-emerald-500">
                             + R$ {resumoSessao.totaisPorMetodo.dinheiro.toFixed(2)}
                           </span>
                         </div>
                         <div className={`p-2 rounded-xl shadow-xs ${isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-50 border border-slate-200 text-black'}`}>
-                          <span className={`block text-[9px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Suprimentos</span>
+                          <span className={`block text-[9px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Suprimentos</span>
                           <span className="font-bold text-cyan-500">
                             + R$ {resumoSessao.totalSuprimentos.toFixed(2)}
                           </span>
                         </div>
                         <div className={`p-2 rounded-xl shadow-xs ${isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-50 border border-slate-200 text-black'}`}>
-                          <span className={`block text-[9px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Sangrias (Cofre)</span>
+                          <span className={`block text-[9px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Sangrias (Cofre)</span>
                           <span className="font-bold text-rose-500">
                             - R$ {resumoSessao.totalSangrias.toFixed(2)}
                           </span>
                         </div>
                         <div className={`p-2 rounded-xl shadow-xs ${isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-50 border border-slate-200 text-black'}`}>
-                          <span className={`block text-[9px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Despesas de Gaveta</span>
+                          <span className={`block text-[9px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Despesas de Gaveta</span>
                           <span className="font-bold text-amber-500">
                             - R$ {resumoSessao.totalDespesas.toFixed(2)}
                           </span>
@@ -652,13 +668,13 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                         {/* Dinheiro */}
                         <div className={`p-2.5 rounded-xl space-y-1 ${isDark ? 'bg-[#08131A] border border-slate-700' : 'bg-slate-50 border border-slate-200'}`}>
                           <div className="flex items-center justify-between">
-                            <span className={`text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Dinheiro</span>
+                            <span className={`text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>Dinheiro</span>
                             <Banknote className="w-3.5 h-3.5 text-emerald-500" />
                           </div>
                           <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                             R$ {resumoSessao.totaisPorMetodo.dinheiro.toFixed(2)}
                           </span>
-                          <span className={`text-[10px] block ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          <span className={`text-[10px] block font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
                             {resumoSessao.qtdVendasPorMetodo.dinheiro} vendas
                           </span>
                         </div>
@@ -666,13 +682,13 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                         {/* Pix */}
                         <div className={`p-2.5 rounded-xl space-y-1 ${isDark ? 'bg-[#08131A] border border-slate-700' : 'bg-slate-50 border border-slate-200'}`}>
                           <div className="flex items-center justify-between">
-                            <span className={`text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Pix</span>
+                            <span className={`text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>Pix</span>
                             <Zap className="w-3.5 h-3.5 text-cyan-500" />
                           </div>
                           <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                             R$ {resumoSessao.totaisPorMetodo.pix.toFixed(2)}
                           </span>
-                          <span className={`text-[10px] block ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          <span className={`text-[10px] block font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
                             {resumoSessao.qtdVendasPorMetodo.pix} vendas
                           </span>
                         </div>
@@ -680,13 +696,13 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                         {/* Cartão Débito */}
                         <div className={`p-2.5 rounded-xl space-y-1 ${isDark ? 'bg-[#08131A] border border-slate-700' : 'bg-slate-50 border border-slate-200'}`}>
                           <div className="flex items-center justify-between">
-                            <span className={`text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Débito</span>
+                            <span className={`text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>Débito</span>
                             <CreditCard className="w-3.5 h-3.5 text-indigo-400" />
                           </div>
                           <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                             R$ {resumoSessao.totaisPorMetodo.cartao_debito.toFixed(2)}
                           </span>
-                          <span className={`text-[10px] block ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          <span className={`text-[10px] block font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
                             {resumoSessao.qtdVendasPorMetodo.cartao_debito} vendas
                           </span>
                         </div>
@@ -694,13 +710,13 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                         {/* Cartão Crédito */}
                         <div className={`p-2.5 rounded-xl space-y-1 ${isDark ? 'bg-[#08131A] border border-slate-700' : 'bg-slate-50 border border-slate-200'}`}>
                           <div className="flex items-center justify-between">
-                            <span className={`text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Crédito</span>
+                            <span className={`text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>Crédito</span>
                             <CreditCard className="w-3.5 h-3.5 text-purple-400" />
                           </div>
                           <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                             R$ {resumoSessao.totaisPorMetodo.cartao_credito.toFixed(2)}
                           </span>
-                          <span className={`text-[10px] block ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          <span className={`text-[10px] block font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
                             {resumoSessao.qtdVendasPorMetodo.cartao_credito} vendas
                           </span>
                         </div>
@@ -715,7 +731,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                         <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}>
                           Movimentações do Turno
                         </span>
-                        <span className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                        <span className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
                           {movimentacoesTurnoFiltradas.length} registro(s)
                         </span>
                       </div>
@@ -729,7 +745,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                             onClick={() => setFiltroMovimentacoes(filtro)}
                             className={`px-2.5 py-1 rounded-xl text-[10px] font-bold whitespace-nowrap transition cursor-pointer ${
                               filtroMovimentacoes === filtro
-                                ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black border border-emerald-500 shadow-xs'
+                                ? classeChipAtivoNeutroClaro
                                 : isDark
                                 ? 'bg-[#08131A] text-white border border-slate-700 hover:bg-slate-900'
                                 : 'bg-slate-100 text-black border border-slate-300 hover:bg-slate-200'
@@ -747,7 +763,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                       {/* Lista de Movimentações */}
                       <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                         {movimentacoesTurnoFiltradas.length === 0 ? (
-                          <div className={`text-center py-6 text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                          <div className={`text-center py-6 text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
                             Nenhuma movimentação registrada neste filtro.
                           </div>
                         ) : (
@@ -784,7 +800,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                                       {m.tipo === 'SANGRIA' && 'Sangria (Cofre)'}
                                       {m.tipo === 'DESPESA' && (m.descricao || 'Despesa de Gaveta')}
                                     </span>
-                                    <span className={`text-[10px] block truncate ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                                    <span className={`text-[10px] block truncate ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
                                       {new Date(m.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} • {m.metodo_pagamento || 'Dinheiro'}
                                     </span>
                                   </div>
@@ -824,7 +840,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                                 <span className={`font-bold block ${isDark ? 'text-white' : 'text-black'}`}>
                                   Pedido #{p.numero_pedido || p.id.slice(0, 6)}
                                 </span>
-                                <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                                <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
                                   {p.cliente?.nome || p.cliente_nome_avulso || 'Consumidor Final'} • {p.criado_em ? new Date(p.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}
                                 </span>
                               </div>
@@ -847,14 +863,14 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                     </div>
                     <div className="space-y-1">
                       <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Turno de Caixa Fechado</h3>
-                      <p className={`text-xs max-w-xs mx-auto ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                      <p className={`text-xs max-w-xs mx-auto font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                         Abra um novo turno com fundo de troco para iniciar vendas no PDV, receber pagamentos e controlar a gaveta física.
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={onAbrirCaixa}
-                      className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 flex items-center justify-center gap-2 cursor-pointer transition active:scale-98"
+                      className={`w-full py-3 rounded-xl text-xs shadow-md flex items-center justify-center gap-2 cursor-pointer transition active:scale-98 ${classeBotaoNeutroClaro}`}
                     >
                       <Unlock className="w-4 h-4" />
                       <span>Abrir Novo Turno de Caixa</span>
@@ -877,13 +893,13 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                       onClick={() => setFiltroPeriodoFluxo('sessao_atual')}
                       className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
                         filtroPeriodoFluxo === 'sessao_atual'
-                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black border border-emerald-500 shadow-xs'
+                          ? classeChipAtivoNeutroClaro
                           : isDark
                           ? 'bg-[#000000] text-white border border-slate-700 hover:bg-slate-900'
                           : 'bg-white text-black border-2 border-slate-300 hover:bg-slate-100'
                       }`}
                     >
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                       <span>Turno Atual</span>
                     </button>
                   )}
@@ -892,7 +908,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                     onClick={() => setFiltroPeriodoFluxo('hoje')}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
                       filtroPeriodoFluxo === 'hoje'
-                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black border border-emerald-500 shadow-xs'
+                        ? classeChipAtivoNeutroClaro
                         : isDark
                         ? 'bg-[#000000] text-white border border-slate-700 hover:bg-slate-900'
                         : 'bg-white text-black border-2 border-slate-300 hover:bg-slate-100'
@@ -905,7 +921,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                     onClick={() => setFiltroPeriodoFluxo('mes')}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
                       filtroPeriodoFluxo === 'mes'
-                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black border border-emerald-500 shadow-xs'
+                        ? classeChipAtivoNeutroClaro
                         : isDark
                         ? 'bg-[#000000] text-white border border-slate-700 hover:bg-slate-900'
                         : 'bg-white text-black border-2 border-slate-300 hover:bg-slate-100'
@@ -918,7 +934,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                     onClick={() => setFiltroPeriodoFluxo('todos')}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
                       filtroPeriodoFluxo === 'todos'
-                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black border border-emerald-500 shadow-xs'
+                        ? classeChipAtivoNeutroClaro
                         : isDark
                         ? 'bg-[#000000] text-white border border-slate-700 hover:bg-slate-900'
                         : 'bg-white text-black border-2 border-slate-300 hover:bg-slate-100'
@@ -933,19 +949,19 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                   isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
                 }`}>
                   <div>
-                    <span className={`text-[10px] font-semibold block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Entradas</span>
+                    <span className={`text-[10px] font-semibold block ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Entradas</span>
                     <span className="font-black text-emerald-500 text-sm block">
                       R$ {totalReceitas.toFixed(2)}
                     </span>
                   </div>
                   <div>
-                    <span className={`text-[10px] font-semibold block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Saídas Pagas</span>
+                    <span className={`text-[10px] font-semibold block ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Saídas Pagas</span>
                     <span className="font-black text-rose-500 text-sm block">
                       R$ {totalDespesasPagas.toFixed(2)}
                     </span>
                   </div>
                   <div>
-                    <span className={`text-[10px] font-semibold block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Saldo</span>
+                    <span className={`text-[10px] font-semibold block ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Saldo</span>
                     <span className={`font-black text-sm block ${isDark ? 'text-white' : 'text-black'}`}>
                       R$ {lucroLiquido.toFixed(2)}
                     </span>
@@ -954,7 +970,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
 
                 {/* Campo de Busca */}
                 <div className="relative">
-                  <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
+                  <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
                   <input
                     type="text"
                     placeholder="Buscar no fluxo por descrição ou categoria..."
@@ -971,8 +987,8 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 {/* Lista de Transações */}
                 <div className="space-y-2">
                   {transacoesFluxoFiltradas.length === 0 ? (
-                    <div className={`text-center py-10 text-xs rounded-2xl p-4 ${
-                      isDark ? 'bg-[#000000] border border-slate-700 text-slate-400' : 'bg-white border-2 border-slate-300 text-slate-600'
+                    <div className={`text-center py-10 text-xs rounded-2xl p-4 font-medium ${
+                      isDark ? 'bg-[#000000] border border-slate-700 text-slate-400' : 'bg-white border-2 border-slate-300 text-slate-900'
                     }`}>
                       Nenhum registro encontrado no período selecionado.
                     </div>
@@ -991,7 +1007,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                               <span className={`font-bold text-xs block truncate ${isDark ? 'text-white' : 'text-black'}`}>
                                 {t.descricao}
                               </span>
-                              <span className={`text-[10px] block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                              <span className={`text-[10px] block font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
                                 {t.categoria || 'Geral'} • {new Date(t.data_vencimento || (t as any).criado_em || (t as any).data || Date.now()).toLocaleDateString('pt-BR')}
                               </span>
                             </div>
@@ -1060,7 +1076,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                       onClick={() => setFiltroStatusPagar(st)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
                         filtroStatusPagar === st
-                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black border border-emerald-500 shadow-xs'
+                          ? classeChipAtivoNeutroClaro
                           : isDark
                           ? 'bg-[#000000] text-white border border-slate-700 hover:bg-slate-900'
                           : 'bg-white text-black border-2 border-slate-300 hover:bg-slate-100'
@@ -1077,7 +1093,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 {/* Campo de Busca e Botão Nova Conta */}
                 <div className="flex items-center gap-2">
                   <div className="relative flex-1">
-                    <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
+                    <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
                     <input
                       type="text"
                       placeholder="Buscar conta a pagar..."
@@ -1093,7 +1109,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                   <button
                     type="button"
                     onClick={onNovaContaPagar}
-                    className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-1 shrink-0 cursor-pointer border border-emerald-500 shadow-xs transition active:scale-95"
+                    className={`px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1 shrink-0 cursor-pointer shadow-xs transition active:scale-95 ${classeBotaoNeutroClaro}`}
                   >
                     <Plus className="w-3.5 h-3.5 stroke-[3]" />
                     <span>Nova</span>
@@ -1103,8 +1119,8 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 {/* Lista de Contas a Pagar */}
                 <div className="space-y-2">
                   {contasPagarFiltradas.length === 0 ? (
-                    <div className={`text-center py-10 text-xs rounded-2xl p-4 ${
-                      isDark ? 'bg-[#000000] border border-slate-700 text-slate-400' : 'bg-white border-2 border-slate-300 text-slate-600'
+                    <div className={`text-center py-10 text-xs rounded-2xl p-4 font-medium ${
+                      isDark ? 'bg-[#000000] border border-slate-700 text-slate-400' : 'bg-white border-2 border-slate-300 text-slate-900'
                     }`}>
                       Nenhuma conta a pagar encontrada neste filtro.
                     </div>
@@ -1127,7 +1143,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                               <span className={`font-bold text-xs block truncate ${isDark ? 'text-white' : 'text-black'}`}>
                                 {tr.descricao}
                               </span>
-                              <span className={`text-[10px] block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                              <span className={`text-[10px] block font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
                                 {tr.categoria || 'Geral'} • Vence em: {tr.data_vencimento ? new Date(tr.data_vencimento).toLocaleDateString('pt-BR') : 'Sem data'}
                               </span>
                             </div>
@@ -1154,7 +1170,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => onBaixarConta(tr)}
-                                  className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[10px] flex items-center gap-1 cursor-pointer border border-emerald-500 shadow-xs transition"
+                                  className={`px-2.5 py-1 rounded-lg text-[10px] flex items-center gap-1 cursor-pointer shadow-xs transition ${classeMiniBotaoNeutroClaro}`}
                                 >
                                   <Check className="w-3 h-3 stroke-[3]" />
                                   <span>Pagar</span>
@@ -1204,7 +1220,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                   </span>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className={`text-[10px] block mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Operador</label>
+                      <label className={`text-[10px] block mb-0.5 font-semibold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Operador</label>
                       <select
                         value={filtrosHistorico.usuarioId}
                         onChange={(e) =>
@@ -1226,7 +1242,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                     </div>
 
                     <div>
-                      <label className={`text-[10px] block mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Conferência</label>
+                      <label className={`text-[10px] block mb-0.5 font-semibold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Conferência</label>
                       <select
                         value={filtrosHistorico.statusDiferenca}
                         onChange={(e) =>
@@ -1252,8 +1268,8 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 {/* Lista de Sessões Anteriores */}
                 <div className="space-y-2">
                   {historicoFiltrado.length === 0 ? (
-                    <div className={`text-center py-10 text-xs rounded-2xl p-4 ${
-                      isDark ? 'bg-[#000000] border border-slate-700 text-slate-400' : 'bg-white border-2 border-slate-300 text-slate-600'
+                    <div className={`text-center py-10 text-xs rounded-2xl p-4 font-medium ${
+                      isDark ? 'bg-[#000000] border border-slate-700 text-slate-400' : 'bg-white border-2 border-slate-300 text-slate-900'
                     }`}>
                       Nenhuma sessão de caixa encontrada no histórico.
                     </div>
@@ -1275,11 +1291,11 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                               <span className={`font-bold text-xs block ${isDark ? 'text-white' : 'text-black'}`}>
                                 Terminal {cx.terminal_id} • {cx.usuario_abertura?.nome_completo || 'Operador'}
                               </span>
-                              <span className={`text-[10px] block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                              <span className={`text-[10px] block font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
                                 Aberto: {new Date(cx.aberto_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
                               </span>
                               {cx.fechado_em && (
-                                <span className={`text-[10px] block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                                <span className={`text-[10px] block font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
                                   Fechado: {new Date(cx.fechado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
                                 </span>
                               )}
@@ -1290,7 +1306,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                                 !cx.fechado_em
                                   ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                                   : !temDiferenca
-                                  ? isDark ? 'bg-slate-800 text-slate-300 border border-slate-700' : 'bg-slate-100 text-slate-700 border border-slate-200'
+                                  ? isDark ? 'bg-slate-800 text-slate-300 border border-slate-700' : 'bg-slate-100 text-black border border-slate-200'
                                   : isSobra
                                   ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
                                   : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
@@ -1310,13 +1326,13 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                             isDark ? 'bg-[#08131A] border border-slate-700' : 'bg-slate-50 border border-slate-200'
                           }`}>
                             <div>
-                              <span className={`block ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Fundo Inicial:</span>
-                              <strong className={isDark ? 'text-white' : 'text-slate-800'}>
+                              <span className={`block font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Fundo Inicial:</span>
+                              <strong className={isDark ? 'text-white' : 'text-black'}>
                                 R$ {Number(cx.fundo_inicial || 0).toFixed(2)}
                               </strong>
                             </div>
                             <div>
-                              <span className={`block ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Faturamento Total:</span>
+                              <span className={`block font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Faturamento Total:</span>
                               <strong className="text-emerald-500">
                                 R$ {Number(cx.faturamento_total || 0).toFixed(2)}
                               </strong>
@@ -1327,7 +1343,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                             <button
                               type="button"
                               onClick={() => onDrillDownSessao(cx)}
-                              className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black flex items-center gap-1 cursor-pointer border border-emerald-500 shadow-xs transition"
+                              className={`px-2.5 py-1.5 rounded-lg text-xs flex items-center gap-1 cursor-pointer shadow-xs transition ${classeBotaoNeutroClaro}`}
                             >
                               <Search className="w-3.5 h-3.5" />
                               <span>Detalhar</span>

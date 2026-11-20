@@ -93,7 +93,7 @@ const CardAuditoriaFechamentoCaixa: React.FC<{
 
   if (carregando) {
     return (
-      <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-2 text-xs text-slate-500 animate-pulse">
+      <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-2 text-xs text-slate-900 animate-pulse">
         <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-spin" />
         <span>Auditoria de fechamento via IA TypeSafe...</span>
       </div>
@@ -125,11 +125,11 @@ const CardAuditoriaFechamentoCaixa: React.FC<{
               ? 'Divergência Tolerável • Atenção'
               : 'Requer Auditoria da Gerência'}
           </span>
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-black/5 text-slate-700 flex items-center gap-1">
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-black/5 text-slate-900 flex items-center gap-1">
             <Sparkles className="w-2.5 h-2.5 text-amber-500" /> Jev Audit
           </span>
         </div>
-        <p className="text-xs text-slate-700 leading-relaxed font-medium">
+        <p className="text-xs text-slate-900 leading-relaxed font-medium">
           {auditoria.parecer}
         </p>
       </div>
@@ -141,6 +141,23 @@ export const FinancasCaixa: React.FC = () => {
   const { loja, usuario } = useAuth();
   const { tema } = useTheme();
   const isDark = tema === 'dark';
+
+  const classeBotaoNeutroClaro = isDark
+    ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black'
+    : 'bg-slate-200 hover:bg-slate-300 border border-slate-300 text-black font-semibold';
+
+  const classeMiniBotaoNeutroClaro = isDark
+    ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold'
+    : 'bg-slate-200 hover:bg-slate-300 border border-slate-300 text-black font-semibold';
+
+  const classeBotaoFecharModal = isDark
+    ? 'p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer transition'
+    : 'p-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 border border-slate-300 text-black shadow-xs cursor-pointer transition';
+
+  const classeChipAtivoNeutroClaro = isDark
+    ? 'bg-emerald-600 text-white shadow-xs border border-emerald-500'
+    : 'bg-slate-200 hover:bg-slate-300 text-black shadow-xs border border-slate-400';
+
   const permissions = usePermissions();
   const navigate = useNavigate();
   const { mostrarSucesso, mostrarErro, mostrarAviso } = useFeedbackModal();
@@ -1697,7 +1714,7 @@ export const FinancasCaixa: React.FC = () => {
                   <DollarSign className="w-5 h-5 text-emerald-500" />
                   <span>Controle de Caixa & Sessões Transacionais</span>
                 </h1>
-                <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                <p className={`text-xs mt-0.5 font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                   Ciclo de vida por turnos contínuos (sessao_caixa_id), suprimentos, sangrias, despesas e conferência cega.
                 </p>
               </div>
@@ -1711,30 +1728,30 @@ export const FinancasCaixa: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setModalSuprimento(true)}
-                        className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                        className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                         title="Adicionar Troco Extra na Gaveta"
                       >
-                        <ArrowDown className="w-4 h-4 text-white" />
+                        <ArrowDown className="w-4 h-4" />
                         <span>Suprimento</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setModalSangria(true)}
-                        className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                        className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                         title="Retirar Dinheiro para o Cofre"
                       >
-                        <ArrowUp className="w-4 h-4 text-white" />
+                        <ArrowUp className="w-4 h-4" />
                         <span>Sangria</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setModalDespesaRapida(true)}
-                        className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                        className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                         title="Despesa Paga com Dinheiro da Gaveta"
                       >
-                        <Banknote className="w-4 h-4 text-white" />
+                        <Banknote className="w-4 h-4" />
                         <span>Despesa Gaveta</span>
                       </button>
                     </>
@@ -1743,9 +1760,9 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setModalFechamentoCego(true)}
-                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                    className={`px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                   >
-                    <Lock className="w-4 h-4 text-white" />
+                    <Lock className="w-4 h-4" />
                     <span>Fechar Caixa</span>
                   </button>
                 </>
@@ -1753,9 +1770,9 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalAberturaCaixa(true)}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                  className={`px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                 >
-                  <Unlock className="w-4 h-4 text-white" />
+                  <Unlock className="w-4 h-4" />
                   <span>Abrir Caixa</span>
                 </button>
               )}
@@ -1778,7 +1795,7 @@ export const FinancasCaixa: React.FC = () => {
                     type="button"
                     onClick={handleExportarEntradas}
                     title="Exportar Entradas Gerais para Excel (.xlsx)"
-                    className="px-1.5 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold text-[10px] transition cursor-pointer flex items-center gap-1 shadow-xs"
+                    className={`px-1.5 py-0.5 rounded-lg text-[10px] transition cursor-pointer flex items-center gap-1 shadow-xs ${classeMiniBotaoNeutroClaro}`}
                   >
                     <FileSpreadsheet className="w-3 h-3" />
                     <span>Excel</span>
@@ -1786,7 +1803,7 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setModalDetalhesMetrica('entradas')}
-                    className="px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold text-[10px] transition cursor-pointer shadow-xs"
+                    className={`px-2 py-0.5 rounded-lg text-[10px] transition cursor-pointer shadow-xs ${classeMiniBotaoNeutroClaro}`}
                   >
                     Detalhar
                   </button>
@@ -1811,7 +1828,7 @@ export const FinancasCaixa: React.FC = () => {
                       type="button"
                       onClick={abrirModalNovaDespesa}
                       title="Lançar Nova Despesa"
-                      className="px-1.5 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold text-[10px] transition cursor-pointer flex items-center gap-0.5 shadow-xs"
+                      className={`px-1.5 py-0.5 rounded-lg text-[10px] transition cursor-pointer flex items-center gap-0.5 shadow-xs ${classeMiniBotaoNeutroClaro}`}
                     >
                       <Plus className="w-3 h-3" />
                       <span>Nova</span>
@@ -1820,7 +1837,7 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setModalDetalhesMetrica('saidas')}
-                    className="px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold text-[10px] transition cursor-pointer shadow-xs"
+                    className={`px-2 py-0.5 rounded-lg text-[10px] transition cursor-pointer shadow-xs ${classeMiniBotaoNeutroClaro}`}
                   >
                     Detalhar
                   </button>
@@ -1845,7 +1862,7 @@ export const FinancasCaixa: React.FC = () => {
                       type="button"
                       onClick={abrirModalNovaContaPagar}
                       title="Lançar Nova Conta a Pagar"
-                      className="px-1.5 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold text-[10px] transition cursor-pointer flex items-center gap-0.5 shadow-xs"
+                      className={`px-1.5 py-0.5 rounded-lg text-[10px] transition cursor-pointer flex items-center gap-0.5 shadow-xs ${classeMiniBotaoNeutroClaro}`}
                     >
                       <Plus className="w-3 h-3" />
                       <span>Nova</span>
@@ -1854,7 +1871,7 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setModalDetalhesMetrica('pagar')}
-                    className="px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold text-[10px] transition cursor-pointer shadow-xs"
+                    className={`px-2 py-0.5 rounded-lg text-[10px] transition cursor-pointer shadow-xs ${classeMiniBotaoNeutroClaro}`}
                   >
                     Detalhar
                   </button>
@@ -1879,7 +1896,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalDetalhesMetrica('lucro')}
-                  className="px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold text-[10px] transition cursor-pointer shrink-0 shadow-xs"
+                  className={`px-2 py-0.5 rounded-lg text-[10px] transition cursor-pointer shrink-0 shadow-xs ${classeMiniBotaoNeutroClaro}`}
                 >
                   Detalhar
                 </button>
@@ -1945,7 +1962,7 @@ export const FinancasCaixa: React.FC = () => {
         {/* ========================================================================= */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3">
           {carregando ? (
-            <div className="text-center py-16 text-slate-500 text-sm">Carregando dados financeiros e de caixa...</div>
+            <div className={`text-center py-16 text-sm font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Carregando dados financeiros e de caixa...</div>
           ) : (
             <>
               {/* ABA 1 & 2: FLUXO GERAL / CONTAS A PAGAR */}
@@ -1962,13 +1979,13 @@ export const FinancasCaixa: React.FC = () => {
                             onClick={() => setFiltroPeriodoFluxo('sessao_atual')}
                             className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
                               filtroPeriodoFluxo === 'sessao_atual'
-                                ? 'bg-emerald-600 text-white shadow-xs border border-emerald-500'
+                                ? classeChipAtivoNeutroClaro
                                 : isDark
                                 ? 'bg-[#08131A] text-white hover:text-emerald-400 border border-slate-700'
-                                : 'bg-slate-100 text-black hover:text-emerald-600 border border-slate-300'
+                                : 'bg-slate-100 text-black hover:bg-slate-200 border border-slate-300'
                             }`}
                           >
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                             <span>Turno Atual ({new Date(sessaoAtiva.aberto_em).toLocaleDateString('pt-BR')})</span>
                           </button>
                         )}
@@ -1977,10 +1994,10 @@ export const FinancasCaixa: React.FC = () => {
                           onClick={() => setFiltroPeriodoFluxo('hoje')}
                           className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
                             filtroPeriodoFluxo === 'hoje'
-                              ? 'bg-emerald-600 text-white shadow-xs border border-emerald-500'
+                              ? classeChipAtivoNeutroClaro
                               : isDark
                               ? 'bg-[#08131A] text-white hover:text-emerald-400 border border-slate-700'
-                              : 'bg-slate-100 text-black hover:text-emerald-600 border border-slate-300'
+                              : 'bg-slate-100 text-black hover:bg-slate-200 border border-slate-300'
                           }`}
                         >
                           Hoje
@@ -1990,10 +2007,10 @@ export const FinancasCaixa: React.FC = () => {
                           onClick={() => setFiltroPeriodoFluxo('mes')}
                           className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
                             filtroPeriodoFluxo === 'mes'
-                              ? 'bg-emerald-600 text-white shadow-xs border border-emerald-500'
+                              ? classeChipAtivoNeutroClaro
                               : isDark
                               ? 'bg-[#08131A] text-white hover:text-emerald-400 border border-slate-700'
-                              : 'bg-slate-100 text-black hover:text-emerald-600 border border-slate-300'
+                              : 'bg-slate-100 text-black hover:bg-slate-200 border border-slate-300'
                           }`}
                         >
                           Este Mês
@@ -2003,10 +2020,10 @@ export const FinancasCaixa: React.FC = () => {
                           onClick={() => setFiltroPeriodoFluxo('todos')}
                           className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${
                             filtroPeriodoFluxo === 'todos'
-                              ? 'bg-emerald-600 text-white shadow-xs border border-emerald-500'
+                              ? classeChipAtivoNeutroClaro
                               : isDark
                               ? 'bg-[#08131A] text-white hover:text-emerald-400 border border-slate-700'
-                              : 'bg-slate-100 text-black hover:text-emerald-600 border border-slate-300'
+                              : 'bg-slate-100 text-black hover:bg-slate-200 border border-slate-300'
                           }`}
                         >
                           Todos os Registros
@@ -2032,7 +2049,7 @@ export const FinancasCaixa: React.FC = () => {
                         <button
                           type="button"
                           onClick={handleExportarContasPagar}
-                          className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                          className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                         >
                           <FileSpreadsheet className="w-4 h-4" />
                           <span>Exportar Excel</span>
@@ -2041,7 +2058,7 @@ export const FinancasCaixa: React.FC = () => {
                           <button
                             type="button"
                             onClick={abrirModalNovaContaPagar}
-                            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                            className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                           >
                             <Plus className="w-4 h-4" />
                             <span>Nova Conta a Pagar</span>
@@ -2060,7 +2077,7 @@ export const FinancasCaixa: React.FC = () => {
                       <p className={`text-xs font-black ${isDark ? 'text-white' : 'text-black'}`}>
                         {abaAtiva === 'pagar' ? 'Nenhuma conta a pagar pendente.' : 'Nenhuma movimentação registrada no período selecionado.'}
                       </p>
-                      <p className={`text-[11px] mt-1 max-w-md mx-auto font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                      <p className={`text-[11px] mt-1 max-w-md mx-auto font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                         {abaAtiva === 'pagar'
                           ? 'Todas as contas e despesas operacionais estão em dia.'
                           : sessaoAtiva && filtroPeriodoFluxo === 'sessao_atual'
@@ -2091,7 +2108,7 @@ export const FinancasCaixa: React.FC = () => {
 
                             <div className="min-w-0">
                               <h4 className={`text-xs font-black truncate ${isDark ? 'text-white' : 'text-black'}`}>{tr.descricao}</h4>
-                              <div className={`flex items-center gap-2 text-[10px] mt-0.5 flex-wrap ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                              <div className={`flex items-center gap-2 text-[10px] mt-0.5 flex-wrap ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                                 <span className={`font-bold ${isDark ? 'text-white' : 'text-black'}`}>{tr.categoria}</span>
                                 {tr.formaPagamento && (
                                   <>
@@ -2137,7 +2154,7 @@ export const FinancasCaixa: React.FC = () => {
                                       dataPagamento: obterDataOperacaoYMD(),
                                       processando: false
                                     })}
-                                    className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-1 border border-emerald-500 shadow-xs transition cursor-pointer"
+                                    className={`px-2.5 py-1.5 rounded-xl text-xs flex items-center gap-1 shadow-xs transition cursor-pointer ${classeBotaoNeutroClaro}`}
                                     title="Dar Baixa / Marcar como Paga"
                                   >
                                     <CheckCircle2 className="w-3.5 h-3.5" />
@@ -2217,7 +2234,7 @@ export const FinancasCaixa: React.FC = () => {
                             <h3 className={`text-xl font-black mt-1 ${isDark ? 'text-white' : 'text-black'}`}>
                               Operador: {sessaoAtiva.usuario_abertura?.nome_completo || 'Operador'}
                             </h3>
-                            <div className={`flex items-center gap-3 text-xs mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                            <div className={`flex items-center gap-3 text-xs mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                               <span className="flex items-center gap-1 font-medium">
                                 <Clock className="w-3.5 h-3.5 text-emerald-500" />
                                 Aberto às {new Date(sessaoAtiva.aberto_em).toLocaleTimeString('pt-BR')} ({new Date(sessaoAtiva.aberto_em).toLocaleDateString('pt-BR')})
@@ -2232,7 +2249,7 @@ export const FinancasCaixa: React.FC = () => {
                           <div className={`rounded-2xl px-5 py-3 text-right shrink-0 ${
                             isDark ? 'bg-[#08131A] border border-slate-700' : 'bg-slate-50 border border-slate-200'
                           }`}>
-                            <span className={`text-[11px] block font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Fundo de Troco Inicial</span>
+                            <span className={`text-[11px] block font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Fundo de Troco Inicial</span>
                             <span className={`text-lg font-black ${isDark ? 'text-white' : 'text-black'}`}>
                               {formatarMoeda(resumoSessao?.fundoInicial ?? Number(sessaoAtiva.fundo_inicial || 0))}
                             </span>
@@ -2250,7 +2267,7 @@ export const FinancasCaixa: React.FC = () => {
                               }`}>
                                 <Banknote className="w-4 h-4 text-emerald-500" /> Saldo Esperado em Dinheiro na Gaveta Física
                               </span>
-                              <p className={`text-[11px] mt-0.5 font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                              <p className={`text-[11px] mt-0.5 font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                                 Valor exato que deve constar em notas e moedas neste momento.
                               </p>
                             </div>
@@ -2266,31 +2283,31 @@ export const FinancasCaixa: React.FC = () => {
                             <div className={`p-2 rounded-xl border ${
                               isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                             }`}>
-                              <span className={`block text-[10px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Fundo Inicial</span>
+                              <span className={`block text-[10px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Fundo Inicial</span>
                               <span className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>+ {formatarMoeda(resumoSessao?.fundoInicial ?? Number(sessaoAtiva.fundo_inicial || 0))}</span>
                             </div>
                             <div className={`p-2 rounded-xl border ${
                               isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                             }`}>
-                              <span className={`block text-[10px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Vendas Dinheiro</span>
+                              <span className={`block text-[10px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Vendas Dinheiro</span>
                               <span className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>+ {formatarMoeda(resumoSessao.totaisPorMetodo.dinheiro)}</span>
                             </div>
                             <div className={`p-2 rounded-xl border ${
                               isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                             }`}>
-                              <span className={`block text-[10px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Suprimentos</span>
+                              <span className={`block text-[10px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Suprimentos</span>
                               <span className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>+ {formatarMoeda(resumoSessao.totalSuprimentos)}</span>
                             </div>
                             <div className={`p-2 rounded-xl border ${
                               isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                             }`}>
-                              <span className={`block text-[10px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Sangrias (Cofre)</span>
+                              <span className={`block text-[10px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Sangrias (Cofre)</span>
                               <span className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>- {formatarMoeda(resumoSessao.totalSangrias)}</span>
                             </div>
                             <div className={`p-2 rounded-xl border ${
                               isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                             }`}>
-                              <span className={`block text-[10px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Despesas Gaveta</span>
+                              <span className={`block text-[10px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Despesas Gaveta</span>
                               <span className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>- {formatarMoeda(resumoSessao.totalDespesas)}</span>
                             </div>
                           </div>
@@ -2302,7 +2319,7 @@ export const FinancasCaixa: React.FC = () => {
                             <h4 className={`font-black text-xs uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}>
                               Vendas do Turno por Meio de Pagamento
                             </h4>
-                            <span className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                            <span className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                               Total Faturado: <strong className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>{formatarMoeda(resumoSessao.faturamentoTotalVendas)}</strong>
                             </span>
                           </div>
@@ -2319,7 +2336,7 @@ export const FinancasCaixa: React.FC = () => {
                               <span className={`text-base font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                                 {formatarMoeda(resumoSessao.totaisPorMetodo.dinheiro)}
                               </span>
-                              <span className={`text-[10px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                              <span className={`text-[10px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                                 {resumoSessao.qtdVendasPorMetodo.dinheiro} vendas
                               </span>
                             </div>
@@ -2335,7 +2352,7 @@ export const FinancasCaixa: React.FC = () => {
                               <span className={`text-base font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                                 {formatarMoeda(resumoSessao.totaisPorMetodo.pix)}
                               </span>
-                              <span className={`text-[10px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                              <span className={`text-[10px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                                 {resumoSessao.qtdVendasPorMetodo.pix} vendas
                               </span>
                             </div>
@@ -2351,7 +2368,7 @@ export const FinancasCaixa: React.FC = () => {
                               <span className={`text-base font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                                 {formatarMoeda(resumoSessao.totaisPorMetodo.cartao_debito)}
                               </span>
-                              <span className={`text-[10px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                              <span className={`text-[10px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                                 {resumoSessao.qtdVendasPorMetodo.cartao_debito} vendas
                               </span>
                             </div>
@@ -2367,7 +2384,7 @@ export const FinancasCaixa: React.FC = () => {
                               <span className={`text-base font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                                 {formatarMoeda(resumoSessao.totaisPorMetodo.cartao_credito)}
                               </span>
-                              <span className={`text-[10px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                              <span className={`text-[10px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                                 {resumoSessao.qtdVendasPorMetodo.cartao_credito} vendas
                               </span>
                             </div>
@@ -2383,7 +2400,7 @@ export const FinancasCaixa: React.FC = () => {
                               <span className={`text-base font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                                 {formatarMoeda(resumoSessao.totaisPorMetodo.outros)}
                               </span>
-                              <span className={`text-[10px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                              <span className={`text-[10px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                                 {resumoSessao.qtdVendasPorMetodo.outros} vendas
                               </span>
                             </div>
@@ -2401,21 +2418,21 @@ export const FinancasCaixa: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => setModalSuprimento(true)}
-                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs rounded-xl cursor-pointer shadow-xs transition"
+                                  className={`px-3 py-1.5 text-xs rounded-xl cursor-pointer shadow-xs transition ${classeBotaoNeutroClaro}`}
                                 >
                                   + Suprimento
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setModalSangria(true)}
-                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs rounded-xl cursor-pointer shadow-xs transition"
+                                  className={`px-3 py-1.5 text-xs rounded-xl cursor-pointer shadow-xs transition ${classeBotaoNeutroClaro}`}
                                 >
                                   - Sangria
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setModalDespesaRapida(true)}
-                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs rounded-xl cursor-pointer shadow-xs transition"
+                                  className={`px-3 py-1.5 text-xs rounded-xl cursor-pointer shadow-xs transition ${classeBotaoNeutroClaro}`}
                                 >
                                   - Despesa
                                 </button>
@@ -2425,7 +2442,7 @@ export const FinancasCaixa: React.FC = () => {
 
                           <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                             {!sessaoAtiva.movimentacoes || sessaoAtiva.movimentacoes.length === 0 ? (
-                              <p className={`text-xs py-6 text-center font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                              <p className={`text-xs py-6 text-center font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                                 Nenhuma movimentação registrada nesta sessão de caixa até o momento.
                               </p>
                             ) : (
@@ -2453,7 +2470,7 @@ export const FinancasCaixa: React.FC = () => {
                                       </div>
                                       <div>
                                         <span className={`font-bold block ${isDark ? 'text-white' : 'text-black'}`}>{m.descricao}</span>
-                                        <div className={`flex items-center gap-2 text-[10px] mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                                        <div className={`flex items-center gap-2 text-[10px] mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                                           <span className="uppercase font-bold">{m.metodo_pagamento}</span>
                                           <span>•</span>
                                           <span>{new Date(m.criado_em).toLocaleTimeString('pt-BR')}</span>
@@ -2479,13 +2496,13 @@ export const FinancasCaixa: React.FC = () => {
 
                         {/* BOTÃO DE FECHAMENTO CEGO */}
                         <div className={`border-t pt-4 flex items-center justify-between ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
-                          <span className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                          <span className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                             Pronto para fechar o turno? Realize a contagem física cega.
                           </span>
                           <button
                             type="button"
                             onClick={() => setModalFechamentoCego(true)}
-                            className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs rounded-2xl shadow-xs transition cursor-pointer flex items-center gap-2"
+                            className={`px-6 py-3 text-xs rounded-2xl shadow-xs transition cursor-pointer flex items-center gap-2 ${classeBotaoNeutroClaro}`}
                           >
                             <Lock className="w-4 h-4" />
                             <span>Realizar Fechamento Cego de Caixa</span>
@@ -2499,7 +2516,7 @@ export const FinancasCaixa: React.FC = () => {
                       isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
                     }`}>
                       <div className={`w-16 h-16 rounded-3xl flex items-center justify-center mx-auto border ${
-                        isDark ? 'bg-[#08131A] border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-600'
+                        isDark ? 'bg-[#08131A] border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-900'
                       }`}>
                         <Lock className="w-8 h-8 text-emerald-500" />
                       </div>
@@ -2507,14 +2524,14 @@ export const FinancasCaixa: React.FC = () => {
                         <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>
                           Nenhum Caixa Aberto no Momento (Terminal {terminalId})
                         </h3>
-                        <p className={`text-xs max-w-sm mx-auto mt-1 font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                        <p className={`text-xs max-w-sm mx-auto mt-1 font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                           Abra o caixa informando o fundo de troco inicial para registrar vendas, sangrias, suprimentos e controlar o turno.
                         </p>
                       </div>
                       <button
                         type="button"
                         onClick={() => setModalAberturaCaixa(true)}
-                        className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs rounded-2xl shadow-xs transition cursor-pointer inline-flex items-center gap-2"
+                        className={`px-6 py-3 text-xs rounded-2xl shadow-xs transition cursor-pointer inline-flex items-center gap-2 ${classeBotaoNeutroClaro}`}
                       >
                         <Unlock className="w-4 h-4" />
                         <span>Abrir Sessão de Caixa</span>
@@ -2602,7 +2619,7 @@ export const FinancasCaixa: React.FC = () => {
                             if (filtrosHistorico.dataFim) setPeriodoRelatorioFim(filtrosHistorico.dataFim);
                             setModalRelatorioConsolidado(true);
                           }}
-                          className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                          className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                         >
                           <FileText className="w-4 h-4" />
                           <span>Meios de Pagamento</span>
@@ -2614,7 +2631,7 @@ export const FinancasCaixa: React.FC = () => {
                             if (filtrosHistorico.dataFim) setPeriodoRelatorioFim(filtrosHistorico.dataFim);
                             setModalRelatorioSangriasDespesas(true);
                           }}
-                          className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                          className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                         >
                           <SlidersHorizontal className="w-4 h-4" />
                           <span>Sangrias & Despesas</span>
@@ -2625,8 +2642,8 @@ export const FinancasCaixa: React.FC = () => {
 
                   {/* LISTAGEM DE SESSÕES */}
                   {historicoSessoes.length === 0 ? (
-                    <div className={`text-center py-16 text-sm rounded-3xl border ${
-                      isDark ? 'bg-[#000000] border-slate-700 text-slate-300' : 'bg-white border-2 border-slate-300 text-slate-600'
+                    <div className={`text-center py-16 text-sm rounded-3xl border font-medium ${
+                      isDark ? 'bg-[#000000] border-slate-700 text-slate-300' : 'bg-white border-2 border-slate-300 text-slate-900'
                     }`}>
                       Nenhuma sessão de caixa encontrada para os filtros selecionados.
                     </div>
@@ -2655,7 +2672,7 @@ export const FinancasCaixa: React.FC = () => {
                                 className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase ${
                                   cx.status === 'ABERTO'
                                     ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                                    : isDark ? 'bg-[#08131A] text-slate-300 border border-slate-700' : 'bg-slate-100 text-slate-700 border border-slate-300'
+                                    : isDark ? 'bg-[#08131A] text-slate-300 border border-slate-700' : 'bg-slate-100 text-black border border-slate-300'
                                 }`}
                               >
                                 {cx.status}
@@ -2679,7 +2696,7 @@ export const FinancasCaixa: React.FC = () => {
                               )}
                             </div>
 
-                            <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                            <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                               Aberto em: <span className={`font-bold ${isDark ? 'text-white' : 'text-black'}`}>{new Date(cx.aberto_em).toLocaleString('pt-BR')}</span> por {cx.usuario_abertura?.nome_completo || 'Operador'}
                               {cx.fechado_em && (
                                 <>
@@ -2688,7 +2705,7 @@ export const FinancasCaixa: React.FC = () => {
                               )}
                             </p>
 
-                            <div className={`flex items-center gap-3 text-[11px] pt-1 flex-wrap ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                            <div className={`flex items-center gap-3 text-[11px] pt-1 flex-wrap ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                               <span>Faturamento Total: <strong className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>{formatarMoeda(cx.faturamento_total || 0)}</strong></span>
                               <span>•</span>
                               <span>Esperado Dinheiro: <strong className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>{formatarMoeda(cx.saldo_dinheiro_calculado || 0)}</strong></span>
@@ -2705,9 +2722,9 @@ export const FinancasCaixa: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleAbrirDrillDown(cx)}
-                              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                              className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                             >
-                              <Search className="w-4 h-4 text-white" />
+                              <Search className="w-4 h-4" />
                               <span>Inspecionar (Drill-Down)</span>
                             </button>
 
@@ -2766,7 +2783,7 @@ export const FinancasCaixa: React.FC = () => {
                         ? (statusLancamento === 'pendente' ? 'Editar Conta a Pagar' : 'Editar Despesa')
                         : (statusLancamento === 'pendente' ? 'Nova Conta a Pagar' : 'Lançar Nova Despesa (DRE)')}
                     </h3>
-                    <p className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                    <p className={`text-[11px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                       {statusLancamento === 'pendente'
                         ? 'Programe contas ou despesas futuras a pagar'
                         : 'Lance despesas operacionais ou compras já pagas'}
@@ -2779,7 +2796,7 @@ export const FinancasCaixa: React.FC = () => {
                     setModalNovaDespesa(false);
                     setTransacaoEditando(null);
                   }}
-                  className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer transition"
+                  className={classeBotaoFecharModal}
                   title="Fechar"
                 >
                   <X className="w-5 h-5" />
@@ -2795,8 +2812,8 @@ export const FinancasCaixa: React.FC = () => {
                   onClick={() => setStatusLancamento('pago')}
                   className={`py-2 px-3 rounded-xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 ${
                     statusLancamento === 'pago'
-                      ? 'bg-emerald-600 text-white shadow-xs border border-emerald-500'
-                      : isDark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-black'
+                      ? classeChipAtivoNeutroClaro
+                      : isDark ? 'text-slate-300 hover:text-white' : 'text-slate-900 hover:text-black'
                   }`}
                 >
                   <ArrowDownRight className="w-3.5 h-3.5" />
@@ -2807,8 +2824,8 @@ export const FinancasCaixa: React.FC = () => {
                   onClick={() => setStatusLancamento('pendente')}
                   className={`py-2 px-3 rounded-xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 ${
                     statusLancamento === 'pendente'
-                      ? 'bg-emerald-600 text-white shadow-xs border border-emerald-500'
-                      : isDark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-black'
+                      ? classeChipAtivoNeutroClaro
+                      : isDark ? 'text-slate-300 hover:text-white' : 'text-slate-900 hover:text-black'
                   }`}
                 >
                   <AlertTriangle className="w-3.5 h-3.5" />
@@ -2904,7 +2921,7 @@ export const FinancasCaixa: React.FC = () => {
                     </div>
                   )}
                   {statusLancamento === 'pendente' && (
-                    <span className={`text-[10px] block mt-1 font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                    <span className={`text-[10px] block mt-1 font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                       💡 Contas pendentes NÃO debitam do resultado financeiro até serem baixadas/pagas.
                     </span>
                   )}
@@ -2943,7 +2960,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="submit"
                   disabled={salvandoDespesa}
-                  className="w-full py-3.5 rounded-xl font-black text-xs shadow-xs transition mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white"
+                  className={`w-full py-3.5 rounded-xl text-xs shadow-xs transition mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${classeBotaoNeutroClaro}`}
                 >
                   {salvandoDespesa
                     ? 'Salvando...'
@@ -2973,13 +2990,13 @@ export const FinancasCaixa: React.FC = () => {
                   </div>
                   <div>
                     <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Confirmar Exclusão</h3>
-                    <p className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Exclusão irreversível de lançamento</p>
+                    <p className={`text-[11px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Exclusão irreversível de lançamento</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setModalConfirmarExclusao({ aberta: false, transacao: null, processando: false })}
-                  className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer transition"
+                  className={classeBotaoFecharModal}
                   title="Fechar"
                 >
                   <X className="w-5 h-5" />
@@ -2989,14 +3006,14 @@ export const FinancasCaixa: React.FC = () => {
               <div className={`p-4 rounded-2xl border space-y-2 text-xs ${
                 isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
               }`}>
-                <span className={`block font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Lançamento a ser excluído permanentemente:</span>
+                <span className={`block font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Lançamento a ser excluído permanentemente:</span>
                 <p className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>
                   {modalConfirmarExclusao.transacao.descricao}
                 </p>
                 <div className={`flex items-center justify-between pt-2 border-t text-xs ${
                   isDark ? 'border-slate-700' : 'border-slate-200'
                 }`}>
-                  <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
+                  <span className={isDark ? 'text-slate-300' : 'text-slate-900'}>
                     Categoria: <strong className={`font-bold ${isDark ? 'text-white' : 'text-black'}`}>{modalConfirmarExclusao.transacao.categoria}</strong>
                   </span>
                   <span className="text-sm font-black text-rose-500">
@@ -3018,7 +3035,7 @@ export const FinancasCaixa: React.FC = () => {
                   className={`flex-1 py-3 font-bold text-xs rounded-xl cursor-pointer transition border ${
                     isDark
                       ? 'bg-[#08131A] hover:bg-slate-900 text-white border-slate-700'
-                      : 'bg-slate-100 hover:bg-slate-200 text-black border-slate-300'
+                      : 'bg-slate-200 hover:bg-slate-300 text-black border-slate-300'
                   }`}
                 >
                   Cancelar
@@ -3053,13 +3070,13 @@ export const FinancasCaixa: React.FC = () => {
                   </div>
                   <div>
                     <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Baixar / Liquidar Conta a Pagar</h3>
-                    <p className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Confirmação de pagamento efetuado</p>
+                    <p className={`text-[11px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Confirmação de pagamento efetuado</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setModalBaixarConta({ aberta: false, transacao: null, formaPagamento: 'dinheiro', dataPagamento: obterDataOperacaoYMD(), processando: false })}
-                  className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer transition"
+                  className={classeBotaoFecharModal}
                   title="Fechar"
                 >
                   <X className="w-5 h-5" />
@@ -3071,9 +3088,9 @@ export const FinancasCaixa: React.FC = () => {
               }`}>
                 <div className="flex justify-between items-start">
                   <div>
-                    <span className={`text-[11px] block font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Título / Conta:</span>
+                    <span className={`text-[11px] block font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Título / Conta:</span>
                     <strong className={`text-sm block font-black ${isDark ? 'text-white' : 'text-black'}`}>{modalBaixarConta.transacao.descricao}</strong>
-                    <span className={`text-[10px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-500'}`}>{modalBaixarConta.transacao.categoria}</span>
+                    <span className={`text-[10px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>{modalBaixarConta.transacao.categoria}</span>
                   </div>
                   <span className="text-base font-black text-amber-500 shrink-0">
                     R$ {Number(modalBaixarConta.transacao.valor || 0).toFixed(2)}
@@ -3135,7 +3152,7 @@ export const FinancasCaixa: React.FC = () => {
                     className={`flex-1 py-3.5 font-bold text-xs rounded-xl cursor-pointer transition border ${
                       isDark
                         ? 'bg-[#08131A] hover:bg-slate-900 text-white border-slate-700'
-                        : 'bg-slate-100 hover:bg-slate-200 text-black border-slate-300'
+                        : 'bg-slate-200 hover:bg-slate-300 text-black border-slate-300'
                     }`}
                   >
                     Cancelar
@@ -3143,7 +3160,7 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="submit"
                     disabled={modalBaixarConta.processando}
-                    className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-xs transition cursor-pointer disabled:opacity-50 border border-emerald-500"
+                    className={`flex-1 py-3.5 text-xs rounded-xl shadow-xs transition cursor-pointer disabled:opacity-50 ${classeBotaoNeutroClaro}`}
                   >
                     {modalBaixarConta.processando ? 'Processando...' : 'Confirmar Pagamento'}
                   </button>
@@ -3170,13 +3187,13 @@ export const FinancasCaixa: React.FC = () => {
                   </div>
                   <div>
                     <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Abertura de Caixa</h3>
-                    <p className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Início de turno e fundo de troco</p>
+                    <p className={`text-[11px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Início de turno e fundo de troco</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setModalAberturaCaixa(false)}
-                  className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer transition"
+                  className={classeBotaoFecharModal}
                   title="Fechar"
                 >
                   <X className="w-5 h-5" />
@@ -3188,15 +3205,15 @@ export const FinancasCaixa: React.FC = () => {
                   isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                 }`}>
                   <div className="flex justify-between">
-                    <span className={isDark ? 'text-slate-300 font-bold' : 'text-slate-600 font-bold'}>Terminal de Caixa:</span>
+                    <span className={isDark ? 'text-slate-300 font-bold' : 'text-slate-900 font-bold'}>Terminal de Caixa:</span>
                     <strong className={`uppercase font-black ${isDark ? 'text-white' : 'text-black'}`}>{terminalId}</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span className={isDark ? 'text-slate-300 font-bold' : 'text-slate-600 font-bold'}>Operador:</span>
+                    <span className={isDark ? 'text-slate-300 font-bold' : 'text-slate-900 font-bold'}>Operador:</span>
                     <strong className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>{usuario?.nome_completo || 'Operador'}</strong>
                   </div>
                   <p className={`text-[10px] pt-1 border-t font-medium ${
-                    isDark ? 'text-slate-400 border-slate-800' : 'text-slate-500 border-slate-200'
+                    isDark ? 'text-slate-400 border-slate-800' : 'text-slate-900 border-slate-200'
                   }`}>
                     🔒 O sistema valida a concorrência e impede a abertura simultânea de mais de uma sessão ativa neste terminal.
                   </p>
@@ -3219,7 +3236,7 @@ export const FinancasCaixa: React.FC = () => {
                         : 'bg-emerald-50/50 border-emerald-500 text-emerald-700'
                     }`}
                   />
-                  <span className={`text-[10px] block text-center mt-1 font-medium ${isDark ? 'text-slate-300' : 'text-slate-500'}`}>
+                  <span className={`text-[10px] block text-center mt-1 font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                     Valor físico inicial em cédulas e moedas na gaveta
                   </span>
                 </div>
@@ -3227,7 +3244,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="submit"
                   disabled={abrindoCaixa}
-                  className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-xs transition cursor-pointer disabled:opacity-50 border border-emerald-500"
+                  className={`w-full py-3.5 rounded-xl text-xs shadow-xs transition cursor-pointer disabled:opacity-50 ${classeBotaoNeutroClaro}`}
                 >
                   {abrindoCaixa ? 'Abrindo Sessão...' : 'Confirmar Abertura de Caixa'}
                 </button>
@@ -3253,13 +3270,13 @@ export const FinancasCaixa: React.FC = () => {
                   </div>
                   <div>
                     <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Suprimento de Caixa (Troco Extra)</h3>
-                    <p className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Entrada física de troco na gaveta</p>
+                    <p className={`text-[11px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Entrada física de troco na gaveta</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setModalSuprimento(false)}
-                  className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer transition"
+                  className={classeBotaoFecharModal}
                   title="Fechar"
                 >
                   <X className="w-5 h-5" />
@@ -3307,7 +3324,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="submit"
                   disabled={processandoSuprimento}
-                  className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
+                  className={`w-full py-3.5 rounded-xl text-xs shadow-xs transition cursor-pointer disabled:opacity-50 ${classeBotaoNeutroClaro}`}
                 >
                   {processandoSuprimento ? 'Registrando...' : 'Confirmar Suprimento'}
                 </button>
@@ -3333,13 +3350,13 @@ export const FinancasCaixa: React.FC = () => {
                   </div>
                   <div>
                     <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Sangria de Caixa (Retirada de Dinheiro)</h3>
-                    <p className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Recolhimento de dinheiro da gaveta para o cofre</p>
+                    <p className={`text-[11px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Recolhimento de dinheiro da gaveta para o cofre</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setModalSangria(false)}
-                  className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer transition"
+                  className={classeBotaoFecharModal}
                   title="Fechar"
                 >
                   <X className="w-5 h-5" />
@@ -3387,7 +3404,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="submit"
                   disabled={processandoSangria}
-                  className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
+                  className={`w-full py-3.5 rounded-xl text-xs shadow-xs transition cursor-pointer disabled:opacity-50 ${classeBotaoNeutroClaro}`}
                 >
                   {processandoSangria ? 'Processando...' : 'Confirmar Sangria'}
                 </button>
@@ -3413,13 +3430,13 @@ export const FinancasCaixa: React.FC = () => {
                   </div>
                   <div>
                     <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Despesa Operacional de Gaveta</h3>
-                    <p className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Saída imediata de dinheiro da gaveta</p>
+                    <p className={`text-[11px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Saída imediata de dinheiro da gaveta</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setModalDespesaRapida(false)}
-                  className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer transition"
+                  className={classeBotaoFecharModal}
                   title="Fechar"
                 >
                   <X className="w-5 h-5" />
@@ -3493,7 +3510,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="submit"
                   disabled={processandoDespesaRapida}
-                  className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
+                  className={`w-full py-3.5 rounded-xl text-xs shadow-xs transition cursor-pointer disabled:opacity-50 ${classeBotaoNeutroClaro}`}
                 >
                   {processandoDespesaRapida ? 'Lançando...' : 'Confirmar Saída da Gaveta'}
                 </button>
@@ -3519,7 +3536,7 @@ export const FinancasCaixa: React.FC = () => {
                   </div>
                   <div>
                     <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Fechamento Cego de Caixa</h3>
-                    <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                    <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                       Terminal: <strong className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>{sessaoAtiva?.terminal_id}</strong>
                     </p>
                   </div>
@@ -3527,7 +3544,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalFechamentoCego(false)}
-                  className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer transition"
+                  className={classeBotaoFecharModal}
                   title="Fechar"
                 >
                   <X className="w-5 h-5" />
@@ -3562,7 +3579,7 @@ export const FinancasCaixa: React.FC = () => {
                         : 'bg-white border-2 border-emerald-600 text-emerald-700'
                     }`}
                   />
-                  <span className={`text-[10px] block text-center mt-1 font-medium ${isDark ? 'text-slate-300' : 'text-slate-500'}`}>
+                  <span className={`text-[10px] block text-center mt-1 font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                     Soma de todas as cédulas e moedas físicas presentes na gaveta
                   </span>
                 </div>
@@ -3653,7 +3670,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="submit"
                   disabled={processandoFechamento}
-                  className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-sm shadow-xs transition cursor-pointer disabled:opacity-50"
+                  className={`w-full py-4 rounded-2xl text-sm shadow-xs transition cursor-pointer disabled:opacity-50 ${classeBotaoNeutroClaro}`}
                 >
                   {processandoFechamento ? 'Apurando e Encerrando...' : 'Concluir Fechamento Cego'}
                 </button>
@@ -3679,7 +3696,7 @@ export const FinancasCaixa: React.FC = () => {
                   </div>
                   <div>
                     <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Relatório Oficial de Fechamento de Caixa</h3>
-                    <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                    <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                       Terminal: <strong className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>{relatorioFechamentoResumo.sessao.terminal_id}</strong> • Duração: <strong className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>{relatorioFechamentoResumo.duracaoTexto}</strong>
                     </p>
                   </div>
@@ -3687,7 +3704,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalRelatorioFechamento(false)}
-                  className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer transition"
+                  className={classeBotaoFecharModal}
                   title="Fechar"
                 >
                   <X className="w-5 h-5" />
@@ -3733,7 +3750,7 @@ export const FinancasCaixa: React.FC = () => {
                 <div className={`p-3.5 rounded-2xl border space-y-1 ${
                   isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                 }`}>
-                  <span className={`text-[11px] font-bold block ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Total Faturado (Vendas)</span>
+                  <span className={`text-[11px] font-bold block ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Total Faturado (Vendas)</span>
                   <span className={`text-lg font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                     R$ {relatorioFechamentoResumo.faturamentoTotalVendas.toFixed(2)}
                   </span>
@@ -3742,21 +3759,21 @@ export const FinancasCaixa: React.FC = () => {
                 <div className={`p-3.5 rounded-2xl border space-y-1 ${
                   isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                 }`}>
-                  <span className={`text-[11px] font-bold block ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Esperado em Dinheiro</span>
+                  <span className={`text-[11px] font-bold block ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Esperado em Dinheiro</span>
                   <span className={`text-lg font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                     R$ {relatorioFechamentoResumo.saldoEsperadoDinheiro.toFixed(2)}
                   </span>
-                  <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Fundo + Vendas - Saídas</span>
+                  <span className={`text-[10px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Fundo + Vendas - Saídas</span>
                 </div>
 
                 <div className={`p-3.5 rounded-2xl border space-y-1 ${
                   isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                 }`}>
-                  <span className={`text-[11px] font-bold block ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Contado pelo Operador</span>
+                  <span className={`text-[11px] font-bold block ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Contado pelo Operador</span>
                   <span className={`text-lg font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                     R$ {Number(relatorioFechamentoResumo.sessao.saldo_declarado_dinheiro ?? relatorioFechamentoResumo.sessao.saldo_dinheiro_declarado ?? 0).toFixed(2)}
                   </span>
-                  <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Valor físico declarado</span>
+                  <span className={`text-[10px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Valor físico declarado</span>
                 </div>
               </div>
 
@@ -3779,27 +3796,27 @@ export const FinancasCaixa: React.FC = () => {
                     <tbody className={`divide-y ${isDark ? 'divide-slate-800' : 'divide-slate-100'}`}>
                       <tr className={isDark ? 'hover:bg-slate-900/50' : 'hover:bg-slate-50/75'}>
                         <td className={`p-2.5 font-bold ${isDark ? 'text-white' : 'text-black'}`}>Dinheiro</td>
-                        <td className={`p-2.5 text-center ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{relatorioFechamentoResumo.qtdVendasPorMetodo.dinheiro}</td>
+                        <td className={`p-2.5 text-center ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>{relatorioFechamentoResumo.qtdVendasPorMetodo.dinheiro}</td>
                         <td className={`p-2.5 text-right font-black ${isDark ? 'text-white' : 'text-black'}`}>R$ {relatorioFechamentoResumo.totaisPorMetodo.dinheiro.toFixed(2)}</td>
                       </tr>
                       <tr className={isDark ? 'hover:bg-slate-900/50' : 'hover:bg-slate-50/75'}>
                         <td className={`p-2.5 font-bold ${isDark ? 'text-white' : 'text-black'}`}>Pix</td>
-                        <td className={`p-2.5 text-center ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{relatorioFechamentoResumo.qtdVendasPorMetodo.pix}</td>
+                        <td className={`p-2.5 text-center ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>{relatorioFechamentoResumo.qtdVendasPorMetodo.pix}</td>
                         <td className={`p-2.5 text-right font-black ${isDark ? 'text-white' : 'text-black'}`}>R$ {relatorioFechamentoResumo.totaisPorMetodo.pix.toFixed(2)}</td>
                       </tr>
                       <tr className={isDark ? 'hover:bg-slate-900/50' : 'hover:bg-slate-50/75'}>
                         <td className={`p-2.5 font-bold ${isDark ? 'text-white' : 'text-black'}`}>Cartão de Débito</td>
-                        <td className={`p-2.5 text-center ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{relatorioFechamentoResumo.qtdVendasPorMetodo.cartao_debito}</td>
+                        <td className={`p-2.5 text-center ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>{relatorioFechamentoResumo.qtdVendasPorMetodo.cartao_debito}</td>
                         <td className={`p-2.5 text-right font-black ${isDark ? 'text-white' : 'text-black'}`}>R$ {relatorioFechamentoResumo.totaisPorMetodo.cartao_debito.toFixed(2)}</td>
                       </tr>
                       <tr className={isDark ? 'hover:bg-slate-900/50' : 'hover:bg-slate-50/75'}>
                         <td className={`p-2.5 font-bold ${isDark ? 'text-white' : 'text-black'}`}>Cartão de Crédito</td>
-                        <td className={`p-2.5 text-center ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{relatorioFechamentoResumo.qtdVendasPorMetodo.cartao_credito}</td>
+                        <td className={`p-2.5 text-center ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>{relatorioFechamentoResumo.qtdVendasPorMetodo.cartao_credito}</td>
                         <td className={`p-2.5 text-right font-black ${isDark ? 'text-white' : 'text-black'}`}>R$ {relatorioFechamentoResumo.totaisPorMetodo.cartao_credito.toFixed(2)}</td>
                       </tr>
                       <tr className={isDark ? 'hover:bg-slate-900/50' : 'hover:bg-slate-50/75'}>
                         <td className={`p-2.5 font-bold ${isDark ? 'text-white' : 'text-black'}`}>Outros</td>
-                        <td className={`p-2.5 text-center ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{relatorioFechamentoResumo.qtdVendasPorMetodo.outros}</td>
+                        <td className={`p-2.5 text-center ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>{relatorioFechamentoResumo.qtdVendasPorMetodo.outros}</td>
                         <td className={`p-2.5 text-right font-black ${isDark ? 'text-white' : 'text-black'}`}>R$ {relatorioFechamentoResumo.totaisPorMetodo.outros.toFixed(2)}</td>
                       </tr>
                     </tbody>
@@ -3828,7 +3845,7 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleEnviarWhatsappRelatorioTexto(relatorioFechamentoTexto)}
-                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                    className={`px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                   >
                     <Share2 className="w-4 h-4" />
                     <span>WhatsApp</span>
@@ -3839,7 +3856,7 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleImprimirRelatorioTexto(relatorioFechamentoResumo)}
-                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-2 transition cursor-pointer shadow-xs"
+                    className={`px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                   >
                     <Printer className="w-4 h-4" />
                     <span>Imprimir Comprovante</span>
@@ -3851,7 +3868,7 @@ export const FinancasCaixa: React.FC = () => {
                     className={`px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer border ${
                       isDark
                         ? 'bg-[#08131A] hover:bg-slate-900 text-white border-slate-700'
-                        : 'bg-slate-100 hover:bg-slate-200 text-black border border-slate-300'
+                        : 'bg-slate-200 hover:bg-slate-300 text-black border border-slate-300'
                     }`}
                   >
                     Fechar
@@ -3881,7 +3898,7 @@ export const FinancasCaixa: React.FC = () => {
                     <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>
                       Auditoria de Sessão (Drill-Down) • Terminal {sessaoDrillDown.terminal_id}
                     </h3>
-                    <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                    <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                       ID da Sessão: <span className={`font-mono font-bold ${isDark ? 'text-white' : 'text-black'}`}>{sessaoDrillDown.id}</span>
                     </p>
                   </div>
@@ -3889,7 +3906,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalDrillDown(false)}
-                  className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer transition"
+                  className={classeBotaoFecharModal}
                   title="Fechar"
                 >
                   <X className="w-5 h-5" />
@@ -3897,7 +3914,7 @@ export const FinancasCaixa: React.FC = () => {
               </div>
 
               {carregandoDrillDown ? (
-                <div className={`py-16 text-center text-sm font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Carregando auditoria completa...</div>
+                <div className={`py-16 text-center text-sm font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Carregando auditoria completa...</div>
               ) : resumoDrillDown ? (
                 <div className="space-y-4">
                   {/* METADADOS DA SESSÃO */}
@@ -3905,21 +3922,21 @@ export const FinancasCaixa: React.FC = () => {
                     isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                   }`}>
                     <div>
-                      <span className={`text-[10px] block font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Abertura</span>
+                      <span className={`text-[10px] block font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Abertura</span>
                       <span className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>{new Date(sessaoDrillDown.aberto_em).toLocaleString('pt-BR')}</span>
                     </div>
                     <div>
-                      <span className={`text-[10px] block font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Fechamento</span>
+                      <span className={`text-[10px] block font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Fechamento</span>
                       <span className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>
                         {sessaoDrillDown.fechado_em ? new Date(sessaoDrillDown.fechado_em).toLocaleString('pt-BR') : 'Em Aberto'}
                       </span>
                     </div>
                     <div>
-                      <span className={`text-[10px] block font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Duração Total</span>
+                      <span className={`text-[10px] block font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Duração Total</span>
                       <span className="font-black text-emerald-500">{resumoDrillDown.duracaoTexto}</span>
                     </div>
                     <div>
-                      <span className={`text-[10px] block font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Operador Fechamento</span>
+                      <span className={`text-[10px] block font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Operador Fechamento</span>
                       <span className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>{sessaoDrillDown.usuario_fechamento?.nome_completo || '—'}</span>
                     </div>
                   </div>
@@ -3929,19 +3946,19 @@ export const FinancasCaixa: React.FC = () => {
                     <div className={`border p-3 rounded-2xl ${
                       isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                     }`}>
-                      <span className={`text-[10px] block font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Total Faturado</span>
+                      <span className={`text-[10px] block font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Total Faturado</span>
                       <span className={`font-black text-sm block ${isDark ? 'text-white' : 'text-black'}`}>R$ {resumoDrillDown.faturamentoTotalVendas.toFixed(2)}</span>
                     </div>
                     <div className={`border p-3 rounded-2xl ${
                       isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                     }`}>
-                      <span className={`text-[10px] block font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Esperado Dinheiro</span>
+                      <span className={`text-[10px] block font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Esperado Dinheiro</span>
                       <span className={`font-black text-sm block ${isDark ? 'text-white' : 'text-black'}`}>R$ {resumoDrillDown.saldoEsperadoDinheiro.toFixed(2)}</span>
                     </div>
                     <div className={`border p-3 rounded-2xl ${
                       isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                     }`}>
-                      <span className={`text-[10px] block font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Declarado Físico</span>
+                      <span className={`text-[10px] block font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Declarado Físico</span>
                       <span className={`font-black text-sm block ${isDark ? 'text-white' : 'text-black'}`}>
                         R$ {Number(sessaoDrillDown.saldo_declarado_dinheiro ?? sessaoDrillDown.saldo_dinheiro_declarado ?? 0).toFixed(2)}
                       </span>
@@ -3949,7 +3966,7 @@ export const FinancasCaixa: React.FC = () => {
                     <div className={`border p-3 rounded-2xl ${
                       isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                     }`}>
-                      <span className={`text-[10px] block font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Diferença Final</span>
+                      <span className={`text-[10px] block font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Diferença Final</span>
                       <span className={`font-black text-sm block ${isDark ? 'text-white' : 'text-black'}`}>
                         {Number(sessaoDrillDown.diferenca_dinheiro || 0) === 0
                           ? 'R$ 0,00'
@@ -3975,7 +3992,7 @@ export const FinancasCaixa: React.FC = () => {
                     </span>
                     <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
                       {!resumoDrillDown.sessao.movimentacoes || resumoDrillDown.sessao.movimentacoes.length === 0 ? (
-                        <p className={`text-xs text-center py-4 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Nenhuma movimentação detalhada.</p>
+                        <p className={`text-xs text-center py-4 font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Nenhuma movimentação detalhada.</p>
                       ) : (
                         resumoDrillDown.sessao.movimentacoes.map(m => (
                           <div
@@ -3986,7 +4003,7 @@ export const FinancasCaixa: React.FC = () => {
                           >
                             <div>
                               <span className={`font-bold block ${isDark ? 'text-white' : 'text-black'}`}>{m.descricao}</span>
-                              <div className={`flex items-center gap-2 text-[10px] ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                              <div className={`flex items-center gap-2 text-[10px] ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                                 <span className="uppercase font-bold">{m.tipo}</span>
                                 <span>•</span>
                                 <span>{m.metodo_pagamento}</span>
@@ -4018,7 +4035,7 @@ export const FinancasCaixa: React.FC = () => {
                         PrintService.printFechamentoCaixa({ ...resumoDrillDown, sessao: sessaoDrillDown }, loja);
                       }
                     }}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs rounded-xl flex items-center gap-2 transition cursor-pointer shadow-xs"
+                    className={`px-4 py-2 text-xs rounded-xl flex items-center gap-2 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                   >
                     <Printer className="w-4 h-4" />
                     <span>Imprimir Comprovante</span>
@@ -4030,7 +4047,7 @@ export const FinancasCaixa: React.FC = () => {
                   className={`px-5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ml-auto border ${
                     isDark
                       ? 'bg-[#08131A] hover:bg-slate-900 text-white border-slate-700'
-                      : 'bg-slate-100 hover:bg-slate-200 text-black border border-slate-300'
+                      : 'bg-slate-200 hover:bg-slate-300 text-black border border-slate-300'
                   }`}
                 >
                   Fechar Auditoria
@@ -4057,13 +4074,13 @@ export const FinancasCaixa: React.FC = () => {
                   </div>
                   <div>
                     <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Relatório Consolidado de Meios de Pagamento</h3>
-                    <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Conciliação com Extratos Bancários e Maquininhas</p>
+                    <p className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Conciliação com Extratos Bancários e Maquininhas</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setModalRelatorioConsolidado(false)}
-                  className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer transition"
+                  className={classeBotaoFecharModal}
                   title="Fechar"
                 >
                   <X className="w-5 h-5" />
@@ -4107,7 +4124,7 @@ export const FinancasCaixa: React.FC = () => {
                 <div className={`p-3.5 rounded-2xl border space-y-1 ${
                   isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                 }`}>
-                  <span className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Dinheiro Físico</span>
+                  <span className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Dinheiro Físico</span>
                   <span className="text-base font-black text-emerald-500 block">
                     R$ {dadosRelatorioConsolidado.dinheiro.toFixed(2)}
                   </span>
@@ -4115,7 +4132,7 @@ export const FinancasCaixa: React.FC = () => {
                 <div className={`p-3.5 rounded-2xl border space-y-1 ${
                   isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                 }`}>
-                  <span className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Pix Bancário</span>
+                  <span className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Pix Bancário</span>
                   <span className="text-base font-black text-cyan-500 block">
                     R$ {dadosRelatorioConsolidado.pix.toFixed(2)}
                   </span>
@@ -4123,7 +4140,7 @@ export const FinancasCaixa: React.FC = () => {
                 <div className={`p-3.5 rounded-2xl border space-y-1 ${
                   isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                 }`}>
-                  <span className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Cartão Débito</span>
+                  <span className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Cartão Débito</span>
                   <span className="text-base font-black text-blue-500 block">
                     R$ {dadosRelatorioConsolidado.debito.toFixed(2)}
                   </span>
@@ -4131,7 +4148,7 @@ export const FinancasCaixa: React.FC = () => {
                 <div className={`p-3.5 rounded-2xl border space-y-1 ${
                   isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                 }`}>
-                  <span className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Cartão Crédito</span>
+                  <span className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Cartão Crédito</span>
                   <span className="text-base font-black text-purple-500 block">
                     R$ {dadosRelatorioConsolidado.credito.toFixed(2)}
                   </span>
@@ -4139,7 +4156,7 @@ export const FinancasCaixa: React.FC = () => {
                 <div className={`p-3.5 rounded-2xl border space-y-1 ${
                   isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                 }`}>
-                  <span className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Outros / Convênio</span>
+                  <span className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Outros / Convênio</span>
                   <span className="text-base font-black text-amber-500 block">
                     R$ {dadosRelatorioConsolidado.outros.toFixed(2)}
                   </span>
@@ -4161,7 +4178,7 @@ export const FinancasCaixa: React.FC = () => {
                     const texto = `RELATÓRIO CONSOLIDADO DE MEIOS DE PAGAMENTO\nPeríodo: ${periodoRelatorioInicio} até ${periodoRelatorioFim}\n\nDinheiro: R$ ${dadosRelatorioConsolidado.dinheiro.toFixed(2)}\nPix: R$ ${dadosRelatorioConsolidado.pix.toFixed(2)}\nCartão Débito: R$ ${dadosRelatorioConsolidado.debito.toFixed(2)}\nCartão Crédito: R$ ${dadosRelatorioConsolidado.credito.toFixed(2)}\nOutros: R$ ${dadosRelatorioConsolidado.outros.toFixed(2)}\n\nTOTAL FATURADO: R$ ${dadosRelatorioConsolidado.totalBruto.toFixed(2)}`;
                     handleCopiarRelatorioTexto(texto);
                   }}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs rounded-xl cursor-pointer shadow-xs transition"
+                  className={`px-4 py-2 text-xs rounded-xl cursor-pointer shadow-xs transition ${classeBotaoNeutroClaro}`}
                 >
                   Copiar Relatório
                 </button>
@@ -4171,7 +4188,7 @@ export const FinancasCaixa: React.FC = () => {
                   className={`px-4 py-2 text-xs font-bold rounded-xl cursor-pointer transition border ${
                     isDark
                       ? 'bg-[#08131A] hover:bg-slate-900 text-white border-slate-700'
-                      : 'bg-slate-100 hover:bg-slate-200 text-black border border-slate-300'
+                      : 'bg-slate-200 hover:bg-slate-300 text-black border border-slate-300'
                   }`}
                 >
                   Fechar
@@ -4198,13 +4215,13 @@ export const FinancasCaixa: React.FC = () => {
                   </div>
                   <div>
                     <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Relatório de Sangrias & Despesas de Gaveta</h3>
-                    <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Auditoria de saídas e retiradas operacionais</p>
+                    <p className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Auditoria de saídas e retiradas operacionais</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setModalRelatorioSangriasDespesas(false)}
-                  className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer transition"
+                  className={classeBotaoFecharModal}
                   title="Fechar"
                 >
                   <X className="w-5 h-5" />
@@ -4216,7 +4233,7 @@ export const FinancasCaixa: React.FC = () => {
                 <div className={`p-3.5 rounded-2xl border space-y-1 ${
                   isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                 }`}>
-                  <span className={`text-[11px] font-bold block ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Total de Sangrias (Cofre)</span>
+                  <span className={`text-[11px] font-bold block ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Total de Sangrias (Cofre)</span>
                   <span className="text-lg font-black text-rose-500 block">
                     R$ {dadosRelatorioSangriasDespesas.totalSangrias.toFixed(2)}
                   </span>
@@ -4224,7 +4241,7 @@ export const FinancasCaixa: React.FC = () => {
                 <div className={`p-3.5 rounded-2xl border space-y-1 ${
                   isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                 }`}>
-                  <span className={`text-[11px] font-bold block ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Total Despesas da Gaveta</span>
+                  <span className={`text-[11px] font-bold block ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Total Despesas da Gaveta</span>
                   <span className="text-lg font-black text-amber-500 block">
                     R$ {dadosRelatorioSangriasDespesas.totalDespesas.toFixed(2)}
                   </span>
@@ -4232,7 +4249,7 @@ export const FinancasCaixa: React.FC = () => {
                 <div className={`p-3.5 rounded-2xl border space-y-1 ${
                   isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                 }`}>
-                  <span className={`text-[11px] font-bold block ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Total Geral de Saídas</span>
+                  <span className={`text-[11px] font-bold block ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Total Geral de Saídas</span>
                   <span className={`text-lg font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                     R$ {dadosRelatorioSangriasDespesas.totalGeral.toFixed(2)}
                   </span>
@@ -4246,7 +4263,7 @@ export const FinancasCaixa: React.FC = () => {
                 </span>
                 <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
                   {dadosRelatorioSangriasDespesas.itens.length === 0 ? (
-                    <p className={`text-xs py-6 text-center font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Nenhuma sangria ou despesa no período.</p>
+                    <p className={`text-xs py-6 text-center font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Nenhuma sangria ou despesa no período.</p>
                   ) : (
                     dadosRelatorioSangriasDespesas.itens.map(item => (
                       <div
@@ -4268,7 +4285,7 @@ export const FinancasCaixa: React.FC = () => {
                             </span>
                             <span className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>{item.descricao}</span>
                           </div>
-                          <div className={`flex items-center gap-2 text-[10px] mt-1 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                          <div className={`flex items-center gap-2 text-[10px] mt-1 ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                             <span>Terminal: {item.terminal}</span>
                             <span>•</span>
                             <span>{new Date(item.data).toLocaleString('pt-BR')}</span>
@@ -4292,7 +4309,7 @@ export const FinancasCaixa: React.FC = () => {
                   className={`px-4 py-2 text-xs font-bold rounded-xl cursor-pointer transition border ${
                     isDark
                       ? 'bg-[#08131A] hover:bg-slate-900 text-white border-slate-700'
-                      : 'bg-slate-100 hover:bg-slate-200 text-black border border-slate-300'
+                      : 'bg-slate-200 hover:bg-slate-300 text-black border border-slate-300'
                   }`}
                 >
                   Fechar
@@ -4336,7 +4353,7 @@ export const FinancasCaixa: React.FC = () => {
                       {modalDetalhesMetrica === 'pagar' && 'Detalhamento de Contas a Pagar'}
                       {modalDetalhesMetrica === 'lucro' && 'Resultado Acumulado'}
                     </h3>
-                    <span className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                    <span className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                       Composição detalhada dos valores apurados
                     </span>
                   </div>
@@ -4344,7 +4361,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalDetalhesMetrica(null)}
-                  className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer transition"
+                  className={classeBotaoFecharModal}
                   title="Fechar"
                 >
                   <X className="w-5 h-5" />
@@ -4360,7 +4377,7 @@ export const FinancasCaixa: React.FC = () => {
                       }`}
                     >
                       <div>
-                        <span className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                        <span className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                           Total de Entradas Recebidas:
                         </span>
                         <span className={`text-xl font-black ${isDark ? 'text-white' : 'text-black'}`}>
@@ -4370,7 +4387,7 @@ export const FinancasCaixa: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleExportarEntradas}
-                        className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-1.5 border border-emerald-500 transition cursor-pointer shadow-xs"
+                        className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                       >
                         <FileSpreadsheet className="w-4 h-4" />
                         <span>Exportar Excel</span>
@@ -4392,7 +4409,7 @@ export const FinancasCaixa: React.FC = () => {
                               <span className={`font-black block truncate ${isDark ? 'text-white' : 'text-black'}`}>
                                 {t.descricao}
                               </span>
-                              <span className={`text-[10px] ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                              <span className={`text-[10px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                                 {t.categoria} • {new Date(t.data).toLocaleDateString('pt-BR')}
                               </span>
                             </div>
@@ -4414,7 +4431,7 @@ export const FinancasCaixa: React.FC = () => {
                       }`}
                     >
                       <div>
-                        <span className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                        <span className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                           Total de Despesas:
                         </span>
                         <span className={`text-xl font-black ${isDark ? 'text-white' : 'text-black'}`}>
@@ -4425,7 +4442,7 @@ export const FinancasCaixa: React.FC = () => {
                         <button
                           type="button"
                           onClick={handleExportarDespesas}
-                          className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-1.5 border border-emerald-500 transition cursor-pointer shadow-xs"
+                          className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                         >
                           <FileSpreadsheet className="w-4 h-4" />
                           <span>Exportar Excel</span>
@@ -4437,7 +4454,7 @@ export const FinancasCaixa: React.FC = () => {
                               setModalDetalhesMetrica(null);
                               abrirModalNovaDespesa();
                             }}
-                            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-1 border border-emerald-500 shadow-xs transition cursor-pointer"
+                            className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1 shadow-xs transition cursor-pointer ${classeBotaoNeutroClaro}`}
                           >
                             <Plus className="w-3.5 h-3.5" />
                             <span>Nova Despesa</span>
@@ -4463,7 +4480,7 @@ export const FinancasCaixa: React.FC = () => {
                                 <span className={`font-black block truncate leading-tight ${isDark ? 'text-white' : 'text-black'}`}>
                                   {descLimpa}
                                 </span>
-                                <span className={`text-[10px] block mt-1 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                                <span className={`text-[10px] block mt-1 font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                                   {t.categoria} • {new Date(t.data).toLocaleDateString('pt-BR')}
                                 </span>
                               </div>
@@ -4479,7 +4496,11 @@ export const FinancasCaixa: React.FC = () => {
                                         setModalDetalhesMetrica(null);
                                         abrirModalEditarTransacao(t);
                                       }}
-                                      className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer"
+                                      className={
+                                        isDark
+                                          ? 'p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer'
+                                          : 'p-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 border border-slate-300 text-black transition cursor-pointer'
+                                      }
                                       title="Editar Despesa"
                                     >
                                       <Pencil className="w-3.5 h-3.5" />
@@ -4514,7 +4535,7 @@ export const FinancasCaixa: React.FC = () => {
                       }`}
                     >
                       <div>
-                        <span className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                        <span className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                           Total de Contas Pendentes a Pagar:
                         </span>
                         <span className={`text-xl font-black ${isDark ? 'text-white' : 'text-black'}`}>
@@ -4525,7 +4546,7 @@ export const FinancasCaixa: React.FC = () => {
                         <button
                           type="button"
                           onClick={handleExportarContasPagar}
-                          className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-1.5 border border-emerald-500 transition cursor-pointer shadow-xs"
+                          className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                         >
                           <FileSpreadsheet className="w-4 h-4" />
                           <span>Exportar Excel</span>
@@ -4537,7 +4558,7 @@ export const FinancasCaixa: React.FC = () => {
                               setModalDetalhesMetrica(null);
                               abrirModalNovaContaPagar();
                             }}
-                            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-1 border border-emerald-500 shadow-xs transition cursor-pointer"
+                            className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1 shadow-xs transition cursor-pointer ${classeBotaoNeutroClaro}`}
                           >
                             <Plus className="w-3.5 h-3.5" />
                             <span>Nova Conta</span>
@@ -4561,7 +4582,7 @@ export const FinancasCaixa: React.FC = () => {
                               <span className={`font-black block truncate ${isDark ? 'text-white' : 'text-black'}`}>
                                 {t.descricao}
                               </span>
-                              <span className={`text-[10px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                              <span className={`text-[10px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                                 Vencimento: {new Date(t.data).toLocaleDateString('pt-BR')} • {t.categoria}
                               </span>
                             </div>
@@ -4583,7 +4604,7 @@ export const FinancasCaixa: React.FC = () => {
                                         processando: false
                                       });
                                     }}
-                                    className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[10px] flex items-center gap-0.5 cursor-pointer shadow-xs border border-emerald-500"
+                                    className={`px-2 py-1 rounded-lg text-[10px] flex items-center gap-0.5 cursor-pointer shadow-xs ${classeMiniBotaoNeutroClaro}`}
                                     title="Pagar / Baixar Conta"
                                   >
                                     <CheckCircle2 className="w-3 h-3" />
@@ -4595,7 +4616,11 @@ export const FinancasCaixa: React.FC = () => {
                                       setModalDetalhesMetrica(null);
                                       abrirModalEditarTransacao(t);
                                     }}
-                                    className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer"
+                                    className={
+                                      isDark
+                                        ? 'p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer'
+                                        : 'p-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 border border-slate-300 text-black transition cursor-pointer'
+                                    }
                                     title="Editar Conta"
                                   >
                                     <Pencil className="w-3.5 h-3.5" />
@@ -4628,14 +4653,14 @@ export const FinancasCaixa: React.FC = () => {
                         isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                       }`}
                     >
-                      <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                         <span className="flex items-center gap-1.5 font-bold">
                           <ArrowUpRight className="w-4 h-4 text-emerald-500" /> (+) Entradas / Receitas Totais:
                         </span>
                         <span className="font-black text-emerald-500 text-sm">+ R$ {totalReceitas.toFixed(2)}</span>
                       </div>
 
-                      <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
                         <span className="flex items-center gap-1.5 font-bold">
                           <ArrowDownRight className="w-4 h-4 text-rose-500" /> (-) Saídas / Despesas Pagas:
                         </span>
@@ -4651,10 +4676,10 @@ export const FinancasCaixa: React.FC = () => {
                     </div>
 
                     <div
-                      className={`p-3 rounded-2xl border text-[11px] leading-relaxed ${
+                      className={`p-3 rounded-2xl border text-[11px] leading-relaxed font-medium ${
                         isDark
                           ? 'bg-[#08131A] border-slate-700 text-slate-300'
-                          : 'bg-slate-50 border-2 border-slate-200 text-slate-700'
+                          : 'bg-slate-50 border-2 border-slate-200 text-slate-900'
                       }`}
                     >
                       💡 O resultado acumulado considera o fluxo financeiro efetivamente realizado (dinheiro que entrou menos o dinheiro que já foi pago). Contas pendentes a pagar de R$ {totalDespesasPendentes.toFixed(2)} ainda não foram debitadas.
@@ -4670,7 +4695,7 @@ export const FinancasCaixa: React.FC = () => {
                   className={`px-5 py-2 rounded-xl text-xs font-black transition cursor-pointer border ${
                     isDark
                       ? 'bg-[#08131A] hover:bg-slate-900 text-white border-slate-700'
-                      : 'bg-slate-100 hover:bg-slate-200 text-black border-2 border-slate-300'
+                      : 'bg-slate-200 hover:bg-slate-300 text-black border border-slate-300'
                   }`}
                 >
                   Fechar
