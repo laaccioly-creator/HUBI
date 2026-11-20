@@ -440,7 +440,11 @@ export const ModalDesdobramentoMetricaLojas: React.FC<ModalDesdobramentoMetricaL
             <button
               type="button"
               onClick={() => onVerConsolidado(tipoMetrica)}
-              className="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-sm transition cursor-pointer active:scale-98"
+              className={`px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2 shadow-sm transition cursor-pointer active:scale-98 ${
+                isDark
+                  ? 'bg-slate-700 hover:bg-slate-600 text-white font-semibold border border-slate-600'
+                  : 'bg-slate-200 hover:bg-slate-300 text-black font-semibold border border-slate-300'
+              }`}
               title="Abrir auditoria analítica consolidada de todas as lojas reunidas"
             >
               <BarChart3 className="w-4 h-4" />
@@ -525,7 +529,11 @@ export const ModalDesdobramentoMetricaLojas: React.FC<ModalDesdobramentoMetricaL
                 <button
                   type="button"
                   onClick={() => onVerConsolidado(tipoMetrica)}
-                  className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 transition cursor-pointer shadow-xs active:scale-98"
+                  className={`px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition cursor-pointer shadow-xs active:scale-98 ${
+                    isDark
+                      ? 'bg-slate-700 hover:bg-slate-600 text-white font-semibold border border-slate-600'
+                      : 'bg-slate-200 hover:bg-slate-300 text-black font-semibold border border-slate-300'
+                  }`}
                 >
                   <BarChart3 className="w-4 h-4" />
                   <span>Ver Auditoria Geral Consolidada</span>

@@ -207,11 +207,32 @@ interface CacheEntry {
 const memoryCache = new Map<string, CacheEntry>();
 const TTL_CACHE_MS = 60 * 1000; // 60 segundos de frescor absoluto
 
+function isTipoDespesaTransacao(tipo: unknown): boolean {
+  const normalizado = String(tipo || '').toUpperCase();
+  return normalizado === 'SAIDA' || normalizado.startsWith('DESPESA');
+}
+
+function parseDataCompetenciaDespesa(registro: {
+  data_pagamento?: string | null;
+  data_vencimento?: string | null;
+  criado_em?: string | null;
+}): Date | null {
+  const raw = registro.data_pagamento || registro.data_vencimento || registro.criado_em;
+  if (!raw) return null;
+  const trimmed = String(raw).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const local = new Date(`${trimmed}T12:00:00`);
+    return Number.isNaN(local.getTime()) ? null : local;
+  }
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function gerarChaveCache(params: ParametrosConsultaDashboard): string {
   const offset = params.periodoOffset || 0;
   const custom = `${params.dataInicioCustom || ''}_${params.dataFimCustom || ''}`;
   const sufixoMulti = params.lojaId === 'todas' && params.lojasIdsConglomerado ? `_${params.lojasIdsConglomerado.sort().join('-')}` : '';
-  return `hubi_cockpit_v4_${params.lojaId}${sufixoMulti}_${params.tipoPeriodo}_${offset}_${custom}`;
+  return `hubi_cockpit_v5_${params.lojaId}${sufixoMulti}_${params.tipoPeriodo}_${offset}_${custom}`;
 }
 
 function recuperarCache(chave: string): PayloadDashboardExecutivo | null {
@@ -406,10 +427,9 @@ export const dashboardJevService = {
 
     let despesas = 0;
     transacoesLoja.forEach(t => {
-      const tipo = String(t.tipo || '').toUpperCase();
-      if (tipo === 'SAIDA' || tipo.startsWith('DESPESA')) {
-        const dt = new Date(t.data_pagamento || t.criado_em);
-        if (dt >= dInicio && dt <= dFim) {
+      if (isTipoDespesaTransacao(t.tipo)) {
+        const dt = parseDataCompetenciaDespesa(t);
+        if (dt && dt >= dInicio && dt <= dFim) {
           despesas += Number(t.valor || 0);
         }
       }
@@ -896,32 +916,19 @@ export const dashboardJevService = {
       });
     });
 
-    // Despesas operacionais reais do período (excluindo compras de mercadorias para estoque, já apuradas no CMV)
+    // Despesas operacionais reais pagas no período (alinhadas ao desdobramento por filial e auditoria financeira)
     let custosOperacionais = 0;
     const itensDespesasDoPeriodo: ItemDespesaResumo[] = [];
     const despesasPorCategoria: Record<string, { total: number; quantidade: number; percentual: number }> = {};
 
     // 1. Despesas de transações financeiras
     todasTransacoes.forEach(t => {
-      const tipo = String(t.tipo || '').toUpperCase();
-      if (tipo === 'SAIDA' || tipo.startsWith('DESPESA')) {
+      if (isTipoDespesaTransacao(t.tipo)) {
         const cat = String(t.categoria || 'Geral').trim();
-        const catLower = cat.toLowerCase();
         const desc = String(t.descricao || 'Despesa Financeira').trim();
-        const descLower = desc.toLowerCase();
 
-        // Ignora compra de estoque/mercadorias para evitar duplicidade com CMV
-        if (
-          catLower.includes('compra de mercadorias') ||
-          catLower.includes('compra de estoque') ||
-          descLower.includes('compra de estoque') ||
-          descLower.includes('compra de mercadorias')
-        ) {
-          return;
-        }
-
-        const dt = new Date(t.data_pagamento || t.criado_em);
-        if (dt >= dInicio && dt <= dFim) {
+        const dt = parseDataCompetenciaDespesa(t);
+        if (dt && dt >= dInicio && dt <= dFim) {
           const val = Number(t.valor || 0);
           custosOperacionais += val;
 
@@ -934,7 +941,7 @@ export const dashboardJevService = {
 
           itensDespesasDoPeriodo.push({
             id: t.id,
-            data: t.data_pagamento || t.criado_em,
+            data: t.data_pagamento || t.data_vencimento || t.criado_em,
             descricao: desc,
             categoria: nomeCat,
             origem: 'financeiro',
@@ -970,7 +977,11 @@ export const dashboardJevService = {
     });
 
     // Ordena itens de despesa dos mais recentes para os mais antigos
-    itensDespesasDoPeriodo.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+    itensDespesasDoPeriodo.sort(
+      (a, b) =>
+        (parseDataCompetenciaDespesa({ data_pagamento: b.data })?.getTime() || 0) -
+        (parseDataCompetenciaDespesa({ data_pagamento: a.data })?.getTime() || 0)
+    );
 
     // Percentual por categoria de despesa
     if (custosOperacionais > 0) {
@@ -979,7 +990,12 @@ export const dashboardJevService = {
       });
     }
 
-    const tetoOrcamentarioDespesas = Number(metasProporcionais.meta_despesas_maximas || metasLoja.meta_despesas_maximas || 5000);
+    const tetoOrcamentarioDespesas = Number(
+      metasProporcionais.meta_despesas_maximas ??
+      metasProporcionais.meta_despesas ??
+      metasLoja.meta_despesas_maximas ??
+      0
+    );
     const percentualOrcamentoConsumido = tetoOrcamentarioDespesas > 0
       ? Math.round((custosOperacionais / tetoOrcamentarioDespesas) * 1000) / 10
       : 0;

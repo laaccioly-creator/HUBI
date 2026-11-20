@@ -618,7 +618,7 @@ async function obterMetricasCockpitFallback(
   try {
     const { data: transacoes } = await supabase
       .from('transacoes_financeiras')
-      .select('valor, data_pagamento, criado_em, tipo, status')
+      .select('valor, data_pagamento, data_vencimento, criado_em, tipo, status')
       .eq('loja_id', lojaId)
       .eq('status', 'pago');
 
@@ -627,7 +627,13 @@ async function obterMetricasCockpitFallback(
         .filter(t => {
           const tipo = String(t.tipo || '').toUpperCase();
           if (tipo !== 'SAIDA' && !tipo.startsWith('DESPESA')) return false;
-          const dt = new Date(t.data_pagamento || t.criado_em);
+          const raw = t.data_pagamento || t.data_vencimento || t.criado_em;
+          if (!raw) return false;
+          const trimmed = String(raw).trim();
+          const dt = /^\d{4}-\d{2}-\d{2}$/.test(trimmed)
+            ? new Date(`${trimmed}T12:00:00`)
+            : new Date(trimmed);
+          if (Number.isNaN(dt.getTime())) return false;
           return dt >= dInicio && dt <= dFim;
         })
         .reduce((acc, t) => acc + Number(t.valor || 0), 0);
@@ -760,7 +766,7 @@ export async function obterMetricasCockpit(
       p_data_fim: fimIso
     });
 
-    if (!error && data && (data.pedidos > 0 || data.faturamento > 0)) {
+    if (!error && data && (data.pedidos > 0 || data.faturamento > 0 || data.despesas > 0)) {
       const metricas: MetricasCockpit = {
         faturamento: Number(data.faturamento || 0),
         pedidos: Number(data.pedidos || 0),
