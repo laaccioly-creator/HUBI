@@ -30,6 +30,7 @@ import {
   Check,
   Ruler,
   Sliders,
+  Info,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -53,6 +54,7 @@ import { ModalOnboardingSerpApi } from '../ModalOnboardingSerpApi';
 import { ModalGerenciarCategorias } from '../ModalGerenciarCategorias';
 import { ModalTutorialMelhorEnvio } from '../shipping/ModalTutorialMelhorEnvio';
 import { ModalTutorialUberDirect } from '../shipping/ModalTutorialUberDirect';
+import { ModalPorQueUsarModulo, AcaoModalPorQueUsar } from './ModalPorQueUsarModulo';
 
 export interface ModalQuestionarioOnboardingProps {
   isOpen: boolean;
@@ -258,6 +260,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
   const [carregandoCategorias, setCarregandoCategorias] = useState<boolean>(false);
   const [modalMelhorEnvioAberto, setModalMelhorEnvioAberto] = useState<boolean>(false);
   const [modalUberDirectAberto, setModalUberDirectAberto] = useState<boolean>(false);
+  const [etapaPorQueUsarId, setEtapaPorQueUsarId] = useState<EtapaOnboardingId | null>(null);
 
   const cardRefs = useRef<Partial<Record<EtapaOnboardingId, HTMLDivElement | null>>>({});
   const chavesDesmarcadasSessaoRef = useRef<Set<ChaveInteresseOnboarding>>(new Set());
@@ -267,7 +270,8 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
     modalSerperAberto ||
     modalCategoriasAberto ||
     modalMelhorEnvioAberto ||
-    modalUberDirectAberto;
+    modalUberDirectAberto ||
+    etapaPorQueUsarId !== null;
 
   useRegisterOverlay(isOpen, onClose, 'modal-questionario-onboarding', 'modal');
 
@@ -671,6 +675,315 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
     Boolean(statusCompleto?.lojaSnapshot[item.campo])
   ).length;
 
+  const classeBotaoAcaoNeutra = isDark
+    ? 'bg-slate-700 hover:bg-slate-600 text-white border border-slate-600 shadow-xs'
+    : 'bg-slate-200 hover:bg-slate-300 text-slate-900 border border-slate-300 shadow-xs';
+
+  const classeBotaoSecundarioNeutro = isDark
+    ? 'bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200'
+    : 'bg-white hover:bg-slate-100 border border-slate-300 text-slate-700';
+
+  const classeBotaoPorQueUsar = isDark
+    ? 'bg-transparent hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white'
+    : 'bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 hover:text-slate-950';
+
+  const obterConfigModalPorQueUsar = (
+    etapaId: EtapaOnboardingId | null
+  ): {
+    icone: React.ComponentType<{ className?: string }> | null;
+    configurado: boolean;
+    acoes: AcaoModalPorQueUsar[];
+  } => {
+    if (!etapaId) {
+      return { icone: null, configurado: false, acoes: [] };
+    }
+
+    switch (etapaId) {
+      case 'ia_gemini':
+        return {
+          icone: Bot,
+          configurado: Boolean(etapaGemini?.concluido),
+          acoes: [
+            {
+              id: 'como-obter-gemini',
+              rotulo: 'Como obter',
+              variante: 'secundaria_neutra',
+              icone: 'help',
+              onClick: () => {
+                setEtapaPorQueUsarId(null);
+                setModalGeminiAberto(true);
+              },
+            },
+            {
+              id: 'configurar-gemini',
+              rotulo: 'Configurar Chave',
+              variante: 'primaria_neutra',
+              icone: 'arrow',
+              onClick: () => {
+                setEtapaPorQueUsarId(null);
+                navegarParaConfigurarEtapa(
+                  'ia_gemini',
+                  'Inteligência Artificial Base (Google Gemini)',
+                  '/config?tab=dados-loja'
+                );
+              },
+            },
+          ],
+        };
+      case 'busca_fotos_serper':
+        return {
+          icone: Camera,
+          configurado: Boolean(etapaSerper?.concluido),
+          acoes: [
+            {
+              id: 'como-obter-serper',
+              rotulo: 'Como obter',
+              variante: 'secundaria_neutra',
+              icone: 'help',
+              onClick: () => {
+                setEtapaPorQueUsarId(null);
+                setModalSerperAberto(true);
+              },
+            },
+            {
+              id: 'configurar-serper',
+              rotulo: 'Configurar Serper.dev',
+              variante: 'primaria_neutra',
+              icone: 'arrow',
+              onClick: () => {
+                setEtapaPorQueUsarId(null);
+                navegarParaConfigurarEtapa(
+                  'busca_fotos_serper',
+                  'Busca Automática de Fotos (Serper.dev)',
+                  '/config?tab=dados-loja'
+                );
+              },
+            },
+          ],
+        };
+      case 'dados_loja_cep':
+        return {
+          icone: MapPin,
+          configurado: Boolean(etapaDados?.concluido),
+          acoes: [
+            {
+              id: 'configurar-dados-cep',
+              rotulo: 'Preencher Dados e CEP',
+              variante: 'primaria_neutra',
+              icone: 'arrow',
+              onClick: () => {
+                setEtapaPorQueUsarId(null);
+                navegarParaConfigurarEtapa(
+                  'dados_loja_cep',
+                  'Dados da Loja e Endereço/CEP de Origem',
+                  '/config?tab=dados-loja'
+                );
+              },
+            },
+          ],
+        };
+      case 'tipos_venda':
+        return {
+          icone: Tags,
+          configurado: Boolean(etapaTiposVenda?.concluido),
+          acoes: [
+            {
+              id: 'configurar-regras-desconto',
+              rotulo: 'Configurar Regras de Desconto',
+              variante: 'primaria_neutra',
+              icone: 'sliders',
+              onClick: () => {
+                setEtapaPorQueUsarId(null);
+                navegarParaConfigurarEtapa(
+                  'tipos_venda',
+                  'Tabelas de Preço e Tipos de Venda',
+                  '/config?tab=tipos-venda'
+                );
+              },
+            },
+          ],
+        };
+      case 'formas_pagamento':
+        return {
+          icone: CreditCard,
+          configurado: Boolean(etapaPagamentos?.concluido),
+          acoes: [
+            {
+              id: 'configurar-pagamentos',
+              rotulo: 'Configurar Pagamentos',
+              variante: 'primaria_neutra',
+              icone: 'arrow',
+              onClick: () => {
+                setEtapaPorQueUsarId(null);
+                navegarParaConfigurarEtapa(
+                  'formas_pagamento',
+                  'Formas de Pagamento e Taxas de Maquininha',
+                  '/config?tab=pagamentos'
+                );
+              },
+            },
+          ],
+        };
+      case 'status_pedidos':
+        return {
+          icone: ListChecks,
+          configurado: Boolean(etapaStatusPedidos?.concluido),
+          acoes: [
+            ...(qtdStatusOpcionaisAtivos > 0
+              ? [
+                  {
+                    id: 'manter-status-padrao',
+                    rotulo:
+                      salvandoChaveInline === 'status_padrao'
+                        ? 'Aplicando...'
+                        : 'Manter apenas os status padrão',
+                    variante: 'secundaria_neutra' as const,
+                    disabled: salvandoChaveInline === 'status_padrao',
+                    onClick: () => {
+                      handleManterApenasStatusPadrao();
+                    },
+                  },
+                ]
+              : []),
+            {
+              id: 'abrir-config-pedidos',
+              rotulo: 'Abrir Config. de Pedidos',
+              variante: 'primaria_neutra',
+              icone: 'arrow',
+              onClick: () => {
+                setEtapaPorQueUsarId(null);
+                navegarParaConfigurarEtapa(
+                  'status_pedidos',
+                  'Fluxo de Status dos Pedidos',
+                  '/config?tab=pedidos-vendas'
+                );
+              },
+            },
+          ],
+        };
+      case 'categorias_unidades':
+        return {
+          icone: FolderTree,
+          configurado: Boolean(etapaCategorias?.concluido),
+          acoes: [
+            {
+              id: 'conferir-unidades',
+              rotulo: 'Conferir Unidades',
+              variante: 'secundaria_neutra',
+              icone: 'ruler',
+              disabled: salvandoChaveInline === 'unidades_conferidas',
+              onClick: () => {
+                setEtapaPorQueUsarId(null);
+                handleConferirUnidades();
+              },
+            },
+            {
+              id: 'cadastrar-categorias',
+              rotulo: 'Cadastrar Categorias',
+              variante: 'primaria_neutra',
+              icone: 'folder',
+              disabled: carregandoCategorias,
+              onClick: () => {
+                setEtapaPorQueUsarId(null);
+                handleAbrirModalCategorias();
+              },
+            },
+          ],
+        };
+      case 'metas_loja':
+        return {
+          icone: Target,
+          configurado: Boolean(etapaMetas?.concluido),
+          acoes: [
+            {
+              id: 'definir-metas',
+              rotulo: 'Definir Minhas Metas',
+              variante: 'primaria_neutra',
+              icone: 'arrow',
+              onClick: () => {
+                setEtapaPorQueUsarId(null);
+                navegarParaConfigurarEtapa(
+                  'metas_loja',
+                  'Metas da Loja (Cockpit Executivo F1)',
+                  '/config?tab=metas'
+                );
+              },
+            },
+          ],
+        };
+      default: {
+        const modulo = MODULOS_OPCIONAIS_DEFINICAO.find((m) => m.id === etapaId);
+        if (!modulo) {
+          return { icone: null, configurado: false, acoes: [] };
+        }
+        const querUsar = Boolean(statusCompleto?.setup[modulo.chaveInteresse]);
+        const configurado = Boolean(obterEtapaPorId(modulo.id)?.concluido);
+        const acoesModulo: AcaoModalPorQueUsar[] = [];
+
+        if (modulo.tutorialTipo) {
+          acoesModulo.push({
+            id: `tutorial-${modulo.id}`,
+            rotulo: 'Ver Tutorial',
+            variante: 'secundaria_neutra',
+            icone: 'help',
+            onClick: () => {
+              setEtapaPorQueUsarId(null);
+              if (modulo.tutorialTipo === 'melhor_envio') {
+                setModalMelhorEnvioAberto(true);
+              } else {
+                setModalUberDirectAberto(true);
+              }
+            },
+          });
+        }
+
+        if (!querUsar) {
+          acoesModulo.push({
+            id: `selecionar-${modulo.id}`,
+            rotulo: 'Sim, quero usar',
+            variante: 'secundaria_neutra',
+            icone: 'check',
+            disabled: salvandoChaveInline === modulo.id,
+            onClick: () => {
+              handleSelecionarInteresseModulo(modulo, true);
+            },
+          });
+          acoesModulo.push({
+            id: `ativar-configurar-${modulo.id}`,
+            rotulo: 'Ativar e Configurar Agora',
+            variante: 'primaria_neutra',
+            icone: 'arrow',
+            disabled: salvandoChaveInline === modulo.id,
+            onClick: async () => {
+              await handleSelecionarInteresseModulo(modulo, true);
+              setEtapaPorQueUsarId(null);
+              navegarParaConfigurarEtapa(modulo.id, modulo.titulo, modulo.rotaDestino);
+            },
+          });
+        } else {
+          acoesModulo.push({
+            id: `configurar-${modulo.id}`,
+            rotulo: 'Configurar Agora',
+            variante: 'primaria_neutra',
+            icone: 'arrow',
+            onClick: () => {
+              setEtapaPorQueUsarId(null);
+              navegarParaConfigurarEtapa(modulo.id, modulo.titulo, modulo.rotaDestino);
+            },
+          });
+        }
+
+        return {
+          icone: modulo.icone,
+          configurado,
+          acoes: acoesModulo,
+        };
+      }
+    }
+  };
+
+  const configModalPorQueUsar = obterConfigModalPorQueUsar(etapaPorQueUsarId);
+
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -848,7 +1161,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                             '/config?tab=dados-loja'
                           )
                         }
-                        className="px-3.5 py-2 rounded-xl bg-[#22C59E] hover:bg-[#1EB38F] text-slate-950 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                        className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer ${classeBotaoAcaoNeutra}`}
                       >
                         <span>Configurar Chave</span>
                         <ArrowRight className="w-3.5 h-3.5" />
@@ -856,14 +1169,18 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                       <button
                         type="button"
                         onClick={() => setModalGeminiAberto(true)}
-                        className={`px-3.5 py-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
-                          isDark
-                            ? 'border-slate-700 hover:bg-slate-800 text-slate-200'
-                            : 'border-slate-300 hover:bg-slate-100 text-slate-700'
-                        }`}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${classeBotaoSecundarioNeutro}`}
                       >
-                        <HelpCircle className="w-3.5 h-3.5 text-emerald-500" />
-                        <span>Como obter gratuitamente</span>
+                        <HelpCircle className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                        <span>Como obter</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEtapaPorQueUsarId('ia_gemini')}
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${classeBotaoPorQueUsar}`}
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                        <span>Por que usar?</span>
                       </button>
                     </div>
                   </div>
@@ -902,7 +1219,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                             '/config?tab=dados-loja'
                           )
                         }
-                        className="px-3.5 py-2 rounded-xl bg-[#22C59E] hover:bg-[#1EB38F] text-slate-950 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                        className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer ${classeBotaoAcaoNeutra}`}
                       >
                         <span>Configurar Serper.dev</span>
                         <ArrowRight className="w-3.5 h-3.5" />
@@ -910,14 +1227,18 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                       <button
                         type="button"
                         onClick={() => setModalSerperAberto(true)}
-                        className={`px-3.5 py-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
-                          isDark
-                            ? 'border-slate-700 hover:bg-slate-800 text-slate-200'
-                            : 'border-slate-300 hover:bg-slate-100 text-slate-700'
-                        }`}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${classeBotaoSecundarioNeutro}`}
                       >
-                        <HelpCircle className="w-3.5 h-3.5 text-teal-500" />
+                        <HelpCircle className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                         <span>Como obter</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEtapaPorQueUsarId('busca_fotos_serper')}
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${classeBotaoPorQueUsar}`}
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                        <span>Por que usar?</span>
                       </button>
                     </div>
                   </div>
@@ -946,7 +1267,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                       {renderBadgeStatus(Boolean(etapaDados?.concluido))}
                     </div>
 
-                    <div className="mt-4">
+                    <div className="mt-4 flex flex-wrap items-center gap-2.5">
                       <button
                         type="button"
                         onClick={() =>
@@ -956,10 +1277,18 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                             '/config?tab=dados-loja'
                           )
                         }
-                        className="px-3.5 py-2 rounded-xl bg-[#22C59E] hover:bg-[#1EB38F] text-slate-950 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                        className={`px-3.5 py-2 rounded-xl font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer ${classeBotaoAcaoNeutra}`}
                       >
                         <span>Preencher Dados e CEP</span>
                         <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEtapaPorQueUsarId('dados_loja_cep')}
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition cursor-pointer ${classeBotaoPorQueUsar}`}
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                        <span>Por que usar?</span>
                       </button>
                     </div>
                   </div>
@@ -1030,24 +1359,30 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                       <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                         Alterações salvas automaticamente na loja.
                       </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          navegarParaConfigurarEtapa(
-                            'tipos_venda',
-                            'Tabelas de Preço e Tipos de Venda',
-                            '/config?tab=tipos-venda'
-                          )
-                        }
-                        className={`px-3 py-1.5 rounded-xl border text-xs font-bold inline-flex items-center gap-1.5 transition cursor-pointer ${
-                          isDark
-                            ? 'border-slate-700 hover:bg-slate-800 text-slate-200'
-                            : 'border-slate-300 hover:bg-slate-100 text-slate-700'
-                        }`}
-                      >
-                        <Sliders className="w-3.5 h-3.5 text-emerald-500" />
-                        <span>Configurar Regras de Desconto</span>
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            navegarParaConfigurarEtapa(
+                              'tipos_venda',
+                              'Tabelas de Preço e Tipos de Venda',
+                              '/config?tab=tipos-venda'
+                            )
+                          }
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition cursor-pointer ${classeBotaoSecundarioNeutro}`}
+                        >
+                          <Sliders className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                          <span>Configurar Regras de Desconto</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEtapaPorQueUsarId('tipos_venda')}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition cursor-pointer ${classeBotaoPorQueUsar}`}
+                        >
+                          <Info className="w-3.5 h-3.5" />
+                          <span>Por que usar?</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -1075,7 +1410,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                       {renderBadgeStatus(Boolean(etapaPagamentos?.concluido))}
                     </div>
 
-                    <div className="mt-4">
+                    <div className="mt-4 flex flex-wrap items-center gap-2.5">
                       <button
                         type="button"
                         onClick={() =>
@@ -1085,10 +1420,18 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                             '/config?tab=pagamentos'
                           )
                         }
-                        className="px-3.5 py-2 rounded-xl bg-[#22C59E] hover:bg-[#1EB38F] text-slate-950 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                        className={`px-3.5 py-2 rounded-xl font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer ${classeBotaoAcaoNeutra}`}
                       >
                         <span>Configurar Pagamentos</span>
                         <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEtapaPorQueUsarId('formas_pagamento')}
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition cursor-pointer ${classeBotaoPorQueUsar}`}
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                        <span>Por que usar?</span>
                       </button>
                     </div>
                   </div>
@@ -1139,22 +1482,28 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                               qtdStatusOpcionaisAtivos === 1 ? 'status opcional ativo' : 'status opcionais ativos'
                             } além dos 4 status padrão.`}
                       </span>
-                      {qtdStatusOpcionaisAtivos > 0 && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {qtdStatusOpcionaisAtivos > 0 && (
+                          <button
+                            type="button"
+                            disabled={salvandoChaveInline === 'status_padrao'}
+                            onClick={handleManterApenasStatusPadrao}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer disabled:opacity-50 ${classeBotaoAcaoNeutra}`}
+                          >
+                            {salvandoChaveInline === 'status_padrao'
+                              ? 'Aplicando...'
+                              : 'Manter apenas os status padrão'}
+                          </button>
+                        )}
                         <button
                           type="button"
-                          disabled={salvandoChaveInline === 'status_padrao'}
-                          onClick={handleManterApenasStatusPadrao}
-                          className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition cursor-pointer disabled:opacity-50 ${
-                            isDark
-                              ? 'border-slate-700 bg-slate-900 hover:bg-slate-800 text-emerald-400'
-                              : 'border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800'
-                          }`}
+                          onClick={() => setEtapaPorQueUsarId('status_pedidos')}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition cursor-pointer ${classeBotaoPorQueUsar}`}
                         >
-                          {salvandoChaveInline === 'status_padrao'
-                            ? 'Aplicando...'
-                            : 'Manter apenas os status padrão'}
+                          <Info className="w-3.5 h-3.5" />
+                          <span>Por que usar?</span>
                         </button>
-                      )}
+                      </div>
                     </div>
 
                     <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -1264,7 +1613,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                         type="button"
                         disabled={carregandoCategorias}
                         onClick={handleAbrirModalCategorias}
-                        className="px-3.5 py-2 rounded-xl bg-[#22C59E] hover:bg-[#1EB38F] text-slate-950 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm disabled:opacity-60"
+                        className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer disabled:opacity-60 ${classeBotaoAcaoNeutra}`}
                       >
                         {carregandoCategorias ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1278,15 +1627,20 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                         type="button"
                         disabled={salvandoChaveInline === 'unidades_conferidas'}
                         onClick={handleConferirUnidades}
-                        className={`px-3.5 py-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
-                          isDark
-                            ? 'border-slate-700 hover:bg-slate-800 text-slate-200'
-                            : 'border-slate-300 hover:bg-slate-100 text-slate-700'
-                        }`}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${classeBotaoSecundarioNeutro}`}
                       >
-                        <Ruler className="w-3.5 h-3.5 text-emerald-500" />
+                        <Ruler className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                         <span>Conferir Unidades</span>
                         <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setEtapaPorQueUsarId('categorias_unidades')}
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${classeBotaoPorQueUsar}`}
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                        <span>Por que usar?</span>
                       </button>
                     </div>
                   </div>
@@ -1315,7 +1669,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                       {renderBadgeStatus(Boolean(etapaMetas?.concluido))}
                     </div>
 
-                    <div className="mt-4">
+                    <div className="mt-4 flex flex-wrap items-center gap-2.5">
                       <button
                         type="button"
                         onClick={() =>
@@ -1325,10 +1679,18 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                             '/config?tab=metas'
                           )
                         }
-                        className="px-3.5 py-2 rounded-xl bg-[#22C59E] hover:bg-[#1EB38F] text-slate-950 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                        className={`px-3.5 py-2 rounded-xl font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer ${classeBotaoAcaoNeutra}`}
                       >
                         <span>Definir Minhas Metas</span>
                         <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEtapaPorQueUsarId('metas_loja')}
+                        className={`px-3 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition cursor-pointer ${classeBotaoPorQueUsar}`}
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                        <span>Por que usar?</span>
                       </button>
                     </div>
                   </div>
@@ -1396,12 +1758,14 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                                 type="button"
                                 disabled={emSalvamento}
                                 onClick={() => handleSelecionarInteresseModulo(modulo, true)}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center gap-1.5 ${
+                                className={`px-3 py-1.5 rounded-xl text-xs border transition cursor-pointer flex items-center gap-1.5 ${
                                   querUsar
-                                    ? 'bg-[#22C59E] border-[#19A986] text-slate-950 dark:bg-emerald-600 dark:border-emerald-500 dark:text-white shadow-sm'
+                                    ? isDark
+                                      ? 'bg-slate-700 hover:bg-slate-600 border-slate-500 text-white font-bold shadow-xs'
+                                      : 'bg-slate-200 hover:bg-slate-300 border-slate-400 text-slate-950 font-bold shadow-xs'
                                     : isDark
-                                    ? 'bg-slate-900 border-slate-700 text-slate-300 hover:border-emerald-500/50'
-                                    : 'bg-white border-slate-300 text-slate-700 hover:border-emerald-500/50'
+                                    ? 'bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-300 font-semibold'
+                                    : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 font-semibold'
                                 }`}
                               >
                                 {querUsar && <Check className="w-3.5 h-3.5" />}
@@ -1412,14 +1776,14 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                                 type="button"
                                 disabled={emSalvamento}
                                 onClick={() => handleSelecionarInteresseModulo(modulo, false)}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                                className={`px-3 py-1.5 rounded-xl text-xs border transition cursor-pointer ${
                                   !querUsar
                                     ? isDark
-                                      ? 'bg-slate-800 border-slate-600 text-white'
-                                      : 'bg-slate-200 border-slate-400 text-slate-900'
+                                      ? 'bg-slate-700 hover:bg-slate-600 border-slate-500 text-white font-bold shadow-xs'
+                                      : 'bg-slate-200 hover:bg-slate-300 border-slate-400 text-slate-950 font-bold shadow-xs'
                                     : isDark
-                                    ? 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
-                                    : 'bg-white border-slate-300 text-slate-500 hover:text-slate-800'
+                                    ? 'bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200 font-semibold'
+                                    : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 font-semibold'
                                 }`}
                               >
                                 Não preciso agora
@@ -1435,16 +1799,21 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                                       setModalUberDirectAberto(true);
                                     }
                                   }}
-                                  className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
-                                    isDark
-                                      ? 'border-slate-700 hover:bg-slate-800 text-sky-400'
-                                      : 'border-slate-300 hover:bg-slate-100 text-sky-700'
-                                  }`}
+                                  className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${classeBotaoSecundarioNeutro}`}
                                 >
-                                  <HelpCircle className="w-3.5 h-3.5" />
+                                  <HelpCircle className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                                   <span>Ver Tutorial</span>
                                 </button>
                               )}
+
+                              <button
+                                type="button"
+                                onClick={() => setEtapaPorQueUsarId(modulo.id)}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${classeBotaoPorQueUsar}`}
+                              >
+                                <Info className="w-3.5 h-3.5" />
+                                <span>Por que usar?</span>
+                              </button>
                             </div>
 
                             {querUsar && (
@@ -1457,7 +1826,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                                     modulo.rotaDestino
                                   )
                                 }
-                                className="px-3.5 py-2 rounded-xl bg-[#22C59E] hover:bg-[#1EB38F] text-slate-950 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                                className={`px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer ${classeBotaoAcaoNeutra}`}
                               >
                                 <span>Configurar Agora</span>
                                 <ArrowRight className="w-3.5 h-3.5" />
@@ -1577,6 +1946,14 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
       <ModalTutorialUberDirect
         aberto={modalUberDirectAberto}
         onClose={() => setModalUberDirectAberto(false)}
+      />
+
+      <ModalPorQueUsarModulo
+        etapaId={etapaPorQueUsarId}
+        icone={configModalPorQueUsar.icone}
+        configurado={configModalPorQueUsar.configurado}
+        acoes={configModalPorQueUsar.acoes}
+        onClose={() => setEtapaPorQueUsarId(null)}
       />
     </>
   );
