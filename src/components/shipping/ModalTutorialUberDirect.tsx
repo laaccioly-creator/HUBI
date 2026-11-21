@@ -1,5 +1,7 @@
 ﻿import React from 'react';
 import { X, ExternalLink, Key, ShieldCheck, CreditCard, CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 
 interface ModalTutorialUberDirectProps {
   aberto: boolean;
@@ -7,6 +9,8 @@ interface ModalTutorialUberDirectProps {
 }
 
 export const ModalTutorialUberDirect: React.FC<ModalTutorialUberDirectProps> = ({ aberto, onClose }) => {
+  const { isDark } = useTheme();
+  useRegisterOverlay(aberto, onClose, 'modal-tutorial-uber-direct', 'modal');
   if (!aberto) return null;
 
   return (
@@ -30,9 +34,9 @@ export const ModalTutorialUberDirect: React.FC<ModalTutorialUberDirectProps> = (
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            className="hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer bg-white hover:bg-slate-100 text-slate-700 border border-slate-200"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -63,71 +67,81 @@ export const ModalTutorialUberDirect: React.FC<ModalTutorialUberDirectProps> = (
           <div className="space-y-4">
             {/* Passo 1 */}
             <div className="flex gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800">
-              <div className="w-8 h-8 rounded-full bg-slate-900 text-white dark:bg-emerald-500 dark:text-slate-900 font-bold flex items-center justify-center shrink-0">
+              <div className={`w-8 h-8 rounded-full font-bold flex items-center justify-center shrink-0 ${
+                isDark ? 'bg-emerald-500 text-slate-900' : 'bg-slate-100 border border-slate-300 text-black'
+              }`}>
                 1
               </div>
               <div className="space-y-1">
-                <h4 className="font-semibold text-slate-900 dark:text-white">Login e Menu Desenvolvedor</h4>
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  Faça login no portal <strong className="text-slate-800 dark:text-slate-200">direct.uber.com</strong>. No menu lateral esquerdo, clique em <strong className="text-slate-800 dark:text-slate-200">Gerenciamento (Management)</strong> e em seguida selecione <strong className="text-slate-800 dark:text-slate-200">Desenvolvedor (Developer)</strong>.
+                <h4 className="font-semibold text-slate-950 dark:text-white">Login e Menu Desenvolvedor</h4>
+                <p className="text-xs text-slate-900 dark:text-slate-400 leading-relaxed">
+                  Faça login no portal <strong className="text-black dark:text-slate-200">direct.uber.com</strong>. No menu lateral esquerdo, clique em <strong className="text-black dark:text-slate-200">Gerenciamento (Management)</strong> e em seguida selecione <strong className="text-black dark:text-slate-200">Desenvolvedor (Developer)</strong>.
                 </p>
               </div>
             </div>
 
             {/* Passo 2 */}
             <div className="flex gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800">
-              <div className="w-8 h-8 rounded-full bg-slate-900 text-white dark:bg-emerald-500 dark:text-slate-900 font-bold flex items-center justify-center shrink-0">
+              <div className={`w-8 h-8 rounded-full font-bold flex items-center justify-center shrink-0 ${
+                isDark ? 'bg-emerald-500 text-slate-900' : 'bg-slate-100 border border-slate-300 text-black'
+              }`}>
                 2
               </div>
               <div className="space-y-1">
-                <h4 className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <Key className="w-4 h-4 text-emerald-500" />
+                <h4 className="font-semibold text-slate-950 dark:text-white flex items-center gap-1.5">
+                  <Key className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
                   Copie o Customer ID (Identificador da Loja)
                 </h4>
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  Na seção superior da tela de desenvolvedor, localize o identificador exclusivo da sua organização chamado <strong className="text-slate-800 dark:text-slate-200">Customer ID</strong> (formato UUID). Copie e cole no campo correspondente no HUBI.
+                <p className="text-xs text-slate-900 dark:text-slate-400 leading-relaxed">
+                  Na seção superior da tela de desenvolvedor, localize o identificador exclusivo da sua organização chamado <strong className="text-black dark:text-slate-200">Customer ID</strong> (formato UUID). Copie e cole no campo correspondente no HUBI.
                 </p>
               </div>
             </div>
 
             {/* Passo 3 */}
             <div className="flex gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800">
-              <div className="w-8 h-8 rounded-full bg-slate-900 text-white dark:bg-emerald-500 dark:text-slate-900 font-bold flex items-center justify-center shrink-0">
+              <div className={`w-8 h-8 rounded-full font-bold flex items-center justify-center shrink-0 ${
+                isDark ? 'bg-emerald-500 text-slate-900' : 'bg-slate-100 border border-slate-300 text-black'
+              }`}>
                 3
               </div>
               <div className="space-y-1">
-                <h4 className="font-semibold text-slate-900 dark:text-white">Criar Aplicação (Client ID & Client Secret)</h4>
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  Clique no botão <strong className="text-slate-800 dark:text-slate-200">&quot;Adicionar Aplicação&quot;</strong> ou selecione uma aplicação já existente. Você terá acesso ao <strong className="text-slate-800 dark:text-slate-200">Client ID</strong> e poderá gerar o <strong className="text-slate-800 dark:text-slate-200">Client Secret</strong>. Copie ambos com segurança.
+                <h4 className="font-semibold text-slate-950 dark:text-white">Criar Aplicação (Client ID & Client Secret)</h4>
+                <p className="text-xs text-slate-900 dark:text-slate-400 leading-relaxed">
+                  Clique no botão <strong className="text-black dark:text-slate-200">&quot;Adicionar Aplicação&quot;</strong> ou selecione uma aplicação já existente. Você terá acesso ao <strong className="text-black dark:text-slate-200">Client ID</strong> e poderá gerar o <strong className="text-black dark:text-slate-200">Client Secret</strong>. Copie ambos com segurança.
                 </p>
               </div>
             </div>
 
             {/* Passo 4 */}
             <div className="flex gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800">
-              <div className="w-8 h-8 rounded-full bg-slate-900 text-white dark:bg-emerald-500 dark:text-slate-900 font-bold flex items-center justify-center shrink-0">
+              <div className={`w-8 h-8 rounded-full font-bold flex items-center justify-center shrink-0 ${
+                isDark ? 'bg-emerald-500 text-slate-900' : 'bg-slate-100 border border-slate-300 text-black'
+              }`}>
                 4
               </div>
               <div className="space-y-1">
-                <h4 className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <CreditCard className="w-4 h-4 text-emerald-500" />
+                <h4 className="font-semibold text-slate-950 dark:text-white flex items-center gap-1.5">
+                  <CreditCard className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
                   Ativação da Forma de Pagamento
                 </h4>
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  Na aba <strong className="text-slate-800 dark:text-slate-200">Cobrança / Pagamentos</strong> da Uber Direct, cadastre um cartão de crédito corporativo ou aprove o faturamento. A Uber exige método de pagamento ativo para autorizar cotações e despachos de entregadores.
+                <p className="text-xs text-slate-900 dark:text-slate-400 leading-relaxed">
+                  Na aba <strong className="text-black dark:text-slate-200">Cobrança / Pagamentos</strong> da Uber Direct, cadastre um cartão de crédito corporativo ou aprove o faturamento. A Uber exige método de pagamento ativo para autorizar cotações e despachos de entregadores.
                 </p>
               </div>
             </div>
 
             {/* Passo 5 */}
             <div className="flex gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800">
-              <div className="w-8 h-8 rounded-full bg-slate-900 text-white dark:bg-emerald-500 dark:text-slate-900 font-bold flex items-center justify-center shrink-0">
+              <div className={`w-8 h-8 rounded-full font-bold flex items-center justify-center shrink-0 ${
+                isDark ? 'bg-emerald-500 text-slate-900' : 'bg-slate-100 border border-slate-300 text-black'
+              }`}>
                 5
               </div>
               <div className="space-y-1">
-                <h4 className="font-semibold text-slate-900 dark:text-white">Modo Sandbox vs Produção</h4>
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  Enquanto estiver testando, mantenha o switch <strong className="text-slate-800 dark:text-slate-200">&quot;Modo Sandbox&quot;</strong> ligado. Quando estiver pronto para atender clientes reais com motoboys de verdade, desative o sandbox para entrar no modo de produção.
+                <h4 className="font-semibold text-slate-950 dark:text-white">Modo Sandbox vs Produção</h4>
+                <p className="text-xs text-slate-900 dark:text-slate-400 leading-relaxed">
+                  Enquanto estiver testando, mantenha o switch <strong className="text-black dark:text-slate-200">&quot;Modo Sandbox&quot;</strong> ligado. Quando estiver pronto para atender clientes reais com motoboys de verdade, desative o sandbox para entrar no modo de produção.
                 </p>
               </div>
             </div>
@@ -135,7 +149,7 @@ export const ModalTutorialUberDirect: React.FC<ModalTutorialUberDirectProps> = (
 
           <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+            <p className="text-xs text-amber-900 dark:text-amber-300 leading-relaxed">
               <strong>Importante:</strong> Certifique-se de que o endereço de origem da loja informado nas configurações do HUBI esteja correto e com número e bairro precisos, pois a Uber usa esse ponto exato para localizar o motorista e calcular o raio máximo de atendimento.
             </p>
           </div>
@@ -146,7 +160,11 @@ export const ModalTutorialUberDirect: React.FC<ModalTutorialUberDirectProps> = (
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 rounded-xl font-semibold text-white bg-slate-900 hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 transition-colors flex items-center gap-2"
+            className={`hubi-btn-neutral px-5 py-2.5 rounded-xl font-semibold transition-colors flex items-center gap-2 cursor-pointer ${
+              isDark
+                ? 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700'
+                : 'bg-slate-100 hover:bg-slate-200 text-black border border-slate-300'
+            }`}
           >
             Entendido, fechar tutorial
           </button>

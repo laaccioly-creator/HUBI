@@ -19,6 +19,8 @@ import { caixaService } from '../services/caixaService';
 import { SyncService } from '../services/syncService';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { whatsappWalletService } from '../services/whatsappWalletService';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
+import { normalizarTelefoneComDDI } from '../utils/formatters';
 
 export interface ModalReceberFiadoProps {
   isOpen: boolean;
@@ -53,6 +55,8 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
   const [valorTotalReceber, setValorTotalReceber] = useState<number>(0);
   const [linhasRecebimento, setLinhasRecebimento] = useState<LinhaRecebimentoFiado[]>([]);
   const [processandoRecebimento, setProcessandoRecebimento] = useState<boolean>(false);
+
+  useRegisterOverlay(isOpen, onClose, 'modal-receber-fiado', 'modal');
 
   // Formas de pagamento disponíveis para recebimento (NUNCA fiado)
   const formasValidasRecebimento = useMemo(() => {
@@ -91,6 +95,7 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
             .from('clientes')
             .select('*')
             .eq('id', clienteId)
+            .eq('loja_id', loja.id)
             .single();
 
           if (cliData) {
@@ -269,7 +274,8 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
         const { error: erroPed } = await supabase
           .from('pedidos')
           .update(atualizacaoPedido)
-          .eq('id', ped.id);
+          .eq('id', ped.id)
+          .eq('loja_id', loja.id);
 
         if (erroPed) throw erroPed;
 
@@ -310,7 +316,8 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
             limite_credito: novoLimiteCredito,
             saldo_devedor_fiado: novoSaldoDevedorFiado
           })
-          .eq('id', cliente.id);
+          .eq('id', cliente.id)
+          .eq('loja_id', loja.id);
 
         if (erroCli) {
           console.warn('Aviso ao atualizar limite do cliente:', erroCli);
@@ -380,9 +387,10 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
           });
 
           if (resHibrido.modoEnvio === 'manual_link') {
+            const phoneNorm = normalizarTelefoneComDDI(phone);
             const urlManual =
               resHibrido.manualUrl ||
-              `https://api.whatsapp.com/send?phone=55${phone.replace(/\D/g, '')}&text=${encodeURIComponent(msg)}`;
+              `https://api.whatsapp.com/send?phone=${phoneNorm}&text=${encodeURIComponent(msg)}`;
             window.open(urlManual, '_blank', 'noopener,noreferrer');
           }
         }
@@ -415,7 +423,7 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition cursor-pointer"
+            className="hubi-btn-close-x p-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>

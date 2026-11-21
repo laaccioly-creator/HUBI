@@ -10,6 +10,8 @@ import {
   Navigation
 } from 'lucide-react';
 import { gerarLinkWhatsAppLocalizacaoLoja } from '../../utils/geoUtils';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 
 interface ModalVerNoMapaLojaProps {
   aberto: boolean;
@@ -36,7 +38,10 @@ export const ModalVerNoMapaLoja: React.FC<ModalVerNoMapaLojaProps> = ({
   loja,
   telefoneCliente
 }) => {
+  const { isDark } = useTheme();
   const [copiado, setCopiado] = useState<boolean>(false);
+
+  useRegisterOverlay(aberto, onFechar, 'modal-ver-no-mapa-loja', 'modal');
 
   if (!aberto) return null;
 
@@ -96,7 +101,11 @@ export const ModalVerNoMapaLoja: React.FC<ModalVerNoMapaLojaProps> = ({
           <button
             type="button"
             onClick={onFechar}
-            className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition cursor-pointer"
+            className={`hubi-btn-close-x p-1.5 rounded-xl flex items-center justify-center transition cursor-pointer ${
+              isDark
+                ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700'
+                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+            }`}
           >
             <X className="w-4 h-4" />
           </button>
@@ -119,7 +128,11 @@ export const ModalVerNoMapaLoja: React.FC<ModalVerNoMapaLojaProps> = ({
               <button
                 type="button"
                 onClick={handleCopiar}
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition shrink-0 cursor-pointer"
+                className={`hubi-btn-neutral p-1.5 rounded-lg transition shrink-0 cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white'
+                    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black'
+                }`}
                 title="Copiar endereço"
               >
                 {copiado ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
@@ -147,11 +160,15 @@ export const ModalVerNoMapaLoja: React.FC<ModalVerNoMapaLojaProps> = ({
             href={linkMaps}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 border border-slate-700 transition"
+            className={`hubi-btn-neutral w-full sm:w-auto px-4 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition ${
+              isDark
+                ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                : 'bg-slate-100 hover:bg-slate-200 text-black border-slate-300 font-semibold'
+            }`}
           >
-            <Navigation className="w-4 h-4 text-emerald-400" />
+            <Navigation className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             <span>Como Chegar (Google Maps)</span>
-            <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+            <ExternalLink className="w-3.5 h-3.5 text-slate-700 dark:text-slate-400" />
           </a>
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -159,7 +176,11 @@ export const ModalVerNoMapaLoja: React.FC<ModalVerNoMapaLojaProps> = ({
               href={linkWhatsApp}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer"
+              className={`hubi-btn-neutral flex-1 sm:flex-initial px-4 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer ${
+                isDark
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20'
+                  : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
+              }`}
             >
               <MessageCircle className="w-4 h-4" />
               <span>Enviar para o WhatsApp</span>
@@ -168,7 +189,11 @@ export const ModalVerNoMapaLoja: React.FC<ModalVerNoMapaLojaProps> = ({
             <button
               type="button"
               onClick={onFechar}
-              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
+              className={`hubi-btn-neutral px-4 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
+                isDark
+                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                  : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
+              }`}
             >
               Fechar
             </button>

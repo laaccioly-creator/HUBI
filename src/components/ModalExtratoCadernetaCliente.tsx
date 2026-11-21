@@ -15,7 +15,8 @@ import {
 } from 'lucide-react';
 import { Cliente, CadernetaLancamento, Pedido } from '../types';
 import { CadernetaService, ResumoCadernetaCliente } from '../services/cadernetaService';
-import { formatarMoeda } from '../utils/formatters';
+import { formatarMoeda, normalizarTelefoneComDDI } from '../utils/formatters';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
@@ -51,6 +52,9 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
   const [processandoConferenciaId, setProcessandoConferenciaId] = useState<string | null>(null);
   const [comprovanteVisualizandoUrl, setComprovanteVisualizandoUrl] = useState<string | null>(null);
   const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
+
+  useRegisterOverlay(isOpen, onClose, 'modal-extrato-caderneta-cliente', 'modal');
+  useRegisterOverlay(Boolean(comprovanteVisualizandoUrl), () => setComprovanteVisualizandoUrl(null), 'modal-comprovante-caderneta', 'modal');
 
   const carregarDados = async () => {
     if (!loja?.id || !cliente?.id) return;
@@ -172,7 +176,8 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
       return;
     }
 
-    const url = resHibrido.manualUrl || `https://wa.me/55${fone.replace(/\D/g, '')}?text=${encodeURIComponent(texto)}`;
+    const foneNorm = normalizarTelefoneComDDI(fone);
+    const url = resHibrido.manualUrl || `https://wa.me/${foneNorm}?text=${encodeURIComponent(texto)}`;
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
@@ -203,8 +208,8 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
           <button
             type="button"
             onClick={onClose}
-            className={`p-1.5 rounded-xl border transition cursor-pointer ${
-              isDark ? 'bg-[#000000] border-slate-700 text-white hover:bg-slate-900' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+            className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${
+              isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
             }`}
           >
             <X className="w-5 h-5" />
@@ -354,12 +359,12 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                   type="button"
                   disabled={(resumo?.saldoDevedor || 0) <= 0}
                   onClick={() => setModalAbatimentoAberto(true)}
-                  className={`flex-1 py-2.5 px-4 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 transition active:scale-98 ${
+                  className={`flex-1 py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-98 ${
                     (resumo?.saldoDevedor || 0) <= 0
                       ? isDark
                         ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-80'
                         : 'bg-slate-200 text-slate-500 border border-slate-300 cursor-not-allowed opacity-90'
-                      : 'hubi-btn-neutral bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-600 shadow-sm cursor-pointer'
+                      : 'hubi-btn-cta bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-600 shadow-sm cursor-pointer'
                   }`}
                 >
                   <DollarSign className="w-4 h-4" />
@@ -579,7 +584,11 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                 <button
                   type="button"
                   onClick={() => setComprovanteVisualizandoUrl(null)}
-                  className="hubi-btn-close-x p-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                  className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${
+                    isDark
+                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                      : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                  }`}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -605,7 +614,7 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                   target="_blank"
                   rel="noopener noreferrer"
                   download="comprovante-caderneta"
-                  className="hubi-btn-neutral px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition"
+                  className="hubi-btn-cta px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition"
                 >
                   Abrir / Baixar Arquivo
                 </a>

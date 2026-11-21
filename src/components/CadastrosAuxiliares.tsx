@@ -51,7 +51,6 @@ import {
 import { AppEntrega, Transportadora } from '../types/shipping';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import { SyncService } from '../services/syncService';
-import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { MobileHeader } from './layout/MobileHeader';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
@@ -546,7 +545,8 @@ export const CadastrosAuxiliares: React.FC = () => {
             icone: catEditando.icone || null,
             categoria_pai_id: null
           })
-          .eq('id', catEditando.id);
+          .eq('id', catEditando.id)
+          .eq('loja_id', loja.id);
         if (error) throw error;
         sessionStorage.setItem('hubi_recem_criado_categoria', catEditando.id);
         exibirAlertaSucesso('Categoria atualizada com sucesso!');
@@ -748,7 +748,8 @@ export const CadastrosAuxiliares: React.FC = () => {
             nome: nomeLimpo,
             permite_fracionado: unidadeFracionada
           })
-          .eq('id', unidadeEditando.id);
+          .eq('id', unidadeEditando.id)
+          .eq('loja_id', loja.id);
         if (error) throw error;
       } else {
         try {
@@ -799,8 +800,8 @@ export const CadastrosAuxiliares: React.FC = () => {
       onConfirmar: async () => {
         try {
           setModalExclusaoConfig(prev => ({ ...prev, carregando: true }));
-          if (!un.id.startsWith('padrao_')) {
-            await supabase.from('unidades_medida').delete().eq('id', un.id);
+          if (!un.id.startsWith('padrao_') && loja?.id) {
+            await supabase.from('unidades_medida').delete().eq('id', un.id).eq('loja_id', loja.id);
           }
           setUnidades(prev => prev.filter(u => u.id !== un.id));
           setModalSecaoAberta('unidades');
@@ -955,7 +956,8 @@ export const CadastrosAuxiliares: React.FC = () => {
           const { error } = await supabase
             .from('formas_pagamento')
             .update(payload)
-            .eq('id', pagEditando.id);
+            .eq('id', pagEditando.id)
+            .eq('loja_id', loja.id);
           if (error) throw error;
           exibirAlertaSucesso('Forma de pagamento atualizada com sucesso!');
         } else {
@@ -973,7 +975,8 @@ export const CadastrosAuxiliares: React.FC = () => {
             const { error: errRetry } = await supabase
               .from('formas_pagamento')
               .update(payload)
-              .eq('id', pagEditando.id);
+              .eq('id', pagEditando.id)
+              .eq('loja_id', loja.id);
             if (errRetry) throw errRetry;
             exibirAlertaSucesso('Forma de pagamento atualizada com sucesso!');
           } else {
@@ -1669,8 +1672,7 @@ export const CadastrosAuxiliares: React.FC = () => {
     isDirtyPrecificacao
   ]);
 
-  // Registro na pilha global apenas do modal da seção e drawer de navegação
-  useRegisterOverlay(drawerMenuAberto, fecharDrawerMenu, 'drawer-menu-aux');
+  // Registro na pilha global apenas do modal da seção
   useRegisterOverlay(Boolean(modalSecaoAberta && !temModalFilhoAberto), fecharModalSecao, 'modal-secao-aux');
 
   // Filtros de busca
@@ -1805,12 +1807,6 @@ export const CadastrosAuxiliares: React.FC = () => {
             ))}
           </div>
         </div>
-
-        {/* Menu Gaveta Lateral */}
-        <MobileMenuDrawer
-          aberto={drawerMenuAberto}
-          onFechar={() => setDrawerMenuAberto(false)}
-        />
       </div>
 
       {/* 2. VISÃO DESKTOP (PADRÃO VENDER PDV NOS TEMAS CLARO E ESCURO) */}
@@ -1954,7 +1950,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                   <button
                     type="button"
                     onClick={abrirModalNovaCategoria}
-                    className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
+                    className="hubi-btn-cta inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md border border-emerald-500 transition cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span className="hidden sm:inline">Nova Categoria</span>
@@ -1972,7 +1968,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                       setUnidadeFracionada(false);
                       setModalUnidadeAberta(true);
                     }}
-                    className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
+                    className="hubi-btn-cta inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md border border-emerald-500 transition cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span className="hidden sm:inline">Nova Unidade</span>
@@ -1993,7 +1989,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                       setFornObs('');
                       setModalFornecedorAberta(true);
                     }}
-                    className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
+                    className="hubi-btn-cta inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md border border-emerald-500 transition cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span className="hidden sm:inline">Novo Fornecedor</span>
@@ -2005,7 +2001,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                   <button
                     type="button"
                     onClick={abrirModalNovoPagamento}
-                    className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
+                    className="hubi-btn-cta inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md border border-emerald-500 transition cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span className="hidden sm:inline">Nova Forma</span>
@@ -2017,7 +2013,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                   <button
                     type="button"
                     onClick={abrirModalNovaForma}
-                    className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
+                    className="hubi-btn-cta inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md border border-emerald-500 transition cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span className="hidden sm:inline">Nova Forma de Envio</span>
@@ -2032,7 +2028,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                       setAppNome('');
                       setModalAppAberta(true);
                     }}
-                    className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
+                    className="hubi-btn-cta inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md border border-emerald-500 transition cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span className="hidden sm:inline">Novo Aplicativo</span>
@@ -2044,7 +2040,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                   <button
                     type="button"
                     onClick={abrirModalNovaTransp}
-                    className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
+                    className="hubi-btn-cta inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md border border-emerald-500 transition cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span className="hidden sm:inline">Nova Transportadora</span>
@@ -3380,7 +3376,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                   <button
                     type="button"
                     onClick={adicionarSubcategoriaChip}
-                    className="hubi-btn-neutral px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center gap-1 cursor-pointer shrink-0"
+                    className="hubi-btn-cta px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1 cursor-pointer shrink-0"
                     title="Adicionar subcategoria à lista"
                   >
                     <Plus className="w-3.5 h-3.5" />

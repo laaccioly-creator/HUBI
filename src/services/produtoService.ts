@@ -8,14 +8,50 @@ export interface VariacaoDeltaInput {
   combinacao_nome?: string | null;
   codigo_barras?: string | null;
   sku?: string | null;
+  preco_custo?: number | null;
   preco_venda_varejo: number;
   preco_venda_atacado?: number | null;
+  preco_venda_autoatacado?: number | null;
+  preco_promocional?: number | null;
   quantidade_estoque: number;
   estoque_minimo_alerta?: number;
   ativo?: boolean;
 }
 
 export class ProdutoService {
+  /**
+   * Realiza upload de Data URL base64 para o bucket `produtos` no Supabase Storage.
+   * Mantém fallback seguro para a URL original caso o bucket não esteja acessível.
+   */
+  static async uploadFotoDataUrl(dataUrl: string, lojaId?: string | null): Promise<string> {
+    if (!dataUrl || !dataUrl.startsWith('data:')) return dataUrl;
+    try {
+      const resp = await fetch(dataUrl);
+      const blob = await resp.blob();
+      const nomeArquivo = `${lojaId || 'geral'}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.jpg`;
+
+      const { error } = await supabase.storage
+        .from('produtos')
+        .upload(nomeArquivo, blob, {
+          contentType: 'image/jpeg',
+          upsert: true
+        });
+
+      if (error) {
+        console.warn('[ProdutoService] Aviso ao subir imagem no bucket produtos:', error);
+        return dataUrl;
+      }
+
+      const { data: publicData } = supabase.storage
+        .from('produtos')
+        .getPublicUrl(nomeArquivo);
+
+      return publicData?.publicUrl || dataUrl;
+    } catch (err) {
+      console.warn('[ProdutoService] Falha ao enviar imagem para Storage:', err);
+      return dataUrl;
+    }
+  }
   /**
    * Sincronização Delta Inteligente de Variações de Produtos (Sem Recriação Destrutiva)
    * 
@@ -85,9 +121,18 @@ export class ProdutoService {
       const rot1 = (v.valor_variacao_1 || '').trim() || 'Padrão';
       const rot2 = (v.valor_variacao_2 || '').trim() || null;
       const comb = v.combinacao_nome || (rot2 ? `${rot1} / ${rot2}` : rot1);
+      const precoCusto = v.preco_custo !== undefined && v.preco_custo !== null && Number(v.preco_custo) > 0
+        ? Number(v.preco_custo)
+        : null;
       const precoVarejo = Number(v.preco_venda_varejo) || 0;
       const precoAtacado = v.preco_venda_atacado !== undefined && v.preco_venda_atacado !== null && Number(v.preco_venda_atacado) > 0
         ? Number(v.preco_venda_atacado)
+        : null;
+      const precoAutoatacado = v.preco_venda_autoatacado !== undefined && v.preco_venda_autoatacado !== null && Number(v.preco_venda_autoatacado) > 0
+        ? Number(v.preco_venda_autoatacado)
+        : null;
+      const precoPromocional = v.preco_promocional !== undefined && v.preco_promocional !== null && Number(v.preco_promocional) > 0
+        ? Number(v.preco_promocional)
         : null;
       const qtdEstoque = Number(v.quantidade_estoque) || 0;
       const estMinimo = Number(v.estoque_minimo_alerta) || 0;
@@ -107,8 +152,11 @@ export class ProdutoService {
           combinacao_nome: comb,
           codigo_barras: ean,
           sku: sku,
+          preco_custo: precoCusto,
           preco_venda_varejo: precoVarejo,
           preco_venda_atacado: precoAtacado,
+          preco_venda_autoatacado: precoAutoatacado,
+          preco_promocional: precoPromocional,
           quantidade_estoque: qtdEstoque,
           estoque_minimo_alerta: estMinimo,
           ativo: ativo
@@ -123,8 +171,11 @@ export class ProdutoService {
           combinacao_nome: comb,
           codigo_barras: ean,
           sku: sku,
+          preco_custo: precoCusto,
           preco_venda_varejo: precoVarejo,
           preco_venda_atacado: precoAtacado,
+          preco_venda_autoatacado: precoAutoatacado,
+          preco_promocional: precoPromocional,
           quantidade_estoque: qtdEstoque,
           estoque_minimo_alerta: estMinimo,
           ativo: ativo
@@ -143,8 +194,11 @@ export class ProdutoService {
           combinacao_nome: vUp.combinacao_nome,
           codigo_barras: vUp.codigo_barras,
           sku: vUp.sku,
+          preco_custo: vUp.preco_custo,
           preco_venda_varejo: vUp.preco_venda_varejo,
           preco_venda_atacado: vUp.preco_venda_atacado,
+          preco_venda_autoatacado: vUp.preco_venda_autoatacado,
+          preco_promocional: vUp.preco_promocional,
           quantidade_estoque: vUp.quantidade_estoque,
           estoque_minimo_alerta: vUp.estoque_minimo_alerta,
           ativo: vUp.ativo

@@ -24,7 +24,8 @@ import {
   LayoutDashboard,
   Building2,
   ChevronDown,
-  Check
+  Check,
+  Plus
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -39,12 +40,20 @@ interface MobileMenuDrawerProps {
   aberto?: boolean;
   onFechar?: () => void;
   pedidosConfirmadosCount?: number;
+  onAbrirNovaFilial?: () => void;
+  ehTrial?: boolean;
+  diasRestantesTrial?: number | null;
+  onAbrirAssinatura?: () => void;
 }
 
 export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
   aberto: abertoProp,
   onFechar: onFecharProp,
-  pedidosConfirmadosCount: countProp
+  pedidosConfirmadosCount: countProp,
+  onAbrirNovaFilial,
+  ehTrial = false,
+  diasRestantesTrial = null,
+  onAbrirAssinatura
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -54,7 +63,7 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
 
   const { loja, usuario, usuarioLogado, lojasDisponiveis, selecionarLoja, recarregarDadosLoja, desconectarPdv } = useAuth();
   const permissions = usePermissions();
-  const { tema, setTema } = useTheme();
+  const { tema, isDark, setTema } = useTheme();
   const { dataOperacaoFormatada, modoSimulacaoAtivo, abrirModal } = useDataOperacao();
   const { verificarSaidaComConfirmacao } = useFeedbackModal();
   const [internalCount, setInternalCount] = useState<number>(0);
@@ -79,8 +88,7 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
         .from('pedidos')
         .select('*', { count: 'exact', head: true })
         .eq('loja_id', loja.id)
-        .neq('status', 'concluido')
-        .neq('status', 'cancelado');
+        .eq('status', 'confirmado');
 
       if (usuario && !permissions.podeVerTransacoesOutros) {
         query = query.eq('vendedor_id', usuario.id);
@@ -240,18 +248,42 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
       <div className="relative w-4/5 max-w-xs bg-white dark:bg-slate-950 text-slate-900 dark:text-white h-full flex flex-col z-10 shadow-2xl animate-in slide-in-from-left duration-200 border-r border-slate-200 dark:border-slate-800">
         {/* Header do Drawer com Seletor Global de Loja Ativa */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shrink-0">
-          <div className="flex items-center justify-between mb-2.5">
-            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+          <div className="flex items-center justify-between mb-2.5 gap-2">
+            <span className="text-[10px] font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider truncate">
               {podeTrocarLoja && lojasDisponiveis && lojasDisponiveis.length > 1 ? 'Loja Ativa (Toque p/ Trocar)' : 'Loja Ativa'}
             </span>
-            <button
-              type="button"
-              onClick={onFechar}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-              title="Fechar menu"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {permissions.ehOwner && onAbrirNovaFilial && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onFechar();
+                    onAbrirNovaFilial();
+                  }}
+                  className={`hubi-btn-neutral px-2 py-1 rounded-lg text-[10px] flex items-center gap-1 transition cursor-pointer ${
+                    isDark
+                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold'
+                      : 'bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 font-semibold'
+                  }`}
+                  title="Adicionar nova filial"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Nova Filial</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onFechar}
+                className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                }`}
+                title="Fechar menu"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {podeTrocarLoja && lojasDisponiveis && lojasDisponiveis.length > 1 ? (
@@ -283,7 +315,7 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
 
               {seletorLojasAberto && (
                 <div className="mt-2 space-y-1 p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900/90 max-h-48 overflow-y-auto animate-in fade-in duration-150">
-                  <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-400">
                     Alternar Contexto do Sistema
                   </div>
                   {lojasDisponiveis.map((l) => {
@@ -373,7 +405,7 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <Icone className={`w-5 h-5 shrink-0 ${isAtivo ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`} />
+                    <Icone className={`w-5 h-5 shrink-0 ${isAtivo ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-400'}`} />
                     <span className="truncate">{item.nome}</span>
                   </div>
                   {item.badge !== undefined && (
@@ -388,25 +420,45 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
 
         {/* Rodapé do Drawer */}
         <div className="p-3 border-t border-slate-200 dark:border-slate-800 space-y-2 bg-slate-50 dark:bg-slate-900/50 shrink-0">
-          {permissions.ehOwner && (
+          {ehTrial && onAbrirAssinatura && (
+            <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-950/30">
+              <span className="text-[11px] font-bold text-amber-900 dark:text-amber-300 truncate">
+                Teste: {diasRestantesTrial} {diasRestantesTrial === 1 ? 'dia restante' : 'dias restantes'}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  onFechar();
+                  onAbrirAssinatura();
+                }}
+                className="hubi-btn-cta px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase tracking-wider transition cursor-pointer shrink-0"
+              >
+                Assinar
+              </button>
+            </div>
+          )}
+
+          {(permissions.ehOwner || permissions.ehAdmin) && (
             <button
               type="button"
               onClick={() => {
                 onFechar();
                 abrirModal();
               }}
-              className={`flex items-center justify-between w-full p-2.5 rounded-xl text-xs font-bold border transition ${
+              className={`flex items-center justify-between w-full p-2.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
                 modoSimulacaoAtivo
                   ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-sm'
-                  : 'bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700'
+                  : isDark
+                  ? 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-700'
+                  : 'hubi-btn-neutral bg-slate-100 hover:bg-slate-200 text-black border-slate-300 font-semibold'
               }`}
             >
               <div className="flex items-center gap-2">
-                <Calendar className={`w-4 h-4 ${modoSimulacaoAtivo ? 'text-slate-950' : 'text-amber-500'}`} />
+                <Calendar className={`w-4 h-4 ${modoSimulacaoAtivo ? 'text-slate-950' : 'text-amber-600 dark:text-amber-500'}`} />
                 <span>{modoSimulacaoAtivo ? 'Simulando:' : 'Data Operacional:'}</span>
               </div>
               <span className={`px-2 py-0.5 rounded-lg text-[11px] font-mono ${
-                modoSimulacaoAtivo ? 'bg-slate-950 text-amber-300 font-black' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                modoSimulacaoAtivo ? 'bg-slate-950 text-amber-300 font-black' : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
               }`}>
                 {dataOperacaoFormatada}
               </span>
@@ -418,7 +470,11 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
             target="_blank"
             rel="noopener noreferrer"
             onClick={onFechar}
-            className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold border border-emerald-200 dark:border-emerald-500/30 transition"
+            className={`flex items-center justify-between p-2.5 rounded-xl text-xs border transition ${
+              isDark
+                ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30 font-semibold'
+                : 'hubi-btn-neutral bg-slate-100 hover:bg-slate-200 text-black border-slate-300 font-semibold'
+            }`}
           >
             <div className="flex items-center gap-2">
               <Store className="w-4 h-4" />
@@ -429,7 +485,7 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
 
           {/* Seletor de Tema do Sistema (Mobile) */}
           <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5 px-0.5">
+            <span className="text-[10px] font-bold text-slate-800 dark:text-slate-400 uppercase tracking-wider block mb-1.5 px-0.5">
               Tema do Sistema
             </span>
             <div className="grid grid-cols-2 gap-1.5">
@@ -439,10 +495,10 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
                 className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
                   tema === 'dark'
                     ? 'bg-slate-900 dark:bg-slate-800 text-amber-300 border border-slate-700 shadow-sm'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 border border-transparent'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-400 hover:text-black border border-slate-300 dark:border-transparent'
                 }`}
               >
-                <Moon className="w-4 h-4 text-amber-400" />
+                <Moon className="w-4 h-4 text-amber-500 dark:text-amber-400" />
                 <span>Escuro</span>
               </button>
               <button
@@ -450,11 +506,11 @@ export const MobileMenuDrawer: React.FC<MobileMenuDrawerProps> = ({
                 onClick={() => setTema('light')}
                 className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
                   tema === 'light'
-                    ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-500/40 shadow-sm'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 border border-transparent'
+                    ? 'bg-slate-200 text-black border border-slate-400 shadow-sm'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-400 hover:text-black border border-slate-300 dark:border-transparent'
                 }`}
               >
-                <Sun className="w-4 h-4 text-amber-500" />
+                <Sun className="w-4 h-4 text-amber-600 dark:text-amber-500" />
                 <span>Claro</span>
               </button>
             </div>

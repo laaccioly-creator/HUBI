@@ -75,7 +75,6 @@ import { ImportarExportarProdutos } from './ImportarExportarProdutos';
 import { CentralImportarExportar } from './CentralImportarExportar';
 import { ConfiguracoesMetas } from './configuracoes/ConfiguracoesMetas';
 import { ConfiguracoesWhatsAppIA } from './configuracoes/ConfiguracoesWhatsAppIA';
-import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { MobileHeader } from './layout/MobileHeader';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
@@ -909,7 +908,6 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   useRegisterOverlay(modalPreviewRecibo, () => setModalPreviewRecibo(false), 'config-modal-preview');
   useRegisterOverlay(modalExportConcluido, () => setModalExportConcluido(false), 'config-modal-export');
   useRegisterOverlay(modalNovoStatus, () => setModalNovoStatus(false), 'config-modal-status');
-  useRegisterOverlay(drawerMenuAberto, () => setDrawerMenuAberto(false), 'config-drawer-menu');
   useRegisterOverlay(subTela !== 'menu', () => {
     verificarSaidaComConfirmacao(() => setSubTela('menu'));
   }, 'config-subtela');
@@ -3308,12 +3306,6 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
             </div>
           )}
         </div>
-
-        {/* Menu Gaveta Lateral */}
-        <MobileMenuDrawer
-          aberto={drawerMenuAberto}
-          onFechar={() => setDrawerMenuAberto(false)}
-        />
       </div>
 
       {/* 2. VISÃO DESKTOP (RESPONSIVA: MODO CLARO & ESCURO VENDER PDV) */}
@@ -4641,7 +4633,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               <button
                 type="button"
                 onClick={() => setModalPreviewRecibo(true)}
-                className="hubi-btn-neutral px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95"
+                className="hubi-btn-cta px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 border border-emerald-500 text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-md active:scale-95"
               >
                 <Receipt className="w-4 h-4" />
                 <span>Ver meu recibo</span>
@@ -6036,7 +6028,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               <button
                 type="button"
                 onClick={() => setModalPreviewRecibo(false)}
-                className="hubi-btn-neutral p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center cursor-pointer shadow-sm transition"
+                className="hubi-btn-cta p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center cursor-pointer shadow-sm transition"
               >
                 <span>Fechar</span>
               </button>
@@ -6067,7 +6059,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
             <button
               type="button"
               onClick={() => setModalExportConcluido(false)}
-              className="hubi-btn-neutral w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95 transition"
+              className="hubi-btn-cta w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 border border-emerald-500 text-white font-black text-xs cursor-pointer shadow-md active:scale-95 transition"
             >
               Voltar
             </button>

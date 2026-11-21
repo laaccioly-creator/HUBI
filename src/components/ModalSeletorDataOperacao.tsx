@@ -10,8 +10,11 @@ import {
   Server
 } from 'lucide-react';
 import { useDataOperacao } from '../contexts/DataOperacaoContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 
 export const ModalSeletorDataOperacao: React.FC = () => {
+  const { isDark } = useTheme();
   const {
     modalAberto,
     fecharModal,
@@ -24,6 +27,8 @@ export const ModalSeletorDataOperacao: React.FC = () => {
     ehOwner,
     podeAlterarData
   } = useDataOperacao();
+
+  useRegisterOverlay(Boolean(podeAlterarData && modalAberto), fecharModal, 'modal-seletor-data-operacao', 'modal');
 
   const [dataSelecionada, setDataSelecionada] = useState<string>(() => {
     if (dataSimulada) return dataSimulada;
@@ -91,7 +96,7 @@ export const ModalSeletorDataOperacao: React.FC = () => {
                   Owner
                 </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-800 dark:text-slate-400 mt-0.5">
                 Simule qualquer dia retroativo para testes de fluxo de caixa e vendas.
               </p>
             </div>
@@ -100,14 +105,18 @@ export const ModalSeletorDataOperacao: React.FC = () => {
           <button
             type="button"
             onClick={fecharModal}
-            className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition cursor-pointer"
+            className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer ${
+              isDark
+                ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700'
+                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+            }`}
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Status de Sincronização com Supabase */}
-        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400">
+        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-900 dark:text-slate-400">
           <div className="flex items-center gap-2">
             <Server className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
             <span>Relógio Oficial: <strong>Banco Supabase (PostgreSQL)</strong></span>
@@ -166,7 +175,7 @@ export const ModalSeletorDataOperacao: React.FC = () => {
                 onChange={(e) => setHoraSelecionada(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-amber-500 dark:focus:border-amber-400 font-semibold cursor-pointer shadow-sm"
               />
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-1">
+              <span className="text-[10px] text-slate-700 dark:text-slate-400 block mt-1">
                 {horaSelecionada
                   ? 'Horário fixado estaticamente.'
                   : 'Vazio = Relógio avança continuamente em tempo real (recomendado).'}
@@ -176,42 +185,42 @@ export const ModalSeletorDataOperacao: React.FC = () => {
 
           {/* Atalhos Rápidos */}
           <div>
-            <span className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+            <span className="block text-[11px] font-bold text-slate-800 dark:text-slate-400 uppercase tracking-wider mb-2">
               Atalhos Rápidos:
             </span>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
               <button
                 type="button"
                 onClick={() => aplicarPredefinicao(1)}
-                className="px-2 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition text-center cursor-pointer"
+                className="hubi-btn-neutral px-2 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-black dark:text-slate-300 transition text-center cursor-pointer"
               >
                 Ontem
               </button>
               <button
                 type="button"
                 onClick={() => aplicarPredefinicao(2)}
-                className="px-2 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition text-center cursor-pointer"
+                className="hubi-btn-neutral px-2 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-black dark:text-slate-300 transition text-center cursor-pointer"
               >
                 -2 dias
               </button>
               <button
                 type="button"
                 onClick={() => aplicarPredefinicao(3)}
-                className="px-2 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition text-center cursor-pointer"
+                className="hubi-btn-neutral px-2 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-black dark:text-slate-300 transition text-center cursor-pointer"
               >
                 -3 dias
               </button>
               <button
                 type="button"
                 onClick={() => aplicarPredefinicao(7)}
-                className="px-2 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition text-center cursor-pointer"
+                className="hubi-btn-neutral px-2 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-black dark:text-slate-300 transition text-center cursor-pointer"
               >
                 -7 dias
               </button>
               <button
                 type="button"
                 onClick={() => aplicarPredefinicao(14)}
-                className="px-2 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition text-center col-span-2 sm:col-span-1 cursor-pointer"
+                className="hubi-btn-neutral px-2 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-black dark:text-slate-300 transition text-center col-span-2 sm:col-span-1 cursor-pointer"
               >
                 -14 dias
               </button>
@@ -224,13 +233,13 @@ export const ModalSeletorDataOperacao: React.FC = () => {
               <button
                 type="button"
                 onClick={restaurarParaHoje}
-                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer"
+                className="hubi-btn-neutral w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 text-black dark:text-rose-300 border border-slate-300 dark:border-rose-500/30 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Voltar para Tempo Real</span>
               </button>
             ) : (
-              <div className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+              <div className="text-[11px] text-slate-700 dark:text-slate-500 flex items-center gap-1.5">
                 <ShieldAlert className="w-3.5 h-3.5" />
                 <span>Modo atual: Tempo Real</span>
               </div>
@@ -240,13 +249,13 @@ export const ModalSeletorDataOperacao: React.FC = () => {
               <button
                 type="button"
                 onClick={fecharModal}
-                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition cursor-pointer"
+                className="hubi-btn-neutral px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-black dark:text-slate-300 text-xs font-semibold transition cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/20 transition cursor-pointer"
+                className="hubi-btn-cta px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-600/20 transition cursor-pointer"
               >
                 <Check className="w-4 h-4" />
                 <span>Ativar Data Operacional</span>

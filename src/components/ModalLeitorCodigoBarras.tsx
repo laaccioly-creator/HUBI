@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, X, RefreshCw, AlertCircle, Zap, Check } from 'lucide-react';
 import { audioService } from '../services/audioService';
+import { useTheme } from '../contexts/ThemeContext';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 
 interface ModalLeitorCodigoBarrasProps {
   isOpen: boolean;
@@ -13,6 +15,8 @@ export const ModalLeitorCodigoBarras: React.FC<ModalLeitorCodigoBarrasProps> = (
   onClose,
   onBarcodeDetected
 }) => {
+  const { isDark } = useTheme();
+  useRegisterOverlay(isOpen, onClose, 'modal-leitor-codigo-barras', 'modal');
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [erroCamera, setErroCamera] = useState<string | null>(null);
@@ -145,22 +149,30 @@ export const ModalLeitorCodigoBarras: React.FC<ModalLeitorCodigoBarrasProps> = (
 
   return (
     <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in">
-      <div className="bg-white md:bg-[#08131A] border-2 border-slate-300 md:border-slate-400 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl space-y-4 text-slate-800 md:text-slate-100">
+      <div className={`border-2 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl space-y-4 ${
+        isDark ? 'bg-[#08131A] border-slate-400 text-slate-100' : 'bg-slate-100 border-slate-300 text-black'
+      }`}>
         {/* Header */}
-        <div className="p-4 border-b border-slate-200 md:border-slate-800 flex items-center justify-between bg-white md:bg-slate-900">
+        <div className={`p-4 border-b flex items-center justify-between ${
+          isDark ? 'border-slate-800 bg-slate-900' : 'border-slate-300 bg-slate-100'
+        }`}>
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 md:bg-emerald-500/15 text-emerald-600 md:text-emerald-400 flex items-center justify-center">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+              isDark ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-100 text-emerald-800'
+            }`}>
               <Camera className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-slate-800 md:text-slate-100">Leitor de Código de Barras</h3>
-              <span className="text-[11px] text-slate-500 md:text-slate-400">Aponte a câmera para o código do produto</span>
+              <h3 className={`font-bold text-sm ${isDark ? 'text-slate-100' : 'text-black'}`}>Leitor de Código de Barras</h3>
+              <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-700 font-medium'}`}>Aponte a câmera para o código do produto</span>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="hubi-btn-close-x p-1.5 rounded-xl text-slate-400 hover:text-slate-700 md:hover:text-white hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
+            className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer ${
+              isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+            }`}
           >
             <X className="w-5 h-5" />
           </button>
@@ -170,7 +182,7 @@ export const ModalLeitorCodigoBarras: React.FC<ModalLeitorCodigoBarrasProps> = (
         <div className="px-4">
           <div className="relative aspect-video sm:aspect-square w-full bg-black rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center">
             {iniciando && (
-              <div className="flex flex-col items-center gap-2 text-slate-400 text-xs">
+              <div className="flex flex-col items-center gap-2 text-slate-300 text-xs">
                 <RefreshCw className="w-6 h-6 animate-spin text-emerald-400" />
                 <span>Iniciando câmera...</span>
               </div>
@@ -179,11 +191,11 @@ export const ModalLeitorCodigoBarras: React.FC<ModalLeitorCodigoBarrasProps> = (
             {erroCamera && !iniciando && (
               <div className="p-4 text-center space-y-2 max-w-xs">
                 <AlertCircle className="w-8 h-8 text-amber-400 mx-auto" />
-                <p className="text-xs text-slate-300 font-medium">{erroCamera}</p>
+                <p className="text-xs text-slate-200 font-medium">{erroCamera}</p>
                 <button
                   type="button"
                   onClick={iniciarCamera}
-                  className="hubi-btn-neutral px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs text-emerald-400 font-bold rounded-xl transition cursor-pointer"
+                  className="hubi-btn-neutral px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs text-white font-bold rounded-xl transition cursor-pointer"
                 >
                   Tentar Novamente
                 </button>
@@ -228,12 +240,16 @@ export const ModalLeitorCodigoBarras: React.FC<ModalLeitorCodigoBarrasProps> = (
               placeholder="Ou digite o código de barras..."
               value={codigoManual}
               onChange={(e) => setCodigoManual(e.target.value)}
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 font-mono"
+              className={`flex-1 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-emerald-500 font-mono ${
+                isDark
+                  ? 'bg-slate-800 border border-slate-700 text-slate-100 placeholder:text-slate-500'
+                  : 'bg-white border border-slate-300 text-black placeholder:text-slate-500'
+              }`}
             />
             <button
               type="submit"
               disabled={!codigoManual.trim()}
-              className="hubi-btn-neutral px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-white text-xs font-bold transition cursor-pointer"
+              className="hubi-btn-cta px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-bold transition cursor-pointer"
             >
               Inserir
             </button>

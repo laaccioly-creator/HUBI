@@ -27,6 +27,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { Produto, Categoria } from '../types';
 import { ModalGerenciarCategorias } from './ModalGerenciarCategorias';
 import { ModalEntradaEstoque } from './ModalEntradaEstoque';
@@ -40,7 +41,7 @@ import {
   CategoriaFiltroConsolidada
 } from '../utils/categoriasHierarquia';
 
-interface AnuncioMlResumo {
+export interface AnuncioMlResumo {
   id: string;
   produto_id: string;
   variacao_id?: string | null;
@@ -71,6 +72,7 @@ export const ProdutosEstoque: React.FC = () => {
   const { loja, usuario } = useAuth();
   const { isDark } = useTheme();
   const permissions = usePermissions();
+  const { confirmar, mostrarErro } = useFeedbackModal();
   const navigate = useNavigate();
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -311,12 +313,14 @@ export const ProdutosEstoque: React.FC = () => {
   }, [modalFiltroAberto]);
 
   const toggleAtivo = async (produtoId: string, valorAtual: boolean) => {
+    if (!loja?.id) return;
     try {
       const novoValor = valorAtual === false ? true : false;
       const { error } = await supabase
         .from('produtos')
         .update({ ativo: novoValor })
-        .eq('id', produtoId);
+        .eq('id', produtoId)
+        .eq('loja_id', loja.id);
 
       if (error) throw error;
       setProdutos(prev =>
@@ -328,11 +332,13 @@ export const ProdutosEstoque: React.FC = () => {
   };
 
   const toggleExibirCatalogo = async (produtoId: string, valorAtual: boolean) => {
+    if (!loja?.id) return;
     try {
       const { error } = await supabase
         .from('produtos')
         .update({ exibir_catalogo: !valorAtual })
-        .eq('id', produtoId);
+        .eq('id', produtoId)
+        .eq('loja_id', loja.id);
 
       if (error) throw error;
       setProdutos(prev =>
@@ -344,11 +350,13 @@ export const ProdutosEstoque: React.FC = () => {
   };
 
   const toggleDestaque = async (produtoId: string, valorAtual: boolean) => {
+    if (!loja?.id) return;
     try {
       const { error } = await supabase
         .from('produtos')
         .update({ destaque: !valorAtual })
-        .eq('id', produtoId);
+        .eq('id', produtoId)
+        .eq('loja_id', loja.id);
 
       if (error) throw error;
       setProdutos(prev =>
@@ -360,14 +368,27 @@ export const ProdutosEstoque: React.FC = () => {
   };
 
   const excluirProduto = async (produtoId: string) => {
-    if (!confirm('Deseja realmente remover este produto?')) return;
-    try {
-      const { error } = await supabase.from('produtos').delete().eq('id', produtoId);
-      if (error) throw error;
-      setProdutos(prev => prev.filter(p => p.id !== produtoId));
-    } catch (err) {
-      console.error('Erro ao excluir produto:', err);
-    }
+    if (!loja?.id) return;
+    confirmar({
+      titulo: 'Excluir Produto?',
+      mensagem: 'Deseja realmente remover este produto do catálogo?',
+      textoConfirmar: 'Sim, Excluir',
+      textoCancelar: 'Cancelar',
+      onConfirmar: async () => {
+        try {
+          const { error } = await supabase
+            .from('produtos')
+            .delete()
+            .eq('id', produtoId)
+            .eq('loja_id', loja.id);
+          if (error) throw error;
+          setProdutos(prev => prev.filter(p => p.id !== produtoId));
+        } catch (err) {
+          console.error('Erro ao excluir produto:', err);
+          mostrarErro('Não foi possível excluir o produto.');
+        }
+      }
+    });
   };
 
   // Funções utilitárias de cálculo de estoque por variação
@@ -467,6 +488,8 @@ export const ProdutosEstoque: React.FC = () => {
           categorias={categorias}
           carregando={carregando}
           onRecarregar={carregarProdutos}
+          mapaAnunciosMl={mapaAnunciosMl}
+          onRecarregarAnunciosMl={carregarProdutos}
         />
       </div>
 

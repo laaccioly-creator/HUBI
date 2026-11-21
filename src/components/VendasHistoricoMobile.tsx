@@ -37,8 +37,8 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { MelhorEnvioService } from '../services/melhorEnvioService';
 import { supabase } from '../lib/supabase';
-import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { MobileHeader } from './layout/MobileHeader';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
 import { ModalRastreioPedido } from './shipping/ModalRastreioPedido';
 import { ModalImprimirEtiqueta } from './shipping/ModalImprimirEtiqueta';
@@ -74,7 +74,6 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
 
   const { mostrarToast } = useFeedbackModal();
   const [busca, setBusca] = useState<string>('');
-  const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
   const [drawerFiltrosAberto, setDrawerFiltrosAberto] = useState<boolean>(false);
   const [vendaDetalhes, setVendaDetalhes] = useState<Pedido | null>(null);
   const [modalReciboAberto, setModalReciboAberto] = useState<boolean>(false);
@@ -82,6 +81,10 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
   const [modalEtiquetaAberto, setModalEtiquetaAberto] = useState<boolean>(false);
   const [modalConfirmarCancelamento, setModalConfirmarCancelamento] = useState<boolean>(false);
   const [gerandoEtiqueta, setGerandoEtiqueta] = useState<boolean>(false);
+
+  useRegisterOverlay(Boolean(vendaDetalhes), () => setVendaDetalhes(null), 'venda-detalhes-mobile');
+  useRegisterOverlay(modalConfirmarCancelamento, () => setModalConfirmarCancelamento(false), 'modal-cancelar-venda-mobile', 'modal');
+  useRegisterOverlay(drawerFiltrosAberto, () => setDrawerFiltrosAberto(false), 'drawer-filtros-vendas-mobile', 'drawer');
 
   // Filtros
   const [periodoFiltro, setPeriodoFiltro] = useState<string>('todos');
@@ -270,7 +273,7 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
         window.open(url, '_blank', 'noopener,noreferrer');
         mostrarToast('Etiqueta oficial aberta!', 'sucesso');
         if (pe?.id) {
-          supabase.from('pedido_entregas').update({ link_etiqueta: url }).eq('id', pe.id).then();
+          supabase.from('pedido_entregas').update({ link_etiqueta: url }).eq('id', pe.id).eq('loja_id', loja.id).then();
         }
       } else {
         mostrarToast('Etiqueta não disponível para esta venda.', 'aviso');
@@ -362,9 +365,20 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
             )}
 
             {cancelado && (
-              <div className="p-2.5 bg-rose-950/40 border border-rose-900/60 rounded-xl text-rose-400 text-xs font-bold flex items-center gap-1.5 mt-2">
-                <XCircle className="w-4 h-4 text-rose-500 shrink-0" />
-                <span>Esta venda foi cancelada</span>
+              <div className={`p-3 rounded-2xl border flex items-start gap-2.5 mt-2 ${
+                isDark ? 'bg-red-950/40 border-red-500/40' : 'bg-red-50 border-red-300'
+              }`}>
+                <XCircle className={`w-4 h-4 shrink-0 mt-0.5 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
+                <div className="text-xs">
+                  <span className={`font-black block ${isDark ? 'text-red-200' : 'text-red-950'}`}>
+                    Esta venda foi cancelada
+                  </span>
+                  {vendaDetalhes.motivo_cancelamento && (
+                    <span className={`text-[11px] font-medium block mt-0.5 ${isDark ? 'text-red-300/90' : 'text-red-900'}`}>
+                      Motivo: {vendaDetalhes.motivo_cancelamento}
+                    </span>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -479,10 +493,10 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                     PrintService.openWhatsApp(vendaDetalhes.cliente?.whatsapp || '', msg);
                   }
                 }}
-                className="hubi-btn-neutral h-11 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer active:scale-95"
+                className="hubi-btn-cta h-11 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer active:scale-95"
                 title="Enviar recibo via WhatsApp"
               >
-                <MessageCircle className="w-4 h-4 text-white shrink-0" />
+                <MessageCircle className="w-4 h-4 shrink-0" />
                 <span>WhatsApp</span>
               </button>
 
@@ -490,10 +504,14 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
               <button
                 type="button"
                 onClick={() => setModalReciboAberto(true)}
-                className="hubi-btn-neutral h-11 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer active:scale-95"
+                className={`hubi-btn-neutral h-11 px-3 rounded-xl border font-semibold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer active:scale-95 ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                    : 'bg-slate-100 hover:bg-slate-200 text-black border-slate-300'
+                }`}
                 title="Visualizar e imprimir recibo completo"
               >
-                <Receipt className="w-4 h-4 text-white shrink-0" />
+                <Receipt className="w-4 h-4 shrink-0" />
                 <span>Recibo</span>
               </button>
 
@@ -501,10 +519,14 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
               <button
                 type="button"
                 onClick={() => handleRastrearEnvio(vendaDetalhes)}
-                className="hubi-btn-neutral h-11 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer active:scale-95"
+                className={`hubi-btn-neutral h-11 px-3 rounded-xl border font-semibold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer active:scale-95 ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                    : 'bg-slate-100 hover:bg-slate-200 text-black border-slate-300'
+                }`}
                 title="Rastrear envio da venda"
               >
-                <Truck className="w-4 h-4 text-white shrink-0" />
+                <Truck className="w-4 h-4 shrink-0" />
                 <span>Rastrear</span>
               </button>
 
@@ -512,10 +534,14 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
               <button
                 type="button"
                 onClick={() => setModalEtiquetaAberto(true)}
-                className="hubi-btn-neutral h-11 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer active:scale-95"
+                className={`hubi-btn-neutral h-11 px-3 rounded-xl border font-semibold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer active:scale-95 ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                    : 'bg-slate-100 hover:bg-slate-200 text-black border-slate-300'
+                }`}
                 title="Abrir ou imprimir etiqueta de envio"
               >
-                <Tag className="w-4 h-4 text-white shrink-0" />
+                <Tag className="w-4 h-4 shrink-0" />
                 <span>Etiqueta</span>
               </button>
             </div>
@@ -609,7 +635,7 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                     setVendaDetalhes(null);
                     onCancelarVenda(ped);
                   }}
-                  className="flex-1 h-11 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition cursor-pointer shadow-md active:scale-95"
+                  className="flex-1 h-11 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition cursor-pointer shadow-md active:scale-95"
                 >
                   Sim, Cancelar
                 </button>
@@ -826,7 +852,11 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
             <button
               type="button"
               onClick={() => setDrawerFiltrosAberto(false)}
-              className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer"
+              className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${
+                isDark
+                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                  : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+              }`}
             >
               <X className="w-5 h-5" />
             </button>
@@ -845,7 +875,8 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                   { id: 'todos', label: 'Tudo' },
                   { id: 'hoje', label: 'Hoje' },
                   { id: 'ontem', label: 'Ontem' },
-                  { id: '30dias', label: 'Últimos 30 dias' }
+                  { id: '30dias', label: 'Últimos 30 dias' },
+                  { id: 'custom', label: 'Personalizado' }
                 ].map((p) => (
                   <button
                     key={p.id}
@@ -862,6 +893,72 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                     {p.label}
                   </button>
                 ))}
+              </div>
+
+              {periodoFiltro === 'custom' && (
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <div>
+                    <label className={`text-[10px] font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>Data Inicial</label>
+                    <input
+                      type="date"
+                      value={dataInicio}
+                      onChange={(e) => setDataInicio(e.target.value)}
+                      className={`w-full rounded-xl p-2 text-xs border focus:outline-none ${
+                        isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label className={`text-[10px] font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>Data Final</label>
+                    <input
+                      type="date"
+                      value={dataFim}
+                      onChange={(e) => setDataFim(e.target.value)}
+                      className={`w-full rounded-xl p-2 text-xs border focus:outline-none ${
+                        isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
+                      }`}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Meios de Pagamento */}
+            <div className="space-y-3">
+              <div className={`flex items-center gap-2 text-xs font-bold ${isDark ? 'text-white' : 'text-black font-black'}`}>
+                <CreditCard className="w-4 h-4 text-emerald-500" />
+                <span>Meios de Pagamento</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: 'dinheiro', label: 'Dinheiro' },
+                  { id: 'pix', label: 'Pix' },
+                  { id: 'cartao_credito', label: 'Crédito' },
+                  { id: 'cartao_debito', label: 'Débito' },
+                  { id: 'fiado', label: 'Fiado' }
+                ].map((mp) => {
+                  const ativo = meiosPagamentoFiltro.includes(mp.id);
+                  return (
+                    <button
+                      key={mp.id}
+                      type="button"
+                      onClick={() =>
+                        setMeiosPagamentoFiltro((prev) =>
+                          prev.includes(mp.id) ? prev.filter((x) => x !== mp.id) : [...prev, mp.id]
+                        )
+                      }
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                        ativo
+                          ? 'bg-emerald-600 text-white border-emerald-500 shadow-xs'
+                          : isDark
+                          ? 'bg-[#000000] border-slate-700 text-slate-200'
+                          : 'bg-white border-2 border-slate-300 text-black'
+                      }`}
+                    >
+                      {mp.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -895,11 +992,13 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
               type="button"
               onClick={() => {
                 setPeriodoFiltro('todos');
+                setDataInicio('');
+                setDataFim('');
                 setVendedorFiltroId('todos');
                 setMeiosPagamentoFiltro([]);
                 setDrawerFiltrosAberto(false);
               }}
-              className={`flex-1 py-3 rounded-xl border text-xs transition cursor-pointer ${
+              className={`hubi-btn-neutral flex-1 py-3 rounded-xl border text-xs transition cursor-pointer ${
                 isDark ? 'bg-[#000000] hover:bg-slate-900 border-slate-700 text-white font-bold' : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-black font-semibold'
               }`}
             >
@@ -908,19 +1007,13 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
             <button
               type="button"
               onClick={() => setDrawerFiltrosAberto(false)}
-              className="hubi-btn-neutral flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold border border-emerald-500 shadow-md transition cursor-pointer"
+              className="hubi-btn-cta flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold border border-emerald-500 shadow-md transition cursor-pointer"
             >
               Aplicar Filtros
             </button>
           </div>
         </div>
       )}
-
-      {/* Menu Gaveta Lateral */}
-      <MobileMenuDrawer
-        aberto={drawerMenuAberto}
-        onFechar={() => setDrawerMenuAberto(false)}
-      />
     </div>
   );
 };

@@ -24,8 +24,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { Cupom, TipoCupom } from '../types';
 import { CupomService } from '../services/cupomService';
-import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { MobileHeader } from './layout/MobileHeader';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { ModalConfirmacaoExclusao } from './ModalConfirmacaoExclusao';
 import { formatarMoeda } from '../utils/formatters';
 
@@ -42,7 +42,8 @@ export const CuponsGestao: React.FC = () => {
   const [carregando, setCarregando] = useState<boolean>(true);
   const [salvando, setSalvando] = useState<boolean>(false);
   const [copiado, setCopiado] = useState<string | null>(null);
-  const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
+
+  useRegisterOverlay(visao !== 'lista', () => setVisao('lista'), 'cupons-subtela-mobile');
 
   // Estados do Formulário de Cupom
   const [cupomEditandoId, setCupomEditandoId] = useState<string | null>(null);
@@ -230,7 +231,7 @@ export const CuponsGestao: React.FC = () => {
               <button
                 type="button"
                 onClick={abrirCriarNovo}
-                className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
+                className="hubi-btn-cta inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md border border-emerald-500 transition cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>+ Novo</span>
@@ -534,12 +535,6 @@ export const CuponsGestao: React.FC = () => {
             </div>
           )}
         </div>
-
-        {/* Menu Gaveta Lateral */}
-        <MobileMenuDrawer
-          aberto={drawerMenuAberto}
-          onFechar={() => setDrawerMenuAberto(false)}
-        />
       </div>
 
       {/* 2. VISÃO DESKTOP COM SUPORTE DUAL-TEMA */}
@@ -566,7 +561,7 @@ export const CuponsGestao: React.FC = () => {
             <button
               type="button"
               onClick={abrirCriarNovo}
-              className="hubi-btn-neutral px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20 border border-emerald-500 cursor-pointer active:scale-95"
+              className="hubi-btn-cta px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition flex items-center gap-1.5 shadow-md border border-emerald-500 cursor-pointer active:scale-95"
             >
               <Plus className="w-4 h-4" />
               <span>Criar novo cupom</span>
@@ -627,7 +622,7 @@ export const CuponsGestao: React.FC = () => {
                 <button
                   type="button"
                   onClick={abrirCriarNovo}
-                  className="hubi-btn-neutral px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition inline-flex items-center gap-1.5 border border-emerald-500 shadow-md shadow-emerald-500/20 cursor-pointer"
+                  className="hubi-btn-cta px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition inline-flex items-center gap-1.5 border border-emerald-500 shadow-md cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Criar meu primeiro cupom</span>

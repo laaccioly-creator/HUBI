@@ -19,7 +19,6 @@ import { ModalUsuarioDrawer } from './ModalUsuarioDrawer';
 import { ModalExpedienteProfissional } from './agendamento/ModalExpedienteProfissional';
 import { ModalServicosProfissional } from './agendamento/ModalServicosProfissional';
 import { agendamentoService } from '../services/agendamentoService';
-import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { MobileHeader } from './layout/MobileHeader';
 import { useTheme } from '../contexts/ThemeContext';
 import { formatarMoeda, formatarTelefone } from '../utils/formatters';
@@ -52,7 +51,6 @@ export const UsuariosGestao: React.FC = () => {
   const [usuarios, setUsuarios] = useState<UsuarioLoja[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [modalDrawerAberto, setModalDrawerAberto] = useState<boolean>(false);
-  const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
   const [usuarioSelecionadoEdicao, setUsuarioSelecionadoEdicao] = useState<UsuarioLoja | null>(null);
   const [usuarioExpediente, setUsuarioExpediente] = useState<UsuarioLoja | null>(null);
   const [usuarioServicos, setUsuarioServicos] = useState<UsuarioLoja | null>(null);
@@ -404,7 +402,7 @@ export const UsuariosGestao: React.FC = () => {
             <button
               type="button"
               onClick={handleAbrirAdicionar}
-              className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer active:scale-95"
+              className="hubi-btn-cta inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md border border-emerald-500 transition cursor-pointer active:scale-95"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
               <span>+ Novo</span>
@@ -509,12 +507,6 @@ export const UsuariosGestao: React.FC = () => {
             )}
           </div>
         </div>
-
-        {/* Menu Gaveta Lateral */}
-        <MobileMenuDrawer
-          aberto={drawerMenuAberto}
-          onFechar={() => setDrawerMenuAberto(false)}
-        />
       </div>
 
       {/* 2. VISÃO DESKTOP (TEMA CLARO E ESCURO UNIFICADOS - PADRÃO VENDER PDV) */}
@@ -545,7 +537,7 @@ export const UsuariosGestao: React.FC = () => {
           <button
             type="button"
             onClick={handleAbrirAdicionar}
-            className="hubi-btn-neutral inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer active:scale-95"
+            className="hubi-btn-cta inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-black shadow-md border border-emerald-500 transition cursor-pointer active:scale-95"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
             <span>+ Usuários</span>

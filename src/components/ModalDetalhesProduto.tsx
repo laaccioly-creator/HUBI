@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Produto } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 
 interface ModalDetalhesProdutoProps {
   isOpen: boolean;
@@ -32,6 +33,13 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
   const { tema } = useTheme();
   const isDark = tema === 'dark';
   const [fotoSelecionadaIdx, setFotoSelecionadaIdx] = useState<number>(0);
+
+  useRegisterOverlay(
+    isOpen && Boolean(produto),
+    onClose,
+    apenasGrade ? 'modal-detalhes-grade-produto' : 'modal-detalhes-produto',
+    'modal'
+  );
 
   if (!isOpen || !produto) return null;
 
@@ -72,8 +80,8 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className={`p-1.5 rounded-xl border transition cursor-pointer ${
-                isDark ? 'bg-[#000000] border-slate-700 text-white hover:bg-slate-900' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+              className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${
+                isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
               }`}
             >
               <X className="w-5 h-5" />
@@ -149,7 +157,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className={`px-5 py-2.5 rounded-xl text-xs transition cursor-pointer active:scale-95 ${
+              className={`hubi-btn-neutral px-5 py-2.5 rounded-xl text-xs transition cursor-pointer active:scale-95 ${
                 isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 font-bold' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold shadow-sm'
               }`}
             >
@@ -185,8 +193,8 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className={`p-1.5 rounded-xl border transition cursor-pointer ${
-              isDark ? 'bg-[#000000] border-slate-700 text-white hover:bg-slate-900' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+            className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${
+              isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
             }`}
           >
             <X className="w-5 h-5" />
@@ -423,7 +431,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className={`px-5 py-2.5 rounded-xl text-xs transition cursor-pointer active:scale-95 ${
+            className={`hubi-btn-neutral px-5 py-2.5 rounded-xl text-xs transition cursor-pointer active:scale-95 ${
               isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 font-bold' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold shadow-sm'
             }`}
           >

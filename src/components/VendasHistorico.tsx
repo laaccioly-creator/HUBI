@@ -52,6 +52,9 @@ import { VendasHistoricoMobile } from './VendasHistoricoMobile';
 import { ReciboPedidoModal } from './pedidos/ReciboPedidoModal';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
 import { obterDataOperacao } from '../utils/dataOperacao';
+import { useFeedbackModal } from '../contexts/FeedbackContext';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
+import { EstoquePedidoService } from '../services/estoquePedidoService';
 
 // Helper para limpar prefixos repetidos de endereço (ex: "Entrega: Entrega - " -> limpo)
 const limparEnderecoRecibo = (end?: string | null) => {
@@ -154,6 +157,13 @@ export const VendasHistorico: React.FC = () => {
 
   const [copiado, setCopiado] = useState<boolean>(false);
   const dropdownVendedorRef = useRef<HTMLDivElement>(null);
+  const { mostrarSucesso, mostrarErro } = useFeedbackModal();
+
+  useRegisterOverlay(drawerFiltrosAberto, () => setDrawerFiltrosAberto(false), 'drawer-filtros-vendas-desktop', 'drawer');
+  useRegisterOverlay(Boolean(enderecoPopover), () => setEnderecoPopover(null), 'popover-endereco-vendas', 'modal');
+  useRegisterOverlay(Boolean(vendaCancelarModal), () => setVendaCancelarModal(null), 'modal-cancelar-venda', 'modal');
+  useRegisterOverlay(Boolean(vendaItensModal), () => setVendaItensModal(null), 'modal-itens-venda', 'modal');
+  useRegisterOverlay(Boolean(produtoDetalhesModal), () => setProdutoDetalhesModal(null), 'modal-produto-detalhes-venda', 'modal');
 
   // Fechar dropdowns ao clicar fora
   useEffect(() => {
@@ -493,9 +503,16 @@ export const VendasHistorico: React.FC = () => {
 
   // Cancelar venda (TELA005)
   const handleConfirmarCancelamento = async () => {
-    if (!vendaCancelarModal) return;
+    if (!vendaCancelarModal || !loja?.id) return;
     try {
       setCancelandoVenda(true);
+      await EstoquePedidoService.estornarEstoquePedido({
+        pedidoId: vendaCancelarModal.id,
+        lojaId: loja.id,
+        usuarioId: usuario?.id,
+        itens: vendaCancelarModal.itens || vendaCancelarModal.itens_pedido
+      });
+
       const { error } = await supabase
         .from('pedidos')
         .update({
@@ -503,7 +520,8 @@ export const VendasHistorico: React.FC = () => {
           motivo_cancelamento: motivoCancelamento || 'Cancelado pelo usuário no Histórico de Vendas',
           atualizado_em: new Date().toISOString()
         })
-        .eq('id', vendaCancelarModal.id);
+        .eq('id', vendaCancelarModal.id)
+        .eq('loja_id', loja.id);
 
       if (error) throw error;
 
@@ -517,9 +535,10 @@ export const VendasHistorico: React.FC = () => {
 
       setVendaCancelarModal(null);
       setMotivoCancelamento('');
+      mostrarSucesso('Venda cancelada e estoque estornado com sucesso!');
     } catch (err: any) {
       console.error('Erro ao cancelar venda:', err);
-      alert(`Erro ao cancelar venda: ${err.message || 'Tente novamente.'}`);
+      mostrarErro('Não foi possível cancelar a venda.');
     } finally {
       setCancelandoVenda(false);
     }
@@ -527,11 +546,12 @@ export const VendasHistorico: React.FC = () => {
 
   const handleConsultarProduto = async (item: ItemPedido) => {
     try {
-      if (item.produto_id) {
+      if (item.produto_id && loja?.id) {
         const { data } = await supabase
           .from('produtos')
           .select('*, categoria:categorias!categoria_id(*), variacoes:variacoes_produto(*)')
           .eq('id', item.produto_id)
+          .eq('loja_id', loja.id)
           .maybeSingle();
 
         if (data) {
@@ -841,7 +861,7 @@ export const VendasHistorico: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setDropdownVendedorAberto(false)}
-                      className="hubi-btn-neutral w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold border border-emerald-500 transition cursor-pointer shadow-sm shadow-emerald-600/20 mt-1"
+                      className="hubi-btn-cta w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold border border-emerald-500 transition cursor-pointer shadow-sm mt-1"
                     >
                       Filtrar histórico
                     </button>
@@ -1136,7 +1156,11 @@ export const VendasHistorico: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setDrawerFiltrosAberto(false)}
-                className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer"
+                className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                }`}
                 title="Fechar filtros"
               >
                 <X className="w-5 h-5" />
@@ -1297,7 +1321,7 @@ export const VendasHistorico: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setDrawerFiltrosAberto(false)}
-                className="hubi-btn-neutral flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold border border-emerald-500 transition cursor-pointer shadow-sm shadow-emerald-600/20"
+                className="hubi-btn-cta flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold border border-emerald-500 transition cursor-pointer shadow-sm"
               >
                 Filtrar ({vendasFiltradas.length} vendas)
               </button>
@@ -1320,7 +1344,11 @@ export const VendasHistorico: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setEnderecoPopover(null)}
-                className="hubi-btn-close-x p-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition"
+                className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                }`}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1372,7 +1400,11 @@ export const VendasHistorico: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setVendaCancelarModal(null)}
-                className="hubi-btn-close-x p-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition"
+                className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                }`}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1418,7 +1450,7 @@ export const VendasHistorico: React.FC = () => {
                 type="button"
                 onClick={handleConfirmarCancelamento}
                 disabled={cancelandoVenda}
-                className="py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-black transition cursor-pointer shadow flex items-center justify-center gap-1.5"
+                className="py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-black transition cursor-pointer shadow flex items-center justify-center gap-1.5"
               >
                 {cancelandoVenda ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Cancelar venda</span>}
               </button>

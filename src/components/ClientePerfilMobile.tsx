@@ -29,13 +29,17 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { Cliente, Pedido, MovimentacaoSaldoCliente } from '../types';
+import { usePermissions } from '../hooks/usePermissions';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
+import { Cliente, Pedido, MovimentacaoSaldoCliente, TabelaPreco } from '../types';
 import { extrairEnderecoEstruturado } from './ModalNovoCliente';
 import { caixaService } from '../services/caixaService';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { ModalHistoricoFiadoCliente } from './ModalHistoricoFiadoCliente';
 import { ModalExtratoCadernetaCliente } from './ModalExtratoCadernetaCliente';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
+import { normalizarTelefoneComDDI } from '../utils/formatters';
+import { CadernetaService } from '../services/cadernetaService';
 
 interface ClientePerfilMobileProps {
   cliente: Cliente;
@@ -54,7 +58,8 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
 }) => {
   const { loja, usuario } = useAuth();
   const { isDark } = useTheme();
-  const { confirmar } = useFeedbackModal();
+  const permissions = usePermissions();
+  const { confirmar, mostrarSucesso, mostrarErro, mostrarAviso } = useFeedbackModal();
 
   const [abaAtiva, setAbaAtiva] = useState<TabCliente>('dados');
   const [salvando, setSalvando] = useState<boolean>(false);
@@ -68,18 +73,22 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
 
   const [enderecoLogradouro, setEnderecoLogradouro] = useState(cliente.endereco_logradouro || endExtraido?.rua || cliente.endereco_principal || '');
   const [enderecoNumero, setEnderecoNumero] = useState(cliente.endereco_numero || endExtraido?.numero || '');
+  const [enderecoComplemento, setEnderecoComplemento] = useState(cliente.endereco_complemento || endExtraido?.complemento || '');
   const [enderecoBairro, setEnderecoBairro] = useState(cliente.endereco_bairro || endExtraido?.bairro || '');
   const [enderecoCidade, setEnderecoCidade] = useState(cliente.endereco_cidade || endExtraido?.cidade || '');
   const [enderecoEstado, setEnderecoEstado] = useState(cliente.endereco_estado || endExtraido?.estado || '');
   const [enderecoCep, setEnderecoCep] = useState(cliente.endereco_cep || endExtraido?.cep || '');
+  const [carregandoCep, setCarregandoCep] = useState<boolean>(false);
   
   // Opcionais (TELA14)
   const [mostrarOpcionais, setMostrarOpcionais] = useState<boolean>(false);
   const [mostrarModalEndereco, setMostrarModalEndereco] = useState<boolean>(false);
   const [dataAniversario, setDataAniversario] = useState(cliente.data_aniversario || '');
-  const [telefone, setTelefone] = useState(cliente.telefone2 || cliente.telefone || '');
+  const [telefone, setTelefone] = useState(cliente.telefone2 || '');
   const [numeroDocumento, setNumeroDocumento] = useState(cliente.numero_documento || '');
   const [observacoes, setObservacoes] = useState(cliente.observacoes || '');
+  const [ativo, setAtivo] = useState<boolean>((cliente as any).ativo !== false);
+  const [tabelaPreco, setTabelaPreco] = useState<TabelaPreco>((cliente.tabela_preco_padrao as TabelaPreco) || 'varejo');
 
   const cadernetaAtivaLoja = Boolean(
     loja?.caderneta_ativa ??
@@ -100,30 +109,33 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
   const [limiteCaderneta, setLimiteCaderneta] = useState<string>(
     cliente.limite_caderneta !== undefined && cliente.limite_caderneta !== null && Number(cliente.limite_caderneta) > 0
       ? String(cliente.limite_caderneta)
-      : '500.00'
+      : ''
   );
   const [diaVencimentoCaderneta, setDiaVencimentoCaderneta] = useState<string>(
-    cliente.dia_vencimento_caderneta ? String(cliente.dia_vencimento_caderneta) : '10'
+    String(cliente.dia_vencimento_caderneta || loja?.dia_vencimento_padrao_caderneta || 10)
   );
   const [saldoDevedorCaderneta, setSaldoDevedorCaderneta] = useState<number>(
     Number(cliente.saldo_devedor_caderneta || 0)
   );
   const [modalExtratoCadernetaAberto, setModalExtratoCadernetaAberto] = useState<boolean>(false);
 
-  const snapshotInicial = useMemo(() => {
-    return JSON.stringify({
+  const [snapshotInicial, setSnapshotInicial] = useState<string>(() =>
+    JSON.stringify({
       nome: cliente.nome || '',
       whatsapp: cliente.whatsapp || cliente.telefone || '',
       enderecoLogradouro: cliente.endereco_logradouro || endExtraido?.rua || cliente.endereco_principal || '',
       enderecoNumero: cliente.endereco_numero || endExtraido?.numero || '',
+      enderecoComplemento: cliente.endereco_complemento || endExtraido?.complemento || '',
       enderecoBairro: cliente.endereco_bairro || endExtraido?.bairro || '',
       enderecoCidade: cliente.endereco_cidade || endExtraido?.cidade || '',
       enderecoEstado: cliente.endereco_estado || endExtraido?.estado || '',
       enderecoCep: cliente.endereco_cep || endExtraido?.cep || '',
       dataAniversario: cliente.data_aniversario || '',
-      telefone: cliente.telefone2 || cliente.telefone || '',
+      telefone: cliente.telefone2 || '',
       numeroDocumento: cliente.numero_documento || '',
       observacoes: cliente.observacoes || '',
+      ativo: (cliente as any).ativo !== false,
+      tabelaPreco: (cliente.tabela_preco_padrao as TabelaPreco) || 'varejo',
       permiteFiado: Boolean(cliente.permite_fiado),
       limiteCredito: cliente.limite_credito !== undefined && cliente.limite_credito !== null && Number(cliente.limite_credito) > 0
         ? String(cliente.limite_credito)
@@ -132,13 +144,13 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
       limiteCaderneta: cliente.permite_caderneta
         ? (cliente.limite_caderneta !== undefined && cliente.limite_caderneta !== null && Number(cliente.limite_caderneta) > 0
           ? String(cliente.limite_caderneta)
-          : '500.00')
+          : '')
         : '',
       diaVencimentoCaderneta: cliente.permite_caderneta
-        ? (cliente.dia_vencimento_caderneta ? String(cliente.dia_vencimento_caderneta) : '10')
+        ? String(cliente.dia_vencimento_caderneta || loja?.dia_vencimento_padrao_caderneta || 10)
         : ''
-    });
-  }, [cliente.id]);
+    })
+  );
 
   const snapshotAtual = useMemo(() => {
     return JSON.stringify({
@@ -146,6 +158,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
       whatsapp,
       enderecoLogradouro,
       enderecoNumero,
+      enderecoComplemento,
       enderecoBairro,
       enderecoCidade,
       enderecoEstado,
@@ -154,6 +167,8 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
       telefone,
       numeroDocumento,
       observacoes,
+      ativo,
+      tabelaPreco,
       permiteFiado,
       limiteCredito: permiteFiado ? limiteCredito : '',
       permiteCaderneta,
@@ -165,6 +180,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
     whatsapp,
     enderecoLogradouro,
     enderecoNumero,
+    enderecoComplemento,
     enderecoBairro,
     enderecoCidade,
     enderecoEstado,
@@ -173,6 +189,8 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
     telefone,
     numeroDocumento,
     observacoes,
+    ativo,
+    tabelaPreco,
     permiteFiado,
     limiteCredito,
     permiteCaderneta,
@@ -223,7 +241,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
     if (!cliente.id || !loja?.id) return;
     const valorNum = parseFloat(valorQuitarStr.replace(',', '.')) || 0;
     if (valorNum <= 0) {
-      alert('Informe um valor válido para abater.');
+      mostrarAviso('Informe um valor válido para abater.');
       return;
     }
 
@@ -239,7 +257,8 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
           saldo_devedor_fiado: novoSaldo,
           limite_credito: novoLimite
         })
-        .eq('id', cliente.id);
+        .eq('id', cliente.id)
+        .eq('loja_id', loja.id);
 
       if (errCli) throw errCli;
 
@@ -290,10 +309,10 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
         saldo_devedor_fiado: novoSaldo,
         limite_credito: novoLimite
       });
-      alert(`Abatimento de R$ ${valorNum.toFixed(2)} realizado com sucesso! Limite de crédito restabelecido.`);
+      mostrarSucesso(`Abatimento de R$ ${valorNum.toFixed(2)} realizado com sucesso! Limite de crédito restabelecido.`);
     } catch (err: any) {
       console.error('Erro ao quitar fiado:', err);
-      alert('Erro ao quitar fiado: ' + (err.message || 'Tente novamente.'));
+      mostrarErro('Não foi possível registrar o abatimento de fiado.');
     } finally {
       setProcessandoQuitar(false);
     }
@@ -303,6 +322,42 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
   const [modalExtrato, setModalExtrato] = useState<boolean>(false);
   const [movimentacoes, setMovimentacoes] = useState<MovimentacaoSaldoCliente[]>([]);
   const [carregandoExtrato, setCarregandoExtrato] = useState<boolean>(false);
+
+  useRegisterOverlay(modalAjusteSaldo, () => setModalAjusteSaldo(false), 'modal-ajuste-saldo-cliente-mobile', 'modal');
+  useRegisterOverlay(modalExtrato, () => setModalExtrato(false), 'modal-extrato-creditos-cliente-mobile', 'modal');
+  useRegisterOverlay(modalQuitarFiado, () => setModalQuitarFiado(false), 'modal-quitar-fiado-cliente-mobile', 'modal');
+  useRegisterOverlay(mostrarModalEndereco, () => setMostrarModalEndereco(false), 'modal-endereco-cliente-mobile', 'modal');
+
+  useEffect(() => {
+    if (!loja?.id || !cliente.id) return;
+    CadernetaService.obterResumoCliente(loja.id, cliente.id)
+      .then((resumo) => {
+        if (resumo) {
+          setSaldoDevedorCaderneta(Number(resumo.saldoDevedor || 0));
+        }
+      })
+      .catch(() => {});
+  }, [loja?.id, cliente.id]);
+
+  const consultarCepModal = async (cepValor: string) => {
+    const cepLimpo = cepValor.replace(/\D/g, '');
+    if (cepLimpo.length !== 8) return;
+    try {
+      setCarregandoCep(true);
+      const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const data = await res.json();
+      if (!data.erro) {
+        if (data.logradouro) setEnderecoLogradouro(data.logradouro);
+        if (data.bairro) setEnderecoBairro(data.bairro);
+        if (data.localidade) setEnderecoCidade(data.localidade);
+        if (data.uf) setEnderecoEstado(data.uf.toUpperCase());
+      }
+    } catch {
+      // ignora erro de rede do ViaCEP
+    } finally {
+      setCarregandoCep(false);
+    }
+  };
 
   // Carregar pedidos do cliente ao montar
   const carregarPedidos = async () => {
@@ -321,6 +376,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
           )
         `)
         .eq('cliente_id', cliente.id)
+        .eq('loja_id', loja.id)
         .order('data_venda', { ascending: false });
       if (data) setPedidosCliente(data);
     } catch (err) {
@@ -343,6 +399,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
         .from('movimentacoes_saldo_cliente')
         .select('*')
         .eq('cliente_id', cliente.id)
+        .eq('loja_id', loja.id)
         .order('criado_em', { ascending: false });
       if (!error && data) {
         setMovimentacoes(data);
@@ -357,7 +414,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
   // Salvar Dados do Cliente
   const handleSalvarDados = async () => {
     if (!nome.trim()) {
-      alert('Informe o nome do cliente.');
+      mostrarAviso('Informe o nome do cliente.');
       return;
     }
 
@@ -368,15 +425,19 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
       const diaVencCadNum = (cadernetaAtivaLoja && permiteCaderneta)
         ? Math.min(31, Math.max(1, parseInt(diaVencimentoCaderneta, 10) || 10))
         : null;
-      const payload: Partial<Cliente> = {
+      const whatsNorm = normalizarTelefoneComDDI(whatsapp.trim());
+      const tel2Norm = normalizarTelefoneComDDI(telefone.trim());
+      const payload: Record<string, any> = {
         nome: nome.trim(),
-        whatsapp: whatsapp.trim(),
-        telefone: whatsapp.trim(),
-        telefone2: telefone.trim(),
-        email: null,
+        whatsapp: whatsNorm || whatsapp.trim(),
+        telefone: whatsNorm || whatsapp.trim(),
+        telefone2: tel2Norm || telefone.trim(),
+        email: cliente.email || null,
         numero_documento: numeroDocumento.trim() || null,
         data_aniversario: dataAniversario || null,
         observacoes: observacoes.trim() || null,
+        ativo,
+        tabela_preco_padrao: tabelaPreco,
         permite_fiado: fiadoAtivoLoja ? permiteFiado : false,
         limite_credito: limiteNum,
         permite_caderneta: cadernetaAtivaLoja ? permiteCaderneta : false,
@@ -384,11 +445,12 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
         dia_vencimento_caderneta: diaVencCadNum,
         endereco_logradouro: enderecoLogradouro.trim() || null,
         endereco_numero: enderecoNumero.trim() || null,
+        endereco_complemento: enderecoComplemento.trim() || null,
         endereco_bairro: enderecoBairro.trim() || null,
         endereco_cidade: enderecoCidade.trim() || null,
         endereco_estado: enderecoEstado.trim() || null,
         endereco_cep: enderecoCep.trim() || null,
-        endereco_principal: `${enderecoLogradouro} ${enderecoNumero} ${enderecoBairro}`.trim() || null
+        endereco_principal: `${enderecoLogradouro} ${enderecoNumero} ${enderecoComplemento} ${enderecoBairro}`.replace(/\s+/g, ' ').trim() || null
       };
 
       const { data, error } = await supabase
@@ -403,9 +465,11 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
 
       const atualizado = data || { ...cliente, ...payload };
       onClienteAtualizado(atualizado);
-      alert('Dados do cliente atualizados com sucesso!');
+      setSnapshotInicial(snapshotAtual);
+      mostrarSucesso('Dados do cliente atualizados com sucesso!');
     } catch (err: any) {
-      alert(`Erro ao salvar cliente: ${err.message}`);
+      console.error('Erro ao salvar cliente:', err);
+      mostrarErro('Não foi possível salvar os dados do cliente.');
     } finally {
       setSalvando(false);
     }
@@ -415,9 +479,10 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
   const handleConfirmarAjusteSaldo = async () => {
     const valor = parseFloat(valorAjusteStr.replace(',', '.')) || 0;
     if (valor <= 0) {
-      alert('Informe um valor válido maior que zero.');
+      mostrarAviso('Informe um valor válido maior que zero.');
       return;
     }
+    if (!loja?.id) return;
 
     const saldoAnterior = saldoCredito;
     const novoSaldo = tipoAjuste === 'adicionar' ? saldoAnterior + valor : Math.max(0, saldoAnterior - valor);
@@ -429,17 +494,17 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
       const { error: errCli } = await supabase
         .from('clientes')
         .update({ saldo_credito: novoSaldo })
-        .eq('id', cliente.id);
+        .eq('id', cliente.id)
+        .eq('loja_id', loja.id);
 
       if (errCli) {
-        // Fallback: se a coluna ainda não tiver sido criada no Supabase
         console.warn('Aviso: atualizando estado local do saldo.');
       }
 
       // 2. Registrar movimentação no extrato
       try {
         await supabase.from('movimentacoes_saldo_cliente').insert([{
-          loja_id: loja?.id,
+          loja_id: loja.id,
           cliente_id: cliente.id,
           tipo: tipoAjuste,
           valor: valor,
@@ -460,9 +525,10 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
       setEtapaAjuste('valor');
       setValorAjusteStr('');
       setObservacaoAjuste('');
-      alert(`Saldo ajustado com sucesso! Novo saldo: R$ ${novoSaldo.toFixed(2)}`);
+      mostrarSucesso(`Saldo ajustado com sucesso! Novo saldo: R$ ${novoSaldo.toFixed(2)}`);
     } catch (err: any) {
-      alert(`Erro ao ajustar saldo: ${err.message}`);
+      console.error('Erro ao ajustar saldo:', err);
+      mostrarErro('Não foi possível ajustar o saldo do cliente.');
     } finally {
       setProcessandoAjuste(false);
     }
@@ -548,20 +614,41 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
           </h2>
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            if (window.confirm(`Deseja realmente excluir o cliente "${cliente.nome}"?`)) {
-              if (onClienteExcluido) onClienteExcluido(cliente.id);
-            }
-          }}
-          className={`p-2 transition cursor-pointer rounded-xl ${
-            isDark ? 'text-slate-400 hover:text-rose-400 hover:bg-slate-900' : 'text-slate-500 hover:text-rose-600 hover:bg-slate-200'
-          }`}
-          title="Excluir Cliente"
-        >
-          <Trash2 className="w-5 h-5" />
-        </button>
+        {onClienteExcluido && permissions.ehAdmin && (
+          <button
+            type="button"
+            onClick={() => {
+              if (!loja?.id) return;
+              confirmar({
+                titulo: 'Excluir Cliente?',
+                mensagem: `Deseja realmente excluir o cliente "${cliente.nome}"? Esta ação não pode ser desfeita.`,
+                textoConfirmar: 'Sim, Excluir',
+                textoCancelar: 'Cancelar',
+                onConfirmar: async () => {
+                  try {
+                    const { error } = await supabase
+                      .from('clientes')
+                      .delete()
+                      .eq('id', cliente.id)
+                      .eq('loja_id', loja.id);
+                    if (error) throw error;
+                    mostrarSucesso('Cliente removido com sucesso.');
+                    onClienteExcluido(cliente.id);
+                  } catch (err) {
+                    console.error('Erro ao excluir cliente:', err);
+                    mostrarErro('Não foi possível excluir o cliente. Verifique se há pedidos vinculados.');
+                  }
+                }
+              });
+            }}
+            className={`p-2 transition cursor-pointer rounded-xl ${
+              isDark ? 'text-slate-400 hover:text-red-400 hover:bg-slate-900' : 'text-slate-500 hover:text-red-600 hover:bg-slate-200'
+            }`}
+            title="Excluir Cliente"
+          >
+            <Trash2 className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
       {/* 2. Barra de Abas (DADOS | VENDAS | PEDIDOS | CONTA) */}
@@ -634,10 +721,10 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
 
               {whatsapp && (
                 <a
-                  href={`https://wa.me/55${whatsapp.replace(/\D/g, '')}`}
+                  href={`https://wa.me/${normalizarTelefoneComDDI(whatsapp)}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="hubi-btn-neutral p-2 px-3 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition shadow-xs flex items-center gap-1.5 text-xs border border-emerald-500"
+                  className="hubi-btn-cta p-2 px-3 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition shadow-xs flex items-center gap-1.5 text-xs border border-emerald-500"
                 >
                   <MessageCircle className="w-4 h-4 fill-current" />
                   <span>WhatsApp</span>
@@ -754,6 +841,45 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                         }`}
                       />
                     </div>
+
+                    <div>
+                      <label className={`text-[11px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Tabela de Preço Padrão</label>
+                      <select
+                        value={tabelaPreco}
+                        onChange={(e) => setTabelaPreco(e.target.value as TabelaPreco)}
+                        className={`w-full rounded-xl p-2 text-xs font-bold focus:outline-none focus:border-emerald-500 transition ${
+                          isDark
+                            ? 'bg-[#000000] border border-slate-700 text-white'
+                            : 'bg-white border-2 border-slate-300 text-black'
+                        }`}
+                      >
+                        <option value="varejo">Varejo (Padrão)</option>
+                        <option value="atacado">Atacado</option>
+                        <option value="autoatacado">Distribuidor / Autoatacado</option>
+                      </select>
+                    </div>
+
+                    {permissions.ehAdmin && (
+                      <div className={`flex items-center justify-between pt-2 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                        <div>
+                          <span className={`text-xs font-black block ${isDark ? 'text-white' : 'text-black'}`}>Cadastro Ativo</span>
+                          <span className={`text-[10px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
+                            {ativo ? 'Liberado para compras' : 'Inativo no sistema'}
+                          </span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={ativo}
+                            onChange={(e) => setAtivo(e.target.checked)}
+                            className="sr-only peer"
+                          />
+                          <div className={`w-11 h-6 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 ${
+                            isDark ? 'bg-slate-800 after:border-slate-700' : 'bg-slate-300 after:border-slate-300'
+                          }`}></div>
+                        </label>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -764,15 +890,19 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   <div className={`flex items-center justify-between py-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                     <div>
                       <span className={`text-xs font-black block ${isDark ? 'text-white' : 'text-black'}`}>Permitir fiado</span>
-                      <span className={`text-[10px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      <span className={`text-[10px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
                         {permiteFiado ? 'Vendas a prazo liberadas' : 'Apenas pagamentos à vista'}
                       </span>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
+                    <label className={`relative inline-flex items-center ${permissions.podeAtivarFiado ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}>
                       <input
                         type="checkbox"
+                        disabled={!permissions.podeAtivarFiado}
                         checked={permiteFiado}
-                        onChange={(e) => setPermiteFiado(e.target.checked)}
+                        onChange={(e) => {
+                          if (!permissions.podeAtivarFiado) return;
+                          setPermiteFiado(e.target.checked);
+                        }}
                         className="sr-only peer"
                       />
                       <div className={`w-11 h-6 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 ${
@@ -874,11 +1004,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                             <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>
                               Dia de Vencimento
                             </label>
-                            <input
-                              type="number"
-                              min="1"
-                              max="31"
-                              placeholder="10"
+                            <select
                               value={diaVencimentoCaderneta}
                               onChange={(e) => setDiaVencimentoCaderneta(e.target.value)}
                               className={`w-full rounded-xl px-3 py-2 text-xs font-black focus:outline-none transition ${
@@ -886,13 +1012,19 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                                   ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
                                   : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
                               }`}
-                            />
+                            >
+                              {Array.from({ length: 31 }, (_, i) => i + 1).map((dia) => (
+                                <option key={dia} value={String(dia)}>
+                                  Todo dia {dia}
+                                </option>
+                              ))}
+                            </select>
                           </div>
                         </div>
 
                         <div className="flex items-center justify-between pt-1">
                           <div>
-                            <span className={`text-[10px] font-bold block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                            <span className={`text-[10px] font-bold block ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
                               Saldo Devedor na Caderneta
                             </span>
                             <span className={`text-sm font-black font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>
@@ -902,7 +1034,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                           <button
                             type="button"
                             onClick={() => setModalExtratoCadernetaAberto(true)}
-                            className="hubi-btn-neutral px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-medium flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                            className="hubi-btn-cta px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                           >
                             <BookOpen className="w-3.5 h-3.5" />
                             <span>Ver Extrato</span>
@@ -1179,7 +1311,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   <button
                     type="button"
                     onClick={() => setModalExtratoCadernetaAberto(true)}
-                    className="hubi-btn-neutral w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs shadow-md border border-emerald-500 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+                    className="hubi-btn-cta w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md border border-emerald-500 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
                   >
                     <BookOpen className="w-4 h-4" />
                     <span>{saldoDevedorCaderneta > 0 ? 'Ver Extrato / Receber Pagamento' : 'Abrir Extrato da Caderneta'}</span>
@@ -1221,19 +1353,36 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   </div>
 
                   {saldoDevedorFiado > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setValorQuitarStr(saldoDevedorFiado.toFixed(2));
-                        setFormaQuitar('dinheiro');
-                        setObsQuitar('');
-                        setModalQuitarFiado(true);
-                      }}
-                      className="hubi-btn-neutral w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
-                    >
-                      <DollarSign className="w-4 h-4" />
-                      <span>Quitar / Abater Fiado</span>
-                    </button>
+                    <div className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFiltroHistoricoFiado('todos');
+                          setModalHistoricoFiadoAberto(true);
+                        }}
+                        className="hubi-btn-cta w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md border border-emerald-500 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+                      >
+                        <FileText className="w-4 h-4" />
+                        <span>Ver Compras Fiado / Receber por Pedido</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setValorQuitarStr(saldoDevedorFiado.toFixed(2));
+                          setFormaQuitar('dinheiro');
+                          setObsQuitar('');
+                          setModalQuitarFiado(true);
+                        }}
+                        className={`hubi-btn-neutral w-full py-2.5 rounded-2xl border font-semibold text-xs flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer ${
+                          isDark
+                            ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                            : 'bg-slate-100 hover:bg-slate-200 text-black border-slate-300'
+                        }`}
+                      >
+                        <DollarSign className="w-4 h-4" />
+                        <span>Abater / Quitar Saldo Direto</span>
+                      </button>
+                    </div>
                   )}
                 </div>
               )}
@@ -1272,7 +1421,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                       setEtapaAjuste('valor');
                       setModalAjusteSaldo(true);
                     }}
-                    className="hubi-btn-neutral w-full py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 transition cursor-pointer active:scale-95"
+                    className="hubi-btn-cta w-full py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md border border-emerald-500 transition cursor-pointer active:scale-95"
                   >
                     Adicionar créditos
                   </button>
@@ -1328,7 +1477,11 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
               <button
                 type="button"
                 onClick={() => setModalAjusteSaldo(false)}
-                className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
+                className={`hubi-btn-close-x p-1.5 rounded-xl border transition shadow-sm cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                }`}
                 title="Fechar"
               >
                 <X className="w-4 h-4" />
@@ -1387,12 +1540,12 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   onClick={() => {
                     const num = parseFloat(valorAjusteStr.replace(',', '.')) || 0;
                     if (num <= 0) {
-                      alert('Informe um valor maior que zero.');
+                      mostrarAviso('Informe um valor maior que zero.');
                       return;
                     }
                     setEtapaAjuste('observacao');
                   }}
-                  className="hubi-btn-neutral w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center justify-center gap-1 shadow-md border border-emerald-500 transition cursor-pointer"
+                  className="hubi-btn-cta w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center justify-center gap-1 shadow-md border border-emerald-500 transition cursor-pointer"
                 >
                   <span>Avançar</span>
                   <ArrowRight className="w-4 h-4" />
@@ -1471,7 +1624,11 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
               <button
                 type="button"
                 onClick={() => setModalExtrato(false)}
-                className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
+                className={`hubi-btn-close-x p-1.5 rounded-xl border transition shadow-sm cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                }`}
                 title="Fechar"
               >
                 <X className="w-4 h-4" />
@@ -1526,7 +1683,11 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
               <button
                 type="button"
                 onClick={() => setModalQuitarFiado(false)}
-                className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
+                className={`hubi-btn-close-x p-1.5 rounded-xl border transition shadow-sm cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                }`}
                 title="Fechar"
               >
                 <X className="w-4 h-4" />
@@ -1639,7 +1800,11 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
               <button
                 type="button"
                 onClick={() => setMostrarModalEndereco(false)}
-                className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
+                className={`hubi-btn-close-x p-1.5 rounded-xl border transition shadow-sm cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                }`}
                 title="Fechar"
               >
                 <X className="w-4 h-4" />
@@ -1647,20 +1812,44 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
             </div>
 
             <div className="space-y-2 text-xs">
-              <div>
-                <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Rua / Logradouro</label>
-                <input
-                  type="text"
-                  value={enderecoLogradouro}
-                  onChange={(e) => setEnderecoLogradouro(e.target.value)}
-                  className={`w-full rounded-xl p-2.5 text-xs font-medium focus:outline-none transition ${
-                    isDark
-                      ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
-                      : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
-                  }`}
-                />
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>
+                    CEP {carregandoCep && '(...)'}
+                  </label>
+                  <input
+                    type="text"
+                    value={enderecoCep}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEnderecoCep(val);
+                      if (val.replace(/\D/g, '').length === 8) {
+                        consultarCepModal(val);
+                      }
+                    }}
+                    placeholder="00000-000"
+                    className={`w-full rounded-xl p-2.5 text-xs font-medium focus:outline-none transition ${
+                      isDark
+                        ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
+                        : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
+                    }`}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Rua / Logradouro</label>
+                  <input
+                    type="text"
+                    value={enderecoLogradouro}
+                    onChange={(e) => setEnderecoLogradouro(e.target.value)}
+                    className={`w-full rounded-xl p-2.5 text-xs font-medium focus:outline-none transition ${
+                      isDark
+                        ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
+                        : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
+                    }`}
+                  />
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Número</label>
                   <input
@@ -1674,12 +1863,13 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                     }`}
                   />
                 </div>
-                <div>
-                  <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Bairro</label>
+                <div className="col-span-2">
+                  <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Complemento</label>
                   <input
                     type="text"
-                    value={enderecoBairro}
-                    onChange={(e) => setEnderecoBairro(e.target.value)}
+                    value={enderecoComplemento}
+                    onChange={(e) => setEnderecoComplemento(e.target.value)}
+                    placeholder="Apto, Bloco, Casa..."
                     className={`w-full rounded-xl p-2.5 text-xs font-medium focus:outline-none transition ${
                       isDark
                         ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
@@ -1687,6 +1877,19 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                     }`}
                   />
                 </div>
+              </div>
+              <div>
+                <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Bairro</label>
+                <input
+                  type="text"
+                  value={enderecoBairro}
+                  onChange={(e) => setEnderecoBairro(e.target.value)}
+                  className={`w-full rounded-xl p-2.5 text-xs font-medium focus:outline-none transition ${
+                    isDark
+                      ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
+                      : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
+                  }`}
+                />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -1704,8 +1907,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                 </div>
                 <div>
                   <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Estado (UF)</label>
-                  <input
-                    type="text"
+                  <select
                     value={enderecoEstado}
                     onChange={(e) => setEnderecoEstado(e.target.value)}
                     className={`w-full rounded-xl p-2.5 text-xs font-medium focus:outline-none transition ${
@@ -1713,8 +1915,12 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                         ? 'bg-[#000000] border border-slate-700 text-white focus:border-emerald-500'
                         : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
                     }`}
-                    maxLength={2}
-                  />
+                  >
+                    <option value="">UF</option>
+                    {['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'].map((uf) => (
+                      <option key={uf} value={uf}>{uf}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>
@@ -1722,7 +1928,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
             <button
               type="button"
               onClick={() => setMostrarModalEndereco(false)}
-              className="hubi-btn-neutral w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 transition cursor-pointer"
+              className="hubi-btn-cta w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md border border-emerald-500 transition cursor-pointer"
             >
               Concluir
             </button>

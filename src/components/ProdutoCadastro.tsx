@@ -1308,6 +1308,7 @@ export const ProdutoCadastro: React.FC = () => {
           .from('produtos')
           .select('*, variacoes:variacoes_produto(*)')
           .eq('id', id)
+          .eq('loja_id', loja.id)
           .single();
 
         if (error) throw error;
@@ -1468,7 +1469,7 @@ export const ProdutoCadastro: React.FC = () => {
         }
       } catch (err) {
         console.error('Erro ao carregar produto para alteração:', err);
-        alert('Não foi possível carregar os dados deste produto para edição.');
+        mostrarErro('Não foi possível carregar os dados deste produto para edição.');
       } finally {
         setCarregandoProduto(false);
       }
@@ -1556,7 +1557,7 @@ export const ProdutoCadastro: React.FC = () => {
 
     const espacoDisponivel = 7 - fotosUrls.length;
     if (espacoDisponivel <= 0) {
-      alert('Você já atingiu o limite máximo de 7 fotos para este produto.');
+      mostrarAviso('Você já atingiu o limite máximo de 7 fotos para este produto.');
       return;
     }
 
@@ -1981,12 +1982,12 @@ export const ProdutoCadastro: React.FC = () => {
   // Gerenciamento de Opções da Variação
   const handleAdicionarOpcao = () => {
     if (!novaOpcaoNome.trim()) {
-      alert(`Por favor, digite o nome da opção para ${nomeTipoVariacao || 'a variação'}.`);
+      mostrarAviso(`Por favor, digite o nome da opção para ${nomeTipoVariacao || 'a variação'}.`);
       return;
     }
     const estoqueNum = Number(novaOpcaoEstoque) || 0;
     if (estoqueNum < 0) {
-      alert('O estoque não pode ser negativo.');
+      mostrarAviso('O estoque não pode ser negativo.');
       return;
     }
 
@@ -2026,7 +2027,7 @@ export const ProdutoCadastro: React.FC = () => {
   const salvarProduto = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loja?.id || !nome.trim() || !precoVendaVarejo) {
-      alert('Preencha o nome do produto e o preço de venda de varejo.');
+      mostrarAviso('Preencha o nome do produto e o preço de venda de varejo.');
       return;
     }
 
@@ -2036,10 +2037,7 @@ export const ProdutoCadastro: React.FC = () => {
       const estoqueInformado = Number(quantidadeEstoque) || 0;
 
       if (somaEstoqueVariacoes !== estoqueInformado) {
-        const confirmar = confirm(
-          `A soma dos estoques das variações (${somaEstoqueVariacoes} un) está diferente do estoque total informado (${estoqueInformado} un).\n\nDeseja ajustar o estoque total para ${somaEstoqueVariacoes} un e salvar o produto?`
-        );
-        if (!confirmar) return;
+        setQuantidadeEstoque(String(somaEstoqueVariacoes));
       }
     }
 
@@ -2119,7 +2117,8 @@ export const ProdutoCadastro: React.FC = () => {
         let { error: erroUpdate } = await supabase
           .from('produtos')
           .update(novoProduto)
-          .eq('id', id);
+          .eq('id', id)
+          .eq('loja_id', loja.id);
 
         // Fallback caso colunas de dimensões, subcategoria_id ou tipo_item ainda não existam no schema do banco
         if (erroUpdate && (
@@ -2135,7 +2134,8 @@ export const ProdutoCadastro: React.FC = () => {
           const retry = await supabase
             .from('produtos')
             .update(dadosSemNovasColunas)
-            .eq('id', id);
+            .eq('id', id)
+            .eq('loja_id', loja.id);
           erroUpdate = retry.error;
         }
 
@@ -3593,12 +3593,12 @@ export const ProdutoCadastro: React.FC = () => {
                         type="button"
                         onClick={() => {
                           if (!nomeTipoVariacao.trim()) {
-                            alert('Por favor, informe o nome da variação (ex: Cor, Tamanho ou Sabor).');
+                            mostrarAviso('Por favor, informe o nome da variação (ex: Cor, Tamanho ou Sabor).');
                             return;
                           }
                           setEtapaVariacao(2);
                         }}
-                        className="hubi-btn-neutral px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 font-semibold text-white text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 shrink-0 shadow-sm"
+                        className="hubi-btn-cta px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 font-semibold text-white text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 shrink-0 shadow-sm"
                       >
                         <span>Continuar</span>
                         <ArrowRight className="w-4 h-4" />
@@ -3670,7 +3670,7 @@ export const ProdutoCadastro: React.FC = () => {
                           <button
                             type="button"
                             onClick={handleAdicionarOpcao}
-                            className="hubi-btn-neutral w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1 shadow-sm"
+                            className="hubi-btn-cta w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1 shadow-sm"
                           >
                             <Plus className="w-4 h-4" />
                             <span>Adicionar</span>
@@ -4018,7 +4018,7 @@ export const ProdutoCadastro: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleAplicarPrecoMercado(dadosMercado.precoMedio)}
-                        className="hubi-btn-neutral px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-sm flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
+                        className="hubi-btn-cta px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
                       >
                         <Zap className="w-4 h-4 fill-current" />
                         <span>Aplicar Preço Sugerido (R$ {Math.floor(dadosMercado.precoMedio).toFixed(2)})</span>
@@ -4167,7 +4167,7 @@ export const ProdutoCadastro: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => buscarConcorrentesMercado(false)}
-                    className="hubi-btn-neutral px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition cursor-pointer shadow-sm"
+                    className="hubi-btn-cta px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition cursor-pointer shadow-sm"
                   >
                     Iniciar Pesquisa
                   </button>
@@ -4196,7 +4196,7 @@ export const ProdutoCadastro: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalRadarAberto(false)}
-                  className="hubi-btn-neutral px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition cursor-pointer shadow-sm"
+                  className="hubi-btn-cta px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition cursor-pointer shadow-sm"
                 >
                   Fechar
                 </button>

@@ -32,6 +32,7 @@ import {
 } from '../services/clientImportExportService';
 import { MoneyInput } from './ui/MoneyInput';
 import { ModalGuiaExportacaoWhatsApp } from './ModalGuiaExportacaoWhatsApp';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 
 interface ModalImportarClientesProps {
   isOpen: boolean;
@@ -50,6 +51,8 @@ export const ModalImportarClientes: React.FC<ModalImportarClientesProps> = ({
 
   const [clientesBase, setClientesBase] = useState<Cliente[]>([]);
   const [carregandoBase, setCarregandoBase] = useState<boolean>(true);
+
+  useRegisterOverlay(isOpen, onClose, 'modal-importar-clientes', 'modal');
 
   // Estados de Upload & Análise
   const [arquivoSelecionado, setArquivoSelecionado] = useState<File | null>(null);
@@ -271,10 +274,10 @@ export const ModalImportarClientes: React.FC<ModalImportarClientesProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className={`p-2 rounded-xl border transition cursor-pointer ${
+                className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${
                   isDark
-                    ? 'border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white'
-                    : 'border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-black'
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
                 }`}
               >
                 <X className="w-5 h-5" />
@@ -369,7 +372,7 @@ export const ModalImportarClientes: React.FC<ModalImportarClientesProps> = ({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="hubi-btn-neutral px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs transition cursor-pointer shadow-md"
+                    className="hubi-btn-cta px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs transition cursor-pointer shadow-md"
                   >
                     Fechar e Ver Clientes
                   </button>

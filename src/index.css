@@ -245,6 +245,7 @@ html.light input[type="email"],
 html.light input[type="password"],
 html.light input[type="date"],
 html.light input[type="time"],
+html.light input[type="url"],
 html.light select,
 html.light textarea {
   background-color: #ffffff !important;

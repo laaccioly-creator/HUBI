@@ -21,6 +21,7 @@ import { Produto, SessaoCaixa } from '../types';
 import { caixaService } from '../services/caixaService';
 import { formatarMoeda } from '../utils/formatters';
 import { obterDataOperacaoISO, obterDataOperacaoYMD } from '../utils/dataOperacao';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 
 interface ModalEntradaEstoqueProps {
   isOpen: boolean;
@@ -51,6 +52,7 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
 }) => {
   const { loja, usuario } = useAuth();
   const { isDark } = useTheme();
+  useRegisterOverlay(isOpen, onClose, 'modal-entrada-estoque', 'modal');
   const [produtoAtual, setProdutoAtual] = useState<Produto | null>(produto);
   const [buscaProduto, setBuscaProduto] = useState<string>('');
   const [tipoMovimento, setTipoMovimento] = useState<TipoMovimento>('entrada_compra');
@@ -244,7 +246,8 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
           const { error: errV } = await supabase
             .from('variacoes_produto')
             .update(payloadVar)
-            .eq('id', linha.id);
+            .eq('id', linha.id)
+            .eq('loja_id', loja.id);
 
           if (errV) throw errV;
         });
@@ -258,7 +261,8 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
             quantidade_estoque: totalNovoEstoque,
             atualizado_em: new Date().toISOString()
           })
-          .eq('id', produtoAtual.id);
+          .eq('id', produtoAtual.id)
+          .eq('loja_id', loja.id);
 
         if (errPai) throw errPai;
 
@@ -282,7 +286,8 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
         const { error: erroProd } = await supabase
           .from('produtos')
           .update(payloadUpdate)
-          .eq('id', produtoAtual.id);
+          .eq('id', produtoAtual.id)
+          .eq('loja_id', loja.id);
 
         if (erroProd) throw erroProd;
       }
@@ -397,8 +402,8 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className={`p-1.5 rounded-xl transition cursor-pointer shadow-xs ${
-              isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+            className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer shadow-xs ${
+              isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
             }`}
             title="Fechar"
           >
@@ -840,10 +845,10 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className={`flex-1 py-3 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  className={`hubi-btn-neutral flex-1 py-3 rounded-xl text-xs font-bold transition cursor-pointer ${
                     isDark
                       ? 'border border-slate-700 bg-[#000000] hover:bg-slate-900 text-white'
-                      : 'border-2 border-slate-300 bg-white hover:bg-slate-50 text-black'
+                      : 'border-2 border-slate-300 bg-slate-100 hover:bg-slate-200 text-black'
                   }`}
                 >
                   Cancelar
@@ -851,11 +856,7 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
                 <button
                   type="submit"
                   disabled={salvando}
-                  className={`flex-1 py-3.5 font-bold rounded-xl shadow-md transition-colors flex items-center justify-center gap-2 cursor-pointer text-xs disabled:opacity-50 ${
-                    isDark
-                      ? 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-black border border-emerald-500'
-                      : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-black'
-                  }`}
+                  className="hubi-btn-cta flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition-colors flex items-center justify-center gap-2 cursor-pointer text-xs disabled:opacity-50"
                 >
                   {salvando ? (
                     <>

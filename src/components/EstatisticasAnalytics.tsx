@@ -25,8 +25,8 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { Pedido, ItemPedido, PagamentoPedido } from '../types';
-import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { MobileHeader } from './layout/MobileHeader';
 
 type TipoMetrica =
@@ -107,11 +107,13 @@ export const EstatisticasAnalytics: React.FC = () => {
   const [tipoPeriodo, setTipoPeriodo] = useState<TipoPeriodo>('este_mes');
   const [periodoOffset, setPeriodoOffset] = useState<number>(0);
   const [dropdownPeriodoAberto, setDropdownPeriodoAberto] = useState<boolean>(false);
-  const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
   const [dataInicioCustom, setDataInicioCustom] = useState<string>('');
   const [dataFimCustom, setDataFimCustom] = useState<string>('');
   const [metricaAtivaMobile, setMetricaAtivaMobile] = useState<TipoMetrica | null>(null);
   const [modalPeriodoMobile, setModalPeriodoMobile] = useState<boolean>(false);
+
+  useRegisterOverlay(Boolean(metricaAtivaMobile), () => setMetricaAtivaMobile(null), 'analytics-metrica-mobile');
+  useRegisterOverlay(modalPeriodoMobile, () => setModalPeriodoMobile(false), 'analytics-modal-periodo-mobile', 'modal');
   const [pontoHoverGrafico, setPontoHoverGrafico] = useState<{ x: number; y: number; rotulo: string; val: number } | null>(null);
 
   // Helper para estilizar cards laterais no modo Claro e Escuro (Padrão PDV)
@@ -1525,7 +1527,11 @@ export const EstatisticasAnalytics: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalPeriodoMobile(false)}
-                  className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer transition"
+                  className={`hubi-btn-close-x p-1.5 rounded-xl border shadow-xs cursor-pointer transition ${
+                    isDark
+                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                      : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                  }`}
                   title="Fechar"
                 >
                   <X className="w-4 h-4" />
@@ -1605,12 +1611,6 @@ export const EstatisticasAnalytics: React.FC = () => {
             </div>
           </div>
         )}
-
-        {/* Menu Gaveta Lateral */}
-        <MobileMenuDrawer
-          aberto={drawerMenuAberto}
-          onFechar={() => setDrawerMenuAberto(false)}
-        />
       </div>
 
       {/* 2. VISÃO DESKTOP (PADRONIZADA NOS TEMAS CLARO E ESCURO - PADRÃO PDV) */}

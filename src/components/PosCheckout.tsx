@@ -63,6 +63,7 @@ import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import { ShippingSelectionResult, LojaShippingConfig } from '../types/shipping';
 import { extrairObservacaoLimpa, formatarMoeda, formatarValorBRL, ehProdutoFracionado, obterSiglaUnidade, formatarLinhaCalculoItem } from '../utils/formatters';
 import { ModalInputPesoFracionado } from './ui/ModalInputPesoFracionado';
+import { decodificarEtiquetaBalancaEan13 } from '../lib/validations/pesagemSchema';
 import { ModalSelecionarAgendamentoPdv } from './agendamento/ModalSelecionarAgendamentoPdv';
 import { agendamentoService, formatarDataPtBr } from '../services/agendamentoService';
 import type { ItemAgendamentoInfo } from '../types/agendamento';
@@ -438,6 +439,8 @@ export const PosCheckout: React.FC = () => {
   useRegisterOverlay(clienteDropdownAberto, () => setClienteDropdownAberto(false), 'pdv-dropdown-cliente');
   useRegisterOverlay(tipoVendaDropdownAberto, () => setTipoVendaDropdownAberto(false), 'pdv-dropdown-tipo-venda');
   useRegisterOverlay(formaEntregaDropdownAberto, () => setFormaEntregaDropdownAberto(false), 'pdv-dropdown-forma-entrega');
+  useRegisterOverlay(Boolean(produtoModalVariacao), () => setProdutoModalVariacao(null), 'pdv-modal-variacao', 'modal');
+  useRegisterOverlay(modalFechamento, () => setModalFechamento(false), 'pdv-modal-fechamento', 'modal');
 
   const clientesFiltrados = useMemo(() => {
     if (!clienteBuscaTexto.trim()) return clientes;
@@ -532,7 +535,7 @@ export const PosCheckout: React.FC = () => {
         return l;
       }));
     }
-  }, [clienteAptoFiado, formasPagamentoDisponiveis, linhasPagamento]);
+  }, [clienteAptoFiado, clienteAptoCaderneta, formasPagamentoDisponiveis, linhasPagamento]);
 
   // Totais e balanço das linhas de pagamento do pedido
   const totalLinhasPagamento = useMemo(() => {
@@ -775,7 +778,7 @@ export const PosCheckout: React.FC = () => {
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'variacoes_produto' },
+        { event: '*', schema: 'public', table: 'variacoes_produto', filter: `loja_id=eq.${loja.id}` },
         () => {
           recarregarProdutos();
         }
@@ -991,16 +994,52 @@ export const PosCheckout: React.FC = () => {
     const barcode = rawBarcode.trim();
     if (!barcode) return;
 
+    if (isEdicaoTravada) {
+      mostrarAviso('Alteração de itens bloqueada para pedidos que já foram pagos ou estão em trânsito/concluídos.');
+      setBuscaCodigoBarras('');
+      return;
+    }
+
+    // 1. Etiqueta de Balança EAN-13 (ex: 2CCCCPPPPPD)
+    const decodificadoPre = decodificarEtiquetaBalancaEan13(barcode);
+    if (decodificadoPre?.valido && decodificadoPre.codigoProduto) {
+      const codSemZeros = decodificadoPre.codigoProduto.replace(/^0+/, '');
+      const prodBalanca = produtos.find(p =>
+        (p.codigo_balanca !== null && p.codigo_balanca !== undefined && String(p.codigo_balanca).replace(/^0+/, '') === codSemZeros) ||
+        (p.codigo_interno && p.codigo_interno.trim().replace(/^0+/, '') === codSemZeros) ||
+        (p.codigo_barras && p.codigo_barras.trim().replace(/^0+/, '') === codSemZeros)
+      );
+
+      if (prodBalanca) {
+        const precoKg = Number(prodBalanca.preco_venda_varejo || 0);
+        const decodificado = decodificarEtiquetaBalancaEan13(barcode, precoKg > 0 ? precoKg : undefined);
+        const pesoFinal = Number((decodificado?.pesoKg || 0).toFixed(3));
+        if (pesoFinal > 0) {
+          adicionarItem(prodBalanca, null, pesoFinal);
+          setBuscaCodigoBarras('');
+          audioService.playBeep();
+          return;
+        }
+      }
+    }
+
     let produtoEncontrado: Produto | null = null;
     let variacaoEncontrada: VariacaoProduto | null = null;
+    const barcodeLower = barcode.toLowerCase();
 
     for (const p of produtos) {
-      if (p.codigo_barras === barcode || p.codigo_interno === barcode) {
+      if (
+        (p.codigo_barras && p.codigo_barras.trim().toLowerCase() === barcodeLower) ||
+        (p.codigo_interno && p.codigo_interno.trim().toLowerCase() === barcodeLower)
+      ) {
         produtoEncontrado = p;
         break;
       }
       if (p.variacoes) {
-        const v = p.variacoes.find(varItem => varItem.codigo_barras === barcode || varItem.sku === barcode);
+        const v = p.variacoes.find(varItem =>
+          (varItem.codigo_barras && varItem.codigo_barras.trim().toLowerCase() === barcodeLower) ||
+          (varItem.sku && varItem.sku.trim().toLowerCase() === barcodeLower)
+        );
         if (v) {
           produtoEncontrado = p;
           variacaoEncontrada = v;
@@ -1010,13 +1049,14 @@ export const PosCheckout: React.FC = () => {
     }
 
     if (produtoEncontrado) {
-      if (isEdicaoTravada) {
-        mostrarAviso('Alteração de itens bloqueada para pedidos que já foram pagos ou estão em trânsito/concluídos.');
-        setBuscaCodigoBarras('');
-        return;
-      }
       if (produtoEncontrado.tem_variacoes && !variacaoEncontrada) {
         setProdutoModalVariacao(produtoEncontrado);
+      } else if (ehProdutoFracionado(produtoEncontrado)) {
+        setItemPesagemModal({
+          produto: produtoEncontrado,
+          variacao: variacaoEncontrada,
+          quantidadeAtual: 1
+        });
       } else if (produtoEncontrado.tipo_item === 'servico' && produtoEncontrado.requer_agendamento) {
         setAgendamentoModal({
           aberto: true,
@@ -1086,6 +1126,7 @@ export const PosCheckout: React.FC = () => {
           .from('usuarios_loja')
           .select('id')
           .eq('id', vendedorIdSanitizado)
+          .eq('loja_id', loja.id)
           .limit(1);
 
         if (!usuarioExiste || (usuarioExiste?.length || 0) === 0) {
@@ -1177,6 +1218,12 @@ export const PosCheckout: React.FC = () => {
         return null;
       })();
 
+      delete novosMetadados.transportadora_nome;
+      delete novosMetadados.provedor_frete;
+      delete novosMetadados.servico_frete_codigo;
+      delete novosMetadados.tipo_atendimento;
+      delete novosMetadados.pagamentos_previstos;
+
       const dadosBasePedido = {
         loja_id: loja.id,
         vendedor_id: vendedorIdFinal,
@@ -1187,27 +1234,30 @@ export const PosCheckout: React.FC = () => {
         status_pagamento: 'aguardando_pagamento' as const,
         subtotal,
         subtotal_produtos: subtotal,
-        valor_desconto: desconto,
+        valor_desconto: Number(((desconto || 0) + (ehCupomFreteGratis ? 0 : (valorDescontoCupom || 0))).toFixed(2)),
         desconto_percentual: tipoDesconto === 'percentual' ? descontoPercentual : 0,
+        cupom_id: cupomAplicado?.id || null,
+        cupom_codigo: cupomAplicado?.codigo || null,
+        valor_desconto_cupom: Number(valorDescontoCupom || 0),
         atualizado_por: usuario?.id || null,
         forma_entrega_id: (pedidoEntrega?.forma_entrega_id && SyncService.isUuidValido(pedidoEntrega.forma_entrega_id)) ? pedidoEntrega.forma_entrega_id : null,
         codigo_rastreio: pedidoEntrega?.codigo_rastreio || null,
         link_rastreio: pedidoEntrega?.link_rastreio || null,
         entregador_nome: pedidoEntrega?.entregador_nome || null,
+        pin_entrega: pedidoEntrega?.pin_entrega || null,
+        nome_app: pedidoEntrega?.nome_app || null,
+        servico_correios: pedidoEntrega?.servico_correios || null,
+        nome_transportadora: pedidoEntrega?.nome_transportadora || pedidoEntrega?.transportadora_nome || null,
+        tipo_operacao: pedidoEntrega?.tipo_operacao || null,
         valor_frete: taxaEntrega,
         valor_taxa_domicilio: Number(valorTaxaDomicilio || 0),
         levar_produto_no_atendimento: Boolean(levarProdutoNoAtendimento),
         endereco_entrega: enderecoEntregaFinal,
-        valor_total: total,
+        valor_total: totalComCupom,
         valor_pago: 0,
-        saldo_devedor: total,
+        saldo_devedor: totalComCupom,
         observacoes: obsLimpa || null,
-        metadados: {
-          transportadora_nome: pedidoEntrega?.transportadora_nome || null,
-          provedor_frete: pedidoEntrega?.provedor || null,
-          servico_frete_codigo: pedidoEntrega?.servico_codigo || null,
-          tipo_atendimento: pedidoEntrega?.tipo_atendimento || (taxaEntrega > 0 ? 'entrega' : 'retirada')
-        },
+        metadados: Object.keys(novosMetadados).length > 0 ? novosMetadados : null,
         data_venda: dataVendaFinal
       };
 
@@ -1216,7 +1266,7 @@ export const PosCheckout: React.FC = () => {
         const ehKg = tipoUnidade === 'kg';
         return {
           loja_id: loja.id,
-          produto_id: item.produto.id,
+          produto_id: SyncService.isUuidValido(item.produto.id) ? item.produto.id : null,
           tipo_item: item.produto?.tipo_item || 'produto',
           variacao_id: (item.variacao_id && SyncService.isUuidValido(item.variacao_id))
             ? item.variacao_id
@@ -1252,12 +1302,17 @@ export const PosCheckout: React.FC = () => {
               ...dadosBasePedido,
               atualizado_em: dataIso
             })
-            .eq('id', pedidoEmEdicao.id);
+            .eq('id', pedidoEmEdicao.id)
+            .eq('loja_id', loja.id);
 
           if (erroUpdate) throw erroUpdate;
 
           // Deleta itens antigos e insere os novos
-          await supabase.from('itens_pedido').delete().eq('pedido_id', pedidoEmEdicao.id);
+          await supabase
+            .from('itens_pedido')
+            .delete()
+            .eq('pedido_id', pedidoEmEdicao.id)
+            .eq('loja_id', loja.id);
           const itensComId = itensFormatados.map(it => ({ ...it, pedido_id: pedidoEmEdicao.id }));
           const { data: insData, error: erroItens } = await supabase
             .from('itens_pedido')
@@ -1318,8 +1373,8 @@ export const PosCheckout: React.FC = () => {
           }
         }
 
-        // Salvar isolamento relacional da entrega em pedido_entregas apenas quando há entrega/retirada separada de produto físico
-        if (pedidoIdFinal && temProdutoFisico && !levarProdutoNoAtendimento) {
+        // Salvar isolamento relacional da entrega em pedido_entregas quando houver entrega/retirada separada de produto físico
+        if (pedidoIdFinal && temProdutoFisico && (!isPedidoHibrido || !levarProdutoNoAtendimento)) {
           try {
             const entregaPayload = pedidoEntrega ? {
               ...pedidoEntrega,
@@ -1433,14 +1488,11 @@ export const PosCheckout: React.FC = () => {
         }
       ];
 
-      metaExistente.pagamentos_previstos = linhasParaSalvar.map(l => ({
-        forma_pagamento_id: l.forma_pagamento_id,
-        forma_tipo: l.forma_tipo,
-        forma_nome: l.forma_nome,
-        valor: l.valor,
-        valor_entregue: l.valor_entregue || null,
-        parcelas: l.parcelas || 1
-      }));
+      delete metaExistente.pagamentos_previstos;
+      delete metaExistente.transportadora_nome;
+      delete metaExistente.provedor_frete;
+      delete metaExistente.servico_frete_codigo;
+      delete metaExistente.tipo_atendimento;
 
       const historicoExistente = Array.isArray(metaExistente.historico_edicoes)
         ? metaExistente.historico_edicoes
@@ -1494,6 +1546,23 @@ export const PosCheckout: React.FC = () => {
         ? (pedidoEmEdicao.data_venda || dataIso)
         : dataIso;
 
+      const enderecoEntregaPagFinal = (() => {
+        if (pedidoEntrega?.tipo_atendimento === 'retirada') return null;
+        if (pedidoEntrega?.destino_logradouro) {
+          const comp = pedidoEntrega.destino_complemento ? ` - ${pedidoEntrega.destino_complemento}` : '';
+          const cep = pedidoEntrega.destino_cep ? ` (CEP: ${pedidoEntrega.destino_cep})` : '';
+          return `${pedidoEntrega.destino_logradouro}, ${pedidoEntrega.destino_numero || 'S/N'}${comp}, ${pedidoEntrega.destino_bairro}, ${pedidoEntrega.destino_cidade}-${pedidoEntrega.destino_uf}${cep}`;
+        }
+        const snapshotAg = itens.find(
+          (it) => it.agendamento?.modalidade_local === 'externo' && it.agendamento?.endereco_prestacao_snapshot?.trim()
+        )?.agendamento?.endereco_prestacao_snapshot?.trim();
+        if (snapshotAg) return snapshotAg;
+        if (itens.some((it) => it.agendamento?.modalidade_local === 'externo') || taxaEntrega > 0) {
+          return formatarEnderecoCliente(clienteSelecionado) || null;
+        }
+        return null;
+      })();
+
       const dadosBasePedido = {
         loja_id: loja.id,
         vendedor_id: vendedorIdFinal,
@@ -1503,11 +1572,16 @@ export const PosCheckout: React.FC = () => {
         status: statusFinal as any,
         status_pagamento: 'aguardando_pagamento' as const,
         subtotal,
+        subtotal_produtos: subtotal,
         desconto_percentual: tipoDesconto === 'percentual' ? descontoPercentual : 0,
-        valor_desconto: desconto,
+        valor_desconto: Number(((desconto || 0) + (ehCupomFreteGratis ? 0 : (valorDescontoCupom || 0))).toFixed(2)),
+        cupom_id: cupomAplicado?.id || null,
+        cupom_codigo: cupomAplicado?.codigo || null,
+        valor_desconto_cupom: Number(valorDescontoCupom || 0),
         valor_frete: taxaEntrega,
         valor_taxa_domicilio: Number(valorTaxaDomicilio || 0),
         levar_produto_no_atendimento: Boolean(levarProdutoNoAtendimento),
+        endereco_entrega: enderecoEntregaPagFinal,
         forma_entrega_id: pedidoEntrega?.forma_entrega_id && SyncService.isUuidValido(pedidoEntrega.forma_entrega_id) ? pedidoEntrega.forma_entrega_id : null,
         codigo_rastreio: pedidoEntrega?.codigo_rastreio || null,
         link_rastreio: pedidoEntrega?.link_rastreio || null,
@@ -1517,18 +1591,13 @@ export const PosCheckout: React.FC = () => {
         servico_correios: pedidoEntrega?.servico_correios || null,
         nome_transportadora: pedidoEntrega?.nome_transportadora || pedidoEntrega?.transportadora_nome || null,
         tipo_operacao: pedidoEntrega?.tipo_operacao || null,
-        valor_total: total,
+        valor_total: totalComCupom,
         valor_pago: 0,
-        saldo_devedor: total,
+        saldo_devedor: totalComCupom,
         fiado_quitado: false,
         atualizado_por: usuario?.id || null,
         observacoes: obsFinal || null,
-        metadados: {
-          transportadora_nome: pedidoEntrega?.transportadora_nome || null,
-          provedor_frete: pedidoEntrega?.provedor || null,
-          servico_frete_codigo: pedidoEntrega?.servico_codigo || null,
-          tipo_atendimento: pedidoEntrega?.tipo_atendimento || (taxaEntrega > 0 ? 'entrega' : 'retirada')
-        },
+        metadados: Object.keys(metaExistente).length > 0 ? metaExistente : null,
         data_venda: dataVendaFinal
       };
 
@@ -1537,7 +1606,7 @@ export const PosCheckout: React.FC = () => {
         const ehKg = tipoUnidade === 'kg';
         return {
           loja_id: loja.id,
-          produto_id: item.produto.id,
+          produto_id: SyncService.isUuidValido(item.produto.id) ? item.produto.id : null,
           tipo_item: item.produto?.tipo_item || 'produto',
           variacao_id: (item.variacao_id && SyncService.isUuidValido(item.variacao_id))
             ? item.variacao_id
@@ -1589,11 +1658,16 @@ export const PosCheckout: React.FC = () => {
             ...dadosBasePedido,
             atualizado_em: dataIso
           })
-          .eq('id', pedidoEmEdicao.id);
+          .eq('id', pedidoEmEdicao.id)
+          .eq('loja_id', loja.id);
 
         if (erroUpdate) throw erroUpdate;
 
-        await supabase.from('itens_pedido').delete().eq('pedido_id', pedidoEmEdicao.id);
+        await supabase
+          .from('itens_pedido')
+          .delete()
+          .eq('pedido_id', pedidoEmEdicao.id)
+          .eq('loja_id', loja.id);
         const itensComId = itensFormatados.map(it => ({ ...it, pedido_id: pedidoEmEdicao.id }));
         const { data: insData, error: erroItens } = await supabase
           .from('itens_pedido')
@@ -1670,14 +1744,22 @@ export const PosCheckout: React.FC = () => {
 
       // Registra pagamentos previstos na tabela pagamentos_pedido
       if (pedidoIdFinal && pagamentosResolvidos.length > 0) {
-        await supabase.from('pagamentos_pedido').delete().eq('pedido_id', pedidoIdFinal);
+        await supabase
+          .from('pagamentos_pedido')
+          .delete()
+          .eq('pedido_id', pedidoIdFinal)
+          .eq('loja_id', loja.id);
         const pagamentosComPedido = pagamentosResolvidos.map(p => ({ ...p, pedido_id: pedidoIdFinal }));
         const { error: erroPag } = await supabase.from('pagamentos_pedido').insert(pagamentosComPedido);
         if (erroPag) throw erroPag;
 
         // Registra também na tabela relacional pedidos_pagamentos_previstos
         try {
-          await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedidoIdFinal);
+          await supabase
+            .from('pedidos_pagamentos_previstos')
+            .delete()
+            .eq('pedido_id', pedidoIdFinal)
+            .eq('loja_id', loja.id);
           const previstosParaDb = linhasParaSalvar.map(l => ({
             loja_id: loja.id,
             pedido_id: pedidoIdFinal,
@@ -1691,6 +1773,27 @@ export const PosCheckout: React.FC = () => {
           await supabase.from('pedidos_pagamentos_previstos').insert(previstosParaDb);
         } catch (errPrev) {
           console.warn('Falha não-bloqueante ao registrar pedidos_pagamentos_previstos:', errPrev);
+        }
+      }
+
+      // Salvar isolamento relacional da entrega em pedido_entregas quando houver entrega/retirada separada de produto físico
+      if (pedidoIdFinal && temProdutoFisico && (!isPedidoHibrido || !levarProdutoNoAtendimento)) {
+        try {
+          const entregaPayload = pedidoEntrega ? {
+            ...pedidoEntrega,
+            pedido_id: pedidoIdFinal,
+            valor_frete: taxaEntrega
+          } : {
+            pedido_id: pedidoIdFinal,
+            tipo_atendimento: (taxaEntrega > 0 ? 'entrega' : 'retirada') as any,
+            valor_frete: taxaEntrega,
+            provedor: (taxaEntrega > 0 ? 'frete_proprio' : 'retirada_loja') as any,
+            transportadora_nome: taxaEntrega > 0 ? 'Entrega Padrão' : 'Retirada na Loja',
+            status_envio: 'pendente'
+          };
+          await ShippingOrchestrator.salvarPedidoEntrega(pedidoIdFinal, entregaPayload);
+        } catch (eEntrega) {
+          console.warn('Aviso ao salvar pedido_entregas:', eEntrega);
         }
       }
 
@@ -1722,10 +1825,10 @@ export const PosCheckout: React.FC = () => {
       // Rollback compensatório para impedir pedidos órfãos sem itens ou pagamentos
       if (pedidoCriadoId) {
         try {
-          await supabase.from('itens_pedido').delete().eq('pedido_id', pedidoCriadoId);
-          await supabase.from('pagamentos_pedido').delete().eq('pedido_id', pedidoCriadoId);
-          await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedidoCriadoId);
-          await supabase.from('pedidos').delete().eq('id', pedidoCriadoId);
+          await supabase.from('itens_pedido').delete().eq('pedido_id', pedidoCriadoId).eq('loja_id', loja.id);
+          await supabase.from('pagamentos_pedido').delete().eq('pedido_id', pedidoCriadoId).eq('loja_id', loja.id);
+          await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedidoCriadoId).eq('loja_id', loja.id);
+          await supabase.from('pedidos').delete().eq('id', pedidoCriadoId).eq('loja_id', loja.id);
         } catch (rollbackErr) {
           console.warn('Erro no rollback compensatório de pedido órfão:', rollbackErr);
         }
@@ -1985,7 +2088,7 @@ export const PosCheckout: React.FC = () => {
         const ehKg = tipoUnidade === 'kg';
         return {
           loja_id: loja.id,
-          produto_id: item.produto.id,
+          produto_id: SyncService.isUuidValido(item.produto.id) ? item.produto.id : null,
           tipo_item: item.produto?.tipo_item || 'produto',
           variacao_id: (item.variacao_id && SyncService.isUuidValido(item.variacao_id))
             ? item.variacao_id
@@ -2146,7 +2249,7 @@ export const PosCheckout: React.FC = () => {
         id_local: idLocal,
         ...dadosBasePedido,
         vendedor_id: vendedorIdSanitizado || vendedorId || loja.id,
-        itens: itensFormatados,
+        itens: itensFormatados.map(it => ({ ...it, produto_id: it.produto_id || '' })),
         pagamento: {
           loja_id: loja.id,
           forma_pagamento_id: linhasAtivas[0].forma_pagamento_id,
@@ -2365,6 +2468,10 @@ export const PosCheckout: React.FC = () => {
           pendentesCount={pendentesCount}
           subTelaControlada={subTelaMobile}
           onSubTelaChange={setSubTelaMobile}
+          carregando={carregando}
+          sincronizando={sincronizando}
+          onSincronizarAgora={sincronizarAgora}
+          onResetFreteConfirmado={() => setFreteConfirmado(false)}
         />
       </div>
 
@@ -2917,8 +3024,8 @@ export const PosCheckout: React.FC = () => {
                     }
                   >
                     <div className="flex items-center gap-2 min-w-0">
-                      <Tag className="w-4 h-4 text-slate-400 shrink-0" />
-                      <span className={`truncate ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      <Tag className={`w-4 h-4 shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
+                      <span className={`truncate ${isDark ? 'text-slate-400' : 'text-slate-800'}`}>
                         Tipo da Venda:
                       </span>
                       <span className={`font-bold truncate ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
@@ -3103,9 +3210,9 @@ export const PosCheckout: React.FC = () => {
                       {opcaoAtiva.ehFrete ? (
                         <Truck className="w-4 h-4 text-emerald-500 shrink-0" />
                       ) : (
-                        <Store className="w-4 h-4 text-slate-400 shrink-0" />
+                        <Store className={`w-4 h-4 shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
                       )}
-                      <span className={`shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      <span className={`shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-800'}`}>
                         Forma de Entrega:
                       </span>
                       <span className={`font-bold truncate ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
@@ -3573,7 +3680,7 @@ export const PosCheckout: React.FC = () => {
               <span className="leading-tight">
                 Finalizar<br />Venda
               </span>
-              <ArrowRight className="w-3.5 h-3.5 shrink-0 text-white" />
+              <ArrowRight className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-white' : 'text-black'}`} />
             </button>
           </div>
         </div>
@@ -3790,7 +3897,7 @@ export const PosCheckout: React.FC = () => {
                       type="button"
                       onClick={handleAplicarCupom}
                       disabled={validandoCupom || !codigoCupomInput.trim()}
-                      className="hubi-btn-neutral px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition disabled:opacity-50 cursor-pointer"
+                      className="hubi-btn-cta px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition disabled:opacity-50 cursor-pointer"
                     >
                       {validandoCupom ? 'Validando...' : 'Aplicar'}
                     </button>
@@ -4012,9 +4119,9 @@ export const PosCheckout: React.FC = () => {
                           </span>
                         </div>
                         {clienteSelecionado && (
-                          <div className="flex justify-between text-[11px] text-slate-600 dark:text-slate-400">
+                          <div className={`flex justify-between text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
                             <span>Limite de Crédito Disponível:</span>
-                            <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                            <span className="font-bold text-emerald-700 dark:text-emerald-400">
                               {formatarMoeda(Number(clienteSelecionado.limite_credito || 0))}
                             </span>
                           </div>
@@ -4027,7 +4134,9 @@ export const PosCheckout: React.FC = () => {
 
                         {/* Fase 4: Análise Preditiva de Risco de Crédito (TypeSafe Jev) */}
                         {avaliandoRiscoFiado ? (
-                          <div className="flex items-center gap-1.5 py-1.5 px-2 rounded-lg bg-slate-100 dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 text-[11px] animate-pulse">
+                          <div className={`flex items-center gap-1.5 py-1.5 px-2 rounded-lg text-[11px] animate-pulse ${
+                            isDark ? 'bg-slate-900/60 text-slate-400' : 'bg-slate-100 text-slate-900'
+                          }`}>
                             <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-500 dark:text-amber-400" />
                             <span>Analisando comportamento financeiro com IA...</span>
                           </div>
@@ -4212,8 +4321,8 @@ export const PosCheckout: React.FC = () => {
 
               {valorTaxaDomicilio > 0 && (
                 <div className="flex justify-between items-center text-xs">
-                  <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Taxa de Visita (Domicílio):</span>
-                  <span className="text-emerald-500 font-bold">+ {formatarMoeda(valorTaxaDomicilio)}</span>
+                  <span className={isDark ? 'text-slate-400' : 'text-slate-900 font-medium'}>Taxa de Visita (Domicílio):</span>
+                  <span className={`font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-800'}`}>+ {formatarMoeda(valorTaxaDomicilio)}</span>
                 </div>
               )}
 
@@ -4313,12 +4422,12 @@ export const PosCheckout: React.FC = () => {
               >
                 {finalizandoVenda ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-white' : 'text-black'}`} />
                     <span>Processando...</span>
                   </>
                 ) : (
                   <>
-                    <CheckCircle2 className="w-4 h-4 text-white" />
+                    <CheckCircle2 className={`w-4 h-4 ${isDark ? 'text-white' : 'text-black'}`} />
                     <span className="truncate">
                       Confirmar
                     </span>

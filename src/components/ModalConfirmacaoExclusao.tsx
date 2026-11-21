@@ -1,5 +1,7 @@
 import React from 'react';
 import { Trash2, X, Loader2 } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 
 export interface ModalConfirmacaoExclusaoProps {
   isOpen: boolean;
@@ -26,6 +28,9 @@ export const ModalConfirmacaoExclusao: React.FC<ModalConfirmacaoExclusaoProps> =
   textoCancelar = 'Cancelar',
   carregando = false
 }) => {
+  const { isDark } = useTheme();
+  useRegisterOverlay(isOpen, () => { if (!carregando) onClose(); }, 'modal-confirmacao-exclusao', 'modal');
+
   if (!isOpen) return null;
 
   return (
@@ -60,19 +65,23 @@ export const ModalConfirmacaoExclusao: React.FC<ModalConfirmacaoExclusaoProps> =
             type="button"
             disabled={carregando}
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg p-1.5 transition cursor-pointer disabled:opacity-50"
+            className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer disabled:opacity-50 ${
+              isDark
+                ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700'
+                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+            }`}
             title="Fechar"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="space-y-2">
-          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+          <p className="text-sm text-slate-900 dark:text-slate-300 leading-relaxed">
             {mensagem}
           </p>
           {descricao && (
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            <p className="text-xs text-slate-700 dark:text-slate-400 leading-relaxed">
               {descricao}
             </p>
           )}
@@ -83,7 +92,11 @@ export const ModalConfirmacaoExclusao: React.FC<ModalConfirmacaoExclusaoProps> =
             type="button"
             disabled={carregando}
             onClick={onClose}
-            className="border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-[#000000] dark:hover:bg-[#0D111A] rounded-xl px-4 py-2 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            className={`hubi-btn-neutral rounded-xl px-4 py-2 text-xs transition cursor-pointer disabled:opacity-50 ${
+              isDark
+                ? 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold'
+                : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
+            }`}
           >
             {textoCancelar}
           </button>
@@ -93,7 +106,7 @@ export const ModalConfirmacaoExclusao: React.FC<ModalConfirmacaoExclusaoProps> =
             onClick={async () => {
               await onConfirmar();
             }}
-            className="bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl px-4 py-2 text-xs shadow-sm transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+            className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl px-4 py-2 text-xs shadow-sm transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
           >
             {carregando ? (
               <>

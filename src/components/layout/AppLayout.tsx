@@ -457,15 +457,21 @@ export const AppLayout: React.FC = () => {
     };
   }, [loja?.id, usuario?.id, permissions.podeVerTransacoesOutros]);
 
+  const isDark = tema === 'dark';
+
   // Se estiver carregando os dados do PDV
   if (carregando && (loja || lojasDisponiveis.length === 0)) {
     return (
-      <div className="h-screen w-screen bg-slate-950 flex flex-col items-center justify-center space-y-4">
-        <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shadow-2xl">
-          <Store className="w-8 h-8 text-emerald-400 animate-pulse" />
+      <div className={`h-screen w-screen flex flex-col items-center justify-center space-y-4 ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}>
+        <div className={`w-16 h-16 rounded-3xl border flex items-center justify-center shadow-2xl ${
+          isDark
+            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+            : 'bg-white border-slate-200 text-slate-900'
+        }`}>
+          <Store className={`w-8 h-8 animate-pulse ${isDark ? 'text-emerald-400' : 'text-slate-900'}`} />
         </div>
-        <div className="flex items-center gap-2 text-slate-400 text-sm">
-          <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+        <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-slate-400' : 'text-slate-900 font-medium'}`}>
+          <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-emerald-400' : 'text-slate-900'}`} />
           <span>Carregando Sistema HUBI...</span>
         </div>
       </div>
@@ -480,25 +486,29 @@ export const AppLayout: React.FC = () => {
   // Se usuário estiver bloqueado para uso em celular pessoal
   if (permissions.bloqueadoPorDispositivoMovel) {
     return (
-      <div className="h-screen w-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center space-y-5">
-        <div className="w-20 h-20 rounded-3xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center shadow-2xl">
+      <div className={`h-screen w-screen flex flex-col items-center justify-center p-6 text-center space-y-5 ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}>
+        <div className="w-20 h-20 rounded-3xl bg-rose-500/10 border border-rose-500/30 text-rose-500 dark:text-rose-400 flex items-center justify-center shadow-2xl">
           <X className="w-10 h-10" />
         </div>
         <div className="space-y-2 max-w-sm">
-          <h2 className="text-xl font-black text-slate-100">Acesso Mobile Não Autorizado</h2>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Olá, <strong className="text-slate-200">{nomeExibicaoUsuario}</strong>. Seu usuário não possui permissão para acessar o sistema através de celular pessoal.
+          <h2 className={`text-xl font-black ${isDark ? 'text-slate-100' : 'text-black'}`}>Acesso Mobile Não Autorizado</h2>
+          <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
+            Olá, <strong className={isDark ? 'text-slate-200' : 'text-black'}>{nomeExibicaoUsuario}</strong>. Seu usuário não possui permissão para acessar o sistema através de celular pessoal.
           </p>
-          <p className="text-xs text-slate-500">
+          <p className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-700'}`}>
             Utilize um computador autorizado da loja ou contate o administrador para solicitar a liberação do acesso móvel.
           </p>
         </div>
         <button
           type="button"
           onClick={desconectarPdv}
-          className="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition flex items-center gap-2"
+          className={`px-6 py-3 rounded-xl text-xs font-bold border transition flex items-center gap-2 cursor-pointer ${
+            isDark
+              ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+              : 'hubi-btn-neutral bg-slate-100 hover:bg-slate-200 text-black border-slate-300 font-semibold'
+          }`}
         >
-          <LogOut className="w-4 h-4 text-rose-400" />
+          <LogOut className="w-4 h-4 text-rose-500 dark:text-rose-400" />
           <span>Trocar Operador / Sair</span>
         </button>
       </div>
@@ -618,8 +628,6 @@ export const AppLayout: React.FC = () => {
   const isPosRoute = location.pathname === '/pos' || location.pathname === '/';
   const isCustomMobileRoute = true;
   const isDashboardRoute = location.pathname === '/dashboard';
-
-  const isDark = tema === 'dark';
 
   return (
     <div className={`flex flex-col h-screen w-screen overflow-hidden ${isDark ? 'bg-slate-950 text-slate-100' : (isDashboardRoute || isPosRoute) ? 'bg-slate-100 text-[#0F172A]' : 'bg-[#F8FAFC] text-[#0F172A]'}`}>
@@ -972,11 +980,11 @@ export const AppLayout: React.FC = () => {
                         }}
                         className={`py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
                           tema === 'light'
-                            ? 'bg-amber-500/20 text-amber-700 border border-amber-400/50 shadow-xs font-bold'
+                            ? 'bg-slate-200 text-black border border-slate-400 shadow-xs font-bold'
                             : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-[#64748B] hover:text-[#0F172A]'
                         }`}
                       >
-                        <Sun className="w-3.5 h-3.5 text-amber-500" />
+                        <Sun className="w-3.5 h-3.5 text-amber-600" />
                         <span>Claro</span>
                       </button>
                     </div>
@@ -1085,6 +1093,10 @@ export const AppLayout: React.FC = () => {
         aberto={mobileMenuOpen}
         onFechar={() => setMobileMenuOpen(false)}
         pedidosConfirmadosCount={pedidosConfirmadosCount}
+        onAbrirNovaFilial={permissions.ehOwner ? () => setModalAdicionarLojaAberto(true) : undefined}
+        ehTrial={ehTrial}
+        diasRestantesTrial={diasRestantesTrial}
+        onAbrirAssinatura={() => setModalAssinaturaManualAberto(true)}
       />
 
       {/* BANNER DISCRETO DE ALERTA DE SALDO BAIXO DA CARTEIRA WHATSAPP */}
@@ -1127,10 +1139,10 @@ export const AppLayout: React.FC = () => {
             <button
               type="button"
               onClick={() => setBannerSaldoWhatsappDispensado(true)}
-              className={`p-1 rounded-lg transition cursor-pointer shrink-0 ${
+              className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer shrink-0 ${
                 isDark
-                  ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200'
+                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700'
+                  : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
               }`}
               title="Dispensar aviso por agora"
             >
@@ -1181,10 +1193,10 @@ export const AppLayout: React.FC = () => {
             <button
               type="button"
               onClick={handleDispensarBannerRetorno}
-              className={`p-1.5 rounded-lg transition cursor-pointer ${
+              className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer ${
                 isDark
-                  ? 'text-emerald-300/70 hover:text-white hover:bg-emerald-900/60'
-                  : 'text-emerald-700/70 hover:text-emerald-950 hover:bg-emerald-100'
+                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700'
+                  : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
               }`}
               title="Ocultar barra de retorno"
             >

@@ -1315,7 +1315,7 @@ export const ShippingSettingsScreen: React.FC = () => {
               type="button"
               onClick={handleCriarApp}
               disabled={salvandoApp || !novoAppNome.trim()}
-              className="hubi-btn-neutral inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium active:scale-95 transition disabled:opacity-50 cursor-pointer shadow-sm"
+              className="hubi-btn-cta inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold active:scale-95 transition disabled:opacity-50 cursor-pointer shadow-sm"
             >
               {salvandoApp ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
               Adicionar Aplicativo
@@ -1390,7 +1390,7 @@ export const ShippingSettingsScreen: React.FC = () => {
             <button
               type="button"
               onClick={handleAbrirNovaTransp}
-              className="hubi-btn-neutral inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition cursor-pointer self-start sm:self-auto shadow-sm"
+              className="hubi-btn-cta inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition cursor-pointer self-start sm:self-auto shadow-sm"
             >
               <Plus className="w-4 h-4" />
               <span>Nova Transportadora</span>
@@ -1509,7 +1509,7 @@ export const ShippingSettingsScreen: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalTranspAberto(false)}
-                className="hubi-btn-close-x p-1 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                className="hubi-btn-close-x p-1.5 rounded-xl border bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>

@@ -31,8 +31,8 @@ import { usePermissions } from '../hooks/usePermissions';
 import { Cliente } from '../types';
 import { ModalNovoCliente } from './ModalNovoCliente';
 import { ClientePerfilMobile } from './ClientePerfilMobile';
-import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { MobileHeader } from './layout/MobileHeader';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { ModalHistoricoFiadoCliente } from './ModalHistoricoFiadoCliente';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
@@ -53,7 +53,6 @@ export const ClientesFiado: React.FC = () => {
   const [ordemCrescente, setOrdemCrescente] = useState<boolean>(true);
 
   // Modais e Perfil Mobile
-  const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
   const [clientePerfilMobile, setClientePerfilMobile] = useState<Cliente | null>(null);
   const [modalNovoCliente, setModalNovoCliente] = useState<boolean>(false);
   const [modalImportarAberto, setModalImportarAberto] = useState<boolean>(false);
@@ -73,6 +72,11 @@ export const ClientesFiado: React.FC = () => {
   const [clienteDetalhes, setClienteDetalhes] = useState<Cliente | null>(null);
   const [clienteExcluir, setClienteExcluir] = useState<Cliente | null>(null);
   const [excluindo, setExcluindo] = useState<boolean>(false);
+
+  useRegisterOverlay(Boolean(clientePerfilMobile), () => setClientePerfilMobile(null), 'cliente-perfil-mobile');
+  useRegisterOverlay(Boolean(clienteDetalhes), () => setClienteDetalhes(null), 'modal-cliente-detalhes', 'modal');
+  useRegisterOverlay(Boolean(clienteExcluir), () => setClienteExcluir(null), 'modal-cliente-excluir', 'modal');
+  useRegisterOverlay(Boolean(clienteQuitar), () => setClienteQuitar(null), 'modal-cliente-quitar-fiado', 'modal');
 
   const carregarFiadosVencidos = async () => {
     if (!loja?.id) return;
@@ -339,13 +343,14 @@ export const ClientesFiado: React.FC = () => {
 
   // Excluir Cliente
   const handleConfirmarExclusao = async () => {
-    if (!clienteExcluir) return;
+    if (!clienteExcluir || !loja?.id) return;
     try {
       setExcluindo(true);
       const { error } = await supabase
         .from('clientes')
         .delete()
-        .eq('id', clienteExcluir.id);
+        .eq('id', clienteExcluir.id)
+        .eq('loja_id', loja.id);
 
       if (error) throw error;
 
@@ -372,7 +377,8 @@ export const ClientesFiado: React.FC = () => {
       const { error: erroCli } = await supabase
         .from('clientes')
         .update({ saldo_devedor_fiado: novoSaldo })
-        .eq('id', clienteQuitar.id);
+        .eq('id', clienteQuitar.id)
+        .eq('loja_id', loja.id);
 
       if (erroCli) throw erroCli;
 
@@ -521,7 +527,9 @@ export const ClientesFiado: React.FC = () => {
       (c.numero_documento && c.numero_documento.includes(termo)) ||
       (c.email && c.email.toLowerCase().includes(termo))
     );
-  });
+  }).sort((a, b) =>
+    ordemCrescente ? a.nome.localeCompare(b.nome, 'pt-BR') : b.nome.localeCompare(a.nome, 'pt-BR')
+  );
 
   if (clientePerfilMobile) {
     return (
@@ -577,14 +585,44 @@ export const ClientesFiado: React.FC = () => {
                 )}
               </button>
 
+              {/* Botão Ordenação A-Z Mobile */}
+              <button
+                type="button"
+                onClick={() => setOrdemCrescente((prev) => !prev)}
+                className={`hubi-btn-neutral p-2 rounded-xl border text-xs font-semibold transition cursor-pointer flex items-center justify-center ${
+                  isDark
+                    ? 'bg-[#000000] border-slate-700 text-slate-300 hover:text-white'
+                    : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-black'
+                }`}
+                title="Alternar Ordem Alfabética"
+              >
+                <ArrowUpDown className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Botão Exportar CSV Mobile */}
+              {permissions.podeExportarRelatorios && (
+                <button
+                  type="button"
+                  onClick={handleExportarCsv}
+                  className={`hubi-btn-neutral p-2 rounded-xl border text-xs font-semibold transition cursor-pointer flex items-center justify-center ${
+                    isDark
+                      ? 'bg-[#000000] border-slate-700 text-slate-300 hover:text-white'
+                      : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-black'
+                  }`}
+                  title="Exportar Clientes CSV"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                </button>
+              )}
+
               {/* Botão Importar Mobile */}
               <button
                 type="button"
                 onClick={() => setModalImportarAberto(true)}
-                className={`p-2 rounded-xl border text-xs font-bold transition cursor-pointer flex items-center justify-center ${
+                className={`hubi-btn-neutral p-2 rounded-xl border text-xs font-semibold transition cursor-pointer flex items-center justify-center ${
                   isDark
                     ? 'bg-[#000000] border-slate-700 text-slate-300 hover:text-white'
-                    : 'bg-white border-2 border-slate-300 text-slate-700 hover:text-black'
+                    : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-black'
                 }`}
                 title="Importar Clientes em Lote"
               >
@@ -598,7 +636,7 @@ export const ClientesFiado: React.FC = () => {
                   setClienteEditar(null);
                   setModalNovoCliente(true);
                 }}
-                className="hubi-btn-neutral inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition active:scale-95 cursor-pointer border border-emerald-500"
+                className="hubi-btn-cta inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition active:scale-95 cursor-pointer border border-emerald-500"
                 title="Cadastrar Novo Cliente"
               >
                 <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -787,8 +825,8 @@ export const ClientesFiado: React.FC = () => {
                           {cliente.nome}
                         </span>
                         {phoneWhatsapp && (
-                          <span className={`text-[11px] block truncate font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                            {phoneWhatsapp}
+                          <span className={`text-[11px] block truncate font-medium ${isDark ? 'text-slate-400' : 'text-slate-800'}`}>
+                            {formatarTelefone(phoneWhatsapp)}
                           </span>
                         )}
                       </div>
@@ -856,12 +894,6 @@ export const ClientesFiado: React.FC = () => {
             })
           )}
         </div>
-
-        {/* Menu Gaveta Lateral */}
-        <MobileMenuDrawer
-          aberto={drawerMenuAberto}
-          onFechar={() => setDrawerMenuAberto(false)}
-        />
       </div>
 
       {/* 2. VISÃO DESKTOP (UNIFICADA COM DESIGN SYSTEM) */}
@@ -956,7 +988,7 @@ export const ClientesFiado: React.FC = () => {
                 setClienteEditar(null);
                 setModalNovoCliente(true);
               }}
-              className="hubi-btn-neutral inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer shrink-0"
+              className="hubi-btn-cta inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer shrink-0"
             >
               <Plus className="w-4 h-4" />
               <span>+ Cliente</span>
@@ -1247,8 +1279,13 @@ export const ClientesFiado: React.FC = () => {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setClienteDetalhes(null)}
-                className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
+                className={`hubi-btn-close-x p-1.5 rounded-xl border transition shadow-sm cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                }`}
                 title="Fechar"
               >
                 <X className="w-5 h-5" />
@@ -1326,7 +1363,7 @@ export const ClientesFiado: React.FC = () => {
                   setClienteEditar(c);
                   setModalNovoCliente(true);
                 }}
-                className="hubi-btn-neutral flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs border border-emerald-500 shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer"
+                className="hubi-btn-cta flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs border border-emerald-500 shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Pencil className="w-3.5 h-3.5" />
                 <span>Editar Dados</span>
@@ -1382,7 +1419,7 @@ export const ClientesFiado: React.FC = () => {
                 type="button"
                 disabled={excluindo}
                 onClick={handleConfirmarExclusao}
-                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition disabled:opacity-50 cursor-pointer shadow-sm"
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition disabled:opacity-50 cursor-pointer shadow-sm"
               >
                 {excluindo ? 'Removendo...' : 'Sim, Excluir'}
               </button>
@@ -1418,8 +1455,13 @@ export const ClientesFiado: React.FC = () => {
                 <p className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{clienteQuitar.nome}</p>
               </div>
               <button
+                type="button"
                 onClick={() => setClienteQuitar(null)}
-                className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
+                className={`hubi-btn-close-x p-1.5 rounded-xl border transition shadow-sm cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                }`}
                 title="Fechar"
               >
                 <X className="w-5 h-5" />

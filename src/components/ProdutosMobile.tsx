@@ -57,13 +57,14 @@ import {
   Clock,
   MapPin,
   UserCheck,
-  ExternalLink
+  ExternalLink,
+  Home
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { Produto, Categoria, VariacaoProduto, TipoUnidade, UsuarioLoja, LocalPrestacaoServico } from '../types';
+import { Produto, Categoria, VariacaoProduto, TipoUnidade, UsuarioLoja, LocalPrestacaoServico, Fornecedor } from '../types';
 import { agendamentoService } from '../services/agendamentoService';
 import {
   obterArvoreCategorias,
@@ -75,9 +76,11 @@ import {
   CategoriaFiltroConsolidada
 } from '../utils/categoriasHierarquia';
 import { audioService } from '../services/audioService';
-import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { MobileHeader } from './layout/MobileHeader';
 import { ModalEntradaEstoque } from './ModalEntradaEstoque';
+import { ModalGerenciarCategorias } from './ModalGerenciarCategorias';
+import { ModalVincularAnuncioMl } from './mercadolivre/ModalVincularAnuncioMl';
+import type { AnuncioMlResumo } from './ProdutosEstoque';
 import { pesquisarPrecosMercadoIA, DadosMercadoIA } from './ProdutoCadastro';
 import { UNIDADES_PADRAO } from './CadastrosAuxiliares';
 import { useFeedbackModal } from '../contexts/FeedbackContext';
@@ -88,10 +91,6 @@ import {
   gerarDescricaoExclusivaIA,
   atualizarProdutoExistenteComIA,
   estimarDimensoesEPesoProduto,
-  getGeminiApiKey,
-  setGeminiApiKey,
-  salvarGeminiApiKey,
-  obterOuBuscarGeminiApiKey,
   ProdutoSugeridoIA,
   obterNomeSegmentoLoja
 } from '../services/geminiService';
@@ -110,6 +109,8 @@ interface ProdutosMobileProps {
   categorias: Categoria[];
   carregando: boolean;
   onRecarregar: () => Promise<void>;
+  mapaAnunciosMl?: Record<string, AnuncioMlResumo[]>;
+  onRecarregarAnunciosMl?: () => void;
 }
 
 // 9 Cores da Etiqueta / Tarja (TELA013)
@@ -140,10 +141,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   produtos,
   categorias,
   carregando,
-  onRecarregar
+  onRecarregar,
+  mapaAnunciosMl = {},
+  onRecarregarAnunciosMl
 }) => {
   const navigate = useNavigate();
-  const { loja, usuario, desconectarPdv, setLoja } = useAuth();
+  const { loja, usuario, setLoja } = useAuth();
   const { isDark: themeIsDark } = useTheme();
   const isDark = themeIsDark ?? (typeof document !== 'undefined' && document.documentElement.classList.contains('dark'));
 
@@ -178,8 +181,13 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const [abaFormulario, setAbaFormulario] = useState<'cadastro' | 'estoque'>('cadastro'); // TELA008 vs TELA007
 
   // Modais & Subtelas
-  const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
   const [modalCatalogoAberto, setModalCatalogoAberto] = useState<boolean>(false); // TELA005
+  const [modalGerenciarCategoriasMobileAberto, setModalGerenciarCategoriasMobileAberto] = useState<boolean>(false);
+  const [produtoMlModal, setProdutoMlModal] = useState<Produto | null>(null);
+  const [fornecedoresLista, setFornecedoresLista] = useState<Fornecedor[]>([]);
+  const [movimentacoesLista, setMovimentacoesLista] = useState<any[]>([]);
+  const [carregandoMovimentacoes, setCarregandoMovimentacoes] = useState<boolean>(false);
+  const [filtroMovTipo, setFiltroMovTipo] = useState<'todos' | 'entrada' | 'saida'>('todos');
   const [modalClonarAberto, setModalClonarAberto] = useState<boolean>(false); // TELA010
   const [modalCorEtiquetaAberto, setModalCorEtiquetaAberto] = useState<boolean>(false); // TELA013
   const [corSelecionadaModal, setCorSelecionadaModal] = useState<string>('#1F2937');
@@ -229,9 +237,6 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   const [fotoTemporariaDuvida, setFotoTemporariaDuvida] = useState<string | null>(null);
   const [modalEntradaAberto, setModalEntradaAberto] = useState<boolean>(false); // Entrada / Ajuste de Estoque
   const [produtoEntradaAlvo, setProdutoEntradaAlvo] = useState<Produto | null>(null);
-
-  useRegisterOverlay(modalCategoriasAberto, () => setModalCategoriasAberto(false), 'modal-categorias-mobile');
-  useRegisterOverlay(modalSubcategoriasAberto, () => setModalSubcategoriasAberto(false), 'modal-subcategorias-mobile');
 
   // =========================================================================
   // ESTADOS DE BUSCA E VOZ (PESQUISA POR VOZ)
@@ -297,6 +302,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       return 'todos';
     }
   });
+  const [filtroMl, setFiltroMl] = useState<'todos' | 'publicados' | 'nao_publicados'>('todos');
+  const [filtroTipoItem, setFiltroTipoItem] = useState<'todos' | 'produto' | 'servico'>('todos');
   const [ordenacaoEstoque, setOrdenacaoEstoque] = useState<'menor_estoque' | 'maior_estoque' | 'a_z' | 'z_a'>('menor_estoque');
 
   // Categorias principais consolidadas para o filtro mobile
@@ -313,6 +320,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     (filtroAcimaMinimo ? 1 : 0) +
     (filtroSemControle ? 1 : 0) +
     (filtroAtivo !== 'todos' ? 1 : 0) +
+    (filtroMl !== 'todos' ? 1 : 0) +
+    (filtroTipoItem !== 'todos' ? 1 : 0) +
     qtdCategoriasFiltroAtivas;
 
   // Ao trocar de usuário ou deslogar, redefinir filtros imediatamente
@@ -402,8 +411,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             tipoMinAtacado = (loja as any).tipo_minimo_padrao_atacado;
           }
 
-          valMinAtacado = Number(parsed.valorMinimoAtacado) || Number((loja as any)?.valor_minimo_padrao_atacado) || 300;
-          qtdMinAtacado = Number(parsed.qtdTotalMinimaAtacado ?? parsed.qtdMinimaAtacado) || Number((loja as any)?.qtd_minima_padrao_atacado) || 6;
+          valMinAtacado = Number(parsed.valorMinimoAtacado) || Number((loja as any)?.valor_minimo_padrao_atacado) || 0;
+          qtdMinAtacado = Number(parsed.qtdTotalMinimaAtacado ?? parsed.qtdMinimaAtacado) || Number((loja as any)?.qtd_minima_padrao_atacado) || 0;
           descontoAtacado = Number(parsed.descontoAtacado) || Number((loja as any)?.desconto_padrao_atacado_percentual) || 20;
 
           if (parsed.tipoMinimoDistribuidor === 'valor' || parsed.tipoMinimoDistribuidor === 'quantidade' || parsed.tipoMinimoDistribuidor === 'minimo_sku') {
@@ -416,22 +425,22 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             tipoMinDistribuidor = (loja as any).tipo_minimo_padrao_autoatacado;
           }
 
-          valMinDistribuidor = Number(parsed.valorMinimoAutoatacado) || Number((loja as any)?.valor_minimo_padrao_autoatacado) || 1000;
-          qtdMinDistribuidor = Number(parsed.qtdTotalMinimaAutoatacado ?? parsed.qtdMinimaAutoatacado) || Number((loja as any)?.qtd_minima_padrao_autoatacado) || 24;
+          valMinDistribuidor = Number(parsed.valorMinimoAutoatacado) || Number((loja as any)?.valor_minimo_padrao_autoatacado) || 0;
+          qtdMinDistribuidor = Number(parsed.qtdTotalMinimaAutoatacado ?? parsed.qtdMinimaAutoatacado) || Number((loja as any)?.qtd_minima_padrao_autoatacado) || 0;
           descontoAutoatacado = Number(parsed.descontoAutoatacado) || Number((loja as any)?.desconto_padrao_autoatacado_percentual) || 25;
         } else {
           if ((loja as any)?.tipo_minimo_padrao_atacado === 'valor' || (loja as any)?.tipo_minimo_padrao_atacado === 'quantidade' || (loja as any)?.tipo_minimo_padrao_atacado === 'minimo_sku') {
             tipoMinAtacado = (loja as any).tipo_minimo_padrao_atacado;
           }
-          valMinAtacado = Number((loja as any)?.valor_minimo_padrao_atacado) || 300;
-          qtdMinAtacado = Number((loja as any)?.qtd_minima_padrao_atacado) || 6;
+          valMinAtacado = Number((loja as any)?.valor_minimo_padrao_atacado) || 0;
+          qtdMinAtacado = Number((loja as any)?.qtd_minima_padrao_atacado) || 0;
           descontoAtacado = Number((loja as any)?.desconto_padrao_atacado_percentual) || 20;
 
           if ((loja as any)?.tipo_minimo_padrao_autoatacado === 'valor' || (loja as any)?.tipo_minimo_padrao_autoatacado === 'quantidade' || (loja as any)?.tipo_minimo_padrao_autoatacado === 'minimo_sku') {
             tipoMinDistribuidor = (loja as any).tipo_minimo_padrao_autoatacado;
           }
-          valMinDistribuidor = Number((loja as any)?.valor_minimo_padrao_autoatacado) || 1000;
-          qtdMinDistribuidor = Number((loja as any)?.qtd_minima_padrao_autoatacado) || 24;
+          valMinDistribuidor = Number((loja as any)?.valor_minimo_padrao_autoatacado) || 0;
+          qtdMinDistribuidor = Number((loja as any)?.qtd_minima_padrao_autoatacado) || 0;
           descontoAutoatacado = Number((loja as any)?.desconto_padrao_autoatacado_percentual) || 25;
         }
       } catch (e) {
@@ -479,6 +488,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
   const [formData, setFormData] = useState<{
     nome: string;
+    codigoInterno: string;
+    fornecedorId: string;
     precoVenda: string;
     precoPromocional: string;
     precoCusto: string;
@@ -492,6 +503,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     codigoBarras: string;
     tipoUnidade: TipoUnidade;
     unidadeMedida?: string;
+    vendaPorPeso: boolean;
+    codigoBalanca: string;
     tipoItem?: 'produto' | 'servico';
     destaque: boolean;
     exibirCatalogo: boolean;
@@ -511,9 +524,14 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     requerAgendamento?: boolean;
     duracaoEstimadaMinutos?: number;
     localPrestacaoServico?: LocalPrestacaoServico;
+    modoTaxaDomicilio: 'padrao' | 'especifico' | 'gratis';
+    taxaDeslocamentoDomicilio: string;
+    abaterTaxaDomicilioAoFechar: boolean;
     profissionaisHabilitadosIds?: string[];
   }>({
     nome: '',
+    codigoInterno: '',
+    fornecedorId: '',
     precoVenda: '',
     precoPromocional: '',
     precoCusto: '',
@@ -527,6 +545,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     codigoBarras: '',
     tipoUnidade: 'un',
     unidadeMedida: 'un',
+    vendaPorPeso: false,
+    codigoBalanca: '',
     tipoItem: 'produto',
     destaque: false,
     exibirCatalogo: true,
@@ -546,6 +566,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     requerAgendamento: false,
     duracaoEstimadaMinutos: 30,
     localPrestacaoServico: 'loja',
+    modoTaxaDomicilio: 'padrao',
+    taxaDeslocamentoDomicilio: '',
+    abaterTaxaDomicilioAoFechar: false,
     profissionaisHabilitadosIds: []
   });
 
@@ -563,7 +586,51 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       .then(({ data: users }) => {
         if (users) setColaboradoresPrestadoresLoja(users as UsuarioLoja[]);
       });
+
+    supabase
+      .from('fornecedores')
+      .select('*')
+      .eq('loja_id', loja.id)
+      .eq('ativo', true)
+      .order('nome', { ascending: true })
+      .then(({ data: forn }) => {
+        if (forn) setFornecedoresLista(forn as Fornecedor[]);
+      });
   }, [loja?.id]);
+
+  // Carregar histórico real de movimentações ao abrir TELA 011
+  useEffect(() => {
+    if (telaAtiva !== 'movimentacoes' || !loja?.id || !produtoEditando?.id) {
+      return;
+    }
+    let ativo = true;
+    const carregarMovs = async () => {
+      try {
+        setCarregandoMovimentacoes(true);
+        const { data, error } = await supabase
+          .from('movimentacoes_estoque')
+          .select('id, tipo_movimentacao, quantidade, saldo_anterior, saldo_posterior, motivo, criado_em, usuario_id')
+          .eq('loja_id', loja.id)
+          .eq('produto_id', produtoEditando.id)
+          .order('criado_em', { ascending: false })
+          .limit(50);
+        if (!ativo) return;
+        if (!error && Array.isArray(data)) {
+          setMovimentacoesLista(data);
+        } else {
+          setMovimentacoesLista([]);
+        }
+      } catch {
+        if (ativo) setMovimentacoesLista([]);
+      } finally {
+        if (ativo) setCarregandoMovimentacoes(false);
+      }
+    };
+    carregarMovs();
+    return () => {
+      ativo = false;
+    };
+  }, [telaAtiva, loja?.id, produtoEditando?.id]);
 
   const { confirmar, mostrarAviso } = useFeedbackModal();
   const [snapshotInicialForm, setSnapshotInicialForm] = useState<string>('');
@@ -681,7 +748,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      alert('Seu navegador não suporta pesquisa por voz. Use o teclado para digitar.');
+      mostrarAviso('Seu navegador não suporta pesquisa por voz. Use o teclado para digitar.', 'Pesquisa por Voz');
       return;
     }
 
@@ -734,6 +801,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   // FUNÇÕES AUXILIARES DE CÁLCULO DE ESTOQUE
   // =========================================================================
   const getEstoqueReal = (p: Produto): number => {
+    if (p.tipo_item === 'servico') return 0;
     if (p.tem_variacoes && Array.isArray(p.variacoes) && p.variacoes.length > 0) {
       return p.variacoes.reduce((acc, v) => acc + Number(v.quantidade_estoque || 0), 0);
     }
@@ -741,6 +809,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   };
 
   const getValorVendaEstoque = (p: Produto): number => {
+    if (p.tipo_item === 'servico') return 0;
     if (p.tem_variacoes && Array.isArray(p.variacoes) && p.variacoes.length > 0) {
       return p.variacoes.reduce((acc, v) => {
         const preco = Number(v.preco_venda_varejo) || Number(p.preco_venda_varejo) || 0;
@@ -751,6 +820,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   };
 
   const getValorCustoEstoque = (p: Produto): number => {
+    if (p.tipo_item === 'servico') return 0;
     if (p.tem_variacoes && Array.isArray(p.variacoes) && p.variacoes.length > 0) {
       return p.variacoes.reduce((acc, v) => {
         const custo = Number(v.preco_custo) || Number(p.preco_custo) || 0;
@@ -794,13 +864,29 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         const codBarrasMatch = p.codigo_barras?.toLowerCase().includes(q);
         const codInternoMatch = p.codigo_interno?.toLowerCase().includes(q);
         const catMatch = (p.categoria_id && mapaCategorias.get(p.categoria_id)?.toLowerCase().includes(q)) || false;
-        return nomeMatch || codBarrasMatch || codInternoMatch || catMatch;
+        const varMatch = Array.isArray(p.variacoes) && p.variacoes.some(v =>
+          v.codigo_barras?.toLowerCase().includes(q) || v.sku?.toLowerCase().includes(q)
+        );
+        return nomeMatch || codBarrasMatch || codInternoMatch || catMatch || varMatch;
       });
+    }
+
+    // Na aba ESTOQUE, serviços/taxas não entram na movimentação de estoque físico
+    if (abaLista === 'estoque') {
+      list = list.filter(p => p.tipo_item !== 'servico');
+    }
+
+    // Filtro Tipo de Item (Produtos vs Serviços)
+    if (filtroTipoItem === 'produto') {
+      list = list.filter(p => p.tipo_item !== 'servico');
+    } else if (filtroTipoItem === 'servico') {
+      list = list.filter(p => p.tipo_item === 'servico');
     }
 
     // Filtros de Estoque
     if (filtroSemEstoque || filtroMinimo || filtroAcimaMinimo || filtroSemControle) {
       list = list.filter(p => {
+        if (p.tipo_item === 'servico') return false;
         const est = getEstoqueReal(p);
         const min = Number(p.estoque_minimo_alerta || 0);
 
@@ -831,6 +917,13 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       list = list.filter(p => p.ativo === false);
     }
 
+    // Filtro Mercado Livre
+    if (filtroMl === 'publicados') {
+      list = list.filter(p => Boolean(mapaAnunciosMl[p.id] && mapaAnunciosMl[p.id].length > 0));
+    } else if (filtroMl === 'nao_publicados') {
+      list = list.filter(p => !mapaAnunciosMl[p.id] || mapaAnunciosMl[p.id].length === 0);
+    }
+
     // Ordenação (específica da aba Estoque)
     if (abaLista === 'estoque') {
       if (ordenacaoEstoque === 'menor_estoque') {
@@ -849,12 +942,15 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     produtos,
     busca,
     abaLista,
+    filtroTipoItem,
     filtroSemEstoque,
     filtroMinimo,
     filtroAcimaMinimo,
     filtroSemControle,
     categoriasFiltro,
     filtroAtivo,
+    filtroMl,
+    mapaAnunciosMl,
     ordenacaoEstoque,
     mapaCategorias
   ]);
@@ -871,22 +967,30 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   // NAVEGAÇÃO E ABERTURA DE TELAS
   // =========================================================================
   const abrirNovoProduto = () => {
+    if (!permissions.podeCadastrarAlterarProdutos) {
+      setMensagemFeedback({ texto: 'Você não tem permissão para cadastrar produtos.', tipo: 'erro' });
+      return;
+    }
     setProdutoEditando(null);
     const initialData = {
       nome: '',
+      codigoInterno: '',
+      fornecedorId: '',
       precoVenda: '',
       precoPromocional: '',
       precoCusto: '',
       precoAtacado: '',
-      qtdMinimaAtacado: 6,
+      qtdMinimaAtacado: 0,
       precoAutoatacado: '',
-      qtdMinimaAutoatacado: 24,
+      qtdMinimaAutoatacado: 0,
       categoriaId: '',
       subcategoriaId: '',
       descricao: '',
       codigoBarras: '',
       tipoUnidade: 'un' as TipoUnidade,
       unidadeMedida: 'un',
+      vendaPorPeso: false,
+      codigoBalanca: '',
       tipoItem: 'produto' as 'produto' | 'servico',
       destaque: false,
       exibirCatalogo: true,
@@ -906,6 +1010,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       requerAgendamento: false,
       duracaoEstimadaMinutos: 30,
       localPrestacaoServico: 'loja' as LocalPrestacaoServico,
+      modoTaxaDomicilio: 'padrao' as 'padrao' | 'especifico' | 'gratis',
+      taxaDeslocamentoDomicilio: '',
+      abaterTaxaDomicilioAoFechar: false,
       profissionaisHabilitadosIds: []
     };
     setRotuloVariacao1('Tamanho');
@@ -947,7 +1054,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
       // 2. Tenta também salvar na coluna direta caso o usuário já tenha criado no Supabase
       try {
-        await supabase.from('produtos').update({ cor_etiqueta: cor }).eq('id', produtoId);
+        await supabase.from('produtos').update({ cor_etiqueta: cor }).eq('id', produtoId).eq('loja_id', loja.id);
       } catch {
         // Coluna ainda não criada no SQL, ignorar silenciosamente pois já está salva no JSONB acima
       }
@@ -1172,21 +1279,32 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     setDadosMercado(null);
     setErroMercado(null);
     const corSalva = obterCorProduto(p);
+    const taxaServico = (p as any).taxa_deslocamento_domicilio;
+    const modoTaxa: 'padrao' | 'especifico' | 'gratis' =
+      taxaServico === 0 || taxaServico === '0'
+        ? 'gratis'
+        : taxaServico !== null && taxaServico !== undefined && Number(taxaServico) > 0
+          ? 'especifico'
+          : 'padrao';
     const initialEditData = {
       nome: p.nome || '',
+      codigoInterno: p.codigo_interno || '',
+      fornecedorId: p.fornecedor_id || '',
       precoVenda: p.preco_venda_varejo !== undefined && p.preco_venda_varejo !== null ? String(p.preco_venda_varejo) : '',
       precoPromocional: p.preco_promocional ? String(p.preco_promocional) : '',
       precoCusto: p.preco_custo !== undefined && p.preco_custo !== null ? String(p.preco_custo) : '',
       precoAtacado: p.preco_venda_atacado ? String(p.preco_venda_atacado) : '',
-      qtdMinimaAtacado: Number(p.qtd_minima_atacado) > 0 && Number(p.qtd_minima_atacado) !== 6 ? Number(p.qtd_minima_atacado) : 0,
+      qtdMinimaAtacado: p.tipo_minimo_atacado === 'minimo_sku' && Number(p.qtd_minima_atacado) > 0 && Number(p.qtd_minima_atacado) !== 6 ? Number(p.qtd_minima_atacado) : 0,
       precoAutoatacado: p.preco_venda_autoatacado ? String(p.preco_venda_autoatacado) : '',
-      qtdMinimaAutoatacado: Number(p.qtd_minima_autoatacado) > 0 && Number(p.qtd_minima_autoatacado) !== 24 ? Number(p.qtd_minima_autoatacado) : 0,
+      qtdMinimaAutoatacado: p.tipo_minimo_autoatacado === 'minimo_sku' && Number(p.qtd_minima_autoatacado) > 0 && Number(p.qtd_minima_autoatacado) !== 24 ? Number(p.qtd_minima_autoatacado) : 0,
       categoriaId: p.categoria_id || '',
       subcategoriaId: obterSubcategoriaIdProduto(p, loja?.id) || '',
       descricao: p.descricao || '',
       codigoBarras: p.codigo_barras || '',
       tipoUnidade: p.tipo_unidade || 'un',
-      unidadeMedida: (p.tipo_unidade && p.tipo_unidade !== 'un' ? p.tipo_unidade : (p as any).unidade_medida) || 'un',
+      unidadeMedida: (p as any).unidade_medida || p.tipo_unidade || 'un',
+      vendaPorPeso: Boolean(p.venda_por_peso || p.permite_fracionado || ['kg', 'g', 'l', 'ml', 'm'].includes((p.tipo_unidade || '').toLowerCase())),
+      codigoBalanca: p.codigo_balanca != null ? String(p.codigo_balanca) : '',
       tipoItem: (p.tipo_item as any) || 'produto',
       destaque: Boolean(p.destaque),
       exibirCatalogo: p.exibir_catalogo !== false,
@@ -1206,6 +1324,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       requerAgendamento: Boolean(p.requer_agendamento),
       duracaoEstimadaMinutos: p.duracao_estimada_minutos || 30,
       localPrestacaoServico: p.local_prestacao_servico || 'loja',
+      modoTaxaDomicilio: modoTaxa,
+      taxaDeslocamentoDomicilio: taxaServico != null && Number(taxaServico) > 0 ? String(taxaServico) : '',
+      abaterTaxaDomicilioAoFechar: Boolean((p as any).abater_taxa_domicilio_ao_fechar),
       profissionaisHabilitadosIds: []
     };
     if (p.tipo_item === 'servico' && p.id && loja?.id) {
@@ -1232,6 +1353,10 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   // =========================================================================
   const salvarProduto = async () => {
     if (!loja?.id) return;
+    if (!permissions.podeCadastrarAlterarProdutos) {
+      setMensagemFeedback({ texto: 'Você não tem permissão para salvar alterações em produtos.', tipo: 'erro' });
+      return;
+    }
     if (!formData.nome.trim()) {
       setMensagemFeedback({ texto: 'Informe o nome do produto.', tipo: 'erro' });
       return;
@@ -1240,28 +1365,46 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     try {
       setSalvandoProduto(true);
 
+      const fotosFinalUrls = await Promise.all(
+        (formData.fotos || []).slice(0, 7).map((foto) => ProdutoService.uploadFotoDataUrl(foto, loja.id))
+      );
+
+      const isServico = formData.tipoItem === 'servico';
       const precoVendaNum = parseFloat(formData.precoVenda.replace(',', '.')) || 0;
       const precoPromoNum = formData.precoPromocional ? parseFloat(formData.precoPromocional.replace(',', '.')) : null;
       const precoCustoNum = formData.precoCusto ? parseFloat(formData.precoCusto.replace(',', '.')) : 0;
-      const precoAtacadoNum = formData.precoAtacado ? parseFloat(formData.precoAtacado.replace(',', '.')) : null;
-      const precoAutoatacadoNum = formData.precoAutoatacado ? parseFloat(formData.precoAutoatacado.replace(',', '.')) : null;
-      const qtdMinAtacadoNum = regrasPrecificacaoLoja.tipoMinAtacado === 'minimo_sku'
+      const precoAtacadoNum = (!isServico && formData.precoAtacado) ? parseFloat(formData.precoAtacado.replace(',', '.')) : null;
+      const precoAutoatacadoNum = (!isServico && formData.precoAutoatacado) ? parseFloat(formData.precoAutoatacado.replace(',', '.')) : null;
+      const qtdMinAtacadoNum = isServico ? 0 : (regrasPrecificacaoLoja.tipoMinAtacado === 'minimo_sku'
         ? (Number(formData.qtdMinimaAtacado) || 0)
-        : (regrasPrecificacaoLoja.tipoMinAtacado === 'quantidade' ? (regrasPrecificacaoLoja.qtdMinAtacado || 0) : 0);
-      const valMinAtacadoNum = regrasPrecificacaoLoja.tipoMinAtacado === 'valor'
-        ? (regrasPrecificacaoLoja.valMinAtacado || 300)
-        : null;
+        : (regrasPrecificacaoLoja.tipoMinAtacado === 'quantidade' ? (regrasPrecificacaoLoja.qtdMinAtacado || 0) : 0));
+      const valMinAtacadoNum = isServico ? null : (regrasPrecificacaoLoja.tipoMinAtacado === 'valor'
+        ? (regrasPrecificacaoLoja.valMinAtacado || null)
+        : null);
 
-      const qtdMinAutoatacadoNum = regrasPrecificacaoLoja.tipoMinDistribuidor === 'minimo_sku'
+      const qtdMinAutoatacadoNum = isServico ? 0 : (regrasPrecificacaoLoja.tipoMinDistribuidor === 'minimo_sku'
         ? (Number(formData.qtdMinimaAutoatacado) || 0)
-        : (regrasPrecificacaoLoja.tipoMinDistribuidor === 'quantidade' ? (regrasPrecificacaoLoja.qtdMinDistribuidor || 0) : 0);
-      const valMinAutoatacadoNum = regrasPrecificacaoLoja.tipoMinDistribuidor === 'valor'
-        ? (regrasPrecificacaoLoja.valMinDistribuidor || 1000)
+        : (regrasPrecificacaoLoja.tipoMinDistribuidor === 'quantidade' ? (regrasPrecificacaoLoja.qtdMinDistribuidor || 0) : 0));
+      const valMinAutoatacadoNum = isServico ? null : (regrasPrecificacaoLoja.tipoMinDistribuidor === 'valor'
+        ? (regrasPrecificacaoLoja.valMinDistribuidor || null)
+        : null);
+
+      const taxaDomicilioFinal = (isServico && (formData.localPrestacaoServico === 'externo' || formData.localPrestacaoServico === 'ambos'))
+        ? (formData.modoTaxaDomicilio === 'especifico'
+            ? (parseFloat(formData.taxaDeslocamentoDomicilio.replace(',', '.')) || 0)
+            : (formData.modoTaxaDomicilio === 'gratis' ? 0 : null))
+        : null;
+      const abaterTaxaDomicilioFinal = (isServico && (formData.localPrestacaoServico === 'externo' || formData.localPrestacaoServico === 'ambos'))
+        ? (formData.modoTaxaDomicilio === 'especifico'
+            ? Boolean(formData.abaterTaxaDomicilioAoFechar)
+            : (formData.modoTaxaDomicilio === 'gratis' ? false : null))
         : null;
 
       const payload: Partial<Produto> = {
         loja_id: loja.id,
         nome: formData.nome.trim().toUpperCase(),
+        codigo_interno: formData.codigoInterno.trim() || null,
+        fornecedor_id: isServico ? null : (formData.fornecedorId || null),
         categoria_id: formData.categoriaId || null,
         subcategoria_id: formData.subcategoriaId || null,
         preco_venda_varejo: precoVendaNum,
@@ -1269,40 +1412,45 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         promocao_ativa: Boolean(precoPromoNum && precoPromoNum > 0 && precoPromoNum < precoVendaNum),
         preco_custo: precoCustoNum,
         preco_venda_atacado: precoAtacadoNum,
-        tipo_minimo_atacado: regrasPrecificacaoLoja.tipoMinAtacado,
+        tipo_minimo_atacado: isServico ? null : regrasPrecificacaoLoja.tipoMinAtacado,
         qtd_minima_atacado: qtdMinAtacadoNum,
         valor_minimo_atacado: valMinAtacadoNum,
         preco_venda_autoatacado: precoAutoatacadoNum,
-        tipo_minimo_autoatacado: regrasPrecificacaoLoja.tipoMinDistribuidor,
+        tipo_minimo_autoatacado: isServico ? null : regrasPrecificacaoLoja.tipoMinDistribuidor,
         qtd_minima_autoatacado: qtdMinAutoatacadoNum,
         valor_minimo_autoatacado: valMinAutoatacadoNum,
         descricao: formData.descricao.trim() || null,
-        codigo_barras: formData.codigoBarras.trim() || null,
-        tipo_unidade: formData.tipoUnidade,
-        unidade_medida: formData.unidadeMedida || formData.tipoUnidade,
+        codigo_barras: isServico ? null : (formData.codigoBarras.trim() || null),
+        tipo_unidade: isServico ? 'un' : formData.tipoUnidade,
+        unidade_medida: isServico ? 'UN' : (formData.unidadeMedida || formData.tipoUnidade || 'UN').toUpperCase(),
+        venda_por_peso: isServico ? false : Boolean(formData.vendaPorPeso),
+        permite_fracionado: isServico ? false : Boolean(formData.vendaPorPeso),
+        codigo_balanca: isServico ? null : (formData.codigoBalanca.trim() ? parseInt(formData.codigoBalanca.trim(), 10) : null),
         tipo_item: formData.tipoItem || 'produto',
         destaque: formData.destaque,
         exibir_catalogo: formData.exibirCatalogo,
-        fotos_urls: formData.fotos,
-        estoque_minimo_alerta: formData.tipoItem === 'servico' ? 0 : formData.estoqueMinimo,
-        quantidade_estoque: formData.tipoItem === 'servico'
+        fotos_urls: fotosFinalUrls,
+        estoque_minimo_alerta: isServico ? 0 : formData.estoqueMinimo,
+        quantidade_estoque: isServico
           ? 0
           : (formData.temVariacoes && formData.variacoes.length > 0
               ? formData.variacoes.reduce((acc, v) => acc + (Number(v.quantidade_estoque) || 0), 0)
               : formData.quantidadeEstoque),
-        tem_variacoes: Boolean(formData.temVariacoes && formData.variacoes.length > 0),
-        rotulo_variacao_1: formData.temVariacoes ? rotuloVariacao1 || 'Tamanho' : null,
-        rotulo_variacao_2: (formData.temVariacoes && rotuloVariacao2.trim()) ? rotuloVariacao2.trim() : null,
-        data_validade: formData.tipoItem === 'servico' ? null : (formData.dataValidade || null),
+        tem_variacoes: isServico ? false : Boolean(formData.temVariacoes && formData.variacoes.length > 0),
+        rotulo_variacao_1: (!isServico && formData.temVariacoes) ? rotuloVariacao1 || 'Tamanho' : null,
+        rotulo_variacao_2: (!isServico && formData.temVariacoes && rotuloVariacao2.trim()) ? rotuloVariacao2.trim() : null,
+        data_validade: isServico ? null : (formData.dataValidade || null),
         cor_etiqueta: formData.corEtiqueta,
         ativo: formData.ativo !== false,
-        peso_kg: formData.pesoKg ? Number(formData.pesoKg.replace(',', '.')) : null,
-        altura_cm: formData.alturaCm ? Number(formData.alturaCm.replace(',', '.')) : null,
-        largura_cm: formData.larguraCm ? Number(formData.larguraCm.replace(',', '.')) : null,
-        comprimento_cm: formData.comprimentoCm ? Number(formData.comprimentoCm.replace(',', '.')) : null,
-        requer_agendamento: formData.tipoItem === 'servico' ? Boolean(formData.requerAgendamento) : false,
-        duracao_estimada_minutos: formData.tipoItem === 'servico' ? (formData.duracaoEstimadaMinutos || 30) : 30,
-        local_prestacao_servico: formData.tipoItem === 'servico' ? (formData.localPrestacaoServico || 'loja') : 'loja'
+        peso_kg: (!isServico && formData.pesoKg) ? Number(formData.pesoKg.replace(',', '.')) : null,
+        altura_cm: (!isServico && formData.alturaCm) ? Number(formData.alturaCm.replace(',', '.')) : null,
+        largura_cm: (!isServico && formData.larguraCm) ? Number(formData.larguraCm.replace(',', '.')) : null,
+        comprimento_cm: (!isServico && formData.comprimentoCm) ? Number(formData.comprimentoCm.replace(',', '.')) : null,
+        requer_agendamento: isServico ? Boolean(formData.requerAgendamento) : false,
+        duracao_estimada_minutos: isServico ? (formData.duracaoEstimadaMinutos || 30) : 30,
+        local_prestacao_servico: isServico ? (formData.localPrestacaoServico || 'loja') : 'loja',
+        taxa_deslocamento_domicilio: taxaDomicilioFinal,
+        abater_taxa_domicilio_ao_fechar: abaterTaxaDomicilioFinal
       };
 
       let produtoSalvoId = produtoEditando?.id;
@@ -1315,7 +1463,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             ...payload,
             atualizado_em: new Date().toISOString()
           })
-          .eq('id', produtoEditando.id);
+          .eq('id', produtoEditando.id)
+          .eq('loja_id', loja.id);
 
         if (error && (
           error.message?.includes('subcategoria_id') ||
@@ -1323,17 +1472,19 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           error.message?.includes('peso_kg') || 
           error.message?.includes('altura_cm') ||
           error.message?.includes('unidade_medida') ||
+          error.message?.includes('taxa_deslocamento_domicilio') ||
           (error as any).details?.includes('peso_kg')
         )) {
           console.warn('Colunas novas ausentes no schema de produtos. Tentando atualizar sem elas...');
-          const { subcategoria_id, tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, unidade_medida, ...payloadBase } = payload;
+          const { subcategoria_id, tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, unidade_medida, taxa_deslocamento_domicilio, abater_taxa_domicilio_ao_fechar, ...payloadBase } = payload;
           const retry = await supabase
             .from('produtos')
             .update({
               ...payloadBase,
               atualizado_em: new Date().toISOString()
             })
-            .eq('id', produtoEditando.id);
+            .eq('id', produtoEditando.id)
+            .eq('loja_id', loja.id);
           error = retry.error;
         }
 
@@ -1359,10 +1510,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           error.message?.includes('peso_kg') || 
           error.message?.includes('altura_cm') ||
           error.message?.includes('unidade_medida') ||
+          error.message?.includes('taxa_deslocamento_domicilio') ||
           (error as any).details?.includes('peso_kg')
         )) {
           console.warn('Colunas novas ausentes no schema de produtos. Tentando cadastrar sem elas...');
-          const { subcategoria_id, tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, unidade_medida, ...payloadBase } = payload;
+          const { subcategoria_id, tipo_item, peso_kg, altura_cm, largura_cm, comprimento_cm, unidade_medida, taxa_deslocamento_domicilio, abater_taxa_domicilio_ao_fechar, ...payloadBase } = payload;
           const retry = await supabase
             .from('produtos')
             .insert([{
@@ -1422,8 +1574,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             combinacao_nome: combNome || null,
             codigo_barras: v.codigo_barras || null,
             sku: v.sku || null,
+            preco_custo: v.preco_custo != null && Number(v.preco_custo) > 0 ? Number(v.preco_custo) : null,
             preco_venda_varejo: Number(v.preco_venda_varejo) || precoVendaNum,
-            preco_venda_atacado: v.preco_venda_atacado ? Number(v.preco_venda_atacado) : null,
+            preco_venda_atacado: v.preco_venda_atacado != null && Number(v.preco_venda_atacado) > 0 ? Number(v.preco_venda_atacado) : null,
+            preco_venda_autoatacado: v.preco_venda_autoatacado != null && Number(v.preco_venda_autoatacado) > 0 ? Number(v.preco_venda_autoatacado) : null,
+            preco_promocional: v.preco_promocional != null && Number(v.preco_promocional) > 0 ? Number(v.preco_promocional) : null,
             quantidade_estoque: Number(v.quantidade_estoque) || 0,
             estoque_minimo_alerta: Number(v.estoque_minimo_alerta || formData.estoqueMinimo) || 0,
             ativo: v.ativo !== false
@@ -1433,7 +1588,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           loja.id,
           produtoSalvoId,
           variacoesDelta,
-          Boolean(formData.temVariacoes && formData.variacoes.length > 0)
+          Boolean(!isServico && formData.temVariacoes && formData.variacoes.length > 0)
         );
       }
 
@@ -1442,31 +1597,47 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       setTelaAtiva('lista');
     } catch (err: any) {
       console.error('Erro ao salvar produto:', err);
-      setMensagemFeedback({ texto: err.message || 'Erro ao salvar produto.', tipo: 'erro' });
+      setMensagemFeedback({ texto: 'Não foi possível salvar o produto. Verifique os campos e tente novamente.', tipo: 'erro' });
     } finally {
       setSalvandoProduto(false);
     }
   };
 
   // Excluir produto
-  const handleExcluirProduto = async () => {
-    if (!produtoEditando?.id) return;
-    if (!confirm(`Deseja realmente excluir "${produtoEditando.nome}"?`)) return;
-
-    try {
-      setSalvandoProduto(true);
-      const { error } = await supabase.from('produtos').delete().eq('id', produtoEditando.id);
-      if (error) throw error;
-
-      setMensagemFeedback({ texto: 'Produto excluído!', tipo: 'sucesso' });
-      await onRecarregar();
-      setTelaAtiva('lista');
-    } catch (err: any) {
-      console.error('Erro ao excluir:', err);
-      setMensagemFeedback({ texto: 'Erro ao excluir produto.', tipo: 'erro' });
-    } finally {
-      setSalvandoProduto(false);
+  const handleExcluirProduto = () => {
+    if (!produtoEditando?.id || !loja?.id) return;
+    if (!permissions.podeCadastrarAlterarProdutos) {
+      setMensagemFeedback({ texto: 'Você não tem permissão para excluir produtos.', tipo: 'erro' });
+      return;
     }
+
+    confirmar({
+      titulo: 'Excluir Item?',
+      mensagem: `Deseja realmente excluir "${produtoEditando.nome}"? Esta ação não poderá ser desfeita.`,
+      textoConfirmar: 'Excluir',
+      textoCancelar: 'Cancelar',
+      onConfirmar: async () => {
+        try {
+          setSalvandoProduto(true);
+          const { error } = await supabase
+            .from('produtos')
+            .delete()
+            .eq('id', produtoEditando.id)
+            .eq('loja_id', loja.id);
+          if (error) throw error;
+
+          setMensagemFeedback({ texto: 'Produto excluído com sucesso!', tipo: 'sucesso' });
+          await onRecarregar();
+          setSnapshotInicialForm('');
+          setTelaAtiva('lista');
+        } catch (err: any) {
+          console.error('Erro ao excluir produto:', err);
+          setMensagemFeedback({ texto: 'Não foi possível excluir o produto. Verifique se há pedidos vinculados.', tipo: 'erro' });
+        } finally {
+          setSalvandoProduto(false);
+        }
+      }
+    });
   };
 
   // Clonar produto (TELA010)
@@ -1633,14 +1804,6 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   // MELHORAR DESCRIÇÃO COM IA (TELA017)
   // =========================================================================
   const melhorarDescricaoComIA = async () => {
-    let chave = getGeminiApiKey(loja);
-    if (!chave && loja?.id) {
-      chave = await obterOuBuscarGeminiApiKey(loja);
-    }
-    if (!chave) {
-      setMensagemFeedback({ texto: 'A Chave do Google Gemini não está configurada. Acesse Configurações > Dados da Loja.', tipo: 'erro' });
-      return;
-    }
     setGerandoDescricaoIA(true);
     try {
       const catNome = mapaCategorias.get(formData.categoriaId) || 'Geral';
@@ -1655,6 +1818,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       setMensagemFeedback({ texto: 'Descrição exclusiva gerada com sucesso!', tipo: 'sucesso' });
     } catch (err) {
       console.warn('Erro ao gerar descrição com IA:', err);
+      setMensagemFeedback({ texto: 'Não foi possível gerar a descrição com IA no momento.', tipo: 'erro' });
     } finally {
       setGerandoDescricaoIA(false);
     }
@@ -1711,7 +1875,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       descricao: (sugestao as any).descricao_completa || sugestao.descricao || prev.descricao,
       codigoBarras: sugestao.codigo_barras || prev.codigoBarras,
       tipoUnidade: (sugestao.tipo_unidade as TipoUnidade) || prev.tipoUnidade,
-      fotos: (fotoUrl || sugestao.foto_url) ? [(fotoUrl || sugestao.foto_url)!, ...prev.fotos.filter((f: string) => f !== (fotoUrl || sugestao.foto_url))].slice(0, 6) : prev.fotos,
+      fotos: (fotoUrl || sugestao.foto_url) ? [(fotoUrl || sugestao.foto_url)!, ...prev.fotos.filter((f: string) => f !== (fotoUrl || sugestao.foto_url))].slice(0, 7) : prev.fotos,
       pesoKg: sugestao.peso_kg ? String(sugestao.peso_kg) : prev.pesoKg,
       alturaCm: sugestao.altura_cm ? String(sugestao.altura_cm) : prev.alturaCm,
       larguraCm: sugestao.largura_cm ? String(sugestao.largura_cm) : prev.larguraCm,
@@ -1722,14 +1886,6 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   // PREENCHIMENTO AUTOMÁTICO VIA IA (FOTO, TEXTO, CÓDIGO DE BARRAS)
   // =========================================================================
   const processarPreenchimentoIA = async (tipo: 'foto' | 'texto' | 'codigo', valor?: string) => {
-    let chave = getGeminiApiKey(loja);
-    if (!chave && loja?.id) {
-      chave = await obterOuBuscarGeminiApiKey(loja);
-    }
-    if (!chave) {
-      setMensagemFeedback({ texto: 'A Chave do Google Gemini não está configurada. Acesse Configurações > Dados da Loja.', tipo: 'erro' });
-      return;
-    }
     try {
       setProcessandoIA(true);
       let sugestao: any = null;
@@ -1858,7 +2014,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     }
   };
 
-  const capturarFotoCanvas = () => {
+  const capturarFotoCanvas = async () => {
     const video = videoFotoRef.current;
     if (!video || video.readyState < 2) return;
 
@@ -1898,11 +2054,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         setOrigemCameraParaIA(false);
         processarPreenchimentoIA('foto', dataUrl);
       } else {
+        const urlFinal = await ProdutoService.uploadFotoDataUrl(dataUrl, loja?.id);
         setFormData(prev => ({
           ...prev,
-          fotos: [dataUrl, ...prev.fotos.filter(f => f !== dataUrl)].slice(0, 6)
+          fotos: [urlFinal, ...prev.fotos.filter(f => f !== urlFinal)].slice(0, 7)
         }));
-        setMensagemFeedback({ texto: 'Foto capturada e otimizada com sucesso!', tipo: 'sucesso' });
+        setMensagemFeedback({ texto: 'Foto capturada e salva com sucesso!', tipo: 'sucesso' });
       }
     } catch (e: any) {
       console.error('Erro ao capturar foto:', e);
@@ -1919,24 +2076,50 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     setModalCameraFotoAberto(false);
   };
 
-  // Upload / Captura de Foto com Compressão Automática no Cliente
+  // Upload / Captura de Foto com Compressão Automática + Supabase Storage (bucket produtos)
   const handleProcessarArquivoFoto = async (file?: File) => {
     if (!file) return;
     try {
       const { base64: dataUrl } = await comprimirFotoProduto(file, { maxDimension: 800, quality: 0.50 });
       if (dataUrl) {
+        const urlFinal = await ProdutoService.uploadFotoDataUrl(dataUrl, loja?.id);
         setFormData(prev => ({
           ...prev,
-          fotos: [dataUrl, ...prev.fotos.filter(f => f !== dataUrl)].slice(0, 6)
+          fotos: [urlFinal, ...prev.fotos.filter(f => f !== urlFinal)].slice(0, 7)
         }));
         setModalOpcoesFotoAberto(false);
-        setMensagemFeedback({ texto: 'Foto adicionada e otimizada com sucesso!', tipo: 'sucesso' });
+        setMensagemFeedback({ texto: 'Foto adicionada e salva com sucesso!', tipo: 'sucesso' });
       }
     } catch (e: any) {
       console.error('Erro ao processar arquivo de foto:', e);
       setMensagemFeedback({ texto: e?.message || 'Não foi possível carregar e comprimir a foto.', tipo: 'erro' });
     }
   };
+
+  // Pilha unificada de Overlays Mobile (LIFO: pais registrados antes de filhos)
+  useRegisterOverlay(telaAtiva === 'filtros', () => setTelaAtiva('lista'), 'produtos-filtros-mobile');
+  useRegisterOverlay(telaAtiva === 'novo' || telaAtiva === 'detalhes', fecharFormularioComConfirmacao, 'produtos-form-mobile');
+  useRegisterOverlay(telaAtiva === 'movimentacoes', () => setTelaAtiva('detalhes'), 'produtos-movimentacoes-mobile');
+  useRegisterOverlay(telaAtiva === 'variacoes', () => setTelaAtiva(produtoEditando ? 'detalhes' : 'novo'), 'produtos-variacoes-mobile');
+  useRegisterOverlay(modalCategoriasAberto, () => setModalCategoriasAberto(false), 'modal-categorias-mobile');
+  useRegisterOverlay(modalSubcategoriasAberto, () => setModalSubcategoriasAberto(false), 'modal-subcategorias-mobile');
+  useRegisterOverlay(modalDescricaoAberto, () => setModalDescricaoAberto(false), 'modal-descricao-mobile');
+  useRegisterOverlay(modalGaleriaFotosAberto, () => setModalGaleriaFotosAberto(false), 'modal-galeria-mobile');
+  useRegisterOverlay(modalEstoqueMinimoAberto, () => setModalEstoqueMinimoAberto(false), 'modal-estoque-minimo-mobile');
+  useRegisterOverlay(modalPublicCardAberto, () => setModalPublicCardAberto(false), 'modal-public-card-mobile');
+  useRegisterOverlay(modalCorEtiquetaAberto, () => setModalCorEtiquetaAberto(false), 'modal-cor-etiqueta-mobile');
+  useRegisterOverlay(modalClonarAberto, () => setModalClonarAberto(false), 'modal-clonar-mobile');
+  useRegisterOverlay(modalUnidadeMedidaAberto, () => setModalUnidadeMedidaAberto(false), 'modal-unidade-medida-mobile');
+  useRegisterOverlay(modalRadarAberto, () => setModalRadarAberto(false), 'modal-radar-mobile');
+  useRegisterOverlay(modalOpcoesFotoAberto, () => setModalOpcoesFotoAberto(false), 'modal-opcoes-foto-mobile');
+  useRegisterOverlay(modalCriarComIAAberto, () => setModalCriarComIAAberto(false), 'modal-criar-ia-mobile');
+  useRegisterOverlay(modalFotosInternetAberto, () => setModalFotosInternetAberto(false), 'modal-fotos-internet-mobile', 'modal');
+  useRegisterOverlay(modalOnboardingSerpApiAberto, () => setModalOnboardingSerpApiAberto(false), 'modal-onboarding-serpapi-mobile', 'modal');
+  useRegisterOverlay(modalDuvidaAberto, () => setModalDuvidaAberto(false), 'modal-duvida-ia-mobile', 'modal');
+  useRegisterOverlay(modalCameraFotoAberto, encerrarCameraFoto, 'modal-camera-foto-mobile');
+  useRegisterOverlay(modalScannerAberto, encerrarScannerCamera, 'modal-scanner-mobile');
+  useRegisterOverlay(Boolean(modalFotoFullscreen), () => setModalFotoFullscreen(null), 'modal-foto-fullscreen-mobile');
+  useRegisterOverlay(modalCatalogoAberto, () => setModalCatalogoAberto(false), 'modal-catalogo-mobile');
 
   // Compartilhar Catálogo / Produto (TELA005 / TELA009)
   const compartilharLink = (url: string, titulo: string, texto: string) => {
@@ -2061,7 +2244,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             <button
               type="button"
               onClick={encerrarScannerCamera}
-              className="hubi-btn-cta px-5 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-white text-sm font-extrabold shadow-md"
+              className="hubi-btn-cta px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-md cursor-pointer"
             >
               OK
             </button>
@@ -2089,10 +2272,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             <button
               type="button"
               onClick={() => setTelaAtiva('lista')}
-              className="p-2 cursor-pointer transition"
-              style={{ color: temaCores.textoSecundario }}
+              className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${
+                isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+              }`}
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5" />
             </button>
             <h1 className="font-extrabold text-base sm:text-lg" style={{ color: temaCores.textoPrincipal }}>
               Filtros
@@ -2107,6 +2291,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               setFiltroSemControle(false);
               setCategoriasFiltro([]);
               setFiltroAtivo('todos');
+              setFiltroMl('todos');
+              setFiltroTipoItem('todos');
               setOrdenacaoEstoque('menor_estoque');
             }}
             className="text-xs sm:text-sm font-extrabold px-2 py-1 cursor-pointer"
@@ -2287,6 +2473,84 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             </div>
           </div>
 
+          {/* Seção Tipo de Item (Produtos / Serviços) */}
+          <div className="space-y-3">
+            <h2 className="text-xs sm:text-sm font-extrabold uppercase tracking-wider" style={{ color: temaCores.textoSecundario }}>
+              Tipo de Item
+            </h2>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: 'todos', label: 'Todos' },
+                { id: 'produto', label: 'Produtos' },
+                { id: 'servico', label: 'Serviços' }
+              ].map((opt) => {
+                const ativo = filtroTipoItem === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setFiltroTipoItem(opt.id as any)}
+                    className="py-2.5 px-2 transition flex items-center justify-center gap-1.5 cursor-pointer rounded-xl border text-xs font-bold"
+                    style={
+                      ativo
+                        ? {
+                            backgroundColor: isDark ? '#000000' : '#ECFDF5',
+                            borderColor: isDark ? '#10B981' : '#059669',
+                            color: isDark ? '#34D399' : '#047857'
+                          }
+                        : {
+                            backgroundColor: temaCores.bgPilulaDesmarcada,
+                            borderColor: temaCores.bordaPilulaDesmarcada,
+                            color: temaCores.textoPilulaDesmarcada
+                          }
+                    }
+                  >
+                    <span>{opt.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Seção Mercado Livre */}
+          <div className="space-y-3">
+            <h2 className="text-xs sm:text-sm font-extrabold uppercase tracking-wider" style={{ color: temaCores.textoSecundario }}>
+              Mercado Livre
+            </h2>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: 'todos', label: 'Todos' },
+                { id: 'publicados', label: 'Publicados' },
+                { id: 'nao_publicados', label: 'Sem vínculo' }
+              ].map((opt) => {
+                const ativo = filtroMl === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setFiltroMl(opt.id as any)}
+                    className="py-2.5 px-2 transition flex items-center justify-center gap-1.5 cursor-pointer rounded-xl border text-xs font-bold"
+                    style={
+                      ativo
+                        ? {
+                            backgroundColor: isDark ? '#000000' : '#ECFDF5',
+                            borderColor: isDark ? '#10B981' : '#059669',
+                            color: isDark ? '#34D399' : '#047857'
+                          }
+                        : {
+                            backgroundColor: temaCores.bgPilulaDesmarcada,
+                            borderColor: temaCores.bordaPilulaDesmarcada,
+                            color: temaCores.textoPilulaDesmarcada
+                          }
+                    }
+                  >
+                    <span>{opt.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Seção Ordenar Por */}
           <div className="space-y-3">
             <h2 className="text-xs sm:text-sm font-extrabold uppercase tracking-wider" style={{ color: temaCores.textoSecundario }}>
@@ -2339,13 +2603,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
         {/* Botão Filtrar TELA006 */}
         <div
-          className="p-4 border-t shrink-0"
-          style={{ backgroundColor: '#0B0F17', borderColor: '#1E293B' }}
+          className="p-4 border-t shrink-0 bg-white dark:bg-[#0B0F17] border-slate-200 dark:border-[#1E293B]"
         >
           <button
             type="button"
             onClick={() => setTelaAtiva('lista')}
-            className="hubi-btn-neutral w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold rounded-xl shadow-md transition-colors text-sm sm:text-base cursor-pointer"
+            className="hubi-btn-cta w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition-colors text-sm sm:text-base cursor-pointer"
           >
             Filtrar
           </button>
@@ -2358,6 +2621,13 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   // TELA 011: HISTÓRICO DE MOVIMENTAÇÕES DE ESTOQUE
   // -------------------------------------------------------------------------
   if (telaAtiva === 'movimentacoes') {
+    const movsFiltradas = movimentacoesLista.filter((mov) => {
+      if (filtroMovTipo === 'todos') return true;
+      const tipoStr = String(mov.tipo_movimentacao || '').toLowerCase();
+      const ehEntrada = tipoStr.includes('entrada') || tipoStr.includes('estorno') || tipoStr.includes('credito');
+      return filtroMovTipo === 'entrada' ? ehEntrada : !ehEntrada;
+    });
+
     return (
       <div className="fixed inset-0 z-40 bg-slate-100 dark:bg-[#0B0F17] flex flex-col text-slate-900 dark:text-white select-none">
         {/* Header TELA011 */}
@@ -2365,16 +2635,27 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           <button
             type="button"
             onClick={() => setTelaAtiva('detalhes')}
-            className="p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+            className="p-2 text-black dark:text-slate-300 hover:opacity-75 cursor-pointer"
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
-          <h1 className="font-extrabold text-sm sm:text-base text-slate-800 dark:text-slate-100">Movimentações</h1>
+          <h1 className="font-extrabold text-sm sm:text-base text-black dark:text-slate-100">Movimentações</h1>
           <button
             type="button"
-            className="p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+            onClick={() =>
+              setFiltroMovTipo((prev) =>
+                prev === 'todos' ? 'entrada' : prev === 'entrada' ? 'saida' : 'todos'
+              )
+            }
+            className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold flex items-center gap-1 cursor-pointer transition ${
+              filtroMovTipo !== 'todos'
+                ? 'bg-emerald-600 text-white border-emerald-600'
+                : 'bg-slate-100 dark:bg-slate-900 text-black dark:text-slate-300 border-slate-300 dark:border-slate-700'
+            }`}
+            title="Alternar filtro (Todos / Entradas / Saídas)"
           >
-            <Filter className="w-5 h-5" />
+            <Filter className="w-3.5 h-3.5" />
+            <span>{filtroMovTipo === 'todos' ? 'Todas' : filtroMovTipo === 'entrada' ? 'Entradas' : 'Saídas'}</span>
           </button>
         </div>
 
@@ -2388,48 +2669,60 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 <Tag className="w-6 h-6 text-slate-400" />
               )}
             </div>
-            <span className="font-extrabold text-xs sm:text-sm text-slate-800 dark:text-slate-100 uppercase max-w-[200px] line-clamp-2">
+            <span className="font-extrabold text-xs sm:text-sm text-black dark:text-slate-100 uppercase max-w-[200px] line-clamp-2">
               {formData.nome || 'PRODUTO'}
             </span>
           </div>
-          <span className={`font-black text-base sm:text-lg ${formData.quantidadeEstoque < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-800 dark:text-slate-100'}`}>
+          <span className={`font-black text-base sm:text-lg ${formData.quantidadeEstoque < 0 ? 'text-red-600 dark:text-rose-400' : 'text-black dark:text-slate-100'}`}>
             {formData.quantidadeEstoque}
           </span>
         </div>
 
-        {/* Lista de Movimentações */}
-        <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-[#1E293B]">
-          {[
-            { id: 1, tipo: 'venda', qtd: 4, seq: '#6', data: '20/8/2026 15:55', canal: 'catalog', saldo: formData.quantidadeEstoque },
-            { id: 2, tipo: 'venda', qtd: 2, seq: '#5', data: '20/8/2026 15:53', canal: usuario?.nome_completo || 'Janaina Rocha', saldo: formData.quantidadeEstoque + 4 },
-            { id: 3, tipo: 'venda', qtd: 1, seq: '#4', data: '20/8/2026 15:49', canal: usuario?.nome_completo || 'Janaina Rocha', saldo: formData.quantidadeEstoque + 6 },
-            { id: 4, tipo: 'venda', qtd: 30, seq: '#3', data: '20/8/2026 15:39', canal: usuario?.nome_completo || 'Janaina Rocha', saldo: formData.quantidadeEstoque + 7 },
-            { id: 5, tipo: 'saida', qtd: 0, seq: '#2', data: '18/8/2026 19:26', canal: usuario?.nome_completo || 'Janaina Rocha', saldo: 0 },
-            { id: 6, tipo: 'entrada', qtd: 0, seq: '#1', data: '18/8/2026 19:26', canal: usuario?.nome_completo || 'Janaina Rocha', saldo: 0 }
-          ].map((mov) => (
-            <div key={mov.id} className="p-4 flex items-center justify-between bg-white dark:bg-[#000000]">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-full ${mov.tipo === 'entrada' ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40' : 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40'}`}>
-                  {mov.tipo === 'entrada' ? <ArrowUp className="w-5 h-5" /> : <ArrowDown className="w-5 h-5" />}
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-xs sm:text-sm text-slate-800 dark:text-slate-100 capitalize">
-                    {mov.tipo}: {mov.qtd}
-                  </h3>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-                    {mov.seq} - {mov.data} - {mov.canal}
-                  </p>
-                </div>
-              </div>
-
-              <div className="text-right">
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 uppercase font-bold">Saldo</p>
-                <p className={`font-black text-sm sm:text-base ${mov.saldo < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-800 dark:text-slate-100'}`}>
-                  {mov.saldo}
-                </p>
-              </div>
+        {/* Lista de Movimentações Reais (movimentacoes_estoque) */}
+        <div className="flex-1 overflow-y-auto divide-y divide-slate-200 dark:divide-[#1E293B]">
+          {carregandoMovimentacoes ? (
+            <div className="p-8 text-center text-xs text-slate-700 dark:text-slate-400 flex flex-col items-center gap-2">
+              <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+              <span className="font-bold">Carregando histórico real de estoque...</span>
             </div>
-          ))}
+          ) : movsFiltradas.length === 0 ? (
+            <div className="p-10 text-center text-xs text-slate-800 dark:text-slate-400 space-y-2">
+              <Package className="w-9 h-9 mx-auto text-slate-500" />
+              <p className="font-bold text-sm text-black dark:text-white">Nenhuma movimentação registrada</p>
+              <p>As vendas, entradas de compra e estornos deste item aparecerão aqui em tempo real.</p>
+            </div>
+          ) : (
+            movsFiltradas.map((mov) => {
+              const tipoStr = String(mov.tipo_movimentacao || '').toLowerCase();
+              const ehEntrada = tipoStr.includes('entrada') || tipoStr.includes('estorno') || tipoStr.includes('credito');
+              const dataFmt = mov.criado_em ? new Date(mov.criado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+              const rotuloTipo = tipoStr.replace(/_/g, ' ');
+              return (
+                <div key={mov.id} className="p-4 flex items-center justify-between bg-white dark:bg-[#000000]">
+                  <div className="flex items-center gap-3 min-w-0 pr-2">
+                    <div className={`p-2 rounded-full shrink-0 ${ehEntrada ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40' : 'text-red-700 dark:text-rose-400 bg-red-50 dark:bg-rose-950/40'}`}>
+                      {ehEntrada ? <ArrowUp className="w-5 h-5" /> : <ArrowDown className="w-5 h-5" />}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-extrabold text-xs sm:text-sm text-black dark:text-slate-100 capitalize truncate">
+                        {rotuloTipo}: {Number(mov.quantidade || 0)}
+                      </h3>
+                      <p className="text-xs text-slate-700 dark:text-slate-400 mt-0.5 truncate">
+                        {dataFmt}{mov.motivo ? ` • ${mov.motivo}` : ''}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <p className="text-[11px] text-slate-700 dark:text-slate-400 uppercase font-bold">Saldo</p>
+                    <p className={`font-black text-sm sm:text-base ${Number(mov.saldo_posterior || 0) < 0 ? 'text-red-600 dark:text-rose-400' : 'text-black dark:text-slate-100'}`}>
+                      {Number(mov.saldo_posterior ?? 0)}
+                    </p>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
     );
@@ -2446,15 +2739,15 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           <button
             type="button"
             onClick={() => setTelaAtiva(produtoEditando ? 'detalhes' : 'novo')}
-            className="p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+            className="p-2 text-black dark:text-slate-300 hover:opacity-75 cursor-pointer"
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
-          <h1 className="font-extrabold text-sm sm:text-base text-slate-800 dark:text-slate-100">Variações do Produto</h1>
+          <h1 className="font-extrabold text-sm sm:text-base text-black dark:text-slate-100">Variações do Produto</h1>
           <button
             type="button"
-            onClick={() => alert('Cadastre atributos combinados (ex: Cor e Tamanho) com controle de estoque individual.')}
-            className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+            onClick={() => setMensagemFeedback({ texto: 'Cadastre atributos combinados (ex: Cor e Tamanho) com estoque, SKU, EAN e preços individuais.', tipo: 'sucesso' })}
+            className="p-2 text-slate-700 dark:text-slate-400 hover:text-black dark:hover:text-slate-200 cursor-pointer"
           >
             <HelpCircle className="w-5 h-5" />
           </button>
@@ -2463,8 +2756,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         {/* Ilustração e Conteúdo TELA020 */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           <div className="text-center space-y-1">
-            <h2 className="font-extrabold text-sm sm:text-base text-slate-800 dark:text-slate-100">Grade de Variações</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <h2 className="font-extrabold text-sm sm:text-base text-black dark:text-slate-100">Grade de Variações</h2>
+            <p className="text-xs text-slate-700 dark:text-slate-400">
               Configure tamanhos, cores ou sabores com preços e estoques específicos
             </p>
           </div>
@@ -2522,7 +2815,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
-                    <label className="text-[10px] font-semibold text-slate-400 uppercase block mb-0.5">Estoque</label>
+                    <label className="text-[10px] font-semibold text-slate-800 dark:text-slate-400 uppercase block mb-0.5">Estoque</label>
                     <input
                       type="number"
                       min="0"
@@ -2536,11 +2829,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                           return { ...prev, variacoes: list, quantidadeEstoque: somaEstoque };
                         });
                       }}
-                      className="w-full px-2.5 py-1.5 rounded-lg border text-xs font-bold text-center text-emerald-600 dark:text-emerald-400 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800"
+                      className="w-full px-2.5 py-1.5 rounded-lg border text-xs font-bold text-center text-emerald-700 dark:text-emerald-400 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-800"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-semibold text-slate-400 uppercase block mb-0.5">Preço (R$)</label>
+                    <label className="text-[10px] font-semibold text-slate-800 dark:text-slate-400 uppercase block mb-0.5">Preço Varejo (R$)</label>
                     <input
                       type="number"
                       step="0.01"
@@ -2554,7 +2847,115 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                         });
                       }}
                       placeholder={formData.precoVenda || '0,00'}
-                      className="w-full px-2.5 py-1.5 rounded-lg border text-xs font-bold text-right bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800"
+                      className="w-full px-2.5 py-1.5 rounded-lg border text-xs font-bold text-right bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-black dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-800 dark:text-slate-400 uppercase block mb-0.5">SKU</label>
+                    <input
+                      type="text"
+                      value={v.sku || ''}
+                      onChange={(e) => {
+                        const skuVal = e.target.value;
+                        setFormData(prev => {
+                          const list = [...prev.variacoes];
+                          list[idx] = { ...list[idx], sku: skuVal };
+                          return { ...prev, variacoes: list };
+                        });
+                      }}
+                      placeholder="SKU da variação"
+                      className="w-full px-2.5 py-1.5 rounded-lg border text-xs font-bold bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-black dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-800 dark:text-slate-400 uppercase block mb-0.5">EAN / Barras</label>
+                    <input
+                      type="text"
+                      value={v.codigo_barras || ''}
+                      onChange={(e) => {
+                        const eanVal = e.target.value;
+                        setFormData(prev => {
+                          const list = [...prev.variacoes];
+                          list[idx] = { ...list[idx], codigo_barras: eanVal };
+                          return { ...prev, variacoes: list };
+                        });
+                      }}
+                      placeholder="Código de barras"
+                      className="w-full px-2.5 py-1.5 rounded-lg border text-xs font-bold bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-black dark:text-white"
+                    />
+                  </div>
+                  {permissions.podeVerPrecoCusto && (
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-800 dark:text-slate-400 uppercase block mb-0.5">Custo (R$)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={v.preco_custo ?? ''}
+                        onChange={(e) => {
+                          const c = e.target.value ? parseFloat(e.target.value) : null;
+                          setFormData(prev => {
+                            const list = [...prev.variacoes];
+                            list[idx] = { ...list[idx], preco_custo: c };
+                            return { ...prev, variacoes: list };
+                          });
+                        }}
+                        placeholder="0,00"
+                        className="w-full px-2.5 py-1.5 rounded-lg border text-xs font-bold text-right bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-black dark:text-white"
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-800 dark:text-slate-400 uppercase block mb-0.5">Atacado (R$)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={v.preco_venda_atacado ?? ''}
+                      onChange={(e) => {
+                        const pa = e.target.value ? parseFloat(e.target.value) : null;
+                        setFormData(prev => {
+                          const list = [...prev.variacoes];
+                          list[idx] = { ...list[idx], preco_venda_atacado: pa };
+                          return { ...prev, variacoes: list };
+                        });
+                      }}
+                      placeholder="Opcional"
+                      className="w-full px-2.5 py-1.5 rounded-lg border text-xs font-bold text-right bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-black dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-800 dark:text-slate-400 uppercase block mb-0.5">Distribuidor (R$)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={v.preco_venda_autoatacado ?? ''}
+                      onChange={(e) => {
+                        const pd = e.target.value ? parseFloat(e.target.value) : null;
+                        setFormData(prev => {
+                          const list = [...prev.variacoes];
+                          list[idx] = { ...list[idx], preco_venda_autoatacado: pd };
+                          return { ...prev, variacoes: list };
+                        });
+                      }}
+                      placeholder="Opcional"
+                      className="w-full px-2.5 py-1.5 rounded-lg border text-xs font-bold text-right bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-black dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-800 dark:text-slate-400 uppercase block mb-0.5">Promoção (R$)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={v.preco_promocional ?? ''}
+                      onChange={(e) => {
+                        const pp = e.target.value ? parseFloat(e.target.value) : null;
+                        setFormData(prev => {
+                          const list = [...prev.variacoes];
+                          list[idx] = { ...list[idx], preco_promocional: pp };
+                          return { ...prev, variacoes: list };
+                        });
+                      }}
+                      placeholder="Opcional"
+                      className="w-full px-2.5 py-1.5 rounded-lg border text-xs font-bold text-right bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-black dark:text-white"
                     />
                   </div>
                 </div>
@@ -2593,7 +2994,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           <button
             type="button"
             onClick={() => setTelaAtiva(produtoEditando ? 'detalhes' : 'novo')}
-            className="hubi-btn-neutral w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm sm:text-base transition cursor-pointer shadow-md"
+            className="hubi-btn-cta w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm sm:text-base transition cursor-pointer shadow-md"
           >
             Concluir Variações
           </button>
@@ -2629,14 +3030,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           </div>
           <button
             type="button"
-            onClick={() => {
-              const nome = prompt('Nome da nova categoria:');
-              if (nome && nome.trim()) {
-                setNovaCategoriaNome(nome);
-                salvarNovaCategoria();
-              }
-            }}
+            onClick={() => setModalGerenciarCategoriasMobileAberto(true)}
             className="p-2 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 font-extrabold cursor-pointer"
+            title="Gerenciar Categorias e Subcategorias"
           >
             <Plus className="w-6 h-6" />
           </button>
@@ -2700,6 +3096,19 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             </button>
           ))}
         </div>
+
+        <ModalGerenciarCategorias
+          isOpen={modalGerenciarCategoriasMobileAberto}
+          onClose={() => setModalGerenciarCategoriasMobileAberto(false)}
+          categorias={categorias}
+          produtos={produtos}
+          onCategoriasAtualizadas={onRecarregar}
+          onCategoriaCriada={(novaCat) => {
+            setFormData(prev => ({ ...prev, categoriaId: novaCat.id, subcategoriaId: '' }));
+            setModalGerenciarCategoriasMobileAberto(false);
+            setModalCategoriasAberto(false);
+          }}
+        />
       </div>
     );
   }
@@ -2866,7 +3275,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 type="button"
                 disabled={gerandoDescricaoIA}
                 onClick={melhorarDescricaoComIA}
-                className="hubi-btn-neutral px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 dark:hover:bg-emerald-500 text-white text-xs sm:text-sm font-extrabold flex items-center gap-2 transition shadow-md cursor-pointer disabled:opacity-50 shrink-0 ml-2"
+                className="hubi-btn-cta px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-extrabold flex items-center gap-2 transition shadow-md cursor-pointer disabled:opacity-50 shrink-0 ml-2"
               >
                 {gerandoDescricaoIA ? (
                   <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
@@ -2946,8 +3355,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               />
             </label>
 
-            {/* Slots 2 a 6 */}
-            {[1, 2, 3, 4, 5].map((idx) => {
+            {/* Slots 2 a 7 */}
+            {[1, 2, 3, 4, 5, 6].map((idx) => {
               const foto = formData.fotos[idx];
               if (foto) {
                 return (
@@ -2975,7 +3384,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           <button
             type="button"
             onClick={() => setModalGaleriaFotosAberto(false)}
-            className="hubi-btn-neutral w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-sm sm:text-base shadow-md transition cursor-pointer"
+            className="hubi-btn-cta w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm sm:text-base shadow-md transition cursor-pointer"
           >
             Concluir Fotos
           </button>
@@ -3055,7 +3464,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               setFormData(prev => ({ ...prev, estoqueMinimo: val }));
               setModalEstoqueMinimoAberto(false);
             }}
-            className="hubi-btn-neutral w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-sm sm:text-base shadow-md transition cursor-pointer"
+            className="hubi-btn-cta w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm sm:text-base shadow-md transition cursor-pointer"
           >
             OK
           </button>
@@ -3196,56 +3605,48 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           onVoltar={fecharFormularioComConfirmacao}
           acoesDireita={
             <div className="flex items-center gap-1.5 sm:gap-2">
-              {/* Botão de Preenchimento Automático com IA */}
-              <button
-                type="button"
-                disabled={processandoIA}
-                onClick={() => {
-                  if (!isNovo) {
-                    handleAtualizarProdutoExistenteIA();
-                  } else {
-                    setModalCriarComIAAberto(true);
-                  }
-                }}
-                className="hubi-btn-neutral px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-extrabold flex items-center gap-1.5 shadow-xs cursor-pointer transition disabled:opacity-50 select-none bg-emerald-50 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
-                title={!isNovo ? 'Atualizar o Produto com nossa IA' : 'Preencher com nossa IA'}
-              >
-                {processandoIA ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-black dark:text-emerald-500" />
-                ) : !isNovo ? (
-                  <RefreshCw className="w-4 h-4 text-black dark:text-emerald-500" />
-                ) : (
-                  <Sparkles className="w-4 h-4 text-black dark:text-emerald-500" />
-                )}
-                <span>IA</span>
-              </button>
+              {!isNovo && produtoEditando && formData.tipoItem !== 'servico' && (
+                <button
+                  type="button"
+                  onClick={() => setProdutoMlModal(produtoEditando)}
+                  className="hubi-btn-neutral px-2.5 py-1.5 rounded-xl border text-xs font-extrabold flex items-center gap-1 shadow-xs cursor-pointer transition select-none bg-[#FFE600] hover:bg-[#F5DC00] border-amber-500 text-slate-950"
+                  title="Vincular ou publicar no Mercado Livre"
+                >
+                  <ShoppingBag className="w-3.5 h-3.5 text-[#2D3277]" />
+                  <span>ML{mapaAnunciosMl[produtoEditando.id]?.length ? ` (${mapaAnunciosMl[produtoEditando.id].length})` : ''}</span>
+                </button>
+              )}
 
               {!isNovo && (
                 <>
                   <button
                     type="button"
                     onClick={() => setModalPublicCardAberto(true)}
-                    className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition cursor-pointer"
+                    className="p-1.5 text-slate-700 dark:text-slate-300 hover:text-black dark:hover:text-white transition cursor-pointer"
                     title="Compartilhar Card Público"
                   >
                     <Share2 className="w-4 h-4" />
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setModalClonarAberto(true)}
-                    className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition cursor-pointer"
-                    title="Clonar Produto"
-                  >
-                    <Copy className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleExcluirProduto}
-                    className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer"
-                    title="Excluir Produto"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {permissions.podeCadastrarAlterarProdutos && (
+                    <button
+                      type="button"
+                      onClick={() => setModalClonarAberto(true)}
+                      className="p-1.5 text-slate-700 dark:text-slate-300 hover:text-black dark:hover:text-white transition cursor-pointer"
+                      title="Clonar Produto"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  )}
+                  {permissions.podeCadastrarAlterarProdutos && (
+                    <button
+                      type="button"
+                      onClick={handleExcluirProduto}
+                      className="p-1.5 text-slate-700 dark:text-slate-400 hover:text-red-600 dark:hover:text-rose-400 transition cursor-pointer"
+                      title="Excluir Produto"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </>
               )}
             </div>
@@ -3655,51 +4056,150 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   </div>
 
                   {/* Código com Leitor de Código de Barras (TELA018) */}
-                  <div>
-                    <label className="text-xs font-semibold uppercase tracking-wider block mb-1" style={{ color: temaCores.textoSecundario }}>Código de Barras / EAN</label>
-                    <div
-                      className="relative flex items-center px-3.5 py-2.5 rounded-xl border focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition"
-                      style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput }}
-                    >
-                      <input
-                        type="text"
-                        value={formData.codigoBarras}
-                        onChange={(e) => setFormData(prev => ({ ...prev, codigoBarras: e.target.value }))}
-                        placeholder="Código de barras ou interno"
-                        className="w-full text-sm font-semibold bg-transparent focus:outline-none pr-8"
-                        style={{ color: temaCores.textoInput }}
-                      />
-                      <button
-                        type="button"
-                        onClick={iniciarScannerCamera}
-                        className="absolute right-2 p-1 text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 cursor-pointer"
-                        title="Ler Código de Barras com a Câmera"
+                  {formData.tipoItem !== 'servico' && (
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-wider block mb-1" style={{ color: temaCores.textoSecundario }}>Código de Barras / EAN</label>
+                      <div
+                        className="relative flex items-center px-3.5 py-2.5 rounded-xl border focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition"
+                        style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput }}
                       >
-                        <QrCode className="w-5 h-5" />
-                      </button>
+                        <input
+                          type="text"
+                          value={formData.codigoBarras}
+                          onChange={(e) => setFormData(prev => ({ ...prev, codigoBarras: e.target.value }))}
+                          placeholder="Código de barras ou EAN"
+                          className="w-full text-sm font-semibold bg-transparent focus:outline-none pr-8"
+                          style={{ color: temaCores.textoInput }}
+                        />
+                        <button
+                          type="button"
+                          onClick={iniciarScannerCamera}
+                          className="absolute right-2 p-1 text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 cursor-pointer"
+                          title="Ler Código de Barras com a Câmera"
+                        >
+                          <QrCode className="w-5 h-5" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Preço de Custo */}
+                  {/* Código Interno / SKU */}
                   <div>
-                    <label className="text-xs font-semibold uppercase tracking-wider block mb-1" style={{ color: temaCores.textoSecundario }}>Custo do Produto</label>
+                    <label className="text-xs font-semibold uppercase tracking-wider block mb-1" style={{ color: temaCores.textoSecundario }}>Código Interno / SKU (Opcional)</label>
                     <div
                       className="flex items-center px-3.5 py-2.5 rounded-xl border focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition"
                       style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput }}
                     >
-                      <span className="text-sm font-bold text-slate-400 mr-2">R$</span>
                       <input
                         type="text"
-                        value={formData.precoCusto}
-                        onChange={(e) => setFormData(prev => ({ ...prev, precoCusto: e.target.value }))}
-                        placeholder="0,00"
-                        className="w-full text-sm font-bold bg-transparent focus:outline-none"
+                        value={formData.codigoInterno}
+                        onChange={(e) => setFormData(prev => ({ ...prev, codigoInterno: e.target.value }))}
+                        placeholder="Ex: PRD-001 ou SKU interno"
+                        className="w-full text-sm font-semibold bg-transparent focus:outline-none"
                         style={{ color: temaCores.textoInput }}
                       />
                     </div>
                   </div>
 
+                  {/* Fornecedor (apenas para produtos físicos) */}
+                  {formData.tipoItem !== 'servico' && (
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-wider block mb-1" style={{ color: temaCores.textoSecundario }}>Fornecedor (Opcional)</label>
+                      <select
+                        value={formData.fornecedorId}
+                        onChange={(e) => setFormData(prev => ({ ...prev, fornecedorId: e.target.value }))}
+                        className="w-full px-3.5 py-2.5 rounded-xl border text-sm font-semibold focus:outline-none focus:border-emerald-500 transition"
+                        style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
+                      >
+                        <option value="">Sem fornecedor vinculado</option>
+                        {fornecedoresLista.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Venda por Peso / Fracionado & Código na Balança */}
+                  {formData.tipoItem !== 'servico' && (
+                    <div
+                      className="p-3.5 rounded-2xl border space-y-3"
+                      style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <span className="text-xs font-bold block" style={{ color: temaCores.textoPrincipal }}>
+                            Venda por Peso / Fracionada (Balança)
+                          </span>
+                          <span className="text-[10px] block" style={{ color: temaCores.textoSecundario }}>
+                            Permite quantidades decimais (ex: 0,350 kg) e leitura de etiquetas EAN-13
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={formData.vendaPorPeso}
+                          onClick={() => setFormData(prev => ({ ...prev, vendaPorPeso: !prev.vendaPorPeso }))}
+                          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer ${
+                            formData.vendaPorPeso ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              formData.vendaPorPeso ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
+
+                      {formData.vendaPorPeso && (
+                        <div>
+                          <label className="text-[10px] font-semibold uppercase tracking-wider block mb-1" style={{ color: temaCores.textoSecundario }}>
+                            Código na Balança / PLU (4 a 6 dígitos - Opcional)
+                          </label>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={formData.codigoBalanca}
+                            onChange={(e) => setFormData(prev => ({ ...prev, codigoBalanca: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
+                            placeholder="Ex: 1024"
+                            className="w-full px-3 py-2 rounded-xl border text-xs font-mono font-bold focus:outline-none focus:border-emerald-500"
+                            style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Preço de Custo */}
+                  {permissions.podeVerPrecoCusto && (
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-wider block mb-1" style={{ color: temaCores.textoSecundario }}>Custo do Produto</label>
+                      <div
+                        className="flex items-center px-3.5 py-2.5 rounded-xl border focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition"
+                        style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput }}
+                      >
+                        <span className="text-sm font-bold text-slate-400 mr-2">R$</span>
+                        <input
+                          type="text"
+                          value={formData.precoCusto}
+                          onChange={(e) => setFormData(prev => ({ ...prev, precoCusto: e.target.value }))}
+                          placeholder="0,00"
+                          className="w-full text-sm font-bold bg-transparent focus:outline-none"
+                          style={{ color: temaCores.textoInput }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   {/* Tabelas de Atacado & Distribuidor */}
+                  {formData.tipoItem !== 'servico' && (() => {
+                    const tiposVendaLoja = loja?.tipos_venda || (loja as any)?.configuracoes_extras?.tipos_venda_ativos || {};
+                    const atacadoAtivo = tiposVendaLoja.atacado !== false || (loja as any)?.permite_atacado === true;
+                    const distribuidorAtivo = tiposVendaLoja.distribuidor !== false || (loja as any)?.permite_distribuidor === true;
+                    if (!atacadoAtivo && !distribuidorAtivo) return null;
+                    return (
                   <div
                     className="p-4 border rounded-2xl space-y-3.5 shadow-sm"
                     style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
@@ -3713,170 +4213,180 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <label className="text-[10px] font-semibold uppercase" style={{ color: temaCores.textoSecundario }}>Preço Atacado</label>
-                          {formData.precoVenda && (
-                            <span className="text-[9px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-500/30 px-1.5 py-0.2 rounded font-bold">
-                              -{regrasPrecificacaoLoja.descontoAtacado}%
-                            </span>
-                          )}
-                        </div>
-                        <div
-                          className="flex items-center px-3 py-2 rounded-xl border focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition"
-                          style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput }}
-                        >
-                          <span className="text-xs font-bold text-slate-400 mr-1.5">R$</span>
-                          <input
-                            type="text"
-                            value={formData.precoAtacado}
-                            onChange={(e) => setFormData(prev => ({ ...prev, precoAtacado: e.target.value }))}
-                            placeholder="0,00"
-                            className="w-full text-xs sm:text-sm font-bold bg-transparent focus:outline-none"
-                            style={{ color: temaCores.textoInput }}
-                          />
-                        </div>
-                      </div>
+                      {atacadoAtivo && (
+                        <>
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="text-[10px] font-semibold uppercase" style={{ color: temaCores.textoSecundario }}>Preço Atacado</label>
+                              {formData.precoVenda && (
+                                <span className="text-[9px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-500/30 px-1.5 py-0.2 rounded font-bold">
+                                  -{regrasPrecificacaoLoja.descontoAtacado}%
+                                </span>
+                              )}
+                            </div>
+                            <div
+                              className="flex items-center px-3 py-2 rounded-xl border focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition"
+                              style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput }}
+                            >
+                              <span className="text-xs font-bold text-slate-500 mr-1.5">R$</span>
+                              <input
+                                type="text"
+                                value={formData.precoAtacado}
+                                onChange={(e) => setFormData(prev => ({ ...prev, precoAtacado: e.target.value }))}
+                                placeholder="0,00"
+                                className="w-full text-xs sm:text-sm font-bold bg-transparent focus:outline-none"
+                                style={{ color: temaCores.textoInput }}
+                              />
+                            </div>
+                          </div>
 
-                      {regrasPrecificacaoLoja.tipoMinAtacado === 'valor' ? (
-                        <div>
-                          <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: temaCores.textoSecundario }}>Valor Mínimo (R$)</label>
-                          <div
-                            className="flex items-center px-3 py-2 rounded-xl border border-dashed"
-                            style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput }}
-                          >
-                            <span className="text-xs font-bold text-slate-400 mr-1.5">R$</span>
-                            <input
-                              type="text"
-                              readOnly
-                              disabled
-                              value={regrasPrecificacaoLoja.valMinAtacado > 0 ? regrasPrecificacaoLoja.valMinAtacado.toFixed(2).replace('.', ',') : '300,00'}
-                              className="w-full text-xs sm:text-sm font-bold text-slate-400 bg-transparent cursor-not-allowed focus:outline-none"
-                            />
-                          </div>
-                        </div>
-                      ) : regrasPrecificacaoLoja.tipoMinAtacado === 'minimo_sku' ? (
-                        <div>
-                          <label className="text-[10px] font-bold uppercase block mb-1 text-emerald-600 dark:text-emerald-400">Qtd Mínima Atacado (Un) *</label>
-                          <div
-                            className="flex items-center px-3 py-2 rounded-xl border border-emerald-500/60 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition"
-                            style={{ backgroundColor: temaCores.bgInput }}
-                          >
-                            <input
-                              type="number"
-                              min="1"
-                              step="1"
-                              value={formData.qtdMinimaAtacado || ''}
-                              onChange={(e) => setFormData(prev => ({ ...prev, qtdMinimaAtacado: parseInt(e.target.value, 10) || 0 }))}
-                              placeholder="Ex: 6"
-                              className="w-full text-xs sm:text-sm font-bold bg-transparent focus:outline-none"
-                              style={{ color: temaCores.textoInput }}
-                            />
-                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 ml-1">un</span>
-                          </div>
-                        </div>
-                      ) : (
-                        <div>
-                          <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: temaCores.textoSecundario }}>Qtd Mínima (Unidades)</label>
-                          <div
-                            className="flex items-center px-3 py-2 rounded-xl border border-dashed"
-                            style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput }}
-                          >
-                            <input
-                              type="text"
-                              readOnly
-                              disabled
-                              value={`${regrasPrecificacaoLoja.qtdMinAtacado || 6} un`}
-                              className="w-full text-xs sm:text-sm font-bold text-slate-400 bg-transparent cursor-not-allowed focus:outline-none"
-                            />
-                          </div>
-                        </div>
+                          {regrasPrecificacaoLoja.tipoMinAtacado === 'valor' ? (
+                            <div>
+                              <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: temaCores.textoSecundario }}>Valor Mínimo (R$)</label>
+                              <div
+                                className="flex items-center px-3 py-2 rounded-xl border border-dashed"
+                                style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput }}
+                              >
+                                <span className="text-xs font-bold text-slate-500 mr-1.5">R$</span>
+                                <input
+                                  type="text"
+                                  readOnly
+                                  disabled
+                                  value={regrasPrecificacaoLoja.valMinAtacado > 0 ? regrasPrecificacaoLoja.valMinAtacado.toFixed(2).replace('.', ',') : '0,00'}
+                                  className="w-full text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-400 bg-transparent cursor-not-allowed focus:outline-none"
+                                />
+                              </div>
+                            </div>
+                          ) : regrasPrecificacaoLoja.tipoMinAtacado === 'minimo_sku' ? (
+                            <div>
+                              <label className="text-[10px] font-bold uppercase block mb-1 text-emerald-600 dark:text-emerald-400">Qtd Mínima Atacado (Un)</label>
+                              <div
+                                className="flex items-center px-3 py-2 rounded-xl border border-emerald-500/60 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition"
+                                style={{ backgroundColor: temaCores.bgInput }}
+                              >
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  value={formData.qtdMinimaAtacado || ''}
+                                  onChange={(e) => setFormData(prev => ({ ...prev, qtdMinimaAtacado: parseInt(e.target.value, 10) || 0 }))}
+                                  placeholder="Ex: 6"
+                                  className="w-full text-xs sm:text-sm font-bold bg-transparent focus:outline-none"
+                                  style={{ color: temaCores.textoInput }}
+                                />
+                                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 ml-1">un</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: temaCores.textoSecundario }}>Qtd Mínima (Unidades)</label>
+                              <div
+                                className="flex items-center px-3 py-2 rounded-xl border border-dashed"
+                                style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput }}
+                              >
+                                <input
+                                  type="text"
+                                  readOnly
+                                  disabled
+                                  value={`${regrasPrecificacaoLoja.qtdMinAtacado || 0} un`}
+                                  className="w-full text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-400 bg-transparent cursor-not-allowed focus:outline-none"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </>
                       )}
 
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <label className="text-[10px] font-semibold uppercase" style={{ color: temaCores.textoSecundario }}>Preço Distribuidor</label>
-                          {formData.precoVenda && (
-                            <span className="text-[9px] bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800/40 px-1.5 py-0.2 rounded font-bold">
-                              -{regrasPrecificacaoLoja.descontoAutoatacado}%
-                            </span>
-                          )}
-                        </div>
-                        <div
-                          className="flex items-center px-3 py-2 rounded-xl border focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition"
-                          style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput }}
-                        >
-                          <span className="text-xs font-bold text-slate-400 mr-1.5">R$</span>
-                          <input
-                            type="text"
-                            value={formData.precoAutoatacado}
-                            onChange={(e) => setFormData(prev => ({ ...prev, precoAutoatacado: e.target.value }))}
-                            placeholder="0,00"
-                            className="w-full text-xs sm:text-sm font-bold bg-transparent focus:outline-none"
-                            style={{ color: temaCores.textoInput }}
-                          />
-                        </div>
-                      </div>
+                      {distribuidorAtivo && (
+                        <>
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="text-[10px] font-semibold uppercase" style={{ color: temaCores.textoSecundario }}>Preço Distribuidor</label>
+                              {formData.precoVenda && (
+                                <span className="text-[9px] bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800/40 px-1.5 py-0.2 rounded font-bold">
+                                  -{regrasPrecificacaoLoja.descontoAutoatacado}%
+                                </span>
+                              )}
+                            </div>
+                            <div
+                              className="flex items-center px-3 py-2 rounded-xl border focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition"
+                              style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput }}
+                            >
+                              <span className="text-xs font-bold text-slate-500 mr-1.5">R$</span>
+                              <input
+                                type="text"
+                                value={formData.precoAutoatacado}
+                                onChange={(e) => setFormData(prev => ({ ...prev, precoAutoatacado: e.target.value }))}
+                                placeholder="0,00"
+                                className="w-full text-xs sm:text-sm font-bold bg-transparent focus:outline-none"
+                                style={{ color: temaCores.textoInput }}
+                              />
+                            </div>
+                          </div>
 
-                      {regrasPrecificacaoLoja.tipoMinDistribuidor === 'valor' ? (
-                        <div>
-                          <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: temaCores.textoSecundario }}>Valor Mínimo (R$)</label>
-                          <div
-                            className="flex items-center px-3 py-2 rounded-xl border border-dashed"
-                            style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput }}
-                          >
-                            <span className="text-xs font-bold text-slate-400 mr-1.5">R$</span>
-                            <input
-                              type="text"
-                              readOnly
-                              disabled
-                              value={regrasPrecificacaoLoja.valMinDistribuidor > 0 ? regrasPrecificacaoLoja.valMinDistribuidor.toFixed(2).replace('.', ',') : '1.000,00'}
-                              className="w-full text-xs sm:text-sm font-bold text-slate-400 bg-transparent cursor-not-allowed focus:outline-none"
-                            />
-                          </div>
-                        </div>
-                      ) : regrasPrecificacaoLoja.tipoMinDistribuidor === 'minimo_sku' ? (
-                        <div>
-                          <label className="text-[10px] font-bold uppercase block mb-1 text-indigo-600 dark:text-indigo-400">Qtd Mínima Distribuidor (Un) *</label>
-                          <div
-                            className="flex items-center px-3 py-2 rounded-xl border border-indigo-500/60 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 transition"
-                            style={{ backgroundColor: temaCores.bgInput }}
-                          >
-                            <input
-                              type="number"
-                              min="1"
-                              step="1"
-                              value={formData.qtdMinimaAutoatacado || ''}
-                              onChange={(e) => setFormData(prev => ({ ...prev, qtdMinimaAutoatacado: parseInt(e.target.value, 10) || 0 }))}
-                              placeholder="Ex: 24"
-                              className="w-full text-xs sm:text-sm font-bold bg-transparent focus:outline-none"
-                              style={{ color: temaCores.textoInput }}
-                            />
-                            <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 ml-1">un</span>
-                          </div>
-                        </div>
-                      ) : (
-                        <div>
-                          <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: temaCores.textoSecundario }}>Qtd Mínima (Unidades)</label>
-                          <div
-                            className="flex items-center px-3 py-2 rounded-xl border border-dashed"
-                            style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput }}
-                          >
-                            <input
-                              type="text"
-                              readOnly
-                              disabled
-                              value={`${regrasPrecificacaoLoja.qtdMinDistribuidor || 24} un`}
-                              className="w-full text-xs sm:text-sm font-bold text-slate-400 bg-transparent cursor-not-allowed focus:outline-none"
-                            />
-                          </div>
-                        </div>
+                          {regrasPrecificacaoLoja.tipoMinDistribuidor === 'valor' ? (
+                            <div>
+                              <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: temaCores.textoSecundario }}>Valor Mínimo (R$)</label>
+                              <div
+                                className="flex items-center px-3 py-2 rounded-xl border border-dashed"
+                                style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput }}
+                              >
+                                <span className="text-xs font-bold text-slate-500 mr-1.5">R$</span>
+                                <input
+                                  type="text"
+                                  readOnly
+                                  disabled
+                                  value={regrasPrecificacaoLoja.valMinDistribuidor > 0 ? regrasPrecificacaoLoja.valMinDistribuidor.toFixed(2).replace('.', ',') : '0,00'}
+                                  className="w-full text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-400 bg-transparent cursor-not-allowed focus:outline-none"
+                                />
+                              </div>
+                            </div>
+                          ) : regrasPrecificacaoLoja.tipoMinDistribuidor === 'minimo_sku' ? (
+                            <div>
+                              <label className="text-[10px] font-bold uppercase block mb-1 text-indigo-600 dark:text-indigo-400">Qtd Mínima Distribuidor (Un)</label>
+                              <div
+                                className="flex items-center px-3 py-2 rounded-xl border border-indigo-500/60 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 transition"
+                                style={{ backgroundColor: temaCores.bgInput }}
+                              >
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  value={formData.qtdMinimaAutoatacado || ''}
+                                  onChange={(e) => setFormData(prev => ({ ...prev, qtdMinimaAutoatacado: parseInt(e.target.value, 10) || 0 }))}
+                                  placeholder="Ex: 24"
+                                  className="w-full text-xs sm:text-sm font-bold bg-transparent focus:outline-none"
+                                  style={{ color: temaCores.textoInput }}
+                                />
+                                <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 ml-1">un</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: temaCores.textoSecundario }}>Qtd Mínima (Unidades)</label>
+                              <div
+                                className="flex items-center px-3 py-2 rounded-xl border border-dashed"
+                                style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput }}
+                              >
+                                <input
+                                  type="text"
+                                  readOnly
+                                  disabled
+                                  value={`${regrasPrecificacaoLoja.qtdMinDistribuidor || 0} un`}
+                                  className="w-full text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-400 bg-transparent cursor-not-allowed focus:outline-none"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                     <p className="text-[10px] italic" style={{ color: temaCores.textoSecundario }}>
-                      * Condições de ativação mínima são definidas exclusivamente nas Regras de Precificação da loja (somente leitura).
+                      * Condições de ativação mínima seguem as Regras de Precificação da loja.
                     </p>
                   </div>
+                    );
+                  })()}
 
                   {/* Seção 4: Controle de Estoque & Agendamento */}
                   {formData.tipoItem === 'servico' ? (
@@ -3995,6 +4505,99 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                                 ))}
                               </div>
                             </div>
+
+                            {/* Taxa de Deslocamento / Atendimento a Domicílio */}
+                            {(formData.localPrestacaoServico === 'externo' || formData.localPrestacaoServico === 'ambos') && (
+                              <div
+                                className="p-3 rounded-xl border space-y-2.5"
+                                style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput }}
+                              >
+                                <div className="flex items-center gap-1.5">
+                                  <Home className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                  <span className="text-xs font-bold" style={{ color: temaCores.textoPrincipal }}>
+                                    Taxa de Deslocamento a Domicílio
+                                  </span>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-1.5">
+                                  {[
+                                    {
+                                      id: 'padrao',
+                                      label: 'Padrão Loja',
+                                      sub: `R$ ${Number(loja?.taxa_padrao_domicilio ?? 0).toFixed(2).replace('.', ',')}`
+                                    },
+                                    {
+                                      id: 'especifico',
+                                      label: 'Específico',
+                                      sub: 'Definir valor'
+                                    },
+                                    {
+                                      id: 'gratis',
+                                      label: 'Grátis',
+                                      sub: 'R$ 0,00'
+                                    }
+                                  ].map((opt) => {
+                                    const ativo = formData.modoTaxaDomicilio === opt.id;
+                                    return (
+                                      <button
+                                        key={opt.id}
+                                        type="button"
+                                        onClick={() => setFormData(prev => ({ ...prev, modoTaxaDomicilio: opt.id as any }))}
+                                        className={`p-2 rounded-xl border text-left transition cursor-pointer ${
+                                          ativo
+                                            ? 'bg-emerald-500/15 border-emerald-500 text-emerald-950 dark:text-white'
+                                            : 'border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-300'
+                                        }`}
+                                      >
+                                        <span className="text-[11px] font-bold block truncate">{opt.label}</span>
+                                        <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-400 block truncate">{opt.sub}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+
+                                {formData.modoTaxaDomicilio === 'especifico' && (
+                                  <div className="space-y-2.5 pt-1">
+                                    <div>
+                                      <label className="text-[10px] font-bold uppercase block mb-1" style={{ color: temaCores.textoSecundario }}>
+                                        Valor da Taxa (R$)
+                                      </label>
+                                      <div
+                                        className="flex items-center px-3 py-2 rounded-xl border"
+                                        style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
+                                      >
+                                        <span className="text-xs font-bold text-slate-500 mr-1.5">R$</span>
+                                        <input
+                                          type="text"
+                                          value={formData.taxaDeslocamentoDomicilio}
+                                          onChange={(e) => setFormData(prev => ({ ...prev, taxaDeslocamentoDomicilio: e.target.value }))}
+                                          placeholder="0,00"
+                                          className="w-full text-xs font-bold bg-transparent focus:outline-none"
+                                          style={{ color: temaCores.textoInput }}
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <label className="flex items-start gap-2 cursor-pointer select-none">
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.abaterTaxaDomicilioAoFechar}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, abaterTaxaDomicilioAoFechar: e.target.checked }))}
+                                        className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                                      />
+                                      <div>
+                                        <span className="text-xs font-bold block" style={{ color: temaCores.textoPrincipal }}>
+                                          Isentar / abater esta taxa se o cliente fechar o serviço
+                                        </span>
+                                        <span className="text-[10px] block" style={{ color: temaCores.textoSecundario }}>
+                                          Ideal para orçamentos técnicos: cobra apenas se o cliente não aprovar o serviço.
+                                        </span>
+                                      </div>
+                                    </label>
+                                  </div>
+                                )}
+                              </div>
+                            )}
 
                             {/* Profissionais Habilitados */}
                             <div className="space-y-2 pt-1 border-t border-slate-200 dark:border-slate-800">
@@ -4158,6 +4761,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             </div>
 
             {/* SEÇÃO 5: VARIAÇÕES DO PRODUTO (MULTINÍVEL RELACIONAL SEM JSONB) */}
+            {formData.tipoItem !== 'servico' && (
             <div
               className="p-4 border rounded-2xl space-y-4 shadow-sm"
               style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
@@ -4332,7 +4936,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                           </div>
                           <div>
                             <label className="text-[10px] font-semibold uppercase block mb-0.5" style={{ color: temaCores.textoSecundario }}>
-                              Preço (R$)
+                              Preço Varejo (R$)
                             </label>
                             <input
                               type="number"
@@ -4347,6 +4951,132 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                                 });
                               }}
                               placeholder={formData.precoVenda || '0,00'}
+                              className="w-full px-2.5 py-1.5 rounded-lg border text-xs font-bold text-right"
+                              style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-semibold uppercase block mb-0.5" style={{ color: temaCores.textoSecundario }}>
+                              SKU
+                            </label>
+                            <input
+                              type="text"
+                              value={v.sku || ''}
+                              onChange={(e) => {
+                                const skuVal = e.target.value;
+                                setFormData(prev => {
+                                  const list = [...prev.variacoes];
+                                  list[idx] = { ...list[idx], sku: skuVal };
+                                  return { ...prev, variacoes: list };
+                                });
+                              }}
+                              placeholder="SKU"
+                              className="w-full px-2.5 py-1.5 rounded-lg border text-xs font-bold"
+                              style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-semibold uppercase block mb-0.5" style={{ color: temaCores.textoSecundario }}>
+                              EAN / Barras
+                            </label>
+                            <input
+                              type="text"
+                              value={v.codigo_barras || ''}
+                              onChange={(e) => {
+                                const eanVal = e.target.value;
+                                setFormData(prev => {
+                                  const list = [...prev.variacoes];
+                                  list[idx] = { ...list[idx], codigo_barras: eanVal };
+                                  return { ...prev, variacoes: list };
+                                });
+                              }}
+                              placeholder="EAN"
+                              className="w-full px-2.5 py-1.5 rounded-lg border text-xs font-bold"
+                              style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
+                            />
+                          </div>
+                          {permissions.podeVerPrecoCusto && (
+                            <div>
+                              <label className="text-[10px] font-semibold uppercase block mb-0.5" style={{ color: temaCores.textoSecundario }}>
+                                Custo (R$)
+                              </label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={v.preco_custo ?? ''}
+                                onChange={(e) => {
+                                  const c = e.target.value ? parseFloat(e.target.value) : null;
+                                  setFormData(prev => {
+                                    const list = [...prev.variacoes];
+                                    list[idx] = { ...list[idx], preco_custo: c };
+                                    return { ...prev, variacoes: list };
+                                  });
+                                }}
+                                placeholder="0,00"
+                                className="w-full px-2.5 py-1.5 rounded-lg border text-xs font-bold text-right"
+                                style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
+                              />
+                            </div>
+                          )}
+                          <div>
+                            <label className="text-[10px] font-semibold uppercase block mb-0.5" style={{ color: temaCores.textoSecundario }}>
+                              Atacado (R$)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={v.preco_venda_atacado ?? ''}
+                              onChange={(e) => {
+                                const pa = e.target.value ? parseFloat(e.target.value) : null;
+                                setFormData(prev => {
+                                  const list = [...prev.variacoes];
+                                  list[idx] = { ...list[idx], preco_venda_atacado: pa };
+                                  return { ...prev, variacoes: list };
+                                });
+                              }}
+                              placeholder="Opcional"
+                              className="w-full px-2.5 py-1.5 rounded-lg border text-xs font-bold text-right"
+                              style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-semibold uppercase block mb-0.5" style={{ color: temaCores.textoSecundario }}>
+                              Distribuidor (R$)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={v.preco_venda_autoatacado ?? ''}
+                              onChange={(e) => {
+                                const pd = e.target.value ? parseFloat(e.target.value) : null;
+                                setFormData(prev => {
+                                  const list = [...prev.variacoes];
+                                  list[idx] = { ...list[idx], preco_venda_autoatacado: pd };
+                                  return { ...prev, variacoes: list };
+                                });
+                              }}
+                              placeholder="Opcional"
+                              className="w-full px-2.5 py-1.5 rounded-lg border text-xs font-bold text-right"
+                              style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-semibold uppercase block mb-0.5" style={{ color: temaCores.textoSecundario }}>
+                              Promoção (R$)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={v.preco_promocional ?? ''}
+                              onChange={(e) => {
+                                const pp = e.target.value ? parseFloat(e.target.value) : null;
+                                setFormData(prev => {
+                                  const list = [...prev.variacoes];
+                                  list[idx] = { ...list[idx], preco_promocional: pp };
+                                  return { ...prev, variacoes: list };
+                                });
+                              }}
+                              placeholder="Opcional"
                               className="w-full px-2.5 py-1.5 rounded-lg border text-xs font-bold text-right"
                               style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
                             />
@@ -4393,6 +5123,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 </div>
               )}
             </div>
+            )}
 
             {/* SEÇÃO 6: DIMENSÕES E PESO PARA ENVIO (MELHOR ENVIO / CORREIOS / JADLOG) */}
             {formData.tipoItem !== 'servico' && (
@@ -4607,23 +5338,25 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         )}
 
         {/* Botão Inferior Salvar / Adicionar */}
-        <div
-          className="p-4 border-t shrink-0"
-          style={{ backgroundColor: temaCores.bgRodape, borderColor: temaCores.bordaRodape }}
-        >
-          <button
-            type="button"
-            disabled={salvandoProduto}
-            onClick={salvarProduto}
-            className="hubi-btn-cta w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold rounded-xl shadow-md transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-sm sm:text-base"
+        {permissions.podeCadastrarAlterarProdutos && (
+          <div
+            className="p-4 border-t shrink-0"
+            style={{ backgroundColor: temaCores.bgRodape, borderColor: temaCores.bordaRodape }}
           >
-            {salvandoProduto ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <span>{isNovo ? 'Adicionar produto' : 'Salvar Alterações'}</span>
-            )}
-          </button>
-        </div>
+            <button
+              type="button"
+              disabled={salvandoProduto}
+              onClick={salvarProduto}
+              className="hubi-btn-cta w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-sm sm:text-base"
+            >
+              {salvandoProduto ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <span>{isNovo ? 'Adicionar produto' : 'Salvar Alterações'}</span>
+              )}
+            </button>
+          </div>
+        )}
 
         {/* MODAL DE OPÇÕES DE FOTO (CÂMERA / GALERIA / GERENCIADOR) */}
         {modalOpcoesFotoAberto && (
@@ -4685,7 +5418,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   className="w-full p-4 rounded-2xl bg-white dark:bg-black border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 font-extrabold text-xs sm:text-sm flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-900 transition cursor-pointer"
                 >
                   <Tag className="w-5 h-5 text-slate-500 dark:text-slate-400" />
-                  <span>Gerenciar Fotos do Produto ({formData.fotos.length}/6)</span>
+                  <span>Gerenciar Fotos do Produto ({formData.fotos.length}/7)</span>
                 </button>
               </div>
             </div>
@@ -4945,11 +5678,20 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                       key={u.sigla}
                       type="button"
                       onClick={() => {
-                        const siglaNormalizada = u.sigla.toLowerCase() as TipoUnidade;
+                        const siglaLower = u.sigla.toLowerCase();
+                        const tipoCoerced: TipoUnidade =
+                          siglaLower === 'kg' || siglaLower === 'g'
+                            ? 'kg'
+                            : siglaLower === 'l' || siglaLower === 'ml'
+                              ? 'l'
+                              : siglaLower === 'm'
+                                ? 'm'
+                                : 'un';
                         setFormData(prev => ({
                           ...prev,
-                          unidadeMedida: u.sigla.toLowerCase(),
-                          tipoUnidade: siglaNormalizada === 'kg' ? 'kg' : 'un'
+                          unidadeMedida: siglaLower,
+                          tipoUnidade: tipoCoerced,
+                          vendaPorPeso: ['kg', 'g', 'l', 'ml', 'm'].includes(siglaLower) ? true : prev.vendaPorPeso
                         }));
                         setModalUnidadeMedidaAberto(false);
                       }}
@@ -5039,9 +5781,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                         <button
                           type="button"
                           onClick={() => handleAplicarPrecoMercado(dadosMercado.precoMedio)}
-                          className="hubi-btn-neutral px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl shadow-sm flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+                          className="hubi-btn-cta px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-sm flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
                         >
-                          <Zap className="w-3.5 h-3.5 fill-white" />
+                          <Zap className="w-3.5 h-3.5" />
                           <span>Aplicar Sugerido (R$ {Math.floor(dadosMercado.precoMedio).toFixed(2)})</span>
                         </button>
                       </div>
@@ -5433,7 +6175,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     type="button"
                     disabled={processandoIA || !promptTextoIA.trim()}
                     onClick={() => processarPreenchimentoIA('texto')}
-                    className="hubi-btn-neutral w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    className="hubi-btn-cta w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     {processandoIA ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                     <span>Preencher Dados via IA</span>
@@ -5479,7 +6221,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     type="button"
                     disabled={processandoIA || !promptCodigoIA.trim()}
                     onClick={() => processarPreenchimentoIA('codigo')}
-                    className="hubi-btn-neutral w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    className="hubi-btn-cta w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     {processandoIA ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                     <span>Consultar Código via IA</span>
@@ -5504,7 +6246,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           nomeInicial={formData.nome}
           codigoBarrasInicial={formData.codigoBarras}
           fotosAtuaisCount={formData.fotos.length}
-          maxFotos={6}
+          maxFotos={7}
           fotoReferencia={!formData.nome?.trim() ? formData.fotos[0] : undefined}
           segmentoLoja={segmentoLoja}
           loja={loja}
@@ -5513,7 +6255,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             setFormData(prev => {
               const fotosAtualizadas = [...prev.fotos];
               for (const foto of novasFotos) {
-                if (!fotosAtualizadas.includes(foto) && fotosAtualizadas.length < 6) {
+                if (!fotosAtualizadas.includes(foto) && fotosAtualizadas.length < 7) {
                   fotosAtualizadas.push(foto);
                 }
               }
@@ -5526,6 +6268,19 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               texto: `${novasFotos.length} foto(s) adicionada(s) à galeria!`,
               tipo: 'sucesso'
             });
+          }}
+        />
+
+        {/* MODAL MERCADO LIVRE (VINCULAR / PUBLICAR ANÚNCIO) */}
+        <ModalVincularAnuncioMl
+          aberto={Boolean(produtoMlModal)}
+          onFechar={() => setProdutoMlModal(null)}
+          produto={produtoMlModal}
+          lojaId={loja?.id || ''}
+          isDark={isDark}
+          onSucesso={() => {
+            onRecarregarAnunciosMl?.();
+            onRecarregar();
           }}
         />
 
@@ -5710,7 +6465,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             )}
           </button>
 
-          {abaLista === 'itens' && (
+          {abaLista === 'itens' && permissions.podeCadastrarAlterarProdutos && (
             <button
               type="button"
               onClick={abrirNovoProduto}
@@ -5862,6 +6617,42 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             </div>
           )}
 
+          {filtroTipoItem !== 'todos' && (
+            <div className={`text-xs px-2.5 py-1 rounded-xl flex items-center gap-1.5 shrink-0 font-bold ${
+              isDark
+                ? 'bg-[#000000] text-indigo-400 border border-indigo-500/50'
+                : 'bg-white text-indigo-900 border-2 border-indigo-300'
+            }`}>
+              <span>{filtroTipoItem === 'servico' ? 'Serviços' : 'Produtos'}</span>
+              <button
+                type="button"
+                onClick={() => setFiltroTipoItem('todos')}
+                className="p-0.5 rounded-full hover:opacity-80 transition cursor-pointer"
+                title="Remover filtro tipo"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+
+          {filtroMl !== 'todos' && (
+            <div className={`text-xs px-2.5 py-1 rounded-xl flex items-center gap-1.5 shrink-0 font-bold ${
+              isDark
+                ? 'bg-[#000000] text-amber-300 border border-amber-500/50'
+                : 'bg-[#FFE600] text-slate-950 border-2 border-amber-500'
+            }`}>
+              <span>{filtroMl === 'publicados' ? 'Publicados ML' : 'Sem Vínculo ML'}</span>
+              <button
+                type="button"
+                onClick={() => setFiltroMl('todos')}
+                className="p-0.5 rounded-full hover:opacity-80 transition cursor-pointer"
+                title="Remover filtro ML"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+
           <button
             type="button"
             onClick={() => {
@@ -5871,6 +6662,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               setFiltroAcimaMinimo(false);
               setFiltroSemControle(false);
               setFiltroAtivo('todos');
+              setFiltroMl('todos');
+              setFiltroTipoItem('todos');
             }}
             className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline ml-1 shrink-0 cursor-pointer transition"
             title="Limpar todos os filtros"
@@ -5922,13 +6715,23 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
                     {/* Nome e Descrição com até 2 linhas */}
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         {p.destaque && <span className="text-amber-400 font-bold text-xs">⭐</span>}
                         <h2 className="text-sm font-bold text-black dark:text-white uppercase line-clamp-2 leading-snug">
                           {p.nome}
                         </h2>
+                        {p.tipo_item === 'servico' && (
+                          <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase bg-indigo-100 text-indigo-900 dark:bg-indigo-500/20 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-500/40 shrink-0">
+                            Serviço
+                          </span>
+                        )}
+                        {Boolean(mapaAnunciosMl[p.id] && mapaAnunciosMl[p.id].length > 0) && (
+                          <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase bg-[#FFE600] text-slate-950 border border-amber-500 shrink-0">
+                            ML
+                          </span>
+                        )}
                       </div>
-                      <p className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mt-0.5 truncate">
+                      <p className="text-[11px] font-bold text-slate-800 dark:text-slate-400 uppercase tracking-wider mt-0.5 truncate">
                         {catNome}
                       </p>
                     </div>
@@ -6025,7 +6828,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       {abaLista === 'itens' && (
         <div
           onClick={() => setModalCatalogoAberto(true)}
-          className="fixed bottom-0 left-0 right-0 z-40 border-t px-4 pt-3 pb-6 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.9)] flex items-center justify-between cursor-pointer"
+          className={`fixed bottom-0 left-0 right-0 z-40 border-t px-4 pt-3 pb-6 pb-safe flex items-center justify-between cursor-pointer ${
+            isDark ? 'shadow-[0_-8px_30px_rgba(0,0,0,0.9)]' : 'shadow-lg'
+          }`}
           style={{ backgroundColor: temaCores.bgRodape, borderColor: temaCores.bordaRodape }}
         >
           <div className="flex items-center gap-3">
@@ -6046,16 +6851,20 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       {/* RODAPÉ FIXO: RESUMO DE ESTOQUE (TELA002) */}
       {abaLista === 'estoque' && (
         <div
-          className="fixed bottom-0 left-0 right-0 z-40 border-t px-4 pt-3 pb-6 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.9)] flex items-center justify-between"
+          className={`fixed bottom-0 left-0 right-0 z-40 border-t px-4 pt-3 pb-6 pb-safe flex items-center justify-between ${
+            isDark ? 'shadow-[0_-8px_30px_rgba(0,0,0,0.9)]' : 'shadow-lg'
+          }`}
           style={{ backgroundColor: temaCores.bgRodape, borderColor: temaCores.bordaRodape }}
         >
           <div>
             <h3 className="font-extrabold text-xs sm:text-sm" style={{ color: temaCores.textoPrincipal }}>
               Total: R$ {valorTotalEstoque.toFixed(2).replace('.', ',')}
             </h3>
-            <p className="text-[11px] font-medium" style={{ color: temaCores.textoSecundario }}>
-              Custo do estoque: R$ {valorCustoTotalEstoque.toFixed(2).replace('.', ',')}
-            </p>
+            {permissions.podeVerPrecoCusto && (
+              <p className="text-[11px] font-medium" style={{ color: temaCores.textoSecundario }}>
+                Custo do estoque: R$ {valorCustoTotalEstoque.toFixed(2).replace('.', ',')}
+              </p>
+            )}
           </div>
 
           <div className="text-right">
@@ -6078,7 +6887,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               <button
                 type="button"
                 onClick={() => setModalCatalogoAberto(false)}
-                className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer"
+                className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${
+                  isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                }`}
                 title="Fechar"
               >
                 <X className="w-5 h-5" />
@@ -6156,12 +6967,6 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           </div>
         </div>
       )}
-
-      {/* DRAWER MENU UNIFICADO MOBILE */}
-      <MobileMenuDrawer
-        aberto={drawerMenuAberto}
-        onFechar={() => setDrawerMenuAberto(false)}
-      />
 
       {/* MODAL ENTRADA / AJUSTE DE ESTOQUE */}
       <ModalEntradaEstoque

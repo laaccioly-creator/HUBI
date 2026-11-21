@@ -1,5 +1,7 @@
 ﻿import React from 'react';
 import { X, ExternalLink, KeyRound, ShieldCheck, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 
 interface ModalTutorialMelhorEnvioProps {
   aberto: boolean;
@@ -7,6 +9,8 @@ interface ModalTutorialMelhorEnvioProps {
 }
 
 export const ModalTutorialMelhorEnvio: React.FC<ModalTutorialMelhorEnvioProps> = ({ aberto, onClose }) => {
+  const { isDark } = useTheme();
+  useRegisterOverlay(aberto, onClose, 'modal-tutorial-melhor-envio', 'modal');
   if (!aberto) return null;
 
   return (
@@ -30,9 +34,9 @@ export const ModalTutorialMelhorEnvio: React.FC<ModalTutorialMelhorEnvioProps> =
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-sky-200 hover:text-white hover:bg-white/10 transition-colors"
+            className="hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer bg-white hover:bg-slate-100 text-slate-700 border border-slate-200"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -143,7 +147,11 @@ export const ModalTutorialMelhorEnvio: React.FC<ModalTutorialMelhorEnvioProps> =
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 rounded-xl font-semibold text-white bg-sky-600 hover:bg-sky-500 transition-colors flex items-center gap-2"
+            className={`hubi-btn-neutral px-5 py-2.5 rounded-xl font-semibold transition-colors flex items-center gap-2 cursor-pointer ${
+              isDark
+                ? 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700'
+                : 'bg-slate-100 hover:bg-slate-200 text-black border border-slate-300'
+            }`}
           >
             Entendido, fechar tutorial
           </button>

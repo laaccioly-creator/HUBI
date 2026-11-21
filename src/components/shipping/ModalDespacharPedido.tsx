@@ -18,6 +18,7 @@ import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
 import { validarRastreioCorreios } from '../../utils/correiosValidator';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 import { ResultadoDisparoHibrido, whatsappWalletService } from '../../services/whatsappWalletService';
 
 export type ModalidadeDespachoManual = 'correios' | 'app_entrega' | 'transportadora' | 'frota_propria';
@@ -264,6 +265,8 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
 }) => {
   const { usuario } = useAuth();
   const { isDark } = useTheme();
+
+  useRegisterOverlay(isOpen, onClose, 'modal-despachar-pedido', 'modal');
 
   // Modalidade selecionada com pré-inicialização inteligente baseada no pedido
   const [modalidade, setModalidade] = useState<ModalidadeDespachoManual>(() =>
@@ -634,7 +637,7 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
               <h3 className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>
                 Despachar Pedido #{pedido.numero_pedido || pedido.id.slice(0, 5)}
               </h3>
-              <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-800'}`}>
                 Selecione o meio de envio e preencha os dados de despacho
               </p>
             </div>
@@ -642,7 +645,7 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className={`p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}
+            className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'}`}
           >
             <X className="w-5 h-5" />
           </button>
@@ -684,7 +687,7 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
                   href={confirmacaoSucesso.manualUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="hubi-btn-neutral w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
+                  className="hubi-btn-cta w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
                 >
                   <Share2 className="w-4 h-4" />
                   <span>Notificar Envio ao Cliente</span>
@@ -714,7 +717,7 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
           <div className={`p-3.5 rounded-2xl space-y-1 ${
             isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
           }`}>
-            <span className={`text-[10px] font-semibold uppercase tracking-wider block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            <span className={`text-[10px] font-semibold uppercase tracking-wider block ${isDark ? 'text-slate-400' : 'text-slate-800'}`}>
               Entrega:
             </span>
             <p className={`font-black text-xs ${isDark ? 'text-white' : 'text-slate-900'}`}>
@@ -894,7 +897,7 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
                       validacaoCorreios.servicoDetectado !== servicoCorreios &&
                       validacaoCorreios.servicoDetectado !== 'OUTRO' && (
                         <div className="pt-0.5 flex items-center gap-2">
-                          <span className="text-[10px] text-slate-600 dark:text-slate-300">Prefixo identificado como {validacaoCorreios.servicoDetectado}:</span>
+                          <span className="text-[10px] text-slate-800 dark:text-slate-300">Prefixo identificado como {validacaoCorreios.servicoDetectado}:</span>
                           <button
                             type="button"
                             onClick={() => setServicoCorreios(validacaoCorreios.servicoDetectado as 'PAC' | 'SEDEX')}
@@ -1102,7 +1105,7 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
             type="button"
             onClick={onClose}
             disabled={despachando}
-            className={`px-4 py-2.5 rounded-xl text-xs transition cursor-pointer ${
+            className={`hubi-btn-neutral px-4 py-2.5 rounded-xl text-xs transition cursor-pointer ${
               isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border border-slate-700 font-bold' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
             }`}
           >
@@ -1115,9 +1118,7 @@ export const ModalDespacharPedido: React.FC<ModalDespacharPedidoProps> = ({
             disabled={!podeConfirmar}
             className={`px-5 py-2.5 rounded-xl text-xs uppercase tracking-wider flex items-center gap-2 transition ${
               podeConfirmar
-                ? isDark
-                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95'
-                  : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-black font-bold shadow-xs cursor-pointer active:scale-95'
+                ? 'hubi-btn-cta bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-600/20 cursor-pointer active:scale-95'
                 : (isDark ? 'bg-slate-900 text-slate-500 border border-slate-800 font-black cursor-not-allowed opacity-60' : 'bg-slate-200 text-slate-400 border border-slate-300 font-bold cursor-not-allowed opacity-60')
             }`}
           >

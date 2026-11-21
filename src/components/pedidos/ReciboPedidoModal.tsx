@@ -15,6 +15,7 @@ import { filtrarAgendamentosVigentesDoPedido } from '../../services/agendamentoS
 import { detectarServicoPorCodigo } from '../../utils/correiosValidator';
 import { formatarNomeTransportadora } from '../../utils/shippingDisplay';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 import { ResultadoDisparoHibrido, whatsappWalletService } from '../../services/whatsappWalletService';
 
 export interface ReciboPedidoModalProps {
@@ -40,6 +41,8 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
 }) => {
   const { tema } = useTheme();
   const isDark = tema === 'dark';
+
+  useRegisterOverlay(isOpen && Boolean(pedido), onClose, 'recibo-pedido-modal', 'modal');
   const reciboRef = useRef<HTMLDivElement>(null);
   const ultimoPedidoDisparadoRef = useRef<string | null>(null);
   const [resultadoHibrido, setResultadoHibrido] = useState<ResultadoDisparoHibrido | null>(null);
@@ -382,8 +385,8 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className={`p-1.5 rounded-xl transition cursor-pointer ${
-              isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+            className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${
+              isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
             }`}
             title="Fechar"
           >
@@ -410,12 +413,12 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 <Store className="w-8 h-8 text-slate-500 mx-auto mb-1" />
               )}
               <h4 className="font-bold text-sm text-slate-900 uppercase tracking-wider">{loja?.nome_fantasia || 'HUBI PDV'}</h4>
-              <p className="text-[11px] text-slate-600">{enderecoLojaFormatado}</p>
-              <p className="text-[11px] text-slate-600">{loja?.whatsapp || loja?.telefone}</p>
+              <p className="text-[11px] text-slate-800">{enderecoLojaFormatado}</p>
+              <p className="text-[11px] text-slate-800">{loja?.whatsapp || loja?.telefone}</p>
             </div>
 
             {/* Número e Data */}
-            <div className="flex justify-between items-center text-[11px] text-slate-600 border-b border-slate-200 border-dashed pb-2">
+            <div className="flex justify-between items-center text-[11px] text-slate-800 border-b border-slate-200 border-dashed pb-2">
               <span className="font-bold text-slate-900">RECIBO #{pedido.numero_pedido}</span>
               <span>{formatarData(pedido.data_venda || pedido.criado_em || '')}</span>
             </div>
@@ -448,7 +451,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
             <div className="space-y-0.5 border-b border-slate-200 border-dashed pb-2 text-[11px]">
               <span className="text-slate-500 font-semibold">Cliente:</span>
               <p className="font-bold text-slate-900">{pedido.cliente?.nome || 'Cliente Avulso (Balcão)'}</p>
-              {pedido.cliente?.whatsapp && <p className="text-slate-600">{pedido.cliente.whatsapp}</p>}
+              {pedido.cliente?.whatsapp && <p className="text-slate-800">{pedido.cliente.whatsapp}</p>}
             </div>
 
             {/* Forma de Entrega / Local do Serviço & Endereço */}
@@ -488,7 +491,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                   <strong className="text-slate-900 uppercase text-[10px] tracking-wider">ENTREGA DOS PRODUTOS: </strong>
                   <span className="text-slate-800 font-semibold">{dadosRecibo.entregaProdutosDescricao}</span>
                   {dadosRecibo.entregaProdutosEndereco && (
-                    <div className="text-slate-600 mt-0.5">
+                    <div className="text-slate-800 mt-0.5">
                       Destino: {dadosRecibo.entregaProdutosEndereco}
                     </div>
                   )}
@@ -534,7 +537,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                         {nomeItem}{rotuloVar}
                       </span>
                     </div>
-                    <span className="font-medium text-slate-600 w-14 text-right shrink-0">
+                    <span className="font-medium text-slate-800 w-14 text-right shrink-0">
                       {vlUnitario.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                     <span className="font-bold text-slate-900 w-16 text-right shrink-0">
@@ -771,7 +774,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                       <div>
                         <span className="font-semibold text-slate-900 block">{pag.forma}{pag.parcelas ? ` (${pag.parcelas}x)` : ''}:</span>
                         {pag.origemGateway && (
-                          <span className="text-[10px] text-slate-600 block font-medium">Origem: {pag.origemGateway}</span>
+                          <span className="text-[10px] text-slate-800 block font-medium">Origem: {pag.origemGateway}</span>
                         )}
                       </div>
                       <span className="font-bold text-slate-900">{formatarMoeda(pag.valor)}</span>
@@ -830,8 +833,8 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
             )}
 
             {obsLimpa && (
-              <div className="border-t border-slate-200 border-dashed pt-2 text-[10px] text-slate-600">
-                <strong className="text-slate-800">Obs:</strong> {obsLimpa}
+              <div className="border-t border-slate-200 border-dashed pt-2 text-[10px] text-slate-800">
+                <strong className="text-slate-900">Obs:</strong> {obsLimpa}
               </div>
             )}
           </div>
@@ -858,20 +861,28 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
           <button
             type="button"
             onClick={() => onImprimir ? onImprimir(pedidoComAgendamentos || pedido) : PrintService.printReceipt(pedidoComAgendamentos || pedido, loja, '80mm')}
-            className="hubi-btn-neutral flex-1 font-bold px-2 py-2.5 rounded-xl border border-emerald-600 bg-emerald-600 hover:bg-emerald-500 text-white transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs"
+            className={`hubi-btn-neutral flex-1 font-bold px-2 py-2.5 rounded-xl border transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs ${
+              isDark
+                ? 'border-slate-700 bg-[#000000] hover:bg-slate-900 text-white'
+                : 'border-slate-300 bg-slate-100 hover:bg-slate-200 text-black font-semibold'
+            }`}
             title="Imprimir Cupom Térmico 58mm/80mm"
           >
-            <Printer className="w-3.5 h-3.5 shrink-0 text-white" />
+            <Printer className="w-3.5 h-3.5 shrink-0" />
             <span>Térmica</span>
           </button>
 
           <button
             type="button"
             onClick={() => PrintService.printReceipt(pedidoComAgendamentos || pedido, loja, 'a4')}
-            className="hubi-btn-neutral flex-1 font-bold px-2 py-2.5 rounded-xl border border-emerald-600 bg-emerald-600 hover:bg-emerald-500 text-white transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs"
+            className={`hubi-btn-neutral flex-1 font-bold px-2 py-2.5 rounded-xl border transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs ${
+              isDark
+                ? 'border-slate-700 bg-[#000000] hover:bg-slate-900 text-white'
+                : 'border-slate-300 bg-slate-100 hover:bg-slate-200 text-black font-semibold'
+            }`}
             title="Imprimir Folha A4"
           >
-            <Printer className="w-3.5 h-3.5 shrink-0 text-white" />
+            <Printer className="w-3.5 h-3.5 shrink-0" />
             <span>Imprimir A4</span>
           </button>
 
@@ -885,10 +896,14 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 PrintService.printReceipt(pedidoEfetivo, loja, 'a4');
               }
             }}
-            className="hubi-btn-neutral flex-1 font-bold px-2 py-2.5 rounded-xl border border-emerald-600 bg-emerald-600 hover:bg-emerald-500 text-white transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs"
+            className={`hubi-btn-neutral flex-1 font-bold px-2 py-2.5 rounded-xl border transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs ${
+              isDark
+                ? 'border-slate-700 bg-[#000000] hover:bg-slate-900 text-white'
+                : 'border-slate-300 bg-slate-100 hover:bg-slate-200 text-black font-semibold'
+            }`}
             title="Baixar Recibo em PDF"
           >
-            <Download className="w-3.5 h-3.5 shrink-0 text-white" />
+            <Download className="w-3.5 h-3.5 shrink-0" />
             <span>PDF</span>
           </button>
 
@@ -906,10 +921,10 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 PrintService.openWhatsApp(tel, msg);
               }
             }}
-            className="hubi-btn-neutral flex-1 font-bold px-2 py-2.5 rounded-xl border border-emerald-600 bg-emerald-600 hover:bg-emerald-500 text-white transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs"
+            className="hubi-btn-cta flex-1 font-bold px-2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs"
             title="Compartilhar no WhatsApp"
           >
-            <Share2 className="w-3.5 h-3.5 shrink-0 text-white" />
+            <Share2 className="w-3.5 h-3.5 shrink-0" />
             <span>WhatsApp</span>
           </button>
         </div>

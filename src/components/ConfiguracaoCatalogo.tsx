@@ -36,6 +36,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { Loja, ModoExibicaoCatalogo, ComportamentoSemEstoque } from '../types';
 import { ConfiguracaoCatalogoMobile } from './ConfiguracaoCatalogoMobile';
 import { useTheme } from '../contexts/ThemeContext';
+import { useFeedbackModal } from '../contexts/FeedbackContext';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { notificarConfiguracaoSalvaParaOnboarding } from '../services/onboardingSetupService';
 
 const CORES_PALETA = [
@@ -53,6 +55,7 @@ const CORES_PALETA = [
 export const ConfiguracaoCatalogo: React.FC = () => {
   const { loja, usuario, recarregarDadosLoja } = useAuth();
   const { isDark } = useTheme();
+  const { mostrarErro } = useFeedbackModal();
   const navigate = useNavigate();
 
   // Estados do Catálogo
@@ -65,6 +68,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
   const [publicarCatalogo, setPublicarCatalogo] = useState<boolean>(true);
   const [slugCatalogo, setSlugCatalogo] = useState<string>('');
   const [modalEditarSlug, setModalEditarSlug] = useState<boolean>(false);
+  useRegisterOverlay(modalEditarSlug, () => setModalEditarSlug(false), 'modal-editar-slug-catalogo', 'modal');
   const [novoSlug, setNovoSlug] = useState<string>('');
   const [erroSlug, setErroSlug] = useState<string>('');
 
@@ -232,7 +236,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
       notificarConfiguracaoSalvaParaOnboarding('catalogo_online');
     } catch (err) {
       console.error('Erro ao salvar catálogo:', err);
-      alert('Houve um erro ao salvar as configurações do catálogo.');
+      mostrarErro('Houve um erro ao salvar as configurações do catálogo.');
     } finally {
       setSalvando(false);
     }
@@ -437,7 +441,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
               href={catalogoUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="hubi-btn-neutral px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer shrink-0 shadow-md shadow-emerald-500/20 border border-emerald-500"
+              className="hubi-btn-cta px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer shrink-0 shadow-md border border-emerald-500"
             >
               <span>Ver em outra aba</span>
               <ExternalLink className="w-4 h-4" />
@@ -619,14 +623,14 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                     }`}>
                       <img src={bannerUrl} alt="Banner da loja" className="w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
-                        <label className="hubi-btn-neutral px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black cursor-pointer transition border border-emerald-500 shadow-sm">
+                        <label className="hubi-btn-cta px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black cursor-pointer transition border border-emerald-500 shadow-sm">
                           <input type="file" accept="image/*" onChange={handleUploadBanner} className="hidden" />
                           Trocar Imagem
                         </label>
                         <button
                           type="button"
                           onClick={() => setBannerUrl('')}
-                          className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-black transition cursor-pointer"
+                          className="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-black transition cursor-pointer"
                         >
                           Remover
                         </button>
@@ -994,7 +998,11 @@ export const ConfiguracaoCatalogo: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalEditarSlug(false)}
-                className={`p-1 rounded-lg transition ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'}`}
+                className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                }`}
               >
                 <X className="w-5 h-5" />
               </button>

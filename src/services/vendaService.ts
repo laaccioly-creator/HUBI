@@ -193,7 +193,7 @@ export class VendaService {
       return null;
     })();
 
-    // Metadados sanitizados
+    // Metadados sanitizados (apenas flags transitórias não-relacionais; frete segue colunas tipadas e pedido_entregas)
     const metaExistente = (pedidoEmEdicao?.metadados && typeof pedidoEmEdicao.metadados === 'object')
       ? { ...pedidoEmEdicao.metadados }
       : {};
@@ -204,11 +204,11 @@ export class VendaService {
       delete metaExistente.desconto_percentual;
     }
     delete metaExistente.pagamento_previsto;
+    delete metaExistente.transportadora_nome;
+    delete metaExistente.provedor_frete;
+    delete metaExistente.servico_frete_codigo;
+    delete metaExistente.tipo_atendimento;
 
-    metaExistente.transportadora_nome = pedidoEntrega?.transportadora_nome || null;
-    metaExistente.provedor_frete = pedidoEntrega?.provedor || null;
-    metaExistente.servico_frete_codigo = pedidoEntrega?.servico_codigo || null;
-    metaExistente.tipo_atendimento = pedidoEntrega?.tipo_atendimento || (taxaEntrega > 0 ? 'entrega' : 'retirada');
     if (params.infoTaxaVisita?.temServicoExterno) {
       metaExistente.servico_a_domicilio = true;
       metaExistente.taxa_visita_cobrada = params.infoTaxaVisita.taxaVisitaCobrada;
@@ -265,6 +265,7 @@ export class VendaService {
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       })() : null),
       observacoes: observacoes || null,
+      metadados: Object.keys(metaExistente).length > 0 ? metaExistente : null,
       data_venda: pedidoEmEdicao?.data_venda || dataIsoFinal,
       atualizado_por: vendedorIdSanitizado
     };
@@ -321,7 +322,11 @@ export class VendaService {
       pedidoGravado = registroAtualizado;
 
       // Limpa itens antigos para reinserção consistente
-      await supabase.from('itens_pedido').delete().eq('pedido_id', pedidoEmEdicao.id);
+      await supabase
+        .from('itens_pedido')
+        .delete()
+        .eq('pedido_id', pedidoEmEdicao.id)
+        .eq('loja_id', lojaId);
     } else {
       // Nova Venda de Balcão: Insere registro limpo com nova sequence de pedido
       const { data: novoPed, error: erroPedido } = await supabase
@@ -346,13 +351,15 @@ export class VendaService {
             .from('cupons')
             .select('usos_count')
             .eq('id', params.cupomId)
+            .eq('loja_id', lojaId)
             .maybeSingle();
 
           if (cupomAtual) {
             await supabase
               .from('cupons')
               .update({ usos_count: (cupomAtual.usos_count || 0) + 1 })
-              .eq('id', params.cupomId);
+              .eq('id', params.cupomId)
+              .eq('loja_id', lojaId);
           }
         } catch (err) {
           console.warn('[VendaService] Erro ao incrementar usos_count do cupom:', err);
@@ -366,10 +373,11 @@ export class VendaService {
     const itensFormatados = itens.map(item => {
       const tipoUnidade = String(item.tipo_unidade || item.produto?.tipo_unidade || item.produto?.unidade_medida || item.unidade_medida || 'un').toLowerCase();
       const ehKg = tipoUnidade === 'kg';
+      const produtoIdSanitizado = SyncService.isUuidValido(item.produto?.id) ? item.produto.id : null;
       return {
         loja_id: lojaId,
         pedido_id: pedidoId,
-        produto_id: item.produto.id,
+        produto_id: produtoIdSanitizado,
         tipo_item: item.produto?.tipo_item || (item as { tipo_item?: string }).tipo_item || 'produto',
         variacao_id: (item.variacao_id && SyncService.isUuidValido(item.variacao_id))
           ? item.variacao_id
@@ -448,9 +456,17 @@ export class VendaService {
     }
 
     // 3. Gravar pagamentos na tabela public.pagamentos_pedido
-    await supabase.from('pagamentos_pedido').delete().eq('pedido_id', pedidoId);
+    await supabase
+      .from('pagamentos_pedido')
+      .delete()
+      .eq('pedido_id', pedidoId)
+      .eq('loja_id', lojaId);
     try {
-      await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedidoId);
+      await supabase
+        .from('pedidos_pagamentos_previstos')
+        .delete()
+        .eq('pedido_id', pedidoId)
+        .eq('loja_id', lojaId);
     } catch {}
 
     const pagamentosFormatados = (await Promise.all(linhasAtivas.map(async (l) => {
@@ -539,7 +555,9 @@ export class VendaService {
     };
 
     const temProdutoFisicoPedido = itens.some((it) => it.produto?.tipo_item !== 'servico');
-    if (temProdutoFisicoPedido && !levarProdutoNoAtendimento) {
+    const temServicoPedido = itens.some((it) => it.produto?.tipo_item === 'servico');
+    const isPedidoHibrido = temProdutoFisicoPedido && temServicoPedido;
+    if (temProdutoFisicoPedido && (!isPedidoHibrido || !levarProdutoNoAtendimento)) {
       const taskEntrega = (async () => {
         try {
           entregaGravada = await ShippingOrchestrator.salvarPedidoEntrega(pedidoId, entregaPayload);

@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { Categoria, Produto } from '../types';
 import { ModalConfirmacaoExclusao } from './ModalConfirmacaoExclusao';
 import {
@@ -79,6 +81,7 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
   produtos
 }) => {
   const { loja } = useAuth();
+  const { isDark } = useTheme();
   const [novoNome, setNovoNome] = useState('');
   const [inputSubcategoria, setInputSubcategoria] = useState('');
   const [subcategoriasForm, setSubcategoriasForm] = useState<SubcategoriaChip[]>([]);
@@ -192,6 +195,8 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
     onCategoriasAtualizadas();
     onClose();
   };
+
+  useRegisterOverlay(isOpen, handleFecharModal, 'modal-gerenciar-categorias', 'modal');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -460,7 +465,9 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
           <button
             type="button"
             onClick={handleFecharModal}
-            className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer"
+            className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${
+              isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+            }`}
             title="Fechar"
           >
             <X className="w-5 h-5" />
@@ -660,7 +667,7 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
                           <span className="font-extrabold text-sm text-black dark:text-white line-clamp-2 break-words" title={cat.nome}>
                             {cat.nome}
                           </span>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
                             {totalPai} {totalPai === 1 ? 'item' : 'itens'}
                           </span>
                         </div>

@@ -8,6 +8,7 @@ import { ModalAtualizarEnderecoCliente } from '../shipping/ModalAtualizarEnderec
 import { ShippingOrchestrator } from '../../services/shippingOrchestrator';
 import { supabase } from '../../lib/supabase';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 import { isUuidValido } from '../../services/syncService';
 
 export interface ModalDefinirEnvioProps {
@@ -37,6 +38,8 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
 }) => {
   const { tema } = useTheme();
   const isDark = tema === 'dark';
+
+  useRegisterOverlay(isOpen, onClose, 'modal-definir-envio', 'modal');
   const [selecaoPendente, setSelecaoPendente] = useState<ShippingSelectionResult | null>(null);
   const [salvando, setSalvando] = useState<boolean>(false);
   const [modalEnderecoAberto, setModalEnderecoAberto] = useState<boolean>(false);
@@ -182,9 +185,9 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
               setSelecaoPendente(null);
               onClose();
             }}
-            className={`p-1.5 rounded-xl transition cursor-pointer ${
+            className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer ${
               isDark
-                ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900'
+                ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700'
                 : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
             }`}
           >
@@ -263,7 +266,7 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
                 setSelecaoPendente(null);
                 onClose();
               }}
-              className={`px-4 py-2.5 rounded-xl text-xs transition cursor-pointer shadow-xs ${
+              className={`hubi-btn-neutral px-4 py-2.5 rounded-xl text-xs transition cursor-pointer shadow-xs ${
                 isDark
                   ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200 font-bold'
                   : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
@@ -276,11 +279,7 @@ export const ModalDefinirEnvio: React.FC<ModalDefinirEnvioProps> = ({
               type="button"
               disabled={!selecaoPendente || salvando}
               onClick={handleConfirmar}
-              className={`px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${
-                isDark
-                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
-                  : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-black shadow-sm'
-              }`}
+              className="hubi-btn-cta px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {salvando ? (
                 <>

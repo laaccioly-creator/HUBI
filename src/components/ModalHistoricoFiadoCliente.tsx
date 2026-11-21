@@ -25,6 +25,8 @@ import { caixaService } from '../services/caixaService';
 import { SyncService } from '../services/syncService';
 import { obterDataOperacaoISO } from '../utils/dataOperacao';
 import { obterInfoVencimentoFiado } from '../utils/statusPedidoUtils';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
+import { normalizarTelefoneComDDI } from '../utils/formatters';
 
 interface ModalHistoricoFiadoClienteProps {
   isOpen: boolean;
@@ -58,6 +60,8 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
   const [cliente, setCliente] = useState<Cliente | null>(clienteProp);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [filtroStatus, setFiltroStatus] = useState<'todos' | 'vencidos' | 'a_vencer'>(filtroInicial || 'todos');
+
+  useRegisterOverlay(isOpen, onClose, 'modal-historico-fiado-cliente', 'modal');
   const [carregando, setCarregando] = useState<boolean>(false);
   const [itensExpandidos, setItensExpandidos] = useState<Record<string, boolean>>({});
   const [formasPagamento, setFormasPagamento] = useState<FormaPagamento[]>([]);
@@ -93,6 +97,7 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
         .from('clientes')
         .select('*')
         .eq('id', cId)
+        .eq('loja_id', loja.id)
         .single();
 
       if (cliData) {
@@ -370,7 +375,7 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
           fiado_quitado: quitado,
           status_pagamento: novoStatusPag,
           atualizado_em: dataIso
-        }).eq('id', ped.id);
+        }).eq('id', ped.id).eq('loja_id', loja.id);
 
         if (quitado && loja?.id) {
           try {
@@ -406,7 +411,7 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
               fiado_quitado: quitado,
               status_pagamento: quitado ? 'pago' : 'parcialmente_pago',
               atualizado_em: dataIso
-            }).eq('id', ped.id);
+            }).eq('id', ped.id).eq('loja_id', loja.id);
 
             if (quitado && loja?.id) {
               try {
@@ -439,7 +444,8 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
           limite_credito: novoLimiteCredito,
           saldo_devedor_fiado: novoSaldoDevedorFiado
         })
-        .eq('id', cliente.id);
+        .eq('id', cliente.id)
+        .eq('loja_id', loja.id);
 
       if (erroCli) throw erroCli;
 
@@ -495,8 +501,8 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
       const phone = cliente.whatsapp || cliente.telefone;
       if (phone) {
         const msg = `🧾 *COMPROVANTE DE PAGAMENTO DE FIADO - ${loja.nome_fantasia}*\n\nOlá, *${cliente.nome}*!\nConfirmamos o recebimento de *R$ ${valorRecebido.toFixed(2)}* referente ao pagamento de fiado.\n\n💳 *Limite de Crédito Disponível:* R$ ${novoLimiteCredito.toFixed(2)}\n💰 *Saldo Devedor Restante:* R$ ${novoSaldoDevedorFiado.toFixed(2)}\n\nAgradecemos pela pontualidade! ✨`;
-        const phoneFormatado = phone.replace(/\D/g, '');
-        window.open(`https://api.whatsapp.com/send?phone=55${phoneFormatado}&text=${encodeURIComponent(msg)}`, '_blank');
+        const phoneNorm = normalizarTelefoneComDDI(phone);
+        window.open(`https://api.whatsapp.com/send?phone=${phoneNorm}&text=${encodeURIComponent(msg)}`, '_blank');
       }
 
       setModalReceberAberto(false);
@@ -544,7 +550,11 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
           <button
             type="button"
             onClick={onClose}
-            className="hubi-btn-close-x p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-white transition cursor-pointer"
+            className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${
+              isDark
+                ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+            }`}
             title="Fechar"
           >
             <X className="w-5 h-5" />
@@ -584,7 +594,7 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
               <button
                 type="button"
                 onClick={handleAbrirReceberTotalCliente}
-                className="hubi-btn-neutral w-full mt-2 py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
+                className="hubi-btn-cta w-full mt-2 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
               >
                 <DollarSign className="w-3.5 h-3.5" />
                 <span>Receber Total</span>
@@ -726,7 +736,7 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
                     <button
                       type="button"
                       onClick={() => handleAbrirReceberPedido(pedido)}
-                      className="hubi-btn-neutral py-2 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 transition cursor-pointer active:scale-95"
+                      className="hubi-btn-cta py-2 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 transition cursor-pointer active:scale-95"
                     >
                       <DollarSign className="w-4 h-4" />
                       <span>Receber</span>
@@ -849,7 +859,11 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
               <button
                 type="button"
                 onClick={() => setModalReceberAberto(false)}
-                className="hubi-btn-close-x p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-white transition cursor-pointer"
+                className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                }`}
                 title="Fechar"
               >
                 <X className="w-5 h-5" />

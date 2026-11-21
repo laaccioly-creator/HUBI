@@ -41,9 +41,9 @@ import {
   ComportamentoSemEstoque,
   FormaEntrega
 } from '../types';
-import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { MobileHeader } from './layout/MobileHeader';
 import { useTheme } from '../contexts/ThemeContext';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { notificarConfiguracaoSalvaParaOnboarding } from '../services/onboardingSetupService';
 
 type SubTelaCatalogoMobile =
@@ -101,7 +101,6 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
 
   // Pilha de Navegação Mobile
   const [subTela, setSubTela] = useState<SubTelaCatalogoMobile>('hub');
-  const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
   const [salvando, setSalvando] = useState<boolean>(false);
   const [mensagemToast, setMensagemToast] = useState<{ texto: string; tipo: 'sucesso' | 'erro' } | null>(null);
 
@@ -109,6 +108,11 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
   const [modalEditarSlug, setModalEditarSlug] = useState<boolean>(false);
   const [modalCompartilharAberto, setModalCompartilharAberto] = useState<boolean>(false);
   const [modalOpcaoEntregaAberto, setModalOpcaoEntregaAberto] = useState<boolean>(false);
+
+  useRegisterOverlay(subTela !== 'hub', () => setSubTela('hub'), 'subtela-catalogo-mobile');
+  useRegisterOverlay(modalEditarSlug, () => setModalEditarSlug(false), 'modal-editar-slug-catalogo-mobile', 'modal');
+  useRegisterOverlay(modalCompartilharAberto, () => setModalCompartilharAberto(false), 'modal-compartilhar-catalogo-mobile', 'modal');
+  useRegisterOverlay(modalOpcaoEntregaAberto, () => setModalOpcaoEntregaAberto(false), 'modal-opcao-entrega-catalogo-mobile', 'modal');
 
   // -------------------------------------------------------------------------
   // ESTADOS DO CATÁLOGO (SINCRONIZADOS COM BANCO)
@@ -530,8 +534,9 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
   };
 
   const removerOpcaoEntrega = async (id: string) => {
+    if (!loja?.id) return;
     try {
-      await supabase.from('formas_entrega').delete().eq('id', id);
+      await supabase.from('formas_entrega').delete().eq('id', id).eq('loja_id', loja.id);
       setOpcoesEntrega(prev => prev.filter(item => item.id !== id));
       mostrarToast('Opção removida', 'sucesso');
     } catch {
@@ -727,7 +732,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setUrlLogo('')}
-                    className="absolute -bottom-3 left-1/2 -translate-x-1/2 p-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-full shadow-md transition cursor-pointer"
+                    className="absolute -bottom-3 left-1/2 -translate-x-1/2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-md transition cursor-pointer"
                     title="Remover Logo"
                   >
                     <X className="w-4 h-4" />
@@ -1285,7 +1290,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
 
           <div className={rodapeFixoClass}>
             <div className="space-y-2">
-              <label className="hubi-btn-neutral w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-sm font-black shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 border border-emerald-500 cursor-pointer transition">
+              <label className="hubi-btn-cta w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-black shadow-md flex items-center justify-center gap-2 border border-emerald-500 cursor-pointer transition">
                 <Upload className="w-4 h-4" />
                 <span>{uploadingBanner ? 'Enviando banner...' : 'Fazer upload do banner'}</span>
                 <input type="file" accept="image/*" onChange={handleUploadBanner} className="hidden" />
@@ -1562,7 +1567,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
             </div>
             <button
               type="button"
-              onClick={() => alert('Informe como suas entregas são feitas e adicione taxas por região ou fixas.')}
+              onClick={() => mostrarToast('Informe como suas entregas são feitas e adicione taxas por região ou fixas.', 'sucesso')}
               className={`p-2 rounded-xl transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'}`}
             >
               <HelpCircle className="w-5 h-5" />
@@ -2695,7 +2700,11 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalCompartilharAberto(false)}
-                className={`p-1 rounded-lg transition ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-500 hover:text-black hover:bg-slate-100'}`}
+                className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                }`}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -2718,7 +2727,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => copiarParaTransferencia(catalogoUrl, 'Link do Catálogo')}
-                  className="hubi-btn-neutral px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[11px] shrink-0 border border-emerald-500 transition"
+                  className="hubi-btn-cta px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[11px] shrink-0 border border-emerald-500 transition cursor-pointer"
                 >
                   Copiar
                 </button>
@@ -2730,7 +2739,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
               href={`https://wa.me/?text=${encodeURIComponent(`Confira o nosso catálogo online de produtos: ${catalogoUrl}`)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="hubi-btn-neutral w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20 border border-emerald-500 transition"
+              className="hubi-btn-cta w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center justify-center gap-2 shadow-md border border-emerald-500 transition"
             >
               <MessageCircle className="w-4 h-4" />
               <span>Enviar pelo WhatsApp</span>
@@ -2752,7 +2761,11 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalOpcaoEntregaAberto(false)}
-                className={`p-1 rounded-lg transition ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-500 hover:text-black hover:bg-slate-100'}`}
+                className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                }`}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -2822,14 +2835,6 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* ===================================================================== */}
-      {/* DRAWER MENU LATERAL MOBILE (☰)                                       */}
-      {/* DRAWER MENU UNIFICADO MOBILE */}
-      <MobileMenuDrawer
-        aberto={drawerMenuAberto}
-        onFechar={() => setDrawerMenuAberto(false)}
-      />
     </div>
   );
 };

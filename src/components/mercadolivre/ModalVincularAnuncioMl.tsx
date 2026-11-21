@@ -30,6 +30,8 @@ import {
   traduzirErroMercadoLivre
 } from '../../utils/gdmMercadoLivreMapper';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 
 function construirFichaProdutoMl(produto: Produto, variacao: VariacaoProduto | null): FichaProdutoMlHubi {
   return {
@@ -98,6 +100,8 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
   onSucesso,
 }) => {
   const { mostrarErro, mostrarSucesso, mostrarAviso } = useFeedbackModal();
+  const { isDark } = useTheme();
+  useRegisterOverlay(aberto, onFechar, 'modal-vincular-anuncio-ml', 'modal');
   const [abaAtiva, setAbaAtiva] = useState<'vincular' | 'publicar'>('vincular');
   const [salvando, setSalvando] = useState<boolean>(false);
 
@@ -477,7 +481,7 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
               <h3 className="font-black text-lg leading-tight text-slate-900 dark:text-white">
                 Integração Mercado Livre
               </h3>
-              <p className="text-xs font-bold text-slate-600 dark:text-slate-300 truncate max-w-[280px] sm:max-w-md mt-0.5">
+              <p className="text-xs font-bold text-slate-800 dark:text-slate-300 truncate max-w-[280px] sm:max-w-md mt-0.5">
                 {produto.nome}
               </p>
             </div>
@@ -487,7 +491,9 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
             onClick={onFechar}
             aria-label="Fechar"
             title="Fechar"
-            className="p-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-zinc-900 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 transition cursor-pointer"
+            className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${
+              isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+            }`}
           >
             <X className="w-5 h-5" />
           </button>
@@ -585,7 +591,7 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
                 type="button"
                 onClick={onFechar}
                 disabled={salvando}
-                className="px-4 py-2.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-sm font-bold text-slate-800 dark:text-slate-100 transition cursor-pointer"
+                className="hubi-btn-neutral px-4 py-2.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-sm font-bold text-slate-900 dark:text-slate-100 transition cursor-pointer"
               >
                 Cancelar
               </button>
@@ -970,7 +976,7 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
                 type="button"
                 onClick={onFechar}
                 disabled={salvando}
-                className="px-4 py-2.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-sm font-bold text-slate-800 dark:text-slate-100 transition cursor-pointer"
+                className="hubi-btn-neutral px-4 py-2.5 rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-sm font-bold text-slate-900 dark:text-slate-100 transition cursor-pointer"
               >
                 Cancelar
               </button>

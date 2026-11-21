@@ -72,7 +72,7 @@ import {
 } from '../utils/reciboServicoHelper';
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { whatsappWalletService } from '../services/whatsappWalletService';
-import { extrairObservacaoLimpa, formatarMoeda } from '../utils/formatters';
+import { extrairObservacaoLimpa, formatarMoeda, normalizarTelefoneComDDI } from '../utils/formatters';
 import { validarRastreioCorreios, detectarServicoPorCodigo } from '../utils/correiosValidator';
 import { formatarNomeTransportadora } from '../utils/shippingDisplay';
 import { audioService } from '../services/audioService';
@@ -831,7 +831,7 @@ export const PedidosLista: React.FC = () => {
 
 
   const handleSalvarObservacao = async () => {
-    if (!pedidoSelecionado || pedidoSelecionado.status === 'cancelado') return;
+    if (!pedidoSelecionado || !loja?.id || pedidoSelecionado.status === 'cancelado') return;
     const novoTexto = observacaoTexto.trim() || null;
     if (novoTexto === (pedidoSelecionado.observacoes || null)) return;
 
@@ -842,7 +842,8 @@ export const PedidosLista: React.FC = () => {
           observacoes: novoTexto,
           atualizado_em: new Date().toISOString()
         })
-        .eq('id', pedidoSelecionado.id);
+        .eq('id', pedidoSelecionado.id)
+        .eq('loja_id', loja.id);
 
       if (error) throw error;
 
@@ -1183,12 +1184,13 @@ export const PedidosLista: React.FC = () => {
           return temFiado && !p.fiado_quitado && obterInfoVencimentoFiado(p).estaVencido;
         });
 
-        if (pedidosVencidosParaAtualizar.length > 0) {
+        if (pedidosVencidosParaAtualizar.length > 0 && loja?.id) {
           const ids = pedidosVencidosParaAtualizar.map(p => p.id);
           supabase
             .from('pedidos')
             .update({ status: 'vencido', atualizado_em: new Date().toISOString() })
             .in('id', ids)
+            .eq('loja_id', loja.id)
             .then(() => {});
           
           // Refletir imediatamente no estado em memória
@@ -1219,12 +1221,13 @@ export const PedidosLista: React.FC = () => {
           return !isRetirada;
         });
 
-        if (pedidosEntregaParaAguardando.length > 0) {
+        if (pedidosEntregaParaAguardando.length > 0 && loja?.id) {
           const idsEntrega = pedidosEntregaParaAguardando.map(p => p.id);
           supabase
             .from('pedidos')
             .update({ status: 'aguardando_envio', atualizado_em: new Date().toISOString() })
             .in('id', idsEntrega)
+            .eq('loja_id', loja.id)
             .then(() => {});
 
           pedidosNormalizados.forEach((p: any) => {
@@ -1502,7 +1505,8 @@ export const PedidosLista: React.FC = () => {
       const { error } = await supabase
         .from('pedidos')
         .update(updatePayload)
-        .eq('id', pedidoId);
+        .eq('id', pedidoId)
+        .eq('loja_id', loja?.id || pedAlvo.loja_id);
 
       if (error) throw error;
 
@@ -1579,12 +1583,14 @@ export const PedidosLista: React.FC = () => {
           .filter((p: any) => (p.eh_pagamento_fiado || p.forma_pagamento?.tipo === 'fiado') && !p.fiado_quitado)
           .reduce((sum: number, p: any) => sum + Number(p.valor || 0), 0);
 
-        if (fiadoDoPedido > 0) {
+        if (fiadoDoPedido > 0 && (loja?.id || pedAlvo.loja_id)) {
+          const lojaTenantId = loja?.id || pedAlvo.loja_id;
           try {
             const { data: cliDb } = await supabase
               .from('clientes')
               .select('saldo_devedor_fiado, limite_credito')
               .eq('id', pedAlvo.cliente_id)
+              .eq('loja_id', lojaTenantId)
               .single();
 
             if (cliDb) {
@@ -1593,7 +1599,7 @@ export const PedidosLista: React.FC = () => {
               await supabase.from('clientes').update({
                 saldo_devedor_fiado: novoSaldo,
                 limite_credito: novoLimite
-              }).eq('id', pedAlvo.cliente_id);
+              }).eq('id', pedAlvo.cliente_id).eq('loja_id', lojaTenantId);
 
               setClientes((prev) =>
                 prev.map((c) =>
@@ -2361,7 +2367,7 @@ export const PedidosLista: React.FC = () => {
   };
 
   const handleAlterarClientePedido = async (novoClienteId: string) => {
-    if (!pedidoSelecionado || pedidoSelecionado.status === 'cancelado') return;
+    if (!pedidoSelecionado || !loja?.id || pedidoSelecionado.status === 'cancelado') return;
     try {
       const clienteEncontrado = clientes.find((c) => c.id === novoClienteId) || null;
       const clienteIdFinal = novoClienteId === 'avulso' ? null : novoClienteId;
@@ -2372,7 +2378,8 @@ export const PedidosLista: React.FC = () => {
           cliente_id: clienteIdFinal,
           atualizado_em: new Date().toISOString()
         })
-        .eq('id', pedidoSelecionado.id);
+        .eq('id', pedidoSelecionado.id)
+        .eq('loja_id', loja.id);
 
       if (error) throw error;
 
@@ -2426,7 +2433,11 @@ export const PedidosLista: React.FC = () => {
       ) || listaFPs[0];
 
       if (fpEncontrada?.id) {
-        await supabase.from('pagamentos_pedido').delete().eq('pedido_id', pedidoSelecionado.id);
+        await supabase
+          .from('pagamentos_pedido')
+          .delete()
+          .eq('pedido_id', pedidoSelecionado.id)
+          .eq('loja_id', loja.id);
         const { error: erroPag } = await supabase.from('pagamentos_pedido').insert([
           {
             loja_id: loja.id,
@@ -2446,7 +2457,8 @@ export const PedidosLista: React.FC = () => {
       await supabase
         .from('pedidos')
         .update({ atualizado_em: dataIso })
-        .eq('id', pedidoSelecionado.id);
+        .eq('id', pedidoSelecionado.id)
+        .eq('loja_id', loja.id);
 
       const { data: pedidoAtualizado } = await supabase
         .from('pedidos')
@@ -2459,6 +2471,7 @@ export const PedidosLista: React.FC = () => {
           pagamentos:pagamentos_pedido(*, forma_pagamento:formas_pagamento(*))
         `)
         .eq('id', pedidoSelecionado.id)
+        .eq('loja_id', loja.id)
         .single();
 
       if (pedidoAtualizado) {
@@ -2502,7 +2515,11 @@ export const PedidosLista: React.FC = () => {
 
       if (formaId) {
         const dataIso = obterDataOperacaoISO();
-        await supabase.from('pagamentos_pedido').delete().eq('pedido_id', pedidoSelecionado.id);
+        await supabase
+          .from('pagamentos_pedido')
+          .delete()
+          .eq('pedido_id', pedidoSelecionado.id)
+          .eq('loja_id', loja.id);
         await supabase.from('pagamentos_pedido').insert({
           pedido_id: pedidoSelecionado.id,
           loja_id: loja.id,
@@ -2526,7 +2543,8 @@ export const PedidosLista: React.FC = () => {
           atualizado_por: usuario?.id || null,
           atualizado_em: dataIsoConclusao
         })
-        .eq('id', pedidoSelecionado.id);
+        .eq('id', pedidoSelecionado.id)
+        .eq('loja_id', loja.id);
 
       if (error) throw error;
 
@@ -2561,7 +2579,11 @@ export const PedidosLista: React.FC = () => {
 
       // Limpar pagamentos previstos vinculados agora que o pedido está concluído
       try {
-        await supabase.from('pedidos_pagamentos_previstos').delete().eq('pedido_id', pedidoSelecionado.id);
+        await supabase
+          .from('pedidos_pagamentos_previstos')
+          .delete()
+          .eq('pedido_id', pedidoSelecionado.id)
+          .eq('loja_id', loja.id);
       } catch (ePrev) {}
 
       setGavetaConcluirVendaAberta(false);
@@ -2598,7 +2620,7 @@ export const PedidosLista: React.FC = () => {
   };
 
   const handleSalvarDesconto = async () => {
-    if (!pedidoSelecionado || pedidoSelecionado.status === 'cancelado') return;
+    if (!pedidoSelecionado || !loja?.id || pedidoSelecionado.status === 'cancelado') return;
     const descontoNum = parseFloat(novoDescontoValor.replace(',', '.')) || 0;
     const subtotal = Number(pedidoSelecionado.subtotal || pedidoSelecionado.valor_total || 0);
     const novoTotal = Math.max(0, subtotal - descontoNum);
@@ -2611,7 +2633,8 @@ export const PedidosLista: React.FC = () => {
           valor_total: novoTotal,
           atualizado_em: new Date().toISOString()
         })
-        .eq('id', pedidoSelecionado.id);
+        .eq('id', pedidoSelecionado.id)
+        .eq('loja_id', loja.id);
 
       if (error) throw error;
 
@@ -2638,9 +2661,9 @@ export const PedidosLista: React.FC = () => {
     const link = `${origin}/order-tracking/${pedido.numero_pedido || pedido.id}`;
     const texto = `Olá! Acompanhe o andamento do seu pedido #${pedido.numero_pedido} na ${loja?.nome_fantasia || 'nossa loja'} em tempo real pelo link:\n${link}`;
     const tel = pedido.cliente?.whatsapp || pedido.cliente?.telefone || '';
-    const cleanTel = tel.replace(/\D/g, '');
+    const cleanTel = normalizarTelefoneComDDI(tel);
     const url = cleanTel
-      ? `https://wa.me/55${cleanTel}?text=${encodeURIComponent(texto)}`
+      ? `https://wa.me/${cleanTel}?text=${encodeURIComponent(texto)}`
       : `https://wa.me/?text=${encodeURIComponent(texto)}`;
     window.open(url, '_blank');
   };
@@ -2653,6 +2676,7 @@ export const PedidosLista: React.FC = () => {
   };
 
   const handleSalvarLinkRastreio = async (pedidoId: string) => {
+    if (!loja?.id) return;
     if (!linkRastreioInput.trim()) {
       mostrarAviso('Por favor, informe uma URL válida.');
       return;
@@ -2671,7 +2695,8 @@ export const PedidosLista: React.FC = () => {
             link_rastreio: urlFinal,
             metadados: meta
           })
-          .eq('id', pedidoId),
+          .eq('id', pedidoId)
+          .eq('loja_id', loja.id),
         supabase
           .from('pedido_entregas')
           .update({
@@ -3050,11 +3075,11 @@ export const PedidosLista: React.FC = () => {
           pedidoSelecionadoInicial={pedidoSelecionado}
           onVoltarOrigem={handleVoltarListaPedidos}
           onAlterarStatus={atualizarStatus}
-          onCancelarPedido={(ped) => atualizarStatus(ped.id, 'cancelado')}
+          onCancelarPedido={(ped, motivo) => atualizarStatus(ped.id, 'cancelado', motivo)}
           onAbrirReceberPagamento={(ped) => {
             setPedidoSelecionado(ped);
             setPedidoReceberModal(ped);
-            setConcluirAposReceber(true);
+            setConcluirAposReceber(false);
           }}
           onAbrirReceberFiado={(ped) => {
             setPedidoSelecionado(ped);
@@ -3064,6 +3089,12 @@ export const PedidosLista: React.FC = () => {
           onClienteAtualizado={() => carregarPedidos()}
           onRecarregar={carregarPedidos}
           onDespacharPedido={handleDespacharPedido}
+          onImprimirEtiquetaMl={handleImprimirEtiquetaMl}
+          imprimindoEtiquetaMlId={imprimindoEtiquetaMlId}
+          onAbrirNovoCliente={() => {
+            setClienteParaEditar(null);
+            setModalNovoClienteAberto(true);
+          }}
         />
       </div>
 
@@ -3321,9 +3352,7 @@ export const PedidosLista: React.FC = () => {
 
               {/* Card Logística & Envio (Desktop) */}
               {(() => {
-                const { prov, provNome, pe, rawPe } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
-
-                console.log('DEBUG PEDIDO ENTREGA:', { id: pedidoSelecionado.id, pe: rawPe, prov });
+                const { prov, provNome, pe } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
 
                 const temDadosEntrega = Boolean(pe || pedidoSelecionado.endereco_entrega || pedidoSelecionado.entregador_nome || Number(pedidoSelecionado.valor_frete || 0) > 0);
                 if (!temDadosEntrega) return null;
@@ -5123,7 +5152,7 @@ export const PedidosLista: React.FC = () => {
                   setModalCancelarPedidoAberto(false);
                   setMotivoCancelamentoPedido('');
                 }}
-                className={`p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}
+                className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -5135,7 +5164,7 @@ export const PedidosLista: React.FC = () => {
 
             <div className="text-center space-y-1">
               <h3 className={`text-lg font-black ${isDark ? 'text-slate-100' : 'text-black'}`}>Cancelar pedido?</h3>
-              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600 font-medium'}`}>
+              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-900 font-medium'}`}>
                 Esta ação cancelará o pedido de <strong className={isDark ? 'text-slate-200' : 'text-black font-bold'}>{pedidoSelecionado.cliente?.nome || 'Cliente Balcão'}</strong>.
               </p>
             </div>
@@ -5174,7 +5203,7 @@ export const PedidosLista: React.FC = () => {
                   setMotivoCancelamentoPedido('');
                 }}
                 disabled={cancelandoPedido}
-                className={`px-5 py-2.5 rounded-xl font-semibold text-xs transition cursor-pointer ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black'}`}
+                className={`hubi-btn-neutral px-5 py-2.5 rounded-xl font-semibold text-xs transition cursor-pointer ${isDark ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black'}`}
               >
                 Voltar
               </button>
@@ -5183,7 +5212,7 @@ export const PedidosLista: React.FC = () => {
                 type="button"
                 disabled={!motivoCancelamentoPedido.trim() || cancelandoPedido}
                 onClick={handleConfirmarCancelarPedido}
-                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs transition shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
               >
                 {cancelandoPedido ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
                 <span>{cancelandoPedido ? 'Cancelando...' : 'Confirmar Cancelamento'}</span>
@@ -5204,7 +5233,7 @@ export const PedidosLista: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setGavetaConcluirVendaAberta(false)}
-                className={`p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}
+                className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -5545,7 +5574,7 @@ export const PedidosLista: React.FC = () => {
         onClose={() => setPedidoEscolherEnvio(null)}
         onSucesso={async () => {
           await carregarPedidos();
-          if (pedidoEscolherEnvio) {
+          if (pedidoEscolherEnvio?.id && loja?.id) {
             try {
               const peAtualizada = await ShippingOrchestrator.buscarPedidoEntrega(pedidoEscolherEnvio.id);
               if (peAtualizada) {
@@ -5565,6 +5594,7 @@ export const PedidosLista: React.FC = () => {
                   pedido_entregas(*)
                 `)
                 .eq('id', pedidoEscolherEnvio.id)
+                .eq('loja_id', loja.id)
                 .single();
               if (pedAtualizado) {
                 if (pedidoSelecionado?.id === pedidoEscolherEnvio.id) {

@@ -18,7 +18,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
+import { useFeedbackModal } from '../contexts/FeedbackContext';
 import { MobileHeader } from './layout/MobileHeader';
 import { processarPerguntaRubiIA, DadosLojaRubi } from '../services/tutoriaisHubiService';
 import { rubiChatService, MensagemRubi } from '../services/rubiChatService';
@@ -29,6 +29,7 @@ import { falarComGeminiTTS, pararGeminiTTS } from '../services/geminiTtsService'
 export const AssistenteRubi: React.FC = () => {
   const { loja, usuario } = useAuth();
   const permissions = usePermissions();
+  const { confirmar } = useFeedbackModal();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -41,7 +42,6 @@ export const AssistenteRubi: React.FC = () => {
   const [mensagens, setMensagens] = useState<MensagemRubi[]>(() => rubiChatService.obterHistorico());
   const [inputTexto, setInputTexto] = useState<string>('');
   const [pensando, setPensando] = useState<boolean>(false);
-  const [drawerMenuAberto, setDrawerMenuAberto] = useState<boolean>(false);
   const [alturaTeclado, setAlturaTeclado] = useState<number>(0);
   const endRef = useRef<HTMLDivElement>(null);
   const endMobileRef = useRef<HTMLDivElement>(null);
@@ -299,10 +299,16 @@ export const AssistenteRubi: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
-                  if (window.confirm('Deseja iniciar uma nova conversa com a Rubi?')) {
-                    const novo = rubiChatService.limparHistorico();
-                    setMensagens(novo);
-                  }
+                  confirmar({
+                    titulo: 'Nova conversa com a Rubi?',
+                    mensagem: 'Deseja limpar o histórico atual e iniciar uma nova conversa com a Rubi?',
+                    textoConfirmar: 'Nova Conversa',
+                    textoCancelar: 'Cancelar',
+                    onConfirmar: () => {
+                      const novo = rubiChatService.limparHistorico();
+                      setMensagens(novo);
+                    }
+                  });
                 }}
                 className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition cursor-pointer"
                 title="Nova conversa"
@@ -452,12 +458,6 @@ export const AssistenteRubi: React.FC = () => {
             </button>
           </form>
         </div>
-
-        {/* Menu Gaveta Lateral */}
-        <MobileMenuDrawer
-          aberto={drawerMenuAberto}
-          onFechar={() => setDrawerMenuAberto(false)}
-        />
       </div>
 
       {/* 2. VISÃO DESKTOP (100% PRESERVADA NO TEMA ESCURO ORIGINAL) */}
@@ -490,10 +490,16 @@ export const AssistenteRubi: React.FC = () => {
         <button
           type="button"
           onClick={() => {
-            if (window.confirm('Deseja iniciar uma nova conversa com a Rubi?')) {
-              const novo = rubiChatService.limparHistorico();
-              setMensagens(novo);
-            }
+            confirmar({
+              titulo: 'Nova conversa com a Rubi?',
+              mensagem: 'Deseja limpar o histórico atual e iniciar uma nova conversa com a Rubi?',
+              textoConfirmar: 'Nova Conversa',
+              textoCancelar: 'Cancelar',
+              onConfirmar: () => {
+                const novo = rubiChatService.limparHistorico();
+                setMensagens(novo);
+              }
+            });
           }}
           className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-rose-400 transition cursor-pointer text-xs font-bold flex items-center gap-1.5"
           title="Limpar histórico da conversa"

@@ -84,7 +84,7 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
 
           {subtitulo && (
             typeof subtitulo === 'string' ? (
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate leading-tight mt-0.5">
+              <p className="text-[10px] text-slate-700 dark:text-slate-400 truncate leading-tight mt-0.5">
                 {subtitulo}
               </p>
             ) : (

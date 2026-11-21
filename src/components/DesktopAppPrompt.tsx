@@ -7,9 +7,15 @@ import {
   Sparkles,
   Maximize2
 } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 
 export const DesktopAppPrompt: React.FC = () => {
-  const [showPrompt, setShowPrompt] = useState<boolean>(true);
+  const { isDark } = useTheme();
+  const [showPrompt, setShowPrompt] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth >= 768 && !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  });
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isStandalone, setIsStandalone] = useState<boolean>(false);
   const [jaInstalado, setJaInstalado] = useState<boolean>(false);
@@ -79,6 +85,8 @@ export const DesktopAppPrompt: React.FC = () => {
   }, []);
 
   const [modalAjudaAtalho, setModalAjudaAtalho] = useState<boolean>(false);
+
+  useRegisterOverlay(modalAjudaAtalho, () => setModalAjudaAtalho(false), 'desktop-app-prompt-ajuda', 'modal');
 
   const handleAcaoApp = async () => {
     const prompt = deferredPrompt || (window as any).__hubiDeferredPrompt;
@@ -158,7 +166,11 @@ export const DesktopAppPrompt: React.FC = () => {
           <button
             type="button"
             onClick={() => setShowPrompt(false)}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+            className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer ${
+              isDark
+                ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700'
+                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+            }`}
             title="Fechar aviso"
           >
             <X className="w-4 h-4" />
@@ -180,7 +192,11 @@ export const DesktopAppPrompt: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalAjudaAtalho(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                }`}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -220,7 +236,11 @@ export const DesktopAppPrompt: React.FC = () => {
             <button
               type="button"
               onClick={() => setModalAjudaAtalho(false)}
-              className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition cursor-pointer"
+              className={`hubi-btn-neutral w-full py-2.5 rounded-xl text-xs transition cursor-pointer ${
+                isDark
+                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 font-bold'
+                  : 'bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 font-semibold'
+              }`}
             >
               Entendido
             </button>

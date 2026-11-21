@@ -39,7 +39,6 @@ import {
   ResumoSessaoCaixa
 } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
-import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { MobileHeader } from './layout/MobileHeader';
 import { obterDataOperacaoYMD } from '../utils/dataOperacao';
 
@@ -150,19 +149,16 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
 }) => {
   const { isDark } = useTheme();
   const navigate = useNavigate();
-  const [menuDrawerAberto, setMenuDrawerAberto] = useState(false);
 
   const classeBotaoNeutroClaro = isDark
-    ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black'
-    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold';
+    ? 'hubi-btn-neutral bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold'
+    : 'hubi-btn-neutral bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold';
 
   const classeMiniBotaoNeutroClaro = isDark
-    ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold'
-    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold';
+    ? 'hubi-btn-neutral bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold'
+    : 'hubi-btn-neutral bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold';
 
-  const classeBotaoCtaClaro = isDark
-    ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black'
-    : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-black font-bold';
+  const classeBotaoCtaClaro = 'hubi-btn-cta bg-emerald-600 hover:bg-emerald-700 border border-emerald-500 text-white font-bold';
 
   const classeChipAtivoNeutroClaro = isDark
     ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black border border-emerald-500 shadow-xs'
@@ -1376,12 +1372,6 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
           </>
         )}
       </div>
-
-      {/* 6. DRAWER DE NAVEGAÇÃO MOBILE */}
-      <MobileMenuDrawer
-        aberto={menuDrawerAberto}
-        onFechar={() => setMenuDrawerAberto(false)}
-      />
     </div>
   );
 };

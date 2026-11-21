@@ -44,6 +44,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { cashAuditJevService, AuditoriaCaixaJev } from '../services/cashAuditJevService';
 
 import {
@@ -299,6 +300,20 @@ export const FinancasCaixa: React.FC = () => {
   const [historicoCaixas, setHistoricoCaixas] = useState<Caixa[]>([]);
   const [relatorioDados, setRelatorioDados] = useState<any | null>(null);
 
+  useRegisterOverlay(Boolean(modalDetalhesMetrica), () => setModalDetalhesMetrica(null), 'modal-financas-detalhes-metrica', 'modal');
+  useRegisterOverlay(modalDrillDown, () => setModalDrillDown(false), 'modal-financas-drilldown', 'modal');
+  useRegisterOverlay(modalAberturaCaixa, () => setModalAberturaCaixa(false), 'modal-financas-abertura-caixa', 'modal');
+  useRegisterOverlay(modalSuprimento, () => setModalSuprimento(false), 'modal-financas-suprimento', 'modal');
+  useRegisterOverlay(modalSangria, () => setModalSangria(false), 'modal-financas-sangria', 'modal');
+  useRegisterOverlay(modalDespesaRapida, () => setModalDespesaRapida(false), 'modal-financas-despesa-rapida', 'modal');
+  useRegisterOverlay(modalFechamentoCego, () => setModalFechamentoCego(false), 'modal-financas-fechamento-cego', 'modal');
+  useRegisterOverlay(modalRelatorioFechamento, () => setModalRelatorioFechamento(false), 'modal-financas-relatorio-fechamento', 'modal');
+  useRegisterOverlay(modalRelatorioConsolidado, () => setModalRelatorioConsolidado(false), 'modal-financas-relatorio-consolidado', 'modal');
+  useRegisterOverlay(modalRelatorioSangriasDespesas, () => setModalRelatorioSangriasDespesas(false), 'modal-financas-relatorio-sangrias', 'modal');
+  useRegisterOverlay(modalNovaDespesa, () => setModalNovaDespesa(false), 'modal-financas-nova-despesa', 'modal');
+  useRegisterOverlay(modalConfirmarExclusao.aberta, () => setModalConfirmarExclusao({ aberta: false, transacao: null, processando: false }), 'modal-financas-excluir-transacao', 'modal');
+  useRegisterOverlay(modalBaixarConta.aberta, () => setModalBaixarConta(prev => ({ ...prev, aberta: false, transacao: null })), 'modal-financas-baixar-conta', 'modal');
+
   // Carregamento de dados com modelo de Sessões Transacionais em paralelo de alta performance
   const carregarFinanceiro = async () => {
     if (!loja?.id) return;
@@ -495,6 +510,7 @@ export const FinancasCaixa: React.FC = () => {
           .from('transacoes_financeiras')
           .update(updatePayload)
           .eq('id', transacaoEditando.id)
+          .eq('loja_id', loja.id)
           .select('*, fornecedor:fornecedores(*)')
           .single();
 
@@ -573,14 +589,15 @@ export const FinancasCaixa: React.FC = () => {
       return;
     }
     const tr = modalConfirmarExclusao.transacao;
-    if (!tr?.id) return;
+    if (!tr?.id || !loja?.id) return;
 
     try {
       setModalConfirmarExclusao(prev => ({ ...prev, processando: true }));
       const { error } = await supabase
         .from('transacoes_financeiras')
         .delete()
-        .eq('id', tr.id);
+        .eq('id', tr.id)
+        .eq('loja_id', loja.id);
 
       if (error) throw error;
 
@@ -601,7 +618,7 @@ export const FinancasCaixa: React.FC = () => {
       return;
     }
     const tr = modalBaixarConta.transacao;
-    if (!tr?.id) return;
+    if (!tr?.id || !loja?.id) return;
 
     try {
       setModalBaixarConta(prev => ({ ...prev, processando: true }));
@@ -618,6 +635,7 @@ export const FinancasCaixa: React.FC = () => {
           data_pagamento: dataIso
         })
         .eq('id', tr.id)
+        .eq('loja_id', loja.id)
         .select('*, fornecedor:fornecedores(*)')
         .single();
 
@@ -3048,7 +3066,7 @@ export const FinancasCaixa: React.FC = () => {
                   type="button"
                   disabled={modalConfirmarExclusao.processando}
                   onClick={handleExcluirTransacao}
-                  className="flex-1 py-3 bg-rose-600 hover:bg-rose-500 text-white font-black text-xs rounded-xl shadow-xs transition cursor-pointer disabled:opacity-50"
+                  className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl shadow-xs transition cursor-pointer disabled:opacity-50"
                 >
                   {modalConfirmarExclusao.processando ? 'Excluindo...' : 'Sim, Excluir'}
                 </button>
@@ -4515,7 +4533,7 @@ export const FinancasCaixa: React.FC = () => {
                                         setModalDetalhesMetrica(null);
                                         setModalConfirmarExclusao({ aberta: true, transacao: t, processando: false });
                                       }}
-                                      className="p-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white transition cursor-pointer"
+                                      className="p-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white transition cursor-pointer"
                                       title="Excluir Despesa"
                                     >
                                       <Trash2 className="w-3.5 h-3.5" />
@@ -4635,7 +4653,7 @@ export const FinancasCaixa: React.FC = () => {
                                       setModalDetalhesMetrica(null);
                                       setModalConfirmarExclusao({ aberta: true, transacao: t, processando: false });
                                     }}
-                                    className="p-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white transition cursor-pointer"
+                                    className="p-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white transition cursor-pointer"
                                     title="Excluir Conta"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />

@@ -11,6 +11,7 @@ import {
   ClipboardPaste,
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 
 interface ModalComoObterGeminiApiKeyProps {
   isOpen: boolean;
@@ -26,6 +27,8 @@ export const ModalComoObterGeminiApiKey: React.FC<ModalComoObterGeminiApiKeyProp
   const { isDark } = useTheme();
   const [copiadoUrl, setCopiadoUrl] = useState<boolean>(false);
   const [chaveColada, setChaveColada] = useState<string>('');
+
+  useRegisterOverlay(isOpen, onClose, 'modal-como-obter-gemini-api-key', 'modal');
 
   if (!isOpen) return null;
 
@@ -102,14 +105,14 @@ export const ModalComoObterGeminiApiKey: React.FC<ModalComoObterGeminiApiKeyProp
           <button
             type="button"
             onClick={onClose}
-            className={`p-2 rounded-xl transition cursor-pointer ${
+            className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer ${
               isDark
-                ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200'
+                ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700'
+                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
             }`}
             title="Fechar"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -142,10 +145,10 @@ export const ModalComoObterGeminiApiKey: React.FC<ModalComoObterGeminiApiKeyProp
               <button
                 type="button"
                 onClick={handleCopiarUrl}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                className={`hubi-btn-neutral px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-1.5 cursor-pointer ${
                   isDark
-                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-200'
-                    : 'bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-2xs'
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold'
+                    : 'bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 font-semibold shadow-2xs'
                 }`}
               >
                 {copiadoUrl ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
@@ -376,10 +379,10 @@ export const ModalComoObterGeminiApiKey: React.FC<ModalComoObterGeminiApiKeyProp
           <button
             type="button"
             onClick={onClose}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+            className={`hubi-btn-neutral px-4 py-2 rounded-xl text-xs transition cursor-pointer ${
               isDark
-                ? 'bg-slate-800 hover:bg-slate-700 text-slate-200'
-                : 'bg-slate-200 hover:bg-slate-300 text-slate-800'
+                ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold'
+                : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
             }`}
           >
             Entendido / Fechar

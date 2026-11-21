@@ -45,19 +45,25 @@ import {
   Truck,
   ExternalLink,
   Scale,
-  Home
+  Home,
+  Copy,
+  RefreshCw,
+  Loader2,
+  Ban
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { useRegisterOverlay } from '../hooks/useRegisterOverlay';
 import { ShippingOrchestrator } from '../services/shippingOrchestrator';
 import { Pedido, StatusPedido, StatusPagamento, Cliente, UsuarioLoja } from '../types';
 import { PedidoEntrega, Transportadora } from '../types/shipping';
 import { AgendamentoServico } from '../types/agendamento';
 import { agendamentoService, filtrarAgendamentosVigentesDoPedido } from '../services/agendamentoService';
-import { extrairObservacaoLimpa, formatarMoeda } from '../utils/formatters';
+import { extrairObservacaoLimpa, formatarMoeda, normalizarTelefoneComDDI } from '../utils/formatters';
+import { extrairInfoVisitaPedido } from '../utils/taxaDomicilioUtils';
 import {
   calcularResumoFinanceiroPedido,
   extrairDetalhesAgendamentosPedido,
@@ -75,6 +81,7 @@ import { useFeedbackModal } from '../contexts/FeedbackContext';
 import {
   ROTULOS_STATUS_PEDIDO,
   ROTULOS_STATUS_PAGAMENTO,
+  extrairInfoPagamentoEntrega,
   ehPedidoExclusivoServico,
   obterAbasStatusVisiveis,
   obterOpcoesStatusAlteracao,
@@ -93,7 +100,6 @@ const extrairHistoricoPedidoMobile = (pedido: Pedido): HistoricoItem[] => {
 };
 import { PrintService, formatarDataRecibo, obterDadosPagamentoRecibo } from '../services/printService';
 import { ClientePerfilMobile } from './ClientePerfilMobile';
-import { MobileMenuDrawer } from './layout/MobileMenuDrawer';
 import { MobileHeader } from './layout/MobileHeader';
 import { ModalHistoricoFiadoCliente } from './ModalHistoricoFiadoCliente';
 import { ModalDefinirEnvio } from './pedidos/ModalDefinirEnvio';
@@ -105,6 +111,13 @@ const extrairFormaLimpa = (forma?: string): string => {
     return match[1].trim();
   }
   return forma.replace(/^Pagamento\s*[-:]?\s*/i, '').trim();
+};
+
+const formatarDataLocalYMD = (d: Date): string => {
+  const ano = d.getFullYear();
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
 };
 
 interface PedidosListaMobileProps {
@@ -120,13 +133,16 @@ interface PedidosListaMobileProps {
     motivoCancelamento?: string,
     acaoConclusaoDireta?: boolean
   ) => Promise<void> | void;
-  onCancelarPedido: (pedido: Pedido) => void;
+  onCancelarPedido: (pedido: Pedido, motivo?: string) => Promise<void> | void;
   onAbrirReceberPagamento: (pedido: Pedido) => void;
   onAbrirReceberFiado?: (pedido: Pedido) => void;
-  onAbrirDrawerMenu: () => void;
+  onAbrirDrawerMenu?: () => void;
   onClienteAtualizado: (cliente: Cliente) => void;
   onRecarregar?: () => void;
   onDespacharPedido?: (pedido: Pedido) => void;
+  onImprimirEtiquetaMl?: (pedido: Pedido) => void;
+  imprimindoEtiquetaMlId?: string | null;
+  onAbrirNovoCliente?: () => void;
 }
 
 export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
@@ -140,10 +156,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   onCancelarPedido,
   onAbrirReceberPagamento,
   onAbrirReceberFiado,
-  onAbrirDrawerMenu,
   onClienteAtualizado,
   onRecarregar,
-  onDespacharPedido
+  onDespacharPedido,
+  onImprimirEtiquetaMl,
+  imprimindoEtiquetaMlId,
+  onAbrirNovoCliente
 }) => {
   const navigate = useNavigate();
   const { loja, usuario } = useAuth();
@@ -187,7 +205,6 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
     }
   }, [pedidos]);
   const [clientePerfilSelecionado, setClientePerfilSelecionado] = useState<Cliente | null>(null);
-  const [drawerInternoAberto, setDrawerInternoAberto] = useState<boolean>(false);
   const [clienteHistoricoFiadoModal, setClienteHistoricoFiadoModal] = useState<Cliente | null>(null);
   const [filtroHistoricoFiadoModal, setFiltroHistoricoFiadoModal] = useState<'todos' | 'vencidos' | 'a_vencer'>('a_vencer');
   const [pedidoReciboModal, setPedidoReciboModal] = useState<Pedido | null>(null);
@@ -196,6 +213,15 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   const [modalDefinirEnvioAberto, setModalDefinirEnvioAberto] = useState<boolean>(false);
   const [pedidoParaPesagem, setPedidoParaPesagem] = useState<Pedido | null>(null);
   const [modalConfirmarCancelamentoAberto, setModalConfirmarCancelamentoAberto] = useState<boolean>(false);
+  const [motivoCancelamento, setMotivoCancelamento] = useState<string>('');
+  const [cancelandoPedido, setCancelandoPedido] = useState<boolean>(false);
+  const [editandoObsPedido, setEditandoObsPedido] = useState<boolean>(false);
+  const [textoObsEditando, setTextoObsEditando] = useState<string>('');
+  const [salvandoObs, setSalvandoObs] = useState<boolean>(false);
+  const [linkRastreioEditando, setLinkRastreioEditando] = useState<boolean>(false);
+  const [linkRastreioInput, setLinkRastreioInput] = useState<string>('');
+  const [salvandoLinkRastreio, setSalvandoLinkRastreio] = useState<boolean>(false);
+  const [sincronizandoRastreio, setSincronizandoRastreio] = useState<boolean>(false);
 
   // Estados de Despacho Logístico e Contingência RBAC
   const [modalDespachoAberto, setModalDespachoAberto] = useState<boolean>(false);
@@ -311,11 +337,59 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
     const rotuloStatus = ROTULOS_STATUS_PEDIDO[ped.status] || ped.status;
     const texto = `Olá! O seu pedido #${ped.numero_pedido} na ${loja?.nome_fantasia || 'nossa loja'} está com o status: *${rotuloStatus}*.\n\nAcompanhe o andamento em tempo real pelo link:\n${link}\n\nQualquer dúvida, estamos à disposição!`;
     const tel = ped.cliente?.whatsapp || ped.cliente?.telefone || '';
-    const cleanTel = tel.replace(/\D/g, '');
+    const cleanTel = normalizarTelefoneComDDI(tel);
     const url = cleanTel
-      ? `https://wa.me/55${cleanTel}?text=${encodeURIComponent(texto)}`
+      ? `https://wa.me/${cleanTel}?text=${encodeURIComponent(texto)}`
       : `https://wa.me/?text=${encodeURIComponent(texto)}`;
     window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleCopiarLinkPedido = (ped: Pedido) => {
+    const origin = window.location.origin;
+    const link = `${origin}/order-tracking/${ped.numero_pedido || ped.id}`;
+    try {
+      navigator.clipboard.writeText(link);
+      mostrarToast('Link de acompanhamento copiado!', 'sucesso');
+    } catch {
+      mostrarToast('Não foi possível copiar o link.', 'erro');
+    }
+  };
+
+  const handleSalvarLinkRastreioMobile = async (pedidoId: string) => {
+    if (!loja?.id) return;
+    if (!linkRastreioInput.trim()) {
+      mostrarToast('Por favor, informe uma URL válida.', 'aviso');
+      return;
+    }
+    setSalvandoLinkRastreio(true);
+    try {
+      const urlFinal = linkRastreioInput.trim();
+      const meta = (pedidoSelecionado?.metadados && typeof pedidoSelecionado.metadados === 'object')
+        ? { ...pedidoSelecionado.metadados, link_rastreio: urlFinal }
+        : { link_rastreio: urlFinal };
+
+      await Promise.all([
+        supabase
+          .from('pedidos')
+          .update({ link_rastreio: urlFinal, metadados: meta, atualizado_em: new Date().toISOString() })
+          .eq('id', pedidoId)
+          .eq('loja_id', loja.id),
+        supabase
+          .from('pedido_entregas')
+          .update({ link_rastreio: urlFinal, atualizado_em: new Date().toISOString() })
+          .eq('pedido_id', pedidoId)
+      ]);
+
+      mostrarToast('Link de rastreio salvo com sucesso!', 'sucesso');
+      setLinkRastreioEditando(false);
+      setLinkRastreioInput('');
+      setPedidoSelecionado(prev => prev && prev.id === pedidoId ? ({ ...prev, link_rastreio: urlFinal, metadados: meta } as Pedido) : prev);
+      if (onRecarregar) await onRecarregar();
+    } catch {
+      mostrarToast('Não foi possível salvar o link de rastreio.', 'erro');
+    } finally {
+      setSalvandoLinkRastreio(false);
+    }
   };
 
   const resolverStatusPagamento = (pedido: Pedido): StatusPagamento => {
@@ -412,12 +486,20 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
     let prov: 'uber' | 'melhor_envio' | 'frete_proprio' | 'retirada_loja' = 'frete_proprio';
     let provNome = 'Frete Próprio / Entrega Local';
 
+    const temTransportadoraManualCadastrada = Boolean(pe?.transportadora_id);
+
     const ehMelhorEnvio =
       peProvedor === 'melhor_envio' ||
       metaProvedor === 'melhor_envio' ||
       diretoProvedor === 'melhor_envio' ||
       textoConsolidado.includes('melhor envio') ||
-      textoConsolidado.includes('melhorenvio');
+      textoConsolidado.includes('melhorenvio') ||
+      Boolean(meta.melhor_envio_order_id) ||
+      (!temTransportadoraManualCadastrada && (
+        textoConsolidado.includes('jadlog') ||
+        textoConsolidado.includes('.package') ||
+        textoConsolidado.includes('.com')
+      ));
 
     const nomeApp = (pedido as any)?.nome_app || pe?.nome_app || (pedido as any)?.metadados?.nome_app;
     const ehUber =
@@ -443,13 +525,10 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
     const ehTransportadoraPrivada =
       !ehMelhorEnvio &&
       !ehUber &&
-      (pe?.tipo_operacao === 'transportadora' ||
-      (pedido as any)?.tipo_operacao === 'transportadora' ||
-      Boolean(pe?.transportadora_id) ||
-      peTransp.toLowerCase().includes('jadlog') ||
-      metaTransp.toLowerCase().includes('jadlog') ||
-      diretoTransp.toLowerCase().includes('jadlog') ||
-      ((peTransp.toLowerCase().includes('transportadora') || metaTransp.toLowerCase().includes('transportadora') || diretoTransp.toLowerCase().includes('transportadora')) && !textoConsolidado.includes('correios')));
+      (temTransportadoraManualCadastrada ||
+      ((pe?.tipo_operacao === 'transportadora' || (pedido as any)?.tipo_operacao === 'transportadora') &&
+       (peTransp.toLowerCase().includes('transportadora') || metaTransp.toLowerCase().includes('transportadora') || diretoTransp.toLowerCase().includes('transportadora')) &&
+       !textoConsolidado.includes('correios')));
 
     const servicoCorreios =
       (pedido as any)?.servico_correios ||
@@ -562,7 +641,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
     if (ehDespachoCorreios) {
       const validacao = validarRastreioCorreios(codigoRastreioDespacho, servicoCorreiosDespacho);
       if (!validacao.valido) {
-        alert(validacao.motivo || 'Código de rastreamento inválido para os Correios.');
+        mostrarToast(validacao.motivo || 'Código de rastreamento inválido para os Correios.', 'aviso');
         return;
       }
     }
@@ -611,9 +690,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       setLinkRastreioDespacho('');
       setPinEntregaDespacho('');
       setNomeTransportadoraDespacho('');
-    } catch (err: any) {
+    } catch (err) {
       console.error('Erro ao despachar pedido:', err);
-      alert(err.message || 'Erro ao despachar pedido.');
+      mostrarToast('Não foi possível despachar o pedido. Verifique os dados e tente novamente.', 'erro');
     } finally {
       setDespachando(false);
     }
@@ -638,9 +717,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       onAlterarStatus(pedidoSelecionado.id, 'concluido');
       if (onRecarregar) await onRecarregar();
       setModalContingenciaAberto(false);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Erro ao forçar conclusão manual:', err);
-      alert(err.message || 'Erro ao forçar conclusão manual.');
+      mostrarToast('Não foi possível concluir o pedido manualmente. Tente novamente.', 'erro');
     } finally {
       setExecutandoContingencia(false);
     }
@@ -681,7 +760,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   const alternarVoz = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert('Pesquisa por voz não suportada pelo navegador.');
+      mostrarToast('Pesquisa por voz não suportada pelo navegador.', 'aviso');
       return;
     }
     if (ouvindoVoz) {
@@ -714,6 +793,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   const [dataInicio, setDataInicio] = useState<string>('');
   const [dataFim, setDataFim] = useState<string>('');
   const [meiosPagamentoFiltro, setMeiosPagamentoFiltro] = useState<string[]>([]);
+  const [canalFiltro, setCanalFiltro] = useState<'todos' | 'pdv' | 'catalogo_online' | 'mercadolivre'>('todos');
 
   // Estados da Tela de Detalhes do Pedido (TELA005 a TELA009)
   const [abaDetalhe, setAbaDetalhe] = useState<'itens' | 'detalhes' | 'cliente'>('itens');
@@ -723,6 +803,29 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   const [salvandoVendedor, setSalvandoVendedor] = useState<boolean>(false);
   const [modalVincularCliente, setModalVincularCliente] = useState<boolean>(false);
   const [buscaVincularCliente, setBuscaVincularCliente] = useState<string>('');
+
+  // Registro na Pilha LIFO de Overlays Mobile (pai antes de filhos)
+  useRegisterOverlay(Boolean(pedidoSelecionado), () => {
+    setPedidoSelecionado(null);
+    onVoltarOrigem?.();
+  }, 'pedidos-mobile-detalhe', 'drawer');
+  useRegisterOverlay(Boolean(clientePerfilSelecionado), () => setClientePerfilSelecionado(null), 'pedidos-mobile-cliente-perfil', 'drawer');
+  useRegisterOverlay(modalFiltrosAvancados, () => setModalFiltrosAvancados(false), 'pedidos-mobile-filtros', 'drawer');
+  useRegisterOverlay(modalStatusAberto, () => setModalStatusAberto(false), 'pedidos-mobile-filtro-status', 'modal');
+  useRegisterOverlay(modalVendedoresAberto, () => setModalVendedoresAberto(false), 'pedidos-mobile-filtro-vendedores', 'modal');
+  useRegisterOverlay(modalAlterarStatus, () => setModalAlterarStatus(false), 'pedidos-mobile-alterar-status', 'modal');
+  useRegisterOverlay(modalOpcoesPedido, () => setModalOpcoesPedido(false), 'pedidos-mobile-opcoes-pedido', 'modal');
+  useRegisterOverlay(modalAlterarVendedor, () => setModalAlterarVendedor(false), 'pedidos-mobile-alterar-vendedor', 'modal');
+  useRegisterOverlay(modalVincularCliente, () => {
+    setModalVincularCliente(false);
+    setBuscaVincularCliente('');
+  }, 'pedidos-mobile-vincular-cliente', 'modal');
+  useRegisterOverlay(modalConfirmarCancelamentoAberto, () => {
+    if (!cancelandoPedido) {
+      setModalConfirmarCancelamentoAberto(false);
+      setMotivoCancelamento('');
+    }
+  }, 'pedidos-mobile-confirmar-cancelamento', 'modal');
 
   // Mapa de Clientes e Usuários para exibição rápida
   const mapaClientes = useMemo(() => {
@@ -738,11 +841,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
   }, [usuarios]);
 
   const handleTrocarVendedorPedido = async (novoVendedorId: string | null) => {
-    if (!pedidoSelecionado) return;
+    if (!pedidoSelecionado || !loja?.id || pedidoSelecionado.status === 'cancelado') return;
     try {
       setSalvandoVendedor(true);
       const payload: any = {
-        vendedor_id: novoVendedorId
+        vendedor_id: novoVendedorId,
+        atualizado_em: new Date().toISOString()
       };
       if (novoVendedorId === null) {
         payload.origem = 'catalogo_online';
@@ -751,7 +855,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       const { error } = await supabase
         .from('pedidos')
         .update(payload)
-        .eq('id', pedidoSelecionado.id);
+        .eq('id', pedidoSelecionado.id)
+        .eq('loja_id', loja.id);
 
       if (error) throw error;
 
@@ -761,30 +866,31 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         origem: novoVendedorId === null ? 'catalogo_online' : prev.origem
       }) : null);
       setModalAlterarVendedor(false);
+      mostrarToast('Vendedor alterado com sucesso!', 'sucesso');
       if (onRecarregar) await onRecarregar();
-    } catch (err) {
-      console.error('Erro ao alterar vendedor do pedido:', err);
-      alert('Erro ao alterar vendedor do pedido.');
+    } catch {
+      mostrarToast('Erro ao alterar vendedor do pedido.', 'erro');
     } finally {
       setSalvandoVendedor(false);
     }
   };
 
   const handleVincularClienteAoPedido = async (clienteId: string) => {
-    if (!pedidoSelecionado) return;
+    if (!pedidoSelecionado || !loja?.id || pedidoSelecionado.status === 'cancelado') return;
     try {
       const { error } = await supabase
         .from('pedidos')
         .update({ cliente_id: clienteId, atualizado_em: new Date().toISOString() })
-        .eq('id', pedidoSelecionado.id);
+        .eq('id', pedidoSelecionado.id)
+        .eq('loja_id', loja.id);
       if (error) throw error;
       setPedidoSelecionado(prev => prev ? ({ ...prev, cliente_id: clienteId }) : null);
       setModalVincularCliente(false);
       setBuscaVincularCliente('');
+      mostrarToast('Cliente vinculado ao pedido!', 'sucesso');
       if (onRecarregar) await onRecarregar();
-    } catch (err) {
-      console.error('Erro ao vincular cliente ao pedido:', err);
-      alert('Erro ao vincular cliente ao pedido.');
+    } catch {
+      mostrarToast('Erro ao vincular cliente ao pedido.', 'erro');
     }
   };
 
@@ -794,16 +900,26 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
     return pedidos.filter((p) => {
       if (p.status === 'concluido') return false;
       if (t) {
-        const numStr = String(p.numero_pedido);
+        const numStr = String(p.numero_pedido || '');
+        const numCatalogo = p.origem === 'catalogo_online' ? `c-${numStr}` : numStr;
         const cli = p.cliente_id ? mapaClientes.get(p.cliente_id) : null;
-        const cliNome = cli?.nome.toLowerCase() || '';
+        const cliNome = (cli?.nome || p.cliente?.nome || '').toLowerCase();
+        const vendedorNome = (
+          p.origem === 'mercadolivre'
+            ? 'mercado livre'
+            : p.origem === 'catalogo_online'
+            ? 'catálogo online'
+            : (p.vendedor_id ? mapaUsuarios.get(p.vendedor_id) : p.vendedor?.nome_completo) || ''
+        ).toLowerCase();
         const itensList = p.itens || p.itens_pedido || [];
         const temItem = itensList.some((i: any) => i.nome_produto?.toLowerCase().includes(t));
-        if (!numStr.includes(t) && !cliNome.includes(t) && !temItem) return false;
+        if (!numStr.includes(t) && !numCatalogo.includes(t) && !cliNome.includes(t) && !vendedorNome.includes(t) && !temItem) {
+          return false;
+        }
       }
       return true;
     });
-  }, [pedidos, busca, mapaClientes]);
+  }, [pedidos, busca, mapaClientes, mapaUsuarios]);
 
   // Opções dinâmicas de Status do Pedido (somente > 0)
   const opcoesStatusPedidoMobile = useMemo(() => {
@@ -823,6 +939,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       'enviado',
       'pronto_para_retirar',
       'entregue',
+      'vencido',
       'cancelado'
     ];
 
@@ -902,10 +1019,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       confirmado: 0,
       em_separacao: 0,
       em_producao: 0,
+      em_expedicao: 0,
       aguardando_envio: 0,
       enviado: 0,
       entregue: 0,
       pronto_para_retirar: 0,
+      vencido: 0,
       cancelado: 0
     };
 
@@ -925,15 +1044,23 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       // Regra obrigatória: só devem ser exibidos registros cujo status for diferente de concluído
       if (p.status === 'concluido') return false;
 
-      // 1. Busca por texto (código, cliente, item)
+      // 1. Busca por texto (código, cliente, vendedor, item)
       if (busca.trim()) {
         const t = busca.toLowerCase().trim();
-        const numStr = String(p.numero_pedido);
+        const numStr = String(p.numero_pedido || '');
+        const numCatalogo = p.origem === 'catalogo_online' ? `c-${numStr}` : numStr;
         const cli = p.cliente_id ? mapaClientes.get(p.cliente_id) : null;
-        const cliNome = cli?.nome.toLowerCase() || '';
+        const cliNome = (cli?.nome || p.cliente?.nome || '').toLowerCase();
+        const vendedorNome = (
+          p.origem === 'mercadolivre'
+            ? 'mercado livre'
+            : p.origem === 'catalogo_online'
+            ? 'catálogo online'
+            : (p.vendedor_id ? mapaUsuarios.get(p.vendedor_id) : p.vendedor?.nome_completo) || ''
+        ).toLowerCase();
         const itensList = p.itens || p.itens_pedido || [];
         const temItem = itensList.some((i: any) => i.nome_produto?.toLowerCase().includes(t));
-        if (!numStr.includes(t) && !cliNome.includes(t) && !temItem) return false;
+        if (!numStr.includes(t) && !numCatalogo.includes(t) && !cliNome.includes(t) && !vendedorNome.includes(t) && !temItem) return false;
       }
 
       // 2. Filtro de Status do Pedido
@@ -953,28 +1080,57 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         if (sp !== statusPagamentoSelecionado) return false;
       }
 
-      // 4. Filtro de Vendedores
+      // 4. Filtro de Canal / Origem
+      if (canalFiltro !== 'todos') {
+        if (canalFiltro === 'pdv' && (p.origem === 'catalogo_online' || p.origem === 'mercadolivre')) return false;
+        if (canalFiltro === 'catalogo_online' && p.origem !== 'catalogo_online') return false;
+        if (canalFiltro === 'mercadolivre' && p.origem !== 'mercadolivre') return false;
+      }
+
+      // 5. Filtro de Vendedores
       if (!vendedoresSelecionados.includes('todos')) {
         const pedVendedor = p.vendedor_id || (p.origem === 'catalogo_online' ? 'catalogo_online' : null);
         if (!pedVendedor || !vendedoresSelecionados.includes(pedVendedor)) return false;
       }
 
-      // 5. Filtro de Período (TELA002)
+      // 6. Filtro de Meios de Pagamento
+      if (meiosPagamentoFiltro.length > 0) {
+        const pagInfo = obterDadosPagamentoRecibo(p);
+        const nomesFormas = [
+          ...(p.pagamentos || []).map((pg: any) => `${pg.forma_pagamento?.nome || ''} ${pg.forma_pagamento?.tipo || ''} ${pg.eh_pagamento_fiado ? 'fiado venda fiado' : ''} ${pg.eh_pagamento_caderneta ? 'caderneta' : ''}`),
+          ...(pagInfo.pagamentosDetalhados || []).map((d) => d.forma || ''),
+          pagInfo.ehFiado ? 'fiado venda fiado' : '',
+          pagInfo.ehCaderneta ? 'caderneta' : ''
+        ].join(' ').toLowerCase();
+
+        const deuMatchMeio = meiosPagamentoFiltro.some((mp) => {
+          const mpLower = mp.toLowerCase();
+          if (mpLower === 'venda fiado') return nomesFormas.includes('fiado');
+          if (mpLower === 'pix') return nomesFormas.includes('pix');
+          if (mpLower === 'cartão de débito') return nomesFormas.includes('débito') || nomesFormas.includes('debito') || nomesFormas.includes('cartao_debito');
+          if (mpLower === 'cartão de crédito') return nomesFormas.includes('crédito') || nomesFormas.includes('credito') || nomesFormas.includes('cartao_credito');
+          if (mpLower === 'dinheiro') return nomesFormas.includes('dinheiro');
+          if (mpLower === 'caderneta') return nomesFormas.includes('caderneta');
+          return nomesFormas.includes(mpLower);
+        });
+        if (!deuMatchMeio) return false;
+      }
+
+      // 7. Filtro de Período (com fronteiras locais sem deslocamento UTC)
       if (dataInicio) {
-        const dPed = new Date(p.data_venda);
-        const dIni = new Date(dataInicio);
+        const dPed = new Date(p.data_venda || p.criado_em || '');
+        const dIni = new Date(`${dataInicio}T00:00:00`);
         if (dPed < dIni) return false;
       }
       if (dataFim) {
-        const dPed = new Date(p.data_venda);
-        const dFim = new Date(dataFim);
-        dFim.setHours(23, 59, 59, 999);
+        const dPed = new Date(p.data_venda || p.criado_em || '');
+        const dFim = new Date(`${dataFim}T23:59:59.999`);
         if (dPed > dFim) return false;
       }
 
       return true;
     });
-  }, [pedidos, busca, statusSelecionados, statusPagamentoSelecionado, vendedoresSelecionados, dataInicio, dataFim, mapaClientes]);
+  }, [pedidos, busca, statusSelecionados, statusPagamentoSelecionado, canalFiltro, vendedoresSelecionados, meiosPagamentoFiltro, dataInicio, dataFim, mapaClientes, mapaUsuarios]);
 
   // Agrupamento por Data (ex: Hoje, Ontem, Sexta-feira 21 de Agosto...)
   const gruposPorData = useMemo(() => {
@@ -1010,33 +1166,33 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
     return pedidosFiltrados.reduce((acc, p) => acc + Number(p.valor_total || 0), 0);
   }, [pedidosFiltrados]);
 
-  // Preset de datas na TELA002
+  // Preset de datas na TELA002 (horário local)
   const aplicarPresetPeriodo = (preset: string) => {
     const hoje = new Date();
-    const formatarDataInput = (d: Date) => d.toISOString().split('T')[0];
-
     if (preset === 'hoje') {
-      setDataInicio(formatarDataInput(hoje));
-      setDataFim(formatarDataInput(hoje));
+      const h = formatarDataLocalYMD(hoje);
+      setDataInicio(h);
+      setDataFim(h);
     } else if (preset === 'ontem') {
       const ontem = new Date();
       ontem.setDate(ontem.getDate() - 1);
-      setDataInicio(formatarDataInput(ontem));
-      setDataFim(formatarDataInput(ontem));
+      const o = formatarDataLocalYMD(ontem);
+      setDataInicio(o);
+      setDataFim(o);
     } else if (preset === 'esta_semana') {
       const inicio = new Date();
       inicio.setDate(inicio.getDate() - inicio.getDay());
-      setDataInicio(formatarDataInput(inicio));
-      setDataFim(formatarDataInput(hoje));
+      setDataInicio(formatarDataLocalYMD(inicio));
+      setDataFim(formatarDataLocalYMD(hoje));
     } else if (preset === 'este_mes') {
       const inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-      setDataInicio(formatarDataInput(inicio));
-      setDataFim(formatarDataInput(hoje));
+      setDataInicio(formatarDataLocalYMD(inicio));
+      setDataFim(formatarDataLocalYMD(hoje));
     } else if (preset === 'ultimos_30_dias') {
       const inicio = new Date();
       inicio.setDate(inicio.getDate() - 30);
-      setDataInicio(formatarDataInput(inicio));
-      setDataFim(formatarDataInput(hoje));
+      setDataInicio(formatarDataLocalYMD(inicio));
+      setDataFim(formatarDataLocalYMD(hoje));
     }
   };
 
@@ -1097,14 +1253,16 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             {/* Status textual informativo no canto superior direito */}
             <span className={`px-2.5 py-1 rounded-lg text-[11px] font-black uppercase tracking-wide border ${
               pedidoSelecionado.status === 'concluido'
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                ? (isDark ? 'bg-emerald-950/50 text-emerald-300 border-emerald-500/40' : 'bg-emerald-50 text-emerald-900 border-emerald-300')
                 : pedidoSelecionado.status === 'cancelado'
-                ? 'bg-rose-50 text-rose-700 border-rose-200'
+                ? (isDark ? 'bg-red-950/50 text-red-300 border-red-500/40' : 'bg-red-50 text-red-900 border-red-300')
+                : pedidoSelecionado.status === 'vencido'
+                ? (isDark ? 'bg-red-950/50 text-red-300 border-red-500/40' : 'bg-red-50 text-red-900 border-red-300')
                 : pedidoSelecionado.status === 'confirmado'
-                ? 'bg-blue-50 text-blue-700 border-blue-200'
-                : pedidoSelecionado.status === 'em_producao' || pedidoSelecionado.status === 'em_expedicao'
-                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                : 'bg-amber-50 text-amber-700 border-amber-200'
+                ? (isDark ? 'bg-blue-950/50 text-blue-300 border-blue-500/40' : 'bg-blue-50 text-blue-900 border-blue-300')
+                : pedidoSelecionado.status === 'em_producao' || pedidoSelecionado.status === 'em_expedicao' || pedidoSelecionado.status === 'em_separacao'
+                ? (isDark ? 'bg-indigo-950/50 text-indigo-300 border-indigo-500/40' : 'bg-indigo-50 text-indigo-900 border-indigo-300')
+                : (isDark ? 'bg-amber-950/50 text-amber-300 border-amber-500/40' : 'bg-amber-50 text-amber-900 border-amber-300')
             }`}>
               {ROTULOS_STATUS_PEDIDO[pedidoSelecionado.status] || pedidoSelecionado.status.replace(/_/g, ' ')}
             </span>
@@ -1113,19 +1271,19 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               <button
                 type="button"
                 onClick={() => setClientePerfilSelecionado(cli)}
-                className={`px-2 py-1 rounded-lg text-[11px] font-bold uppercase truncate max-w-[90px] flex items-center gap-1 ${
-                  isDark ? 'bg-[#000000] border border-slate-700 text-slate-200' : 'bg-white border-2 border-slate-300 text-black'
+                className={`hubi-btn-neutral px-2 py-1 rounded-lg text-[11px] font-bold uppercase truncate max-w-[90px] flex items-center gap-1 cursor-pointer ${
+                  isDark ? 'bg-[#000000] border border-slate-700 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black'
                 }`}
               >
                 <span className="truncate">{cli.nome}</span>
-                <User className="w-3 h-3 text-slate-400 shrink-0" />
+                <User className={`w-3 h-3 shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
               </button>
             )}
 
             <button
               type="button"
               onClick={() => setPedidoReciboModal(pedidoSelecionado)}
-              className={`p-1.5 rounded-lg cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-black'}`}
+              className={`p-1.5 rounded-lg cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'text-black hover:bg-slate-200'}`}
               title="Ver Recibo"
             >
               <FileText className="w-5 h-5" />
@@ -1141,14 +1299,26 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             <div className={`text-2xl font-black tracking-tight ${isDark ? 'text-white' : 'text-black'}`}>
               R$ {Number(pedidoSelecionado.valor_total).toFixed(2)}
             </div>
-            <div className="text-right">
-              <span className={`text-[11px] font-bold block ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>#{pedidoSelecionado.numero_pedido}</span>
-              <span className={`text-[10px] block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{nomeVendedor}</span>
+            <div className="text-right space-y-0.5">
+              <div className="flex items-center justify-end gap-1.5">
+                {pedidoSelecionado.origem === 'mercadolivre' && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#FFE600] text-slate-950 font-black text-[9px] uppercase">
+                    <ShoppingBag className="w-2.5 h-2.5" />
+                    ML
+                  </span>
+                )}
+                <span className={`text-[11px] font-bold font-mono ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                  #{pedidoSelecionado.origem === 'catalogo_online' ? `c-${pedidoSelecionado.numero_pedido}` : pedidoSelecionado.numero_pedido}
+                </span>
+              </div>
+              <span className={`text-[10px] block ${isDark ? 'text-slate-400' : 'text-slate-800 font-medium'}`}>
+                {pedidoSelecionado.origem === 'mercadolivre' ? 'Mercado Livre' : nomeVendedor}
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Pílula de Status (Abre TELA006) */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Pílula de Status (Abre TELA006 — bloqueada para cancelado e concluido) */}
             {pedidoSelecionado.status === 'cancelado' ? (
               <div
                 className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 text-xs font-bold ${
@@ -1158,17 +1328,26 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 <XCircle className={`w-3.5 h-3.5 ${isDark ? 'text-red-400' : 'text-red-700'}`} />
                 <span>Cancelado (Imutável)</span>
               </div>
+            ) : pedidoSelecionado.status === 'concluido' ? (
+              <div
+                className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 text-xs font-bold ${
+                  isDark ? 'border-emerald-500/40 bg-emerald-950/40 text-emerald-300' : 'border-emerald-300 bg-emerald-50 text-emerald-950'
+                }`}
+              >
+                <CheckCircle2 className={`w-3.5 h-3.5 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`} />
+                <span>Concluído (Definitivo)</span>
+              </div>
             ) : (
               <button
                 type="button"
                 onClick={() => setModalAlterarStatus(true)}
-                className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 text-xs font-bold capitalize cursor-pointer ${
-                  isDark ? 'border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200' : 'border-slate-300 bg-slate-50 hover:bg-slate-100 text-black'
+                className={`hubi-btn-neutral px-3 py-1.5 rounded-xl border flex items-center gap-1.5 text-xs font-bold cursor-pointer ${
+                  isDark ? 'border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200' : 'border-slate-300 bg-slate-100 hover:bg-slate-200 text-black'
                 }`}
               >
-                <Clock className="w-3.5 h-3.5 text-emerald-500" />
-                <span>{pedidoSelecionado.status.replace(/_/g, ' ')}</span>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                <Clock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>{ROTULOS_STATUS_PEDIDO[pedidoSelecionado.status] || pedidoSelecionado.status.replace(/_/g, ' ')}</span>
+                <ChevronDown className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
               </button>
             )}
 
@@ -1249,36 +1428,91 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             </div>
           )}
 
-          {/* Observação e Ação */}
+          {/* Observação e Editor Inline */}
           {(() => {
             const obsAtualLimpa = extrairObservacaoLimpa(pedidoSelecionado.observacoes);
 
             return (
               <div className="pt-1 space-y-1.5">
-                {obsAtualLimpa && (
-                  <div className={`p-2.5 rounded-xl text-xs ${
-                    isDark ? 'bg-[#08131A] border border-amber-500/40 text-amber-300' : 'bg-amber-50 border border-amber-200 text-amber-900'
+                {obsAtualLimpa && !editandoObsPedido && (
+                  <div className={`p-2.5 rounded-xl text-xs border ${
+                    isDark ? 'bg-[#08131A] border-amber-500/40 text-amber-300' : 'bg-amber-50 border-amber-300 text-amber-950'
                   }`}>
-                    <span className="font-bold block text-[10px] text-amber-500 uppercase tracking-wide">Observação:</span>
+                    <span className={`font-bold block text-[10px] uppercase tracking-wide ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
+                      Observação:
+                    </span>
                     <p className="whitespace-pre-wrap break-words">{obsAtualLimpa}</p>
                   </div>
                 )}
-                {pedidoSelecionado.status !== 'cancelado' && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const obs = prompt('Adicionar observação ao pedido:', obsAtualLimpa);
-                      if (obs !== null) {
-                        const obsFinal = obs.trim() || null;
-                        await supabase.from('pedidos').update({ observacoes: obsFinal, atualizado_em: new Date().toISOString() }).eq('id', pedidoSelecionado.id);
-                        setPedidoSelecionado({ ...pedidoSelecionado, observacoes: obsFinal });
-                        if (onRecarregar) onRecarregar();
-                      }
-                    }}
-                    className="text-xs font-bold text-emerald-500 hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <span>+ {obsAtualLimpa ? 'Editar observação' : 'Adicionar observação'}</span>
-                  </button>
+
+                {editandoObsPedido ? (
+                  <div className="space-y-2">
+                    <textarea
+                      value={textoObsEditando}
+                      onChange={(e) => setTextoObsEditando(e.target.value)}
+                      rows={2}
+                      placeholder="Digite a observação do pedido..."
+                      className={`w-full rounded-xl p-2.5 text-xs resize-none focus:outline-none focus:border-emerald-500 ${
+                        isDark ? 'bg-[#08131A] border border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border border-slate-300 text-black placeholder:text-slate-500'
+                      }`}
+                      autoFocus
+                    />
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        disabled={salvandoObs}
+                        onClick={() => setEditandoObsPedido(false)}
+                        className={`hubi-btn-neutral px-3 py-1.5 rounded-xl text-xs transition cursor-pointer ${
+                          isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
+                        }`}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={salvandoObs || !loja?.id}
+                        onClick={async () => {
+                          if (!loja?.id) return;
+                          setSalvandoObs(true);
+                          try {
+                            const obsFinal = textoObsEditando.trim() || null;
+                            const { error } = await supabase
+                              .from('pedidos')
+                              .update({ observacoes: obsFinal, atualizado_em: new Date().toISOString() })
+                              .eq('id', pedidoSelecionado.id)
+                              .eq('loja_id', loja.id);
+                            if (error) throw error;
+                            setPedidoSelecionado({ ...pedidoSelecionado, observacoes: obsFinal });
+                            setEditandoObsPedido(false);
+                            mostrarToast('Observação salva com sucesso!', 'sucesso');
+                            if (onRecarregar) onRecarregar();
+                          } catch {
+                            mostrarToast('Não foi possível salvar a observação.', 'erro');
+                          } finally {
+                            setSalvandoObs(false);
+                          }
+                        }}
+                        className="hubi-btn-cta px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition cursor-pointer disabled:opacity-50"
+                      >
+                        {salvandoObs ? 'Salvando...' : 'Salvar'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  pedidoSelecionado.status !== 'cancelado' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTextoObsEditando(obsAtualLimpa);
+                        setEditandoObsPedido(true);
+                      }}
+                      className={`text-xs font-bold hover:underline flex items-center gap-1 cursor-pointer ${
+                        isDark ? 'text-emerald-400' : 'text-emerald-800'
+                      }`}
+                    >
+                      <span>+ {obsAtualLimpa ? 'Editar observação' : 'Adicionar observação'}</span>
+                    </button>
+                  )
                 )}
               </div>
             );
@@ -1362,17 +1596,23 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
               }`}>
                 <div className="flex items-center justify-between">
-                  <span className={`font-bold text-xs capitalize ${isDark ? 'text-slate-200' : 'text-black'}`}>{pedidoSelecionado.status.replace(/_/g, ' ')}</span>
-                  <Clock className="w-4 h-4 text-emerald-500" />
+                  <span className={`font-bold text-xs ${isDark ? 'text-slate-200' : 'text-black'}`}>
+                    {ROTULOS_STATUS_PEDIDO[pedidoSelecionado.status] || pedidoSelecionado.status.replace(/_/g, ' ')}
+                  </span>
+                  <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <span className={`text-[11px] block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                <span className={`text-[11px] block ${isDark ? 'text-slate-400' : 'text-slate-800 font-medium'}`}>
                   {new Date(pedidoSelecionado.data_venda).toLocaleDateString('pt-BR')}
                 </span>
                 <div className={`pt-2 border-t flex flex-col gap-1.5 text-xs ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                   <div className="flex items-center justify-between">
-                    <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Origem / Vendedor:</span>
+                    <span className={isDark ? 'text-slate-400' : 'text-slate-900 font-medium'}>Origem / Vendedor:</span>
                     <span className={`font-bold ${isDark ? 'text-slate-100' : 'text-black'}`}>
-                      {pedidoSelecionado.origem === 'catalogo_online' ? 'Catálogo Online' : (mapaUsuarios.get(pedidoSelecionado.vendedor_id || '') || pedidoSelecionado.vendedor?.nome_completo || 'Vendedor')}
+                      {pedidoSelecionado.origem === 'mercadolivre'
+                        ? 'Mercado Livre'
+                        : pedidoSelecionado.origem === 'catalogo_online'
+                        ? 'Catálogo Online'
+                        : (mapaUsuarios.get(pedidoSelecionado.vendedor_id || '') || pedidoSelecionado.vendedor?.nome_completo || 'Vendedor')}
                     </span>
                   </div>
                   {(() => {
@@ -1382,13 +1622,13 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     const infoVenc = obterInfoVencimentoFiado(pedidoSelecionado);
                     return (
                       <div className={`flex items-center justify-between text-xs pt-1 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
-                        <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Data Vencimento:</span>
+                        <span className={isDark ? 'text-slate-400' : 'text-slate-900 font-medium'}>Data Vencimento:</span>
                         <div className="text-right">
-                          <span className={`font-bold ${infoVenc.estaVencido ? 'text-rose-500' : (isDark ? 'text-slate-200' : 'text-black')}`}>
+                          <span className={`font-bold ${infoVenc.estaVencido ? 'text-red-600 dark:text-red-400' : (isDark ? 'text-slate-200' : 'text-black')}`}>
                             {infoVenc.formatada}
                           </span>
                           {infoVenc.estaVencido && (
-                            <span className="text-[10px] font-bold text-rose-500 block">Vencido</span>
+                            <span className="text-[10px] font-bold text-red-600 dark:text-red-400 block">Vencido</span>
                           )}
                         </div>
                       </div>
@@ -1402,7 +1642,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     if (!editorNome) return null;
                     return (
                       <div className={`flex items-center justify-between text-[11px] px-2 py-1 rounded-lg border ${
-                        isDark ? 'text-amber-300 bg-[#08131A] border-amber-500/40' : 'text-amber-800 bg-amber-50 border-amber-200'
+                        isDark ? 'text-amber-300 bg-[#08131A] border-amber-500/40' : 'text-amber-900 bg-amber-50 border-amber-300'
                       }`}>
                         <span>Última edição:</span>
                         <span className="font-bold">{editorNome}</span>
@@ -1411,6 +1651,285 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   })()}
                 </div>
               </div>
+
+              {/* Card Logística & Despacho (Mobile — espelha Desktop dentro do fluxo de cards existente) */}
+              {(() => {
+                const { prov, provNome, pe } = resolverProvedorEntrega(pedidoSelecionado, entregaPedido);
+                const infoVisita = extrairInfoVisitaPedido(pedidoSelecionado, loja);
+                const entregador = pe?.entregador_nome || pedidoSelecionado.entregador_nome;
+                const linkRastreio = (pe?.link_rastreio || pedidoSelecionado.link_rastreio || '').trim();
+                const codigoRastreio = (pe?.codigo_rastreio || pedidoSelecionado.codigo_rastreio || '').trim();
+                const pin = pe?.pin_entrega || pedidoSelecionado.pin_entrega;
+                const despachadoEm = pe?.despachado_em || pedidoSelecionado.despachado_em;
+                const ehUber = prov === 'uber' || Boolean(pedidoSelecionado.nome_app?.toLowerCase().includes('uber'));
+                const codCorridaRaw = pe?.codigo_corrida || (pedidoSelecionado as any)?.codigo_corrida || (pedidoSelecionado as any)?.metadados?.codigo_corrida;
+                const codCorridaExibir = ehUber
+                  ? (codCorridaRaw && !String(codCorridaRaw).startsWith('del_') ? codCorridaRaw : null)
+                  : codCorridaRaw;
+
+                const temDadosLogistica = Boolean(
+                  pe ||
+                  infoVisita.temServicoExterno ||
+                  pedidoSelecionado.endereco_entrega ||
+                  entregador ||
+                  codigoRastreio ||
+                  linkRastreio ||
+                  pin ||
+                  Number(pedidoSelecionado.valor_frete || 0) > 0
+                );
+                if (!temDadosLogistica) return null;
+
+                return (
+                  <div className={`p-3.5 rounded-2xl space-y-2.5 text-xs ${
+                    isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
+                  }`}>
+                    <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <Truck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <span className={`uppercase tracking-wider text-[11px] ${isDark ? 'text-slate-200' : 'text-black'}`}>
+                          Logística &amp; Despacho
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${
+                          isDark ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-100 border-slate-300 text-black'
+                        }`}>
+                          {provNome}
+                        </span>
+                        {pedidoSelecionado.status !== 'concluido' && pedidoSelecionado.status !== 'cancelado' && (
+                          <button
+                            type="button"
+                            onClick={() => setModalDefinirEnvioAberto(true)}
+                            className={`text-[11px] font-bold hover:underline cursor-pointer ${
+                              isDark ? 'text-emerald-400' : 'text-emerald-800'
+                            }`}
+                          >
+                            Alterar
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {infoVisita.temServicoExterno && (
+                      <div className={`p-2.5 rounded-xl border space-y-1 ${
+                        isDark ? 'bg-emerald-950/30 border-emerald-500/30 text-emerald-100' : 'bg-emerald-50 border-emerald-300 text-emerald-950'
+                      }`}>
+                        <div className="flex items-center gap-1.5 font-bold text-[11px]">
+                          <Home className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span>Atendimento no Endereço do Cliente</span>
+                        </div>
+                        {(infoVisita.enderecoVisita || pedidoSelecionado.endereco_entrega) && (
+                          <p className={`text-[11px] pl-5 ${isDark ? 'text-slate-200' : 'text-black'}`}>
+                            <strong>Endereço:</strong> {infoVisita.enderecoVisita || pedidoSelecionado.endereco_entrega}
+                          </p>
+                        )}
+                        {infoVisita.ehPedidoMisto && (
+                          <p className={`text-[11px] pl-5 font-semibold ${isDark ? 'text-emerald-300' : 'text-emerald-900'}`}>
+                            📦 Levar produto junto na visita do profissional (Frete Grátis)
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {pedidoSelecionado.endereco_entrega && (
+                      <div className="space-y-0.5">
+                        <span className={`block text-[10px] font-bold uppercase ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
+                          Endereço de Entrega:
+                        </span>
+                        <span className={`font-semibold break-words ${isDark ? 'text-slate-100' : 'text-black'}`}>
+                          {pedidoSelecionado.endereco_entrega}
+                        </span>
+                      </div>
+                    )}
+
+                    {codCorridaExibir && (
+                      <div className={`flex justify-between items-center pt-1.5 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                        <span className={isDark ? 'text-slate-400' : 'text-slate-900 font-medium'}>Código da Corrida:</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`font-mono font-bold px-2 py-0.5 rounded border ${
+                            isDark ? 'text-slate-200 bg-slate-800 border-slate-700' : 'text-black bg-slate-100 border-slate-300'
+                          }`}>
+                            {codCorridaExibir}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(String(codCorridaExibir));
+                              mostrarToast('Código da corrida copiado!', 'sucesso');
+                            }}
+                            className={`p-1 rounded transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-emerald-400' : 'text-slate-700 hover:text-black'}`}
+                            title="Copiar código da corrida"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {!ehUber && (codigoRastreio || (prov === 'melhor_envio' && (despachadoEm || pedidoSelecionado.status === 'enviado'))) && (
+                      <div className={`flex justify-between items-center pt-1.5 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                        <span className={isDark ? 'text-slate-400' : 'text-slate-900 font-medium'}>Código de Rastreio:</span>
+                        {codigoRastreio ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className={`font-mono font-bold px-2 py-0.5 rounded border ${
+                              isDark ? 'text-slate-200 bg-slate-800 border-slate-700' : 'text-black bg-slate-100 border-slate-300'
+                            }`}>
+                              {codigoRastreio}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(codigoRastreio);
+                                mostrarToast('Código de rastreio copiado!', 'sucesso');
+                              }}
+                              className={`p-1 rounded transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-emerald-400' : 'text-slate-700 hover:text-black'}`}
+                              title="Copiar código"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <span className={`text-[11px] italic font-semibold ${isDark ? 'text-amber-400' : 'text-amber-900'}`}>
+                              Pendente de sincronização
+                            </span>
+                            <button
+                              type="button"
+                              disabled={sincronizandoRastreio}
+                              onClick={async () => {
+                                setSincronizandoRastreio(true);
+                                try {
+                                  await supabase.functions.invoke('melhor-envio-despacho', {
+                                    body: {
+                                      pedidoId: pedidoSelecionado.id,
+                                      loja_id: loja?.id || pedidoSelecionado.loja_id,
+                                      acao: 'sincronizar_rastreio',
+                                      isSandbox: true
+                                    }
+                                  });
+                                  if (onRecarregar) await onRecarregar();
+                                  mostrarToast('Rastreamento sincronizado com sucesso!', 'sucesso');
+                                } catch {
+                                  mostrarToast('Não foi possível sincronizar no momento.', 'erro');
+                                } finally {
+                                  setSincronizandoRastreio(false);
+                                }
+                              }}
+                              className={`p-1 rounded transition cursor-pointer ${isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 border border-slate-300 text-black'}`}
+                              title="Sincronizar código de rastreio"
+                            >
+                              <RefreshCw className={`w-3.5 h-3.5 ${sincronizandoRastreio ? 'animate-spin' : ''}`} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {entregador && (
+                      <div className={`flex justify-between items-center pt-1.5 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                        <span className={isDark ? 'text-slate-400' : 'text-slate-900 font-medium'}>Entregador:</span>
+                        <span className={`font-bold ${isDark ? 'text-slate-100' : 'text-black'}`}>{entregador}</span>
+                      </div>
+                    )}
+
+                    {pin && (
+                      <div className={`flex justify-between items-center pt-1.5 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                        <span className={isDark ? 'text-slate-400' : 'text-slate-900 font-medium'}>PIN de Confirmação:</span>
+                        <span className={`font-mono font-black px-2 py-0.5 rounded border ${
+                          isDark ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30' : 'text-emerald-950 bg-emerald-50 border-emerald-300'
+                        }`}>
+                          {pin}
+                        </span>
+                      </div>
+                    )}
+
+                    {despachadoEm && (
+                      <div className={`flex justify-between items-center pt-1.5 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                        <span className={isDark ? 'text-slate-400' : 'text-slate-900 font-medium'}>Despachado em:</span>
+                        <span className={isDark ? 'text-slate-300' : 'text-black font-medium'}>{new Date(despachadoEm).toLocaleString('pt-BR')}</span>
+                      </div>
+                    )}
+
+                    {/* Link de Rastreio + Compartilhamento Uber WhatsApp */}
+                    <div className={`pt-1.5 border-t space-y-2 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                      {linkRastreioEditando ? (
+                        <div className="space-y-1.5">
+                          <input
+                            type="url"
+                            value={linkRastreioInput}
+                            onChange={(e) => setLinkRastreioInput(e.target.value)}
+                            placeholder="https://rastreamento..."
+                            className={`w-full rounded-xl px-2.5 py-2 text-xs focus:outline-none focus:border-emerald-500 ${
+                              isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-white border border-slate-300 text-black'
+                            }`}
+                          />
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setLinkRastreioEditando(false)}
+                              className={`hubi-btn-neutral px-3 py-1 rounded-lg text-[11px] cursor-pointer ${
+                                isDark ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 border border-slate-300 text-black font-semibold'
+                              }`}
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              type="button"
+                              disabled={salvandoLinkRastreio}
+                              onClick={() => handleSalvarLinkRastreioMobile(pedidoSelecionado.id)}
+                              className="hubi-btn-cta px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold cursor-pointer disabled:opacity-50"
+                            >
+                              {salvandoLinkRastreio ? 'Salvando...' : 'Salvar Link'}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-2">
+                          {linkRastreio && (
+                            <a
+                              href={linkRastreio}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] border cursor-pointer ${
+                                isDark ? 'bg-[#08131A] border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-slate-100 border-slate-300 text-black font-semibold hover:bg-slate-200'
+                              }`}
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              <span>Abrir Rastreio</span>
+                            </a>
+                          )}
+                          {ehUber && (linkRastreio || pin) && cli && (cli.whatsapp || cli.telefone) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const tel = normalizarTelefoneComDDI(cli.whatsapp || cli.telefone || '');
+                                const msg = `Olá ${cli.nome}! Seu pedido #${pedidoSelecionado.numero_pedido} já saiu para entrega via Uber.\n${linkRastreio ? `Acompanhe ao vivo: ${linkRastreio}\n` : ''}${pin ? `Informe este PIN ao motorista ao receber: *${pin}*` : ''}`;
+                                window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer');
+                              }}
+                              className="hubi-btn-cta inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold cursor-pointer"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                              <span>Enviar Rastreio/PIN WhatsApp</span>
+                            </button>
+                          )}
+                          {pedidoSelecionado.status !== 'cancelado' && pedidoSelecionado.status !== 'concluido' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLinkRastreioInput(linkRastreio);
+                                setLinkRastreioEditando(true);
+                              }}
+                              className={`text-[11px] font-bold hover:underline cursor-pointer ${isDark ? 'text-emerald-400' : 'text-emerald-800'}`}
+                            >
+                              {linkRastreio ? 'Editar link rastreio' : '+ Informar link rastreio'}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Observação no Detalhe */}
               {(() => {
@@ -1572,7 +2091,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   return (
                     <>
                       {resumo.subtotalProdutos > 0 && (
-                        <div className={`flex justify-between ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                        <div className={`flex justify-between ${isDark ? 'text-slate-400' : 'text-slate-900 font-medium'}`}>
                           <span>Subtotal dos Produtos:</span>
                           <span className={`font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>
                             {formatarMoeda(resumo.subtotalProdutos)}
@@ -1581,7 +2100,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       )}
 
                       {resumo.subtotalServicos > 0 && (
-                        <div className={`flex justify-between ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                        <div className={`flex justify-between ${isDark ? 'text-slate-400' : 'text-slate-900 font-medium'}`}>
                           <span>Subtotal dos Serviços:</span>
                           <span className={`font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>
                             {formatarMoeda(resumo.subtotalServicos)}
@@ -1590,7 +2109,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       )}
 
                       {resumo.taxaVisitaDomicilio > 0 && (
-                        <div className={`flex justify-between ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                        <div className={`flex justify-between ${isDark ? 'text-slate-400' : 'text-slate-900 font-medium'}`}>
                           <span>Taxa de Visita (Domicílio):</span>
                           <span className={`font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>
                             + {formatarMoeda(resumo.taxaVisitaDomicilio)}
@@ -1599,9 +2118,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       )}
 
                       {resumo.exibirFreteEntrega && (
-                        <div className={`flex justify-between ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                        <div className={`flex justify-between ${isDark ? 'text-slate-400' : 'text-slate-900 font-medium'}`}>
                           <span>Frete de Entrega:</span>
-                          <span className={`font-bold ${resumo.valorFreteEntrega === 0 ? 'text-emerald-500' : (isDark ? 'text-slate-200' : 'text-black')}`}>
+                          <span className={`font-bold ${resumo.valorFreteEntrega === 0 ? 'text-emerald-700 dark:text-emerald-400' : (isDark ? 'text-slate-200' : 'text-black')}`}>
                             {resumo.valorFreteEntrega > 0
                               ? `+ ${formatarMoeda(resumo.valorFreteEntrega)}`
                               : formatarMoeda(0)}
@@ -1610,7 +2129,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       )}
 
                       {resumo.valorDesconto > 0 && (
-                        <div className="flex justify-between text-rose-500 font-bold">
+                        <div className="flex justify-between text-red-600 dark:text-red-400 font-bold">
                           <span>Desconto:</span>
                           <span>- {formatarMoeda(resumo.valorDesconto)}</span>
                         </div>
@@ -1620,19 +2139,81 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         isDark ? 'border-slate-800 text-white' : 'border-slate-300 text-black'
                       }`}>
                         <span>Total:</span>
-                        <span className="text-emerald-600 dark:text-emerald-400">{formatarMoeda(resumo.valorTotal)}</span>
+                        <span className={isDark ? 'text-emerald-400' : 'text-black'}>{formatarMoeda(resumo.valorTotal)}</span>
                       </div>
                     </>
                   );
                 })()}
 
                 {podeVerPrecoCusto && (
-                  <div className="flex justify-between text-xs font-bold text-emerald-500 pt-1">
+                  <div className={`flex justify-between text-xs font-bold pt-1 ${isDark ? 'text-emerald-400' : 'text-emerald-800'}`}>
                     <span>Lucro estimado:</span>
                     <span>{formatarMoeda(lucroEstimado)}</span>
                   </div>
                 )}
               </div>
+
+              {/* Card Pagamento, Expedição & Quitação de Fiado (Mobile DETALHES) */}
+              {(() => {
+                const statusPagDet = resolverStatusPagamento(pedidoSelecionado);
+                const infoEntrega = extrairInfoPagamentoEntrega(pedidoSelecionado);
+                const ehFiadoEmAberto = statusPagDet === 'fiado' && !pedidoSelecionado.fiado_quitado && pedidoSelecionado.status !== 'cancelado';
+                const pags = pedidoSelecionado.pagamentos || [];
+
+                return (
+                  <div className={`p-3.5 rounded-2xl space-y-2.5 text-xs ${
+                    isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
+                  }`}>
+                    <span className={`font-bold text-[11px] uppercase tracking-wider block border-b pb-1.5 ${
+                      isDark ? 'text-slate-300 border-slate-800' : 'text-black border-slate-200'
+                    }`}>
+                      Meios de Pagamento
+                    </span>
+
+                    {pags.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {pags.map((pg: any, i: number) => (
+                          <div key={pg.id || i} className="flex items-center justify-between">
+                            <span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-black'}`}>
+                              {pg.forma_pagamento?.nome || (pg.eh_pagamento_caderneta ? 'Caderneta' : pg.eh_pagamento_fiado ? 'Fiado' : 'Pagamento')}
+                            </span>
+                            <span className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>
+                              {formatarMoeda(Number(pg.valor || 0))}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-800 font-medium'}`}>
+                        Status: {ROTULOS_STATUS_PAGAMENTO[statusPagDet] || statusPagDet}
+                      </div>
+                    )}
+
+                    {infoEntrega && statusPagDet !== 'pago' && (
+                      <div className={`p-2.5 rounded-xl border space-y-1 ${
+                        isDark ? 'bg-amber-950/30 border-amber-500/40 text-amber-200' : 'bg-amber-50 border-amber-300 text-amber-950'
+                      }`}>
+                        <div className="flex items-center gap-1.5 font-bold text-[10px] uppercase tracking-wider">
+                          <Truck className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                          <span>Expedição • {infoEntrega.badgeTexto}</span>
+                        </div>
+                        <p className="text-[11px] leading-snug">{infoEntrega.mensagemPopover}</p>
+                      </div>
+                    )}
+
+                    {ehFiadoEmAberto && onAbrirReceberFiado && (
+                      <button
+                        type="button"
+                        onClick={() => onAbrirReceberFiado(pedidoSelecionado)}
+                        className="hubi-btn-cta w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <DollarSign className="w-4 h-4" />
+                        <span>Receber Fiado</span>
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -1644,18 +2225,18 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               {cli ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-center gap-2">
-                    <User className="w-5 h-5 text-slate-400" />
+                    <User className={`w-5 h-5 ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
                     <h3 className={`font-black text-sm uppercase ${isDark ? 'text-white' : 'text-black'}`}>{cli.nome}</h3>
                   </div>
 
                   {cli.whatsapp && (
                     <a
-                      href={`https://wa.me/55${cli.whatsapp.replace(/\D/g, '')}`}
+                      href={`https://wa.me/${normalizarTelefoneComDDI(cli.whatsapp)}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition"
+                      className="hubi-btn-cta inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition"
                     >
-                      <MessageCircle className="w-4 h-4 fill-white text-emerald-600" />
+                      <MessageCircle className="w-4 h-4" />
                       <span>Chamar no WhatsApp</span>
                     </a>
                   )}
@@ -1664,7 +2245,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     <button
                       type="button"
                       onClick={() => setClientePerfilSelecionado(cli)}
-                      className="text-xs font-bold text-emerald-500 hover:underline"
+                      className={`text-xs font-bold hover:underline cursor-pointer ${isDark ? 'text-emerald-400' : 'text-emerald-800'}`}
                     >
                       Ir ao perfil cliente
                     </button>
@@ -1673,22 +2254,24 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               ) : (
                 <div className="space-y-4 py-4 px-4">
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto ${
-                    isDark ? 'bg-slate-900 text-slate-400' : 'bg-slate-100 text-slate-600'
+                    isDark ? 'bg-slate-900 text-slate-400' : 'bg-slate-100 text-slate-700'
                   }`}>
                     <User className="w-6 h-6" />
                   </div>
                   <div className="space-y-1">
                     <h4 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Venda Avulsa</h4>
-                    <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Nenhum cliente está vinculado a este pedido.</p>
+                    <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-800 font-medium'}`}>Nenhum cliente está vinculado a este pedido.</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setModalVincularCliente(true)}
-                    className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs shadow-sm transition active:scale-95 cursor-pointer ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-bold' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'}`}
-                  >
-                    <UserPlus className="w-4 h-4" />
-                    <span>Vincular Cliente</span>
-                  </button>
+                  {pedidoSelecionado.status !== 'cancelado' && (
+                    <button
+                      type="button"
+                      onClick={() => setModalVincularCliente(true)}
+                      className="hubi-btn-cta inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition active:scale-95 cursor-pointer"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      <span>Vincular Cliente</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -1701,12 +2284,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             <button
               type="button"
               onClick={() => setModalOpcoesPedido(true)}
-              className={`h-12 px-4 rounded-2xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shrink-0 ${
-                isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border border-slate-700' : 'bg-white hover:bg-slate-50 text-black border-2 border-slate-300'
+              className={`hubi-btn-neutral h-12 px-4 rounded-2xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shrink-0 ${
+                isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-black border border-slate-300'
               }`}
               title="Opções do Pedido"
             >
-              <MoreVertical className="w-4 h-4 text-slate-400" />
+              <MoreVertical className={`w-4 h-4 ${isDark ? 'text-slate-400' : 'text-black'}`} />
               <span>Opções</span>
             </button>
 
@@ -1733,7 +2316,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     <button
                       type="button"
                       onClick={() => setPedidoParaPesagem(pedidoSelecionado)}
-                      className={`flex-1 h-12 rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-700 text-white font-medium' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'}`}
+                      className="hubi-btn-cta flex-1 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm transition cursor-pointer active:scale-95"
                     >
                       <Scale className="w-4 h-4" />
                       <span>Informar Peso</span>
@@ -1741,13 +2324,13 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   );
                 }
 
-                // Prioridade 1: Se tiver pagamento pendente (mesmo que status seja pendente, aguardando_envio ou outro)
+                // Prioridade 1: Se tiver pagamento pendente
                 if (temPagamentoPendente) {
                   return (
                     <button
                       type="button"
                       onClick={() => onAbrirReceberPagamento(pedidoSelecionado)}
-                      className="flex-1 h-12 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
+                      className="hubi-btn-cta flex-1 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm transition cursor-pointer active:scale-95"
                       title="Receber pagamento pendente"
                     >
                       <DollarSign className="w-4 h-4" />
@@ -1761,11 +2344,10 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   return (
                     <button
                       type="button"
-                      onClick={() => {
-                        onAlterarStatus(pedidoSelecionado.id, 'confirmado');
-                        setPedidoSelecionado({ ...pedidoSelecionado, status: 'confirmado' });
+                      onClick={async () => {
+                        await onAlterarStatus(pedidoSelecionado.id, 'confirmado');
                       }}
-                      className={`flex-1 h-12 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer ${isDark ? 'bg-emerald-500 hover:bg-emerald-400 text-white' : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-black font-bold'}`}
+                      className="hubi-btn-cta flex-1 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm transition cursor-pointer"
                     >
                       <Check className="w-4 h-4 stroke-[3]" />
                       <span>Confirmar Pedido</span>
@@ -1785,10 +2367,10 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       <button
                         type="button"
                         onClick={() => handleAcionarDespacho(pedidoSelecionado)}
-                        className="flex-1 h-12 rounded-2xl bg-slate-950 hover:bg-black text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
+                        className="hubi-btn-cta flex-1 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm transition cursor-pointer active:scale-95"
                         title="Chamar Uber Direct agora"
                       >
-                        <Truck className="w-4 h-4 text-emerald-400" />
+                        <Truck className="w-4 h-4" />
                         <span>Chamar Uber</span>
                       </button>
                     );
@@ -1799,10 +2381,10 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       <button
                         type="button"
                         onClick={() => handleAcionarDespacho(pedidoSelecionado)}
-                        className={`flex-1 h-12 rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'}`}
+                        className="hubi-btn-cta flex-1 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm transition cursor-pointer active:scale-95"
                         title="Gerar envio no Melhor Envio"
                       >
-                        <Truck className={`w-4 h-4 ${isDark ? 'text-white' : 'text-black'}`} />
+                        <Truck className="w-4 h-4" />
                         <span>Gerar Envio</span>
                       </button>
                     );
@@ -1822,7 +2404,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         setNomeTransportadoraDespacho(pedidoSelecionado.nome_transportadora || pe?.nome_transportadora || pe?.transportadora_nome || '');
                         setModalDespachoAberto(true);
                       }}
-                      className={`flex-1 h-12 rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black' : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-black font-bold'}`}
+                      className="hubi-btn-cta flex-1 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm transition cursor-pointer active:scale-95"
                     >
                       <Truck className="w-4 h-4" />
                       <span>Despachar / Concluir Entrega</span>
@@ -1849,17 +2431,16 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   return (
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
                         const saldoDevedorAtual = Number(pedidoSelecionado.saldo_devedor ?? (Number(pedidoSelecionado.valor_total || 0) - Number(pedidoSelecionado.valor_pago || 0)));
                         const podeConcluirSemPagamentoImediato = saldoDevedorAtual <= 0.009 || ehFiado || ehCaderneta || statusPag === 'pago';
                         if (podeConcluirSemPagamentoImediato) {
-                          onAlterarStatus(pedidoSelecionado.id, 'concluido', undefined, true);
-                          setPedidoSelecionado({ ...pedidoSelecionado, status: 'concluido' });
+                          await onAlterarStatus(pedidoSelecionado.id, 'concluido', undefined, true);
                         } else {
                           onAbrirReceberPagamento(pedidoSelecionado);
                         }
                       }}
-                      className={`flex-1 h-12 rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black' : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-black font-bold'}`}
+                      className="hubi-btn-cta flex-1 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm transition cursor-pointer"
                     >
                       <span>Concluir Pedido</span>
                       <ArrowRight className="w-4 h-4" />
@@ -1868,20 +2449,34 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 }
 
                 if (pedidoSelecionado.status !== 'concluido') {
+                  if (ehFiado && !pedidoSelecionado.fiado_quitado && onAbrirReceberFiado) {
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => onAbrirReceberFiado(pedidoSelecionado)}
+                        className="hubi-btn-cta flex-1 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm transition cursor-pointer"
+                      >
+                        <DollarSign className="w-4 h-4" />
+                        <span>Receber Fiado</span>
+                      </button>
+                    );
+                  }
                   return (
                     <button
                       type="button"
-                      onClick={() => setModalOpcoesPedido(true)}
-                      className={`flex-1 h-12 rounded-2xl text-xs flex items-center justify-center gap-2 transition cursor-pointer ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'}`}
+                      onClick={() => setModalAlterarStatus(true)}
+                      className={`hubi-btn-neutral flex-1 h-12 rounded-2xl text-xs flex items-center justify-center gap-2 transition cursor-pointer border ${isDark ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200 font-bold' : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-black font-semibold'}`}
                     >
-                      <MoreVertical className="w-4 h-4" />
-                      <span>Opções do Pedido</span>
+                      <Clock className="w-4 h-4" />
+                      <span>Alterar Status</span>
                     </button>
                   );
                 }
 
                 return (
-                  <div className="flex-1 h-12 rounded-2xl bg-slate-100 text-slate-500 font-bold text-xs flex items-center justify-center">
+                  <div className={`flex-1 h-12 rounded-2xl font-bold text-xs flex items-center justify-center border ${
+                    isDark ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-300 text-black'
+                  }`}>
                     Pedido Concluído
                   </div>
                 );
@@ -1912,12 +2507,16 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             }`}>
               <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
                 <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Selecione um status</h3>
-                <button onClick={() => setModalAlterarStatus(false)} className={`p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}>
+                <button
+                  type="button"
+                  onClick={() => setModalAlterarStatus(false)}
+                  className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}
+                >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-800 font-medium'}`}>
                 Seus clientes serão notificados sempre que o status de um pedido for alterado.
               </p>
 
@@ -1926,8 +2525,16 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   <button
                     key={st.id}
                     type="button"
-                    onClick={() => {
+                    onClick={async () => {
+                      if (st.id === 'cancelado') {
+                        setModalAlterarStatus(false);
+                        setMotivoCancelamento('');
+                        setModalConfirmarCancelamentoAberto(true);
+                        return;
+                      }
+
                       const statusExigeQuitacao = [
+                        'em_separacao',
                         'aguardando_envio',
                         'em_producao',
                         'em_expedicao',
@@ -1964,8 +2571,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                           return;
                         }
                       }
-                      onAlterarStatus(pedidoSelecionado.id, st.id as StatusPedido);
-                      setPedidoSelecionado({ ...pedidoSelecionado, status: st.id as StatusPedido });
+                      await onAlterarStatus(pedidoSelecionado.id, st.id as StatusPedido);
                       setModalAlterarStatus(false);
                     }}
                     className={`w-full p-3 rounded-2xl flex items-center justify-between text-xs font-bold transition cursor-pointer ${
@@ -2003,11 +2609,13 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               isDark ? 'bg-[#08131A] border-2 border-slate-400 text-slate-100' : 'bg-slate-100 border-2 border-slate-300 text-black'
             }`}>
               <div className={`flex items-center justify-between border-b pb-2.5 mb-1 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
-                <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Opções do Pedido #{pedidoSelecionado.numero_pedido}</h3>
+                <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>
+                  Opções do Pedido #{pedidoSelecionado.origem === 'catalogo_online' ? `c-${pedidoSelecionado.numero_pedido}` : pedidoSelecionado.numero_pedido}
+                </h3>
                 <button
                   type="button"
                   onClick={() => setModalOpcoesPedido(false)}
-                  className={`p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}
+                  className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -2103,9 +2711,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                           setModalOpcoesPedido(false);
                           setPedidoParaPesagem(pedidoSelecionado);
                         }}
-                        className={`w-full h-11 px-3.5 rounded-xl text-xs flex items-center gap-2.5 transition text-left cursor-pointer shadow-sm active:scale-98 ${isDark ? 'bg-emerald-600 hover:bg-emerald-700 text-white font-medium' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'}`}
+                        className="hubi-btn-cta w-full h-11 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-2.5 transition text-left cursor-pointer shadow-sm active:scale-98"
                       >
-                        <Scale className={`w-4 h-4 shrink-0 ${isDark ? 'text-white' : 'text-black'}`} />
+                        <Scale className="w-4 h-4 shrink-0" />
                         <span>Informar Peso</span>
                       </button>
                     )}
@@ -2118,10 +2726,25 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                           setModalOpcoesPedido(false);
                           onAbrirReceberPagamento(pedidoSelecionado);
                         }}
-                        className="w-full h-11 px-3.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-2.5 transition text-left cursor-pointer shadow-sm active:scale-98"
+                        className="hubi-btn-cta w-full h-11 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2.5 transition text-left cursor-pointer shadow-sm active:scale-98"
                       >
-                        <DollarSign className="w-4 h-4 text-white shrink-0" />
+                        <DollarSign className="w-4 h-4 shrink-0" />
                         <span>Receber Pagamento</span>
+                      </button>
+                    )}
+
+                    {/* Ação 0.C: Receber Fiado em Aberto */}
+                    {statusPag === 'fiado' && !pedidoSelecionado.fiado_quitado && pedidoSelecionado.status !== 'cancelado' && onAbrirReceberFiado && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setModalOpcoesPedido(false);
+                          onAbrirReceberFiado(pedidoSelecionado);
+                        }}
+                        className="hubi-btn-cta w-full h-11 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2.5 transition text-left cursor-pointer shadow-sm active:scale-98"
+                      >
+                        <DollarSign className="w-4 h-4 shrink-0" />
+                        <span>Receber Fiado</span>
                       </button>
                     )}
 
@@ -2133,9 +2756,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                           setModalOpcoesPedido(false);
                           handleAcionarDespacho(pedidoSelecionado);
                         }}
-                        className={`w-full h-11 px-3.5 rounded-xl text-xs flex items-center gap-2.5 transition text-left cursor-pointer shadow-sm active:scale-98 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-bold' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'}`}
+                        className="hubi-btn-cta w-full h-11 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-2.5 transition text-left cursor-pointer shadow-sm active:scale-98"
                       >
-                        <Truck className={`w-4 h-4 shrink-0 ${isDark ? 'text-white' : 'text-black'}`} />
+                        <Truck className="w-4 h-4 shrink-0" />
                         <span>Gerar Envio</span>
                       </button>
                     )}
@@ -2147,9 +2770,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                           setModalOpcoesPedido(false);
                           handleAcionarDespacho(pedidoSelecionado);
                         }}
-                        className="w-full h-11 px-3.5 rounded-xl bg-slate-950 hover:bg-black text-white font-bold text-xs flex items-center gap-2.5 transition text-left cursor-pointer shadow-sm active:scale-98"
+                        className="hubi-btn-cta w-full h-11 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2.5 transition text-left cursor-pointer shadow-sm active:scale-98"
                       >
-                        <Truck className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <Truck className="w-4 h-4 shrink-0" />
                         <span>Chamar Uber</span>
                       </button>
                     )}
@@ -2158,15 +2781,13 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     {pedidoSelecionado.status === 'pendente' && !estaPagoOuFiado && (
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={async () => {
                           setModalOpcoesPedido(false);
-                          onAlterarStatus(pedidoSelecionado.id, 'confirmado');
-                          setPedidoSelecionado({ ...pedidoSelecionado, status: 'confirmado' });
-                          mostrarToast('Pedido confirmado com sucesso!', 'sucesso');
+                          await onAlterarStatus(pedidoSelecionado.id, 'confirmado');
                         }}
-                        className="w-full h-11 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 shadow-sm"
+                        className="hubi-btn-cta w-full h-11 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 shadow-sm"
                       >
-                        <CheckCircle2 className="w-4 h-4 text-white shrink-0" />
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
                         <span>Confirmar Pedido</span>
                       </button>
                     )}
@@ -2175,15 +2796,13 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     {prontoParaConcluir && pedidoSelecionado.status !== 'pendente' && pedidoSelecionado.status !== 'concluido' && pedidoSelecionado.status !== 'cancelado' && (
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={async () => {
                           setModalOpcoesPedido(false);
-                          onAlterarStatus(pedidoSelecionado.id, 'concluido', undefined, true);
-                          setPedidoSelecionado({ ...pedidoSelecionado, status: 'concluido' });
-                          mostrarToast('Pedido concluído com sucesso!', 'sucesso');
+                          await onAlterarStatus(pedidoSelecionado.id, 'concluido', undefined, true);
                         }}
-                        className={`w-full h-11 px-3.5 rounded-xl font-bold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 shadow-sm ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-black'}`}
+                        className="hubi-btn-cta w-full h-11 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 shadow-sm"
                       >
-                        <CheckCircle2 className={`w-4 h-4 shrink-0 ${isDark ? 'text-white' : 'text-black'}`} />
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
                         <span>Concluir Pedido</span>
                       </button>
                     )}
@@ -2208,8 +2827,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                             window.open(linkRastreio, '_blank', 'noopener,noreferrer');
                           }
                         }}
-                        className={`w-full h-11 px-3.5 rounded-xl font-semibold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 ${
-                          isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border border-slate-700' : 'bg-white hover:bg-slate-50 text-black border-2 border-slate-300'
+                        className={`hubi-btn-neutral w-full h-11 px-3.5 rounded-xl font-semibold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 border ${
+                          isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-black border-slate-300'
                         }`}
                       >
                         <Package className="w-4 h-4 text-sky-500 shrink-0" />
@@ -2217,22 +2836,72 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       </button>
                     )}
 
-                    {/* Ação: Etiqueta (APENAS se já enviado e não retirada) */}
-                    {emTransitoOuEntregue && !isRetirada && (
+                    {/* Ação: Etiqueta Mercado Livre (ML) */}
+                    {pedidoSelecionado.origem === 'mercadolivre' && pedidoSelecionado.ml_shipment_id && onImprimirEtiquetaMl && (
+                      <button
+                        type="button"
+                        disabled={imprimindoEtiquetaMlId === pedidoSelecionado.id}
+                        onClick={() => {
+                          setModalOpcoesPedido(false);
+                          onImprimirEtiquetaMl(pedidoSelecionado);
+                        }}
+                        className={`hubi-btn-neutral w-full h-11 px-3.5 rounded-xl font-bold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 disabled:opacity-50 border ${
+                          pedidoSelecionado.ml_etiqueta_impressa
+                            ? (isDark ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-300' : 'bg-emerald-50 border-emerald-300 text-emerald-900')
+                            : 'bg-[#FFE600] hover:bg-[#F5DC00] text-slate-950 border-amber-400'
+                        }`}
+                      >
+                        <Printer className="w-4 h-4 shrink-0" />
+                        <span>{pedidoSelecionado.ml_etiqueta_impressa ? 'Reimprimir Etiqueta ML' : 'Imprimir Etiqueta ML'}</span>
+                      </button>
+                    )}
+
+                    {/* Ação: Etiqueta Térmica / Padrão */}
+                    {emTransitoOuEntregue && !isRetirada && !(pedidoSelecionado.origem === 'mercadolivre' && pedidoSelecionado.ml_shipment_id) && (
                       <button
                         type="button"
                         onClick={() => {
                           setModalOpcoesPedido(false);
                           setPedidoEtiquetaModal(pedidoSelecionado);
                         }}
-                        className={`w-full h-11 px-3.5 rounded-xl font-semibold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 ${
-                          isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border border-slate-700' : 'bg-white hover:bg-slate-50 text-black border-2 border-slate-300'
+                        className={`hubi-btn-neutral w-full h-11 px-3.5 rounded-xl font-semibold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 border ${
+                          isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-black border-slate-300'
                         }`}
                       >
-                        <Tag className="w-4 h-4 text-slate-400 shrink-0" />
-                        <span>Etiqueta</span>
+                        <Tag className={`w-4 h-4 shrink-0 ${isDark ? 'text-slate-400' : 'text-black'}`} />
+                        <span>Etiqueta de Envio</span>
                       </button>
                     )}
+
+                    {/* Ação 5: Avisar no WhatsApp & Copiar Link */}
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setModalOpcoesPedido(false);
+                          handleAvisarWhatsApp(pedidoSelecionado);
+                        }}
+                        className={`hubi-btn-neutral h-11 px-3 rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-98 border ${
+                          isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-black border-slate-300'
+                        }`}
+                      >
+                        <MessageCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <span>WhatsApp</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleCopiarLinkPedido(pedidoSelecionado);
+                          setModalOpcoesPedido(false);
+                        }}
+                        className={`hubi-btn-neutral h-11 px-3 rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-98 border ${
+                          isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-black border-slate-300'
+                        }`}
+                      >
+                        <Copy className="w-4 h-4 shrink-0" />
+                        <span>Copiar link</span>
+                      </button>
+                    </div>
 
                     {/* Ação 6: Recibo (sempre disponível, fecha opções e abre Recibo oficial) */}
                     <button
@@ -2241,11 +2910,11 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         setModalOpcoesPedido(false);
                         setPedidoReciboModal(pedidoSelecionado);
                       }}
-                      className={`w-full h-11 px-3.5 rounded-xl font-semibold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 ${
-                        isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border border-slate-700' : 'bg-white hover:bg-slate-50 text-black border-2 border-slate-300'
+                      className={`hubi-btn-neutral w-full h-11 px-3.5 rounded-xl font-semibold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 border ${
+                        isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-black border-slate-300'
                       }`}
                     >
-                      <Receipt className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <Receipt className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                       <span>Recibo</span>
                     </button>
 
@@ -2257,11 +2926,11 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                           setModalOpcoesPedido(false);
                           setModalDefinirEnvioAberto(true);
                         }}
-                        className={`w-full h-11 px-3.5 rounded-xl font-semibold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 ${
-                          isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border border-slate-700' : 'bg-white hover:bg-slate-50 text-black border-2 border-slate-300'
+                        className={`hubi-btn-neutral w-full h-11 px-3.5 rounded-xl font-semibold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 border ${
+                          isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-black border-slate-300'
                         }`}
                       >
-                        <Truck className="w-4 h-4 text-blue-500 shrink-0" />
+                        <Truck className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
                         <span>Alterar Frete</span>
                       </button>
                     )}
@@ -2274,11 +2943,11 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                           setModalOpcoesPedido(false);
                           setModalAlterarVendedor(true);
                         }}
-                        className={`w-full h-11 px-3.5 rounded-xl font-semibold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 ${
-                          isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border border-slate-700' : 'bg-white hover:bg-slate-50 text-black border-2 border-slate-300'
+                        className={`hubi-btn-neutral w-full h-11 px-3.5 rounded-xl font-semibold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 border ${
+                          isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-black border-slate-300'
                         }`}
                       >
-                        <UserCheck2 className="w-4 h-4 text-slate-400 shrink-0" />
+                        <UserCheck2 className={`w-4 h-4 shrink-0 ${isDark ? 'text-slate-400' : 'text-black'}`} />
                         <span>Alterar Vendedor</span>
                       </button>
                     )}
@@ -2292,11 +2961,11 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                           await carregarPedidoParaEdicao(pedidoSelecionado);
                           navigate('/pos', { state: { subTela: 'carrinho' } });
                         }}
-                        className={`w-full h-11 px-3.5 rounded-xl font-semibold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 ${
-                          isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border border-slate-700' : 'bg-white hover:bg-slate-50 text-black border-2 border-slate-300'
+                        className={`hubi-btn-neutral w-full h-11 px-3.5 rounded-xl font-semibold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 border ${
+                          isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-black border-slate-300'
                         }`}
                       >
-                        <Edit2 className="w-4 h-4 text-slate-400 shrink-0" />
+                        <Edit2 className={`w-4 h-4 shrink-0 ${isDark ? 'text-slate-400' : 'text-black'}`} />
                         <span>Editar Pedido</span>
                       </button>
                     )}
@@ -2307,13 +2976,14 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         type="button"
                         onClick={() => {
                           setModalOpcoesPedido(false);
+                          setMotivoCancelamento('');
                           setModalConfirmarCancelamentoAberto(true);
                         }}
                         className={`w-full h-11 px-3.5 rounded-xl font-bold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 ${
-                          isDark ? 'bg-[#000000] hover:bg-rose-950/40 text-rose-400 border border-rose-500/40' : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-2 border-rose-300'
+                          isDark ? 'bg-[#000000] hover:bg-red-950/40 text-red-400 border border-red-500/40' : 'bg-red-50 hover:bg-red-100 text-red-900 border border-red-300'
                         }`}
                       >
-                        <Trash2 className="w-4 h-4 text-rose-600 shrink-0" />
+                        <Trash2 className={`w-4 h-4 shrink-0 ${isDark ? 'text-red-400' : 'text-red-700'}`} />
                         <span>Cancelar Pedido</span>
                       </button>
                     )}
@@ -2328,45 +2998,92 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         {modalConfirmarCancelamentoAberto && pedidoSelecionado && (
           <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
             <div className={`rounded-3xl p-5 w-full max-w-sm space-y-4 shadow-2xl animate-in zoom-in-95 ${
-              isDark ? 'bg-[#08131A] border-2 border-slate-400 text-slate-100' : 'bg-white border-2 border-slate-300 text-black'
+              isDark ? 'bg-[#08131A] border-2 border-slate-400 text-slate-100' : 'bg-slate-100 border-2 border-slate-300 text-black'
             }`}>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-500 flex items-center justify-center shrink-0">
-                  <AlertTriangle className="w-5 h-5 text-rose-500" />
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0">
+                    <Ban className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className={`font-bold text-sm truncate ${isDark ? 'text-white' : 'text-black'}`}>
+                      Cancelar Pedido #{pedidoSelecionado.origem === 'catalogo_online' ? `c-${pedidoSelecionado.numero_pedido}` : pedidoSelecionado.numero_pedido}
+                    </h3>
+                    <span className={`text-[11px] block ${isDark ? 'text-slate-400' : 'text-slate-800 font-medium'}`}>
+                      Estorno automático de estoque e financeiro
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Cancelar Pedido #{pedidoSelecionado.numero_pedido}</h3>
-                  <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Confirmação obrigatória</span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (cancelandoPedido) return;
+                    setModalConfirmarCancelamentoAberto(false);
+                    setMotivoCancelamento('');
+                  }}
+                  className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer ${
+                    isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                  }`}
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
 
-              <div className={`p-3 rounded-2xl text-xs leading-relaxed font-medium ${
-                isDark ? 'bg-rose-950/40 border border-rose-500/40 text-rose-300' : 'bg-rose-50/70 border border-rose-200/80 text-rose-800'
+              <div className={`p-3 rounded-2xl text-xs leading-relaxed font-medium border ${
+                isDark ? 'bg-red-950/40 border-red-500/40 text-red-200' : 'bg-red-50 border-red-300 text-red-900'
               }`}>
-                Tem certeza de que deseja cancelar este pedido? Esta ação não pode ser desfeita e os itens retornarão ao estoque.
+                Esta ação não pode ser desfeita. Os itens retornarão ao estoque e eventuais saldos de fiado vinculados serão estornados.
+              </div>
+
+              <div className="space-y-1">
+                <label className={`text-xs font-bold block ${isDark ? 'text-slate-200' : 'text-black'}`}>
+                  Motivo do Cancelamento <span className="text-red-600">*</span>:
+                </label>
+                <textarea
+                  value={motivoCancelamento}
+                  onChange={(e) => setMotivoCancelamento(e.target.value)}
+                  rows={2}
+                  placeholder="Informe o motivo do cancelamento (ex: Desistência do cliente)..."
+                  className={`w-full rounded-xl p-2.5 text-xs resize-none focus:outline-none focus:border-red-500 ${
+                    isDark ? 'bg-[#000000] border border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border border-slate-300 text-black placeholder:text-slate-500'
+                  }`}
+                  autoFocus
+                />
               </div>
 
               <div className="flex items-center gap-2 pt-1">
                 <button
                   type="button"
-                  onClick={() => setModalConfirmarCancelamentoAberto(false)}
-                  className={`flex-1 h-11 rounded-xl font-bold text-xs transition cursor-pointer ${
-                    isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  disabled={cancelandoPedido}
+                  onClick={() => {
+                    setModalConfirmarCancelamentoAberto(false);
+                    setMotivoCancelamento('');
+                  }}
+                  className={`hubi-btn-neutral flex-1 h-11 rounded-xl text-xs transition cursor-pointer ${
+                    isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border border-slate-700 font-bold' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
                   }`}
                 >
                   Voltar
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setModalConfirmarCancelamentoAberto(false);
-                    onCancelarPedido(pedidoSelecionado);
-                    setPedidoSelecionado(null);
-                    mostrarToast('Pedido cancelado com sucesso!', 'sucesso');
+                  disabled={!motivoCancelamento.trim() || cancelandoPedido}
+                  onClick={async () => {
+                    if (!motivoCancelamento.trim()) return;
+                    setCancelandoPedido(true);
+                    try {
+                      await onCancelarPedido(pedidoSelecionado, motivoCancelamento.trim());
+                      setModalConfirmarCancelamentoAberto(false);
+                      setMotivoCancelamento('');
+                      setPedidoSelecionado(null);
+                    } finally {
+                      setCancelandoPedido(false);
+                    }
                   }}
-                  className="flex-1 h-11 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition cursor-pointer shadow-md active:scale-95"
+                  className="flex-1 h-11 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition cursor-pointer shadow-sm active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
                 >
-                  Sim, Cancelar
+                  {cancelandoPedido ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+                  <span>{cancelandoPedido ? 'Cancelando...' : 'Sim, Cancelar'}</span>
                 </button>
               </div>
             </div>
@@ -2387,13 +3104,13 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setModalAlterarVendedor(false)}
-                  className={`p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}
+                  className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-900 font-medium'}`}>
                 Selecione o vendedor responsável por este pedido #{pedidoSelecionado?.numero_pedido}:
               </p>
 
@@ -2405,19 +3122,19 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   onClick={() => handleTrocarVendedorPedido(null)}
                   className={`w-full p-3 rounded-2xl text-left transition flex items-center justify-between cursor-pointer ${
                     pedidoSelecionado?.origem === 'catalogo_online' || !pedidoSelecionado?.vendedor_id
-                      ? (isDark ? 'bg-[#000000] border-2 border-emerald-500 text-emerald-400 shadow-xs' : 'bg-emerald-50 border-2 border-emerald-600 text-emerald-950 font-bold shadow-xs')
-                      : (isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-white border-2 border-slate-300 text-black hover:bg-slate-50')
+                      ? (isDark ? 'bg-[#000000] border-2 border-emerald-500 text-emerald-400 shadow-xs' : 'bg-slate-200 border-2 border-slate-500 text-black font-bold shadow-xs')
+                      : (isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-white border border-slate-300 text-black hover:bg-slate-50')
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Globe className="w-4 h-4 text-slate-400" />
+                    <Globe className={`w-4 h-4 ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
                     <div>
                       <span className="font-bold text-xs block">Catálogo Online</span>
-                      <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Venda originada do catálogo web</span>
+                      <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Venda originada do catálogo web</span>
                     </div>
                   </div>
                   {(pedidoSelecionado?.origem === 'catalogo_online' || !pedidoSelecionado?.vendedor_id) && (
-                    <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   )}
                 </button>
 
@@ -2432,18 +3149,18 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       onClick={() => handleTrocarVendedorPedido(usr.id)}
                       className={`w-full p-3 rounded-2xl text-left transition flex items-center justify-between cursor-pointer ${
                         ehAtual
-                          ? (isDark ? 'bg-[#000000] border-2 border-emerald-500 text-emerald-400 shadow-xs' : 'bg-emerald-50 border-2 border-emerald-600 text-emerald-950 font-bold shadow-xs')
-                          : (isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-white border-2 border-slate-300 text-black hover:bg-slate-50')
+                          ? (isDark ? 'bg-[#000000] border-2 border-emerald-500 text-emerald-400 shadow-xs' : 'bg-slate-200 border-2 border-slate-500 text-black font-bold shadow-xs')
+                          : (isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-white border border-slate-300 text-black hover:bg-slate-50')
                       }`}
                     >
                       <div className="flex items-center gap-2.5">
-                        <User className="w-4 h-4 text-slate-400" />
+                        <User className={`w-4 h-4 ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
                         <div>
                           <span className="font-bold text-xs block">{usr.nome_completo}</span>
-                          <span className={`text-[10px] capitalize ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{usr.perfil || 'Vendedor'}</span>
+                          <span className={`text-[10px] capitalize ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>{usr.perfil || 'Vendedor'}</span>
                         </div>
                       </div>
-                      {ehAtual && <Check className="w-4 h-4 text-emerald-500 shrink-0" />}
+                      {ehAtual && <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />}
                     </button>
                   );
                 })}
@@ -2463,16 +3180,32 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   <UserPlus className="w-4 h-4 text-emerald-500" />
                   <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Vincular Cliente ao Pedido</h3>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setModalVincularCliente(false);
-                    setBuscaVincularCliente('');
-                  }}
-                  className={`p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1.5">
+                  {onAbrirNovoCliente && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModalVincularCliente(false);
+                        onAbrirNovoCliente();
+                      }}
+                      className={`hubi-btn-neutral px-2.5 py-1 rounded-xl text-[11px] font-bold transition cursor-pointer ${
+                        isDark ? 'bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black'
+                      }`}
+                    >
+                      + Novo Cliente
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModalVincularCliente(false);
+                      setBuscaVincularCliente('');
+                    }}
+                    className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               {/* Barra de Busca de Clientes */}
@@ -2484,7 +3217,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   value={buscaVincularCliente}
                   onChange={(e) => setBuscaVincularCliente(e.target.value)}
                   className={`w-full rounded-xl pl-9 pr-3 py-2 text-xs font-medium focus:outline-none focus:border-emerald-500 ${
-                    isDark ? 'bg-[#000000] border border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400'
+                    isDark ? 'bg-[#000000] border border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border border-slate-300 text-black placeholder:text-slate-500'
                   }`}
                   autoFocus
                 />
@@ -2509,12 +3242,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       type="button"
                       onClick={() => handleVincularClienteAoPedido(cliItem.id)}
                       className={`w-full p-2.5 rounded-xl text-left transition flex items-center justify-between cursor-pointer ${
-                        isDark ? 'bg-[#000000] border border-slate-700 hover:border-emerald-500 hover:bg-slate-900 text-slate-200' : 'bg-white border-2 border-slate-300 hover:border-emerald-600 hover:bg-emerald-50/40 text-black'
+                        isDark ? 'bg-[#000000] border border-slate-700 hover:border-emerald-500 hover:bg-slate-900 text-slate-200' : 'bg-white border border-slate-300 hover:bg-slate-50 text-black'
                       }`}
                     >
                       <div>
                         <span className={`font-bold text-xs block ${isDark ? 'text-slate-100' : 'text-black'}`}>{cliItem.nome}</span>
-                        <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                        <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-700 font-medium'}`}>
                           {cliItem.whatsapp || cliItem.telefone || 'Sem telefone'}
                         </span>
                       </div>
@@ -2522,7 +3255,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     </button>
                   ))}
                 {clientes.length === 0 && (
-                  <div className={`text-center py-6 text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  <div className={`text-center py-6 text-xs ${isDark ? 'text-slate-400' : 'text-slate-800 font-medium'}`}>
                     Nenhum cliente cadastrado.
                   </div>
                 )}
@@ -2623,17 +3356,22 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             <button
               type="button"
               onClick={() => setModalFiltrosAvancados(true)}
-              className={`p-2 transition rounded-xl ${isDark ? 'text-slate-300 hover:text-white hover:bg-slate-800' : 'text-slate-700 hover:text-black hover:bg-slate-200'}`}
+              className={`hubi-btn-neutral relative p-2 transition rounded-xl border cursor-pointer ${
+                isDark ? 'bg-[#000000] border-slate-700 text-slate-300 hover:text-white hover:bg-slate-900' : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-black'
+              }`}
               title="Filtros"
             >
-              <Filter className="w-5 h-5" />
+              <Filter className="w-4 h-4" />
+              {(dataInicio || dataFim || meiosPagamentoFiltro.length > 0 || canalFiltro !== 'todos' || !vendedoresSelecionados.includes('todos')) && (
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-500" />
+              )}
             </button>
 
             {/* Botão Nova Venda + */}
             <button
               type="button"
               onClick={() => navigate('/pos')}
-              className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-sm transition active:scale-95 cursor-pointer ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-bold' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'}`}
+              className="hubi-btn-cta w-9 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center justify-center shadow-sm transition active:scale-95 cursor-pointer"
               title="Nova Venda"
             >
               <Plus className="w-5 h-5 stroke-[2.5]" />
@@ -2648,18 +3386,28 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Item, cliente ou código"
+            placeholder="Item, cliente, vendedor ou código"
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            className={`w-full rounded-xl pl-10 pr-10 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-emerald-500 ${
-              isDark ? 'bg-[#000000] border border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400'
+            className={`w-full rounded-xl pl-10 pr-16 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-emerald-500 ${
+              isDark ? 'bg-[#000000] border border-slate-700 text-white placeholder:text-slate-500' : 'bg-white border border-slate-300 text-black placeholder:text-slate-500'
             }`}
           />
+          {busca && (
+            <button
+              type="button"
+              onClick={() => setBusca('')}
+              className={`absolute right-10 p-1 rounded-lg transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-700 hover:text-black'}`}
+              title="Limpar busca"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
           <button
             type="button"
             onClick={alternarVoz}
-            className={`absolute right-2.5 p-1.5 rounded-lg transition ${
-              ouvindoVoz ? 'bg-rose-500 text-white animate-pulse' : (isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black')
+            className={`absolute right-2.5 p-1.5 rounded-lg transition cursor-pointer ${
+              ouvindoVoz ? 'bg-red-600 text-white animate-pulse' : (isDark ? 'text-slate-400 hover:text-white' : 'text-slate-700 hover:text-black')
             }`}
             title="Pesquisar por voz"
           >
@@ -2672,13 +3420,13 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
       <div className={`px-3 py-2 flex items-center gap-2 shrink-0 ${isDark ? 'bg-[#08131A] border-b border-slate-800' : 'bg-slate-100 border-b border-slate-300'}`}>
         {/* Dropdown 1: Status Pedido */}
         <div className="relative flex-1 min-w-0">
-          <Clock className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Clock className={`w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
           <select
             value={statusSelecionados[0] || 'todos'}
             onChange={(e) => setStatusSelecionados([e.target.value])}
             aria-label="Filtrar por status do pedido"
             className={`w-full appearance-none rounded-xl pl-8 pr-7 py-2 text-xs font-semibold cursor-pointer truncate focus:outline-none focus:border-emerald-500 ${
-              isDark ? 'bg-[#000000] border border-slate-700 text-slate-200' : 'bg-white border-2 border-slate-300 text-black'
+              isDark ? 'bg-[#000000] border border-slate-700 text-slate-200' : 'bg-white border border-slate-300 text-black'
             }`}
           >
             <option value="todos">Status Pedido: Todos ({pedidosBaseMobile.length})</option>
@@ -2688,18 +3436,18 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               </option>
             ))}
           </select>
-          <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <ChevronDown className={`w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
         </div>
 
         {/* Dropdown 2: Status Pagamento */}
         <div className="relative flex-1 min-w-0">
-          <DollarSign className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <DollarSign className={`w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
           <select
             value={statusPagamentoSelecionado}
             onChange={(e) => setStatusPagamentoSelecionado(e.target.value)}
             aria-label="Filtrar por status de pagamento"
             className={`w-full appearance-none rounded-xl pl-8 pr-7 py-2 text-xs font-semibold cursor-pointer truncate focus:outline-none focus:border-emerald-500 ${
-              isDark ? 'bg-[#000000] border border-slate-700 text-slate-200' : 'bg-white border-2 border-slate-300 text-black'
+              isDark ? 'bg-[#000000] border border-slate-700 text-slate-200' : 'bg-white border border-slate-300 text-black'
             }`}
           >
             <option value="todos">Status Pagamento: Todos ({pedidosBaseMobile.length})</option>
@@ -2709,23 +3457,23 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               </option>
             ))}
           </select>
-          <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <ChevronDown className={`w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
         </div>
       </div>
 
       {/* 4. Lista Agrupada de Pedidos por Data */}
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
         {carregando && pedidos.length === 0 ? (
-          <div className={`text-center py-16 text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Carregando pedidos...</div>
+          <div className={`text-center py-16 text-xs ${isDark ? 'text-slate-400' : 'text-black font-semibold'}`}>Carregando pedidos...</div>
         ) : gruposPorData.length === 0 ? (
-          <div className={`text-center py-16 text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Nenhum pedido encontrado.</div>
+          <div className={`text-center py-16 text-xs ${isDark ? 'text-slate-400' : 'text-black font-semibold'}`}>Nenhum pedido encontrado.</div>
         ) : (
           gruposPorData.map((grupo) => (
             <div key={grupo.label} className="space-y-2">
               {/* Header do Grupo de Data */}
               <div className="px-1">
-                <h3 className={`font-bold text-xs ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>{grupo.label}</h3>
-                <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                <h3 className={`font-bold text-xs ${isDark ? 'text-slate-200' : 'text-black'}`}>{grupo.label}</h3>
+                <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-800 font-medium'}`}>
                   {grupo.pedidos.length} {grupo.pedidos.length === 1 ? 'pedido' : 'pedidos'}, R$ {grupo.totalValor.toFixed(2)}
                 </span>
               </div>
@@ -2746,20 +3494,27 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       key={ped.id}
                       onClick={() => setPedidoSelecionado(ped)}
                       className={`p-3 rounded-2xl transition cursor-pointer space-y-1 shadow-xs ${
-                        isDark ? 'bg-[#000000] border border-slate-700 text-slate-100 hover:bg-slate-900' : 'bg-white border-2 border-slate-300 text-black hover:bg-slate-50'
+                        isDark ? 'bg-[#000000] border border-slate-700 text-slate-100 hover:bg-slate-900' : 'bg-white border border-slate-300 text-black hover:bg-slate-50'
                       }`}
                     >
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-1.5">
+                      <div className="flex items-center justify-between text-xs gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
                           {cancelado ? (
-                            <XCircle className="w-3.5 h-3.5 text-rose-500" />
+                            <XCircle className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-red-400' : 'text-red-700'}`} />
                           ) : (
-                            <Clock className="w-3.5 h-3.5 text-slate-400" />
+                            <Clock className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
                           )}
-                          <span className={`font-black ${cancelado ? 'line-through text-rose-500' : (isDark ? 'text-white' : 'text-black')}`}>
+                          <span className={`font-black shrink-0 ${cancelado ? 'line-through text-red-600 dark:text-red-400' : (isDark ? 'text-white' : 'text-black')}`}>
                             R$ {Number(ped.valor_total).toFixed(2)}
                           </span>
-                          <span className={`text-[10px] font-normal ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>por {vendedor}</span>
+                          {ped.origem === 'mercadolivre' ? (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-[#FFE600] text-slate-950 font-black text-[9px] shrink-0">
+                              <ShoppingBag className="w-2.5 h-2.5" />
+                              ML
+                            </span>
+                          ) : (
+                            <span className={`text-[10px] truncate ${isDark ? 'text-slate-400' : 'text-slate-800 font-medium'}`}>por {vendedor}</span>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-1.5 shrink-0">
@@ -2770,29 +3525,47 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                                 e.stopPropagation();
                                 setPedidoParaPesagem(ped);
                               }}
-                              className={`px-2 py-0.5 rounded-lg text-[10px] flex items-center gap-1 shadow-xs cursor-pointer active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-700 text-white font-medium' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'}`}
+                              className="hubi-btn-cta px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold flex items-center gap-1 shadow-xs cursor-pointer active:scale-95"
                             >
                               <Scale className="w-3 h-3" />
                               <span>Informar Peso</span>
                             </button>
                           )}
+                          {ped.origem === 'mercadolivre' && ped.ml_shipment_id && onImprimirEtiquetaMl && ped.status !== 'cancelado' && (
+                            <button
+                              type="button"
+                              disabled={imprimindoEtiquetaMlId === ped.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onImprimirEtiquetaMl(ped);
+                              }}
+                              className={`px-2 py-0.5 rounded-lg text-[9px] font-black border cursor-pointer disabled:opacity-50 ${
+                                ped.ml_etiqueta_impressa
+                                  ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
+                                  : 'bg-[#FFE600] text-slate-950 border-amber-400'
+                              }`}
+                              title="Etiqueta Mercado Livre"
+                            >
+                              {ped.ml_etiqueta_impressa ? 'Reimprimir ML' : 'Etiqueta ML'}
+                            </button>
+                          )}
                           <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wide border shrink-0 ${
                             ped.status === 'concluido'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : ped.status === 'cancelado'
-                              ? 'bg-rose-50 text-rose-700 border-rose-200'
+                              ? (isDark ? 'bg-emerald-950/50 text-emerald-300 border-emerald-500/40' : 'bg-emerald-50 text-emerald-900 border-emerald-300')
+                              : ped.status === 'cancelado' || ped.status === 'vencido'
+                              ? (isDark ? 'bg-red-950/50 text-red-300 border-red-500/40' : 'bg-red-50 text-red-900 border-red-300')
                               : ped.status === 'confirmado'
-                              ? 'bg-blue-50 text-blue-700 border-blue-200'
-                              : ped.status === 'em_producao' || ped.status === 'em_expedicao'
-                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                              : 'bg-amber-50 text-amber-700 border-amber-200'
+                              ? (isDark ? 'bg-blue-950/50 text-blue-300 border-blue-500/40' : 'bg-blue-50 text-blue-900 border-blue-300')
+                              : ped.status === 'em_producao' || ped.status === 'em_expedicao' || ped.status === 'em_separacao'
+                              ? (isDark ? 'bg-indigo-950/50 text-indigo-300 border-indigo-500/40' : 'bg-indigo-50 text-indigo-900 border-indigo-300')
+                              : (isDark ? 'bg-amber-950/50 text-amber-300 border-amber-500/40' : 'bg-amber-50 text-amber-900 border-amber-300')
                           }`}>
                             {ROTULOS_STATUS_PEDIDO[ped.status] || ped.status.replace(/_/g, ' ')}
                           </span>
                         </div>
                       </div>
 
-                      <div className={`flex items-center justify-between text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      <div className={`flex items-center justify-between text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-800 font-medium'}`}>
                         <span className="truncate max-w-[200px]">
                           {(() => {
                             const its = ped.itens || ped.itens_pedido || [];
@@ -2805,19 +3578,21 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                             if (!pin) return null;
                             return (
                               <span className={`inline-flex items-center px-1.5 py-0.2 rounded font-black text-[9px] font-mono tracking-wider ${
-                                isDark ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                isDark ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-emerald-100 text-emerald-950 border border-emerald-300'
                               }`}>
                                 PIN: {pin}
                               </span>
                             );
                           })()}
-                          <span className={`font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>#{ped.numero_pedido}</span>
+                          <span className={`font-mono font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                            #{ped.origem === 'catalogo_online' ? `c-${ped.numero_pedido}` : ped.numero_pedido}
+                          </span>
                         </div>
                       </div>
 
                       {cli && (
                         <div className={`flex items-center gap-1 pt-0.5 text-[10px] font-bold uppercase ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                          <User className="w-3 h-3 text-slate-400" />
+                          <User className={`w-3 h-3 ${isDark ? 'text-slate-400' : 'text-slate-700'}`} />
                           <span>{cli.nome}</span>
                         </div>
                       )}
@@ -2828,12 +3603,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         const estaVencido = ped.status === 'vencido' || (temFiadoEmAberto && ped.status !== 'concluido' && ped.status !== 'cancelado' && infoVenc.estaVencido);
                         if (!estaVencido) return null;
                         return (
-                          <div className={`flex items-center justify-between pt-1 border-t text-[10px] ${isDark ? 'border-rose-900/50' : 'border-rose-100'}`}>
-                            <span className="inline-flex items-center gap-1 font-bold text-rose-500">
-                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                          <div className={`flex items-center justify-between pt-1 border-t text-[10px] ${isDark ? 'border-red-900/50' : 'border-red-200'}`}>
+                            <span className="inline-flex items-center gap-1 font-bold text-red-600 dark:text-red-400">
+                              <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
                               Vencido
                             </span>
-                            <span className="font-semibold text-rose-500">
+                            <span className="font-semibold text-red-600 dark:text-red-400">
                               Vencimento: {infoVenc.formatada}
                             </span>
                           </div>
@@ -2850,10 +3625,10 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
 
       {/* 5. Barra Flutuante Inferior de Totais */}
       <div className={`p-3 flex items-center justify-between text-xs shrink-0 shadow-lg ${
-        isDark ? 'bg-[#000000] border-t border-slate-800 text-slate-200' : 'bg-white border-t-2 border-slate-300 text-black'
+        isDark ? 'bg-[#000000] border-t border-slate-800 text-slate-200' : 'bg-white border-t border-slate-300 text-black'
       }`}>
-        <span className={`font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Total em pedidos</span>
-        <span className="font-black text-emerald-500 text-sm">
+        <span className={`font-semibold ${isDark ? 'text-slate-400' : 'text-black'}`}>Total em pedidos</span>
+        <span className={`font-black text-sm ${isDark ? 'text-emerald-400' : 'text-emerald-800'}`}>
           R$ {totalGeralPedidos.toFixed(2)} em {pedidosFiltrados.length} pedidos
         </span>
       </div>
@@ -2867,41 +3642,106 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
         }`}>
           <div className={`h-14 px-4 flex items-center justify-between shrink-0 ${isDark ? 'bg-[#08131A] border-b border-slate-800' : 'bg-slate-100 border-b border-slate-300'}`}>
             <h2 className={`font-bold text-base ${isDark ? 'text-white' : 'text-black'}`}>Filtros</h2>
-            <button
-              type="button"
-              onClick={() => setModalFiltrosAvancados(false)}
-              className={`p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              {(dataInicio || dataFim || meiosPagamentoFiltro.length > 0 || canalFiltro !== 'todos' || !vendedoresSelecionados.includes('todos') || !statusSelecionados.includes('todos') || statusPagamentoSelecionado !== 'todos') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDataInicio('');
+                    setDataFim('');
+                    setMeiosPagamentoFiltro([]);
+                    setCanalFiltro('todos');
+                    setVendedoresSelecionados(['todos']);
+                    setStatusSelecionados(['todos']);
+                    setStatusPagamentoSelecionado('todos');
+                  }}
+                  className={`hubi-btn-neutral px-2.5 py-1 rounded-xl text-xs transition cursor-pointer ${
+                    isDark ? 'bg-slate-800 text-slate-200 border border-slate-700' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
+                  }`}
+                >
+                  Limpar
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setModalFiltrosAvancados(false)}
+                className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-5">
+            {/* Canal de Venda & Vendedores */}
+            <div className={`p-4 rounded-2xl space-y-3 ${isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
+              <h4 className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>Canal e Vendedor</h4>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {[
+                  { id: 'todos', label: 'Todos canais' },
+                  { id: 'pdv', label: 'PDV / Balcão' },
+                  { id: 'catalogo_online', label: 'Catálogo Online' },
+                  { id: 'mercadolivre', label: 'Mercado Livre' }
+                ].map((c) => {
+                  const ativo = canalFiltro === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setCanalFiltro(c.id as any)}
+                      className={`hubi-btn-neutral py-2 px-2.5 rounded-xl border text-xs transition cursor-pointer ${
+                        ativo
+                          ? (isDark ? 'bg-emerald-600 text-white border-emerald-500 font-bold' : 'bg-slate-200 border-slate-500 text-black font-bold')
+                          : (isDark ? 'bg-slate-900 border-slate-700 text-slate-300 font-semibold' : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-black font-semibold')
+                      }`}
+                    >
+                      {c.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalVendedoresAberto(true)}
+                className={`hubi-btn-neutral w-full py-2.5 px-3 rounded-xl border text-xs flex items-center justify-between transition cursor-pointer ${
+                  isDark ? 'bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-200 font-semibold' : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-black font-semibold'
+                }`}
+              >
+                <span>
+                  Vendedores:{' '}
+                  {vendedoresSelecionados.includes('todos')
+                    ? 'Todos'
+                    : `${vendedoresSelecionados.length} selecionado(s)`}
+                </span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
             {/* Informe o período */}
             <div className={`p-4 rounded-2xl space-y-3 ${isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
-              <div className="flex items-center gap-2 text-xs font-bold text-emerald-500">
+              <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                 <Calendar className="w-4 h-4" />
                 <span className={isDark ? 'text-slate-200' : 'text-black'}>Informe o período</span>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={`text-[10px] font-bold block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Data inicial</label>
+                  <label className={`text-[10px] font-bold block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Data inicial</label>
                   <input
                     type="date"
                     value={dataInicio}
                     onChange={(e) => setDataInicio(e.target.value)}
-                    className={`w-full py-1.5 px-2 rounded-lg text-xs focus:outline-none ${isDark ? 'bg-slate-900 border border-slate-700 text-white' : 'bg-slate-50 border border-slate-300 text-black'}`}
+                    className={`w-full py-1.5 px-2 rounded-lg text-xs focus:outline-none ${isDark ? 'bg-slate-900 border border-slate-700 text-white' : 'bg-white border border-slate-300 text-black'}`}
                   />
                 </div>
 
                 <div>
-                  <label className={`text-[10px] font-bold block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Data final</label>
+                  <label className={`text-[10px] font-bold block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Data final</label>
                   <input
                     type="date"
                     value={dataFim}
                     onChange={(e) => setDataFim(e.target.value)}
-                    className={`w-full py-1.5 px-2 rounded-lg text-xs focus:outline-none ${isDark ? 'bg-slate-900 border border-slate-700 text-white' : 'bg-slate-50 border border-slate-300 text-black'}`}
+                    className={`w-full py-1.5 px-2 rounded-lg text-xs focus:outline-none ${isDark ? 'bg-slate-900 border border-slate-700 text-white' : 'bg-white border border-slate-300 text-black'}`}
                   />
                 </div>
               </div>
@@ -2911,8 +3751,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => aplicarPresetPeriodo('ultimos_30_dias')}
-                  className={`col-span-2 py-2 rounded-xl font-bold transition cursor-pointer ${
-                    isDark ? 'bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200' : 'bg-slate-50 hover:bg-slate-100 border border-slate-300 text-black'
+                  className={`hubi-btn-neutral col-span-2 py-2 rounded-xl font-bold transition cursor-pointer ${
+                    isDark ? 'bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black'
                   }`}
                 >
                   Últimos 30 dias
@@ -2923,8 +3763,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     key={p}
                     type="button"
                     onClick={() => aplicarPresetPeriodo(p)}
-                    className={`py-2 rounded-xl capitalize font-medium transition cursor-pointer ${
-                      isDark ? 'bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200' : 'bg-slate-50 hover:bg-slate-100 border border-slate-300 text-black'
+                    className={`hubi-btn-neutral py-2 rounded-xl capitalize font-semibold transition cursor-pointer ${
+                      isDark ? 'bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black'
                     }`}
                   >
                     {p.replace(/_/g, ' ')}
@@ -2937,15 +3777,15 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             <div className={`p-4 rounded-2xl space-y-2.5 ${isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
               <h4 className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>Meio de Pagamento</h4>
               <div className="grid grid-cols-2 gap-2 text-xs">
-                {['Dinheiro', 'Cartão de Débito', 'Cartão de Crédito', 'Cheque', 'Voucher', 'Outros', 'Saldo Cliente', 'Venda Fiado', 'Pix'].map((mp) => {
+                {['Dinheiro', 'Cartão de Débito', 'Cartão de Crédito', 'Caderneta', 'Venda Fiado', 'Pix', 'Voucher', 'Outros'].map((mp) => {
                   const marcado = meiosPagamentoFiltro.includes(mp);
                   return (
                     <label
                       key={mp}
                       className={`flex items-center gap-2.5 p-2 rounded-xl border transition cursor-pointer select-none ${
                         marcado
-                          ? (isDark ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 font-bold' : 'bg-emerald-50 border-2 border-emerald-600 text-emerald-950 font-bold')
-                          : (isDark ? 'border border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800' : 'border border-slate-300 bg-slate-50 text-black hover:bg-slate-100')
+                          ? (isDark ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 font-bold' : 'bg-slate-200 border-slate-500 text-black font-bold')
+                          : (isDark ? 'border border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800' : 'border border-slate-300 bg-slate-100 text-black hover:bg-slate-200')
                       }`}
                     >
                       <input
@@ -2960,8 +3800,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       <div
                         className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
                           marcado
-                            ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
-                            : (isDark ? 'border-slate-600 bg-black' : 'border-slate-300 bg-white')
+                            ? (isDark ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-emerald-600 border-emerald-700 text-white')
+                            : (isDark ? 'border-slate-600 bg-black' : 'border-slate-400 bg-white')
                         }`}
                       >
                         {marcado && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
@@ -2978,7 +3818,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             <button
               type="button"
               onClick={() => setModalFiltrosAvancados(false)}
-              className={`w-full py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-md transition cursor-pointer ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'}`}
+              className="hubi-btn-cta w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider shadow-sm transition cursor-pointer"
             >
               Aplicar filtro
             </button>
@@ -2996,7 +3836,11 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
           }`}>
             <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
               <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Selecione um ou mais...</h3>
-              <button onClick={() => setModalStatusAberto(false)} className={`p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}>
+              <button
+                type="button"
+                onClick={() => setModalStatusAberto(false)}
+                className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -3022,8 +3866,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     }}
                     className={`flex items-center justify-between p-2.5 rounded-xl border transition cursor-pointer select-none ${
                       selecionado
-                        ? (isDark ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 font-bold' : 'bg-emerald-50 border-2 border-emerald-600 text-emerald-950 font-bold')
-                        : (isDark ? 'border border-slate-700 bg-[#000000] text-slate-300 hover:bg-slate-900' : 'border-2 border-slate-300 bg-white text-black hover:bg-slate-50')
+                        ? (isDark ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 font-bold' : 'bg-slate-200 border-slate-500 text-black font-bold')
+                        : (isDark ? 'border border-slate-700 bg-[#000000] text-slate-300 hover:bg-slate-900' : 'border border-slate-300 bg-white text-black hover:bg-slate-50')
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
@@ -3031,7 +3875,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
                           selecionado
                             ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
-                            : (isDark ? 'border-slate-600 bg-black' : 'border-slate-300 bg-white')
+                            : (isDark ? 'border-slate-600 bg-black' : 'border-slate-400 bg-white')
                         }`}
                       >
                         {selecionado && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
@@ -3049,7 +3893,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             <button
               type="button"
               onClick={() => setModalStatusAberto(false)}
-              className={`w-full py-3.5 rounded-2xl text-xs uppercase shadow-md transition cursor-pointer ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'}`}
+              className="hubi-btn-cta w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase shadow-sm transition cursor-pointer"
             >
               Filtrar
             </button>
@@ -3067,7 +3911,11 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
           }`}>
             <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
               <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Selecione um ou mais...</h3>
-              <button onClick={() => setModalVendedoresAberto(false)} className={`p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}>
+              <button
+                type="button"
+                onClick={() => setModalVendedoresAberto(false)}
+                className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -3080,8 +3928,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     onClick={() => setVendedoresSelecionados(['todos'])}
                     className={`flex items-center justify-between p-2.5 rounded-xl border transition cursor-pointer select-none ${
                       todosMarcado
-                        ? (isDark ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 font-bold' : 'bg-emerald-50 border-2 border-emerald-600 text-emerald-950 font-bold')
-                        : (isDark ? 'border border-slate-700 bg-[#000000] text-slate-300 hover:bg-slate-900' : 'border-2 border-slate-300 bg-white text-black hover:bg-slate-50')
+                        ? (isDark ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 font-bold' : 'bg-slate-200 border-slate-500 text-black font-bold')
+                        : (isDark ? 'border border-slate-700 bg-[#000000] text-slate-300 hover:bg-slate-900' : 'border border-slate-300 bg-white text-black hover:bg-slate-50')
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
@@ -3089,7 +3937,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
                           todosMarcado
                             ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
-                            : (isDark ? 'border-slate-600 bg-black' : 'border-slate-300 bg-white')
+                            : (isDark ? 'border-slate-600 bg-black' : 'border-slate-400 bg-white')
                         }`}
                       >
                         {todosMarcado && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
@@ -3115,8 +3963,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     }}
                     className={`flex items-center justify-between p-2.5 rounded-xl border transition cursor-pointer select-none ${
                       onlineMarcado
-                        ? (isDark ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 font-bold' : 'bg-emerald-50 border-2 border-emerald-600 text-emerald-950 font-bold')
-                        : (isDark ? 'border border-slate-700 bg-[#000000] text-slate-300 hover:bg-slate-900' : 'border-2 border-slate-300 bg-white text-black hover:bg-slate-50')
+                        ? (isDark ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 font-bold' : 'bg-slate-200 border-slate-500 text-black font-bold')
+                        : (isDark ? 'border border-slate-700 bg-[#000000] text-slate-300 hover:bg-slate-900' : 'border border-slate-300 bg-white text-black hover:bg-slate-50')
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
@@ -3124,7 +3972,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
                           onlineMarcado
                             ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
-                            : (isDark ? 'border-slate-600 bg-black' : 'border-slate-300 bg-white')
+                            : (isDark ? 'border-slate-600 bg-black' : 'border-slate-400 bg-white')
                         }`}
                       >
                         {onlineMarcado && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
@@ -3151,8 +3999,8 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     }}
                     className={`flex items-center justify-between p-2.5 rounded-xl border transition cursor-pointer select-none ${
                       usrMarcado
-                        ? (isDark ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 font-bold' : 'bg-emerald-50 border-2 border-emerald-600 text-emerald-950 font-bold')
-                        : (isDark ? 'border border-slate-700 bg-[#000000] text-slate-300 hover:bg-slate-900' : 'border-2 border-slate-300 bg-white text-black hover:bg-slate-50')
+                        ? (isDark ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300 font-bold' : 'bg-slate-200 border-slate-500 text-black font-bold')
+                        : (isDark ? 'border border-slate-700 bg-[#000000] text-slate-300 hover:bg-slate-900' : 'border border-slate-300 bg-white text-black hover:bg-slate-50')
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
@@ -3160,7 +4008,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
                           usrMarcado
                             ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
-                            : (isDark ? 'border-slate-600 bg-black' : 'border-slate-300 bg-white')
+                            : (isDark ? 'border-slate-600 bg-black' : 'border-slate-400 bg-white')
                         }`}
                       >
                         {usrMarcado && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
@@ -3176,20 +4024,13 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             <button
               type="button"
               onClick={() => setModalVendedoresAberto(false)}
-              className={`w-full py-3.5 rounded-2xl text-xs uppercase shadow-md transition cursor-pointer ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'}`}
+              className="hubi-btn-cta w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase shadow-sm transition cursor-pointer"
             >
               Filtrar
             </button>
           </div>
         </div>
       )}
-
-      {/* DRAWER MENU UNIFICADO MOBILE */}
-      <MobileMenuDrawer
-        aberto={drawerInternoAberto}
-        onFechar={() => setDrawerInternoAberto(false)}
-        pedidosConfirmadosCount={pedidos.filter(p => p.status === 'confirmado').length}
-      />
 
       {/* MODAL HISTORICO FIADO DO CLIENTE (COMPRAS FIADO A VENCER) */}
       <ModalHistoricoFiadoCliente

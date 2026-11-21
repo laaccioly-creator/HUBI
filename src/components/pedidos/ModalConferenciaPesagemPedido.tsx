@@ -4,6 +4,7 @@ import { Pedido, ItemPedido, Loja } from '../../types';
 import { formatarMoeda } from '../../utils/formatters';
 import { supabase } from '../../lib/supabase';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 import { EstoquePedidoService } from '../../services/estoquePedidoService';
 import { whatsappWalletService, ResultadoDisparoHibrido } from '../../services/whatsappWalletService';
 
@@ -39,6 +40,8 @@ export const ModalConferenciaPesagemPedido: React.FC<ModalConferenciaPesagemPedi
 }) => {
   const { tema } = useTheme();
   const isDark = tema === 'dark';
+
+  useRegisterOverlay(isOpen, onClose, 'modal-conferencia-pesagem', 'modal');
 
   const [itensState, setItensState] = useState<ItemPesagemState[]>([]);
   const [salvando, setSalvando] = useState<boolean>(false);
@@ -340,9 +343,9 @@ export const ModalConferenciaPesagemPedido: React.FC<ModalConferenciaPesagemPedi
           <button
             type="button"
             onClick={onClose}
-            className={`p-2 rounded-xl border transition cursor-pointer ${
+            className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${
               isDark
-                ? 'bg-[#000000] border-slate-700 text-white hover:bg-slate-900'
+                ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
                 : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
             }`}
           >
@@ -388,12 +391,12 @@ export const ModalConferenciaPesagemPedido: React.FC<ModalConferenciaPesagemPedi
                 </div>
 
                 {sucessoDisparo.modoEnvio !== 'manual_link' ? (
-                  <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                  <p className="text-xs leading-relaxed text-slate-800 dark:text-slate-300">
                     A mensagem com o link de pagamento foi entregue diretamente ao cliente pelo número oficial da sua loja.
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+                    <p className="text-xs leading-relaxed text-slate-800 dark:text-slate-400">
                       Clique no botão abaixo para abrir o WhatsApp e enviar o link de pagamento ao cliente em 1 clique:
                     </p>
                     {sucessoDisparo.manualUrl && (
@@ -401,7 +404,7 @@ export const ModalConferenciaPesagemPedido: React.FC<ModalConferenciaPesagemPedi
                         href={sucessoDisparo.manualUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="hubi-btn-neutral inline-flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider transition shadow-md cursor-pointer"
+                        className="hubi-btn-cta inline-flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider transition shadow-md cursor-pointer"
                       >
                         <Share2 className="w-4 h-4" />
                         <span>Enviar Link de Pagamento no WhatsApp</span>

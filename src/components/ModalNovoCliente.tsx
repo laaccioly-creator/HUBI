@@ -217,7 +217,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
   const [permiteFiado, setPermiteFiado] = useState(false);
   const [limiteCredito, setLimiteCredito] = useState('');
   const [permiteCaderneta, setPermiteCaderneta] = useState(cadernetaAtivaLoja);
-  const [limiteCaderneta, setLimiteCaderneta] = useState('500,00');
+  const [limiteCaderneta, setLimiteCaderneta] = useState('');
   const [diaVencimentoCaderneta, setDiaVencimentoCaderneta] = useState<number>(Number(loja?.dia_vencimento_padrao_caderneta || 10));
   const [tabelaPreco, setTabelaPreco] = useState<TabelaPreco>('varejo');
 
@@ -269,7 +269,12 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
             ? formatarValorBRL(clienteEditar.limite_credito)
             : '';
         const cad = cadernetaAtivaLoja ? Boolean(clienteEditar.permite_caderneta) : false;
-        const limCad = formatarValorBRL(clienteEditar.limite_caderneta ?? 500);
+        const limCad =
+          clienteEditar.limite_caderneta !== undefined &&
+          clienteEditar.limite_caderneta !== null &&
+          Number(clienteEditar.limite_caderneta) > 0
+            ? formatarValorBRL(clienteEditar.limite_caderneta)
+            : '';
         const diaCad = Number(clienteEditar.dia_vencimento_caderneta || loja?.dia_vencimento_padrao_caderneta || 10);
         const tab = clienteEditar.tabela_preco_padrao || 'varejo';
 
@@ -516,7 +521,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
   // Obter Localização Atual do Navegador e Fazer Geocoding Reverso
   const usarLocalizacaoAtual = () => {
     if (!navigator.geolocation) {
-      alert('Geolocalização não é suportada pelo seu navegador.');
+      mostrarAviso('Geolocalização não é suportada pelo seu navegador.');
       return;
     }
 
@@ -657,7 +662,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
       nome: nome.trim(),
       numero_documento: cpfCnpj.trim() || null,
       data_aniversario: dataAniversario || null,
-      email: null,
+      email: clienteEditar?.email || null,
       telefone: tel1Norm || telefone1.trim() || null,
       telefone2: tel2Norm || telefone2.trim() || null,
       telefone_is_whatsapp: telefone1IsWhatsapp,
@@ -693,6 +698,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
           .from('clientes')
           .update(payloadCompleto)
           .eq('id', clienteEditar.id)
+          .eq('loja_id', loja.id)
           .select()
           .single();
 
@@ -703,6 +709,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
             .from('clientes')
             .update(payloadCompleto)
             .eq('id', clienteEditar.id)
+            .eq('loja_id', loja.id)
             .select()
             .single();
         }
@@ -713,7 +720,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
             nome: nome.trim(),
             numero_documento: cpfCnpj.trim() || null,
             data_aniversario: dataAniversario || null,
-            email: null,
+            email: clienteEditar.email || null,
             telefone: telefone1.trim() || null,
             whatsapp: whatsappPrincipal || null,
             permite_fiado: fiadoAtivoLoja ? permiteFiado : false,
@@ -726,6 +733,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
             .from('clientes')
             .update(payloadLegado)
             .eq('id', clienteEditar.id)
+            .eq('loja_id', loja.id)
             .select()
             .single();
         }
@@ -826,8 +834,13 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
             </div>
           </div>
           <button
+            type="button"
             onClick={handleFecharComConfirmacao}
-            className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
+            className={`hubi-btn-close-x p-1.5 rounded-xl border transition shadow-sm cursor-pointer ${
+              isDark
+                ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+            }`}
             title="Fechar"
           >
             <X className="w-5 h-5" />

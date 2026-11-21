@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Scale, X, Calculator } from 'lucide-react';
 import { formatarMoeda } from '../../utils/formatters';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useRegisterOverlay } from '../../hooks/useRegisterOverlay';
 
 interface ModalInputPesoFracionadoProps {
   aberto: boolean;
@@ -22,10 +24,13 @@ export const ModalInputPesoFracionado: React.FC<ModalInputPesoFracionadoProps> =
   onConfirmar,
   temaDark = true
 }) => {
+  const { isDark } = useTheme();
   const [modo, setModo] = useState<'kg' | 'gramas' | 'valor'>('kg');
   const [valorKg, setValorKg] = useState<string>('');
   const [valorGramas, setValorGramas] = useState<string>('');
   const [valorReais, setValorReais] = useState<string>('');
+
+  useRegisterOverlay(aberto, onFechar, 'modal-input-peso-fracionado', 'modal');
 
   useEffect(() => {
     if (aberto) {
@@ -114,9 +119,13 @@ export const ModalInputPesoFracionado: React.FC<ModalInputPesoFracionadoProps> =
           <button
             type="button"
             onClick={onFechar}
-            className="p-1 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+            className={`hubi-btn-close-x p-1.5 rounded-xl transition cursor-pointer ${
+              isDark
+                ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700'
+                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+            }`}
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -125,10 +134,12 @@ export const ModalInputPesoFracionado: React.FC<ModalInputPesoFracionadoProps> =
           <button
             type="button"
             onClick={() => setModo('kg')}
-            className={`py-1.5 rounded-xl font-bold text-xs transition cursor-pointer ${
+            className={`py-1.5 rounded-xl text-xs transition cursor-pointer ${
               modo === 'kg'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                ? isDark
+                  ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                  : 'bg-slate-200 border border-slate-500 text-black font-bold shadow-xs'
+                : 'text-slate-900 dark:text-slate-300 hover:text-black dark:hover:text-white font-semibold'
             }`}
           >
             Por Kg
@@ -136,10 +147,12 @@ export const ModalInputPesoFracionado: React.FC<ModalInputPesoFracionadoProps> =
           <button
             type="button"
             onClick={() => setModo('gramas')}
-            className={`py-1.5 rounded-xl font-bold text-xs transition cursor-pointer ${
+            className={`py-1.5 rounded-xl text-xs transition cursor-pointer ${
               modo === 'gramas'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                ? isDark
+                  ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                  : 'bg-slate-200 border border-slate-500 text-black font-bold shadow-xs'
+                : 'text-slate-900 dark:text-slate-300 hover:text-black dark:hover:text-white font-semibold'
             }`}
           >
             Por Gramas
@@ -147,10 +160,12 @@ export const ModalInputPesoFracionado: React.FC<ModalInputPesoFracionadoProps> =
           <button
             type="button"
             onClick={() => setModo('valor')}
-            className={`py-1.5 rounded-xl font-bold text-xs transition cursor-pointer ${
+            className={`py-1.5 rounded-xl text-xs transition cursor-pointer ${
               modo === 'valor'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                ? isDark
+                  ? 'bg-emerald-600 text-white font-bold shadow-xs'
+                  : 'bg-slate-200 border border-slate-500 text-black font-bold shadow-xs'
+                : 'text-slate-900 dark:text-slate-300 hover:text-black dark:hover:text-white font-semibold'
             }`}
           >
             Por R$ (Valor)
@@ -249,7 +264,7 @@ export const ModalInputPesoFracionado: React.FC<ModalInputPesoFracionadoProps> =
           <button
             type="button"
             onClick={onFechar}
-            className="w-full px-4 py-2.5 sm:py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition cursor-pointer text-center whitespace-nowrap"
+            className="hubi-btn-neutral w-full px-4 py-2.5 sm:py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-black dark:text-slate-200 transition cursor-pointer text-center whitespace-nowrap"
           >
             Cancelar
           </button>
@@ -257,7 +272,7 @@ export const ModalInputPesoFracionado: React.FC<ModalInputPesoFracionadoProps> =
             type="button"
             disabled={pesoFinalKg <= 0}
             onClick={handleConfirmar}
-            className="w-full px-4 py-2.5 sm:py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black flex items-center justify-center text-center whitespace-nowrap shadow-md shadow-emerald-600/20 transition cursor-pointer"
+            className="hubi-btn-cta w-full px-4 py-2.5 sm:py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold flex items-center justify-center text-center whitespace-nowrap shadow-md shadow-emerald-600/20 transition cursor-pointer"
           >
             Confirmar Peso
           </button>

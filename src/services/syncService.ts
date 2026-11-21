@@ -293,6 +293,7 @@ export class SyncService {
           // 2. Inserir Itens do Pedido
           const itensFormatados = venda.itens.map(item => ({
             ...item,
+            produto_id: isUuidValido(item.produto_id) ? item.produto_id : null,
             variacao_id: isUuidValido(item.variacao_id) ? item.variacao_id : null,
             pedido_id: pedidoCriado.id
           }));

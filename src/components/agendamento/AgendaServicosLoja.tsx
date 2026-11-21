@@ -560,7 +560,7 @@ export const AgendaServicosLoja: React.FC = () => {
             <button
               type="button"
               onClick={() => setModalNovoAberto(true)}
-              className="hubi-btn-neutral h-10 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs inline-flex items-center justify-center gap-2 transition cursor-pointer shadow-sm border border-emerald-500"
+              className="hubi-btn-cta h-10 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs inline-flex items-center justify-center gap-2 transition cursor-pointer shadow-sm border border-emerald-500"
             >
               <Plus className="w-4 h-4" />
               <span>+ Novo Agendamento</span>
@@ -816,7 +816,7 @@ export const AgendaServicosLoja: React.FC = () => {
             <button
               type="button"
               onClick={() => setModalNovoAberto(true)}
-              className="hubi-btn-neutral mt-4 h-10 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+              className="hubi-btn-cta mt-4 h-10 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer shadow-sm"
             >
               <Plus className="w-4 h-4" />
               <span>Agendar Novo Horário</span>
@@ -991,7 +991,7 @@ export const AgendaServicosLoja: React.FC = () => {
                           type="button"
                           disabled={processandoAcaoId === item.id}
                           onClick={() => handleAlterarStatus(item.id, 'confirmado')}
-                          className="hubi-btn-neutral bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl px-3.5 py-1.5 text-xs shadow-sm transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
+                          className="hubi-btn-cta bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl px-3.5 py-1.5 text-xs shadow-sm transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
                           title="Confirmar agendamento"
                         >
                           {processandoAcaoId === item.id ? (
@@ -1008,7 +1008,7 @@ export const AgendaServicosLoja: React.FC = () => {
                           type="button"
                           disabled={processandoAcaoId === item.id}
                           onClick={() => handleAlterarStatus(item.id, 'em_atendimento')}
-                          className="hubi-btn-neutral bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl px-3.5 py-1.5 text-xs shadow-sm transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
+                          className="hubi-btn-cta bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl px-3.5 py-1.5 text-xs shadow-sm transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
                           title="Iniciar atendimento"
                         >
                           {processandoAcaoId === item.id ? (
@@ -1171,7 +1171,11 @@ export const AgendaServicosLoja: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setAgendamentoParaCancelar(null)}
-                className="hubi-btn-close-x p-1.5 rounded-xl text-slate-400 hover:text-white cursor-pointer transition"
+                className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                }`}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1214,7 +1218,7 @@ export const AgendaServicosLoja: React.FC = () => {
                 type="button"
                 disabled={processandoAcaoId === agendamentoParaCancelar.id}
                 onClick={() => handleAlterarStatus(agendamentoParaCancelar.id, 'cancelado', motivoCancelamento)}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
               >
                 {processandoAcaoId === agendamentoParaCancelar.id ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1422,7 +1426,11 @@ const ModalNovoAgendamentoAvulso: React.FC<ModalNovoAgendamentoAvulsoProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="hubi-btn-close-x p-1.5 rounded-xl text-slate-400 hover:text-white transition cursor-pointer"
+            className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${
+              isDark
+                ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+            }`}
           >
             <X className="w-5 h-5" />
           </button>
@@ -1751,7 +1759,11 @@ const ModalRemarcarAgendamentoRetaguarda: React.FC<ModalRemarcarAgendamentoRetag
           <button
             type="button"
             onClick={onClose}
-            className="hubi-btn-close-x p-1.5 rounded-xl text-slate-400 hover:text-white transition cursor-pointer"
+            className={`hubi-btn-close-x p-1.5 rounded-xl border transition cursor-pointer ${
+              isDark
+                ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+            }`}
           >
             <X className="w-5 h-5" />
           </button>
@@ -2105,7 +2117,7 @@ const ModalEnderecoDomicilioAgenda: React.FC<ModalEnderecoDomicilioAgendaProps> 
               href={urlMaps}
               target="_blank"
               rel="noreferrer"
-              className="hubi-btn-neutral px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-sm inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              className="hubi-btn-cta px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
             >
               <MapPin className="w-3.5 h-3.5" />
               <span>Abrir no Google Maps</span>
