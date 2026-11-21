@@ -331,10 +331,10 @@ export const ReciboPublico: React.FC = () => {
           type="button"
           disabled={baixandoPdf}
           onClick={handleBaixarPdf}
-          className="py-2 px-3.5 rounded-xl bg-emerald-200 hover:bg-emerald-300 text-slate-900 text-xs font-semibold flex items-center gap-2 transition cursor-pointer border border-emerald-300/60 shadow-xs disabled:opacity-50 active:scale-95"
+          className="py-2 px-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black text-xs font-semibold flex items-center gap-2 transition cursor-pointer border border-slate-300 shadow-xs disabled:opacity-50 active:scale-95"
           title="Baixar PDF do Recibo"
         >
-          {baixandoPdf ? <Loader2 className="w-4 h-4 animate-spin text-slate-900" /> : <Download className="w-4 h-4 text-slate-900" />}
+          {baixandoPdf ? <Loader2 className="w-4 h-4 animate-spin text-black" /> : <Download className="w-4 h-4 text-black" />}
           <span>Baixar PDF</span>
         </button>
       </div>

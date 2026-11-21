@@ -2074,7 +2074,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 type="button"
                 onClick={handleSalvarTiposVenda}
                 disabled={salvandoTiposVenda || (!tipoVendaVarejo && !tipoVendaAtacado && !tipoVendaDistribuidor)}
-                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50"
+                className="hubi-btn-cta px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50"
               >
                 {salvandoTiposVenda ? 'Salvando...' : 'Salvar'}
               </button>
@@ -2083,7 +2083,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 type="button"
                 onClick={() => whatsappIaRef.current?.salvar()}
                 disabled={salvandoWhatsAppIA}
-                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50"
+                className="hubi-btn-cta px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50"
               >
                 {salvandoWhatsAppIA ? 'Salvando...' : 'Salvar'}
               </button>
@@ -2094,7 +2094,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 disabled={!isDirty || salvando}
                 className={`px-3.5 py-1.5 rounded-xl font-black text-xs border shadow-md active:scale-95 transition ${
                   isDirty && !salvando
-                    ? 'bg-emerald-600 hover:bg-emerald-500 border-emerald-500 text-white shadow-emerald-500/20 cursor-pointer'
+                    ? 'hubi-btn-cta bg-emerald-600 hover:bg-emerald-500 border-emerald-500 text-white shadow-emerald-500/20 cursor-pointer'
                     : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed opacity-60'
                 }`}
               >
@@ -2135,7 +2135,11 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   <button
                     type="button"
                     onClick={() => solicitarAberturaQuestionarioOnboarding()}
-                    className="flex-1 px-3 py-2 rounded-xl bg-[#22C59E] hover:bg-[#1EB38F] text-slate-950 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white font-black text-xs text-center cursor-pointer transition"
+                    className={`flex-1 px-3 py-2 rounded-xl text-xs text-center cursor-pointer transition ${
+                      isDark
+                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 font-black'
+                        : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
+                    }`}
                   >
                     Abrir Assistente / Refazer Questionário
                   </button>
@@ -3376,7 +3380,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               type="button"
               onClick={handleSalvarTiposVenda}
               disabled={salvandoTiposVenda || (!tipoVendaVarejo && !tipoVendaAtacado && !tipoVendaDistribuidor)}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50 animate-in fade-in"
+              className="hubi-btn-cta px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50 animate-in fade-in"
             >
               {salvandoTiposVenda ? (
                 <>
@@ -3395,7 +3399,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               type="button"
               onClick={() => whatsappIaRef.current?.salvar()}
               disabled={salvandoWhatsAppIA}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50 animate-in fade-in"
+              className="hubi-btn-cta px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50 animate-in fade-in"
             >
               {salvandoWhatsAppIA ? (
                 <>
@@ -3416,7 +3420,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               disabled={!isDirty || salvando}
               className={`px-4 py-2 rounded-xl font-black text-xs flex items-center gap-2 border transition ${
                 isDirty && !salvando
-                  ? 'bg-emerald-600 hover:bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer'
+                  ? 'hubi-btn-cta bg-emerald-600 hover:bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer'
                   : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-300 dark:border-slate-700 cursor-not-allowed opacity-60'
               }`}
             >
@@ -3479,7 +3483,11 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 <button
                   type="button"
                   onClick={() => solicitarAberturaQuestionarioOnboarding()}
-                  className="px-4 py-2.5 rounded-xl bg-[#22C59E] hover:bg-[#1EB38F] text-slate-950 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white font-black text-xs flex items-center gap-2 transition cursor-pointer shadow-sm"
+                  className={`px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition cursor-pointer shadow-sm ${
+                    isDark
+                      ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black'
+                      : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
+                  }`}
                 >
                   <Sparkles className="w-4 h-4" />
                   <span>Abrir Assistente / Refazer Questionário</span>
@@ -4633,7 +4641,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               <button
                 type="button"
                 onClick={() => setModalPreviewRecibo(true)}
-                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95"
+                className="hubi-btn-neutral px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs flex items-center gap-1.5 transition cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95"
               >
                 <Receipt className="w-4 h-4" />
                 <span>Ver meu recibo</span>
@@ -4716,7 +4724,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                 disabled={!isDirty || salvando}
                 className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition shadow-md active:scale-95 ${
                   isDirty && !salvando
-                    ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white shadow-emerald-500/20 cursor-pointer'
+                    ? 'hubi-btn-cta bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white shadow-emerald-500/20 cursor-pointer'
                     : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 cursor-not-allowed opacity-60'
                 }`}
               >
@@ -5727,7 +5735,11 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               type="button"
               onClick={handleExportarRelatorios}
               disabled={salvando || (!exportarVendas && !exportarProdutos && !exportarClientes)}
-              className="w-full py-4 rounded-2xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-sm flex items-center justify-center gap-2 shadow-sm transition cursor-pointer disabled:opacity-40"
+              className={`w-full py-4 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 shadow-sm transition cursor-pointer disabled:opacity-40 ${
+                isDark
+                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
+                  : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black'
+              }`}
             >
               <Download className="w-5 h-5" />
               <span>{salvando ? 'Gerando arquivo...' : 'Exportar Arquivos (CSV / Excel)'}</span>
@@ -5779,7 +5791,11 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   <button
                     type="button"
                     onClick={() => copiarTexto(`${window.location.origin}/feed/facebook/${loja?.slug_catalogo || loja?.id}`, 'fb_feed')}
-                    className="px-3.5 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                    className={`px-3.5 py-2 rounded-xl font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${
+                      isDark
+                        ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
+                        : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black'
+                    }`}
                   >
                     <Copy className="w-3.5 h-3.5" />
                     <span>{copiadoTexto === 'fb_feed' ? 'Copiado!' : 'Copiar Link XML'}</span>
@@ -5814,7 +5830,11 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
                   <button
                     type="button"
                     onClick={() => copiarTexto(`${window.location.origin}/feed/google/${loja?.slug_catalogo || loja?.id}`, 'google_feed')}
-                    className="px-3.5 py-2 rounded-xl bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 text-slate-900 font-semibold dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                    className={`px-3.5 py-2 rounded-xl font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${
+                      isDark
+                        ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
+                        : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black'
+                    }`}
                   >
                     <Copy className="w-3.5 h-3.5" />
                     <span>{copiadoTexto === 'google_feed' ? 'Copiado!' : 'Copiar Link XML'}</span>
@@ -6016,7 +6036,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
               <button
                 type="button"
                 onClick={() => setModalPreviewRecibo(false)}
-                className="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center cursor-pointer shadow-sm transition"
+                className="hubi-btn-neutral p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center cursor-pointer shadow-sm transition"
               >
                 <span>Fechar</span>
               </button>
@@ -6047,7 +6067,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
             <button
               type="button"
               onClick={() => setModalExportConcluido(false)}
-              className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95 transition"
+              className="hubi-btn-neutral w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black text-xs cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95 transition"
             >
               Voltar
             </button>

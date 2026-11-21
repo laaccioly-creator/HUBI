@@ -3099,7 +3099,7 @@ Fico no aguardo da confirmação! ✨`;
               <button
                 type="button"
                 onClick={() => setDrawerCarrinhoAberto(true)}
-                className="w-full sm:w-auto sm:px-4 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white border border-emerald-500 rounded-2xl px-3 py-2.5 sm:py-3 text-xs font-extrabold flex items-center justify-center gap-2 transition cursor-pointer shadow-xs"
+                className="hubi-btn-neutral w-full sm:w-auto sm:px-4 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white border border-emerald-500 rounded-2xl px-3 py-2.5 sm:py-3 text-xs font-extrabold flex items-center justify-center gap-2 transition cursor-pointer shadow-xs"
                 title="Abrir Carrinho de Compras"
               >
                 <ShoppingCart className="w-4 h-4 shrink-0" />
@@ -3286,19 +3286,19 @@ Fico no aguardo da confirmação! ✨`;
                               className={`px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition shadow-xs ${
                                 esgotado
                                   ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 font-semibold cursor-not-allowed opacity-60'
-                                  : 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 dark:border-2 dark:border-emerald-400 cursor-pointer active:scale-95'
+                                  : 'hubi-btn-neutral bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 dark:border-2 dark:border-emerald-400 cursor-pointer active:scale-95'
                               }`}
                             >
                               {esgotado ? (
                                 <span>Esgotado</span>
                               ) : produto.tipo_item === 'servico' && produto.requer_agendamento ? (
                                 <>
-                                  <Calendar className="w-3.5 h-3.5 text-white" />
+                                  <Calendar className="w-3.5 h-3.5" />
                                   <span>Agendar Horário</span>
                                 </>
                               ) : (
                                 <>
-                                  <Plus className="w-3.5 h-3.5 text-white" />
+                                  <Plus className="w-3.5 h-3.5" />
                                   <span className="hidden sm:inline">Adicionar</span>
                                 </>
                               )}
@@ -3411,19 +3411,19 @@ Fico no aguardo da confirmação! ✨`;
                                   className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-xs transition ${
                                     esgotado
                                       ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 font-semibold cursor-not-allowed opacity-60'
-                                      : 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 dark:border-2 dark:border-emerald-400 cursor-pointer active:scale-95'
+                                      : 'hubi-btn-neutral bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 dark:border-2 dark:border-emerald-400 cursor-pointer active:scale-95'
                                   }`}
                                 >
                                   {esgotado ? (
                                     <span>Esgotado</span>
                                   ) : produto.tipo_item === 'servico' && produto.requer_agendamento ? (
                                     <>
-                                      <Calendar className="w-4 h-4 text-white" />
+                                      <Calendar className="w-4 h-4" />
                                       <span>Agendar Horário</span>
                                     </>
                                   ) : (
                                     <>
-                                      <ShoppingBag className="w-4 h-4 text-white" />
+                                      <ShoppingBag className="w-4 h-4" />
                                       <span>Adicionar</span>
                                     </>
                                   )}
@@ -3543,16 +3543,16 @@ Fico no aguardo da confirmação! ✨`;
                                 className={`w-8 h-8 rounded-xl flex items-center justify-center transition shadow-xs font-bold ${
                                   esgotado
                                     ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 font-semibold cursor-not-allowed opacity-60'
-                                    : 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 dark:border-2 dark:border-emerald-400 cursor-pointer active:scale-95'
+                                    : 'hubi-btn-neutral bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 dark:border-2 dark:border-emerald-400 cursor-pointer active:scale-95'
                                 }`}
                                 title={esgotado ? 'Produto Esgotado' : produto.tipo_item === 'servico' && produto.requer_agendamento ? 'Agendar Horário' : 'Adicionar ao Pedido'}
                               >
                                 {esgotado ? (
                                   <X className="w-4 h-4 text-slate-400" />
                                 ) : produto.tipo_item === 'servico' && produto.requer_agendamento ? (
-                                  <Calendar className="w-4 h-4 text-white" />
+                                  <Calendar className="w-4 h-4" />
                                 ) : (
-                                  <Plus className="w-4 h-4 text-white" />
+                                  <Plus className="w-4 h-4" />
                                 )}
                               </button>
                             </div>
@@ -3576,7 +3576,13 @@ Fico no aguardo da confirmação! ✨`;
                 <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">{produtoModalVariacao.nome}</h3>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">Selecione a opção desejada para adicionar ao pedido</p>
               </div>
-              <button onClick={() => setProdutoModalVariacao(null)} className="p-1 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg transition cursor-pointer">
+              <button
+                type="button"
+                onClick={() => setProdutoModalVariacao(null)}
+                className={`p-1.5 rounded-xl transition cursor-pointer ${
+                  isDark ? 'text-slate-400 hover:text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                }`}
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -3670,7 +3676,9 @@ Fico no aguardo da confirmação! ✨`;
                 <button
                   type="button"
                   onClick={() => setDrawerCarrinhoAberto(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                  className={`p-1.5 rounded-xl transition cursor-pointer ${
+                    isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                  }`}
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -3977,7 +3985,7 @@ Fico no aguardo da confirmação! ✨`;
                             type="button"
                             onClick={handleAplicarCupom}
                             disabled={!codigoCupomInput.trim() || validandoCupom}
-                            className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold text-xs transition cursor-pointer shrink-0"
+                            className="hubi-btn-neutral px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold text-xs transition cursor-pointer shrink-0"
                           >
                             {validandoCupom ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Aplicar'}
                           </button>
@@ -4176,7 +4184,7 @@ Fico no aguardo da confirmação! ✨`;
                     type="button"
                     onClick={handleFinalizarPedido}
                     disabled={enviandoPedido}
-                    className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm shadow-sm flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer active:scale-98 order-1 sm:order-2"
+                    className="hubi-btn-cta w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm shadow-sm flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer active:scale-98 order-1 sm:order-2"
                   >
                     {exigePesagemPrevia ? (
                       <>
@@ -4253,7 +4261,7 @@ Fico no aguardo da confirmação! ✨`;
                 setPedidoConcluidoModal(null);
                 setPixAprovadoEmTempoReal(false);
               }}
-              className="absolute top-4 right-4 p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition cursor-pointer"
+              className="hubi-btn-close-x absolute top-4 right-4 p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition cursor-pointer"
               title="Fechar"
               aria-label="Fechar modal de pedido enviado"
             >
@@ -4329,9 +4337,9 @@ Fico no aguardo da confirmação! ✨`;
             <div className="space-y-2 pt-2">
               <Link
                 to={`/order-tracking/${pedidoConcluidoModal.numeroPedido}`}
-                className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer shadow-lg shadow-emerald-600/25 active:scale-98"
+                className="hubi-btn-neutral w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer shadow-lg shadow-emerald-600/25 active:scale-98"
               >
-                <ShoppingBag className="w-4 h-4 text-white" />
+                <ShoppingBag className="w-4 h-4" />
                 <span>Acompanhar Pedido #{pedidoConcluidoModal.numeroPedido}</span>
               </Link>
 
@@ -4404,7 +4412,7 @@ Fico no aguardo da confirmação! ✨`;
               {modalRetornoMP.sucesso && (
                 <Link
                   to={`/order-tracking/${modalRetornoMP.pedidoNumero}`}
-                  className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25 transition cursor-pointer"
+                  className="hubi-btn-neutral w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/25 transition cursor-pointer"
                   target="_blank"
                 >
                   <ShoppingBag className="w-4 h-4" />
@@ -4491,7 +4499,7 @@ Fico no aguardo da confirmação! ✨`;
                 setModalOnboardingMotivo('geral');
                 setModalOnboardingAberto(true);
               }}
-              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm shadow-lg shadow-emerald-600/30 transition cursor-pointer active:scale-95"
+              className="hubi-btn-neutral w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm shadow-lg shadow-emerald-600/30 transition cursor-pointer active:scale-95"
             >
               Acessar Minha Conta / Cadastrar
             </button>
@@ -4684,7 +4692,9 @@ Fico no aguardo da confirmação! ✨`;
                   setDraftResultadoShipping(null);
                   setModalShippingAberto(false);
                 }}
-                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-white transition cursor-pointer"
+                className={`p-1.5 rounded-xl transition cursor-pointer ${
+                  isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                }`}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -4785,7 +4795,7 @@ Fico no aguardo da confirmação! ✨`;
                   }
                   setModalShippingAberto(false);
                 }}
-                className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-700 transition active:scale-95 shadow-md shadow-emerald-600/20 cursor-pointer"
+                className="hubi-btn-cta px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-700 transition active:scale-95 shadow-md shadow-emerald-600/20 cursor-pointer"
               >
                 Confirmar Opção
               </button>

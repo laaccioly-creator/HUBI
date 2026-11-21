@@ -1525,7 +1525,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalPeriodoMobile(false)}
-                  className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer transition"
+                  className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer transition"
                   title="Fechar"
                 >
                   <X className="w-4 h-4" />

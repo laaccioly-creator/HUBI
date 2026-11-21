@@ -404,7 +404,7 @@ export const UsuariosGestao: React.FC = () => {
             <button
               type="button"
               onClick={handleAbrirAdicionar}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer active:scale-95"
+              className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer active:scale-95"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
               <span>+ Novo</span>
@@ -545,7 +545,7 @@ export const UsuariosGestao: React.FC = () => {
           <button
             type="button"
             onClick={handleAbrirAdicionar}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer active:scale-95"
+            className="hubi-btn-neutral inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer active:scale-95"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
             <span>+ Usuários</span>

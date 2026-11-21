@@ -2061,7 +2061,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             <button
               type="button"
               onClick={encerrarScannerCamera}
-              className="px-5 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-white text-sm font-extrabold shadow-md"
+              className="hubi-btn-cta px-5 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-white text-sm font-extrabold shadow-md"
             >
               OK
             </button>
@@ -2345,7 +2345,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           <button
             type="button"
             onClick={() => setTelaAtiva('lista')}
-            className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold rounded-xl shadow-md transition-colors text-sm sm:text-base cursor-pointer"
+            className="hubi-btn-neutral w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold rounded-xl shadow-md transition-colors text-sm sm:text-base cursor-pointer"
           >
             Filtrar
           </button>
@@ -2593,7 +2593,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           <button
             type="button"
             onClick={() => setTelaAtiva(produtoEditando ? 'detalhes' : 'novo')}
-            className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm sm:text-base transition cursor-pointer shadow-md"
+            className="hubi-btn-neutral w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm sm:text-base transition cursor-pointer shadow-md"
           >
             Concluir Variações
           </button>
@@ -2866,7 +2866,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 type="button"
                 disabled={gerandoDescricaoIA}
                 onClick={melhorarDescricaoComIA}
-                className="px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 dark:hover:bg-emerald-500 text-white text-xs sm:text-sm font-extrabold flex items-center gap-2 transition shadow-md cursor-pointer disabled:opacity-50 shrink-0 ml-2"
+                className="hubi-btn-neutral px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 dark:hover:bg-emerald-500 text-white text-xs sm:text-sm font-extrabold flex items-center gap-2 transition shadow-md cursor-pointer disabled:opacity-50 shrink-0 ml-2"
               >
                 {gerandoDescricaoIA ? (
                   <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
@@ -2884,7 +2884,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           <button
             type="button"
             onClick={() => setModalDescricaoAberto(false)}
-            className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-sm sm:text-base shadow-md transition cursor-pointer"
+            className="hubi-btn-cta w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-sm sm:text-base shadow-md transition cursor-pointer"
           >
             Salvar Descrição
           </button>
@@ -2975,7 +2975,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           <button
             type="button"
             onClick={() => setModalGaleriaFotosAberto(false)}
-            className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-sm sm:text-base shadow-md transition cursor-pointer"
+            className="hubi-btn-neutral w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-sm sm:text-base shadow-md transition cursor-pointer"
           >
             Concluir Fotos
           </button>
@@ -3055,7 +3055,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               setFormData(prev => ({ ...prev, estoqueMinimo: val }));
               setModalEstoqueMinimoAberto(false);
             }}
-            className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-sm sm:text-base shadow-md transition cursor-pointer"
+            className="hubi-btn-neutral w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-sm sm:text-base shadow-md transition cursor-pointer"
           >
             OK
           </button>
@@ -3207,15 +3207,15 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     setModalCriarComIAAberto(true);
                   }
                 }}
-                className="px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-extrabold flex items-center gap-1.5 shadow-xs cursor-pointer transition disabled:opacity-50 select-none bg-emerald-50 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
+                className="hubi-btn-neutral px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-extrabold flex items-center gap-1.5 shadow-xs cursor-pointer transition disabled:opacity-50 select-none bg-emerald-50 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
                 title={!isNovo ? 'Atualizar o Produto com nossa IA' : 'Preencher com nossa IA'}
               >
                 {processandoIA ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+                  <Loader2 className="w-4 h-4 animate-spin text-black dark:text-emerald-500" />
                 ) : !isNovo ? (
-                  <RefreshCw className="w-4 h-4 text-emerald-500" />
+                  <RefreshCw className="w-4 h-4 text-black dark:text-emerald-500" />
                 ) : (
-                  <Sparkles className="w-4 h-4 text-emerald-500" />
+                  <Sparkles className="w-4 h-4 text-black dark:text-emerald-500" />
                 )}
                 <span>IA</span>
               </button>
@@ -4446,7 +4446,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                         setDetectandoDimensoes(false);
                       }
                     }}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-500/30 text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50 shrink-0"
+                    className="hubi-btn-neutral inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-500/30 text-xs font-bold transition shadow-xs cursor-pointer disabled:opacity-50 shrink-0"
                     title="Detectar medidas e peso com inteligência artificial"
                   >
                     {detectandoDimensoes ? (
@@ -4615,7 +4615,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             type="button"
             disabled={salvandoProduto}
             onClick={salvarProduto}
-            className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold rounded-xl shadow-md transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-sm sm:text-base"
+            className="hubi-btn-cta w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold rounded-xl shadow-md transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-sm sm:text-base"
           >
             {salvandoProduto ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -4879,7 +4879,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                       setMensagemFeedback({ texto: 'Cor da tarja atualizada para este produto!', tipo: 'sucesso' });
                     }
                   }}
-                  className="flex-1 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-black shadow-lg transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  className="hubi-btn-cta flex-1 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-black shadow-lg transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
                   {salvandoProduto ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -5039,7 +5039,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                         <button
                           type="button"
                           onClick={() => handleAplicarPrecoMercado(dadosMercado.precoMedio)}
-                          className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl shadow-sm flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+                          className="hubi-btn-neutral px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl shadow-sm flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
                         >
                           <Zap className="w-3.5 h-3.5 fill-white" />
                           <span>Aplicar Sugerido (R$ {Math.floor(dadosMercado.precoMedio).toFixed(2)})</span>
@@ -5323,7 +5323,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                               setMensagemFeedback({ texto: 'Não foi possível capturar o frame da foto.', tipo: 'erro' });
                             }
                           }}
-                          className="flex-[2] h-12 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition cursor-pointer"
+                          className="hubi-btn-cta flex-[2] h-12 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition cursor-pointer"
                         >
                           <Camera className="w-5 h-5" />
                           <span>Capturar Foto</span>
@@ -5433,7 +5433,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     type="button"
                     disabled={processandoIA || !promptTextoIA.trim()}
                     onClick={() => processarPreenchimentoIA('texto')}
-                    className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    className="hubi-btn-neutral w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     {processandoIA ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                     <span>Preencher Dados via IA</span>
@@ -5456,9 +5456,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                       setModalCriarComIAAberto(false);
                       iniciarScannerCamera();
                     }}
-                    className="w-full py-3.5 rounded-2xl bg-emerald-50 dark:bg-[#0B0F17] border border-emerald-300 dark:border-[#1E293B] text-emerald-800 dark:text-emerald-300 font-black text-xs sm:text-sm flex items-center justify-center gap-2 hover:bg-emerald-100 dark:hover:bg-[#0D111A] transition cursor-pointer shadow-sm active:scale-98"
+                    className="hubi-btn-neutral w-full py-3.5 rounded-2xl bg-emerald-50 dark:bg-[#0B0F17] border border-emerald-300 dark:border-[#1E293B] text-emerald-800 dark:text-emerald-300 font-black text-xs sm:text-sm flex items-center justify-center gap-2 hover:bg-emerald-100 dark:hover:bg-[#0D111A] transition cursor-pointer shadow-sm active:scale-98"
                   >
-                    <Camera className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                    <Camera className="w-5 h-5 text-black dark:text-emerald-400" />
                     <span>Ler Código com a Câmera</span>
                   </button>
 
@@ -5479,7 +5479,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     type="button"
                     disabled={processandoIA || !promptCodigoIA.trim()}
                     onClick={() => processarPreenchimentoIA('codigo')}
-                    className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    className="hubi-btn-neutral w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     {processandoIA ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                     <span>Consultar Código via IA</span>
@@ -6078,7 +6078,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               <button
                 type="button"
                 onClick={() => setModalCatalogoAberto(false)}
-                className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer"
+                className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer"
                 title="Fechar"
               >
                 <X className="w-5 h-5" />

@@ -204,7 +204,7 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
             type="button"
             onClick={onClose}
             className={`p-1.5 rounded-xl border transition cursor-pointer ${
-              isDark ? 'bg-[#000000] border-slate-700 text-white hover:bg-slate-900' : 'bg-white border-2 border-slate-300 text-black hover:bg-slate-50'
+              isDark ? 'bg-[#000000] border-slate-700 text-white hover:bg-slate-900' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
             }`}
           >
             <X className="w-5 h-5" />
@@ -331,7 +331,7 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                               type="button"
                               disabled={processandoEste}
                               onClick={() => handleConfirmarRecebimentoPendente(pend)}
-                              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black flex items-center gap-1 shadow-xs transition cursor-pointer disabled:opacity-50"
+                              className="hubi-btn-cta px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black flex items-center gap-1 shadow-xs transition cursor-pointer disabled:opacity-50"
                             >
                               {processandoEste ? (
                                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -359,7 +359,7 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                       ? isDark
                         ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-80'
                         : 'bg-slate-200 text-slate-500 border border-slate-300 cursor-not-allowed opacity-90'
-                      : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-600 shadow-sm cursor-pointer'
+                      : 'hubi-btn-neutral bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-600 shadow-sm cursor-pointer'
                   }`}
                 >
                   <DollarSign className="w-4 h-4" />
@@ -579,7 +579,7 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                 <button
                   type="button"
                   onClick={() => setComprovanteVisualizandoUrl(null)}
-                  className="p-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                  className="hubi-btn-close-x p-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -605,14 +605,14 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                   target="_blank"
                   rel="noopener noreferrer"
                   download="comprovante-caderneta"
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition"
+                  className="hubi-btn-neutral px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition"
                 >
                   Abrir / Baixar Arquivo
                 </a>
                 <button
                   type="button"
                   onClick={() => setComprovanteVisualizandoUrl(null)}
-                  className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold cursor-pointer"
+                  className="hubi-btn-neutral px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold cursor-pointer"
                 >
                   Fechar
                 </button>

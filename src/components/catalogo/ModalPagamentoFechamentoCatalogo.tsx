@@ -1292,7 +1292,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
             <button
               type="button"
               onClick={handleFecharTudo}
-              className="w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition cursor-pointer"
+              className="hubi-btn-neutral w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition cursor-pointer"
             >
               Concluir e Voltar
             </button>
@@ -1317,7 +1317,9 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                className={`p-1.5 rounded-xl transition cursor-pointer ${
+                  isDark ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                }`}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1927,7 +1929,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
                 className={`py-3 px-3 rounded-2xl font-bold text-xs border transition cursor-pointer shadow-xs ${
                   isDark
                     ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                    : 'bg-slate-100 hover:bg-slate-200 text-black font-semibold border-slate-300'
                 }`}
               >
                 Cancelar
@@ -1937,16 +1939,16 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
                 type="button"
                 disabled={salvando || processando || totalLinhasPagamento <= 0}
                 onClick={handleSalvar}
-                className={`flex-1 py-3 px-3 rounded-2xl font-bold text-xs border shadow-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50 ${
+                className={`flex-1 py-3 px-3 rounded-2xl text-xs border shadow-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50 ${
                   isDark
-                    ? 'bg-slate-900 hover:bg-slate-800 text-emerald-400 border-emerald-500/40'
-                    : 'bg-white hover:bg-slate-50 text-emerald-700 border-emerald-300'
+                    ? 'font-bold bg-slate-900 hover:bg-slate-800 text-emerald-400 border-emerald-500/40'
+                    : 'font-semibold bg-slate-100 hover:bg-slate-200 text-black border-slate-300'
                 }`}
               >
                 {salvando ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+                  <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-emerald-500' : 'text-black'}`} />
                 ) : (
-                  <Save className="w-4 h-4 text-emerald-500" />
+                  <Save className={`w-4 h-4 ${isDark ? 'text-emerald-500' : 'text-black'}`} />
                 )}
                 <span>Salvar</span>
               </button>
@@ -1954,7 +1956,7 @@ export const ModalPagamentoFechamentoCatalogo: React.FC<ModalPagamentoFechamento
               <button
                 type="submit"
                 disabled={processando || salvando || freteADefinir || totalLinhasPagamento <= 0 || Math.abs(diferencaPagamento) > 0.01 || linhasPagamento.some(l => Number(l.valor) <= 0 || !l.forma_tipo)}
-                className="flex-[2] py-3 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-98"
+                className="hubi-btn-cta flex-[2] py-3 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-98"
               >
                 {processando ? (
                   <>

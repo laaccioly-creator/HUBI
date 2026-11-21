@@ -1150,8 +1150,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
           <div className="flex items-center gap-2">
             {/* Pílula de Status (Abre TELA006) */}
             {pedidoSelecionado.status === 'cancelado' ? (
-              <div className="px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50 flex items-center gap-1.5 text-xs font-bold text-rose-700">
-                <XCircle className="w-3.5 h-3.5 text-rose-600" />
+              <div
+                className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 text-xs font-bold ${
+                  isDark ? 'border-red-500/40 bg-red-950/40 text-red-300' : 'border-red-300 bg-red-50 text-red-950'
+                }`}
+              >
+                <XCircle className={`w-3.5 h-3.5 ${isDark ? 'text-red-400' : 'text-red-700'}`} />
                 <span>Cancelado (Imutável)</span>
               </div>
             ) : (
@@ -1220,6 +1224,30 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
               );
             })()}
           </div>
+
+          {/* BANNER VISUAL INFORMATIVO PARA PEDIDO CANCELADO */}
+          {pedidoSelecionado.status === 'cancelado' && (
+            <div
+              className={`p-3.5 rounded-2xl border flex items-start gap-2.5 ${
+                isDark ? 'bg-red-950/40 border-red-500/40' : 'bg-red-50 border-red-300'
+              }`}
+            >
+              <AlertTriangle className={`w-5 h-5 shrink-0 mt-0.5 ${isDark ? 'text-red-400' : 'text-red-700'}`} />
+              <div className="space-y-1 min-w-0">
+                <span className={`font-extrabold text-sm tracking-wide block ${isDark ? 'text-red-300' : 'text-red-950'}`}>
+                  PEDIDO CANCELADO (SOMENTE LEITURA)
+                </span>
+                <p className={`font-medium text-sm leading-relaxed ${isDark ? 'text-red-200' : 'text-red-900'}`}>
+                  Este pedido foi cancelado e está congelado para histórico e auditoria. Não é permitida nenhuma alteração de status, itens, recebimento de pagamento ou despacho.
+                </p>
+                {pedidoSelecionado.observacoes && (
+                  <p className={`font-semibold text-xs pt-1 break-words ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>
+                    Observação / Motivo: {pedidoSelecionado.observacoes}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Observação e Ação */}
           {(() => {
@@ -1656,7 +1684,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                   <button
                     type="button"
                     onClick={() => setModalVincularCliente(true)}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition active:scale-95 cursor-pointer"
+                    className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs shadow-sm transition active:scale-95 cursor-pointer ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-bold' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'}`}
                   >
                     <UserPlus className="w-4 h-4" />
                     <span>Vincular Cliente</span>
@@ -1683,8 +1711,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             </button>
 
             {pedidoSelecionado.status === 'cancelado' ? (
-              <div className="flex-1 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2">
-                <XCircle className="w-4 h-4 text-rose-600" />
+              <div
+                className={`flex-1 h-12 rounded-2xl border font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 ${
+                  isDark ? 'bg-red-950/40 border-red-500/40 text-red-300' : 'bg-red-50 border-red-300 text-red-950'
+                }`}
+              >
+                <XCircle className={`w-4 h-4 ${isDark ? 'text-red-400' : 'text-red-700'}`} />
                 <span>Pedido Cancelado</span>
               </div>
             ) : (() => {
@@ -1701,7 +1733,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     <button
                       type="button"
                       onClick={() => setPedidoParaPesagem(pedidoSelecionado)}
-                      className="flex-1 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
+                      className={`flex-1 h-12 rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-700 text-white font-medium' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'}`}
                     >
                       <Scale className="w-4 h-4" />
                       <span>Informar Peso</span>
@@ -1733,7 +1765,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         onAlterarStatus(pedidoSelecionado.id, 'confirmado');
                         setPedidoSelecionado({ ...pedidoSelecionado, status: 'confirmado' });
                       }}
-                      className="flex-1 h-12 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
+                      className={`flex-1 h-12 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer ${isDark ? 'bg-emerald-500 hover:bg-emerald-400 text-white' : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-black font-bold'}`}
                     >
                       <Check className="w-4 h-4 stroke-[3]" />
                       <span>Confirmar Pedido</span>
@@ -1767,10 +1799,10 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                       <button
                         type="button"
                         onClick={() => handleAcionarDespacho(pedidoSelecionado)}
-                        className="flex-1 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
+                        className={`flex-1 h-12 rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'}`}
                         title="Gerar envio no Melhor Envio"
                       >
-                        <Truck className="w-4 h-4 text-white" />
+                        <Truck className={`w-4 h-4 ${isDark ? 'text-white' : 'text-black'}`} />
                         <span>Gerar Envio</span>
                       </button>
                     );
@@ -1790,7 +1822,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                         setNomeTransportadoraDespacho(pedidoSelecionado.nome_transportadora || pe?.nome_transportadora || pe?.transportadora_nome || '');
                         setModalDespachoAberto(true);
                       }}
-                      className="flex-1 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
+                      className={`flex-1 h-12 rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black' : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-black font-bold'}`}
                     >
                       <Truck className="w-4 h-4" />
                       <span>Despachar / Concluir Entrega</span>
@@ -1827,7 +1859,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                           onAbrirReceberPagamento(pedidoSelecionado);
                         }
                       }}
-                      className="flex-1 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer"
+                      className={`flex-1 h-12 rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black' : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-black font-bold'}`}
                     >
                       <span>Concluir Pedido</span>
                       <ArrowRight className="w-4 h-4" />
@@ -1840,7 +1872,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     <button
                       type="button"
                       onClick={() => setModalOpcoesPedido(true)}
-                      className="flex-1 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+                      className={`flex-1 h-12 rounded-2xl text-xs flex items-center justify-center gap-2 transition cursor-pointer ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'}`}
                     >
                       <MoreVertical className="w-4 h-4" />
                       <span>Opções do Pedido</span>
@@ -1880,7 +1912,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             }`}>
               <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
                 <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Selecione um status</h3>
-                <button onClick={() => setModalAlterarStatus(false)} className={`p-1 ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'}`}>
+                <button onClick={() => setModalAlterarStatus(false)} className={`p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}>
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -1975,7 +2007,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setModalOpcoesPedido(false)}
-                  className={`p-1 rounded-lg transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-500 hover:text-black hover:bg-slate-200'}`}
+                  className={`p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -2071,9 +2103,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                           setModalOpcoesPedido(false);
                           setPedidoParaPesagem(pedidoSelecionado);
                         }}
-                        className="w-full h-11 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs flex items-center gap-2.5 transition text-left cursor-pointer shadow-sm active:scale-98"
+                        className={`w-full h-11 px-3.5 rounded-xl text-xs flex items-center gap-2.5 transition text-left cursor-pointer shadow-sm active:scale-98 ${isDark ? 'bg-emerald-600 hover:bg-emerald-700 text-white font-medium' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'}`}
                       >
-                        <Scale className="w-4 h-4 text-white shrink-0" />
+                        <Scale className={`w-4 h-4 shrink-0 ${isDark ? 'text-white' : 'text-black'}`} />
                         <span>Informar Peso</span>
                       </button>
                     )}
@@ -2101,9 +2133,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                           setModalOpcoesPedido(false);
                           handleAcionarDespacho(pedidoSelecionado);
                         }}
-                        className="w-full h-11 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2.5 transition text-left cursor-pointer shadow-sm active:scale-98"
+                        className={`w-full h-11 px-3.5 rounded-xl text-xs flex items-center gap-2.5 transition text-left cursor-pointer shadow-sm active:scale-98 ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-bold' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'}`}
                       >
-                        <Truck className="w-4 h-4 text-white shrink-0" />
+                        <Truck className={`w-4 h-4 shrink-0 ${isDark ? 'text-white' : 'text-black'}`} />
                         <span>Gerar Envio</span>
                       </button>
                     )}
@@ -2149,9 +2181,9 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                           setPedidoSelecionado({ ...pedidoSelecionado, status: 'concluido' });
                           mostrarToast('Pedido concluído com sucesso!', 'sucesso');
                         }}
-                        className="w-full h-11 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 shadow-sm"
+                        className={`w-full h-11 px-3.5 rounded-xl font-bold text-xs flex items-center gap-2.5 transition text-left cursor-pointer active:scale-98 shadow-sm ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-black'}`}
                       >
-                        <CheckCircle2 className="w-4 h-4 text-white shrink-0" />
+                        <CheckCircle2 className={`w-4 h-4 shrink-0 ${isDark ? 'text-white' : 'text-black'}`} />
                         <span>Concluir Pedido</span>
                       </button>
                     )}
@@ -2355,7 +2387,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setModalAlterarVendedor(false)}
-                  className={`p-1 ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'}`}
+                  className={`p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -2437,7 +2469,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                     setModalVincularCliente(false);
                     setBuscaVincularCliente('');
                   }}
-                  className={`p-1 cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'}`}
+                  className={`p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -2601,7 +2633,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             <button
               type="button"
               onClick={() => navigate('/pos')}
-              className="w-9 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center font-bold shadow-sm transition active:scale-95 cursor-pointer"
+              className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-sm transition active:scale-95 cursor-pointer ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-bold' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'}`}
               title="Nova Venda"
             >
               <Plus className="w-5 h-5 stroke-[2.5]" />
@@ -2738,7 +2770,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
                                 e.stopPropagation();
                                 setPedidoParaPesagem(ped);
                               }}
-                              className="px-2 py-0.5 rounded-lg text-[10px] font-medium bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 shadow-xs cursor-pointer active:scale-95"
+                              className={`px-2 py-0.5 rounded-lg text-[10px] flex items-center gap-1 shadow-xs cursor-pointer active:scale-95 ${isDark ? 'bg-emerald-600 hover:bg-emerald-700 text-white font-medium' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'}`}
                             >
                               <Scale className="w-3 h-3" />
                               <span>Informar Peso</span>
@@ -2838,7 +2870,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             <button
               type="button"
               onClick={() => setModalFiltrosAvancados(false)}
-              className={`p-1 rounded-full cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'}`}
+              className={`p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}
             >
               <X className="w-5 h-5" />
             </button>
@@ -2946,7 +2978,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             <button
               type="button"
               onClick={() => setModalFiltrosAvancados(false)}
-              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider shadow-md transition cursor-pointer"
+              className={`w-full py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-md transition cursor-pointer ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'}`}
             >
               Aplicar filtro
             </button>
@@ -2964,7 +2996,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
           }`}>
             <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
               <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Selecione um ou mais...</h3>
-              <button onClick={() => setModalStatusAberto(false)} className={`p-1 cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'}`}>
+              <button onClick={() => setModalStatusAberto(false)} className={`p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}>
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -3017,7 +3049,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             <button
               type="button"
               onClick={() => setModalStatusAberto(false)}
-              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase shadow-md transition cursor-pointer"
+              className={`w-full py-3.5 rounded-2xl text-xs uppercase shadow-md transition cursor-pointer ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'}`}
             >
               Filtrar
             </button>
@@ -3035,7 +3067,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
           }`}>
             <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
               <h3 className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>Selecione um ou mais...</h3>
-              <button onClick={() => setModalVendedoresAberto(false)} className={`p-1 cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-black'}`}>
+              <button onClick={() => setModalVendedoresAberto(false)} className={`p-1.5 rounded-xl transition cursor-pointer ${isDark ? 'text-slate-400 hover:text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'}`}>
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -3144,7 +3176,7 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
             <button
               type="button"
               onClick={() => setModalVendedoresAberto(false)}
-              className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase shadow-md transition cursor-pointer"
+              className={`w-full py-3.5 rounded-2xl text-xs uppercase shadow-md transition cursor-pointer ${isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'}`}
             >
               Filtrar
             </button>

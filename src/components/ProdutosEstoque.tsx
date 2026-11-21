@@ -516,7 +516,11 @@ export const ProdutosEstoque: React.FC = () => {
             {permissions.podeCadastrarAlterarProdutos && (
               <Link
                 to="/products/create"
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs shadow-md transition cursor-pointer border border-emerald-500"
+                className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs shadow-sm transition cursor-pointer ${
+                  isDark
+                    ? 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold border border-emerald-500'
+                    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
+                }`}
               >
                 <Plus className="w-4 h-4" />
                 <span>+ Novo Produto / Serviço</span>
@@ -632,17 +636,19 @@ export const ProdutosEstoque: React.FC = () => {
               onClick={() => setModalFiltroAberto(true)}
               className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer shadow-sm shrink-0 ${
                 temFiltroAtivo
-                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-md'
+                  ? isDark
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-md'
+                    : 'bg-slate-200 hover:bg-slate-300 border-2 border-slate-400 text-black font-semibold'
                   : isDark
                   ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-white'
                   : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black'
               }`}
               title="Filtrar por Categoria, Estoque e Ativo"
             >
-              <Filter className={`w-4 h-4 ${temFiltroAtivo ? 'text-white' : isDark ? 'text-slate-400' : 'text-black'}`} />
+              <Filter className={`w-4 h-4 ${temFiltroAtivo ? (isDark ? 'text-white' : 'text-black') : isDark ? 'text-slate-400' : 'text-black'}`} />
               <span>Filtros</span>
               {qtdFiltrosAtivos > 0 && (
-                <span className="w-5 h-5 rounded-full bg-white text-emerald-800 font-black text-[10px] flex items-center justify-center shadow-xs">
+                <span className={`w-5 h-5 rounded-full font-black text-[10px] flex items-center justify-center shadow-xs ${isDark ? 'bg-white text-emerald-800' : 'bg-slate-800 text-white'}`}>
                   {qtdFiltrosAtivos}
                 </span>
               )}
@@ -1153,7 +1159,9 @@ export const ProdutosEstoque: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalFiltroAberto(false)}
-                className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer shadow-xs"
+                className={`p-1.5 rounded-xl transition cursor-pointer shadow-xs ${
+                  isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                }`}
                 title="Fechar"
               >
                 <X className="w-5 h-5" />
@@ -1430,7 +1438,11 @@ export const ProdutosEstoque: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalFiltroAberto(false)}
-                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-black text-xs shadow-md transition cursor-pointer border border-emerald-500"
+                className={`px-5 py-2.5 rounded-xl text-xs shadow-sm transition cursor-pointer ${
+                  isDark
+                    ? 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-black border border-emerald-500'
+                    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
+                }`}
               >
                 Aplicar e Ver ({produtosFiltrados.length})
               </button>

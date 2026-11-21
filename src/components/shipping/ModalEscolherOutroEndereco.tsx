@@ -316,7 +316,7 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
             className={`w-8 h-8 rounded-xl flex items-center justify-center transition cursor-pointer ${
               isDark
                 ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900'
-                : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
             }`}
           >
             <X className="w-4 h-4" />
@@ -383,7 +383,7 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
                       e.stopPropagation();
                       capturarLocalizacaoAtual();
                     }}
-                    className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-[11px] font-bold text-white transition cursor-pointer shadow-sm disabled:opacity-50"
+                    className="hubi-btn-neutral px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-[11px] font-bold text-white transition cursor-pointer shadow-sm disabled:opacity-50"
                   >
                     {carregandoGps ? 'Buscando...' : 'Obter GPS'}
                   </button>
@@ -508,7 +508,7 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
                   type="button"
                   disabled={!textoEnderecoColado.trim() || processandoParse}
                   onClick={handlePreencherEnderecoInteligente}
-                  className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-[11px] flex items-center gap-1 transition cursor-pointer shrink-0"
+                  className="hubi-btn-neutral px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-[11px] flex items-center gap-1 transition cursor-pointer shrink-0"
                 >
                   {processandoParse ? <Loader2 className="w-3 h-3 animate-spin" /> : <span>Preencher com IA</span>}
                 </button>
@@ -660,10 +660,10 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
             type="button"
             onClick={onFechar}
             disabled={salvandoNovo}
-            className={`px-4 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer shadow-xs ${
+            className={`px-4 py-2.5 rounded-xl text-xs transition cursor-pointer shadow-xs ${
               isDark
-                ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200'
-                : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+                ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200 font-bold'
+                : 'bg-slate-100 hover:bg-slate-200 text-black font-semibold border border-slate-300 shadow-sm'
             }`}
           >
             Cancelar
@@ -677,7 +677,7 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
               className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50 ${
                 isDark
                   ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500'
-                  : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+                  : 'bg-emerald-300 hover:bg-emerald-400 text-black border border-emerald-400 shadow-sm'
               }`}
             >
               {salvandoNovo ? (
@@ -700,7 +700,7 @@ export const ModalEscolherOutroEndereco: React.FC<ModalEscolherOutroEnderecoProp
               className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 shadow-xs transition cursor-pointer active:scale-95 disabled:opacity-50 ${
                 isDark
                   ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500'
-                  : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+                  : 'bg-emerald-300 hover:bg-emerald-400 text-black border border-emerald-400 shadow-sm'
               }`}
             >
               <CheckCircle2 className="w-4 h-4" />

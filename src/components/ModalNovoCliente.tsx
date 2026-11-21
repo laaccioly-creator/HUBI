@@ -827,7 +827,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
           </div>
           <button
             onClick={handleFecharComConfirmacao}
-            className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
+            className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
             title="Fechar"
           >
             <X className="w-5 h-5" />
@@ -1499,7 +1499,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
             className={`w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer shadow-xs ${
               isDark
                 ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-white'
-                : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black'
+                : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
             }`}
           >
             Cancelar
@@ -1508,7 +1508,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
             type="button"
             disabled={salvando}
             onClick={handleSubmeter}
-            className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white text-xs font-black shadow-md border border-emerald-500 flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50"
+            className="hubi-btn-cta w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white text-xs font-black shadow-md border border-emerald-500 flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50"
           >
             {salvando ? (
               <>

@@ -467,7 +467,7 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
             </div>
           </div>
 
-          {/* Ações Padronizadas da Venda (Mobile - Fundo Verde Esmeralda Sólido) */}
+          {/* Ações Padronizadas da Venda (Mobile) */}
           <div className="space-y-2 pt-2">
             <div className="grid grid-cols-2 gap-2">
               {/* 1. WhatsApp */}
@@ -479,7 +479,7 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                     PrintService.openWhatsApp(vendaDetalhes.cliente?.whatsapp || '', msg);
                   }
                 }}
-                className="h-11 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer active:scale-95"
+                className="hubi-btn-neutral h-11 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer active:scale-95"
                 title="Enviar recibo via WhatsApp"
               >
                 <MessageCircle className="w-4 h-4 text-white shrink-0" />
@@ -490,7 +490,7 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
               <button
                 type="button"
                 onClick={() => setModalReciboAberto(true)}
-                className="h-11 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer active:scale-95"
+                className="hubi-btn-neutral h-11 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer active:scale-95"
                 title="Visualizar e imprimir recibo completo"
               >
                 <Receipt className="w-4 h-4 text-white shrink-0" />
@@ -501,7 +501,7 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
               <button
                 type="button"
                 onClick={() => handleRastrearEnvio(vendaDetalhes)}
-                className="h-11 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer active:scale-95"
+                className="hubi-btn-neutral h-11 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer active:scale-95"
                 title="Rastrear envio da venda"
               >
                 <Truck className="w-4 h-4 text-white shrink-0" />
@@ -512,7 +512,7 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
               <button
                 type="button"
                 onClick={() => setModalEtiquetaAberto(true)}
-                className="h-11 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer active:scale-95"
+                className="hubi-btn-neutral h-11 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer active:scale-95"
                 title="Abrir ou imprimir etiqueta de envio"
               >
                 <Tag className="w-4 h-4 text-white shrink-0" />
@@ -595,8 +595,8 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setModalConfirmarCancelamento(false)}
-                  className={`flex-1 h-11 rounded-xl font-bold text-xs transition cursor-pointer border ${
-                    isDark ? 'bg-[#000000] border-slate-700 text-white hover:bg-slate-900' : 'bg-white border-2 border-slate-300 text-black hover:bg-slate-50'
+                  className={`flex-1 h-11 rounded-xl text-xs transition cursor-pointer border ${
+                    isDark ? 'bg-[#000000] border-slate-700 text-white hover:bg-slate-900 font-bold' : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-black font-semibold'
                   }`}
                 >
                   Voltar
@@ -826,7 +826,7 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
             <button
               type="button"
               onClick={() => setDrawerFiltrosAberto(false)}
-              className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer"
+              className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -899,8 +899,8 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
                 setMeiosPagamentoFiltro([]);
                 setDrawerFiltrosAberto(false);
               }}
-              className={`flex-1 py-3 rounded-xl border text-xs font-bold transition cursor-pointer ${
-                isDark ? 'bg-[#000000] hover:bg-slate-900 border-slate-700 text-white' : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black'
+              className={`flex-1 py-3 rounded-xl border text-xs transition cursor-pointer ${
+                isDark ? 'bg-[#000000] hover:bg-slate-900 border-slate-700 text-white font-bold' : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-black font-semibold'
               }`}
             >
               Limpar
@@ -908,7 +908,7 @@ export const VendasHistoricoMobile: React.FC<VendasHistoricoMobileProps> = ({
             <button
               type="button"
               onClick={() => setDrawerFiltrosAberto(false)}
-              className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold border border-emerald-500 shadow-md transition cursor-pointer"
+              className="hubi-btn-neutral flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold border border-emerald-500 shadow-md transition cursor-pointer"
             >
               Aplicar Filtros
             </button>

@@ -306,7 +306,7 @@ export const ModalRecargaWhatsapp: React.FC<ModalRecargaWhatsappProps> = ({
               <button
                 type="button"
                 onClick={aoFechar}
-                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition-all"
+                className="hubi-btn-neutral w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition-all"
               >
                 Concluir e Voltar
               </button>
@@ -424,7 +424,7 @@ export const ModalRecargaWhatsapp: React.FC<ModalRecargaWhatsappProps> = ({
                 type="button"
                 onClick={handleRecarregarMercadoPago}
                 disabled={iniciandoCheckout || valorEfetivo < valorMinimoRecarga}
-                className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-950/20 active:scale-[0.99]"
+                className="hubi-btn-cta w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-950/20 active:scale-[0.99]"
               >
                 {iniciandoCheckout ? (
                   <>
@@ -494,7 +494,7 @@ export const ModalRecargaWhatsapp: React.FC<ModalRecargaWhatsappProps> = ({
                   <button
                     type="button"
                     onClick={handleCopiarPix}
-                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shrink-0 transition-colors"
+                    className="hubi-btn-neutral px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shrink-0 transition-colors"
                   >
                     {copiado ? <Check size={14} /> : <Copy size={14} />}
                     {copiado ? 'Copiado!' : 'Copiar'}
@@ -515,7 +515,7 @@ export const ModalRecargaWhatsapp: React.FC<ModalRecargaWhatsappProps> = ({
                   className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-colors ${
                     isDark
                       ? 'bg-slate-800 hover:bg-slate-700 text-slate-200'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                      : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
                   }`}
                 >
                   Alterar Valor
@@ -524,7 +524,7 @@ export const ModalRecargaWhatsapp: React.FC<ModalRecargaWhatsappProps> = ({
                   type="button"
                   onClick={handleVerificarPagamento}
                   disabled={verificandoPagamento}
-                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black flex items-center justify-center gap-1.5 transition-colors"
+                  className="hubi-btn-cta flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black flex items-center justify-center gap-1.5 transition-colors"
                 >
                   {verificandoPagamento ? (
                     <Loader2 size={14} className="animate-spin" />

@@ -606,7 +606,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               className={`px-4 py-2.5 rounded-xl text-xs transition cursor-pointer ${
                 isDark
                   ? 'bg-[#000000] hover:bg-slate-800 text-white font-bold border border-slate-700'
-                  : 'bg-emerald-200 hover:bg-emerald-300 text-black font-semibold border border-emerald-300'
+                  : 'bg-slate-100 hover:bg-slate-200 text-black font-semibold border border-slate-300'
               }`}
             >
               Fechar
@@ -621,7 +621,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               className={`w-full sm:w-auto px-6 py-2.5 rounded-xl text-xs active:scale-95 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 ${
                 isDark
                   ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black border border-emerald-500 shadow-md shadow-emerald-500/20'
-                  : 'bg-emerald-200 hover:bg-emerald-300 text-black font-bold border border-emerald-300 shadow-xs'
+                  : 'bg-emerald-300 hover:bg-emerald-400 text-black font-bold border border-emerald-400 shadow-xs'
               }`}
             >
               {salvando ? (
@@ -671,9 +671,12 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className={`p-1.5 rounded-lg transition cursor-pointer ${
-                  isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-600 hover:text-black hover:bg-slate-200'
+                className={`p-1.5 rounded-xl transition cursor-pointer ${
+                  isDark
+                    ? 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
                 }`}
+                title="Fechar (Esc)"
               >
                 <X className="w-4 h-4" />
               </button>

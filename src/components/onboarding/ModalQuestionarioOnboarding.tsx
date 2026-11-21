@@ -1732,7 +1732,11 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                 type="button"
                 disabled={salvandoConclusao || carregando}
                 onClick={handleConcluirQuestionario}
-                className="px-5 py-2.5 rounded-xl bg-[#22C59E] hover:bg-[#1EB38F] text-slate-950 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white disabled:opacity-50 font-black text-xs flex items-center gap-2 transition cursor-pointer shadow-md shadow-emerald-500/20"
+                className={`px-5 py-2.5 rounded-xl disabled:opacity-50 text-xs flex items-center gap-2 transition cursor-pointer shadow-md shadow-emerald-500/20 ${
+                  isDark
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black'
+                    : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-black font-bold'
+                }`}
               >
                 {salvandoConclusao ? (
                   <Loader2 className="w-4 h-4 animate-spin" />

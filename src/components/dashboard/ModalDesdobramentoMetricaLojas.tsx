@@ -443,7 +443,7 @@ export const ModalDesdobramentoMetricaLojas: React.FC<ModalDesdobramentoMetricaL
               className={`px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2 shadow-sm transition cursor-pointer active:scale-98 ${
                 isDark
                   ? 'bg-slate-700 hover:bg-slate-600 text-white font-semibold border border-slate-600'
-                  : 'bg-slate-200 hover:bg-slate-300 text-black font-semibold border border-slate-300'
+                  : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
               }`}
               title="Abrir auditoria analítica consolidada de todas as lojas reunidas"
             >
@@ -458,7 +458,7 @@ export const ModalDesdobramentoMetricaLojas: React.FC<ModalDesdobramentoMetricaL
               className={`p-2 sm:p-2.5 rounded-xl transition cursor-pointer shadow-xs ${
                 isDark
                   ? 'bg-[#000000] border-2 border-slate-700 text-slate-300 hover:bg-slate-900 hover:text-white'
-                  : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                  : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
               }`}
               title="Fechar (Esc)"
             >
@@ -532,7 +532,7 @@ export const ModalDesdobramentoMetricaLojas: React.FC<ModalDesdobramentoMetricaL
                   className={`px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition cursor-pointer shadow-xs active:scale-98 ${
                     isDark
                       ? 'bg-slate-700 hover:bg-slate-600 text-white font-semibold border border-slate-600'
-                      : 'bg-slate-200 hover:bg-slate-300 text-black font-semibold border border-slate-300'
+                      : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
                   }`}
                 >
                   <BarChart3 className="w-4 h-4" />
@@ -541,7 +541,11 @@ export const ModalDesdobramentoMetricaLojas: React.FC<ModalDesdobramentoMetricaL
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs transition cursor-pointer"
+                  className={`px-4 py-2.5 rounded-xl text-xs transition cursor-pointer ${
+                    isDark
+                      ? 'border border-slate-700 hover:bg-slate-800 text-slate-300 font-bold'
+                      : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
+                  }`}
                 >
                   Fechar
                 </button>
@@ -630,10 +634,12 @@ export const ModalDesdobramentoMetricaLojas: React.FC<ModalDesdobramentoMetricaL
 
                     {/* Rodapé do Card: Ação de Auditar */}
                     <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
-                      <span className="text-slate-500 dark:text-slate-400 font-medium">
+                      <span className={isDark ? 'text-slate-400 font-medium' : 'text-slate-700 font-semibold'}>
                         Auditoria isolada
                       </span>
-                      <div className="flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400 group-hover:translate-x-1 transition-transform">
+                      <div className={`flex items-center gap-1 font-bold group-hover:translate-x-1 transition-transform ${
+                        isDark ? 'text-emerald-400' : 'text-emerald-900'
+                      }`}>
                         {estaCarregandoEstaLoja ? (
                           <>
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />

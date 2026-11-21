@@ -144,15 +144,19 @@ export const FinancasCaixa: React.FC = () => {
 
   const classeBotaoNeutroClaro = isDark
     ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black'
-    : 'bg-slate-200 hover:bg-slate-300 border border-slate-300 text-black font-semibold';
+    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold';
 
   const classeMiniBotaoNeutroClaro = isDark
     ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold'
-    : 'bg-slate-200 hover:bg-slate-300 border border-slate-300 text-black font-semibold';
+    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold';
 
   const classeBotaoFecharModal = isDark
     ? 'p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs cursor-pointer transition'
-    : 'p-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 border border-slate-300 text-black shadow-xs cursor-pointer transition';
+    : 'p-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 shadow-xs cursor-pointer transition';
+
+  const classeBotaoCtaClaro = isDark
+    ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold'
+    : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-black font-bold';
 
   const classeChipAtivoNeutroClaro = isDark
     ? 'bg-emerald-600 text-white shadow-xs border border-emerald-500'
@@ -2502,7 +2506,7 @@ export const FinancasCaixa: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setModalFechamentoCego(true)}
-                            className={`px-6 py-3 text-xs rounded-2xl shadow-xs transition cursor-pointer flex items-center gap-2 ${classeBotaoNeutroClaro}`}
+                            className={`px-6 py-3 text-xs rounded-2xl shadow-xs transition cursor-pointer flex items-center gap-2 ${classeBotaoCtaClaro}`}
                           >
                             <Lock className="w-4 h-4" />
                             <span>Realizar Fechamento Cego de Caixa</span>
@@ -2531,7 +2535,7 @@ export const FinancasCaixa: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setModalAberturaCaixa(true)}
-                        className={`px-6 py-3 text-xs rounded-2xl shadow-xs transition cursor-pointer inline-flex items-center gap-2 ${classeBotaoNeutroClaro}`}
+                        className={`px-6 py-3 text-xs rounded-2xl shadow-xs transition cursor-pointer inline-flex items-center gap-2 ${classeBotaoCtaClaro}`}
                       >
                         <Unlock className="w-4 h-4" />
                         <span>Abrir Sessão de Caixa</span>
@@ -2960,7 +2964,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="submit"
                   disabled={salvandoDespesa}
-                  className={`w-full py-3.5 rounded-xl text-xs shadow-xs transition mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${classeBotaoNeutroClaro}`}
+                  className={`w-full py-3.5 rounded-xl text-xs shadow-xs transition mt-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${classeBotaoCtaClaro}`}
                 >
                   {salvandoDespesa
                     ? 'Salvando...'
@@ -3160,7 +3164,7 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="submit"
                     disabled={modalBaixarConta.processando}
-                    className={`flex-1 py-3.5 text-xs rounded-xl shadow-xs transition cursor-pointer disabled:opacity-50 ${classeBotaoNeutroClaro}`}
+                    className={`flex-1 py-3.5 text-xs rounded-xl shadow-xs transition cursor-pointer disabled:opacity-50 ${classeBotaoCtaClaro}`}
                   >
                     {modalBaixarConta.processando ? 'Processando...' : 'Confirmar Pagamento'}
                   </button>
@@ -3244,7 +3248,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="submit"
                   disabled={abrindoCaixa}
-                  className={`w-full py-3.5 rounded-xl text-xs shadow-xs transition cursor-pointer disabled:opacity-50 ${classeBotaoNeutroClaro}`}
+                  className={`w-full py-3.5 rounded-xl text-xs shadow-xs transition cursor-pointer disabled:opacity-50 ${classeBotaoCtaClaro}`}
                 >
                   {abrindoCaixa ? 'Abrindo Sessão...' : 'Confirmar Abertura de Caixa'}
                 </button>
@@ -3324,7 +3328,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="submit"
                   disabled={processandoSuprimento}
-                  className={`w-full py-3.5 rounded-xl text-xs shadow-xs transition cursor-pointer disabled:opacity-50 ${classeBotaoNeutroClaro}`}
+                  className={`w-full py-3.5 rounded-xl text-xs shadow-xs transition cursor-pointer disabled:opacity-50 ${classeBotaoCtaClaro}`}
                 >
                   {processandoSuprimento ? 'Registrando...' : 'Confirmar Suprimento'}
                 </button>
@@ -3404,7 +3408,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="submit"
                   disabled={processandoSangria}
-                  className={`w-full py-3.5 rounded-xl text-xs shadow-xs transition cursor-pointer disabled:opacity-50 ${classeBotaoNeutroClaro}`}
+                  className={`w-full py-3.5 rounded-xl text-xs shadow-xs transition cursor-pointer disabled:opacity-50 ${classeBotaoCtaClaro}`}
                 >
                   {processandoSangria ? 'Processando...' : 'Confirmar Sangria'}
                 </button>
@@ -3510,7 +3514,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="submit"
                   disabled={processandoDespesaRapida}
-                  className={`w-full py-3.5 rounded-xl text-xs shadow-xs transition cursor-pointer disabled:opacity-50 ${classeBotaoNeutroClaro}`}
+                  className={`w-full py-3.5 rounded-xl text-xs shadow-xs transition cursor-pointer disabled:opacity-50 ${classeBotaoCtaClaro}`}
                 >
                   {processandoDespesaRapida ? 'Lançando...' : 'Confirmar Saída da Gaveta'}
                 </button>
@@ -3670,7 +3674,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="submit"
                   disabled={processandoFechamento}
-                  className={`w-full py-4 rounded-2xl text-sm shadow-xs transition cursor-pointer disabled:opacity-50 ${classeBotaoNeutroClaro}`}
+                  className={`w-full py-4 rounded-2xl text-sm shadow-xs transition cursor-pointer disabled:opacity-50 ${classeBotaoCtaClaro}`}
                 >
                   {processandoFechamento ? 'Apurando e Encerrando...' : 'Concluir Fechamento Cego'}
                 </button>
@@ -4499,7 +4503,7 @@ export const FinancasCaixa: React.FC = () => {
                                       className={
                                         isDark
                                           ? 'p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer'
-                                          : 'p-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 border border-slate-300 text-black transition cursor-pointer'
+                                          : 'p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black transition cursor-pointer'
                                       }
                                       title="Editar Despesa"
                                     >
@@ -4619,7 +4623,7 @@ export const FinancasCaixa: React.FC = () => {
                                     className={
                                       isDark
                                         ? 'p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer'
-                                        : 'p-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 border border-slate-300 text-black transition cursor-pointer'
+                                        : 'p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black transition cursor-pointer'
                                     }
                                     title="Editar Conta"
                                   >

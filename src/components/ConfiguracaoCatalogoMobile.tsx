@@ -96,7 +96,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
   const headerBtnVoltarClass = `p-2 rounded-xl transition cursor-pointer ${isDark ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-200 text-slate-700'}`;
   const cardBoxClass = `rounded-2xl border p-4 shadow-xs ${isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'}`;
   const rodapeFixoClass = `p-4 border-t shrink-0 ${isDark ? 'bg-[#08131A] border-slate-800' : 'bg-slate-100 border-slate-300'}`;
-  const btnSalvarFixoClass = "w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-sm font-black shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 border border-emerald-500 transition cursor-pointer disabled:opacity-50";
+  const btnSalvarFixoClass = "hubi-btn-cta w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-sm font-black shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 border border-emerald-500 transition cursor-pointer disabled:opacity-50";
   const btnSecundarioClass = `w-full py-3 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 transition cursor-pointer ${isDark ? 'border-slate-700 text-white bg-[#000000] hover:bg-slate-800' : 'border-slate-300 text-black bg-white hover:bg-slate-100'}`;
 
   // Pilha de Navegação Mobile
@@ -1285,7 +1285,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
 
           <div className={rodapeFixoClass}>
             <div className="space-y-2">
-              <label className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-sm font-black shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 border border-emerald-500 cursor-pointer transition">
+              <label className="hubi-btn-neutral w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-sm font-black shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 border border-emerald-500 cursor-pointer transition">
                 <Upload className="w-4 h-4" />
                 <span>{uploadingBanner ? 'Enviando banner...' : 'Fazer upload do banner'}</span>
                 <input type="file" accept="image/*" onChange={handleUploadBanner} className="hidden" />
@@ -2670,7 +2670,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
                 type="button"
                 disabled={salvando}
                 onClick={salvarSlugPersonalizado}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition disabled:opacity-50"
+                className="hubi-btn-cta flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition disabled:opacity-50"
               >
                 {salvando ? 'Salvando...' : 'Salvar Link'}
               </button>
@@ -2718,7 +2718,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => copiarParaTransferencia(catalogoUrl, 'Link do Catálogo')}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[11px] shrink-0 border border-emerald-500 transition"
+                  className="hubi-btn-neutral px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[11px] shrink-0 border border-emerald-500 transition"
                 >
                   Copiar
                 </button>
@@ -2730,7 +2730,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
               href={`https://wa.me/?text=${encodeURIComponent(`Confira o nosso catálogo online de produtos: ${catalogoUrl}`)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20 border border-emerald-500 transition"
+              className="hubi-btn-neutral w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20 border border-emerald-500 transition"
             >
               <MessageCircle className="w-4 h-4" />
               <span>Enviar pelo WhatsApp</span>
@@ -2814,7 +2814,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
                 type="button"
                 disabled={salvando || !novaOpcaoEntrega.nome.trim()}
                 onClick={adicionarOpcaoEntrega}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition disabled:opacity-50"
+                className="hubi-btn-cta flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition disabled:opacity-50"
               >
                 {salvando ? 'Salvando...' : 'Adicionar'}
               </button>

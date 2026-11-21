@@ -1954,7 +1954,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                   <button
                     type="button"
                     onClick={abrirModalNovaCategoria}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
+                    className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span className="hidden sm:inline">Nova Categoria</span>
@@ -1972,7 +1972,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                       setUnidadeFracionada(false);
                       setModalUnidadeAberta(true);
                     }}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
+                    className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span className="hidden sm:inline">Nova Unidade</span>
@@ -1993,7 +1993,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                       setFornObs('');
                       setModalFornecedorAberta(true);
                     }}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
+                    className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span className="hidden sm:inline">Novo Fornecedor</span>
@@ -2005,7 +2005,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                   <button
                     type="button"
                     onClick={abrirModalNovoPagamento}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
+                    className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span className="hidden sm:inline">Nova Forma</span>
@@ -2017,7 +2017,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                   <button
                     type="button"
                     onClick={abrirModalNovaForma}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
+                    className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span className="hidden sm:inline">Nova Forma de Envio</span>
@@ -2032,7 +2032,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                       setAppNome('');
                       setModalAppAberta(true);
                     }}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
+                    className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span className="hidden sm:inline">Novo Aplicativo</span>
@@ -2044,7 +2044,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                   <button
                     type="button"
                     onClick={abrirModalNovaTransp}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
+                    className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span className="hidden sm:inline">Nova Transportadora</span>
@@ -2978,7 +2978,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                   <button
                     type="submit"
                     disabled={salvando}
-                    className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20 border border-emerald-500 transition disabled:opacity-50 cursor-pointer"
+                    className="hubi-btn-cta w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20 border border-emerald-500 transition disabled:opacity-50 cursor-pointer"
                   >
                     {salvando ? (
                       <>
@@ -3380,7 +3380,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                   <button
                     type="button"
                     onClick={adicionarSubcategoriaChip}
-                    className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center gap-1 cursor-pointer shrink-0"
+                    className="hubi-btn-neutral px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center gap-1 cursor-pointer shrink-0"
                     title="Adicionar subcategoria à lista"
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -3428,7 +3428,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 <button
                   type="submit"
                   disabled={salvando}
-                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer disabled:opacity-50"
+                  className="hubi-btn-cta flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer disabled:opacity-50"
                 >
                   {salvando ? 'Salvando...' : 'Salvar Categoria'}
                 </button>
@@ -3525,7 +3525,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 <button
                   type="submit"
                   disabled={salvando}
-                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer disabled:opacity-50"
+                  className="hubi-btn-cta flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer disabled:opacity-50"
                 >
                   {salvando ? 'Salvando...' : 'Salvar Unidade'}
                 </button>
@@ -3667,7 +3667,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 <button
                   type="submit"
                   disabled={salvando}
-                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer disabled:opacity-50"
+                  className="hubi-btn-cta flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer disabled:opacity-50"
                 >
                   {salvando ? 'Salvando...' : 'Salvar Fornecedor'}
                 </button>
@@ -3853,7 +3853,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 <button
                   type="submit"
                   disabled={salvando}
-                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 border border-emerald-500"
+                  className="hubi-btn-cta flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 border border-emerald-500"
                 >
                   {salvando ? (
                     <>
@@ -4005,7 +4005,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 <button
                   type="submit"
                   disabled={salvando}
-                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 border border-emerald-500"
+                  className="hubi-btn-cta flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 border border-emerald-500"
                 >
                   {salvando ? (
                     <>
@@ -4072,7 +4072,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 <button
                   type="submit"
                   disabled={salvando}
-                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 border border-emerald-500"
+                  className="hubi-btn-cta flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 border border-emerald-500"
                 >
                   {salvando ? (
                     <>
@@ -4224,7 +4224,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 <button
                   type="submit"
                   disabled={salvando}
-                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 border border-emerald-500"
+                  className="hubi-btn-cta flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 border border-emerald-500"
                 >
                   {salvando ? (
                     <>

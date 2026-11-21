@@ -315,7 +315,7 @@ export const CarrinhoVenda: React.FC<CarrinhoVendaProps> = ({
           type="button"
           disabled={itens.length === 0 || salvando}
           onClick={handleSalvarPedido}
-          className="flex-1 py-2 px-2.5 min-h-[44px] rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 shadow flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-center"
+          className="hubi-btn-neutral flex-1 py-2 px-2.5 min-h-[44px] rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 shadow flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-center"
           title="Salvar pedido como orçamento/pendente"
         >
           <FileText className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
@@ -328,7 +328,7 @@ export const CarrinhoVenda: React.FC<CarrinhoVendaProps> = ({
             type="button"
             disabled={!temCliente || salvando || itens.length === 0}
             onClick={() => setModalEnvioAberto(true)}
-            className={`flex-1 py-2 px-2 min-h-[44px] rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition text-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+            className={`hubi-btn-neutral flex-1 py-2 px-2 min-h-[44px] rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition text-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
               freteConfirmado
                 ? 'bg-emerald-950/50 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/60 shadow-sm'
                 : 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 shadow'
@@ -359,8 +359,8 @@ export const CarrinhoVenda: React.FC<CarrinhoVendaProps> = ({
           onClick={handleFinalizarVenda}
           className={`flex-1 py-2 px-2 min-h-[44px] rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition text-center ${
             ehEnvio && !freteConfirmado
-              ? 'bg-slate-800 border border-slate-700 text-slate-500 opacity-50 cursor-not-allowed'
-              : 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/25 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed'
+              ? 'hubi-btn-neutral bg-slate-800 border border-slate-700 text-slate-500 opacity-50 cursor-not-allowed'
+              : 'hubi-btn-cta bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/25 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed'
           }`}
           title={
             ehEnvio && !freteConfirmado

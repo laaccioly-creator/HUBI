@@ -207,7 +207,7 @@ export const ImportarPedidos: React.FC<ImportarPedidosProps> = ({ onVoltar }) =>
             <button
               type="button"
               onClick={() => orderImportExportService.downloadModeloXLSX()}
-              className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition cursor-pointer active:scale-95"
+              className="hubi-btn-neutral px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition cursor-pointer active:scale-95"
             >
               <FileSpreadsheet className="w-4 h-4" />
               <span>Baixar Modelo (.XLSX Excel)</span>
@@ -216,7 +216,7 @@ export const ImportarPedidos: React.FC<ImportarPedidosProps> = ({ onVoltar }) =>
             <button
               type="button"
               onClick={() => orderImportExportService.downloadModeloCSV()}
-              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-2 border border-slate-700 transition cursor-pointer"
+              className="hubi-btn-neutral px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-2 border border-slate-700 transition cursor-pointer"
             >
               <FileText className="w-4 h-4 text-slate-400" />
               <span>Baixar Modelo (.CSV)</span>
@@ -420,7 +420,7 @@ export const ImportarPedidos: React.FC<ImportarPedidosProps> = ({ onVoltar }) =>
                 type="button"
                 onClick={handleLimparImportacao}
                 disabled={importando}
-                className="flex-1 sm:flex-none px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
+                className="hubi-btn-neutral flex-1 sm:flex-none px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
               >
                 Cancelar
               </button>
@@ -429,7 +429,7 @@ export const ImportarPedidos: React.FC<ImportarPedidosProps> = ({ onVoltar }) =>
                 type="button"
                 onClick={handleConfirmarImportacao}
                 disabled={importando || resultadoParse.pedidosValidos.length === 0}
-                className="flex-1 sm:flex-none px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 transition cursor-pointer disabled:opacity-50 active:scale-95"
+                className="hubi-btn-cta flex-1 sm:flex-none px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 transition cursor-pointer disabled:opacity-50 active:scale-95"
               >
                 {importando ? (
                   <>
@@ -513,7 +513,7 @@ export const ImportarPedidos: React.FC<ImportarPedidosProps> = ({ onVoltar }) =>
             <button
               type="button"
               onClick={handleLimparImportacao}
-              className="px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition cursor-pointer"
+              className="hubi-btn-neutral px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition cursor-pointer"
             >
               Importar Outra Planilha
             </button>

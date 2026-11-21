@@ -579,7 +579,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               type="button"
               onClick={() => setSubTela(origemClientes)}
               className={`p-1.5 rounded-xl transition cursor-pointer ${
-                isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+                isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
               }`}
             >
               <ChevronLeft className="w-5 h-5" />
@@ -591,7 +591,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             <button
               type="button"
               className={`p-2 rounded-xl transition cursor-pointer ${
-                isDark ? 'text-slate-400 hover:bg-slate-800 hover:text-white' : 'text-slate-700 hover:bg-slate-200'
+                isDark ? 'text-slate-400 hover:bg-slate-800 hover:text-white' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black'
               }`}
               title="Sincronizar"
             >
@@ -600,7 +600,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             <button
               type="button"
               onClick={() => onAbrirNovoCliente()}
-              className="w-9 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center shadow-md transition cursor-pointer"
+              className="hubi-btn-neutral w-9 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center shadow-md transition cursor-pointer"
               title="Cadastrar Novo Cliente"
             >
               <Plus className="w-5 h-5 stroke-[2.5]" />
@@ -735,7 +735,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               type="button"
               onClick={() => setSubTela('vender')}
               className={`p-1.5 rounded-xl transition cursor-pointer ${
-                isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+                isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
               }`}
             >
               <ChevronLeft className="w-5 h-5" />
@@ -767,7 +767,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             <button
               type="button"
               onClick={() => abrirSelecaoCliente('vender')}
-              className="w-8 h-8 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shadow-md transition cursor-pointer"
+              className="hubi-btn-neutral w-8 h-8 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shadow-md transition cursor-pointer"
             >
               <User className="w-4 h-4" />
             </button>
@@ -857,7 +857,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             type="button"
             onClick={() => setSubTela('carrinho')}
             disabled={itens.length === 0}
-            className="flex-1 h-12 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm flex items-center justify-between px-4 shadow-md transition disabled:opacity-50 cursor-pointer"
+            className="hubi-btn-cta flex-1 h-12 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm flex items-center justify-between px-4 shadow-md transition disabled:opacity-50 cursor-pointer"
           >
             <span>{totalItens} {totalItens === 1 ? 'item' : 'itens'} = R$ {total.toFixed(2)}</span>
             <ChevronRight className="w-5 h-5" />
@@ -885,7 +885,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             type="button"
             onClick={() => setSubTela('vender')}
             className={`p-1.5 rounded-xl transition cursor-pointer ${
-              isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+              isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
             }`}
           >
             <ChevronLeft className="w-5 h-5" />
@@ -915,7 +915,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               <button
                 type="button"
                 onClick={() => setEditandoDescricaoAvulso(false)}
-                className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold"
+                className="hubi-btn-neutral p-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold"
               >
                 <Check className="w-4 h-4" />
               </button>
@@ -980,7 +980,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             type="button"
             onClick={handleAdicionarItemAvulso}
             disabled={valorAvulsoCentavos === 0}
-            className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm transition shadow-md cursor-pointer disabled:opacity-40"
+            className="hubi-btn-cta w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm transition shadow-md cursor-pointer disabled:opacity-40"
           >
             Adicionar ao carrinho
           </button>
@@ -1006,7 +1006,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               type="button"
               onClick={() => setSubTela('vender')}
               className={`p-1.5 rounded-xl transition cursor-pointer ${
-                isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+                isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
               }`}
             >
               <ChevronLeft className="w-5 h-5" />
@@ -1029,10 +1029,10 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             <button
               type="button"
               onClick={() => setSubTela('vender')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer active:scale-95 shadow-xs ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs transition cursor-pointer active:scale-95 shadow-xs ${
                 isDark
-                  ? 'bg-[#000000] border border-slate-700 text-emerald-400 hover:bg-slate-900'
-                  : 'bg-emerald-600 hover:bg-emerald-700 text-white border-2 border-emerald-700 shadow-sm'
+                  ? 'bg-[#000000] border border-slate-700 text-emerald-400 hover:bg-slate-900 font-bold'
+                  : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
               }`}
               title="Continuar adicionando produtos ao carrinho"
             >
@@ -1746,17 +1746,17 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               type="button"
               disabled={itens.length === 0 || salvandoPendente}
               onClick={onSalvarPedidoPendente}
-              className={`flex-1 h-12 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50 active:scale-95 shadow-xs ${
+              className={`flex-1 h-12 rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50 active:scale-95 shadow-xs ${
                 isDark
-                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
-                  : 'bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white shadow-sm'
+                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold'
+                  : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
               }`}
               title="Salva o pedido como Pendente sem concluir pagamento"
             >
               {salvandoPendente ? (
-                <Loader2 className="w-4 h-4 animate-spin text-white" />
+                <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-white' : 'text-black'}`} />
               ) : (
-                <FileText className="w-4 h-4 text-white" />
+                <FileText className={`w-4 h-4 ${isDark ? 'text-white' : 'text-black'}`} />
               )}
               <span className="truncate">{pedidoEmEdicao ? 'Atualizar' : 'Salvar Pedido'}</span>
             </button>
@@ -1766,15 +1766,15 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
             type="button"
             onClick={() => onAbrirFechamento()}
             disabled={itens.length === 0 || salvandoPendente}
-            className={`flex-[1.2] h-12 rounded-xl font-black text-xs flex items-center justify-between px-3 shadow-md transition cursor-pointer disabled:opacity-50 active:scale-95 ${
+            className={`flex-[1.2] h-12 rounded-xl text-xs flex items-center justify-between px-3 shadow-xs transition cursor-pointer disabled:opacity-50 active:scale-95 ${
               isDark
-                ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
-                : 'bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white'
+                ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black shadow-md'
+                : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-black font-bold'
             }`}
             title="Avançar para pagamento e concluir venda"
           >
             <span className="truncate">{totalItens} {totalItens === 1 ? 'item' : 'itens'} • R$ {Number(total || 0).toFixed(2)}</span>
-            <ChevronRight className="w-4 h-4 shrink-0 text-white" />
+            <ChevronRight className={`w-4 h-4 shrink-0 ${isDark ? 'text-white' : 'text-black'}`} />
           </button>
         </div>
 
@@ -1790,7 +1790,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                   type="button"
                   onClick={() => setModalDescontoAberto(false)}
                   className={`p-1.5 rounded-xl transition cursor-pointer ${
-                    isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+                    isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
                   }`}
                 >
                   <X className="w-4 h-4" />
@@ -1861,7 +1861,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                     }
                     setModalDescontoAberto(false);
                   }}
-                  className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md cursor-pointer"
+                  className="hubi-btn-neutral flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md cursor-pointer"
                 >
                   Aplicar
                 </button>
@@ -1889,10 +1889,10 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 <button
                   type="button"
                   onClick={() => setModalConfirmarLimparCarrinho(false)}
-                  className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer ${
+                  className={`flex-1 py-2.5 rounded-xl text-xs transition cursor-pointer ${
                     isDark
-                      ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200'
-                      : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+                      ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200 font-bold'
+                      : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
                   }`}
                 >
                   Cancelar
@@ -2013,7 +2013,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
               setTermoBusca('');
             }}
             className={`p-1.5 rounded-xl transition cursor-pointer ${
-              isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+              isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-sm'
             }`}
           >
             <X className="w-4 h-4" />
@@ -2413,7 +2413,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                 type="button"
                 onClick={() => setModalMultiplicador(false)}
                 className={`p-1.5 rounded-xl transition cursor-pointer ${
-                  isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+                  isDark ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-sm'
                 }`}
               >
                 <X className="w-4 h-4" />

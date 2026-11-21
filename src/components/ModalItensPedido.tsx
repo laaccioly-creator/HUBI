@@ -85,7 +85,7 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
             type="button"
             onClick={onClose}
             className={`p-1.5 rounded-xl border transition cursor-pointer ${
-              isDark ? 'bg-[#000000] border-slate-700 text-white hover:bg-slate-900' : 'bg-white border-slate-300 text-black hover:bg-slate-50'
+              isDark ? 'bg-[#000000] border-slate-700 text-white hover:bg-slate-900' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
             }`}
           >
             <X className="w-5 h-5" />
@@ -239,8 +239,8 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className={`px-5 py-2 rounded-xl text-xs font-bold shadow-xs transition cursor-pointer active:scale-95 ${
-              isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+            className={`px-5 py-2 rounded-xl text-xs transition cursor-pointer active:scale-95 shadow-xs ${
+              isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 font-bold' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
             }`}
           >
             Fechar
@@ -252,7 +252,7 @@ export const ModalItensPedido: React.FC<ModalItensPedidoProps> = ({
                 onClose();
                 onAbrirPesagem(pedido);
               }}
-              className="px-4 py-2 rounded-xl text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition cursor-pointer active:scale-95 inline-flex items-center gap-1.5"
+              className="hubi-btn-neutral px-4 py-2 rounded-xl text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition cursor-pointer active:scale-95 inline-flex items-center gap-1.5"
             >
               <Scale className="w-3.5 h-3.5" />
               <span>Informar Peso</span>

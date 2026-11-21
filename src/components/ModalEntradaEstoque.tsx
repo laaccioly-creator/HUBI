@@ -397,7 +397,9 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer shadow-xs"
+            className={`p-1.5 rounded-xl transition cursor-pointer shadow-xs ${
+              isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+            }`}
             title="Fechar"
           >
             <X className="w-5 h-5" />
@@ -849,7 +851,11 @@ export const ModalEntradaEstoque: React.FC<ModalEntradaEstoqueProps> = ({
                 <button
                   type="submit"
                   disabled={salvando}
-                  className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-black rounded-xl shadow-md transition-colors flex items-center justify-center gap-2 cursor-pointer text-xs disabled:opacity-50 border border-emerald-500"
+                  className={`flex-1 py-3.5 font-bold rounded-xl shadow-md transition-colors flex items-center justify-center gap-2 cursor-pointer text-xs disabled:opacity-50 ${
+                    isDark
+                      ? 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-black border border-emerald-500'
+                      : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-black'
+                  }`}
                 >
                   {salvando ? (
                     <>

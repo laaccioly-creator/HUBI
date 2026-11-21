@@ -415,7 +415,7 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition cursor-pointer"
+            className="p-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -619,7 +619,7 @@ export const ModalReceberFiado: React.FC<ModalReceberFiadoProps> = ({
             type="button"
             disabled={processandoRecebimento || Math.abs(diferencaRecebimento) > 0.01}
             onClick={handleConfirmarRecebimento}
-            className="flex-1 py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-98"
+            className="hubi-btn-cta flex-1 py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-98"
           >
             {processandoRecebimento ? (
               <>

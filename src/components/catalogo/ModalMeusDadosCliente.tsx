@@ -390,7 +390,7 @@ export const ModalMeusDadosCliente: React.FC<ModalMeusDadosClienteProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+            className="hubi-btn-close-x p-1.5 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -511,7 +511,7 @@ export const ModalMeusDadosCliente: React.FC<ModalMeusDadosClienteProps> = ({
               <button
                 type="submit"
                 disabled={salvandoDados}
-                className="w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer active:scale-98"
+                className="hubi-btn-cta w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer active:scale-98"
               >
                 {salvandoDados ? (
                   <>
@@ -724,7 +724,7 @@ export const ModalMeusDadosCliente: React.FC<ModalMeusDadosClienteProps> = ({
                     <button
                       type="submit"
                       disabled={salvandoEndereco}
-                      className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer"
+                      className="hubi-btn-cta flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer"
                     >
                       {salvandoEndereco ? (
                         <>

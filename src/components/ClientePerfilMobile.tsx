@@ -637,9 +637,9 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   href={`https://wa.me/55${whatsapp.replace(/\D/g, '')}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="p-2 px-3 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition shadow-xs flex items-center gap-1.5 text-xs border border-emerald-500"
+                  className="hubi-btn-neutral p-2 px-3 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition shadow-xs flex items-center gap-1.5 text-xs border border-emerald-500"
                 >
-                  <MessageCircle className="w-4 h-4 fill-white text-emerald-600" />
+                  <MessageCircle className="w-4 h-4 fill-current" />
                   <span>WhatsApp</span>
                 </a>
               )}
@@ -902,7 +902,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                           <button
                             type="button"
                             onClick={() => setModalExtratoCadernetaAberto(true)}
-                            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-medium flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                            className="hubi-btn-neutral px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-medium flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                           >
                             <BookOpen className="w-3.5 h-3.5" />
                             <span>Ver Extrato</span>
@@ -994,7 +994,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                 type="button"
                 onClick={handleSalvarDados}
                 disabled={salvando}
-                className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider shadow-md border border-emerald-500 transition disabled:opacity-50 cursor-pointer"
+                className="hubi-btn-cta w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider shadow-md border border-emerald-500 transition disabled:opacity-50 cursor-pointer"
               >
                 {salvando ? 'Salvando...' : 'Salvar Alterações'}
               </button>
@@ -1179,7 +1179,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   <button
                     type="button"
                     onClick={() => setModalExtratoCadernetaAberto(true)}
-                    className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs shadow-md border border-emerald-500 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+                    className="hubi-btn-neutral w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs shadow-md border border-emerald-500 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
                   >
                     <BookOpen className="w-4 h-4" />
                     <span>{saldoDevedorCaderneta > 0 ? 'Ver Extrato / Receber Pagamento' : 'Abrir Extrato da Caderneta'}</span>
@@ -1229,7 +1229,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                         setObsQuitar('');
                         setModalQuitarFiado(true);
                       }}
-                      className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+                      className="hubi-btn-neutral w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
                     >
                       <DollarSign className="w-4 h-4" />
                       <span>Quitar / Abater Fiado</span>
@@ -1272,7 +1272,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                       setEtapaAjuste('valor');
                       setModalAjusteSaldo(true);
                     }}
-                    className="w-full py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 transition cursor-pointer active:scale-95"
+                    className="hubi-btn-neutral w-full py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 transition cursor-pointer active:scale-95"
                   >
                     Adicionar créditos
                   </button>
@@ -1328,7 +1328,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
               <button
                 type="button"
                 onClick={() => setModalAjusteSaldo(false)}
-                className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
+                className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
                 title="Fechar"
               >
                 <X className="w-4 h-4" />
@@ -1392,7 +1392,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                     }
                     setEtapaAjuste('observacao');
                   }}
-                  className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center justify-center gap-1 shadow-md border border-emerald-500 transition cursor-pointer"
+                  className="hubi-btn-neutral w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center justify-center gap-1 shadow-md border border-emerald-500 transition cursor-pointer"
                 >
                   <span>Avançar</span>
                   <ArrowRight className="w-4 h-4" />
@@ -1447,7 +1447,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                     type="button"
                     onClick={handleConfirmarAjusteSaldo}
                     disabled={processandoAjuste}
-                    className="flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 transition disabled:opacity-50 cursor-pointer"
+                    className="hubi-btn-cta flex-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 transition disabled:opacity-50 cursor-pointer"
                   >
                     {processandoAjuste ? 'Ajustando...' : 'Confirmar'}
                   </button>
@@ -1471,7 +1471,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
               <button
                 type="button"
                 onClick={() => setModalExtrato(false)}
-                className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
+                className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
                 title="Fechar"
               >
                 <X className="w-4 h-4" />
@@ -1526,7 +1526,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
               <button
                 type="button"
                 onClick={() => setModalQuitarFiado(false)}
-                className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
+                className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
                 title="Fechar"
               >
                 <X className="w-4 h-4" />
@@ -1616,7 +1616,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                 type="button"
                 disabled={processandoQuitar}
                 onClick={handleConfirmarQuitarFiado}
-                className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
+                className="hubi-btn-cta w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Check className="w-4 h-4 stroke-[3]" />
                 <span>{processandoQuitar ? 'Processando...' : 'Confirmar Abatimento'}</span>
@@ -1639,7 +1639,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
               <button
                 type="button"
                 onClick={() => setMostrarModalEndereco(false)}
-                className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
+                className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
                 title="Fechar"
               >
                 <X className="w-4 h-4" />
@@ -1722,7 +1722,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
             <button
               type="button"
               onClick={() => setMostrarModalEndereco(false)}
-              className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 transition cursor-pointer"
+              className="hubi-btn-neutral w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 transition cursor-pointer"
             >
               Concluir
             </button>

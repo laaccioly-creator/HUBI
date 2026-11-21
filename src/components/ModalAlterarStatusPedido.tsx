@@ -216,7 +216,7 @@ export const ModalAlterarStatusPedido: React.FC<ModalAlterarStatusPedidoProps> =
             disabled={atualizandoStatusRapido}
             onClick={onClose}
             className={`rounded-xl p-1.5 border transition cursor-pointer ${
-              isDark ? 'bg-[#000000] border-slate-700 text-slate-400 hover:text-white hover:bg-slate-900' : 'bg-white border-slate-300 text-slate-500 hover:text-black hover:bg-slate-50'
+              isDark ? 'bg-[#000000] border-slate-700 text-slate-400 hover:text-white hover:bg-slate-900' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
             }`}
           >
             <X className="w-5 h-5" />
@@ -258,7 +258,7 @@ export const ModalAlterarStatusPedido: React.FC<ModalAlterarStatusPedidoProps> =
                   onClose();
                   onReceberPagamento(pedido);
                 }}
-                className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm transition cursor-pointer active:scale-95"
+                className="hubi-btn-cta w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm transition cursor-pointer active:scale-95"
               >
                 <CreditCard className="w-4 h-4 stroke-[2.5]" />
                 <span>Receber Pagamento ({formatarMoeda(saldoDev)})</span>

@@ -73,7 +73,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
               type="button"
               onClick={onClose}
               className={`p-1.5 rounded-xl border transition cursor-pointer ${
-                isDark ? 'bg-[#000000] border-slate-700 text-white hover:bg-slate-900' : 'bg-white border-slate-300 text-black hover:bg-slate-50'
+                isDark ? 'bg-[#000000] border-slate-700 text-white hover:bg-slate-900' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
               }`}
             >
               <X className="w-5 h-5" />
@@ -149,8 +149,8 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className={`px-5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer active:scale-95 ${
-                isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+              className={`px-5 py-2.5 rounded-xl text-xs transition cursor-pointer active:scale-95 ${
+                isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 font-bold' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold shadow-sm'
               }`}
             >
               Fechar
@@ -186,7 +186,7 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
             type="button"
             onClick={onClose}
             className={`p-1.5 rounded-xl border transition cursor-pointer ${
-              isDark ? 'bg-[#000000] border-slate-700 text-white hover:bg-slate-900' : 'bg-white border-slate-300 text-black hover:bg-slate-50'
+              isDark ? 'bg-[#000000] border-slate-700 text-white hover:bg-slate-900' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
             }`}
           >
             <X className="w-5 h-5" />
@@ -423,8 +423,8 @@ export const ModalDetalhesProduto: React.FC<ModalDetalhesProdutoProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className={`px-5 py-2.5 rounded-xl font-bold text-xs transition cursor-pointer active:scale-95 ${
-              isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500' : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+            className={`px-5 py-2.5 rounded-xl text-xs transition cursor-pointer active:scale-95 ${
+              isDark ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 font-bold' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold shadow-sm'
             }`}
           >
             Fechar

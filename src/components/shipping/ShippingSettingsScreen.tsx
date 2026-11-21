@@ -512,7 +512,7 @@ export const ShippingSettingsScreen: React.FC = () => {
           type="button"
           onClick={handleSalvar}
           disabled={salvando}
-          className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition-all shadow-md shadow-emerald-600/20 disabled:opacity-50"
+          className="hubi-btn-cta inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition-all shadow-md shadow-emerald-600/20 disabled:opacity-50"
         >
           {salvando ? (
             <>
@@ -1315,7 +1315,7 @@ export const ShippingSettingsScreen: React.FC = () => {
               type="button"
               onClick={handleCriarApp}
               disabled={salvandoApp || !novoAppNome.trim()}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium active:scale-95 transition disabled:opacity-50 cursor-pointer shadow-sm"
+              className="hubi-btn-neutral inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium active:scale-95 transition disabled:opacity-50 cursor-pointer shadow-sm"
             >
               {salvandoApp ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
               Adicionar Aplicativo
@@ -1390,7 +1390,7 @@ export const ShippingSettingsScreen: React.FC = () => {
             <button
               type="button"
               onClick={handleAbrirNovaTransp}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition cursor-pointer self-start sm:self-auto shadow-sm"
+              className="hubi-btn-neutral inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition cursor-pointer self-start sm:self-auto shadow-sm"
             >
               <Plus className="w-4 h-4" />
               <span>Nova Transportadora</span>
@@ -1476,7 +1476,7 @@ export const ShippingSettingsScreen: React.FC = () => {
           <button
             type="submit"
             disabled={salvando}
-            className="inline-flex items-center justify-center gap-2 px-8 py-3 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition-all shadow-lg shadow-emerald-600/25 disabled:opacity-50"
+            className="hubi-btn-cta inline-flex items-center justify-center gap-2 px-8 py-3 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition-all shadow-lg shadow-emerald-600/25 disabled:opacity-50"
           >
             {salvando ? (
               <>
@@ -1509,7 +1509,7 @@ export const ShippingSettingsScreen: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalTranspAberto(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                className="hubi-btn-close-x p-1 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1617,14 +1617,14 @@ export const ShippingSettingsScreen: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalTranspAberto(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                  className="hubi-btn-neutral px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={salvandoTransp || !transpNome.trim()}
-                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-semibold text-slate-900 bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white active:scale-95 transition disabled:opacity-50 cursor-pointer shadow-sm"
+                  className="hubi-btn-cta inline-flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-semibold text-slate-900 bg-emerald-200 hover:bg-emerald-300 border border-emerald-300/60 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:border-emerald-500 dark:text-white active:scale-95 transition disabled:opacity-50 cursor-pointer shadow-sm"
                 >
                   {salvandoTransp ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   {transpEditando ? 'Salvar Alterações' : 'Cadastrar Transportadora'}

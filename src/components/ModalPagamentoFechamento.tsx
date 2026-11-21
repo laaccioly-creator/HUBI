@@ -1104,7 +1104,7 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
           <button
             onClick={handleFecharTudo}
             className={`p-1.5 rounded-xl transition cursor-pointer ${
-              isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-700'
+              isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
             }`}
           >
             <X className="w-5 h-5" />
@@ -1156,10 +1156,10 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
               <button
                 type="button"
                 onClick={handleImprimirComprovante}
-                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-xs border ${
+                className={`px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-2 cursor-pointer shadow-xs border ${
                   isDark
-                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-100 border-slate-700'
-                    : 'bg-white hover:bg-slate-50 text-slate-800 border-slate-200'
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-100 border-slate-700 font-bold'
+                    : 'bg-slate-100 hover:bg-slate-200 text-black border-slate-300 font-semibold'
                 }`}
               >
                 <Printer className="w-4 h-4" />
@@ -1168,7 +1168,11 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
               <button
                 type="button"
                 onClick={handleFecharTudo}
-                className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition cursor-pointer shadow-lg shadow-emerald-600/25 active:scale-95"
+                className={`px-6 py-2.5 rounded-xl text-xs transition cursor-pointer active:scale-95 ${
+                  isDark
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black shadow-lg shadow-emerald-600/25'
+                    : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-black font-bold shadow-xs'
+                }`}
               >
                 Concluir
               </button>
@@ -1645,10 +1649,10 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
               <button
                 type="button"
                 onClick={handleFecharTudo}
-                className={`py-2.5 px-3 rounded-2xl font-bold text-xs border transition cursor-pointer shadow-xs ${
+                className={`py-2.5 px-3 rounded-2xl text-xs border transition cursor-pointer shadow-xs ${
                   isDark
-                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700 font-bold'
+                    : 'bg-slate-100 hover:bg-slate-200 text-black border-slate-300 font-semibold'
                 }`}
               >
                 Cancelar
@@ -1658,16 +1662,16 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
                 type="button"
                 disabled={salvando || processando || totalLinhasPagamento <= 0}
                 onClick={handleSalvarPrevisto}
-                className={`flex-1 py-2.5 px-3 rounded-2xl font-bold text-xs border shadow-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50 ${
+                className={`flex-1 py-2.5 px-3 rounded-2xl text-xs border shadow-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50 ${
                   isDark
-                    ? 'bg-slate-900 hover:bg-slate-800 text-emerald-400 border-emerald-500/40'
-                    : 'bg-white hover:bg-slate-50 text-emerald-700 border-emerald-300'
+                    ? 'bg-slate-900 hover:bg-slate-800 text-emerald-400 border-emerald-500/40 font-bold'
+                    : 'bg-slate-100 hover:bg-slate-200 text-black border-slate-300 font-semibold'
                 }`}
               >
                 {salvando ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+                  <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-emerald-500' : 'text-black'}`} />
                 ) : (
-                  <Save className="w-4 h-4 text-emerald-500" />
+                  <Save className={`w-4 h-4 ${isDark ? 'text-emerald-500' : 'text-black'}`} />
                 )}
                 <span>Salvar Previsto</span>
               </button>
@@ -1675,7 +1679,11 @@ export const ModalPagamentoFechamento: React.FC<ModalPagamentoFechamentoProps> =
               <button
                 type="submit"
                 disabled={processando || salvando || freteADefinir || totalLinhasPagamento <= 0 || Math.abs(diferencaPagamento) > 0.01 || linhasPagamento.some(l => Number(l.valor) <= 0)}
-                className="flex-[2] py-2.5 px-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-98"
+                className={`flex-[2] py-2.5 px-3 rounded-2xl text-xs flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-98 ${
+                  isDark
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black shadow-lg shadow-emerald-600/25'
+                    : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-black font-bold shadow-xs'
+                }`}
               >
                 {processando ? (
                   <>

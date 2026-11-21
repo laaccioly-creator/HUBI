@@ -2859,7 +2859,7 @@ export const ProdutoCadastro: React.FC = () => {
                     type="button"
                     disabled={melhorandoDescricaoIA}
                     onClick={handleMelhorarDescricaoComIA}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-500/30 dark:hover:bg-emerald-900/50 text-[11px] font-bold transition shadow-2xs cursor-pointer disabled:opacity-50"
+                    className="hubi-btn-neutral inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-500/30 dark:hover:bg-emerald-900/50 text-[11px] font-bold transition shadow-2xs cursor-pointer disabled:opacity-50"
                     title="Aprimorar descrição comercial com inteligência artificial"
                   >
                     {melhorandoDescricaoIA ? (
@@ -2901,7 +2901,7 @@ export const ProdutoCadastro: React.FC = () => {
               <button
                 type="button"
                 onClick={handleAbrirRadarPrecos}
-                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 dark:bg-[#000000] dark:text-emerald-400 dark:border-emerald-500/30 dark:hover:bg-[#0D111A] text-xs font-bold transition shadow-xs cursor-pointer group"
+                className="hubi-btn-neutral inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 dark:bg-[#000000] dark:text-emerald-400 dark:border-emerald-500/30 dark:hover:bg-[#0D111A] text-xs font-bold transition shadow-xs cursor-pointer group"
                 title="Comparar preços praticados por concorrentes e marketplaces na internet"
               >
                 <Search className="w-3.5 h-3.5 text-emerald-700 dark:text-emerald-400 group-hover:scale-110 transition" />
@@ -3598,7 +3598,7 @@ export const ProdutoCadastro: React.FC = () => {
                           }
                           setEtapaVariacao(2);
                         }}
-                        className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 font-semibold text-white text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 shrink-0 shadow-sm"
+                        className="hubi-btn-neutral px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 font-semibold text-white text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 shrink-0 shadow-sm"
                       >
                         <span>Continuar</span>
                         <ArrowRight className="w-4 h-4" />
@@ -3670,7 +3670,7 @@ export const ProdutoCadastro: React.FC = () => {
                           <button
                             type="button"
                             onClick={handleAdicionarOpcao}
-                            className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1 shadow-sm"
+                            className="hubi-btn-neutral w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1 shadow-sm"
                           >
                             <Plus className="w-4 h-4" />
                             <span>Adicionar</span>
@@ -3795,7 +3795,7 @@ export const ProdutoCadastro: React.FC = () => {
                       setDetectandoDimensoes(false);
                     }
                   }}
-                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-500/30 dark:hover:bg-emerald-900/50 text-xs font-bold transition shadow-xs cursor-pointer self-start sm:self-auto group disabled:opacity-50"
+                  className="hubi-btn-neutral inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-500/30 dark:hover:bg-emerald-900/50 text-xs font-bold transition shadow-xs cursor-pointer self-start sm:self-auto group disabled:opacity-50"
                   title="Detectar ou estimar medidas e peso com inteligência artificial"
                 >
                   {detectandoDimensoes ? (
@@ -3921,7 +3921,7 @@ export const ProdutoCadastro: React.FC = () => {
           <button
             type="submit"
             disabled={salvando}
-            className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold rounded-xl shadow-md transition-colors flex items-center justify-center gap-2 text-sm disabled:opacity-50 cursor-pointer"
+            className="hubi-btn-cta w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold rounded-xl shadow-md transition-colors flex items-center justify-center gap-2 text-sm disabled:opacity-50 cursor-pointer"
           >
             {salvando ? (
               <>
@@ -3966,7 +3966,7 @@ export const ProdutoCadastro: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalRadarAberto(false)}
-                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-[#0D111A] text-slate-400 hover:text-slate-700 dark:hover:text-white transition cursor-pointer"
+                className="hubi-btn-close-x p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-[#0D111A] text-slate-400 hover:text-slate-700 dark:hover:text-white transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -4018,7 +4018,7 @@ export const ProdutoCadastro: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleAplicarPrecoMercado(dadosMercado.precoMedio)}
-                        className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-sm flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
+                        className="hubi-btn-neutral px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-sm flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
                       >
                         <Zap className="w-4 h-4 fill-current" />
                         <span>Aplicar Preço Sugerido (R$ {Math.floor(dadosMercado.precoMedio).toFixed(2)})</span>
@@ -4167,7 +4167,7 @@ export const ProdutoCadastro: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => buscarConcorrentesMercado(false)}
-                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition cursor-pointer shadow-sm"
+                    className="hubi-btn-neutral px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition cursor-pointer shadow-sm"
                   >
                     Iniciar Pesquisa
                   </button>
@@ -4196,7 +4196,7 @@ export const ProdutoCadastro: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalRadarAberto(false)}
-                  className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition cursor-pointer shadow-sm"
+                  className="hubi-btn-neutral px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition cursor-pointer shadow-sm"
                 >
                   Fechar
                 </button>
@@ -4339,7 +4339,7 @@ export const ProdutoCadastro: React.FC = () => {
               type="button"
               onClick={capturarFotoAoVivo}
               disabled={cameraAoVivoCarregando}
-              className="flex-[2] h-12 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50"
+              className="hubi-btn-cta flex-[2] h-12 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50"
             >
               <Camera className="w-5 h-5" />
               <span>Tirar Foto</span>

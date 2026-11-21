@@ -383,7 +383,7 @@ export const CardConexaoMercadoLivre: React.FC<CardConexaoMercadoLivreProps> = (
               type="button"
               onClick={handleSalvarPreferencias}
               disabled={salvandoConfig}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-sm transition cursor-pointer disabled:opacity-50"
+              className="hubi-btn-cta px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-sm transition cursor-pointer disabled:opacity-50"
             >
               {salvandoConfig ? (
                 <>

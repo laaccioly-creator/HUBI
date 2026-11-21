@@ -1893,7 +1893,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                       <button
                         type="button"
                         onClick={() => onSolicitarAtualizarEndereco?.()}
-                        className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm active:scale-95"
+                        className="hubi-btn-neutral px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm active:scale-95"
                       >
                         <MapPin className="w-3.5 h-3.5" />
                         <span>Atualizar Endereço</span>
@@ -2197,7 +2197,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                                 emitirSelecaoManual(primeira, val, enderecoSelecionado);
                               }
                             }}
-                            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer active:scale-95"
+                            className="hubi-btn-neutral px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-sm cursor-pointer active:scale-95"
                           >
                             <PenLine className="w-3.5 h-3.5" />
                             <span>Informar Frete Manualmente</span>
@@ -2262,7 +2262,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                             type="button"
                             onClick={() => enderecoSelecionado && executarCotacao(enderecoSelecionado, true)}
                             disabled={cotando}
-                            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer active:scale-95 disabled:opacity-50"
+                            className="hubi-btn-neutral px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer active:scale-95 disabled:opacity-50"
                           >
                             <RefreshCw className={`w-3.5 h-3.5 ${cotando ? 'animate-spin' : ''}`} />
                             <span>Tentar Novamente</span>
@@ -2272,7 +2272,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                             onClick={() => {
                               setViaEntrega('manual');
                             }}
-                            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                            className="hubi-btn-neutral px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
                           >
                             <PenLine className="w-3.5 h-3.5" />
                             <span>Informar Frete Manual</span>
@@ -2339,7 +2339,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                             type="button"
                             onClick={() => enderecoSelecionado && executarCotacao(enderecoSelecionado, true)}
                             disabled={cotando}
-                            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer active:scale-95 disabled:opacity-50"
+                            className="hubi-btn-neutral px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer active:scale-95 disabled:opacity-50"
                           >
                             <RefreshCw className={`w-3.5 h-3.5 ${cotando ? 'animate-spin' : ''}`} />
                             <span>Tentar Novamente</span>
@@ -2349,7 +2349,7 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                             onClick={() => {
                               setViaEntrega('manual');
                             }}
-                            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                            className="hubi-btn-neutral px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
                           >
                             <PenLine className="w-3.5 h-3.5" />
                             <span>Informar Frete Manual</span>

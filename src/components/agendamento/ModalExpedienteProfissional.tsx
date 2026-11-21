@@ -388,7 +388,7 @@ export const ModalExpedienteProfissional: React.FC<ModalExpedienteProfissionalPr
             type="button"
             onClick={handleSalvar}
             disabled={salvando || carregando}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition cursor-pointer disabled:opacity-50"
+            className="hubi-btn-cta inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition cursor-pointer disabled:opacity-50"
           >
             {salvando ? (
               <>

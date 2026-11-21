@@ -731,7 +731,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
             type="button"
             onClick={onClose}
             className={`p-1.5 rounded-xl border transition cursor-pointer ${
-              isDark ? 'bg-[#000000] border-slate-700 text-slate-400 hover:text-white hover:bg-slate-900' : 'bg-white border-slate-300 text-slate-500 hover:text-black hover:bg-slate-50'
+              isDark ? 'bg-[#000000] border-slate-700 text-slate-400 hover:text-white hover:bg-slate-900' : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
             }`}
           >
             <X className="w-5 h-5" />
@@ -757,7 +757,7 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
                   type="button"
                   onClick={handleCopiarCodigo}
                   className={`p-1.5 rounded-lg border transition cursor-pointer ${
-                    isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border-slate-700' : 'bg-white hover:bg-slate-100 text-black border-slate-300'
+                    isDark ? 'bg-[#000000] hover:bg-slate-900 text-slate-200 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-black border-slate-300'
                   }`}
                   title="Copiar código de rastreio"
                 >
@@ -772,28 +772,28 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
               type="button"
               onClick={() => handleSincronizarRastreio(false)}
               disabled={atualizando}
-              className={`py-2 px-3 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95 disabled:opacity-50 ${
+              className={`py-2 px-3 rounded-xl text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95 disabled:opacity-50 ${
                 isDark
-                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
-                  : 'bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white shadow-sm'
+                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold'
+                  : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
               }`}
               title="Consultar atualizações na transportadora"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${atualizando ? 'animate-spin' : ''} text-white`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${atualizando ? 'animate-spin' : ''} ${isDark ? 'text-white' : 'text-black'}`} />
               <span>{atualizando ? 'Atualizando...' : 'Atualizar'}</span>
             </button>
 
             <button
               type="button"
               onClick={handleCompartilharWhatsApp}
-              className={`py-2 px-3 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95 ${
+              className={`py-2 px-3 rounded-xl text-xs transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95 ${
                 isDark
-                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
-                  : 'bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white shadow-sm'
+                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold'
+                  : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
               }`}
               title="Enviar rastreio no WhatsApp do cliente"
             >
-              <MessageCircle className="w-3.5 h-3.5 text-white" />
+              <MessageCircle className={`w-3.5 h-3.5 ${isDark ? 'text-white' : 'text-black'}`} />
               <span>WhatsApp</span>
             </button>
           </div>
@@ -977,14 +977,14 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
                 window.open(linkEtiqueta, '_blank', 'noopener,noreferrer');
               }
             }}
-            className={`py-2.5 px-4 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
+            className={`py-2.5 px-4 rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
               isDark
-                ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
-                : 'bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white shadow-sm'
+                ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold'
+                : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
             }`}
             title="Imprimir Etiqueta de Envio"
           >
-            <Tag className="w-3.5 h-3.5 text-white" />
+            <Tag className={`w-3.5 h-3.5 ${isDark ? 'text-white' : 'text-black'}`} />
             <span>Imprimir Etiqueta</span>
           </button>
 
@@ -994,13 +994,13 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
               href={urlRastreioTransportadora}
               target="_blank"
               rel="noopener noreferrer"
-              className={`py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
+              className={`py-2.5 px-4 rounded-xl text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
                 isDark
-                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
-                  : 'bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white shadow-sm'
+                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold'
+                  : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
               }`}
             >
-              <ExternalLink className="w-3.5 h-3.5 text-white" />
+              <ExternalLink className={`w-3.5 h-3.5 ${isDark ? 'text-white' : 'text-black'}`} />
               <span>
                 {transportadoraObj?.url_rastreio && codigoRastreio
                   ? `Rastrear na ${nomeTransportadoraExibicao}`
@@ -1015,13 +1015,13 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
               href={linkRastreio}
               target="_blank"
               rel="noopener noreferrer"
-              className={`py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
+              className={`py-2.5 px-4 rounded-xl text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
                 isDark
-                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
-                  : 'bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white shadow-sm'
+                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold'
+                  : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
               }`}
             >
-              <ExternalLink className="w-3.5 h-3.5 text-white" />
+              <ExternalLink className={`w-3.5 h-3.5 ${isDark ? 'text-white' : 'text-black'}`} />
               <span>Acompanhar Uber</span>
             </a>
           )}
@@ -1032,13 +1032,13 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
               href={urlRastreioOficial}
               target="_blank"
               rel="noopener noreferrer"
-              className={`py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
+              className={`py-2.5 px-4 rounded-xl text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
                 isDark
-                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
-                  : 'bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white shadow-sm'
+                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold'
+                  : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
               }`}
             >
-              <ExternalLink className="w-3.5 h-3.5 text-white" />
+              <ExternalLink className={`w-3.5 h-3.5 ${isDark ? 'text-white' : 'text-black'}`} />
               <span>Rastrear no {ehCorreios ? 'Correios' : 'Melhor Envio'}</span>
             </a>
           )}
@@ -1049,13 +1049,13 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
               href={linkRastreio}
               target="_blank"
               rel="noopener noreferrer"
-              className={`py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
+              className={`py-2.5 px-4 rounded-xl text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
                 isDark
-                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
-                  : 'bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white shadow-sm'
+                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold'
+                  : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
               }`}
             >
-              <ExternalLink className="w-3.5 h-3.5 text-white" />
+              <ExternalLink className={`w-3.5 h-3.5 ${isDark ? 'text-white' : 'text-black'}`} />
               <span>Acompanhar Corrida</span>
             </a>
           )}
@@ -1064,10 +1064,10 @@ export const ModalRastreioPedido: React.FC<ModalRastreioPedidoProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className={`py-2.5 px-5 rounded-xl font-bold text-xs transition cursor-pointer active:scale-95 ${
+            className={`py-2.5 px-5 rounded-xl text-xs transition cursor-pointer active:scale-95 ${
               isDark
-                ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200'
-                : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-black'
+                ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200 font-bold'
+                : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
             }`}
           >
             Fechar

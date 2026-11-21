@@ -435,7 +435,11 @@ export const DashboardCockpit: React.FC = () => {
                 onClick={() => carregarMetricas(true)}
                 disabled={carregando}
                 title="Recarregar Indicadores"
-                className="p-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 dark:bg-[#000000] dark:hover:bg-[#0D111A] dark:border-[#1E293B] dark:text-slate-200 transition cursor-pointer disabled:opacity-50 shadow-2xs"
+                className={`p-2 rounded-xl transition cursor-pointer disabled:opacity-50 shadow-2xs ${
+                  isDark
+                    ? 'bg-[#000000] hover:bg-[#0D111A] border border-[#1E293B] text-slate-200'
+                    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
+                }`}
               >
                 <RefreshCw className={`w-4 h-4 ${carregando ? 'animate-spin' : ''}`} />
               </button>
@@ -443,7 +447,11 @@ export const DashboardCockpit: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalMetasAberto(true)}
-                  className="px-2.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 dark:bg-[#000000] dark:hover:bg-[#0D111A] dark:border-[#1E293B] dark:text-white font-bold text-xs transition cursor-pointer shadow-2xs"
+                  className={`px-2.5 py-2 rounded-xl text-xs transition cursor-pointer shadow-2xs ${
+                    isDark
+                      ? 'bg-[#000000] hover:bg-[#0D111A] border border-[#1E293B] text-white font-bold'
+                      : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
+                  }`}
                   title="Configurar Metas"
                 >
                   <Settings className="w-4 h-4" />
@@ -470,18 +478,22 @@ export const DashboardCockpit: React.FC = () => {
                     setDropdownLojasMobileAberto(prev => !prev);
                     setDropdownPeriodoMobileAberto(false);
                   }}
-                  className="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-[#1E293B] bg-white dark:bg-[#000000] text-slate-800 dark:text-slate-100 text-xs font-bold flex items-center justify-between gap-1.5 transition active:scale-[0.98] shadow-2xs cursor-pointer"
+                  className={`w-full px-2.5 py-1.5 rounded-xl text-xs flex items-center justify-between gap-1.5 transition active:scale-[0.98] shadow-2xs cursor-pointer ${
+                    isDark
+                      ? 'border border-[#1E293B] bg-[#000000] text-slate-100 font-bold'
+                      : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
+                  }`}
                   title="Selecionar escopo de visualização"
                 >
                   <div className="flex items-center gap-1.5 truncate">
-                    <Building2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    <Building2 className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-emerald-500' : 'text-black'}`} />
                     <span className="truncate">
                       {escopoLojaId === 'todas'
                         ? 'Todas as Lojas'
                         : (lojasDisponiveis.find(l => l.id === escopoLojaId)?.nome_fantasia || 'Loja')}
                     </span>
                   </div>
-                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${dropdownLojasMobileAberto ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform ${isDark ? 'text-slate-400' : 'text-black'} ${dropdownLojasMobileAberto ? 'rotate-180' : ''}`} />
                 </button>
 
                 {dropdownLojasMobileAberto && (
@@ -567,11 +579,19 @@ export const DashboardCockpit: React.FC = () => {
 
           {/* Dropdown de Período Compacto */}
           <div className="relative flex-1 min-w-0">
-            <div className="flex items-center bg-white dark:bg-[#000000] border border-slate-300 dark:border-[#1E293B] rounded-xl p-0.5 shadow-2xs">
+            <div className={`flex items-center rounded-xl p-0.5 shadow-2xs transition ${
+              isDark
+                ? 'bg-[#000000] border border-[#1E293B]'
+                : 'bg-slate-100 border border-slate-300'
+            }`}>
               <button
                 type="button"
                 onClick={() => setPeriodoOffset(prev => prev - 1)}
-                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1E293B] text-slate-700 dark:text-slate-300 transition shrink-0 cursor-pointer"
+                className={`p-1 rounded-lg transition shrink-0 cursor-pointer ${
+                  isDark
+                    ? 'hover:bg-[#1E293B] text-slate-300'
+                    : 'hover:bg-slate-200 text-black'
+                }`}
                 title="Período Anterior"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
@@ -583,18 +603,26 @@ export const DashboardCockpit: React.FC = () => {
                   setDropdownPeriodoMobileAberto(prev => !prev);
                   setDropdownLojasMobileAberto(false);
                 }}
-                className="flex-1 px-1 py-1 text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center justify-center gap-1 truncate cursor-pointer"
+                className={`flex-1 px-1 py-1 text-xs flex items-center justify-center gap-1 truncate cursor-pointer transition ${
+                  isDark
+                    ? 'font-bold text-slate-100'
+                    : 'hover:bg-slate-200 rounded-lg text-black font-semibold'
+                }`}
               >
-                <Calendar className="w-3 h-3 text-slate-500 shrink-0" />
+                <Calendar className={`w-3 h-3 shrink-0 ${isDark ? 'text-slate-500' : 'text-black'}`} />
                 <span className="truncate">{labelExibicaoPeriodo}</span>
-                <ChevronDown className={`w-3 h-3 text-slate-400 shrink-0 transition-transform ${dropdownPeriodoMobileAberto ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-3 h-3 shrink-0 transition-transform ${isDark ? 'text-slate-400' : 'text-black'} ${dropdownPeriodoMobileAberto ? 'rotate-180' : ''}`} />
               </button>
 
               <button
                 type="button"
                 onClick={() => setPeriodoOffset(prev => prev + 1)}
                 disabled={periodoOffset >= 0}
-                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1E293B] text-slate-700 dark:text-slate-300 transition shrink-0 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                className={`p-1 rounded-lg transition shrink-0 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                  isDark
+                    ? 'hover:bg-[#1E293B] text-slate-300'
+                    : 'hover:bg-slate-200 text-black'
+                }`}
                 title="Próximo Período"
               >
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -692,15 +720,19 @@ export const DashboardCockpit: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setDropdownLojasAberto(prev => !prev)}
-                  className="px-3 py-1.5 rounded-xl border border-slate-300 dark:border-[#1E293B] bg-white hover:bg-slate-50 dark:bg-[#000000] dark:hover:bg-[#0D111A] text-slate-800 dark:text-slate-100 text-xs font-bold flex items-center gap-2 transition cursor-pointer shadow-2xs"
+                  className={`px-3 py-1.5 rounded-xl text-xs flex items-center gap-2 transition cursor-pointer shadow-2xs ${
+                    isDark
+                      ? 'border border-[#1E293B] bg-[#000000] hover:bg-[#0D111A] text-slate-100 font-bold'
+                      : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
+                  }`}
                 >
-                  <Building2 className="w-3.5 h-3.5 text-emerald-500" />
+                  <Building2 className={`w-3.5 h-3.5 ${isDark ? 'text-emerald-500' : 'text-black'}`} />
                   <span className="max-w-[130px] truncate">
                     {escopoLojaId === 'todas'
                       ? '🏢 Todas as Lojas'
                       : (lojasDisponiveis.find(l => l.id === escopoLojaId)?.nome_fantasia || 'Loja')}
                   </span>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                  <ChevronDown className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-black'}`} />
                 </button>
 
                 {dropdownLojasAberto && (
@@ -777,7 +809,11 @@ export const DashboardCockpit: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalAdicionarLojaAberto(true)}
-                className="px-3 py-1.5 rounded-xl border border-dashed border-emerald-500/40 hover:border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-500/10 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
+                className={`px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-2xs ${
+                  isDark
+                    ? 'border border-dashed border-emerald-500/40 hover:border-emerald-500 text-emerald-400 bg-emerald-500/10 font-bold'
+                    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
+                }`}
                 title="Adicionar Filial (+7 Dias Grátis)"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -786,11 +822,19 @@ export const DashboardCockpit: React.FC = () => {
             )}
 
             {/* Seletor de Períodos com Design System Canônico */}
-            <div className="relative flex items-center bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 dark:bg-[#000000] dark:hover:bg-[#0D111A] dark:border-[#1E293B] dark:text-slate-200 font-semibold rounded-xl p-0.5 shadow-2xs transition">
+            <div className={`relative flex items-center font-semibold rounded-xl p-0.5 shadow-2xs transition ${
+              isDark
+                ? 'bg-[#000000] hover:bg-[#0D111A] border border-[#1E293B] text-slate-200'
+                : 'bg-slate-100 border border-slate-300 text-black'
+            }`}>
               <button
                 type="button"
                 onClick={() => setPeriodoOffset(prev => prev - 1)}
-                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1E293B] text-slate-700 dark:text-slate-300 transition cursor-pointer"
+                className={`p-1.5 rounded-lg transition cursor-pointer ${
+                  isDark
+                    ? 'hover:bg-[#1E293B] text-slate-300'
+                    : 'hover:bg-slate-200 text-black'
+                }`}
                 title="Período Anterior"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -800,11 +844,15 @@ export const DashboardCockpit: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setDropdownPeriodoAberto(prev => !prev)}
-                  className="w-full px-2 py-1 text-xs font-bold text-slate-800 dark:text-slate-100 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  className={`w-full px-2 py-1 text-xs transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                    isDark
+                      ? 'font-bold text-slate-100'
+                      : 'hover:bg-slate-200 rounded-lg text-black font-semibold'
+                  }`}
                 >
-                  <Calendar className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                  <Calendar className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-black'}`} />
                   <span>{labelExibicaoPeriodo}</span>
-                  <ChevronDown className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                  <ChevronDown className={`w-3 h-3 ${isDark ? 'text-slate-500' : 'text-black'}`} />
                 </button>
 
                 {/* Dropdown de 9 Opções de Período */}
@@ -843,7 +891,11 @@ export const DashboardCockpit: React.FC = () => {
                 type="button"
                 onClick={() => setPeriodoOffset(prev => prev + 1)}
                 disabled={periodoOffset >= 0}
-                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1E293B] text-slate-700 dark:text-slate-300 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                className={`p-1.5 rounded-lg transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                  isDark
+                    ? 'hover:bg-[#1E293B] text-slate-300'
+                    : 'hover:bg-slate-200 text-black'
+                }`}
                 title="Próximo Período"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -888,7 +940,11 @@ export const DashboardCockpit: React.FC = () => {
               onClick={() => carregarMetricas(true)}
               disabled={carregando}
               title="Recarregar Indicadores"
-              className="p-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 dark:bg-[#000000] dark:hover:bg-[#0D111A] dark:border-[#1E293B] dark:text-slate-200 font-semibold shadow-2xs transition cursor-pointer disabled:opacity-50"
+              className={`p-2 rounded-xl font-semibold shadow-2xs transition cursor-pointer disabled:opacity-50 ${
+                isDark
+                  ? 'bg-[#000000] hover:bg-[#0D111A] border border-[#1E293B] text-slate-200'
+                  : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black'
+              }`}
             >
               <RefreshCw className={`w-4 h-4 ${carregando ? 'animate-spin' : ''}`} />
             </button>
@@ -898,9 +954,15 @@ export const DashboardCockpit: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalMetasAberto(true)}
-                className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 dark:bg-[#000000] dark:hover:bg-[#0D111A] dark:border-[#1E293B] dark:text-white font-bold text-xs flex items-center gap-1.5 sm:gap-2 shadow-2xs transition cursor-pointer group"
+                className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 sm:gap-2 shadow-2xs transition cursor-pointer group ${
+                  isDark
+                    ? 'bg-[#000000] hover:bg-[#0D111A] border border-[#1E293B] text-white font-bold'
+                    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
+                }`}
               >
-                <Settings className="w-4 h-4 text-slate-600 dark:text-slate-300 group-hover:rotate-45 transition-transform duration-200" />
+                <Settings className={`w-4 h-4 group-hover:rotate-45 transition-transform duration-200 ${
+                  isDark ? 'text-slate-300' : 'text-black'
+                }`} />
                 <span className="hidden sm:inline">Configurar Metas</span>
                 <span className="sm:hidden">Metas</span>
               </button>
@@ -926,7 +988,11 @@ export const DashboardCockpit: React.FC = () => {
             <button
               type="button"
               onClick={() => carregarMetricas(true)}
-              className="px-3 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 font-bold transition cursor-pointer"
+              className={`px-3 py-1.5 rounded-xl transition cursor-pointer ${
+                isDark
+                  ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 font-bold'
+                  : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
+              }`}
             >
               Tentar Novamente
             </button>
@@ -947,7 +1013,11 @@ export const DashboardCockpit: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalChecklistAberto(true)}
-                  className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition cursor-pointer shadow-sm"
+                  className={`px-3 py-1.5 rounded-xl text-xs transition cursor-pointer ${
+                    isDark
+                      ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black shadow-sm'
+                      : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold shadow-xs'
+                  }`}
                 >
                   Abrir Guia
                 </button>
@@ -1007,16 +1077,24 @@ export const DashboardCockpit: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => solicitarAberturaQuestionarioOnboarding()}
-                    className="px-3.5 py-2 rounded-xl border border-emerald-500/40 bg-slate-900/60 hover:bg-slate-800 text-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                    className={`px-3.5 py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                      isDark
+                        ? 'border border-emerald-500/40 bg-slate-900/60 hover:bg-slate-800 text-emerald-300 font-bold'
+                        : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
+                    }`}
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                    <Sparkles className={`w-3.5 h-3.5 ${isDark ? 'text-emerald-400' : 'text-black'}`} />
                     <span>Abrir Assistente / Questionário</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setModalChecklistAberto(true)}
-                    className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95"
+                    className={`px-4 py-2 rounded-xl text-xs flex items-center justify-center gap-2 transition cursor-pointer active:scale-95 ${
+                      isDark
+                        ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black shadow-md shadow-emerald-500/20'
+                        : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold shadow-xs'
+                    }`}
                   >
                     <span>Abrir Guia de Configuração (Passo {statusOnboarding?.proximaEtapaPendente?.ordem || etapaFoco?.ordem || 1})</span>
                     <ArrowRight className="w-4 h-4" />

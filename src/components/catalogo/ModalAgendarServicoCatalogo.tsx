@@ -212,8 +212,8 @@ export const ModalAgendarServicoCatalogo: React.FC<ModalAgendarServicoCatalogoPr
           <button
             type="button"
             onClick={onClose}
-            className={`p-2 rounded-xl text-slate-400 hover:text-white transition cursor-pointer ${
-              isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-200 hover:text-slate-800'
+            className={`p-2 rounded-xl transition cursor-pointer ${
+              isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
             }`}
           >
             <X className="w-5 h-5" />
@@ -497,7 +497,7 @@ export const ModalAgendarServicoCatalogo: React.FC<ModalAgendarServicoCatalogoPr
             className={`w-full py-3.5 rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-md active:scale-98 ${
               !slotSelecionado || !profissionalSelecionado
                 ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-50'
-                : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/25'
+                : 'hubi-btn-cta bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/25'
             }`}
           >
             <CheckCircle2 className="w-4 h-4" />

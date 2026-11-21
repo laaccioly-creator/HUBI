@@ -382,8 +382,8 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className={`p-1.5 rounded-full transition cursor-pointer ${
-              isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+            className={`p-1.5 rounded-xl transition cursor-pointer ${
+              isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
             }`}
             title="Fechar"
           >
@@ -398,6 +398,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
           <div
             ref={reciboRef}
             data-recibo-root="true"
+            data-theme="light"
             style={{ colorScheme: 'light', backgroundColor: '#ffffff', color: '#0f172a' }}
             className="w-full max-w-sm bg-white text-slate-900 rounded-xl p-5 shadow-xl border border-slate-200 font-mono text-xs space-y-3.5 min-h-fit mb-6"
           >
@@ -684,34 +685,34 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
 
             {/* Dados do Pagamento (Após o Valor Total) */}
             {((pagInfo.ehFiado || pedido.status_pagamento === 'fiado') && !pagInfo.foiPago) && (
-              <div className="mt-2.5 p-3 bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl text-center space-y-0.5">
-                <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+              <div className="mt-2.5 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-center space-y-0.5">
+                <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block">
                   {pagInfo.ehCaderneta ? 'Saldo Caderneta' : 'Saldo a Pagar (Fiado)'}
                 </span>
-                <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 block">
+                <span className="text-sm font-black text-emerald-800 block">
                   {formatarMoeda(Number(pedido.saldo_devedor || pedido.valor_total))}
                 </span>
-                <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block pt-0.5">
+                <span className="text-[11px] font-semibold text-slate-700 block pt-0.5">
                   Data de Vencimento: {obterInfoVencimentoFiado(pedido).formatada}
                 </span>
               </div>
             )}
 
-            <div className={`mt-3 p-3 rounded-xl border space-y-2 text-xs ${pagInfo.ehCaderneta ? 'border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/30 dark:bg-emerald-950/30' : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60'}`}>
-              <div className="flex justify-between items-center pb-2 border-b border-dashed border-slate-200 dark:border-slate-800">
-                <span className="font-bold text-[10px] text-slate-600 dark:text-slate-400 uppercase tracking-wider">Status Pagamento:</span>
+            <div className={`mt-3 p-3 rounded-xl border space-y-2 text-xs ${pagInfo.ehCaderneta ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-slate-50'}`}>
+              <div className="flex justify-between items-center pb-2 border-b border-dashed border-slate-200">
+                <span className="font-bold text-[10px] text-slate-700 uppercase tracking-wider">Status Pagamento:</span>
                 <span className={`font-black text-[10px] px-2 py-0.5 rounded border ${
                   pedido.status_pagamento === 'aguardando_pesagem'
-                    ? 'bg-emerald-50 text-emerald-900 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+                    ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
                     : pagInfo.ehCaderneta
-                    ? 'bg-emerald-50 text-emerald-900 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+                    ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
                     : (pagInfo.ehFiado || pedido.status_pagamento === 'fiado') && !pagInfo.foiPago
-                    ? 'bg-amber-50 text-amber-900 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800'
+                    ? 'bg-amber-100 text-amber-900 border-amber-300'
                     : pagInfo.foiPago
-                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-700'
+                    ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
                     : infoEntrega
-                    ? 'bg-amber-50 text-amber-900 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800'
-                    : 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                    ? 'bg-amber-100 text-amber-900 border-amber-300'
+                    : 'bg-slate-100 text-slate-900 border-slate-300'
                 }`}>
                   {pedido.status_pagamento === 'aguardando_pesagem'
                     ? 'AGUARDANDO PESAGEM / SEPARAÇÃO'
@@ -727,24 +728,24 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 </span>
               </div>
               {infoEntrega && !pagInfo.foiPago && (
-                <div className="p-2.5 rounded-xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-[11px] leading-relaxed">
+                <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
                   <div className="font-bold">
                     Forma de Cobrança: Pagamento presencial na entrega via {infoEntrega.tipo === 'dinheiro' ? 'Dinheiro' : infoEntrega.tipo === 'debito' ? 'Cartão de Débito' : 'Cartão de Crédito'}. Aguarde a chegada do entregador para efetuar o pagamento.
                   </div>
                   {infoEntrega.tipo === 'dinheiro' && infoEntrega.temTroco && infoEntrega.troco && infoEntrega.troco > 0 && (
-                    <div className="text-[10px] text-amber-800 dark:text-amber-300/90 mt-0.5 font-medium">
+                    <div className="text-[10px] text-amber-800 mt-0.5 font-medium">
                       Troco preparado para {formatarMoeda(infoEntrega.pagaCom || 0)} (Troco a levar: {formatarMoeda(infoEntrega.troco)}).
                     </div>
                   )}
                   {infoEntrega.tipo === 'credito' && infoEntrega.parcelas && infoEntrega.parcelas > 1 && (
-                    <div className="text-[10px] text-amber-800 dark:text-amber-300/90 mt-0.5 font-medium">
+                    <div className="text-[10px] text-amber-800 mt-0.5 font-medium">
                       Parcelamento: {infoEntrega.parcelas}x de {formatarMoeda(infoEntrega.valorParcela || 0)}.
                     </div>
                   )}
                 </div>
               )}
               {infoEntrega && pagInfo.foiPago && (
-                <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 text-xs font-semibold text-center">
+                <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-semibold text-center">
                   ✓ Pagamento presencial na entrega realizado com sucesso.
                 </div>
               )}
@@ -768,18 +769,18 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                   {pagInfo.pagamentosDetalhados.map((pag, idx) => (
                     <div key={idx} className="flex justify-between items-start text-[11px]">
                       <div>
-                        <span className="font-semibold text-slate-900 dark:text-slate-100 block">{pag.forma}{pag.parcelas ? ` (${pag.parcelas}x)` : ''}:</span>
+                        <span className="font-semibold text-slate-900 block">{pag.forma}{pag.parcelas ? ` (${pag.parcelas}x)` : ''}:</span>
                         {pag.origemGateway && (
-                          <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">Origem: {pag.origemGateway}</span>
+                          <span className="text-[10px] text-slate-600 block font-medium">Origem: {pag.origemGateway}</span>
                         )}
                       </div>
-                      <span className="font-bold text-slate-900 dark:text-slate-100">{formatarMoeda(pag.valor)}</span>
+                      <span className="font-bold text-slate-900">{formatarMoeda(pag.valor)}</span>
                     </div>
                   ))}
                   {pagInfo.foiPago && (
-                    <div className="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-800 text-xs">
-                      <span className="text-slate-700 dark:text-slate-300 font-medium">Valor Pago:</span>
-                      <span className="text-emerald-700 dark:text-emerald-400 font-black text-sm">{formatarMoeda(pagInfo.totalPago)}</span>
+                    <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-xs">
+                      <span className="text-slate-700 font-medium">Valor Pago:</span>
+                      <span className="text-emerald-800 font-black text-sm">{formatarMoeda(pagInfo.totalPago)}</span>
                     </div>
                   )}
                 </div>
@@ -857,7 +858,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
           <button
             type="button"
             onClick={() => onImprimir ? onImprimir(pedidoComAgendamentos || pedido) : PrintService.printReceipt(pedidoComAgendamentos || pedido, loja, '80mm')}
-            className="flex-1 font-bold px-2 py-2.5 rounded-xl border border-emerald-600 bg-emerald-600 hover:bg-emerald-500 text-white transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs"
+            className="hubi-btn-neutral flex-1 font-bold px-2 py-2.5 rounded-xl border border-emerald-600 bg-emerald-600 hover:bg-emerald-500 text-white transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs"
             title="Imprimir Cupom Térmico 58mm/80mm"
           >
             <Printer className="w-3.5 h-3.5 shrink-0 text-white" />
@@ -867,7 +868,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
           <button
             type="button"
             onClick={() => PrintService.printReceipt(pedidoComAgendamentos || pedido, loja, 'a4')}
-            className="flex-1 font-bold px-2 py-2.5 rounded-xl border border-emerald-600 bg-emerald-600 hover:bg-emerald-500 text-white transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs"
+            className="hubi-btn-neutral flex-1 font-bold px-2 py-2.5 rounded-xl border border-emerald-600 bg-emerald-600 hover:bg-emerald-500 text-white transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs"
             title="Imprimir Folha A4"
           >
             <Printer className="w-3.5 h-3.5 shrink-0 text-white" />
@@ -884,7 +885,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 PrintService.printReceipt(pedidoEfetivo, loja, 'a4');
               }
             }}
-            className="flex-1 font-bold px-2 py-2.5 rounded-xl border border-emerald-600 bg-emerald-600 hover:bg-emerald-500 text-white transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs"
+            className="hubi-btn-neutral flex-1 font-bold px-2 py-2.5 rounded-xl border border-emerald-600 bg-emerald-600 hover:bg-emerald-500 text-white transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs"
             title="Baixar Recibo em PDF"
           >
             <Download className="w-3.5 h-3.5 shrink-0 text-white" />
@@ -905,7 +906,7 @@ export const ReciboPedidoModal: React.FC<ReciboPedidoModalProps> = ({
                 PrintService.openWhatsApp(tel, msg);
               }
             }}
-            className="flex-1 font-bold px-2 py-2.5 rounded-xl border border-emerald-600 bg-emerald-600 hover:bg-emerald-500 text-white transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs"
+            className="hubi-btn-neutral flex-1 font-bold px-2 py-2.5 rounded-xl border border-emerald-600 bg-emerald-600 hover:bg-emerald-500 text-white transition text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap shadow-xs"
             title="Compartilhar no WhatsApp"
           >
             <Share2 className="w-3.5 h-3.5 shrink-0 text-white" />

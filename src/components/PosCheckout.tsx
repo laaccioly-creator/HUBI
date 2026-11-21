@@ -2493,7 +2493,7 @@ export const PosCheckout: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalCameraBarcode(true)}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 transition cursor-pointer"
+                className="hubi-btn-neutral absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 transition cursor-pointer"
                 title="Escanear Código de Barras pela Câmera (Mobile/Desktop)"
               >
                 <Camera className="w-3.5 h-3.5" />
@@ -2778,7 +2778,7 @@ export const PosCheckout: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalNovoCliente(true)}
-                className="p-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 text-xs font-bold transition flex items-center justify-center shrink-0"
+                className="hubi-btn-neutral p-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 text-xs font-bold transition flex items-center justify-center shrink-0"
                 title="Cadastrar Novo Cliente"
               >
                 <Plus className="w-4 h-4" />
@@ -3514,17 +3514,17 @@ export const PosCheckout: React.FC = () => {
               type="button"
               disabled={(itens?.length || 0) === 0 || salvandoPendente}
               onClick={handleSalvarPedidoPendente}
-              className={`flex-1 py-2 px-2.5 min-h-[44px] rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-center active:scale-95 shadow-xs ${
+              className={`flex-1 py-2 px-2.5 min-h-[44px] rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-center active:scale-95 shadow-xs ${
                 isDark
-                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
-                  : 'bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white shadow-sm'
+                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold'
+                  : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
               }`}
               title={pedidoEmEdicao ? 'Atualizar pedido' : 'Salvar pedido como orçamento/pendente'}
             >
               {salvandoPendente ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0 text-white" />
+                <Loader2 className={`w-3.5 h-3.5 animate-spin shrink-0 ${isDark ? 'text-white' : 'text-black'}`} />
               ) : (
-                <FileText className="w-3.5 h-3.5 shrink-0 text-white" />
+                <FileText className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-white' : 'text-black'}`} />
               )}
               <span>{pedidoEmEdicao ? 'Atualizar' : 'Salvar'}</span>
             </button>
@@ -3535,10 +3535,10 @@ export const PosCheckout: React.FC = () => {
                 type="button"
                 disabled={!temCliente || salvandoPendente || (itens?.length || 0) === 0}
                 onClick={() => setModalDefinirEnvioAberto(true)}
-                className={`flex-1 py-2 px-2 min-h-[44px] rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition text-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 shadow-xs ${
+                className={`flex-1 py-2 px-2 min-h-[44px] rounded-xl text-xs flex items-center justify-center gap-1.5 transition text-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 shadow-xs ${
                   isDark
                     ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-semibold'
-                    : 'bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white font-semibold shadow-sm'
+                    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
                 }`}
                 title={
                   !temCliente
@@ -3548,7 +3548,7 @@ export const PosCheckout: React.FC = () => {
                     : 'Definir opções de envio'
                 }
               >
-                <Truck className="w-3.5 h-3.5 shrink-0 text-white" />
+                <Truck className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-white' : 'text-black'}`} />
                 <span className="leading-tight">
                   Opções<br />de Envio
                 </span>
@@ -3563,10 +3563,10 @@ export const PosCheckout: React.FC = () => {
                 salvandoPendente
               }
               onClick={handleAbrirFechamento}
-              className={`flex-1 py-2 px-2 min-h-[44px] rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition text-center shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 ${
+              className={`flex-1 py-2 px-2 min-h-[44px] rounded-xl text-xs flex items-center justify-center gap-1.5 transition text-center shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 ${
                 isDark
-                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
-                  : 'bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white shadow-sm'
+                  ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black'
+                  : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-black font-bold'
               }`}
               title="Abrir tela de pagamento e concluir venda"
             >
@@ -3650,7 +3650,7 @@ export const PosCheckout: React.FC = () => {
                 className={`p-1.5 rounded-xl transition cursor-pointer ${
                   isDark
                     ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900'
-                    : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
                 }`}
               >
                 <X className="w-4 h-4" />
@@ -3726,7 +3726,7 @@ export const PosCheckout: React.FC = () => {
                 className={`p-1.5 rounded-xl transition cursor-pointer ${
                   isDark
                     ? 'bg-[#000000] border border-slate-700 text-slate-200 hover:bg-slate-900'
-                    : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
                 }`}
               >
                 <X className="w-4 h-4" />
@@ -3790,7 +3790,7 @@ export const PosCheckout: React.FC = () => {
                       type="button"
                       onClick={handleAplicarCupom}
                       disabled={validandoCupom || !codigoCupomInput.trim()}
-                      className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition disabled:opacity-50 cursor-pointer"
+                      className="hubi-btn-neutral px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition disabled:opacity-50 cursor-pointer"
                     >
                       {validandoCupom ? 'Validando...' : 'Aplicar'}
                     </button>
@@ -3969,7 +3969,7 @@ export const PosCheckout: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => handleUsarEntregueComoValorLinha(linha.id)}
-                                className="px-2 py-0.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold transition cursor-pointer"
+                                className="hubi-btn-neutral px-2 py-0.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold transition cursor-pointer"
                                 title="Definir o valor entregue como o montante pago nesta forma"
                               >
                                 Pagar {formatarMoeda(linha.valor_entregue)} nesta forma
@@ -4265,10 +4265,10 @@ export const PosCheckout: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalFechamento(false)}
-                className={`py-3 px-3 rounded-2xl font-bold text-xs transition cursor-pointer shadow-xs ${
+                className={`py-3 px-3 rounded-2xl text-xs transition cursor-pointer shadow-xs ${
                   isDark
-                    ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200'
-                    : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 shadow-sm'
+                    ? 'bg-[#000000] hover:bg-slate-900 border border-slate-700 text-slate-200 font-bold'
+                    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
                 }`}
               >
                 Cancelar
@@ -4278,16 +4278,16 @@ export const PosCheckout: React.FC = () => {
                 type="button"
                 disabled={salvandoPendente || finalizandoVenda}
                 onClick={handleSalvarComFormaPagamento}
-                className={`flex-1 py-3 px-3 rounded-2xl font-bold text-xs shadow-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50 ${
+                className={`flex-1 py-3 px-3 rounded-2xl text-xs shadow-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50 ${
                   isDark
-                    ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
-                    : 'bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white shadow-sm'
+                    ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold'
+                    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
                 }`}
               >
                 {salvandoPendente ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-white' : 'text-black'}`} />
                 ) : (
-                  <FileText className="w-4 h-4 text-white" />
+                  <FileText className={`w-4 h-4 ${isDark ? 'text-white' : 'text-black'}`} />
                 )}
                 <span>Salvar</span>
               </button>
@@ -4305,10 +4305,10 @@ export const PosCheckout: React.FC = () => {
                   linhasPagamento.some(l => l.forma_tipo === 'caderneta' && l.valor > (Math.max(0, Number(clienteSelecionado?.limite_caderneta || 0) - Number(clienteSelecionado?.saldo_devedor_caderneta || 0)) + 0.01))
                 }
                 onClick={handleFinalizarVenda}
-                className={`flex-[2] py-3 px-3 rounded-2xl font-black text-xs shadow-md flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-98 ${
+                className={`flex-[2] py-3 px-3 rounded-2xl text-xs shadow-xs flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer active:scale-98 ${
                   isDark
-                    ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white'
-                    : 'bg-emerald-600 hover:bg-emerald-700 border border-emerald-700 text-white'
+                    ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black shadow-md'
+                    : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-black font-bold'
                 }`}
               >
                 {finalizandoVenda ? (

@@ -460,7 +460,7 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
           <button
             type="button"
             onClick={handleFecharModal}
-            className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer"
+            className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer"
             title="Fechar"
           >
             <X className="w-5 h-5" />
@@ -490,7 +490,7 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
                   <button
                     type="button"
                     onClick={() => setMostrarSugestoesNichos(!mostrarSugestoesNichos)}
-                    className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer active:scale-95 shadow-2xs"
+                    className="hubi-btn-neutral px-2.5 py-1 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer active:scale-95 shadow-2xs"
                     title="A Rubi IA sugere categorias e subcategorias recomendadas para o seu ramo"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
@@ -605,7 +605,7 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
               <button
                 type="button"
                 onClick={adicionarChipsSubcategoria}
-                className="px-3 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-black dark:text-white font-bold text-xs flex items-center gap-1 transition cursor-pointer shrink-0"
+                className="hubi-btn-neutral px-3 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-black dark:text-white font-bold text-xs flex items-center gap-1 transition cursor-pointer shrink-0"
               >
                 <Plus className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span>Adicionar</span>
@@ -616,7 +616,7 @@ export const ModalGerenciarCategorias: React.FC<ModalGerenciarCategoriasProps> =
           <button
             type="submit"
             disabled={salvando || !novoNome.trim()}
-            className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-xs shadow-md flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer border border-emerald-500"
+            className="hubi-btn-cta w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-extrabold text-xs shadow-md flex items-center justify-center gap-1.5 transition disabled:opacity-50 cursor-pointer border border-emerald-500"
           >
             {salvando ? (
               <Loader2 className="w-4 h-4 animate-spin" />

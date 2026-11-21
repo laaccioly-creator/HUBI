@@ -421,7 +421,7 @@ export const ModalEscolhaPagamento: React.FC<ModalEscolhaPagamentoProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 transition cursor-pointer"
+            className="hubi-btn-close-x p-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -442,7 +442,7 @@ export const ModalEscolhaPagamento: React.FC<ModalEscolhaPagamentoProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition cursor-pointer active:scale-95 shadow-md shadow-emerald-600/20"
+              className="hubi-btn-neutral w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider transition cursor-pointer active:scale-95 shadow-md shadow-emerald-600/20"
             >
               Concluir
             </button>
@@ -618,7 +618,7 @@ export const ModalEscolhaPagamento: React.FC<ModalEscolhaPagamentoProps> = ({
                             <button
                               type="button"
                               onClick={() => copiarPix(codigoFinal)}
-                              className="py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shrink-0 active:scale-95 shadow-xs"
+                              className="hubi-btn-neutral py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shrink-0 active:scale-95 shadow-xs"
                             >
                               {pixCopiado ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                               <span>{pixCopiado ? 'Copiado!' : 'Copiar'}</span>
@@ -652,7 +652,7 @@ export const ModalEscolhaPagamento: React.FC<ModalEscolhaPagamentoProps> = ({
                       type="button"
                       disabled={processando}
                       onClick={handleConfirmarPix}
-                      className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer active:scale-95 disabled:opacity-50 shadow-md shadow-emerald-600/20"
+                      className="hubi-btn-cta w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer active:scale-95 disabled:opacity-50 shadow-md shadow-emerald-600/20"
                     >
                       {processando ? (
                         <>
@@ -682,7 +682,7 @@ export const ModalEscolhaPagamento: React.FC<ModalEscolhaPagamentoProps> = ({
                   type="button"
                   disabled={processando}
                   onClick={handleConfirmarCaderneta}
-                  className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer active:scale-95 disabled:opacity-50 shadow-md shadow-emerald-600/20"
+                  className="hubi-btn-cta w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer active:scale-95 disabled:opacity-50 shadow-md shadow-emerald-600/20"
                 >
                   {processando ? (
                     <>
@@ -781,7 +781,7 @@ export const ModalEscolhaPagamento: React.FC<ModalEscolhaPagamentoProps> = ({
                   type="button"
                   disabled={processando}
                   onClick={handleConfirmarPresencial}
-                  className="w-full mt-2 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer active:scale-95 disabled:opacity-50 shadow-md shadow-emerald-600/20"
+                  className="hubi-btn-cta w-full mt-2 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer active:scale-95 disabled:opacity-50 shadow-md shadow-emerald-600/20"
                 >
                   {processando ? (
                     <>

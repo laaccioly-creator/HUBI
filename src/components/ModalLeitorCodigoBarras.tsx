@@ -160,7 +160,7 @@ export const ModalLeitorCodigoBarras: React.FC<ModalLeitorCodigoBarrasProps> = (
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 md:hover:text-white hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
+            className="hubi-btn-close-x p-1.5 rounded-xl text-slate-400 hover:text-slate-700 md:hover:text-white hover:bg-slate-100 md:hover:bg-slate-800 transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -183,7 +183,7 @@ export const ModalLeitorCodigoBarras: React.FC<ModalLeitorCodigoBarrasProps> = (
                 <button
                   type="button"
                   onClick={iniciarCamera}
-                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs text-emerald-400 font-bold rounded-xl transition cursor-pointer"
+                  className="hubi-btn-neutral px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs text-emerald-400 font-bold rounded-xl transition cursor-pointer"
                 >
                   Tentar Novamente
                 </button>
@@ -233,7 +233,7 @@ export const ModalLeitorCodigoBarras: React.FC<ModalLeitorCodigoBarrasProps> = (
             <button
               type="submit"
               disabled={!codigoManual.trim()}
-              className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-white text-xs font-bold transition cursor-pointer"
+              className="hubi-btn-neutral px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-white text-xs font-bold transition cursor-pointer"
             >
               Inserir
             </button>

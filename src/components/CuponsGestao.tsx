@@ -230,7 +230,7 @@ export const CuponsGestao: React.FC = () => {
               <button
                 type="button"
                 onClick={abrirCriarNovo}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
+                className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-500/20 border border-emerald-500 transition cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>+ Novo</span>
@@ -526,7 +526,7 @@ export const CuponsGestao: React.FC = () => {
                 type="button"
                 onClick={() => handleSalvarCupom(visao === 'criar_frete_gratis' ? 'frete_gratis' : tipoDesconto === 'percentual' ? 'desconto_percentual' : 'desconto_fixo')}
                 disabled={salvando}
-                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-500/20 transition disabled:opacity-50 flex items-center justify-center gap-2 border border-emerald-500 cursor-pointer"
+                className="hubi-btn-cta w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-500/20 transition disabled:opacity-50 flex items-center justify-center gap-2 border border-emerald-500 cursor-pointer"
               >
                 {salvando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                 <span>{salvando ? 'Salvando...' : 'Salvar Cupom'}</span>
@@ -566,7 +566,7 @@ export const CuponsGestao: React.FC = () => {
             <button
               type="button"
               onClick={abrirCriarNovo}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20 border border-emerald-500 cursor-pointer active:scale-95"
+              className="hubi-btn-neutral px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20 border border-emerald-500 cursor-pointer active:scale-95"
             >
               <Plus className="w-4 h-4" />
               <span>Criar novo cupom</span>
@@ -627,7 +627,7 @@ export const CuponsGestao: React.FC = () => {
                 <button
                   type="button"
                   onClick={abrirCriarNovo}
-                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition inline-flex items-center gap-1.5 border border-emerald-500 shadow-md shadow-emerald-500/20 cursor-pointer"
+                  className="hubi-btn-neutral px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition inline-flex items-center gap-1.5 border border-emerald-500 shadow-md shadow-emerald-500/20 cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Criar meu primeiro cupom</span>
@@ -948,7 +948,7 @@ export const CuponsGestao: React.FC = () => {
             type="button"
             onClick={() => handleSalvarCupom('frete_gratis')}
             disabled={salvando}
-            className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm transition shadow-lg shadow-emerald-500/20 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 border border-emerald-500"
+            className="hubi-btn-cta w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm transition shadow-lg shadow-emerald-500/20 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 border border-emerald-500"
           >
             {salvando ? (
               <>
@@ -1161,7 +1161,7 @@ export const CuponsGestao: React.FC = () => {
               )
             }
             disabled={salvando}
-            className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm transition shadow-lg shadow-emerald-500/20 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 border border-emerald-500"
+            className="hubi-btn-cta w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm transition shadow-lg shadow-emerald-500/20 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 border border-emerald-500"
           >
             {salvando ? (
               <>

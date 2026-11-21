@@ -207,7 +207,7 @@ export const ModalLembretesPendentesAgenda: React.FC<ModalLembretesPendentesAgen
               type="button"
               disabled={disparandoLote || pendentes.length === 0}
               onClick={handleDispararTodosAutomatico}
-              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
+              className="hubi-btn-cta px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
             >
               {disparandoLote ? (
                 <>
@@ -284,7 +284,7 @@ export const ModalLembretesPendentesAgenda: React.FC<ModalLembretesPendentesAgen
                       <button
                         type="button"
                         onClick={() => handleAbrirLinkManual(ag)}
-                        className="px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 font-bold text-xs flex items-center gap-1.5 border border-emerald-500/25 transition cursor-pointer"
+                        className="hubi-btn-neutral px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 font-bold text-xs flex items-center gap-1.5 border border-emerald-500/25 transition cursor-pointer"
                         title="Abrir WhatsApp Web/App com a mensagem pronta de lembrete"
                       >
                         <MessageCircle className="w-3.5 h-3.5" />

@@ -369,7 +369,7 @@ export const ModalImportarClientes: React.FC<ModalImportarClientesProps> = ({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs transition cursor-pointer shadow-md"
+                    className="hubi-btn-neutral px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs transition cursor-pointer shadow-md"
                   >
                     Fechar e Ver Clientes
                   </button>
@@ -830,10 +830,10 @@ export const ModalImportarClientes: React.FC<ModalImportarClientesProps> = ({
                   type="button"
                   onClick={onClose}
                   disabled={importando}
-                  className={`w-full sm:w-auto px-4 py-2.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                  className={`w-full sm:w-auto px-4 py-2.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
                     isDark
                       ? 'border-slate-700 hover:bg-slate-800 text-slate-300'
-                      : 'border-slate-300 hover:bg-slate-200 text-slate-700'
+                      : 'bg-slate-100 border-slate-300 hover:bg-slate-200 text-black'
                   }`}
                 >
                   Cancelar
@@ -843,7 +843,7 @@ export const ModalImportarClientes: React.FC<ModalImportarClientesProps> = ({
                   type="button"
                   onClick={handleConfirmarImportacao}
                   disabled={!resultadoParse || resultadoParse.clientesValidos.length === 0 || importando}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black text-xs transition shadow-md shadow-emerald-600/20 cursor-pointer active:scale-95"
+                  className="hubi-btn-cta w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black text-xs transition shadow-md shadow-emerald-600/20 cursor-pointer active:scale-95"
                 >
                   {importando ? (
                     <>

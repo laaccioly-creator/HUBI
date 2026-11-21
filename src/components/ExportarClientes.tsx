@@ -192,7 +192,7 @@ export const ExportarClientes: React.FC<ExportarClientesProps> = ({ onVoltar }) 
             type="button"
             onClick={handleExportarXLSX}
             disabled={exportando || clientesFiltrados.length === 0}
-            className="w-full sm:flex-1 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition cursor-pointer disabled:opacity-50 active:scale-95"
+            className="hubi-btn-neutral w-full sm:flex-1 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition cursor-pointer disabled:opacity-50 active:scale-95"
           >
             <FileSpreadsheet className="w-4 h-4" />
             <span>{exportando ? 'Gerando arquivo...' : 'Exportar Clientes em Excel (.XLSX)'}</span>
@@ -202,7 +202,7 @@ export const ExportarClientes: React.FC<ExportarClientesProps> = ({ onVoltar }) 
             type="button"
             onClick={handleExportarCSV}
             disabled={exportando || clientesFiltrados.length === 0}
-            className="w-full sm:flex-1 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 border border-slate-700 transition cursor-pointer disabled:opacity-50"
+            className="hubi-btn-neutral w-full sm:flex-1 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 border border-slate-700 transition cursor-pointer disabled:opacity-50"
           >
             <FileText className="w-4 h-4 text-slate-400" />
             <span>{exportando ? 'Gerando arquivo...' : 'Exportar Clientes em CSV (.CSV)'}</span>

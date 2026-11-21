@@ -841,7 +841,7 @@ export const VendasHistorico: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setDropdownVendedorAberto(false)}
-                      className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold border border-emerald-500 transition cursor-pointer shadow-sm shadow-emerald-600/20 mt-1"
+                      className="hubi-btn-neutral w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold border border-emerald-500 transition cursor-pointer shadow-sm shadow-emerald-600/20 mt-1"
                     >
                       Filtrar histórico
                     </button>
@@ -1136,7 +1136,7 @@ export const VendasHistorico: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setDrawerFiltrosAberto(false)}
-                className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer"
+                className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition cursor-pointer"
                 title="Fechar filtros"
               >
                 <X className="w-5 h-5" />
@@ -1297,7 +1297,7 @@ export const VendasHistorico: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setDrawerFiltrosAberto(false)}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold border border-emerald-500 transition cursor-pointer shadow-sm shadow-emerald-600/20"
+                className="hubi-btn-neutral flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold border border-emerald-500 transition cursor-pointer shadow-sm shadow-emerald-600/20"
               >
                 Filtrar ({vendasFiltradas.length} vendas)
               </button>
@@ -1320,7 +1320,7 @@ export const VendasHistorico: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setEnderecoPopover(null)}
-                className="p-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition"
+                className="hubi-btn-close-x p-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1372,7 +1372,7 @@ export const VendasHistorico: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setVendaCancelarModal(null)}
-                className="p-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition"
+                className="hubi-btn-close-x p-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition"
               >
                 <X className="w-4 h-4" />
               </button>

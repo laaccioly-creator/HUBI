@@ -1169,7 +1169,11 @@ export const AppLayout: React.FC = () => {
             <button
               type="button"
               onClick={handleVoltarParaQuestionario}
-              className="px-3.5 py-1.5 rounded-xl bg-[#22C59E] hover:bg-[#1EB38F] text-slate-950 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white font-black text-xs inline-flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+              className={`px-3.5 py-1.5 rounded-xl text-xs inline-flex items-center gap-1.5 transition cursor-pointer shadow-sm ${
+                isDark
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black'
+                  : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
+              }`}
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Voltar para o Questionário</span>

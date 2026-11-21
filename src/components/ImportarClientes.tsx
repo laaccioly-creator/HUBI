@@ -196,7 +196,7 @@ export const ImportarClientes: React.FC<ImportarClientesProps> = ({ onVoltar }) 
           <button
             type="button"
             onClick={() => clientImportExportService.downloadModeloSimplificadoXLSX()}
-            className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center justify-center gap-2 border border-emerald-500 shadow-lg shadow-emerald-600/20 transition cursor-pointer active:scale-95"
+            className="hubi-btn-neutral px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center justify-center gap-2 border border-emerald-500 shadow-lg shadow-emerald-600/20 transition cursor-pointer active:scale-95"
             title="Planilha Simplificada (Nome, WhatsApp, Endereço e Observações)"
           >
             <FileSpreadsheet className="w-4 h-4 text-emerald-100" />
@@ -206,7 +206,7 @@ export const ImportarClientes: React.FC<ImportarClientesProps> = ({ onVoltar }) 
           <button
             type="button"
             onClick={() => clientImportExportService.downloadModeloXLSX()}
-            className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold text-xs flex items-center justify-center gap-2 border border-slate-700 transition cursor-pointer active:scale-95"
+            className="hubi-btn-neutral px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold text-xs flex items-center justify-center gap-2 border border-slate-700 transition cursor-pointer active:scale-95"
             title="Planilha Completa HUBI com Fiado e Dados Pessoais"
           >
             <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
@@ -216,7 +216,7 @@ export const ImportarClientes: React.FC<ImportarClientesProps> = ({ onVoltar }) 
           <button
             type="button"
             onClick={() => clientImportExportService.downloadModeloCSV()}
-            className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold text-xs flex items-center justify-center gap-2 border border-slate-700 transition cursor-pointer active:scale-95"
+            className="hubi-btn-neutral px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold text-xs flex items-center justify-center gap-2 border border-slate-700 transition cursor-pointer active:scale-95"
           >
             <FileText className="w-4 h-4 text-slate-400" />
             <span>Modelo (.CSV)</span>
@@ -225,10 +225,10 @@ export const ImportarClientes: React.FC<ImportarClientesProps> = ({ onVoltar }) 
           <button
             type="button"
             onClick={() => setModalGuiaAberto(true)}
-            className="px-4 py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-amber-300 font-bold text-xs flex items-center justify-center gap-2 border border-amber-500/40 transition cursor-pointer active:scale-95"
+            className="hubi-btn-neutral px-4 py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-amber-300 font-bold text-xs flex items-center justify-center gap-2 border border-amber-500/40 transition cursor-pointer active:scale-95"
             title="Passo a Passo de como extrair contatos do WhatsApp ou Celular"
           >
-            <HelpCircle className="w-4 h-4 text-amber-400" />
+            <HelpCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
             <span>Como Extrair Contatos? (Guia)</span>
           </button>
         </div>
@@ -431,7 +431,7 @@ export const ImportarClientes: React.FC<ImportarClientesProps> = ({ onVoltar }) 
                 type="button"
                 onClick={handleLimparImportacao}
                 disabled={importando}
-                className="flex-1 sm:flex-none px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
+                className="hubi-btn-neutral flex-1 sm:flex-none px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
               >
                 Cancelar
               </button>
@@ -440,7 +440,7 @@ export const ImportarClientes: React.FC<ImportarClientesProps> = ({ onVoltar }) 
                 type="button"
                 onClick={handleConfirmarImportacao}
                 disabled={importando || resultadoParse.clientesValidos.length === 0}
-                className="flex-1 sm:flex-none px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 transition cursor-pointer disabled:opacity-50 active:scale-95"
+                className="hubi-btn-cta flex-1 sm:flex-none px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 transition cursor-pointer disabled:opacity-50 active:scale-95"
               >
                 {importando ? (
                   <>
@@ -524,7 +524,7 @@ export const ImportarClientes: React.FC<ImportarClientesProps> = ({ onVoltar }) 
             <button
               type="button"
               onClick={handleLimparImportacao}
-              className="px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition cursor-pointer"
+              className="hubi-btn-neutral px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition cursor-pointer"
             >
               Importar Outra Planilha
             </button>

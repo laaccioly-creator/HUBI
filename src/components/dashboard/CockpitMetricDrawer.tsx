@@ -66,18 +66,18 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
   const drawerBgClass = isDark ? 'bg-[#08131A]' : 'bg-slate-100';
   const drawerHeaderFooterBgClass = isDark ? 'bg-[#08131A]/95' : 'bg-slate-100/95';
 
-  // Botões: no tema claro utilizam o verde fechado com letras brancas (estilo varejo/atacado: bg-emerald-600 text-white)
+  // Botões: no tema claro utilizam cinza neutro sóbrio (bg-slate-100) com letras pretas; botão X limpo sem fundo colorido
   const closeButtonClass = isDark
     ? `p-2 rounded-xl bg-[#000000] ${buttonBorderClass} text-slate-200 hover:bg-slate-900 transition cursor-pointer shadow-xs`
-    : 'p-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 transition cursor-pointer shadow-sm';
+    : 'p-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition cursor-pointer shadow-xs';
 
   const footerCloseButtonClass = isDark
     ? `px-4 py-2 rounded-xl bg-[#000000] hover:bg-slate-900 ${buttonBorderClass} text-slate-200 font-semibold transition cursor-pointer shadow-xs`
-    : 'px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold border border-emerald-700 transition cursor-pointer shadow-sm';
+    : 'px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-black font-semibold border border-slate-300 transition cursor-pointer shadow-xs';
 
   const secondaryButtonClass = isDark
     ? 'bg-[#000000] hover:bg-slate-900 border-2 border-slate-400 text-slate-200 font-semibold'
-    : 'bg-emerald-600 hover:bg-emerald-700 text-white font-bold border border-emerald-700 shadow-sm';
+    : 'bg-slate-100 hover:bg-slate-200 text-black font-semibold border border-slate-300 shadow-xs';
 
   const [limiteVendasExibidas, setLimiteVendasExibidas] = React.useState<number>(50);
 
@@ -818,7 +818,11 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                               <button
                                 type="button"
                                 onClick={() => abrirWhatsAppCobranca(it)}
-                                className="p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 border border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition cursor-pointer"
+                                className={`p-2 rounded-xl transition cursor-pointer ${
+                                  isDark
+                                    ? 'bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400'
+                                    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black'
+                                }`}
                                 title="Enviar lembrete amigável no WhatsApp"
                               >
                                 <Send className="w-3.5 h-3.5" />
@@ -953,7 +957,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                       <button
                         type="button"
                         onClick={() => onAbrirEntradaEstoque()}
-                        className={`px-2.5 py-1 rounded-lg ${secondaryButtonClass} text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs`}
+                        className={`px-2.5 py-1 rounded-xl ${secondaryButtonClass} text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs`}
                       >
                         <PackagePlus className="w-3.5 h-3.5" />
                         <span>+ Entrada de Estoque</span>
@@ -1024,7 +1028,7 @@ export const CockpitMetricDrawer: React.FC<CockpitMetricDrawerProps> = ({
                               <button
                                 type="button"
                                 onClick={() => onAbrirEntradaEstoque(prod)}
-                                className={`px-2.5 py-1 rounded-lg ${secondaryButtonClass} text-xs font-bold flex items-center gap-1 transition cursor-pointer shadow-xs`}
+                                className={`px-2.5 py-1 rounded-xl ${secondaryButtonClass} text-xs flex items-center gap-1 transition cursor-pointer shadow-xs`}
                                 title="Repor Estoque deste produto"
                               >
                                 <span>+ Repor</span>

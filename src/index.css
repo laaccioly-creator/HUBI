@@ -149,7 +149,7 @@ html.light div.bg-slate-950 {
   color: #0f172a !important;
 }
 
-html.light .bg-slate-100,
+html.light .bg-slate-100:not(button):not([role="button"]),
 html.light main.bg-slate-100 {
   background-color: #f1f5f9 !important;
 }
@@ -329,14 +329,14 @@ html.light :not(button):not(a):not([role="button"]).bg-emerald-500\/20 {
 }
 
 /* Botões de Ação Verde com bg-emerald-500/20 (ex: "Receber" na tabela) */
-html.light :is(button:not([role="switch"]), a, [role="button"]).bg-emerald-500\/20 {
+html.light :is(button:not([role="switch"]), a, [role="button"]):not(.hubi-btn-neutral):not(.hubi-btn-close-x).bg-emerald-500\/20 {
   background-color: var(--hubi-btn-green-light-bg) !important;
   color: var(--hubi-btn-green-light-text) !important;
   border-color: var(--hubi-btn-green-light-border) !important;
   box-shadow: 0 1px 2px rgba(16, 185, 129, 0.2) !important;
 }
 
-html.light :is(button:not([role="switch"]), a, [role="button"]).bg-emerald-500\/20:hover:not(:disabled):not([aria-disabled="true"]) {
+html.light :is(button:not([role="switch"]), a, [role="button"]):not(.hubi-btn-neutral):not(.hubi-btn-close-x).bg-emerald-500\/20:hover:not(:disabled):not([aria-disabled="true"]) {
   background-color: var(--hubi-btn-green-light-bg-hover) !important;
   color: var(--hubi-btn-green-light-text) !important;
 }
@@ -432,56 +432,63 @@ html.light .bg-gradient-to-r.from-emerald-950 span.text-slate-300 {
 }
 
 /* ==========================================================================
-   PADRONIZAÇÃO GLOBAL DE BOTÕES VERDES NO TEMA CLARO
-   Substitui verde escuro chapado (#059669/#047857) por verde menta vibrante (#22C59E)
-   com texto e ícones em preto de alto contraste (#020617), preservando 100% o Tema Escuro.
+   PADRONIZAÇÃO GLOBAL DE BOTÕES VERDES E NEUTROS NO TEMA CLARO
+   Hierarquia oficial: botões gerais em cinza neutro (bg-slate-100 / #f1f5f9),
+   botões de fechar X limpos em branco e CTAs principais em verde menta suave (#6EE7B7)
+   com texto e ícones em preto puro (#000000), preservando 100% o Tema Escuro.
    ========================================================================== */
-html.light :is(button:not([role="switch"]), a, [role="button"], label.cursor-pointer):is(
+html.light :is(button:not([role="switch"]), a, [role="button"], label.cursor-pointer):not(.hubi-btn-neutral):not(.hubi-btn-close-x):is(
   .bg-emerald-600,
   .bg-emerald-700,
   .bg-green-600,
   .bg-green-700,
   .bg-emerald-500.text-white,
+  .bg-emerald-500.text-slate-950,
   .bg-green-500.text-white
 ) {
   background-color: var(--hubi-btn-green-light-bg) !important;
   color: var(--hubi-btn-green-light-text) !important;
+  border-color: var(--hubi-btn-green-light-border) !important;
 }
 
-html.light :is(button:not([role="switch"]), a, [role="button"]).bg-gradient-to-r.from-emerald-600.to-teal-500 {
+html.light :is(button:not([role="switch"]), a, [role="button"]):not(.hubi-btn-neutral):not(.hubi-btn-close-x).bg-gradient-to-r.from-emerald-600.to-teal-500 {
   background-image: none !important;
   background-color: var(--hubi-btn-green-light-bg) !important;
   color: var(--hubi-btn-green-light-text) !important;
+  border-color: var(--hubi-btn-green-light-border) !important;
 }
 
-html.light :is(button:not([role="switch"]), a, [role="button"], label.cursor-pointer):is(
+html.light :is(button:not([role="switch"]), a, [role="button"], label.cursor-pointer):not(.hubi-btn-neutral):not(.hubi-btn-close-x):is(
   .bg-emerald-600,
   .bg-emerald-700,
   .bg-green-600,
   .bg-green-700,
   .bg-emerald-500.text-white,
+  .bg-emerald-500.text-slate-950,
   .bg-green-500.text-white
 ):is(.border-emerald-500, .border-emerald-600, .border-emerald-700, .border-green-500, .border-green-600, .border-green-700) {
   border-color: var(--hubi-btn-green-light-border) !important;
 }
 
-html.light :is(button:not([role="switch"]), a, [role="button"], label.cursor-pointer):is(
+html.light :is(button:not([role="switch"]), a, [role="button"], label.cursor-pointer):not(.hubi-btn-neutral):not(.hubi-btn-close-x):is(
   .bg-emerald-600,
   .bg-emerald-700,
   .bg-green-600,
   .bg-green-700,
   .bg-emerald-500.text-white,
+  .bg-emerald-500.text-slate-950,
   .bg-green-500.text-white
 ):not(.font-semibold):not(.font-bold):not(.font-extrabold):not(.font-black) {
   font-weight: 700 !important;
 }
 
-html.light :is(button:not([role="switch"]), a, [role="button"], label.cursor-pointer):is(
+html.light :is(button:not([role="switch"]), a, [role="button"], label.cursor-pointer):not(.hubi-btn-neutral):not(.hubi-btn-close-x):is(
   .bg-emerald-600,
   .bg-emerald-700,
   .bg-green-600,
   .bg-green-700,
   .bg-emerald-500.text-white,
+  .bg-emerald-500.text-slate-950,
   .bg-green-500.text-white,
   .bg-gradient-to-r.from-emerald-600.to-teal-500
 ):hover:not(:disabled):not([aria-disabled="true"]) {
@@ -489,12 +496,13 @@ html.light :is(button:not([role="switch"]), a, [role="button"], label.cursor-poi
   color: var(--hubi-btn-green-light-text) !important;
 }
 
-html.light :is(button:not([role="switch"]), a, [role="button"], label.cursor-pointer):is(
+html.light :is(button:not([role="switch"]), a, [role="button"], label.cursor-pointer):not(.hubi-btn-neutral):not(.hubi-btn-close-x):is(
   .bg-emerald-600,
   .bg-emerald-700,
   .bg-green-600,
   .bg-green-700,
   .bg-emerald-500.text-white,
+  .bg-emerald-500.text-slate-950,
   .bg-green-500.text-white,
   .bg-gradient-to-r.from-emerald-600.to-teal-500
 ):active:not(:disabled):not([aria-disabled="true"]) {
@@ -502,17 +510,85 @@ html.light :is(button:not([role="switch"]), a, [role="button"], label.cursor-poi
   color: var(--hubi-btn-green-light-text) !important;
 }
 
-html.light :is(button:not([role="switch"]), a, [role="button"], label.cursor-pointer):is(
+html.light :is(button:not([role="switch"]), a, [role="button"], label.cursor-pointer):not(.hubi-btn-neutral):not(.hubi-btn-close-x):is(
   .bg-emerald-600,
   .bg-emerald-700,
   .bg-green-600,
   .bg-green-700,
   .bg-emerald-500.text-white,
+  .bg-emerald-500.text-slate-950,
   .bg-green-500.text-white,
   .bg-gradient-to-r.from-emerald-600.to-teal-500,
   .bg-emerald-500\/20
 ) :is(svg, span, p, strong, small, div):not([class*="bg-slate-"]):not([class*="bg-black"]):not([class*="bg-rose-"]):not([class*="bg-red-"]) {
   color: var(--hubi-btn-green-light-text) !important;
+}
+
+/* Botões Gerais / Secundários / Navegação / Fechar Rodapé no Tema Claro */
+html.light :is(button, a, [role="button"], label.cursor-pointer).hubi-btn-neutral {
+  background-image: none !important;
+  background-color: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #000000 !important;
+  font-weight: 600 !important;
+  border-radius: 0.75rem !important;
+}
+
+html.light :is(button, a, [role="button"], label.cursor-pointer).hubi-btn-neutral:hover:not(:disabled):not([aria-disabled="true"]) {
+  background-color: #e2e8f0 !important;
+  color: #000000 !important;
+}
+
+html.light :is(button, a, [role="button"], label.cursor-pointer).hubi-btn-neutral :is(svg, span, p, strong, small):not([class*="bg-rose-"]):not([class*="bg-red-"]):not([class*="bg-amber-"]):not([class*="bg-emerald-"]):not([class*="bg-blue-"]) {
+  color: #000000 !important;
+}
+
+/* Botões de Destaque / Ação Crítica (CTAs) no Tema Claro */
+html.light :is(button, a, [role="button"], label.cursor-pointer).hubi-btn-cta {
+  background-image: none !important;
+  background-color: var(--hubi-btn-green-light-bg) !important;
+  border: 1px solid var(--hubi-btn-green-light-border) !important;
+  color: var(--hubi-btn-green-light-text) !important;
+  font-weight: 700 !important;
+}
+
+html.light :is(button, a, [role="button"], label.cursor-pointer).hubi-btn-cta:hover:not(:disabled):not([aria-disabled="true"]) {
+  background-color: var(--hubi-btn-green-light-bg-hover) !important;
+  color: var(--hubi-btn-green-light-text) !important;
+}
+
+html.light :is(button, a, [role="button"], label.cursor-pointer).hubi-btn-cta :is(svg, span, p, strong, small) {
+  color: var(--hubi-btn-green-light-text) !important;
+}
+
+/* Botões X de Fechar Modais e Drawers (Estilo Limpo Sem Fundo Colorido) */
+html.light :is(button, a, [role="button"]).hubi-btn-close-x {
+  background-image: none !important;
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #334155 !important;
+  border-radius: 0.75rem !important;
+}
+
+html.light :is(button, a, [role="button"]).hubi-btn-close-x:hover:not(:disabled):not([aria-disabled="true"]) {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+html.light :is(button, a, [role="button"]).hubi-btn-close-x svg {
+  color: #334155 !important;
+}
+
+/* Botões escuros nativos (bg-slate-800/700) fora do header tornam-se cinza neutro no Tema Claro */
+html.light :is(main, .fixed) button:not([role="switch"]):not(.rounded-full):not(.hubi-btn-cta):not(.hubi-btn-close-x):is(.bg-slate-800, .bg-slate-800\/80, .bg-slate-700) {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #000000 !important;
+}
+
+html.light :is(main, .fixed) button:not([role="switch"]):not(.rounded-full):not(.hubi-btn-cta):not(.hubi-btn-close-x):is(.bg-slate-800, .bg-slate-800\/80, .bg-slate-700):hover:not(:disabled):not([aria-disabled="true"]) {
+  background-color: #e2e8f0 !important;
+  color: #000000 !important;
 }
 
 
@@ -545,9 +621,9 @@ html.dark .bg-slate-200:not(#hubi-print-container *):not(.cupom-termico *):not(.
 }
 
 /* Bordas mobile no modo escuro */
-html.dark .border-slate-100:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *),
-html.dark .border-slate-200:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *),
-html.dark .border-slate-300:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *) {
+html.dark .border-slate-100:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"]):not([data-theme="light"] *):not([data-recibo-root]):not([data-recibo-root] *):not(.pagina-recibo-publico *),
+html.dark .border-slate-200:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"]):not([data-theme="light"] *):not([data-recibo-root]):not([data-recibo-root] *):not(.pagina-recibo-publico *),
+html.dark .border-slate-300:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"]):not([data-theme="light"] *):not([data-recibo-root]):not([data-recibo-root] *):not(.pagina-recibo-publico *) {
   border-color: #334155 !important;
 }
 
@@ -595,73 +671,73 @@ html.dark textarea::placeholder {
 }
 
 /* Badges e Pílulas coloridas adaptadas ao modo escuro */
-html.dark .bg-emerald-50,
-html.dark .bg-emerald-100 {
+html.dark .bg-emerald-50:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *),
+html.dark .bg-emerald-100:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *) {
   background-color: rgba(16, 185, 129, 0.15) !important;
   color: #34d399 !important;
   border-color: rgba(16, 185, 129, 0.3) !important;
 }
 
-html.dark .text-emerald-700,
-html.dark .text-emerald-800 {
+html.dark .text-emerald-700:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *),
+html.dark .text-emerald-800:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *) {
   color: #34d399 !important;
 }
 
-html.dark .bg-amber-50,
-html.dark .bg-amber-100 {
+html.dark .bg-amber-50:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *),
+html.dark .bg-amber-100:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *) {
   background-color: rgba(245, 158, 11, 0.15) !important;
   color: #fbbf24 !important;
   border-color: rgba(245, 158, 11, 0.3) !important;
 }
 
-html.dark .text-amber-700,
-html.dark .text-amber-800,
-html.dark .text-amber-900 {
+html.dark .text-amber-700:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *),
+html.dark .text-amber-800:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *),
+html.dark .text-amber-900:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *) {
   color: #fbbf24 !important;
 }
 
-html.dark .bg-rose-50,
-html.dark .bg-rose-100 {
+html.dark .bg-rose-50:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *),
+html.dark .bg-rose-100:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *) {
   background-color: rgba(244, 63, 94, 0.15) !important;
   color: #fb7185 !important;
   border-color: rgba(244, 63, 94, 0.3) !important;
 }
 
-html.dark .text-rose-700,
-html.dark .text-rose-800 {
+html.dark .text-rose-700:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *),
+html.dark .text-rose-800:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *) {
   color: #fb7185 !important;
 }
 
-html.dark .bg-blue-50,
-html.dark .bg-blue-100 {
+html.dark .bg-blue-50:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *),
+html.dark .bg-blue-100:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *) {
   background-color: rgba(59, 130, 246, 0.15) !important;
   color: #60a5fa !important;
   border-color: rgba(59, 130, 246, 0.3) !important;
 }
 
-html.dark .text-blue-700 {
+html.dark .text-blue-700:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *) {
   color: #60a5fa !important;
 }
 
-html.dark .bg-indigo-50,
-html.dark .bg-indigo-100 {
+html.dark .bg-indigo-50:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *),
+html.dark .bg-indigo-100:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *) {
   background-color: rgba(99, 102, 241, 0.15) !important;
   color: #818cf8 !important;
   border-color: rgba(99, 102, 241, 0.3) !important;
 }
 
-html.dark .text-indigo-700 {
+html.dark .text-indigo-700:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *) {
   color: #818cf8 !important;
 }
 
-html.dark .bg-purple-50,
-html.dark .bg-purple-100 {
+html.dark .bg-purple-50:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *),
+html.dark .bg-purple-100:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *) {
   background-color: rgba(168, 85, 247, 0.15) !important;
   color: #c084fc !important;
   border-color: rgba(168, 85, 247, 0.3) !important;
 }
 
-html.dark .text-purple-700 {
+html.dark .text-purple-700:not(#hubi-print-container *):not(.cupom-termico *):not([data-theme="light"] *):not([data-recibo-root] *):not(.pagina-recibo-publico *) {
   color: #c084fc !important;
 }
 
@@ -763,11 +839,11 @@ input[type="checkbox"]:not(.sr-only):not(.hidden):focus {
   --hubi-accent-green-hover: #059669;
   --hubi-badge-bg: #ECFDF5;
   --hubi-badge-text: #047857;
-  --hubi-btn-green-light-bg: #22C59E;
-  --hubi-btn-green-light-bg-hover: #1EB38F;
-  --hubi-btn-green-light-bg-active: #18A17F;
-  --hubi-btn-green-light-border: #19A986;
-  --hubi-btn-green-light-text: #020617;
+  --hubi-btn-green-light-bg: #6EE7B7;
+  --hubi-btn-green-light-bg-hover: #34D399;
+  --hubi-btn-green-light-bg-active: #10B981;
+  --hubi-btn-green-light-border: #34D399;
+  --hubi-btn-green-light-text: #000000;
 }
 
 .hubi-card-light {

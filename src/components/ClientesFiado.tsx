@@ -598,7 +598,7 @@ export const ClientesFiado: React.FC = () => {
                   setClienteEditar(null);
                   setModalNovoCliente(true);
                 }}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition active:scale-95 cursor-pointer border border-emerald-500"
+                className="hubi-btn-neutral inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition active:scale-95 cursor-pointer border border-emerald-500"
                 title="Cadastrar Novo Cliente"
               >
                 <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -956,7 +956,7 @@ export const ClientesFiado: React.FC = () => {
                 setClienteEditar(null);
                 setModalNovoCliente(true);
               }}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer shrink-0"
+              className="hubi-btn-neutral inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs border border-emerald-500 shadow-sm shadow-emerald-600/20 transition cursor-pointer shrink-0"
             >
               <Plus className="w-4 h-4" />
               <span>+ Cliente</span>
@@ -1248,7 +1248,7 @@ export const ClientesFiado: React.FC = () => {
               </div>
               <button
                 onClick={() => setClienteDetalhes(null)}
-                className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
+                className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
                 title="Fechar"
               >
                 <X className="w-5 h-5" />
@@ -1326,7 +1326,7 @@ export const ClientesFiado: React.FC = () => {
                   setClienteEditar(c);
                   setModalNovoCliente(true);
                 }}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs border border-emerald-500 shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer"
+                className="hubi-btn-neutral flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs border border-emerald-500 shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Pencil className="w-3.5 h-3.5" />
                 <span>Editar Dados</span>
@@ -1419,7 +1419,7 @@ export const ClientesFiado: React.FC = () => {
               </div>
               <button
                 onClick={() => setClienteQuitar(null)}
-                className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
+                className="hubi-btn-close-x p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-sm cursor-pointer"
                 title="Fechar"
               >
                 <X className="w-5 h-5" />
@@ -1453,7 +1453,7 @@ export const ClientesFiado: React.FC = () => {
             <button
               disabled={processandoQuitacao}
               onClick={handleQuitarFiado}
-              className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer"
+              className="hubi-btn-cta w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md border border-emerald-500 flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>{processandoQuitacao ? 'Gravando...' : 'Confirmar e Enviar Recibo WhatsApp'}</span>

@@ -241,7 +241,7 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
     enderecoExibicao
   } = obterInfoEntregaRecibo(pedAtual, lojaAtual);
 
-  const badgeEstilo = ehRetirada ? 'bg-purple-900/60 text-purple-300 border border-purple-700/50' : 'bg-emerald-900/60 text-emerald-300 border border-emerald-700/50';
+  const badgeEstilo = ehRetirada ? 'bg-purple-100 text-purple-900 border border-purple-300' : 'bg-emerald-100 text-emerald-900 border border-emerald-300';
 
   const rawPe = (pedAtual as any).pedido_entrega || (pedAtual as any).pedido_entregas;
   const pe = Array.isArray(rawPe) ? rawPe[0] : rawPe;
@@ -313,8 +313,8 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className={`p-1.5 rounded-lg transition cursor-pointer ${
-              isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+            className={`p-1.5 rounded-xl transition cursor-pointer ${
+              isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
             }`}
           >
             <X className="w-4 h-4" />
@@ -331,7 +331,13 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
               <span className="text-xs font-medium">Carregando dados do recibo...</span>
             </div>
           ) : (
-            <div ref={reciboRef} className="w-full max-w-sm bg-white text-slate-900 rounded-xl p-5 shadow-xl border border-slate-200 font-mono text-xs space-y-3.5 min-h-fit mb-6">
+            <div
+              ref={reciboRef}
+              data-recibo-root="true"
+              data-theme="light"
+              style={{ colorScheme: 'light', backgroundColor: '#ffffff', color: '#0f172a' }}
+              className="w-full max-w-sm bg-white text-slate-900 rounded-xl p-5 shadow-xl border border-slate-200 font-mono text-xs space-y-3.5 min-h-fit mb-6"
+            >
               {/* Logo e Cabeçalho do Recibo */}
               <div className="text-center space-y-1 border-b border-slate-200 border-dashed pb-3">
                 {logoLojaUrl ? (
@@ -539,10 +545,10 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
 
               {/* Dados do Pagamento */}
               {pagInfo.ehFiado && Number(pedAtual.saldo_devedor || 0) > 0 && (
-                <div className="mt-2.5 p-3 bg-rose-50 border border-rose-200 rounded-xl text-center space-y-0.5">
-                  <span className="text-[10px] font-bold text-rose-700 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
-                  <span className="text-sm font-black text-rose-700 block">R$ {Number(pedAtual.saldo_devedor).toFixed(2)}</span>
-                  <span className="text-[11px] font-bold text-rose-800 block pt-0.5">
+                <div className="mt-2.5 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-center space-y-0.5">
+                  <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block">Saldo a Pagar (Fiado)</span>
+                  <span className="text-sm font-black text-emerald-800 block">R$ {Number(pedAtual.saldo_devedor).toFixed(2)}</span>
+                  <span className="text-[11px] font-semibold text-slate-700 block pt-0.5">
                     Data de Vencimento: {obterInfoVencimentoFiado(pedAtual).formatada}
                   </span>
                 </div>
@@ -550,8 +556,8 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
 
               <div className="mt-3 p-3 rounded-xl border border-slate-200 bg-slate-50 space-y-2 text-xs">
                 <div className="flex justify-between items-center pb-2 border-b border-dashed border-slate-200">
-                  <span className="font-bold text-[10px] text-slate-600 uppercase tracking-wider">Status Pagamento:</span>
-                  <span className={`font-black text-[10px] px-2 py-0.5 rounded border ${pedAtual.status_pagamento === 'aguardando_pesagem' ? 'bg-emerald-50 text-emerald-900 border-emerald-200' : pagInfo.foiPago ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-800 border-slate-300'}`}>
+                  <span className="font-bold text-[10px] text-slate-700 uppercase tracking-wider">Status Pagamento:</span>
+                  <span className={`font-black text-[10px] px-2 py-0.5 rounded border ${pedAtual.status_pagamento === 'aguardando_pesagem' ? 'bg-emerald-100 text-emerald-900 border-emerald-300' : pagInfo.foiPago ? 'bg-emerald-100 text-emerald-900 border-emerald-300' : 'bg-amber-100 text-amber-900 border-amber-300'}`}>
                     {pedAtual.status_pagamento === 'aguardando_pesagem' ? 'AGUARDANDO PESAGEM / SEPARAÇÃO' : pagInfo.foiPago ? '✓ PAGO' : 'AGUARDANDO PAGAMENTO'}
                   </span>
                 </div>
@@ -575,7 +581,7 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
                     ))}
                     <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-xs">
                       <span className="text-slate-700 font-medium">Valor Pago:</span>
-                      <span className="text-emerald-700 font-black text-sm">R$ {pagInfo.totalPago.toFixed(2)}</span>
+                      <span className="text-emerald-800 font-black text-sm">R$ {pagInfo.totalPago.toFixed(2)}</span>
                     </div>
                   </div>
                 ) : null}
@@ -647,10 +653,14 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
             <button
               type="button"
               onClick={() => PrintService.printReceipt(pedAtual, lojaAtual, '80mm')}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl border border-emerald-500 shadow-sm shadow-emerald-600/20 transition text-xs flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
+              className={`px-3.5 py-2 rounded-xl border shadow-sm transition text-xs flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap ${
+                isDark
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-bold border-emerald-500 shadow-emerald-600/20'
+                  : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-black font-semibold'
+              }`}
               title="Imprimir Recibo"
             >
-              <Printer className="w-3.5 h-3.5 text-white shrink-0" />
+              <Printer className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-white' : 'text-black'}`} />
               <span>Imprimir</span>
             </button>
 
@@ -658,7 +668,7 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
               type="button"
               disabled={baixandoPdf}
               onClick={handleBaixarPdf}
-              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-400 font-bold border border-slate-700 text-xs flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50 active:scale-95 whitespace-nowrap"
+              className="hubi-btn-neutral px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-400 font-bold border border-slate-700 text-xs flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50 active:scale-95 whitespace-nowrap"
               title="Baixar PDF"
             >
               {baixandoPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
@@ -668,7 +678,7 @@ export const ModalReciboPedido: React.FC<ModalReciboPedidoProps> = ({
             <button
               type="button"
               onClick={handleCopiarRecibo}
-              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold border border-slate-700 text-xs flex items-center gap-1.5 transition cursor-pointer active:scale-95 whitespace-nowrap"
+              className="hubi-btn-neutral px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold border border-slate-700 text-xs flex items-center gap-1.5 transition cursor-pointer active:scale-95 whitespace-nowrap"
               title="Copiar texto do recibo"
             >
               <Copy className="w-3.5 h-3.5 text-emerald-400" />

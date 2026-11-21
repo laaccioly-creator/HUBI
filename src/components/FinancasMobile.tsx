@@ -154,11 +154,15 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
 
   const classeBotaoNeutroClaro = isDark
     ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black'
-    : 'bg-slate-200 hover:bg-slate-300 border border-slate-300 text-black font-semibold';
+    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold';
 
   const classeMiniBotaoNeutroClaro = isDark
     ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold'
-    : 'bg-slate-200 hover:bg-slate-300 border border-slate-300 text-black font-semibold';
+    : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold';
+
+  const classeBotaoCtaClaro = isDark
+    ? 'bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-black'
+    : 'bg-emerald-300 hover:bg-emerald-400 border border-emerald-400 text-black font-bold';
 
   const classeChipAtivoNeutroClaro = isDark
     ? 'bg-emerald-600 hover:bg-emerald-500 text-white font-black border border-emerald-500 shadow-xs'
@@ -358,7 +362,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
           <button
             type="button"
             onClick={onAbrirCaixa}
-            className={`w-full py-2.5 px-4 rounded-xl text-xs shadow-md flex items-center justify-center gap-2 transition active:scale-98 cursor-pointer ${classeBotaoNeutroClaro}`}
+            className={`w-full py-2.5 px-4 rounded-xl text-xs shadow-md flex items-center justify-center gap-2 transition active:scale-98 cursor-pointer ${classeBotaoCtaClaro}`}
           >
             <Unlock className="w-4 h-4" />
             <span>Abrir Novo Turno de Caixa</span>
@@ -870,7 +874,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                     <button
                       type="button"
                       onClick={onAbrirCaixa}
-                      className={`w-full py-3 rounded-xl text-xs shadow-md flex items-center justify-center gap-2 cursor-pointer transition active:scale-98 ${classeBotaoNeutroClaro}`}
+                      className={`w-full py-3 rounded-xl text-xs shadow-md flex items-center justify-center gap-2 cursor-pointer transition active:scale-98 ${classeBotaoCtaClaro}`}
                     >
                       <Unlock className="w-4 h-4" />
                       <span>Abrir Novo Turno de Caixa</span>

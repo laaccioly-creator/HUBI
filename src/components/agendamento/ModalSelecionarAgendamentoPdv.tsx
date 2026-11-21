@@ -437,7 +437,7 @@ export const ModalSelecionarAgendamentoPdv: React.FC<ModalSelecionarAgendamentoP
               <button
                 type="button"
                 onClick={() => setModalNovoClienteAberto(true)}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold transition cursor-pointer"
+                className="hubi-btn-neutral inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold transition cursor-pointer"
               >
                 <Plus size={12} />
                 <span>Novo Cliente</span>
@@ -517,7 +517,7 @@ export const ModalSelecionarAgendamentoPdv: React.FC<ModalSelecionarAgendamentoP
                             setDropdownClientesAberto(false);
                             setModalNovoClienteAberto(true);
                           }}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold cursor-pointer"
+                          className="hubi-btn-neutral inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-[11px] font-bold cursor-pointer"
                         >
                           <Plus size={12} />
                           <span>Cadastrar Novo Cliente</span>
@@ -630,7 +630,7 @@ export const ModalSelecionarAgendamentoPdv: React.FC<ModalSelecionarAgendamentoP
                     <button
                       type="button"
                       onClick={() => setModalAtualizarEnderecoAberto(true)}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs transition cursor-pointer"
+                      className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs transition cursor-pointer"
                     >
                       <MapPin size={14} />
                       <span>Atualizar Endereço do Cliente</span>
@@ -854,7 +854,9 @@ export const ModalSelecionarAgendamentoPdv: React.FC<ModalSelecionarAgendamentoP
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+            className={`px-4 py-2.5 rounded-xl text-xs transition cursor-pointer ${
+              isDark ? 'font-bold text-slate-400 hover:bg-slate-800' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
+            }`}
           >
             Cancelar
           </button>
@@ -863,7 +865,7 @@ export const ModalSelecionarAgendamentoPdv: React.FC<ModalSelecionarAgendamentoP
             type="button"
             onClick={handleConfirmar}
             disabled={!podeConfirmar}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="hubi-btn-cta inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Check size={15} />
             <span>Confirmar Horário do Serviço</span>
@@ -899,7 +901,9 @@ export const ModalSelecionarAgendamentoPdv: React.FC<ModalSelecionarAgendamentoP
             <button
               type="button"
               onClick={() => setModalEscolherEnderecoAberto(false)}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+              className={`p-1.5 rounded-xl transition cursor-pointer ${
+                isDark ? 'text-slate-400 hover:text-white' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+              }`}
             >
               <X size={18} />
             </button>
@@ -942,7 +946,9 @@ export const ModalSelecionarAgendamentoPdv: React.FC<ModalSelecionarAgendamentoP
             <button
               type="button"
               onClick={() => setModalEscolherEnderecoAberto(false)}
-              className="px-3 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              className={`px-3 py-2 rounded-xl text-xs transition cursor-pointer ${
+                isDark ? 'font-bold text-slate-500 hover:bg-slate-800' : 'bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-semibold'
+              }`}
             >
               Fechar
             </button>
@@ -952,7 +958,7 @@ export const ModalSelecionarAgendamentoPdv: React.FC<ModalSelecionarAgendamentoP
                 setModalEscolherEnderecoAberto(false);
                 setModalAtualizarEnderecoAberto(true);
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer"
+              className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer"
             >
               <Plus size={14} />
               <span>Editar / Novo Endereço</span>

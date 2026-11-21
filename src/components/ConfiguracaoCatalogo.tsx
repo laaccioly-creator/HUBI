@@ -437,7 +437,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
               href={catalogoUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer shrink-0 shadow-md shadow-emerald-500/20 border border-emerald-500"
+              className="hubi-btn-neutral px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition cursor-pointer shrink-0 shadow-md shadow-emerald-500/20 border border-emerald-500"
             >
               <span>Ver em outra aba</span>
               <ExternalLink className="w-4 h-4" />
@@ -619,7 +619,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                     }`}>
                       <img src={bannerUrl} alt="Banner da loja" className="w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
-                        <label className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black cursor-pointer transition border border-emerald-500 shadow-sm">
+                        <label className="hubi-btn-neutral px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black cursor-pointer transition border border-emerald-500 shadow-sm">
                           <input type="file" accept="image/*" onChange={handleUploadBanner} className="hidden" />
                           Trocar Imagem
                         </label>
@@ -1039,7 +1039,7 @@ export const ConfiguracaoCatalogo: React.FC = () => {
                 type="button"
                 onClick={handleSalvarSlug}
                 disabled={salvando}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-md shadow-emerald-500/20 text-xs font-black cursor-pointer disabled:opacity-50"
+                className="hubi-btn-cta px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-md shadow-emerald-500/20 text-xs font-black cursor-pointer disabled:opacity-50"
               >
                 {salvando ? 'Salvando...' : 'Salvar Novo Link'}
               </button>

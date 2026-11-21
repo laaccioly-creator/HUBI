@@ -593,7 +593,7 @@ export const ModalVincularAnuncioMl: React.FC<ModalVincularAnuncioMlProps> = ({
                 type="button"
                 onClick={handleVincularExistente}
                 disabled={salvando}
-                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm flex items-center gap-2 shadow-sm transition cursor-pointer disabled:opacity-50"
+                className="hubi-btn-cta px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm flex items-center gap-2 shadow-sm transition cursor-pointer disabled:opacity-50"
               >
                 {salvando ? (
                   <>

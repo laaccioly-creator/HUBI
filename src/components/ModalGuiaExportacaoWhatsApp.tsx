@@ -163,7 +163,7 @@ export const ModalGuiaExportacaoWhatsApp: React.FC<ModalGuiaExportacaoWhatsAppPr
                       href="https://contacts.google.com"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-sm"
+                      className="hubi-btn-neutral inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-sm"
                     >
                       <span>Abrir contacts.google.com</span>
                       <ExternalLink className="w-3.5 h-3.5" />
@@ -375,7 +375,7 @@ export const ModalGuiaExportacaoWhatsApp: React.FC<ModalGuiaExportacaoWhatsAppPr
                   <button
                     type="button"
                     onClick={() => clientImportExportService.downloadModeloSimplificadoXLSX()}
-                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition cursor-pointer shadow-sm"
+                    className="hubi-btn-neutral flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition cursor-pointer shadow-sm"
                     title="Baixar em Excel (.xlsx)"
                   >
                     <Download className="w-4 h-4" />
@@ -458,7 +458,7 @@ export const ModalGuiaExportacaoWhatsApp: React.FC<ModalGuiaExportacaoWhatsAppPr
                 onClose();
                 if (onIrParaImportacao) onIrParaImportacao();
               }}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs transition shadow-md shadow-emerald-600/20 cursor-pointer active:scale-95"
+              className="hubi-btn-neutral w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs transition shadow-md shadow-emerald-600/20 cursor-pointer active:scale-95"
             >
               <span>Ir para a Importação</span>
               <ArrowRight className="w-4 h-4" />
