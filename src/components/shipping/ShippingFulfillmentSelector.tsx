@@ -184,6 +184,12 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
   // Aba ativa: 'retirada' ou 'entrega' (padrão 'retirada' se não informado)
   const [modalidade, setModalidade] = useState<TipoAtendimento>(tipoAtendimentoAtual || 'retirada');
 
+  useEffect(() => {
+    if (tipoAtendimentoAtual) {
+      setModalidade(tipoAtendimentoAtual);
+    }
+  }, [tipoAtendimentoAtual]);
+
   // Endereço selecionado para entrega (resolução imediata para evitar tela piscando)
   const enderecoInicialDetectado = useMemo(() => {
     return resolverEnderecoInicial(enderecoEntregaAtual, cliente, clienteId);
@@ -194,6 +200,17 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
 
   // Ref que registra quando o operador escolheu explicitamente um endereço alternativo na sessão
   const enderecoEscolhidoManualmenteRef = useRef<ClienteEndereco | null>(null);
+  const ultimoClienteIdRef = useRef<string | null | undefined>(clienteId);
+
+  useEffect(() => {
+    if (ultimoClienteIdRef.current !== clienteId) {
+      ultimoClienteIdRef.current = clienteId;
+      enderecoEscolhidoManualmenteRef.current = null;
+      setCotacoes([]);
+      setCotacaoEscolhida(null);
+      setEnderecoSelecionado(resolverEnderecoInicial(enderecoEntregaAtual, cliente, clienteId));
+    }
+  }, [clienteId, cliente, enderecoEntregaAtual]);
 
   useEffect(() => {
     // Se o operador escolheu manualmente outro endereço nesta sessão, tem precedência absoluta
@@ -629,8 +646,12 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
         }
       }
     }
+    if (ehCatalogo) {
+      lista = lista.filter(op => !op.desabilitada);
+    }
+
     return lista;
-  }, [cotacoes, temFreteProprio, configLoja, subtotal, enderecoSelecionado]);
+  }, [cotacoes, temFreteProprio, configLoja, subtotal, enderecoSelecionado, ehCatalogo]);
 
   const formasManuaisExibidas = useMemo<FormaEntrega[]>(() => {
     const base = formasEntrega.filter(
@@ -2245,7 +2266,22 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                             </div>
                           </div>
                         </div>
-                      ) : null
+                      ) : (
+                        <div className={`p-4 rounded-2xl border text-center space-y-1.5 ${
+                          ehDark
+                            ? 'bg-slate-900/80 border-slate-800 text-slate-300'
+                            : 'bg-slate-50 border-slate-200 text-slate-700'
+                        }`}>
+                          <p className={`font-bold text-xs ${ehDark ? 'text-white' : 'text-slate-900'}`}>
+                            Nenhuma opção de entrega disponível para este endereço no momento.
+                          </p>
+                          <p className={`text-[11px] ${ehDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                            {permiteRetirada
+                              ? 'Verifique o CEP informado ou selecione Retirada na Loja.'
+                              : 'Verifique o CEP/endereço informado ou entre em contato com a loja.'}
+                          </p>
+                        </div>
+                      )
                     ) : (
                       <div className={`p-4 rounded-2xl border space-y-3 ${
                         ehDark ? 'bg-black border-amber-900/60 text-amber-200' : 'bg-amber-50 border-amber-200 text-amber-900'
@@ -2325,7 +2361,22 @@ export const ShippingFulfillmentSelector: React.FC<ShippingFulfillmentSelectorPr
                             </div>
                           </div>
                         </div>
-                      ) : null
+                      ) : (
+                        <div className={`p-4 rounded-2xl border text-center space-y-1.5 ${
+                          ehDark
+                            ? 'bg-slate-900/80 border-slate-800 text-slate-300'
+                            : 'bg-slate-50 border-slate-200 text-slate-700'
+                        }`}>
+                          <p className={`font-bold text-xs ${ehDark ? 'text-white' : 'text-slate-900'}`}>
+                            Nenhuma opção de entrega disponível para este endereço no momento.
+                          </p>
+                          <p className={`text-[11px] ${ehDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                            {permiteRetirada
+                              ? 'Verifique o CEP informado ou selecione Retirada na Loja.'
+                              : 'Verifique o CEP/endereço informado ou entre em contato com a loja.'}
+                          </p>
+                        </div>
+                      )
                     ) : (
                       <div className={`p-4 rounded-2xl border text-center space-y-2.5 ${
                         ehDark

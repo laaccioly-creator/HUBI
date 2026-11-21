@@ -14,7 +14,7 @@ import { Loja, Pedido, FormaEntrega } from '../types';
 import { UberDirectService } from './uberDirectService';
 import { MelhorEnvioService } from './melhorEnvioService';
 import { isUuidValido } from './syncService';
-import { normalizarTexto, calcularDistanciaKm } from '../utils/geoUtils';
+import { normalizarTexto, calcularDistanciaKm, obterCoordenadasPorCepOuEndereco } from '../utils/geoUtils';
 
 export class ShippingOrchestrator {
   /**
@@ -464,9 +464,28 @@ export class ShippingOrchestrator {
   public static async cotarOpcoesFrete(
     req: RequisicaoCotacaoOrquestrador
   ): Promise<OpcaoFreteCotada[]> {
-    const { config, destino_cep, destino_logradouro, destino_numero, destino_bairro, destino_cidade, destino_uf, subtotal, itens, pacote } = req;
+    const { config, origem_cep, destino_cep, destino_logradouro, destino_numero, destino_bairro, destino_cidade, destino_uf, subtotal, itens, pacote } = req;
 
     const opcoesTotais: OpcaoFreteCotada[] = [];
+
+    const cepOrigemLimpo = (config?.origem_cep || origem_cep || '').replace(/\D/g, '').slice(0, 8);
+    const cepOrigemFormatado = cepOrigemLimpo.length === 8
+      ? `${cepOrigemLimpo.slice(0, 5)}-${cepOrigemLimpo.slice(5)}`
+      : (config?.origem_cep || origem_cep || '').trim();
+
+    const cepDestinoLimpo = (destino_cep || '').replace(/\D/g, '').slice(0, 8);
+    const cepDestinoFormatado = cepDestinoLimpo.length === 8
+      ? `${cepDestinoLimpo.slice(0, 5)}-${cepDestinoLimpo.slice(5)}`
+      : (destino_cep || '').trim();
+
+    const enderecoOrigemLinha = [
+      config?.origem_logradouro,
+      config?.origem_numero,
+      config?.origem_bairro,
+      config?.origem_cidade,
+      config?.origem_uf,
+      cepOrigemFormatado
+    ].filter(Boolean).join(', ');
 
     // Formatar endereço completo para Uber Direct
     const enderecoDestinoLinha = [
@@ -475,15 +494,68 @@ export class ShippingOrchestrator {
       destino_bairro,
       destino_cidade,
       destino_uf,
-      destino_cep
+      cepDestinoFormatado
     ].filter(Boolean).join(', ');
+
+    let origLat = Number(config?.origem_latitude);
+    let origLng = Number(config?.origem_longitude);
+    let destLat = Number(req.destino_latitude ?? (req as any).destino_lat);
+    let destLng = Number(req.destino_longitude ?? (req as any).destino_lng);
+
+    const precisaGeoOrigem = Number.isNaN(origLat) || Number.isNaN(origLng) || origLat === 0 || origLng === 0;
+    const precisaGeoDestino = Number.isNaN(destLat) || Number.isNaN(destLng) || destLat === 0 || destLng === 0;
+
+    if ((config?.uber_ativo === true || config?.frete_proprio_ativo === true) && (precisaGeoOrigem || precisaGeoDestino)) {
+      const [coordsOrigem, coordsDestino] = await Promise.all([
+        precisaGeoOrigem ? obterCoordenadasPorCepOuEndereco(cepOrigemLimpo, enderecoOrigemLinha) : Promise.resolve(null),
+        precisaGeoDestino ? obterCoordenadasPorCepOuEndereco(cepDestinoLimpo, enderecoDestinoLinha) : Promise.resolve(null)
+      ]);
+      if (coordsOrigem) {
+        origLat = coordsOrigem.latitude;
+        origLng = coordsOrigem.longitude;
+      }
+      if (coordsDestino) {
+        destLat = coordsDestino.latitude;
+        destLng = coordsDestino.longitude;
+      }
+    }
+
+    const origLatResolvida = !Number.isNaN(origLat) && origLat !== 0 ? origLat : null;
+    const origLngResolvida = !Number.isNaN(origLng) && origLng !== 0 ? origLng : null;
+    const destLatResolvida = !Number.isNaN(destLat) && destLat !== 0 ? destLat : null;
+    const destLngResolvida = !Number.isNaN(destLng) && destLng !== 0 ? destLng : null;
+
+    const configComCoordenadas: LojaShippingConfig = {
+      ...config,
+      origem_cep: cepOrigemLimpo || config.origem_cep,
+      origem_latitude: origLatResolvida ?? config.origem_latitude,
+      origem_longitude: origLngResolvida ?? config.origem_longitude
+    };
 
     const promessas: Promise<{ provedor: 'uber' | 'melhor_envio'; valor: any }>[] = [];
 
     // 1. Uber Direct - Cotação oficial via API / Edge Function da Uber
-    if (config?.uber_ativo === true) {
+    if (configComCoordenadas?.uber_ativo === true) {
       promessas.push(
-        UberDirectService.cotarEntrega(config, enderecoDestinoLinha, itens)
+        UberDirectService.cotarEntrega(configComCoordenadas, enderecoDestinoLinha, itens, {
+          origem_logradouro: configComCoordenadas.origem_logradouro,
+          origem_numero: configComCoordenadas.origem_numero,
+          origem_complemento: configComCoordenadas.origem_complemento,
+          origem_bairro: configComCoordenadas.origem_bairro,
+          origem_cidade: configComCoordenadas.origem_cidade,
+          origem_uf: configComCoordenadas.origem_uf,
+          origem_cep: cepOrigemLimpo || configComCoordenadas.origem_cep,
+          origem_latitude: origLatResolvida,
+          origem_longitude: origLngResolvida,
+          destino_logradouro,
+          destino_numero,
+          destino_bairro,
+          destino_cidade,
+          destino_uf,
+          destino_cep: cepDestinoLimpo || destino_cep,
+          destino_latitude: destLatResolvida,
+          destino_longitude: destLngResolvida
+        })
           .then(opcao => ({ provedor: 'uber' as const, valor: opcao }))
           .catch(err => {
             console.warn('[ShippingOrchestrator] Falha rejeitada no Uber Direct:', err);
@@ -493,9 +565,9 @@ export class ShippingOrchestrator {
     }
 
     // 2. Melhor Envio v2 - APENAS se ativado explicitamente e com token configurado na loja
-    if (config?.melhor_envio_ativo === true && Boolean(config?.melhor_envio_token?.trim())) {
+    if (configComCoordenadas?.melhor_envio_ativo === true && Boolean(configComCoordenadas?.melhor_envio_token?.trim())) {
       promessas.push(
-        MelhorEnvioService.cotarFretes(config, destino_cep, subtotal, itens, pacote)
+        MelhorEnvioService.cotarFretes(configComCoordenadas, cepDestinoLimpo || destino_cep, subtotal, itens, pacote)
           .then(opcoes => ({ provedor: 'melhor_envio' as const, valor: opcoes }))
           .catch(err => {
             console.warn('[ShippingOrchestrator] Falha rejeitada no Melhor Envio:', err);
@@ -523,21 +595,16 @@ export class ShippingOrchestrator {
     }
 
     // 3. Frete Próprio da Loja - sempre incluído quando ativado explicitamente (PDV, Pedidos e Catálogo), dentro do raio / mesmo estado
-    if (config?.frete_proprio_ativo === true) {
-      const ufOrigem = (config?.origem_uf || '').toUpperCase().trim();
+    if (configComCoordenadas?.frete_proprio_ativo === true) {
+      const ufOrigem = (configComCoordenadas?.origem_uf || '').toUpperCase().trim();
       const ufDestino = (destino_uf || '').toUpperCase().trim();
       const outroEstado = Boolean(ufOrigem && ufDestino && ufOrigem !== ufDestino);
 
-      const raioMaximo = Number((config as any)?.frete_proprio_raio_maximo_km) || 5.0;
+      const raioMaximo = Number((configComCoordenadas as any)?.frete_proprio_raio_maximo_km) || 5.0;
       let foraDoRaio = false;
 
-      const origLat = Number(config?.origem_latitude);
-      const origLng = Number(config?.origem_longitude);
-      const destLat = Number((req as any).destino_latitude || (req as any).destino_lat);
-      const destLng = Number((req as any).destino_longitude || (req as any).destino_lng);
-
-      if (!isNaN(origLat) && !isNaN(origLng) && origLat !== 0 && origLng !== 0 && !isNaN(destLat) && !isNaN(destLng) && destLat !== 0 && destLng !== 0) {
-        const distKm = calcularDistanciaKm(origLat, origLng, destLat, destLng);
+      if (origLatResolvida && origLngResolvida && destLatResolvida && destLngResolvida) {
+        const distKm = calcularDistanciaKm(origLatResolvida, origLngResolvida, destLatResolvida, destLngResolvida);
         if (distKm > raioMaximo) {
           foraDoRaio = true;
         }

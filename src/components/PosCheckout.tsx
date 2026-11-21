@@ -277,6 +277,7 @@ export const PosCheckout: React.FC = () => {
   const [modalAtualizarEnderecoAberto, setModalAtualizarEnderecoAberto] = useState<boolean>(false);
   const [modalDefinirEnvioAberto, setModalDefinirEnvioAberto] = useState<boolean>(false);
   const [freteConfirmado, setFreteConfirmado] = useState<boolean>(false);
+  const intencaoEntregaPendenteRef = useRef<boolean>(false);
   const [subTelaMobile, setSubTelaMobile] = useState<SubTelaMobile>('vender');
 
   const ehEnvio = temProdutoFisico && pedidoEntrega?.tipo_atendimento === 'entrega' && (!isPedidoHibrido || !levarProdutoNoAtendimento);
@@ -291,7 +292,27 @@ export const PosCheckout: React.FC = () => {
 
   useEffect(() => {
     setFreteConfirmado(false);
+    if (clienteSelecionado?.id && intencaoEntregaPendenteRef.current) {
+      intencaoEntregaPendenteRef.current = false;
+      if (isPedidoHibrido) {
+        setLevarProdutoNoAtendimento?.(false);
+      }
+      setTaxaEntrega(0);
+      setPedidoEntrega({
+        ...FORMA_ENTREGA_RETIRADA_PADRAO,
+        tipo_atendimento: 'entrega',
+        transportadora_nome: 'Envio a Definir',
+        servico_codigo: 'pendente'
+      });
+      setModalDefinirEnvioAberto(true);
+    }
   }, [clienteSelecionado?.id]);
+
+  useEffect(() => {
+    if (itens.length === 0) {
+      intencaoEntregaPendenteRef.current = false;
+    }
+  }, [itens.length]);
 
   const snapshotInicialRef = useRef<string | null>(null);
   const pedidoIdInicialRef = useRef<string | null>(null);
@@ -2472,6 +2493,9 @@ export const PosCheckout: React.FC = () => {
           sincronizando={sincronizando}
           onSincronizarAgora={sincronizarAgora}
           onResetFreteConfirmado={() => setFreteConfirmado(false)}
+          onDefinirIntencaoEntregaPendente={(pendente: boolean) => {
+            intencaoEntregaPendenteRef.current = pendente;
+          }}
         />
       </div>
 
@@ -3139,6 +3163,7 @@ export const PosCheckout: React.FC = () => {
 
               const selecionarOpcaoEntrega = (opcaoEhFrete: boolean) => {
                 if (!opcaoEhFrete) {
+                  intencaoEntregaPendenteRef.current = false;
                   if (isPedidoHibrido) {
                     setLevarProdutoNoAtendimento?.(true);
                   } else {
@@ -3151,13 +3176,18 @@ export const PosCheckout: React.FC = () => {
                 }
 
                 if (!clienteSelecionado?.id) {
+                  intencaoEntregaPendenteRef.current = true;
                   setFormaEntregaDropdownAberto(false);
                   if (isPedidoHibrido) {
-                    setLevarProdutoNoAtendimento?.(true);
-                  } else {
-                    setTaxaEntrega(0);
-                    setPedidoEntrega(FORMA_ENTREGA_RETIRADA_PADRAO);
+                    setLevarProdutoNoAtendimento?.(false);
                   }
+                  setTaxaEntrega(0);
+                  setPedidoEntrega({
+                    ...FORMA_ENTREGA_RETIRADA_PADRAO,
+                    tipo_atendimento: 'entrega',
+                    transportadora_nome: 'Envio a Definir',
+                    servico_codigo: 'pendente'
+                  });
                   setFreteConfirmado(false);
                   mostrarToast('Para entregas (Envio), selecione primeiro o cliente para carregar o endereço de entrega.', 'aviso');
                   if (inputClienteBuscaRef.current) {

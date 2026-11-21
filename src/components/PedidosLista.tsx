@@ -1366,6 +1366,11 @@ export const PedidosLista: React.FC = () => {
     motivoCancelamento?: string,
     acaoConclusaoDireta: boolean = false
   ) => {
+    const pedidosSnapshot = pedidos;
+    const pedidoSelecionadoSnapshot = pedidoSelecionado;
+    const agendamentosSnapshot = agendamentosPedido;
+    let estadoOtimistaAplicado = false;
+
     try {
       const pedAlvo = pedidos.find((p) => p.id === pedidoId) || pedidoSelecionado;
       if (!pedAlvo) return;
@@ -1491,10 +1496,15 @@ export const PedidosLista: React.FC = () => {
       // Limpar tag legada e metadados de cliente em observações caso ainda existam
       let obsLimpa = extrairObservacaoLimpa(pedAlvo?.observacoes);
 
+      const lojaTenantId = loja?.id || pedAlvo.loja_id;
       const dataIsoAlteracao = new Date().toISOString();
+      const observacoesAtualizadas = motivoCancelamento
+        ? `[Cancelado] ${motivoCancelamento}`
+        : (obsLimpa || null);
+
       const updatePayload: Record<string, unknown> = {
         status: novoStatus,
-        observacoes: motivoCancelamento ? `[Cancelado] ${motivoCancelamento}` : (obsLimpa || null),
+        observacoes: observacoesAtualizadas,
         atualizado_por: usuario?.id || null,
         atualizado_em: dataIsoAlteracao
       };
@@ -1506,40 +1516,81 @@ export const PedidosLista: React.FC = () => {
         .from('pedidos')
         .update(updatePayload)
         .eq('id', pedidoId)
-        .eq('loja_id', loja?.id || pedAlvo.loja_id);
+        .eq('loja_id', lojaTenantId);
 
       if (error) throw error;
 
-      // Se o pedido foi concluído ou entregue, atualiza a entrega correspondente
-      if (novoStatus === 'concluido' || (novoStatus as string) === 'entregue') {
-        try {
-          await supabase
-            .from('pedido_entregas')
-            .update({
-              status_envio: 'entregue',
-              entregue_em: dataIsoAlteracao,
-              atualizado_em: dataIsoAlteracao
-            })
-            .eq('pedido_id', pedidoId);
-        } catch (errEntrega) {
-          console.warn('Aviso ao atualizar status_envio em pedido_entregas:', errEntrega);
-        }
-      }
+      // Helper para disparo de notificação WhatsApp não-bloqueante
+      const agendarNotificacaoWhatsApp = (): Promise<unknown> | null => {
+        if (!loja?.id || !pedAlvo) return null;
+        const foneCli = String(
+          pedAlvo.cliente?.whatsapp ||
+            pedAlvo.cliente?.telefone ||
+            (pedAlvo as { telefone_cliente?: string }).telefone_cliente ||
+            ''
+        ).trim();
+        if (!foneCli) return null;
 
-      // Ao concluir pedido (serviço exclusivo ou híbrido), conclui automaticamente seus agendamentos em aberto na agenda
-      if (novoStatus === 'concluido' && loja?.id) {
-        try {
-          await supabase
-            .from('agendamentos_servicos')
-            .update({
-              status_agendamento: 'concluido',
-              atualizado_em: dataIsoAlteracao
-            })
-            .eq('loja_id', String(loja.id))
-            .eq('pedido_id', pedidoId)
-            .in('status_agendamento', ['agendado', 'confirmado', 'em_atendimento']);
+        const rotuloStatus = ROTULOS_STATUS_PEDIDO[novoStatus] || novoStatus;
+        const numPed = pedAlvo.numero_pedido || pedidoId.slice(0, 6);
+        const msgStatus = `Olá${
+          pedAlvo.cliente?.nome ? `, *${pedAlvo.cliente.nome}*` : ''
+        }! 🛍️\nO status do seu pedido *#${numPed}* na loja *${
+          loja.nome_fantasia || 'HUBI'
+        }* foi atualizado para: *${rotuloStatus}*.`;
 
-          if (pedidoSelecionado?.id === pedidoId) {
+        const eventoGatilhoStatus: EventoGatilhoWhatsapp =
+          novoStatus === 'pronto_para_retirar'
+            ? 'pedido_pronto_retirada'
+            : (novoStatus as string) === 'entregue' || novoStatus === 'concluido'
+            ? 'pedido_entregue_concluido'
+            : 'status_andamento_pedido';
+
+        return whatsappWalletService
+          .dispararNotificacaoHibrida({
+            lojaId: loja.id,
+            loja,
+            telefoneDestino: foneCli,
+            mensagem: msgStatus,
+            eventoGatilho: eventoGatilhoStatus,
+            pedidoId,
+            clienteId: pedAlvo.cliente_id || pedAlvo.cliente?.id || null,
+            usuarioId: usuario?.id || null,
+          })
+          .catch(() => null);
+      };
+
+      // Caminho rápido (< 300ms): atualiza estado local + bipe sonoro logo após o UPDATE principal e move tarefas secundárias para background
+      if (novoStatus !== 'cancelado') {
+        const ehConclusaoOuEntrega = novoStatus === 'concluido' || (novoStatus as string) === 'entregue';
+        const estoqueJaBaixado = Boolean(pedAlvo.estoque_baixado);
+
+        estadoOtimistaAplicado = true;
+        setPedidos((prev) => {
+          const atualizados = prev.map((p) => {
+            if (p.id !== pedidoId) return p;
+            const peAtual = p.pedido_entrega
+              ? {
+                  ...p.pedido_entrega,
+                  ...(ehConclusaoOuEntrega ? { status_envio: 'entregue' } : {})
+                }
+              : p.pedido_entrega;
+            return {
+              ...p,
+              status: novoStatus,
+              estoque_baixado: estoqueJaBaixado,
+              observacoes: observacoesAtualizadas,
+              atualizado_em: dataIsoAlteracao,
+              ...(peAtual ? { pedido_entrega: peAtual } : {})
+            };
+          });
+          pedidosRef.current = atualizados;
+          return atualizados;
+        });
+
+        if (pedidoSelecionado?.id === pedidoId) {
+          if (novoStatus === 'concluido') {
+            setPedidoSelecionado(null);
             setAgendamentosPedido((prev) =>
               prev.map((ag) =>
                 ag.status_agendamento === 'agendado' ||
@@ -1549,23 +1600,138 @@ export const PedidosLista: React.FC = () => {
                   : ag
               )
             );
+          } else {
+            setPedidoSelecionado((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    status: novoStatus,
+                    estoque_baixado: estoqueJaBaixado,
+                    observacoes: observacoesAtualizadas,
+                    atualizado_em: dataIsoAlteracao
+                  }
+                : null
+            );
           }
-        } catch (errAg) {
-          console.warn('Aviso ao sincronizar agendamentos_servicos na conclusão do pedido:', errAg);
         }
+
+        audioService.playBeep();
+
+        const tarefasBackground: Promise<unknown>[] = [];
+
+        if (ehConclusaoOuEntrega && lojaTenantId) {
+          tarefasBackground.push(
+            (async () => {
+              try {
+                await supabase
+                  .from('pedido_entregas')
+                  .update({
+                    status_envio: 'entregue',
+                    entregue_em: dataIsoAlteracao,
+                    atualizado_em: dataIsoAlteracao
+                  })
+                  .eq('pedido_id', pedidoId)
+                  .eq('loja_id', lojaTenantId);
+              } catch (errEntrega) {
+                console.warn('Aviso ao atualizar status_envio em pedido_entregas:', errEntrega);
+              }
+            })()
+          );
+        }
+
+        if (novoStatus === 'concluido' && loja?.id) {
+          tarefasBackground.push(
+            (async () => {
+              try {
+                await supabase
+                  .from('agendamentos_servicos')
+                  .update({
+                    status_agendamento: 'concluido',
+                    atualizado_em: dataIsoAlteracao
+                  })
+                  .eq('loja_id', String(loja.id))
+                  .eq('pedido_id', pedidoId)
+                  .in('status_agendamento', ['agendado', 'confirmado', 'em_atendimento']);
+              } catch (errAg) {
+                console.warn('Aviso ao sincronizar agendamentos_servicos na conclusão do pedido:', errAg);
+              }
+            })()
+          );
+        }
+
+        if (loja?.id) {
+          const rotulo = ROTULOS_STATUS_PEDIDO[novoStatus] || novoStatus;
+          const descHist = `Status alterado para ${rotulo} por ${usuario?.nome_completo || 'Operador'}`;
+          tarefasBackground.push(
+            (async () => {
+              try {
+                await supabase.from('historico_pedidos').insert({
+                  loja_id: loja.id,
+                  pedido_id: pedidoId,
+                  usuario_id: usuario?.id || null,
+                  tipo_evento: novoStatus === 'concluido' ? 'concluido' : 'status_alterado',
+                  status_anterior: pedAlvo?.status || null,
+                  status_novo: novoStatus,
+                  descricao: descHist,
+                  motivo: motivoCancelamento || descHist,
+                  criado_em: dataIsoAlteracao
+                });
+              } catch (errHist) {
+                console.warn('Aviso ao registrar historico_pedidos:', errHist);
+              }
+            })()
+          );
+        }
+
+        // Baixa de estoque idempotente em segundo plano APENAS se ainda não foi baixado
+        if (loja?.id && STATUS_QUE_BAIXAM_ESTOQUE.includes(novoStatus) && pedAlvo.estoque_baixado !== true) {
+          tarefasBackground.push(
+            (async () => {
+              try {
+                const resBaixa = await EstoquePedidoService.baixarEstoquePedido({
+                  pedidoId,
+                  lojaId: loja.id,
+                  usuarioId: usuario?.id || null,
+                  itens: pedAlvo.itens || pedAlvo.itens_pedido
+                });
+                if (resBaixa.estoqueBaixado) {
+                  setPedidos((prev) => {
+                    const atualizados = prev.map((p) =>
+                      p.id === pedidoId ? { ...p, estoque_baixado: true } : p
+                    );
+                    pedidosRef.current = atualizados;
+                    return atualizados;
+                  });
+                }
+              } catch (errBaixaEstoque) {
+                console.warn('Aviso ao baixar estoque do pedido:', errBaixaEstoque);
+              }
+            })()
+          );
+        }
+
+        const promiseWpp = agendarNotificacaoWhatsApp();
+        if (promiseWpp) {
+          tarefasBackground.push(promiseWpp);
+        }
+
+        if (tarefasBackground.length > 0) {
+          void Promise.allSettled(tarefasBackground);
+        }
+        return;
       }
+
       if (loja?.id) {
         try {
-          const rotulo = ROTULOS_STATUS_PEDIDO[novoStatus] || novoStatus;
-          const descHist = (novoStatus === 'cancelado' && motivoCancelamento)
+          const descHist = motivoCancelamento
             ? `Pedido cancelado por ${usuario?.nome_completo || 'Operador'}. Motivo: ${motivoCancelamento}`
-            : `Status alterado para ${rotulo} por ${usuario?.nome_completo || 'Operador'}`;
+            : `Status alterado para Cancelado por ${usuario?.nome_completo || 'Operador'}`;
 
           await supabase.from('historico_pedidos').insert({
             loja_id: loja.id,
             pedido_id: pedidoId,
             usuario_id: usuario?.id || null,
-            tipo_evento: novoStatus === 'cancelado' ? 'cancelado' : (novoStatus === 'concluido' ? 'concluido' : 'status_alterado'),
+            tipo_evento: 'cancelado',
             status_anterior: pedAlvo?.status || null,
             status_novo: novoStatus,
             descricao: descHist,
@@ -1640,87 +1806,42 @@ export const PedidosLista: React.FC = () => {
           } catch (errEstornoCaixa) {
             console.warn('Falha ao estornar movimentações e transações do caixa:', errEstornoCaixa);
           }
-        } else if (STATUS_QUE_BAIXAM_ESTOQUE.includes(novoStatus)) {
-          // Gatilho de Saída de Estoque (Baixa Única idempotente)
-          if (pedAlvo.estoque_baixado !== true) {
-            try {
-              const resBaixa = await EstoquePedidoService.baixarEstoquePedido({
-                pedidoId,
-                lojaId: loja.id,
-                usuarioId: usuario?.id || null,
-                itens: pedAlvo.itens || pedAlvo.itens_pedido
-              });
-              novoEstoqueBaixado = resBaixa.estoqueBaixado;
-            } catch (errBaixaEstoque) {
-              console.warn('Aviso ao baixar estoque do pedido:', errBaixaEstoque);
-            }
-          }
         }
       }
 
-      setPedidos((prev) =>
-        prev.map((p) =>
+      setPedidos((prev) => {
+        const atualizados = prev.map((p) =>
           p.id === pedidoId
-            ? { ...p, status: novoStatus, estoque_baixado: novoEstoqueBaixado, observacoes: obsLimpa || null }
+            ? { ...p, status: novoStatus, estoque_baixado: novoEstoqueBaixado, observacoes: observacoesAtualizadas }
             : p
-        )
-      );
+        );
+        pedidosRef.current = atualizados;
+        return atualizados;
+      });
 
-      // Motor Híbrido de Notificação WhatsApp na mudança de status do pedido
-      if (loja?.id && pedAlvo) {
-        const foneCli = String(
-          pedAlvo.cliente?.whatsapp ||
-            pedAlvo.cliente?.telefone ||
-            (pedAlvo as { telefone_cliente?: string }).telefone_cliente ||
-            ''
-        ).trim();
-        if (foneCli) {
-          const rotuloStatus = ROTULOS_STATUS_PEDIDO[novoStatus] || novoStatus;
-          const numPed = pedAlvo.numero_pedido || pedidoId.slice(0, 6);
-          const msgStatus = `Olá${
-            pedAlvo.cliente?.nome ? `, *${pedAlvo.cliente.nome}*` : ''
-          }! 🛍️\nO status do seu pedido *#${numPed}* na loja *${
-            loja.nome_fantasia || 'HUBI'
-          }* foi atualizado para: *${rotuloStatus}*.`;
-
-          const eventoGatilhoStatus: EventoGatilhoWhatsapp =
-            novoStatus === 'pronto_para_retirar'
-              ? 'pedido_pronto_retirada'
-              : novoStatus === 'entregue' || novoStatus === 'concluido'
-              ? 'pedido_entregue_concluido'
-              : 'status_andamento_pedido';
-
-          whatsappWalletService
-            .dispararNotificacaoHibrida({
-              lojaId: loja.id,
-              loja,
-              telefoneDestino: foneCli,
-              mensagem: msgStatus,
-              eventoGatilho: eventoGatilhoStatus,
-              pedidoId,
-              clienteId: pedAlvo.cliente_id || pedAlvo.cliente?.id || null,
-              usuarioId: usuario?.id || null,
-            })
-            .catch(() => {});
-        }
+      const promiseWppCancelamento = agendarNotificacaoWhatsApp();
+      if (promiseWppCancelamento) {
+        void promiseWppCancelamento;
       }
 
       if (pedidoSelecionado && pedidoSelecionado.id === pedidoId) {
-        if (novoStatus === 'concluido') {
-          setPedidoSelecionado(null);
-        } else {
-          setPedidoSelecionado((prev) =>
-            prev
-              ? { ...prev, status: novoStatus, estoque_baixado: novoEstoqueBaixado, observacoes: obsLimpa || null }
-              : null
-          );
-        }
+        setPedidoSelecionado((prev) =>
+          prev
+            ? { ...prev, status: novoStatus, estoque_baixado: novoEstoqueBaixado, observacoes: observacoesAtualizadas }
+            : null
+        );
       }
 
       audioService.playBeep();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      if (estadoOtimistaAplicado) {
+        setPedidos(pedidosSnapshot);
+        pedidosRef.current = pedidosSnapshot;
+        setPedidoSelecionado(pedidoSelecionadoSnapshot);
+        setAgendamentosPedido(agendamentosSnapshot);
+      }
       console.error('Erro ao atualizar status do pedido:', err);
-      mostrarErro(`Erro ao atualizar status: ${err.message || 'Tente novamente.'}`);
+      mostrarErro('Não foi possível atualizar o status do pedido. Verifique sua conexão e tente novamente.');
     }
   };
 
@@ -2530,6 +2651,9 @@ export const PedidosLista: React.FC = () => {
         });
       }
 
+      const pedidoIdConcluido = pedidoSelecionado.id;
+      const lojaIdAtual = loja.id;
+      const statusAnteriorConclusao = pedidoSelecionado.status || null;
       const obsLimpa = extrairObservacaoLimpa(pedidoSelecionado.observacoes);
       const dataIsoConclusao = obterDataOperacaoISO();
       const { error } = await supabase
@@ -2543,56 +2667,107 @@ export const PedidosLista: React.FC = () => {
           atualizado_por: usuario?.id || null,
           atualizado_em: dataIsoConclusao
         })
-        .eq('id', pedidoSelecionado.id)
-        .eq('loja_id', loja.id);
+        .eq('id', pedidoIdConcluido)
+        .eq('loja_id', lojaIdAtual);
 
       if (error) throw error;
 
-      // Atualizar status_envio da entrega para entregue
-      try {
-        await supabase
-          .from('pedido_entregas')
-          .update({
-            status_envio: 'entregue',
-            entregue_em: dataIsoConclusao,
-            atualizado_em: dataIsoConclusao
-          })
-          .eq('pedido_id', pedidoSelecionado.id);
-      } catch (eEnt) {
-        console.warn('Aviso ao atualizar status_envio em pedido_entregas:', eEnt);
-      }
-
-      // Inserir registro relacional na tabela historico_pedidos
-      try {
-        await supabase.from('historico_pedidos').insert({
-          loja_id: loja.id,
-          pedido_id: pedidoSelecionado.id,
-          usuario_id: usuario?.id || null,
-          tipo_evento: 'concluido',
-          status_anterior: pedidoSelecionado.status || null,
-          status_novo: 'concluido',
-          descricao: `Venda concluída e pagamento confirmado por ${usuario?.nome_completo || 'Operador'}`
+      // Atualização imediata em memória + feedback sonoro sem aguardar tarefas secundárias nem re-fetch completo
+      setPedidos((prev) => {
+        const atualizados = prev.map((p) => {
+          if (p.id !== pedidoIdConcluido) return p;
+          const peAtual = p.pedido_entrega
+            ? { ...p.pedido_entrega, status_envio: 'entregue' }
+            : p.pedido_entrega;
+          return {
+            ...p,
+            status: 'concluido' as StatusPedido,
+            status_pagamento: 'pago' as StatusPagamento,
+            valor_pago: valorTotal,
+            saldo_devedor: 0,
+            observacoes: obsLimpa || null,
+            atualizado_em: dataIsoConclusao,
+            ...(peAtual ? { pedido_entrega: peAtual } : {})
+          };
         });
-      } catch (eHist) {
-        console.warn('Aviso ao registrar historico_pedidos:', eHist);
-      }
+        pedidosRef.current = atualizados;
+        return atualizados;
+      });
 
-      // Limpar pagamentos previstos vinculados agora que o pedido está concluído
-      try {
-        await supabase
-          .from('pedidos_pagamentos_previstos')
-          .delete()
-          .eq('pedido_id', pedidoSelecionado.id)
-          .eq('loja_id', loja.id);
-      } catch (ePrev) {}
+      setAgendamentosPedido((prev) =>
+        prev.map((ag) =>
+          ag.status_agendamento === 'agendado' ||
+          ag.status_agendamento === 'confirmado' ||
+          ag.status_agendamento === 'em_atendimento'
+            ? { ...ag, status_agendamento: 'concluido', atualizado_em: dataIsoConclusao }
+            : ag
+        )
+      );
 
       setGavetaConcluirVendaAberta(false);
       setPedidoSelecionado(null);
-      carregarPedidos();
       audioService.playNewOrderSound();
-    } catch (err: any) {
+
+      // Executar tarefas secundárias em paralelo e sem bloquear a interface
+      void Promise.allSettled([
+        (async () => {
+          try {
+            await supabase
+              .from('pedido_entregas')
+              .update({
+                status_envio: 'entregue',
+                entregue_em: dataIsoConclusao,
+                atualizado_em: dataIsoConclusao
+              })
+              .eq('pedido_id', pedidoIdConcluido)
+              .eq('loja_id', lojaIdAtual);
+          } catch (eEnt) {
+            console.warn('Aviso ao atualizar status_envio em pedido_entregas:', eEnt);
+          }
+        })(),
+        (async () => {
+          try {
+            await supabase.from('historico_pedidos').insert({
+              loja_id: lojaIdAtual,
+              pedido_id: pedidoIdConcluido,
+              usuario_id: usuario?.id || null,
+              tipo_evento: 'concluido',
+              status_anterior: statusAnteriorConclusao,
+              status_novo: 'concluido',
+              descricao: `Venda concluída e pagamento confirmado por ${usuario?.nome_completo || 'Operador'}`
+            });
+          } catch (eHist) {
+            console.warn('Aviso ao registrar historico_pedidos:', eHist);
+          }
+        })(),
+        (async () => {
+          try {
+            await supabase
+              .from('pedidos_pagamentos_previstos')
+              .delete()
+              .eq('pedido_id', pedidoIdConcluido)
+              .eq('loja_id', lojaIdAtual);
+          } catch {}
+        })(),
+        (async () => {
+          try {
+            await supabase
+              .from('agendamentos_servicos')
+              .update({
+                status_agendamento: 'concluido',
+                atualizado_em: dataIsoConclusao
+              })
+              .eq('loja_id', String(lojaIdAtual))
+              .eq('pedido_id', pedidoIdConcluido)
+              .in('status_agendamento', ['agendado', 'confirmado', 'em_atendimento']);
+          } catch (eAg) {
+            console.warn('Aviso ao sincronizar agendamentos_servicos ao concluir venda:', eAg);
+          }
+        })()
+      ]);
+    } catch (err: unknown) {
       console.error('Erro ao concluir venda:', err);
-      mostrarErro(err.message || 'Tente novamente.', 'Erro ao concluir venda');
+      mostrarErro('Não foi possível concluir a venda. Verifique sua conexão e tente novamente.', 'Erro ao concluir venda');
     } finally {
       setSalvandoConclusao(false);
     }

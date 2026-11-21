@@ -347,8 +347,11 @@ export async function obterCoordenadasPorCepOuEndereco(
   enderecoCompleto?: string | null
 ): Promise<CoordenadasGeo | null> {
   const cepLimpo = (cep || '').replace(/\D/g, '');
-  if (cepLimpo && cacheCoordenadasCep.has(cepLimpo)) {
-    return cacheCoordenadasCep.get(cepLimpo)!;
+  const endLimpo = (enderecoCompleto || '').trim();
+  const chaveCache = cepLimpo.length === 8 ? cepLimpo : endLimpo.toLowerCase();
+
+  if (chaveCache && cacheCoordenadasCep.has(chaveCache)) {
+    return cacheCoordenadasCep.get(chaveCache)!;
   }
 
   // 1. BrasilAPI v2 (retorna coordenadas de CEPs brasileiros)
@@ -367,28 +370,59 @@ export async function obterCoordenadasPorCepOuEndereco(
         }
       }
     } catch {
-      // Fallback para OpenStreetMap
+      // Fallback para ViaCEP + Nominatim
     }
   }
 
-  // 2. OpenStreetMap / Nominatim
-  const query = cepLimpo && cepLimpo.length === 8
-    ? `${cepLimpo}, Brasil`
-    : (enderecoCompleto || '').trim();
-
-  if (query) {
+  // 2. Fallback ViaCEP + OpenStreetMap / Nominatim
+  let enderecoResolvido = endLimpo;
+  if (!enderecoResolvido && cepLimpo && cepLimpo.length === 8) {
     try {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
+      const viaRes = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      if (viaRes.ok) {
+        const viaData = await viaRes.json();
+        if (viaData && !viaData.erro) {
+          enderecoResolvido = [
+            viaData.logradouro,
+            viaData.bairro,
+            viaData.localidade,
+            viaData.uf,
+            'Brasil'
+          ]
+            .filter(Boolean)
+            .join(', ');
+        }
+      }
+    } catch {
+      // Fallback direto para query por CEP no Nominatim
+    }
+  }
+
+  const queries: string[] = [];
+  if (enderecoResolvido) {
+    queries.push(enderecoResolvido.toLowerCase().includes('brasil') ? enderecoResolvido : `${enderecoResolvido}, Brasil`);
+  }
+  if (cepLimpo && cepLimpo.length === 8) {
+    queries.push(`${cepLimpo}, Brasil`);
+  }
+
+  for (const query of queries) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=${encodeURIComponent(query)}`;
       const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR,pt;q=0.9' } });
       if (res.ok) {
         const items = await res.json();
         if (Array.isArray(items) && items.length > 0 && items[0].lat && items[0].lon) {
-          const coords: CoordenadasGeo = {
-            latitude: Number(items[0].lat),
-            longitude: Number(items[0].lon)
-          };
-          if (cepLimpo) cacheCoordenadasCep.set(cepLimpo, coords);
-          return coords;
+          const latNum = Number(items[0].lat);
+          const lonNum = Number(items[0].lon);
+          if (!Number.isNaN(latNum) && !Number.isNaN(lonNum) && latNum !== 0 && lonNum !== 0) {
+            const coords: CoordenadasGeo = {
+              latitude: latNum,
+              longitude: lonNum
+            };
+            if (chaveCache) cacheCoordenadasCep.set(chaveCache, coords);
+            return coords;
+          }
         }
       }
     } catch {

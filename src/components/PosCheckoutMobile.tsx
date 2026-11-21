@@ -102,6 +102,7 @@ interface PosCheckoutMobileProps {
   sincronizando?: boolean;
   onSincronizarAgora?: () => void;
   onResetFreteConfirmado?: () => void;
+  onDefinirIntencaoEntregaPendente?: (pendente: boolean) => void;
 }
 
 export type SubTelaMobile = 'vender' | 'menu' | 'clientes' | 'camera' | 'avulso' | 'carrinho';
@@ -124,7 +125,8 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
   carregando = false,
   sincronizando = false,
   onSincronizarAgora,
-  onResetFreteConfirmado
+  onResetFreteConfirmado,
+  onDefinirIntencaoEntregaPendente
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -1720,6 +1722,7 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
 
                 const selecionarOpcaoEntrega = (opcaoEhFrete: boolean) => {
                   if (!opcaoEhFrete) {
+                    onDefinirIntencaoEntregaPendente?.(false);
                     if (isPedidoHibrido) {
                       setLevarProdutoNoAtendimento?.(true);
                     } else {
@@ -1732,15 +1735,21 @@ export const PosCheckoutMobile: React.FC<PosCheckoutMobileProps> = ({
                   }
 
                   if (!clienteSelecionado?.id) {
+                    onDefinirIntencaoEntregaPendente?.(true);
                     setFormaEntregaDropdownAberto(false);
                     if (isPedidoHibrido) {
-                      setLevarProdutoNoAtendimento?.(true);
-                    } else {
-                      setTaxaEntrega?.(0);
-                      setPedidoEntrega?.(FORMA_ENTREGA_RETIRADA_PADRAO);
+                      setLevarProdutoNoAtendimento?.(false);
                     }
+                    setTaxaEntrega?.(0);
+                    setPedidoEntrega?.({
+                      ...FORMA_ENTREGA_RETIRADA_PADRAO,
+                      tipo_atendimento: 'entrega',
+                      transportadora_nome: 'Envio a Definir',
+                      servico_codigo: 'pendente'
+                    });
                     onResetFreteConfirmado?.();
                     mostrarToast('Para entregas (Envio), selecione primeiro o cliente para carregar o endereço de entrega.', 'aviso');
+                    abrirSelecaoCliente(subTela === 'carrinho' ? 'carrinho' : 'vender');
                     return;
                   }
 

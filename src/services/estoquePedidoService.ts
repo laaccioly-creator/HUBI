@@ -76,7 +76,8 @@ export class EstoquePedidoService {
       await supabase
         .from('pedidos')
         .update({ estoque_baixado: true, atualizado_em: new Date().toISOString() })
-        .eq('id', pedidoId);
+        .eq('id', pedidoId)
+        .eq('loja_id', lojaId);
       return { estoqueBaixado: true, movimentou: false, mensagem: 'Pedido sem itens para baixar' };
     }
 
@@ -96,6 +97,7 @@ export class EstoquePedidoService {
               .from('variacoes_produto')
               .select('id, produto_id, quantidade_estoque')
               .eq('id', item.variacao_id)
+              .eq('loja_id', lojaId)
               .single();
 
             if (varDb) {
@@ -105,13 +107,15 @@ export class EstoquePedidoService {
               await supabase
                 .from('variacoes_produto')
                 .update({ quantidade_estoque: saldoPosteriorVar })
-                .eq('id', item.variacao_id);
+                .eq('id', item.variacao_id)
+                .eq('loja_id', lojaId);
 
               // Recalcular saldo total do produto pai somando todas as variações
               const { data: todasVars } = await supabase
                 .from('variacoes_produto')
                 .select('quantidade_estoque')
-                .eq('produto_id', item.produto_id);
+                .eq('produto_id', item.produto_id)
+                .eq('loja_id', lojaId);
 
               const saldoConsolidadoPai = (todasVars || []).reduce(
                 (acc, v) => acc + Number(v.quantidade_estoque || 0),
@@ -124,7 +128,8 @@ export class EstoquePedidoService {
                   quantidade_estoque: saldoConsolidadoPai,
                   atualizado_em: dataIso
                 })
-                .eq('id', item.produto_id);
+                .eq('id', item.produto_id)
+                .eq('loja_id', lojaId);
 
               logsMovimentacao.push({
                 loja_id: lojaId,
@@ -146,6 +151,7 @@ export class EstoquePedidoService {
               .from('produtos')
               .select('id, quantidade_estoque')
               .eq('id', item.produto_id)
+              .eq('loja_id', lojaId)
               .single();
 
             if (prodDb) {
@@ -158,7 +164,8 @@ export class EstoquePedidoService {
                   quantidade_estoque: saldoPosterior,
                   atualizado_em: dataIso
                 })
-                .eq('id', item.produto_id);
+                .eq('id', item.produto_id)
+                .eq('loja_id', lojaId);
 
               logsMovimentacao.push({
                 loja_id: lojaId,
@@ -197,7 +204,8 @@ export class EstoquePedidoService {
         estoque_baixado: true,
         atualizado_em: dataIso
       })
-      .eq('id', pedidoId);
+      .eq('id', pedidoId)
+      .eq('loja_id', lojaId);
 
     return { estoqueBaixado: true, movimentou: true, mensagem: 'Baixa de estoque realizada com sucesso' };
   }

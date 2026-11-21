@@ -76,6 +76,67 @@ function normalizarTelefoneBr(raw: string): string {
 }
 
 /**
+ * Consulta leve com isolamento multi-tenant para verificar se o cliente possui janela gratuita de 24h ativa.
+ */
+async function verificarJanela24hClienteAtiva(params: {
+  lojaId: string;
+  clienteId?: string | null;
+  pedidoId?: string | null;
+  telefoneNormalizado: string;
+}): Promise<boolean> {
+  const limiteJanelaMs = 24 * 60 * 60 * 1000;
+  let clienteIdConsultar = params.clienteId;
+
+  if (!clienteIdConsultar && params.telefoneNormalizado) {
+    const digitosTelefone = params.telefoneNormalizado.replace(/^55/, '');
+    if (digitosTelefone) {
+      const { data: cliBusca } = await supabase
+        .from('clientes')
+        .select('id, whatsapp_ultima_interacao_cliente_em')
+        .eq('loja_id', params.lojaId)
+        .or(`whatsapp.ilike.%${digitosTelefone}%,telefone.ilike.%${digitosTelefone}%`)
+        .limit(1)
+        .maybeSingle();
+
+      if (cliBusca?.whatsapp_ultima_interacao_cliente_em) {
+        return (
+          Date.now() - new Date(String(cliBusca.whatsapp_ultima_interacao_cliente_em)).getTime() <
+          limiteJanelaMs
+        );
+      }
+    }
+  }
+
+  if (!clienteIdConsultar && params.pedidoId) {
+    const { data: pedDb } = await supabase
+      .from('pedidos')
+      .select('cliente_id')
+      .eq('id', params.pedidoId)
+      .eq('loja_id', params.lojaId)
+      .maybeSingle();
+    if (pedDb?.cliente_id) clienteIdConsultar = pedDb.cliente_id;
+  }
+
+  if (clienteIdConsultar) {
+    const { data: cli } = await supabase
+      .from('clientes')
+      .select('whatsapp_ultima_interacao_cliente_em')
+      .eq('id', clienteIdConsultar)
+      .eq('loja_id', params.lojaId)
+      .maybeSingle();
+
+    if (cli?.whatsapp_ultima_interacao_cliente_em) {
+      return (
+        Date.now() - new Date(String(cli.whatsapp_ultima_interacao_cliente_em)).getTime() <
+        limiteJanelaMs
+      );
+    }
+  }
+
+  return false;
+}
+
+/**
  * Valida se um gatilho de disparo de WhatsApp está autorizado para a loja.
  * Verifica primeiro o disjuntor mestre (`loja.whatsapp_auto_ativo`) e,
  * em seguida, a respectiva flag granular booleana de cada evento.
@@ -211,6 +272,39 @@ export const whatsappWalletService = {
       };
     }
 
+    // Pré-checagem local em memória: evita cold-start da Edge Function quando gatilho está desligado ou saldo zerado fora da janela de 24h
+    if (params.loja) {
+      const temSaldoEmMemoria = params.loja.whatsapp_saldo !== undefined && params.loja.whatsapp_saldo !== null;
+      const saldoEmMemoria = Number(params.loja.whatsapp_saldo ?? 0);
+      const gatilhoAutorizado = verificarPermissaoGatilhoWhatsapp(params.loja, params.eventoGatilho);
+
+      if (!gatilhoAutorizado || (temSaldoEmMemoria && saldoEmMemoria <= 0)) {
+        try {
+          const janela24hAtiva = await verificarJanela24hClienteAtiva({
+            lojaId: params.lojaId,
+            clienteId: params.clienteId,
+            pedidoId: params.pedidoId,
+            telefoneNormalizado: fone,
+          });
+
+          if (!janela24hAtiva) {
+            return {
+              sucesso: true,
+              modoEnvio: 'manual_link',
+              custoAplicado: 0,
+              saldoAtual: saldoEmMemoria,
+              manualUrl: manualUrlPadrao,
+              motivoFallback: !gatilhoAutorizado
+                ? `Disparo automático para o gatilho '${params.eventoGatilho}' desativado pelo lojista.`
+                : 'Saldo insuficiente na carteira pré-paga de WhatsApp.',
+            };
+          }
+        } catch {
+          // Em caso de falha na pré-checagem leve, segue para avaliação segura
+        }
+      }
+    }
+
     try {
       const { data, error } = await supabase.functions.invoke<ResultadoDisparoHibrido>(
         'whatsapp-outbound-dispatch',
@@ -309,47 +403,12 @@ export const whatsappWalletService = {
       }
 
       // PASSO 2: Validação da Janela Gratuita de 24 Horas
-      let dentroDaJanela24h = false;
-      let clienteIdConsultar = params.clienteId;
-
-      if (!clienteIdConsultar && params.pedidoId) {
-        const { data: pedDb } = await supabase
-          .from('pedidos')
-          .select('cliente_id')
-          .eq('id', params.pedidoId)
-          .eq('loja_id', params.lojaId)
-          .maybeSingle();
-        if (pedDb?.cliente_id) clienteIdConsultar = pedDb.cliente_id;
-      }
-
-      if (!clienteIdConsultar && fone) {
-        const digitosTelefone = fone.replace(/^55/, '');
-        const { data: cliBusca } = await supabase
-          .from('clientes')
-          .select('id, whatsapp_ultima_interacao_cliente_em')
-          .eq('loja_id', params.lojaId)
-          .or(`whatsapp.ilike.%${digitosTelefone}%,telefone.ilike.%${digitosTelefone}%`)
-          .limit(1)
-          .maybeSingle();
-        if (cliBusca?.whatsapp_ultima_interacao_cliente_em) {
-          dentroDaJanela24h =
-            Date.now() - new Date(String(cliBusca.whatsapp_ultima_interacao_cliente_em)).getTime() <
-            24 * 60 * 60 * 1000;
-        }
-      } else if (clienteIdConsultar) {
-        const { data: cli } = await supabase
-          .from('clientes')
-          .select('whatsapp_ultima_interacao_cliente_em')
-          .eq('id', clienteIdConsultar)
-          .eq('loja_id', params.lojaId)
-          .maybeSingle();
-
-        if (cli?.whatsapp_ultima_interacao_cliente_em) {
-          dentroDaJanela24h =
-            Date.now() - new Date(String(cli.whatsapp_ultima_interacao_cliente_em)).getTime() <
-            24 * 60 * 60 * 1000;
-        }
-      }
+      const dentroDaJanela24h = await verificarJanela24hClienteAtiva({
+        lojaId: params.lojaId,
+        clienteId: params.clienteId,
+        pedidoId: params.pedidoId,
+        telefoneNormalizado: fone,
+      });
 
       // PASSO 3: Fora da Janela de 24h (Disparo Tarifado)
       // Se a janela estiver fechada, aplica as travas de economia de saldo

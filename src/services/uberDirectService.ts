@@ -2,6 +2,28 @@ import { LojaShippingConfig, OpcaoFreteCotada, CotacaoItemProduto, PedidoEntrega
 import { Loja, Pedido } from '../types';
 import { supabase } from '../lib/supabase';
 import { isUuidValido } from './syncService';
+import { obterCoordenadasPorCepOuEndereco } from '../utils/geoUtils';
+
+export interface UberCotacaoDetalhes {
+  origem_logradouro?: string | null;
+  origem_numero?: string | null;
+  origem_complemento?: string | null;
+  origem_bairro?: string | null;
+  origem_cidade?: string | null;
+  origem_uf?: string | null;
+  origem_cep?: string | null;
+  origem_latitude?: number | null;
+  origem_longitude?: number | null;
+  destino_logradouro?: string | null;
+  destino_numero?: string | null;
+  destino_complemento?: string | null;
+  destino_bairro?: string | null;
+  destino_cidade?: string | null;
+  destino_uf?: string | null;
+  destino_cep?: string | null;
+  destino_latitude?: number | null;
+  destino_longitude?: number | null;
+}
 
 export interface SolicitacaoUberDirectParams {
   loja: Loja;
@@ -212,7 +234,8 @@ export class UberDirectService {
   public static async cotarEntrega(
     config: LojaShippingConfig,
     destinoEnderecoCompleto: string,
-    _itens: CotacaoItemProduto[]
+    _itens: CotacaoItemProduto[],
+    detalhes?: UberCotacaoDetalhes
   ): Promise<OpcaoFreteCotada | null> {
     if (!config.uber_ativo) {
       return null;
@@ -222,14 +245,77 @@ export class UberDirectService {
       return null;
     }
 
+    const formatarCepParaPayload = (cep?: string | null) => {
+      const limpo = (cep || '').replace(/\D/g, '').slice(0, 8);
+      const formatado = limpo.length === 8 ? `${limpo.slice(0, 5)}-${limpo.slice(5)}` : (cep || '').trim();
+      return { limpo, formatado };
+    };
+
+    const origemLogradouro = (detalhes?.origem_logradouro ?? config.origem_logradouro ?? '').trim();
+    const origemNumero = (detalhes?.origem_numero ?? config.origem_numero ?? '').trim();
+    const origemComplemento = (detalhes?.origem_complemento ?? config.origem_complemento ?? '').trim();
+    const origemBairro = (detalhes?.origem_bairro ?? config.origem_bairro ?? '').trim();
+    const origemCidade = (detalhes?.origem_cidade ?? config.origem_cidade ?? '').trim();
+    const origemUf = (detalhes?.origem_uf ?? config.origem_uf ?? '').trim().toUpperCase();
+    const origemCepInfo = formatarCepParaPayload(detalhes?.origem_cep ?? config.origem_cep);
+
+    const destinoLogradouro = (detalhes?.destino_logradouro ?? '').trim();
+    const destinoNumero = (detalhes?.destino_numero ?? '').trim();
+    const destinoComplemento = (detalhes?.destino_complemento ?? '').trim();
+    const destinoBairro = (detalhes?.destino_bairro ?? '').trim();
+    const destinoCidade = (detalhes?.destino_cidade ?? '').trim();
+    const destinoUf = (detalhes?.destino_uf ?? '').trim().toUpperCase();
+    const cepFallbackMatch = destinoEnderecoCompleto.match(/\b(\d{5}-?\d{3})\b/);
+    const destinoCepInfo = formatarCepParaPayload(detalhes?.destino_cep || (cepFallbackMatch ? cepFallbackMatch[1] : ''));
+
     const enderecoOrigem = [
-      config.origem_logradouro,
-      config.origem_numero,
-      config.origem_bairro,
-      config.origem_cidade,
-      config.origem_uf,
-      config.origem_cep
+      origemLogradouro,
+      origemNumero,
+      origemBairro,
+      origemCidade,
+      origemUf,
+      origemCepInfo.formatado
     ].filter(Boolean).join(', ');
+
+    const enderecoDestinoEstruturado = [
+      destinoLogradouro,
+      destinoNumero,
+      destinoBairro,
+      destinoCidade,
+      destinoUf,
+      destinoCepInfo.formatado
+    ].filter(Boolean).join(', ');
+
+    const enderecoDestinoFinal = enderecoDestinoEstruturado || destinoEnderecoCompleto;
+
+    let origemLat = Number(detalhes?.origem_latitude ?? config.origem_latitude);
+    let origemLng = Number(detalhes?.origem_longitude ?? config.origem_longitude);
+    let destinoLat = Number(detalhes?.destino_latitude);
+    let destinoLng = Number(detalhes?.destino_longitude);
+
+    const precisaGeoOrigem = Number.isNaN(origemLat) || Number.isNaN(origemLng) || origemLat === 0 || origemLng === 0;
+    const precisaGeoDestino = Number.isNaN(destinoLat) || Number.isNaN(destinoLng) || destinoLat === 0 || destinoLng === 0;
+
+    if (precisaGeoOrigem || precisaGeoDestino) {
+      const [coordsOrigem, coordsDestino] = await Promise.all([
+        precisaGeoOrigem ? obterCoordenadasPorCepOuEndereco(origemCepInfo.limpo, enderecoOrigem) : Promise.resolve(null),
+        precisaGeoDestino ? obterCoordenadasPorCepOuEndereco(destinoCepInfo.limpo, enderecoDestinoFinal) : Promise.resolve(null)
+      ]);
+
+      if (coordsOrigem) {
+        origemLat = coordsOrigem.latitude;
+        origemLng = coordsOrigem.longitude;
+      }
+      if (coordsDestino) {
+        destinoLat = coordsDestino.latitude;
+        destinoLng = coordsDestino.longitude;
+      }
+    }
+
+    const origemLatValida = !Number.isNaN(origemLat) && origemLat !== 0 ? origemLat : null;
+    const origemLngValida = !Number.isNaN(origemLng) && origemLng !== 0 ? origemLng : null;
+    const destinoLatValida = !Number.isNaN(destinoLat) && destinoLat !== 0 ? destinoLat : null;
+    const destinoLngValida = !Number.isNaN(destinoLng) && destinoLng !== 0 ? destinoLng : null;
 
     // -------------------------------------------------------------------------
     // MÉTODO 1: Edge Function Supabase (uber-dispatch - acao: 'cotar')
@@ -242,7 +328,37 @@ export class UberDirectService {
           acao: 'cotar',
           loja_id: config.loja_id,
           pickup_address: enderecoOrigem,
-          dropoff_address: destinoEnderecoCompleto,
+          dropoff_address: enderecoDestinoFinal,
+          origem_logradouro: origemLogradouro || undefined,
+          origem_numero: origemNumero || undefined,
+          origem_complemento: origemComplemento || undefined,
+          origem_bairro: origemBairro || undefined,
+          origem_cidade: origemCidade || undefined,
+          origem_uf: origemUf || undefined,
+          origem_cep: origemCepInfo.limpo || undefined,
+          destino_logradouro: destinoLogradouro || undefined,
+          destino_numero: destinoNumero || undefined,
+          destino_complemento: destinoComplemento || undefined,
+          destino_bairro: destinoBairro || undefined,
+          destino_cidade: destinoCidade || undefined,
+          destino_uf: destinoUf || undefined,
+          destino_cep: destinoCepInfo.limpo || undefined,
+          ...(origemLatValida && origemLngValida
+            ? {
+                origem_latitude: origemLatValida,
+                origem_longitude: origemLngValida,
+                pickup_latitude: origemLatValida,
+                pickup_longitude: origemLngValida
+              }
+            : {}),
+          ...(destinoLatValida && destinoLngValida
+            ? {
+                destino_latitude: destinoLatValida,
+                destino_longitude: destinoLngValida,
+                dropoff_latitude: destinoLatValida,
+                dropoff_longitude: destinoLngValida
+              }
+            : {}),
           uber_customer_id: config.uber_customer_id,
           uber_client_id: config.uber_client_id,
           uber_client_secret: config.uber_client_secret,
@@ -321,7 +437,13 @@ export class UberDirectService {
           token,
           payload: {
             pickup_address: enderecoOrigem,
-            dropoff_address: destinoEnderecoCompleto
+            dropoff_address: enderecoDestinoFinal,
+            ...(origemLatValida && origemLngValida
+              ? { pickup_latitude: origemLatValida, pickup_longitude: origemLngValida }
+              : {}),
+            ...(destinoLatValida && destinoLngValida
+              ? { dropoff_latitude: destinoLatValida, dropoff_longitude: destinoLngValida }
+              : {})
           }
         })
       });

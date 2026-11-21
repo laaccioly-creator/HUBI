@@ -702,20 +702,12 @@ export const PedidosListaMobile: React.FC<PedidosListaMobileProps> = ({
     if (!pedidoSelecionado) return;
     try {
       setExecutandoContingencia(true);
-      const agora = new Date().toISOString();
       await ShippingOrchestrator.forcarConclusaoManual(
         pedidoSelecionado.id,
         usuario?.id || null
       );
-      const pedidoAtualizado: Pedido = {
-        ...pedidoSelecionado,
-        status: 'concluido',
-        despachado_em: agora,
-        despachado_por: usuario?.id || null
-      };
-      setPedidoSelecionado(pedidoAtualizado);
-      onAlterarStatus(pedidoSelecionado.id, 'concluido');
-      if (onRecarregar) await onRecarregar();
+      await onAlterarStatus(pedidoSelecionado.id, 'concluido');
+      setPedidoSelecionado(null);
       setModalContingenciaAberto(false);
     } catch (err) {
       console.error('Erro ao forçar conclusão manual:', err);
