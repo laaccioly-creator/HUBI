@@ -1008,7 +1008,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                 <section className="space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200 dark:border-slate-800">
                     <div>
-                      <span className="text-[11px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                      <span className="text-xs font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                         Bloco 1 de 2
                       </span>
                       <h3 className="text-base sm:text-lg font-black">
@@ -1239,7 +1239,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                             />
                             <div className="min-w-0">
                               <span className={`text-sm font-bold block ${isDark ? 'text-white' : 'text-black'}`}>{opt.titulo}</span>
-                              <span className={`text-xs sm:text-[13px] font-normal block ${isDark ? 'text-slate-200' : 'text-slate-950'}`}>
+                              <span className={`text-sm leading-relaxed font-normal block ${isDark ? 'text-slate-200' : 'text-black'}`}>
                                 {opt.desc}
                               </span>
                             </div>
@@ -1249,7 +1249,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                     </div>
 
                     <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
-                      <span className={`text-xs sm:text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-950'}`}>
+                      <span className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-black'}`}>
                         Alterações salvas automaticamente na loja.
                       </span>
                       <div className="flex flex-wrap items-center gap-2">
@@ -1347,7 +1347,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                               6. Fluxo de Status dos Pedidos (Kanban)
                             </h4>
                             {qtdStatusOpcionaisAtivos === 0 && (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                              <span className="inline-flex items-center gap-1 text-xs font-black px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
                                 <CheckCircle2 className="w-3 h-3" />
                                 Usando status padrão do sistema
                               </span>
@@ -1423,7 +1423,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                               <span className={`w-2.5 h-2.5 rounded-full ${item.dotClass} shrink-0`} />
                               <div className="min-w-0">
                                 <span className={`text-sm font-bold block truncate ${isDark ? 'text-white' : 'text-black'}`}>{item.titulo}</span>
-                                <span className={`text-xs sm:text-[13px] font-normal block truncate ${isDark ? 'text-slate-200' : 'text-slate-950'}`}>
+                                <span className={`text-sm leading-relaxed font-normal block truncate ${isDark ? 'text-slate-200' : 'text-black'}`}>
                                   {item.descricao}
                                 </span>
                               </div>
@@ -1489,7 +1489,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                               7. Categorias e Unidades de Medida
                             </h4>
                             {statusCompleto?.setup.unidades_conferidas && (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                              <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
                                 <Check className="w-3 h-3" />
                                 Unidades conferidas
                               </span>
@@ -1597,7 +1597,7 @@ export const ModalQuestionarioOnboarding: React.FC<ModalQuestionarioOnboardingPr
                 <section className="space-y-4 pt-2">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200 dark:border-slate-800">
                     <div>
-                      <span className="text-[11px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                      <span className="text-xs font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                         Bloco 2 de 2
                       </span>
                       <h3 className="text-base sm:text-lg font-black">

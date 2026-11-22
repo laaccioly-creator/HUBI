@@ -283,7 +283,7 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
                 Cloud API + Fallback Gratuito
               </span>
             </div>
-            <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            <p className={`text-sm leading-relaxed font-medium mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
               Envie recibos de PDV, status de pedidos, rastreio e comprovantes de Caderneta automaticamente em 2º plano.
             </p>
           </div>
@@ -294,10 +294,10 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
           isDark ? 'bg-slate-800/90 border-slate-700' : 'bg-slate-50 border-slate-200'
         }`}>
           <div className="text-right">
-            <div className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-black'}`}>
               Ativar Envios Automáticos via WhatsApp
             </div>
-            <div className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            <div className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
               {autoAtivo
                 ? 'Ativo (API Oficial + Fallback)'
                 : 'Desativado (Apenas Botão Manual)'}
@@ -342,8 +342,8 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
           isDark ? 'bg-slate-800/90 border-slate-700' : 'bg-slate-50 border-slate-200'
         }`}>
           <div className="flex items-center justify-between">
-            <span className={`text-[11px] font-bold uppercase tracking-wider ${
-              isDark ? 'text-slate-400' : 'text-slate-600'
+            <span className={`text-xs font-bold uppercase tracking-wider ${
+              isDark ? 'text-slate-300' : 'text-black'
             }`}>
               Saldo Disponível
             </span>
@@ -359,8 +359,8 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
               {formatCurrency(saldo)}
             </div>
             {infoBonusTrial && (
-              <div className="flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-300/90 mt-1 font-semibold">
-                <Gift size={12} className="shrink-0" />
+              <div className="flex items-center gap-1.5 text-sm leading-relaxed text-amber-700 dark:text-amber-300/90 mt-1 font-semibold">
+                <Gift size={14} className="shrink-0" />
                 <span>{infoBonusTrial.texto}</span>
               </div>
             )}
@@ -380,8 +380,8 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
           isDark ? 'bg-slate-800/90 border-slate-700' : 'bg-slate-50 border-slate-200'
         }`}>
           <div className="flex items-center justify-between">
-            <span className={`text-[11px] font-bold uppercase tracking-wider ${
-              isDark ? 'text-slate-400' : 'text-slate-600'
+            <span className={`text-xs font-bold uppercase tracking-wider ${
+              isDark ? 'text-slate-300' : 'text-black'
             }`}>
               Capacidade Estimada
             </span>
@@ -391,21 +391,21 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
             <div className={`text-2xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
               ~{disparosEstimados}{' '}
               <span className={`text-xs font-bold uppercase ${
-                isDark ? 'text-slate-300' : 'text-slate-700'
+                isDark ? 'text-slate-300' : 'text-black'
               }`}>
                 disparos ativos
               </span>
             </div>
-            <p className={`text-[11px] mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            <p className={`text-sm leading-relaxed font-medium mt-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
               Tarifa de{' '}
-              <strong className={isDark ? 'text-slate-200' : 'text-slate-800'}>
+              <strong className={isDark ? 'text-white' : 'text-black'}>
                 {formatCurrency(custoDisparo)}
               </strong>{' '}
               por notificação ativa fora da janela de 24h.
             </p>
           </div>
-          <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
-            <Sparkles size={12} />
+          <div className="text-sm leading-relaxed text-emerald-700 dark:text-emerald-400 font-bold flex items-center gap-1">
+            <Sparkles size={14} className="shrink-0" />
             Respostas em até 24h têm custo R$ 0,00!
           </div>
         </div>
@@ -415,30 +415,30 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
           isDark ? 'bg-slate-800/90 border-slate-700' : 'bg-slate-50 border-slate-200'
         }`}>
           <div className="flex items-center justify-between">
-            <span className={`text-[11px] font-bold uppercase tracking-wider ${
-              isDark ? 'text-slate-400' : 'text-slate-600'
+            <span className={`text-xs font-bold uppercase tracking-wider ${
+              isDark ? 'text-slate-300' : 'text-black'
             }`}>
               Inteligência de Rotas (3 Níveis)
             </span>
             <Clock size={15} className="text-sky-500 dark:text-sky-400" />
           </div>
-          <ul className={`text-[11px] space-y-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+          <ul className={`text-sm leading-relaxed font-medium space-y-2 ${isDark ? 'text-slate-300' : 'text-black'}`}>
             <li className="flex items-start gap-1.5">
               <span className="text-emerald-500 dark:text-emerald-400 font-black">1.</span>
               <span>
-                <strong className={isDark ? 'text-white' : 'text-slate-900'}>Janela 24h Aberta:</strong> Se o cliente interagiu nas últimas 24h, o envio automático sai a <strong className={isDark ? 'text-white' : 'text-slate-900'}>custo zero</strong>.
+                <strong className={isDark ? 'text-white' : 'text-black'}>Janela 24h Aberta:</strong> Se o cliente interagiu nas últimas 24h, o envio automático sai a <strong className={isDark ? 'text-white' : 'text-black'}>custo zero</strong>.
               </span>
             </li>
             <li className="flex items-start gap-1.5">
               <span className="text-sky-500 dark:text-sky-400 font-black">2.</span>
               <span>
-                <strong className={isDark ? 'text-white' : 'text-slate-900'}>Fora da Janela 24h:</strong> Dispara template oficial debitando {formatCurrency(custoDisparo)} do saldo.
+                <strong className={isDark ? 'text-white' : 'text-black'}>Fora da Janela 24h:</strong> Dispara template oficial debitando {formatCurrency(custoDisparo)} do saldo.
               </span>
             </li>
             <li className="flex items-start gap-1.5">
               <span className="text-amber-500 dark:text-amber-400 font-black">3.</span>
               <span>
-                <strong className={isDark ? 'text-white' : 'text-slate-900'}>Fallback Gratuito:</strong> Sem saldo ou desligado, exibe o botão manual do WhatsApp sem travar a operação.
+                <strong className={isDark ? 'text-white' : 'text-black'}>Fallback Gratuito:</strong> Sem saldo ou desligado, exibe o botão manual do WhatsApp sem travar a operação.
               </span>
             </li>
           </ul>
@@ -470,15 +470,15 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
           isDark ? 'border-slate-800 bg-slate-950/60' : 'border-slate-200 bg-slate-50'
         }`}>
           {carregando ? (
-            <div className={`py-8 flex items-center justify-center gap-2 text-xs ${
-              isDark ? 'text-slate-400' : 'text-slate-600'
+            <div className={`py-8 flex items-center justify-center gap-2 text-sm leading-relaxed font-medium ${
+              isDark ? 'text-slate-300' : 'text-black'
             }`}>
               <Loader2 size={16} className="animate-spin text-emerald-500" />
               Carregando movimentações da carteira...
             </div>
           ) : transacoes.length === 0 ? (
-            <div className={`py-8 text-center text-xs font-medium ${
-              isDark ? 'text-slate-400' : 'text-slate-500'
+            <div className={`py-8 text-center text-sm leading-relaxed font-medium ${
+              isDark ? 'text-slate-300' : 'text-black'
             }`}>
               Nenhuma transação registrada na carteira desta loja até o momento.
             </div>
@@ -498,7 +498,7 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
                     <th className="py-2.5 px-3 text-right">Saldo Após</th>
                   </tr>
                 </thead>
-                <tbody className={`divide-y text-xs ${
+                <tbody className={`divide-y text-sm ${
                   isDark ? 'divide-slate-800/70' : 'divide-slate-200'
                 }`}>
                   {transacoes.map((tx) => {
@@ -510,8 +510,8 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
                           isDark ? 'hover:bg-slate-900/50' : 'hover:bg-white'
                         }`}
                       >
-                        <td className={`py-2.5 px-3 whitespace-nowrap text-[11px] ${
-                          isDark ? 'text-slate-400' : 'text-slate-600'
+                        <td className={`py-2.5 px-3 whitespace-nowrap text-sm font-medium ${
+                          isDark ? 'text-slate-300' : 'text-black'
                         }`}>
                           {new Date(tx.criado_em).toLocaleString('pt-BR', {
                             day: '2-digit',
@@ -534,7 +534,7 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
                           </span>
                         </td>
                         <td className={`py-2.5 px-3 max-w-xs truncate ${
-                          isDark ? 'text-slate-300' : 'text-slate-800 font-medium'
+                          isDark ? 'text-slate-300' : 'text-black font-medium'
                         }`}>
                           {tx.descricao || tx.evento_gatilho || 'Movimentação'}
                         </td>
@@ -549,7 +549,7 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
                           {formatCurrency(tx.valor)}
                         </td>
                         <td className={`py-2.5 px-3 text-right font-semibold whitespace-nowrap ${
-                          isDark ? 'text-slate-300' : 'text-slate-800'
+                          isDark ? 'text-slate-300' : 'text-black'
                         }`}>
                           {formatCurrency(tx.saldo_posterior)}
                         </td>
@@ -563,10 +563,10 @@ export const CardCarteiraWhatsapp: React.FC<CardCarteiraWhatsappProps> = ({
 
           {/* Paginação */}
           {totalPaginas > 1 && (
-            <div className={`flex items-center justify-between px-3 py-2 border-t text-[11px] ${
+            <div className={`flex items-center justify-between px-3 py-2 border-t text-sm font-medium ${
               isDark
-                ? 'border-slate-800 bg-slate-950 text-slate-400'
-                : 'border-slate-200 bg-white text-slate-600'
+                ? 'border-slate-800 bg-slate-950 text-slate-300'
+                : 'border-slate-200 bg-white text-black'
             }`}>
               <span>
                 Página {pagina} de {totalPaginas}

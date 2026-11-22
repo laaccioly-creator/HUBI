@@ -216,7 +216,7 @@ export const CardConexaoMercadoLivre: React.FC<CardConexaoMercadoLivreProps> = (
                 </span>
               )}
             </div>
-            <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            <p className={`text-sm leading-relaxed font-medium mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
               Sincronização de estoque local na loja física, recebimento automático de vendas e etiquetas Mercado Envios.
             </p>
           </div>
@@ -225,7 +225,7 @@ export const CardConexaoMercadoLivre: React.FC<CardConexaoMercadoLivreProps> = (
         {/* BOTÃO PRINCIPAL DE AÇÃO */}
         <div className="flex items-center gap-2 self-start sm:self-auto">
           {carregando ? (
-            <div className="flex items-center gap-2 text-xs text-slate-500">
+            <div className={`flex items-center gap-2 text-sm font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
               <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
               <span>Carregando...</span>
             </div>
@@ -286,15 +286,15 @@ export const CardConexaoMercadoLivre: React.FC<CardConexaoMercadoLivreProps> = (
           {/* Informações da Conta */}
           <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <div>
-              <span className="text-[11px] font-bold text-slate-500 block">Conta do Vendedor</span>
-              <span className="text-xs font-black text-slate-900 dark:text-slate-100 font-mono">
+              <span className="text-sm leading-relaxed font-semibold text-black dark:text-slate-300 block">Conta do Vendedor</span>
+              <span className="text-sm font-black text-black dark:text-slate-100 font-mono">
                 @{conta.ml_nickname} (ID: {conta.ml_user_id})
               </span>
             </div>
             {conta.ultima_sincronizacao_em && (
               <div className="text-right">
-                <span className="text-[11px] font-bold text-slate-500 block">Última Sincronização</span>
-                <span className="text-xs text-slate-700 dark:text-slate-300">
+                <span className="text-sm leading-relaxed font-semibold text-black dark:text-slate-300 block">Última Sincronização</span>
+                <span className="text-sm leading-relaxed font-medium text-black dark:text-slate-300">
                   {new Date(conta.ultima_sincronizacao_em).toLocaleString('pt-BR')}
                 </span>
               </div>
@@ -306,10 +306,10 @@ export const CardConexaoMercadoLivre: React.FC<CardConexaoMercadoLivreProps> = (
             {/* Toggle Estoque Local -> ML */}
             <label className="flex items-center justify-between p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 cursor-pointer shadow-xs">
               <div className="space-y-0.5 max-w-[80%]">
-                <span className="font-bold text-xs text-slate-900 dark:text-slate-100 block">
+                <span className="font-bold text-sm text-black dark:text-slate-100 block">
                   Abater Anúncio ao Vender no PDV
                 </span>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400 block leading-tight">
+                <span className="text-sm leading-relaxed font-medium text-black dark:text-slate-300 block">
                   Atualiza automaticamente o saldo do anúncio no Mercado Livre quando o produto é vendido no balcão físico.
                 </span>
               </div>
@@ -324,10 +324,10 @@ export const CardConexaoMercadoLivre: React.FC<CardConexaoMercadoLivreProps> = (
             {/* Toggle Pedidos ML -> HUBI */}
             <label className="flex items-center justify-between p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 cursor-pointer shadow-xs">
               <div className="space-y-0.5 max-w-[80%]">
-                <span className="font-bold text-xs text-slate-900 dark:text-slate-100 block">
+                <span className="font-bold text-sm text-black dark:text-slate-100 block">
                   Baixar Estoque Físico ao Vender no ML
                 </span>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400 block leading-tight">
+                <span className="text-sm leading-relaxed font-medium text-black dark:text-slate-300 block">
                   Vendas aprovadas no Mercado Livre caem na tela de pedidos e abatem o saldo local imediatamente.
                 </span>
               </div>
@@ -341,9 +341,9 @@ export const CardConexaoMercadoLivre: React.FC<CardConexaoMercadoLivreProps> = (
 
             {/* Margem / Taxa de Comissão Padrão */}
             <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1.5 shadow-xs">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+              <label className="text-sm font-semibold text-black dark:text-slate-200 flex items-center justify-between gap-2 flex-wrap">
                 <span>Comissão Padrão do Marketplace (%)</span>
-                <span className="text-[10px] text-slate-400">Ex: 16% Clássico / 19% Premium</span>
+                <span className="text-sm leading-relaxed font-medium text-black dark:text-slate-300">Ex: 16% Clássico / 19% Premium</span>
               </label>
               <div className="relative">
                 <input
@@ -353,7 +353,7 @@ export const CardConexaoMercadoLivre: React.FC<CardConexaoMercadoLivreProps> = (
                   step="0.5"
                   value={comissaoPercentual}
                   onChange={(e) => setComissaoPercentual(parseFloat(e.target.value) || 0)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-bold focus:border-emerald-500 outline-hidden"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-black dark:text-slate-100 font-bold focus:border-emerald-500 outline-hidden"
                 />
                 <Percent className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5" />
               </div>
@@ -361,9 +361,9 @@ export const CardConexaoMercadoLivre: React.FC<CardConexaoMercadoLivreProps> = (
 
             {/* Taxa Fixa ML (produtos abaixo de R$ 79) */}
             <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1.5 shadow-xs">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+              <label className="text-sm font-semibold text-black dark:text-slate-200 flex items-center justify-between gap-2 flex-wrap">
                 <span>Custo Fixo por Venda (R$)</span>
-                <span className="text-[10px] text-slate-400">Para itens &lt; R$ 79,00</span>
+                <span className="text-sm leading-relaxed font-medium text-black dark:text-slate-300">Para itens &lt; R$ 79,00</span>
               </label>
               <input
                 type="number"
@@ -372,7 +372,7 @@ export const CardConexaoMercadoLivre: React.FC<CardConexaoMercadoLivreProps> = (
                 step="0.5"
                 value={taxaFixa}
                 onChange={(e) => setTaxaFixa(parseFloat(e.target.value) || 0)}
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-bold focus:border-emerald-500 outline-hidden"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-black dark:text-slate-100 font-bold focus:border-emerald-500 outline-hidden"
               />
             </div>
           </div>
@@ -403,7 +403,7 @@ export const CardConexaoMercadoLivre: React.FC<CardConexaoMercadoLivreProps> = (
 
       {/* Caso sessão esteja expirada */}
       {conta?.status_conexao === 'expirado' && (
-        <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs flex items-center justify-between gap-3">
+        <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-sm leading-relaxed font-medium flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 text-amber-500" />
             <span>A permissão com o Mercado Livre expirou. Clique em Reconectar para renovar os tokens.</span>

@@ -634,7 +634,7 @@ export const EstatisticasAnalytics: React.FC = () => {
   ) => {
     if (dados.length === 0 || dados.every(d => d.valor === 0)) {
       return (
-        <div className={`flex items-center justify-center h-48 text-xs ${tema === 'claro' ? 'text-slate-400' : 'text-slate-500'}`}>
+        <div className={`flex items-center justify-center h-48 text-sm font-medium ${tema === 'claro' ? 'text-black' : 'text-slate-300'}`}>
           Nenhum dado registrado para o período.
         </div>
       );
@@ -673,8 +673,8 @@ export const EstatisticasAnalytics: React.FC = () => {
             })}
           </svg>
           <div className="absolute flex flex-col items-center justify-center text-center">
-            <span className="text-[10px] uppercase font-bold text-slate-400">Total</span>
-            <span className={`text-xs font-black ${tema === 'claro' ? 'text-black' : 'text-white'}`}>
+            <span className={`text-xs uppercase font-bold ${tema === 'claro' ? 'text-black' : 'text-slate-300'}`}>Total</span>
+            <span className={`text-sm font-black ${tema === 'claro' ? 'text-black' : 'text-white'}`}>
               R$ {total.toFixed(2)}
             </span>
           </div>
@@ -682,7 +682,7 @@ export const EstatisticasAnalytics: React.FC = () => {
 
         <div className="flex flex-col gap-2 w-full max-w-xs">
           {dados.map((d, idx) => (
-            <div key={idx} className="flex items-center justify-between sm:justify-start gap-2 text-xs">
+            <div key={idx} className="flex items-center justify-between sm:justify-start gap-2 text-sm">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: d.cor }} />
                 <span className={`font-bold truncate ${tema === 'claro' ? 'text-black' : 'text-white'}`}>
@@ -693,7 +693,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                 <span className={`font-black ${tema === 'claro' ? 'text-black' : 'text-white'}`}>
                   {d.percentual.toFixed(1)}%
                 </span>
-                <span className={`text-[11px] font-bold ${tema === 'claro' ? 'text-slate-600' : 'text-slate-400'}`}>
+                <span className={`text-xs font-bold ${tema === 'claro' ? 'text-black' : 'text-slate-300'}`}>
                   (R$ {d.valor.toFixed(2)})
                 </span>
               </div>
@@ -709,7 +709,7 @@ export const EstatisticasAnalytics: React.FC = () => {
     const dados = dadosAgrupadosTemporais;
     if (dados.length === 0) {
       return (
-        <div className={`flex items-center justify-center h-56 text-xs ${tema === 'claro' ? 'text-slate-400' : 'text-slate-500'}`}>
+        <div className={`flex items-center justify-center h-56 text-sm font-medium ${tema === 'claro' ? 'text-black' : 'text-slate-300'}`}>
           Sem dados para o período selecionado.
         </div>
       );
@@ -758,7 +758,7 @@ export const EstatisticasAnalytics: React.FC = () => {
       <div className="relative w-full overflow-x-auto">
         <svg
           viewBox={`0 0 ${width} ${height}`}
-          className="w-full h-52 sm:h-56 select-none font-sans text-[10px]"
+          className="w-full h-52 sm:h-56 select-none font-sans text-xs"
           onMouseLeave={() => setPontoHoverGrafico(null)}
         >
           <defs>
@@ -787,8 +787,8 @@ export const EstatisticasAnalytics: React.FC = () => {
                   x={paddingLeft - 8}
                   y={y + 3}
                   textAnchor="end"
-                  fill={tema === 'claro' ? '#64748B' : '#94A3B8'}
-                  className="text-[9px] font-medium"
+                  fill={tema === 'claro' ? '#000000' : '#CBD5E1'}
+                  className="text-[11px] font-semibold"
                 >
                   {isMoeda ? `R$ ${gridVal >= 1000 ? `${(gridVal / 1000).toFixed(1)}k` : gridVal.toFixed(0)}` : Math.round(gridVal)}
                 </text>
@@ -830,8 +830,8 @@ export const EstatisticasAnalytics: React.FC = () => {
                     x={pt.x}
                     y={height - 12}
                     textAnchor="middle"
-                    fill={tema === 'claro' ? '#64748B' : '#94A3B8'}
-                    className="text-[9px] font-medium"
+                    fill={tema === 'claro' ? '#000000' : '#CBD5E1'}
+                    className="text-[11px] font-semibold"
                   >
                     {pt.rotulo}
                   </text>
@@ -876,7 +876,7 @@ export const EstatisticasAnalytics: React.FC = () => {
         </svg>
 
         {/* Legenda de Picos no Rodapé */}
-        <div className={`flex flex-wrap items-center gap-4 text-[11px] mt-2 px-2 ${tema === 'claro' ? 'text-black' : 'text-slate-300'}`}>
+        <div className={`flex flex-wrap items-center gap-4 text-sm mt-2 px-2 ${tema === 'claro' ? 'text-black' : 'text-slate-300'}`}>
           <div className="flex items-center gap-1.5 font-bold">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-2xs" />
             <span className={tema === 'claro' ? 'text-emerald-700 uppercase font-black' : 'text-emerald-400 uppercase font-black'}>
@@ -1084,7 +1084,7 @@ export const EstatisticasAnalytics: React.FC = () => {
               <h2 className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}>
                 Indicadores de Desempenho
               </h2>
-              <span className={`text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              <span className={`text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 Toque para detalhar
               </span>
             </div>
@@ -1109,13 +1109,13 @@ export const EstatisticasAnalytics: React.FC = () => {
                     <div className={`w-11 h-11 rounded-2xl ${card.corBg} flex items-center justify-center ${card.corTexto} mb-2.5 shrink-0 shadow-2xs`}>
                       <Icone className="w-5 h-5" />
                     </div>
-                    <span className={`text-xs font-bold block truncate max-w-full ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    <span className={`text-xs font-bold uppercase tracking-wider block truncate max-w-full ${isDark ? 'text-slate-300' : 'text-black'}`}>
                       {card.label}
                     </span>
                     <span className={`text-base font-black block truncate max-w-full mt-0.5 ${isDark ? 'text-white' : 'text-black'}`}>
                       {card.valor}
                     </span>
-                    <span className={`text-[10px] font-medium block truncate max-w-full mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <span className={`text-sm font-medium block truncate max-w-full mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                       {card.subtexto}
                     </span>
                   </button>
@@ -1133,7 +1133,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                 isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
               }`}
             >
-              <span className={`text-[11px] font-black uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              <span className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 {metricaSelecionada === 'faturamento' && 'Faturamento Total'}
                 {metricaSelecionada === 'vendas' && 'Número de Vendas Concluídas'}
                 {metricaSelecionada === 'ticket_medio' && 'Ticket Médio por Venda'}
@@ -1155,7 +1155,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                 {metricaSelecionada === 'vendas_usuario' && `${vendasPorUsuario.length} colaboradores`}
               </div>
 
-              <div className={`pt-2 border-t flex items-center justify-between text-xs ${isDark ? 'border-slate-700 text-slate-300' : 'border-slate-300 text-slate-600'}`}>
+              <div className={`pt-2 border-t flex items-center justify-between text-sm font-medium ${isDark ? 'border-slate-700 text-slate-300' : 'border-slate-300 text-black'}`}>
                 <span>Margem de Lucro: <strong className="text-emerald-500 font-black">{faturamentoTotal > 0 ? ((lucroTotal / faturamentoTotal) * 100).toFixed(1) : '0.0'}%</strong></span>
                 <span>Ticket: <strong className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>R$ {ticketMedio.toFixed(2)}</strong></span>
               </div>
@@ -1179,7 +1179,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                   <h3 className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}>
                     Evolução no Período
                   </h3>
-                  <span className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                  <span className={`text-sm font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     {agrupamentoSelecionado === 'hora' && 'Agrupado por hora do dia'}
                     {agrupamentoSelecionado === 'dia' && 'Agrupado por dia do mês'}
                     {agrupamentoSelecionado === 'dia_semana' && 'Agrupado por dia da semana'}
@@ -1193,10 +1193,10 @@ export const EstatisticasAnalytics: React.FC = () => {
                       key={ag}
                       type="button"
                       onClick={() => setAgrupamentoSelecionado(ag)}
-                      className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase transition cursor-pointer ${
                         agrupamentoSelecionado === ag
                           ? 'bg-emerald-600 text-white shadow-xs'
-                          : isDark ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-black'
+                          : isDark ? 'text-slate-300 hover:text-white' : 'text-black hover:text-emerald-700'
                       }`}
                     >
                       {ag === 'dia_semana' ? 'Semana' : ag === 'mes' ? 'Mês' : ag}
@@ -1210,9 +1210,9 @@ export const EstatisticasAnalytics: React.FC = () => {
 
               {/* TABELA DE DADOS TEMPORAIS */}
               <div className={`overflow-x-auto border-t pt-3 ${isDark ? 'border-slate-700' : 'border-slate-300'}`}>
-                <table className="w-full text-left text-xs border-collapse">
+                <table className="w-full text-left text-sm border-collapse">
                   <thead>
-                    <tr className={`border-b text-[10px] uppercase font-black ${isDark ? 'border-slate-700 text-slate-300' : 'border-slate-300 text-slate-600'}`}>
+                    <tr className={`border-b text-xs uppercase font-black ${isDark ? 'border-slate-700 text-slate-300' : 'border-slate-300 text-black'}`}>
                       <th className="py-2 px-2.5">
                         {agrupamentoSelecionado === 'hora' && 'Hora'}
                         {agrupamentoSelecionado === 'dia' && 'Dia'}
@@ -1237,7 +1237,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                   <tbody className={`divide-y ${isDark ? 'divide-slate-800' : 'divide-slate-200'}`}>
                     {dadosAgrupadosTemporais.filter(d => d.faturamento > 0 || d.vendas > 0).length === 0 ? (
                       <tr>
-                        <td colSpan={4} className={`text-center py-4 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        <td colSpan={4} className={`text-center py-4 text-sm font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                           Nenhum dado registrado para o período.
                         </td>
                       </tr>
@@ -1254,10 +1254,10 @@ export const EstatisticasAnalytics: React.FC = () => {
                             </td>
                             {(metricaSelecionada === 'faturamento' || metricaSelecionada === 'vendas' || metricaSelecionada === 'ticket_medio') && (
                               <>
-                                <td className={`py-2 px-2.5 text-right font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                                <td className={`py-2 px-2.5 text-right font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                   {linha.vendas}
                                 </td>
-                                <td className={`py-2 px-2.5 text-right font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                                <td className={`py-2 px-2.5 text-right font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                   R$ {linha.ticketMedio.toFixed(2)}
                                 </td>
                               </>
@@ -1292,7 +1292,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                 <h3 className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}>
                   Distribuição Consolidada por Forma de Pagamento
                 </h3>
-                <p className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                <p className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Participação de cada forma nas vendas do período.
                 </p>
               </div>
@@ -1302,9 +1302,9 @@ export const EstatisticasAnalytics: React.FC = () => {
 
               {/* Tabela de Meios de Pagamento */}
               <div className={`overflow-x-auto border-t pt-3 ${isDark ? 'border-slate-700' : 'border-slate-300'}`}>
-                <table className="w-full text-left text-xs border-collapse">
+                <table className="w-full text-left text-sm border-collapse">
                   <thead>
-                    <tr className={`border-b text-[10px] uppercase font-black ${isDark ? 'border-slate-700 text-slate-300' : 'border-slate-300 text-slate-600'}`}>
+                    <tr className={`border-b text-xs uppercase font-black ${isDark ? 'border-slate-700 text-slate-300' : 'border-slate-300 text-black'}`}>
                       <th className="py-2 px-2.5">Forma</th>
                       <th className="py-2 px-2.5 text-center">Qtd</th>
                       <th className="py-2 px-2.5 text-right">Total</th>
@@ -1314,7 +1314,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                   <tbody className={`divide-y ${isDark ? 'divide-slate-800' : 'divide-slate-200'}`}>
                     {dadosMeiosPagamento.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className={`text-center py-4 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        <td colSpan={4} className={`text-center py-4 text-sm font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                           Nenhum pagamento registrado.
                         </td>
                       </tr>
@@ -1325,7 +1325,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.cor }} />
                             <span className="truncate">{item.nome}</span>
                           </td>
-                          <td className={`py-2 px-2.5 text-center font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{item.qtd}</td>
+                          <td className={`py-2 px-2.5 text-center font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>{item.qtd}</td>
                           <td className={`py-2 px-2.5 text-right font-black ${isDark ? 'text-white' : 'text-black'}`}>
                             R$ {item.valor.toFixed(2)}
                           </td>
@@ -1362,20 +1362,20 @@ export const EstatisticasAnalytics: React.FC = () => {
                 <h3 className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}>
                   Ranking de Produtos
                 </h3>
-                <p className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                <p className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Produtos mais vendidos ordenados pelo faturamento gerado.
                 </p>
               </div>
 
               {rankingProdutos.length === 0 ? (
-                <div className={`p-4 text-center text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                <div className={`p-4 text-center text-sm font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Nenhum produto vendido no período.
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
+                  <table className="w-full text-left text-sm border-collapse">
                     <thead>
-                      <tr className={`border-b text-[10px] uppercase font-black ${isDark ? 'border-slate-700 text-slate-300' : 'border-slate-300 text-slate-600'}`}>
+                      <tr className={`border-b text-xs uppercase font-black ${isDark ? 'border-slate-700 text-slate-300' : 'border-slate-300 text-black'}`}>
                         <th className="py-2 px-2.5 w-8 text-center">#</th>
                         <th className="py-2 px-2.5">Produto</th>
                         <th className="py-2 px-2.5 text-right">Total</th>
@@ -1385,10 +1385,10 @@ export const EstatisticasAnalytics: React.FC = () => {
                     <tbody className={`divide-y ${isDark ? 'divide-slate-800' : 'divide-slate-200'}`}>
                       {rankingProdutos.map((item, idx) => (
                         <tr key={idx} className={`transition ${isDark ? 'hover:bg-slate-900/50' : 'hover:bg-slate-50'}`}>
-                          <td className={`py-2 px-2.5 text-center font-black ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{idx + 1}</td>
+                          <td className={`py-2 px-2.5 text-center font-black ${isDark ? 'text-slate-300' : 'text-black'}`}>{idx + 1}</td>
                           <td className={`py-2 px-2.5 font-black truncate max-w-[140px] ${isDark ? 'text-white' : 'text-black'}`}>{item.nome}</td>
                           <td className="py-2 px-2.5 text-right font-black text-emerald-500">R$ {item.valor.toFixed(2)}</td>
-                          <td className={`py-2 px-2.5 text-right font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{item.qtd}</td>
+                          <td className={`py-2 px-2.5 text-right font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>{item.qtd}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1409,20 +1409,20 @@ export const EstatisticasAnalytics: React.FC = () => {
                 <h3 className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}>
                   Ranking de Melhores Clientes
                 </h3>
-                <p className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                <p className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Clientes com maior volume de compras no período selecionado.
                 </p>
               </div>
 
               {rankingClientes.length === 0 ? (
-                <div className={`p-4 text-center text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                <div className={`p-4 text-center text-sm font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Nenhum cliente registrado no período.
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
+                  <table className="w-full text-left text-sm border-collapse">
                     <thead>
-                      <tr className={`border-b text-[10px] uppercase font-black ${isDark ? 'border-slate-700 text-slate-300' : 'border-slate-300 text-slate-600'}`}>
+                      <tr className={`border-b text-xs uppercase font-black ${isDark ? 'border-slate-700 text-slate-300' : 'border-slate-300 text-black'}`}>
                         <th className="py-2 px-2.5 w-8 text-center">#</th>
                         <th className="py-2 px-2.5">Cliente</th>
                         <th className="py-2 px-2.5 text-right">Total</th>
@@ -1432,10 +1432,10 @@ export const EstatisticasAnalytics: React.FC = () => {
                     <tbody className={`divide-y ${isDark ? 'divide-slate-800' : 'divide-slate-200'}`}>
                       {rankingClientes.map((item, idx) => (
                         <tr key={idx} className={`transition ${isDark ? 'hover:bg-slate-900/50' : 'hover:bg-slate-50'}`}>
-                          <td className={`py-2 px-2.5 text-center font-black ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{idx + 1}</td>
+                          <td className={`py-2 px-2.5 text-center font-black ${isDark ? 'text-slate-300' : 'text-black'}`}>{idx + 1}</td>
                           <td className={`py-2 px-2.5 font-black truncate max-w-[140px] ${isDark ? 'text-white' : 'text-black'}`}>{item.nome}</td>
                           <td className="py-2 px-2.5 text-right font-black text-emerald-500">R$ {item.valor.toFixed(2)}</td>
-                          <td className={`py-2 px-2.5 text-right font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{item.compras}</td>
+                          <td className={`py-2 px-2.5 text-right font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>{item.compras}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1456,7 +1456,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                 <h3 className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}>
                   Vendas por Usuário
                 </h3>
-                <p className={`text-[11px] ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                <p className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Desempenho e faturamento por operador, vendedor ou catálogo online.
                 </p>
               </div>
@@ -1466,9 +1466,9 @@ export const EstatisticasAnalytics: React.FC = () => {
 
               {/* Tabela de Usuários */}
               <div className={`overflow-x-auto border-t pt-3 ${isDark ? 'border-slate-700' : 'border-slate-300'}`}>
-                <table className="w-full text-left text-xs border-collapse">
+                <table className="w-full text-left text-sm border-collapse">
                   <thead>
-                    <tr className={`border-b text-[10px] uppercase font-black ${isDark ? 'border-slate-700 text-slate-300' : 'border-slate-300 text-slate-600'}`}>
+                    <tr className={`border-b text-xs uppercase font-black ${isDark ? 'border-slate-700 text-slate-300' : 'border-slate-300 text-black'}`}>
                       <th className="py-2 px-2.5">Colaborador</th>
                       <th className="py-2 px-2.5 text-center">Vendas</th>
                       <th className="py-2 px-2.5 text-right">Faturamento</th>
@@ -1478,7 +1478,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                   <tbody className={`divide-y ${isDark ? 'divide-slate-800' : 'divide-slate-200'}`}>
                     {vendasPorUsuario.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className={`text-center py-4 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        <td colSpan={4} className={`text-center py-4 text-sm font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                           Nenhum usuário registrado com vendas.
                         </td>
                       </tr>
@@ -1489,7 +1489,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: user.cor }} />
                             <span className="truncate">{user.nome}</span>
                           </td>
-                          <td className={`py-2 px-2.5 text-center font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{user.qtd}</td>
+                          <td className={`py-2 px-2.5 text-center font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>{user.qtd}</td>
                           <td className={`py-2 px-2.5 text-right font-black ${isDark ? 'text-white' : 'text-black'}`}>
                             R$ {user.valor.toFixed(2)}
                           </td>
@@ -1522,7 +1522,7 @@ export const EstatisticasAnalytics: React.FC = () => {
               <div className={`flex items-center justify-between border-b pb-3 ${isDark ? 'border-slate-700' : 'border-slate-300'}`}>
                 <div>
                   <h3 className={`text-base font-black ${isDark ? 'text-white' : 'text-black'}`}>Filtrar Período</h3>
-                  <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Ativo: {labelExibicaoPeriodo}</p>
+                  <p className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>Ativo: {labelExibicaoPeriodo}</p>
                 </div>
                 <button
                   type="button"
@@ -1573,7 +1573,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                 >
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className={`text-[10px] font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                      <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                         Data Início:
                       </label>
                       <input
@@ -1586,7 +1586,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className={`text-[10px] font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                      <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                         Data Fim:
                       </label>
                       <input
@@ -1633,7 +1633,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                 <BarChart3 className="w-5 h-5 text-emerald-500" />
                 <span>Estatísticas & Analytics</span>
               </h1>
-              <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              <p className={`text-sm leading-relaxed mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 Relatórios completos de vendas, lucro real, clientes e performance da loja.
               </p>
             </div>
@@ -1709,7 +1709,7 @@ export const EstatisticasAnalytics: React.FC = () => {
               {tipoPeriodo === 'personalizado' && (
                 <div className="grid grid-cols-2 gap-2 pt-1 animate-in fade-in">
                   <div>
-                    <label className={`text-[10px] font-bold block mb-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>De:</label>
+                    <label className={`text-sm font-bold block mb-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>De:</label>
                     <input
                       type="date"
                       value={dataInicioCustom}
@@ -1718,7 +1718,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className={`text-[10px] font-bold block mb-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Até:</label>
+                    <label className={`text-sm font-bold block mb-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>Até:</label>
                     <input
                       type="date"
                       value={dataFimCustom}
@@ -1739,15 +1739,15 @@ export const EstatisticasAnalytics: React.FC = () => {
               className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${getCardEstilo(metricaSelecionada === 'faturamento')}`}
             >
               <div className="flex items-center justify-between">
-                <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Faturamento</span>
+                <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-black'}`}>Faturamento</span>
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
               </div>
               <div className={`text-lg font-black mt-1 ${isDark ? 'text-white' : 'text-black'}`}>
                 R$ {faturamentoTotal.toFixed(2)}
               </div>
-              <div className={`text-[10px] mt-0.5 flex items-center justify-between ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              <div className={`text-sm font-medium mt-0.5 flex items-center justify-between ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 <span>{totalVendas} pedido{totalVendas !== 1 ? 's' : ''}</span>
-                <ChevronRight className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`} />
+                <ChevronRight className={`w-4 h-4 shrink-0 ${isDark ? 'text-slate-300' : 'text-black'}`} />
               </div>
             </div>
 
@@ -1757,15 +1757,15 @@ export const EstatisticasAnalytics: React.FC = () => {
               className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${getCardEstilo(metricaSelecionada === 'vendas')}`}
             >
               <div className="flex items-center justify-between">
-                <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Vendas</span>
+                <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-black'}`}>Vendas</span>
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
               </div>
               <div className={`text-lg font-black mt-1 ${isDark ? 'text-white' : 'text-black'}`}>
                 {totalVendas}
               </div>
-              <div className={`text-[10px] mt-0.5 flex items-center justify-between ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              <div className={`text-sm font-medium mt-0.5 flex items-center justify-between ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 <span>Pedidos concluídos</span>
-                <ChevronRight className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`} />
+                <ChevronRight className={`w-4 h-4 shrink-0 ${isDark ? 'text-slate-300' : 'text-black'}`} />
               </div>
             </div>
 
@@ -1775,15 +1775,15 @@ export const EstatisticasAnalytics: React.FC = () => {
               className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${getCardEstilo(metricaSelecionada === 'ticket_medio')}`}
             >
               <div className="flex items-center justify-between">
-                <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Ticket Médio</span>
+                <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-black'}`}>Ticket Médio</span>
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
               </div>
               <div className={`text-lg font-black mt-1 ${isDark ? 'text-white' : 'text-black'}`}>
                 R$ {ticketMedio.toFixed(2)}
               </div>
-              <div className={`text-[10px] mt-0.5 flex items-center justify-between ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              <div className={`text-sm font-medium mt-0.5 flex items-center justify-between ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 <span>Média por pedido</span>
-                <ChevronRight className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`} />
+                <ChevronRight className={`w-4 h-4 shrink-0 ${isDark ? 'text-slate-300' : 'text-black'}`} />
               </div>
             </div>
 
@@ -1793,15 +1793,15 @@ export const EstatisticasAnalytics: React.FC = () => {
               className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${getCardEstilo(metricaSelecionada === 'lucro')}`}
             >
               <div className="flex items-center justify-between">
-                <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Lucro Real</span>
+                <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-black'}`}>Lucro Real</span>
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
               </div>
               <div className="text-lg font-black mt-1 text-emerald-500">
                 R$ {lucroTotal.toFixed(2)}
               </div>
-              <div className={`text-[10px] mt-0.5 flex items-center justify-between ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              <div className={`text-sm font-medium mt-0.5 flex items-center justify-between ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 <span>Margem: {faturamentoTotal > 0 ? ((lucroTotal / faturamentoTotal) * 100).toFixed(1) : 0}%</span>
-                <ChevronRight className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`} />
+                <ChevronRight className={`w-4 h-4 shrink-0 ${isDark ? 'text-slate-300' : 'text-black'}`} />
               </div>
             </div>
 
@@ -1811,15 +1811,15 @@ export const EstatisticasAnalytics: React.FC = () => {
               className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${getCardEstilo(metricaSelecionada === 'taxa_venda')}`}
             >
               <div className="flex items-center justify-between">
-                <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Taxa de Venda</span>
+                <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-black'}`}>Taxa de Venda</span>
                 <span className="w-2 h-2 rounded-full bg-slate-400" />
               </div>
               <div className={`text-lg font-black mt-1 ${isDark ? 'text-white' : 'text-black'}`}>
                 R$ {taxasVendaTotal.toFixed(2)}
               </div>
-              <div className={`text-[10px] mt-0.5 flex items-center justify-between ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              <div className={`text-sm font-medium mt-0.5 flex items-center justify-between ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 <span>Taxas de cartões e meios</span>
-                <ChevronRight className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`} />
+                <ChevronRight className={`w-4 h-4 shrink-0 ${isDark ? 'text-slate-300' : 'text-black'}`} />
               </div>
             </div>
 
@@ -1829,15 +1829,15 @@ export const EstatisticasAnalytics: React.FC = () => {
               className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${getCardEstilo(metricaSelecionada === 'meio_pagamento')}`}
             >
               <div className="flex items-center justify-between">
-                <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Forma de Pagamento</span>
+                <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-black'}`}>Forma de Pagamento</span>
                 <div className="w-5 h-5 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin-slow" />
               </div>
               <div className={`text-base font-black mt-1 ${isDark ? 'text-white' : 'text-black'}`}>
                 {principalMeioPagamento ? `${principalMeioPagamento.percentual.toFixed(1)}%` : '0%'}
               </div>
-              <div className={`text-[10px] mt-0.5 flex items-center justify-between ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              <div className={`text-sm font-medium mt-0.5 flex items-center justify-between ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 <span>Usam {principalMeioPagamento?.nome || 'N/A'}</span>
-                <ChevronRight className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`} />
+                <ChevronRight className={`w-4 h-4 shrink-0 ${isDark ? 'text-slate-300' : 'text-black'}`} />
               </div>
             </div>
 
@@ -1847,15 +1847,15 @@ export const EstatisticasAnalytics: React.FC = () => {
               className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${getCardEstilo(metricaSelecionada === 'ranking_produtos')}`}
             >
               <div className="flex items-center justify-between">
-                <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Ranking de Produtos</span>
-                <Package className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`} />
+                <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-black'}`}>Ranking de Produtos</span>
+                <Package className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-black'}`} />
               </div>
               <div className={`text-sm font-black mt-1 truncate ${isDark ? 'text-white' : 'text-black'}`}>
                 {principalProduto?.nome || 'Nenhum produto'}
               </div>
-              <div className={`text-[10px] mt-0.5 flex items-center justify-between ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              <div className={`text-sm font-medium mt-0.5 flex items-center justify-between ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 <span>#1 em Vendas: R$ {principalProduto ? principalProduto.valor.toFixed(2) : '0,00'}</span>
-                <ChevronRight className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`} />
+                <ChevronRight className={`w-4 h-4 shrink-0 ${isDark ? 'text-slate-300' : 'text-black'}`} />
               </div>
             </div>
 
@@ -1865,15 +1865,15 @@ export const EstatisticasAnalytics: React.FC = () => {
               className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${getCardEstilo(metricaSelecionada === 'ranking_clientes')}`}
             >
               <div className="flex items-center justify-between">
-                <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Ranking de Clientes</span>
-                <Users className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`} />
+                <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-black'}`}>Ranking de Clientes</span>
+                <Users className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-black'}`} />
               </div>
               <div className={`text-sm font-black mt-1 truncate ${isDark ? 'text-white' : 'text-black'}`}>
                 {principalCliente?.nome || 'Nenhum cliente'}
               </div>
-              <div className={`text-[10px] mt-0.5 flex items-center justify-between ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              <div className={`text-sm font-medium mt-0.5 flex items-center justify-between ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 <span>#1 em Compras: R$ {principalCliente ? principalCliente.valor.toFixed(2) : '0,00'}</span>
-                <ChevronRight className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`} />
+                <ChevronRight className={`w-4 h-4 shrink-0 ${isDark ? 'text-slate-300' : 'text-black'}`} />
               </div>
             </div>
 
@@ -1883,15 +1883,15 @@ export const EstatisticasAnalytics: React.FC = () => {
               className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${getCardEstilo(metricaSelecionada === 'vendas_usuario')}`}
             >
               <div className="flex items-center justify-between">
-                <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Vendas por Usuário</span>
+                <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-black'}`}>Vendas por Usuário</span>
                 <div className="w-5 h-5 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin-slow" />
               </div>
               <div className={`text-sm font-black mt-1 truncate ${isDark ? 'text-white' : 'text-black'}`}>
                 {principalUsuario?.nome || 'Nenhum usuário'}
               </div>
-              <div className={`text-[10px] mt-0.5 flex items-center justify-between ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              <div className={`text-sm font-medium mt-0.5 flex items-center justify-between ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 <span>#1 em Vendas: R$ {principalUsuario ? principalUsuario.valor.toFixed(2) : '0,00'}</span>
-                <ChevronRight className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`} />
+                <ChevronRight className={`w-4 h-4 shrink-0 ${isDark ? 'text-slate-300' : 'text-black'}`} />
               </div>
             </div>
 
@@ -1928,7 +1928,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                       className={`px-3 py-1 rounded-lg text-xs font-black uppercase transition cursor-pointer ${
                         agrupamentoSelecionado === ag
                           ? 'bg-emerald-600 text-white shadow-xs'
-                          : isDark ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-black'
+                          : isDark ? 'text-slate-300 hover:text-white' : 'text-black hover:text-emerald-700'
                       }`}
                     >
                       {ag === 'dia_semana' ? 'Dia da Semana' : ag === 'mes' ? 'Mês' : ag}
@@ -1942,9 +1942,9 @@ export const EstatisticasAnalytics: React.FC = () => {
 
               {/* Tabela Detalhada dos Dados Temporais */}
               <div className={`overflow-x-auto border-t pt-4 ${isDark ? 'border-slate-700' : 'border-slate-300'}`}>
-                <table className="w-full text-left text-xs border-collapse">
+                <table className="w-full text-left text-sm border-collapse">
                   <thead>
-                    <tr className={`border-b text-xs uppercase font-black ${isDark ? 'border-slate-700 text-slate-300 bg-[#08131A]' : 'bg-slate-100 border-slate-300 text-slate-700'}`}>
+                    <tr className={`border-b text-xs uppercase font-black ${isDark ? 'border-slate-700 text-slate-300 bg-[#08131A]' : 'bg-slate-100 border-slate-300 text-black'}`}>
                       <th className="py-2.5 px-3">
                         {agrupamentoSelecionado === 'hora' && 'Hora'}
                         {agrupamentoSelecionado === 'dia' && 'Dia'}
@@ -1971,7 +1971,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                   <tbody className={`divide-y ${isDark ? 'divide-slate-800' : 'divide-slate-200'}`}>
                     {dadosAgrupadosTemporais.filter(d => d.faturamento > 0 || d.vendas > 0).length === 0 ? (
                       <tr>
-                        <td colSpan={4} className={`text-center py-6 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        <td colSpan={4} className={`text-center py-6 text-sm font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                           Nenhuma venda registrada no período selecionado.
                         </td>
                       </tr>
@@ -1993,10 +1993,10 @@ export const EstatisticasAnalytics: React.FC = () => {
                           </td>
                           {(metricaSelecionada === 'faturamento' || metricaSelecionada === 'vendas' || metricaSelecionada === 'ticket_medio') && (
                             <>
-                              <td className={`py-2.5 px-3 text-right font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                              <td className={`py-2.5 px-3 text-right font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                 {linha.vendas}
                               </td>
-                              <td className={`py-2.5 px-3 text-right font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                              <td className={`py-2.5 px-3 text-right font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                 R$ {linha.ticketMedio.toFixed(2)}
                               </td>
                             </>
@@ -2027,7 +2027,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                 <h2 className={`text-base font-black ${isDark ? 'text-white' : 'text-black'}`}>
                   Distribuição Consolidada por Forma de Pagamento
                 </h2>
-                <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                <p className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Participação de cada forma de pagamento nas vendas do período.
                 </p>
               </div>
@@ -2037,9 +2037,9 @@ export const EstatisticasAnalytics: React.FC = () => {
 
               {/* Tabela de Formas de Pagamento */}
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
+                <table className="w-full text-left text-sm border-collapse">
                   <thead>
-                    <tr className={`border-b text-xs uppercase font-black ${isDark ? 'border-slate-700 text-slate-300 bg-[#08131A]' : 'bg-slate-100 border-slate-300 text-slate-700'}`}>
+                    <tr className={`border-b text-xs uppercase font-black ${isDark ? 'border-slate-700 text-slate-300 bg-[#08131A]' : 'bg-slate-100 border-slate-300 text-black'}`}>
                       <th className="py-2.5 px-3">Forma de Pagamento</th>
                       <th className="py-2.5 px-3 text-center">Qtd. Transações</th>
                       <th className="py-2.5 px-3 text-right">Valor Total</th>
@@ -2049,7 +2049,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                   <tbody className={`divide-y ${isDark ? 'divide-slate-800' : 'divide-slate-200'}`}>
                     {dadosMeiosPagamento.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className={`text-center py-6 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        <td colSpan={4} className={`text-center py-6 text-sm font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                           Nenhum pagamento registrado no período.
                         </td>
                       </tr>
@@ -2067,7 +2067,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                             <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.cor }} />
                             <span>{item.nome}</span>
                           </td>
-                          <td className={`py-2.5 px-3 text-center font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                          <td className={`py-2.5 px-3 text-center font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                             {item.qtd}
                           </td>
                           <td className={`py-2.5 px-3 text-right font-black ${isDark ? 'text-white' : 'text-black'}`}>
@@ -2100,13 +2100,13 @@ export const EstatisticasAnalytics: React.FC = () => {
             <div className={`rounded-3xl p-5 space-y-6 border ${isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black shadow-xs'}`}>
               <div className={`border-b pb-3 ${isDark ? 'border-slate-700' : 'border-slate-300'}`}>
                 <h2 className={`text-base font-black ${isDark ? 'text-white' : 'text-black'}`}>Ranking de Produtos</h2>
-                <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Produtos mais vendidos ordenados pelo faturamento gerado.</p>
+                <p className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>Produtos mais vendidos ordenados pelo faturamento gerado.</p>
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
+                <table className="w-full text-left text-sm border-collapse">
                   <thead>
-                    <tr className={`border-b text-xs uppercase font-black ${isDark ? 'border-slate-700 text-slate-300 bg-[#08131A]' : 'bg-slate-100 border-slate-300 text-slate-700'}`}>
+                    <tr className={`border-b text-xs uppercase font-black ${isDark ? 'border-slate-700 text-slate-300 bg-[#08131A]' : 'bg-slate-100 border-slate-300 text-black'}`}>
                       <th className="py-2.5 px-3 w-12 text-center">#</th>
                       <th className="py-2.5 px-3">Nome</th>
                       <th className="py-2.5 px-3 text-right">Valor</th>
@@ -2116,7 +2116,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                   <tbody className={`divide-y ${isDark ? 'divide-slate-800' : 'divide-slate-200'}`}>
                     {rankingProdutos.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className={`text-center py-6 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        <td colSpan={4} className={`text-center py-6 text-sm font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                           Nenhum produto vendido no período selecionado.
                         </td>
                       </tr>
@@ -2130,7 +2130,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                               : idx % 2 === 0 ? 'bg-white hover:bg-emerald-50/40' : 'bg-slate-50 hover:bg-emerald-50/40'
                           }`}
                         >
-                          <td className={`py-2.5 px-3 text-center font-black ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          <td className={`py-2.5 px-3 text-center font-black ${isDark ? 'text-slate-300' : 'text-black'}`}>
                             {idx + 1}
                           </td>
                           <td className={`py-2.5 px-3 font-black ${isDark ? 'text-white' : 'text-black'}`}>
@@ -2139,7 +2139,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                           <td className="py-2.5 px-3 text-right font-black text-emerald-500">
                             R$ {item.valor.toFixed(2)}
                           </td>
-                          <td className={`py-2.5 px-3 text-right font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                          <td className={`py-2.5 px-3 text-right font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                             {item.qtd}
                           </td>
                         </tr>
@@ -2156,13 +2156,13 @@ export const EstatisticasAnalytics: React.FC = () => {
             <div className={`rounded-3xl p-5 space-y-6 border ${isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black shadow-xs'}`}>
               <div className={`border-b pb-3 ${isDark ? 'border-slate-700' : 'border-slate-300'}`}>
                 <h2 className={`text-base font-black ${isDark ? 'text-white' : 'text-black'}`}>Ranking de Clientes</h2>
-                <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Clientes com maior volume de compras no período selecionado.</p>
+                <p className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>Clientes com maior volume de compras no período selecionado.</p>
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
+                <table className="w-full text-left text-sm border-collapse">
                   <thead>
-                    <tr className={`border-b text-xs uppercase font-black ${isDark ? 'border-slate-700 text-slate-300 bg-[#08131A]' : 'bg-slate-100 border-slate-300 text-slate-700'}`}>
+                    <tr className={`border-b text-xs uppercase font-black ${isDark ? 'border-slate-700 text-slate-300 bg-[#08131A]' : 'bg-slate-100 border-slate-300 text-black'}`}>
                       <th className="py-2.5 px-3 w-12 text-center">#</th>
                       <th className="py-2.5 px-3">Nome</th>
                       <th className="py-2.5 px-3 text-right">Valor</th>
@@ -2172,7 +2172,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                   <tbody className={`divide-y ${isDark ? 'divide-slate-800' : 'divide-slate-200'}`}>
                     {rankingClientes.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className={`text-center py-6 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        <td colSpan={4} className={`text-center py-6 text-sm font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                           Nenhum cliente registrado no período selecionado.
                         </td>
                       </tr>
@@ -2186,7 +2186,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                               : idx % 2 === 0 ? 'bg-white hover:bg-emerald-50/40' : 'bg-slate-50 hover:bg-emerald-50/40'
                           }`}
                         >
-                          <td className={`py-2.5 px-3 text-center font-black ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          <td className={`py-2.5 px-3 text-center font-black ${isDark ? 'text-slate-300' : 'text-black'}`}>
                             {idx + 1}
                           </td>
                           <td className={`py-2.5 px-3 font-black ${isDark ? 'text-white' : 'text-black'}`}>
@@ -2195,7 +2195,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                           <td className="py-2.5 px-3 text-right font-black text-emerald-500">
                             R$ {item.valor.toFixed(2)}
                           </td>
-                          <td className={`py-2.5 px-3 text-right font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                          <td className={`py-2.5 px-3 text-right font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                             {item.compras}
                           </td>
                         </tr>
@@ -2212,7 +2212,7 @@ export const EstatisticasAnalytics: React.FC = () => {
             <div className={`rounded-3xl p-5 space-y-6 border ${isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black shadow-xs'}`}>
               <div className={`border-b pb-3 ${isDark ? 'border-slate-700' : 'border-slate-300'}`}>
                 <h2 className={`text-base font-black ${isDark ? 'text-white' : 'text-black'}`}>Vendas por Usuário</h2>
-                <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Desempenho e faturamento por operador, vendedor ou catálogo online.</p>
+                <p className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>Desempenho e faturamento por operador, vendedor ou catálogo online.</p>
               </div>
 
               {/* Gráfico Donut de Usuários */}
@@ -2220,9 +2220,9 @@ export const EstatisticasAnalytics: React.FC = () => {
 
               {/* Tabela de Usuários */}
               <div className={`overflow-x-auto border-t pt-4 ${isDark ? 'border-slate-700' : 'border-slate-300'}`}>
-                <table className="w-full text-left text-xs border-collapse">
+                <table className="w-full text-left text-sm border-collapse">
                   <thead>
-                    <tr className={`border-b text-xs uppercase font-black ${isDark ? 'border-slate-700 text-slate-300 bg-[#08131A]' : 'bg-slate-100 border-slate-300 text-slate-700'}`}>
+                    <tr className={`border-b text-xs uppercase font-black ${isDark ? 'border-slate-700 text-slate-300 bg-[#08131A]' : 'bg-slate-100 border-slate-300 text-black'}`}>
                       <th className="py-2.5 px-3">Usuário</th>
                       <th className="py-2.5 px-3 text-center">Qtd.</th>
                       <th className="py-2.5 px-3 text-right">Valor</th>
@@ -2232,7 +2232,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                   <tbody className={`divide-y ${isDark ? 'divide-slate-800' : 'divide-slate-200'}`}>
                     {vendasPorUsuario.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className={`text-center py-6 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        <td colSpan={4} className={`text-center py-6 text-sm font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                           Nenhum usuário registrado com vendas.
                         </td>
                       </tr>
@@ -2250,7 +2250,7 @@ export const EstatisticasAnalytics: React.FC = () => {
                             <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.cor }} />
                             <span>{item.nome}</span>
                           </td>
-                          <td className={`py-2.5 px-3 text-center font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                          <td className={`py-2.5 px-3 text-center font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                             {item.qtd}
                           </td>
                           <td className={`py-2.5 px-3 text-right font-black ${isDark ? 'text-white' : 'text-black'}`}>

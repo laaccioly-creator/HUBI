@@ -542,8 +542,8 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
                   ? 'Compras Fiado a Vencer'
                   : 'Histórico de Compras Fiado'}
               </h3>
-              <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                Cliente: <span className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{cliente.nome}</span>
+              <p className={`text-sm leading-relaxed mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                Cliente: <span className={`font-semibold ${isDark ? 'text-white' : 'text-black'}`}>{cliente.nome}</span>
               </p>
             </div>
           </div>
@@ -568,13 +568,13 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
           <div className={`p-4 rounded-2xl space-y-1 border shadow-xs transition ${
             isDark ? 'bg-amber-950/20 border-amber-900/40' : 'bg-amber-50/50 border-amber-200/80'
           }`}>
-            <span className={`text-xs font-semibold block ${isDark ? 'text-amber-400/90' : 'text-amber-800'}`}>
+            <span className={`text-sm leading-relaxed font-semibold block ${isDark ? 'text-amber-400/90' : 'text-amber-900'}`}>
               Total Fiado (Saldo Devedor)
             </span>
             <span className={`text-xl sm:text-2xl font-black block tracking-tight ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
               R$ {Number(cliente.saldo_devedor_fiado || 0).toFixed(2)}
             </span>
-            <span className={`text-[11px] font-medium block ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            <span className={`text-sm leading-relaxed font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>
               {pedidosFiltrados.length} {pedidosFiltrados.length === 1 ? 'compra listada' : 'compras listadas'}
             </span>
           </div>
@@ -583,7 +583,7 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
             isDark ? 'bg-emerald-950/20 border-emerald-900/40' : 'bg-emerald-50/50 border-emerald-200/80'
           }`}>
             <div>
-              <span className={`text-xs font-semibold block ${isDark ? 'text-emerald-400/90' : 'text-emerald-800'}`}>
+              <span className={`text-sm leading-relaxed font-semibold block ${isDark ? 'text-emerald-400/90' : 'text-emerald-900'}`}>
                 Limite de Crédito Disponível
               </span>
               <span className={`text-xl sm:text-2xl font-black block tracking-tight ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
@@ -665,21 +665,21 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
           {carregando ? (
             <div className="py-16 text-center space-y-2">
               <Loader2 className="w-8 h-8 animate-spin text-amber-500 mx-auto" />
-              <p className={`text-xs font-bold ${isDark ? 'text-white' : 'text-black'}`}>Carregando compras no fiado...</p>
+              <p className={`text-sm leading-relaxed font-bold ${isDark ? 'text-white' : 'text-black'}`}>Carregando compras no fiado...</p>
             </div>
           ) : pedidosFiltrados.length === 0 ? (
             <div className={`py-16 text-center space-y-2 rounded-2xl p-8 shadow-xs ${
               isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
             }`}>
               <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
-              <h4 className={`text-sm font-black ${isDark ? 'text-white' : 'text-black'}`}>
+              <h4 className={`text-base font-black ${isDark ? 'text-white' : 'text-black'}`}>
                 {filtroStatus === 'vencidos'
                   ? 'Nenhuma compra vencida!'
                   : filtroStatus === 'a_vencer'
                   ? 'Nenhuma compra a vencer!'
                   : 'Nenhum fiado pendente!'}
               </h4>
-              <p className={`text-xs max-w-sm mx-auto ${isDark ? 'text-white font-semibold' : 'text-black font-semibold'}`}>
+              <p className={`text-sm leading-relaxed max-w-sm mx-auto ${isDark ? 'text-slate-200 font-semibold' : 'text-black font-semibold'}`}>
                 {filtroStatus === 'vencidos'
                   ? 'Todas as compras deste cliente estão com o pagamento em dia.'
                   : filtroStatus === 'a_vencer'
@@ -724,7 +724,7 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
                           </span>
                         )}
                       </div>
-                      <div className={`flex items-center gap-3 text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      <div className={`flex items-center gap-3 text-sm leading-relaxed mt-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5" />
                           Compra: {formatarData(pedido.data_venda)}
@@ -748,19 +748,19 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
                     isDark ? 'bg-slate-950/60 border-slate-800/80' : 'bg-slate-50 border-slate-200/70'
                   }`}>
                     <div>
-                      <span className={`text-[10px] block font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Total Compra</span>
-                      <span className={`text-xs font-black ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                      <span className={`text-xs block font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>Total Compra</span>
+                      <span className={`text-xs font-black ${isDark ? 'text-slate-100' : 'text-black'}`}>
                         R$ {Number(pedido.valor_total).toFixed(2)}
                       </span>
                     </div>
                     <div>
-                      <span className={`text-[10px] block font-semibold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>Valor Pago</span>
+                      <span className={`text-xs block font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>Valor Pago</span>
                       <span className={`text-xs font-black ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
                         R$ {Number(pedido.valor_pago || 0).toFixed(2)}
                       </span>
                     </div>
                     <div>
-                      <span className={`text-[10px] block font-semibold ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>Valor Fiado</span>
+                      <span className={`text-xs block font-bold ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>Valor Fiado</span>
                       <span className={`text-xs font-black ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
                         R$ {saldoPed.toFixed(2)}
                       </span>
@@ -773,12 +773,12 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
                       <button
                         type="button"
                         onClick={() => alternarExpansaoItens(pedido.id)}
-                        className={`w-full flex items-center justify-between text-xs font-bold transition py-1 cursor-pointer ${
-                          isDark ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                        className={`w-full flex items-center justify-between text-sm leading-relaxed font-bold transition py-1 cursor-pointer ${
+                          isDark ? 'text-slate-200 hover:text-white' : 'text-black hover:text-emerald-700'
                         }`}
                       >
                         <span className="flex items-center gap-1.5">
-                          <Package className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
+                          <Package className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-black'}`} />
                           <span>{pedido.itens.length} {pedido.itens.length === 1 ? 'produto nesta compra' : 'produtos nesta compra'}</span>
                         </span>
                         {expandido ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -791,18 +791,18 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
                             : 'bg-slate-50 border-slate-200/70 divide-slate-200/60'
                         }`}>
                           {pedido.itens.map((item: any, itIdx: number) => (
-                            <div key={item.id || itIdx} className="flex items-center justify-between gap-3 text-xs pt-1.5 first:pt-0">
+                            <div key={item.id || itIdx} className="flex items-center justify-between gap-3 text-sm leading-relaxed pt-1.5 first:pt-0">
                               <div className="truncate min-w-0 flex-1" title={item.nome_produto}>
-                                <span className={`font-bold block truncate ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                                <span className={`font-bold block truncate ${isDark ? 'text-slate-100' : 'text-black'}`}>
                                   {item.quantidade}x {item.nome_produto}
                                 </span>
                                 {item.rotulo_variacao && (
-                                  <span className={`text-[10px] block font-medium truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                  <span className={`text-sm leading-relaxed block font-medium truncate ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                     Var: {item.rotulo_variacao}
                                   </span>
                                 )}
                               </div>
-                              <span className={`font-black shrink-0 text-right ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                              <span className={`font-black shrink-0 text-right ${isDark ? 'text-slate-100' : 'text-black'}`}>
                                 R$ {Number(item.subtotal || item.quantidade * item.preco_venda_unitario).toFixed(2)}
                               </span>
                             </div>
@@ -874,7 +874,7 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
             <div className={`p-4 rounded-2xl text-center space-y-1 border shadow-xs ${
               isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200'
             }`}>
-              <span className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-black'}`}>
+              <span className={`text-sm leading-relaxed font-bold block ${isDark ? 'text-slate-200' : 'text-black'}`}>
                 {pedidoSelecionadoReceber
                   ? `Receber Pedido #${pedidoSelecionadoReceber.numero_pedido || pedidoSelecionadoReceber.id.slice(0, 8)}`
                   : 'Recebimento de Fiado (Saldo do Cliente)'}
@@ -882,18 +882,18 @@ export const ModalHistoricoFiadoCliente: React.FC<ModalHistoricoFiadoClienteProp
               <span className={`text-3xl font-black block ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
                 R$ {valorTotalReceber.toFixed(2)}
               </span>
-              <span className={`text-[11px] block ${isDark ? 'text-white' : 'text-black font-semibold'}`}>
+              <span className={`text-sm leading-relaxed block ${isDark ? 'text-slate-200' : 'text-black font-semibold'}`}>
                 Cliente: <span className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>{cliente.nome}</span>
               </span>
             </div>
 
             {/* Linhas de Multi-Pagamento */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className={`text-xs font-black ${isDark ? 'text-white' : 'text-black'}`}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className={`text-sm leading-relaxed font-black ${isDark ? 'text-white' : 'text-black'}`}>
                   Meios de Pagamento ({linhasRecebimento.length}):
                 </span>
-                <span className={`text-[11px] font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+                <span className={`text-sm leading-relaxed font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>
                   Permite mais de um meio (Dinheiro, Pix, Cartão)
                 </span>
               </div>

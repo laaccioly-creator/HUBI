@@ -1736,7 +1736,7 @@ export const FinancasCaixa: React.FC = () => {
                   <DollarSign className="w-5 h-5 text-emerald-500" />
                   <span>Controle de Caixa & Sessões Transacionais</span>
                 </h1>
-                <p className={`text-xs mt-0.5 font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                <p className={`text-sm leading-relaxed mt-1 font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Ciclo de vida por turnos contínuos (sessao_caixa_id), suprimentos, sangrias, despesas e conferência cega.
                 </p>
               </div>
@@ -1750,7 +1750,7 @@ export const FinancasCaixa: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setModalSuprimento(true)}
-                        className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
+                        className={`px-3.5 py-2 rounded-xl text-sm flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                         title="Adicionar Troco Extra na Gaveta"
                       >
                         <ArrowDown className="w-4 h-4" />
@@ -1760,7 +1760,7 @@ export const FinancasCaixa: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setModalSangria(true)}
-                        className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
+                        className={`px-3.5 py-2 rounded-xl text-sm flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                         title="Retirar Dinheiro para o Cofre"
                       >
                         <ArrowUp className="w-4 h-4" />
@@ -1770,7 +1770,7 @@ export const FinancasCaixa: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setModalDespesaRapida(true)}
-                        className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
+                        className={`px-3.5 py-2 rounded-xl text-sm flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                         title="Despesa Paga com Dinheiro da Gaveta"
                       >
                         <Banknote className="w-4 h-4" />
@@ -1782,7 +1782,7 @@ export const FinancasCaixa: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setModalFechamentoCego(true)}
-                    className={`px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
+                    className={`px-4 py-2 rounded-xl text-sm flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                   >
                     <Lock className="w-4 h-4" />
                     <span>Fechar Caixa</span>
@@ -1792,7 +1792,7 @@ export const FinancasCaixa: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalAberturaCaixa(true)}
-                  className={`px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
+                  className={`px-4 py-2 rounded-xl text-sm flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                 >
                   <Unlock className="w-4 h-4" />
                   <span>Abrir Caixa</span>
@@ -1812,20 +1812,20 @@ export const FinancasCaixa: React.FC = () => {
                 <span className={`text-sm font-bold flex items-center gap-1.5 truncate ${isDark ? 'text-white' : 'text-black'}`}>
                   <ArrowUpRight className="w-4 h-4 text-emerald-500 shrink-0" /> Entradas Gerais
                 </span>
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     type="button"
                     onClick={handleExportarEntradas}
                     title="Exportar Entradas Gerais para Excel (.xlsx)"
-                    className={`px-1.5 py-0.5 rounded-lg text-[10px] transition cursor-pointer flex items-center gap-1 shadow-xs ${classeMiniBotaoNeutroClaro}`}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-xs ${classeMiniBotaoNeutroClaro}`}
                   >
-                    <FileSpreadsheet className="w-3 h-3" />
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
                     <span>Excel</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setModalDetalhesMetrica('entradas')}
-                    className={`px-2 py-0.5 rounded-lg text-[10px] transition cursor-pointer shadow-xs ${classeMiniBotaoNeutroClaro}`}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer shadow-xs ${classeMiniBotaoNeutroClaro}`}
                   >
                     Detalhar
                   </button>
@@ -1844,22 +1844,22 @@ export const FinancasCaixa: React.FC = () => {
                 <span className={`text-sm font-bold flex items-center gap-1.5 truncate ${isDark ? 'text-white' : 'text-black'}`}>
                   <ArrowDownRight className="w-4 h-4 text-rose-500 shrink-0" /> Despesas Gerais
                 </span>
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
                   {permissions.ehAdmin && (
                     <button
                       type="button"
                       onClick={abrirModalNovaDespesa}
                       title="Lançar Nova Despesa"
-                      className={`px-1.5 py-0.5 rounded-lg text-[10px] transition cursor-pointer flex items-center gap-0.5 shadow-xs ${classeMiniBotaoNeutroClaro}`}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-0.5 shadow-xs ${classeMiniBotaoNeutroClaro}`}
                     >
-                      <Plus className="w-3 h-3" />
+                      <Plus className="w-3.5 h-3.5" />
                       <span>Nova</span>
                     </button>
                   )}
                   <button
                     type="button"
                     onClick={() => setModalDetalhesMetrica('saidas')}
-                    className={`px-2 py-0.5 rounded-lg text-[10px] transition cursor-pointer shadow-xs ${classeMiniBotaoNeutroClaro}`}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer shadow-xs ${classeMiniBotaoNeutroClaro}`}
                   >
                     Detalhar
                   </button>
@@ -1878,22 +1878,22 @@ export const FinancasCaixa: React.FC = () => {
                 <span className={`text-sm font-bold flex items-center gap-1.5 truncate ${isDark ? 'text-white' : 'text-black'}`}>
                   <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" /> A Pagar
                 </span>
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
                   {permissions.ehAdmin && (
                     <button
                       type="button"
                       onClick={abrirModalNovaContaPagar}
                       title="Lançar Nova Conta a Pagar"
-                      className={`px-1.5 py-0.5 rounded-lg text-[10px] transition cursor-pointer flex items-center gap-0.5 shadow-xs ${classeMiniBotaoNeutroClaro}`}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-0.5 shadow-xs ${classeMiniBotaoNeutroClaro}`}
                     >
-                      <Plus className="w-3 h-3" />
+                      <Plus className="w-3.5 h-3.5" />
                       <span>Nova</span>
                     </button>
                   )}
                   <button
                     type="button"
                     onClick={() => setModalDetalhesMetrica('pagar')}
-                    className={`px-2 py-0.5 rounded-lg text-[10px] transition cursor-pointer shadow-xs ${classeMiniBotaoNeutroClaro}`}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer shadow-xs ${classeMiniBotaoNeutroClaro}`}
                   >
                     Detalhar
                   </button>
@@ -1911,14 +1911,14 @@ export const FinancasCaixa: React.FC = () => {
               <div className="w-full flex items-center justify-between gap-1">
                 <div className="text-left">
                   <span className={`text-sm font-bold truncate block ${isDark ? 'text-white' : 'text-black'}`}>Resultado Acumulado</span>
-                  <span className="text-[10px] text-emerald-500 font-bold block">
+                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold block">
                     {filtroPeriodoFluxo === 'sessao_atual' ? '• Turno Atual' : filtroPeriodoFluxo === 'hoje' ? '• Hoje' : filtroPeriodoFluxo === 'mes' ? '• Este Mês' : '• Todos'}
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setModalDetalhesMetrica('lucro')}
-                  className={`px-2 py-0.5 rounded-lg text-[10px] transition cursor-pointer shrink-0 shadow-xs ${classeMiniBotaoNeutroClaro}`}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer shrink-0 shadow-xs ${classeMiniBotaoNeutroClaro}`}
                 >
                   Detalhar
                 </button>
@@ -1934,7 +1934,7 @@ export const FinancasCaixa: React.FC = () => {
             <button
               type="button"
               onClick={() => setAbaAtiva('caixa_atual')}
-              className={`pb-2 px-3 text-xs transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+              className={`pb-2 px-3 text-sm transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
                 abaAtiva === 'caixa_atual'
                   ? 'border-b-2 border-emerald-500 text-emerald-500 font-black'
                   : isDark ? 'text-white hover:text-emerald-400 font-bold' : 'text-black hover:text-emerald-600 font-bold'
@@ -1946,7 +1946,7 @@ export const FinancasCaixa: React.FC = () => {
             <button
               type="button"
               onClick={() => setAbaAtiva('fluxo')}
-              className={`pb-2 px-3 text-xs transition whitespace-nowrap cursor-pointer ${
+              className={`pb-2 px-3 text-sm transition whitespace-nowrap cursor-pointer ${
                 abaAtiva === 'fluxo'
                   ? 'border-b-2 border-emerald-500 text-emerald-500 font-black'
                   : isDark ? 'text-white hover:text-emerald-400 font-bold' : 'text-black hover:text-emerald-600 font-bold'
@@ -1957,7 +1957,7 @@ export const FinancasCaixa: React.FC = () => {
             <button
               type="button"
               onClick={() => setAbaAtiva('pagar')}
-              className={`pb-2 px-3 text-xs transition whitespace-nowrap cursor-pointer ${
+              className={`pb-2 px-3 text-sm transition whitespace-nowrap cursor-pointer ${
                 abaAtiva === 'pagar'
                   ? 'border-b-2 border-emerald-500 text-emerald-500 font-black'
                   : isDark ? 'text-white hover:text-emerald-400 font-bold' : 'text-black hover:text-emerald-600 font-bold'
@@ -1968,7 +1968,7 @@ export const FinancasCaixa: React.FC = () => {
             <button
               type="button"
               onClick={() => setAbaAtiva('historico_caixas')}
-              className={`pb-2 px-3 text-xs transition whitespace-nowrap cursor-pointer ${
+              className={`pb-2 px-3 text-sm transition whitespace-nowrap cursor-pointer ${
                 abaAtiva === 'historico_caixas'
                   ? 'border-b-2 border-emerald-500 text-emerald-500 font-black'
                   : isDark ? 'text-white hover:text-emerald-400 font-bold' : 'text-black hover:text-emerald-600 font-bold'
@@ -2096,10 +2096,10 @@ export const FinancasCaixa: React.FC = () => {
                       isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-slate-300 text-black'
                     }`}>
                       <Layers className={`w-8 h-8 mx-auto mb-2 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
-                      <p className={`text-xs font-black ${isDark ? 'text-white' : 'text-black'}`}>
+                      <p className={`text-base font-black ${isDark ? 'text-white' : 'text-black'}`}>
                         {abaAtiva === 'pagar' ? 'Nenhuma conta a pagar pendente.' : 'Nenhuma movimentação registrada no período selecionado.'}
                       </p>
-                      <p className={`text-[11px] mt-1 max-w-md mx-auto font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                      <p className={`text-sm leading-relaxed mt-1 max-w-md mx-auto font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                         {abaAtiva === 'pagar'
                           ? 'Todas as contas e despesas operacionais estão em dia.'
                           : sessaoAtiva && filtroPeriodoFluxo === 'sessao_atual'
@@ -2113,7 +2113,7 @@ export const FinancasCaixa: React.FC = () => {
                       .map((tr) => (
                         <div
                           key={tr.id}
-                          className={`rounded-2xl p-3.5 flex items-center justify-between gap-4 transition shadow-xs ${
+                          className={`rounded-2xl p-4 flex items-center justify-between gap-4 transition shadow-xs ${
                             isDark
                               ? 'bg-[#000000] border border-slate-700 hover:border-slate-600'
                               : 'bg-white border-2 border-slate-300 hover:border-slate-400'
@@ -2121,7 +2121,7 @@ export const FinancasCaixa: React.FC = () => {
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             <div
-                              className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                              className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                                 tr.tipo === 'ENTRADA' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'
                               }`}
                             >
@@ -2129,13 +2129,13 @@ export const FinancasCaixa: React.FC = () => {
                             </div>
 
                             <div className="min-w-0">
-                              <h4 className={`text-xs font-black truncate ${isDark ? 'text-white' : 'text-black'}`}>{tr.descricao}</h4>
-                              <div className={`flex items-center gap-2 text-[10px] mt-0.5 flex-wrap ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                              <h4 className={`text-base font-black truncate ${isDark ? 'text-white' : 'text-black'}`}>{tr.descricao}</h4>
+                              <div className={`flex items-center gap-2 text-sm mt-1 flex-wrap ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                 <span className={`font-bold ${isDark ? 'text-white' : 'text-black'}`}>{tr.categoria}</span>
                                 {tr.formaPagamento && (
                                   <>
                                     <span>•</span>
-                                    <span className={`px-2 py-0.5 rounded uppercase font-black text-[9px] ${
+                                    <span className={`px-2 py-0.5 rounded uppercase font-black text-xs ${
                                       isDark ? 'bg-[#08131A] text-white border border-slate-700' : 'bg-slate-100 text-black border border-slate-300'
                                     }`}>
                                       {tr.formaPagamento}
@@ -2145,8 +2145,8 @@ export const FinancasCaixa: React.FC = () => {
                                 <span>•</span>
                                 <span className="font-medium">{new Date(tr.data).toLocaleDateString('pt-BR')}</span>
                                 {tr.ehRecorrente && (
-                                  <span className="text-emerald-500 font-bold flex items-center gap-0.5">
-                                    <Repeat className="w-2.5 h-2.5" /> Mensal
+                                  <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                                    <Repeat className="w-3.5 h-3.5" /> Mensal
                                   </span>
                                 )}
                               </div>
@@ -2155,10 +2155,10 @@ export const FinancasCaixa: React.FC = () => {
 
                           <div className="flex items-center gap-3 shrink-0">
                             <div className="text-right">
-                              <span className={`font-black text-sm block ${isDark ? 'text-white' : 'text-black'}`}>
+                              <span className={`font-black text-base block ${isDark ? 'text-white' : 'text-black'}`}>
                                 {tr.tipo === 'ENTRADA' ? '+' : '-'} {formatarMoeda(tr.valor)}
                               </span>
-                              <span className={`text-[10px] uppercase font-black ${tr.status === 'pendente' ? 'text-amber-500' : (isDark ? 'text-emerald-400' : 'text-emerald-600')}`}>
+                              <span className={`text-xs uppercase font-black ${tr.status === 'pendente' ? 'text-amber-600 dark:text-amber-400' : (isDark ? 'text-emerald-400' : 'text-emerald-700')}`}>
                                 {tr.status}
                               </span>
                             </div>
@@ -2249,16 +2249,16 @@ export const FinancasCaixa: React.FC = () => {
                           <div>
                             <div className="flex items-center gap-2">
                               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                              <span className="font-black text-xs text-emerald-500 uppercase tracking-wider">
+                              <span className="font-black text-sm text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
                                 Sessão Transacional Aberta • Terminal {sessaoAtiva.terminal_id}
                               </span>
                             </div>
                             <h3 className={`text-xl font-black mt-1 ${isDark ? 'text-white' : 'text-black'}`}>
                               Operador: {sessaoAtiva.usuario_abertura?.nome_completo || 'Operador'}
                             </h3>
-                            <div className={`flex items-center gap-3 text-xs mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
-                              <span className="flex items-center gap-1 font-medium">
-                                <Clock className="w-3.5 h-3.5 text-emerald-500" />
+                            <div className={`flex items-center gap-3 text-sm mt-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                              <span className="flex items-center gap-1.5 font-medium">
+                                <Clock className="w-4 h-4 text-emerald-500" />
                                 Aberto às {new Date(sessaoAtiva.aberto_em).toLocaleTimeString('pt-BR')} ({new Date(sessaoAtiva.aberto_em).toLocaleDateString('pt-BR')})
                               </span>
                               <span>•</span>
@@ -2271,7 +2271,7 @@ export const FinancasCaixa: React.FC = () => {
                           <div className={`rounded-2xl px-5 py-3 text-right shrink-0 ${
                             isDark ? 'bg-[#08131A] border border-slate-700' : 'bg-slate-50 border border-slate-200'
                           }`}>
-                            <span className={`text-[11px] block font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Fundo de Troco Inicial</span>
+                            <span className={`text-sm block font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>Fundo de Troco Inicial</span>
                             <span className={`text-lg font-black ${isDark ? 'text-white' : 'text-black'}`}>
                               {formatarMoeda(resumoSessao?.fundoInicial ?? Number(sessaoAtiva.fundo_inicial || 0))}
                             </span>
@@ -2284,12 +2284,12 @@ export const FinancasCaixa: React.FC = () => {
                         }`}>
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div>
-                              <span className={`text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${
+                              <span className={`text-base font-black uppercase tracking-wider flex items-center gap-1.5 ${
                                 isDark ? 'text-white' : 'text-black'
                               }`}>
-                                <Banknote className="w-4 h-4 text-emerald-500" /> Saldo Esperado em Dinheiro na Gaveta Física
+                                <Banknote className="w-5 h-5 text-emerald-500" /> Saldo Esperado em Dinheiro na Gaveta Física
                               </span>
-                              <p className={`text-[11px] mt-0.5 font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                              <p className={`text-sm leading-relaxed mt-0.5 font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                 Valor exato que deve constar em notas e moedas neste momento.
                               </p>
                             </div>
@@ -2299,38 +2299,38 @@ export const FinancasCaixa: React.FC = () => {
                           </div>
 
                           {/* FÓRMULA DE COMPOSIÇÃO FÍSICA DETALHADA */}
-                          <div className={`grid grid-cols-2 sm:grid-cols-5 gap-2 pt-2 border-t text-[11px] ${
+                          <div className={`grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-3 border-t ${
                             isDark ? 'border-slate-700' : 'border-slate-200'
                           }`}>
-                            <div className={`p-2 rounded-xl border ${
+                            <div className={`p-3 rounded-xl border ${
                               isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                             }`}>
-                              <span className={`block text-[10px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Fundo Inicial</span>
-                              <span className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>+ {formatarMoeda(resumoSessao?.fundoInicial ?? Number(sessaoAtiva.fundo_inicial || 0))}</span>
+                              <span className={`block text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>Fundo Inicial</span>
+                              <span className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>+ {formatarMoeda(resumoSessao?.fundoInicial ?? Number(sessaoAtiva.fundo_inicial || 0))}</span>
                             </div>
-                            <div className={`p-2 rounded-xl border ${
+                            <div className={`p-3 rounded-xl border ${
                               isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                             }`}>
-                              <span className={`block text-[10px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Vendas Dinheiro</span>
-                              <span className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>+ {formatarMoeda(resumoSessao.totaisPorMetodo.dinheiro)}</span>
+                              <span className={`block text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>Vendas Dinheiro</span>
+                              <span className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>+ {formatarMoeda(resumoSessao.totaisPorMetodo.dinheiro)}</span>
                             </div>
-                            <div className={`p-2 rounded-xl border ${
+                            <div className={`p-3 rounded-xl border ${
                               isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                             }`}>
-                              <span className={`block text-[10px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Suprimentos</span>
-                              <span className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>+ {formatarMoeda(resumoSessao.totalSuprimentos)}</span>
+                              <span className={`block text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>Suprimentos</span>
+                              <span className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>+ {formatarMoeda(resumoSessao.totalSuprimentos)}</span>
                             </div>
-                            <div className={`p-2 rounded-xl border ${
+                            <div className={`p-3 rounded-xl border ${
                               isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                             }`}>
-                              <span className={`block text-[10px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Sangrias (Cofre)</span>
-                              <span className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>- {formatarMoeda(resumoSessao.totalSangrias)}</span>
+                              <span className={`block text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>Sangrias (Cofre)</span>
+                              <span className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>- {formatarMoeda(resumoSessao.totalSangrias)}</span>
                             </div>
-                            <div className={`p-2 rounded-xl border ${
+                            <div className={`p-3 rounded-xl border ${
                               isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                             }`}>
-                              <span className={`block text-[10px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>Despesas Gaveta</span>
-                              <span className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>- {formatarMoeda(resumoSessao.totalDespesas)}</span>
+                              <span className={`block text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>Despesas Gaveta</span>
+                              <span className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>- {formatarMoeda(resumoSessao.totalDespesas)}</span>
                             </div>
                           </div>
                         </div>
@@ -2338,91 +2338,91 @@ export const FinancasCaixa: React.FC = () => {
                         {/* VENDAS DO TURNO POR MÉTODO DE PAGAMENTO */}
                         <div>
                           <div className="flex items-center justify-between mb-3">
-                            <h4 className={`font-black text-xs uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}>
+                            <h4 className={`font-black text-sm uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}>
                               Vendas do Turno por Meio de Pagamento
                             </h4>
-                            <span className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                            <span className={`text-sm font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                               Total Faturado: <strong className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>{formatarMoeda(resumoSessao.faturamentoTotalVendas)}</strong>
                             </span>
                           </div>
 
                           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                             {/* Dinheiro */}
-                            <div className={`p-3.5 rounded-2xl border space-y-1 ${
+                            <div className={`p-4 sm:p-5 rounded-2xl border space-y-1.5 ${
                               isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-50 border-2 border-slate-200'
                             }`}>
                               <div className="flex items-center justify-between">
-                                <span className={`text-xs font-black ${isDark ? 'text-white' : 'text-black'}`}>Dinheiro</span>
+                                <span className={`text-sm font-black ${isDark ? 'text-white' : 'text-black'}`}>Dinheiro</span>
                                 <Banknote className="w-4 h-4 text-emerald-500" />
                               </div>
-                              <span className={`text-base font-black block ${isDark ? 'text-white' : 'text-black'}`}>
+                              <span className={`text-lg font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                                 {formatarMoeda(resumoSessao.totaisPorMetodo.dinheiro)}
                               </span>
-                              <span className={`text-[10px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                              <span className={`text-sm font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                 {resumoSessao.qtdVendasPorMetodo.dinheiro} vendas
                               </span>
                             </div>
 
                             {/* Pix */}
-                            <div className={`p-3.5 rounded-2xl border space-y-1 ${
+                            <div className={`p-4 sm:p-5 rounded-2xl border space-y-1.5 ${
                               isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-50 border-2 border-slate-200'
                             }`}>
                               <div className="flex items-center justify-between">
-                                <span className={`text-xs font-black ${isDark ? 'text-white' : 'text-black'}`}>Pix</span>
+                                <span className={`text-sm font-black ${isDark ? 'text-white' : 'text-black'}`}>Pix</span>
                                 <Zap className="w-4 h-4 text-emerald-500" />
                               </div>
-                              <span className={`text-base font-black block ${isDark ? 'text-white' : 'text-black'}`}>
+                              <span className={`text-lg font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                                 {formatarMoeda(resumoSessao.totaisPorMetodo.pix)}
                               </span>
-                              <span className={`text-[10px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                              <span className={`text-sm font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                 {resumoSessao.qtdVendasPorMetodo.pix} vendas
                               </span>
                             </div>
 
                             {/* Cartão Débito */}
-                            <div className={`p-3.5 rounded-2xl border space-y-1 ${
+                            <div className={`p-4 sm:p-5 rounded-2xl border space-y-1.5 ${
                               isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-50 border-2 border-slate-200'
                             }`}>
                               <div className="flex items-center justify-between">
-                                <span className={`text-xs font-black ${isDark ? 'text-white' : 'text-black'}`}>Cartão Débito</span>
+                                <span className={`text-sm font-black ${isDark ? 'text-white' : 'text-black'}`}>Cartão Débito</span>
                                 <CreditCard className="w-4 h-4 text-emerald-500" />
                               </div>
-                              <span className={`text-base font-black block ${isDark ? 'text-white' : 'text-black'}`}>
+                              <span className={`text-lg font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                                 {formatarMoeda(resumoSessao.totaisPorMetodo.cartao_debito)}
                               </span>
-                              <span className={`text-[10px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                              <span className={`text-sm font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                 {resumoSessao.qtdVendasPorMetodo.cartao_debito} vendas
                               </span>
                             </div>
 
                             {/* Cartão Crédito */}
-                            <div className={`p-3.5 rounded-2xl border space-y-1 ${
+                            <div className={`p-4 sm:p-5 rounded-2xl border space-y-1.5 ${
                               isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-50 border-2 border-slate-200'
                             }`}>
                               <div className="flex items-center justify-between">
-                                <span className={`text-xs font-black ${isDark ? 'text-white' : 'text-black'}`}>Cartão Crédito</span>
+                                <span className={`text-sm font-black ${isDark ? 'text-white' : 'text-black'}`}>Cartão Crédito</span>
                                 <CreditCard className="w-4 h-4 text-emerald-500" />
                               </div>
-                              <span className={`text-base font-black block ${isDark ? 'text-white' : 'text-black'}`}>
+                              <span className={`text-lg font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                                 {formatarMoeda(resumoSessao.totaisPorMetodo.cartao_credito)}
                               </span>
-                              <span className={`text-[10px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                              <span className={`text-sm font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                 {resumoSessao.qtdVendasPorMetodo.cartao_credito} vendas
                               </span>
                             </div>
 
                             {/* Outros */}
-                            <div className={`p-3.5 rounded-2xl border space-y-1 ${
+                            <div className={`p-4 sm:p-5 rounded-2xl border space-y-1.5 ${
                               isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-50 border-2 border-slate-200'
                             }`}>
                               <div className="flex items-center justify-between">
-                                <span className={`text-xs font-black ${isDark ? 'text-white' : 'text-black'}`}>Outros</span>
+                                <span className={`text-sm font-black ${isDark ? 'text-white' : 'text-black'}`}>Outros</span>
                                 <Layers className="w-4 h-4 text-emerald-500" />
                               </div>
-                              <span className={`text-base font-black block ${isDark ? 'text-white' : 'text-black'}`}>
+                              <span className={`text-lg font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                                 {formatarMoeda(resumoSessao.totaisPorMetodo.outros)}
                               </span>
-                              <span className={`text-[10px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                              <span className={`text-sm font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                 {resumoSessao.qtdVendasPorMetodo.outros} vendas
                               </span>
                             </div>
@@ -2432,7 +2432,7 @@ export const FinancasCaixa: React.FC = () => {
                         {/* LINHA DO TEMPO: MOVIMENTAÇÕES DESTA SESSÃO */}
                         <div className={`border-t pt-4 space-y-3 ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
                           <div className="flex items-center justify-between">
-                            <h4 className={`font-black text-xs uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}>
+                            <h4 className={`font-black text-sm uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}>
                               Movimentações da Sessão Ativa
                             </h4>
                             {permissions.ehAdmin && (
@@ -2464,7 +2464,7 @@ export const FinancasCaixa: React.FC = () => {
 
                           <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                             {!sessaoAtiva.movimentacoes || sessaoAtiva.movimentacoes.length === 0 ? (
-                              <p className={`text-xs py-6 text-center font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                              <p className={`text-sm leading-relaxed py-6 text-center font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                 Nenhuma movimentação registrada nesta sessão de caixa até o momento.
                               </p>
                             ) : (
@@ -2473,13 +2473,13 @@ export const FinancasCaixa: React.FC = () => {
                                 return (
                                   <div
                                     key={m.id}
-                                    className={`p-3 rounded-2xl border flex items-center justify-between text-xs ${
+                                    className={`p-3.5 rounded-2xl border flex items-center justify-between text-sm ${
                                       isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-50 border border-slate-200'
                                     }`}
                                   >
-                                    <div className="flex items-center gap-2.5">
+                                    <div className="flex items-center gap-3">
                                       <div
-                                        className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs ${
+                                        className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
                                           ehSaida
                                             ? 'bg-rose-500/10 text-rose-500'
                                             : 'bg-emerald-500/10 text-emerald-500'
@@ -2491,8 +2491,8 @@ export const FinancasCaixa: React.FC = () => {
                                         {m.tipo === 'VENDA' && <ShoppingCart className="w-4 h-4" />}
                                       </div>
                                       <div>
-                                        <span className={`font-bold block ${isDark ? 'text-white' : 'text-black'}`}>{m.descricao}</span>
-                                        <div className={`flex items-center gap-2 text-[10px] mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                                        <span className={`font-bold text-base block ${isDark ? 'text-white' : 'text-black'}`}>{m.descricao}</span>
+                                        <div className={`flex items-center gap-2 text-sm mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                           <span className="uppercase font-bold">{m.metodo_pagamento}</span>
                                           <span>•</span>
                                           <span>{new Date(m.criado_em).toLocaleTimeString('pt-BR')}</span>
@@ -2506,7 +2506,7 @@ export const FinancasCaixa: React.FC = () => {
                                       </div>
                                     </div>
 
-                                    <span className={`font-black text-sm ${ehSaida ? 'text-rose-500' : (isDark ? 'text-white' : 'text-black')}`}>
+                                    <span className={`font-black text-base ${ehSaida ? 'text-rose-600 dark:text-rose-400' : (isDark ? 'text-white' : 'text-black')}`}>
                                       {ehSaida ? '-' : '+'} {formatarMoeda(m.valor)}
                                     </span>
                                   </div>
@@ -2518,13 +2518,13 @@ export const FinancasCaixa: React.FC = () => {
 
                         {/* BOTÃO DE FECHAMENTO CEGO */}
                         <div className={`border-t pt-4 flex items-center justify-between ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
-                          <span className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                          <span className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                             Pronto para fechar o turno? Realize a contagem física cega.
                           </span>
                           <button
                             type="button"
                             onClick={() => setModalFechamentoCego(true)}
-                            className={`px-6 py-3 text-xs rounded-2xl shadow-xs transition cursor-pointer flex items-center gap-2 ${classeBotaoCtaClaro}`}
+                            className={`px-6 py-3 text-sm rounded-2xl shadow-xs transition cursor-pointer flex items-center gap-2 ${classeBotaoCtaClaro}`}
                           >
                             <Lock className="w-4 h-4" />
                             <span>Realizar Fechamento Cego de Caixa</span>
@@ -2538,22 +2538,22 @@ export const FinancasCaixa: React.FC = () => {
                       isDark ? 'bg-[#000000] border border-slate-700' : 'bg-white border-2 border-slate-300'
                     }`}>
                       <div className={`w-16 h-16 rounded-3xl flex items-center justify-center mx-auto border ${
-                        isDark ? 'bg-[#08131A] border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-900'
+                        isDark ? 'bg-[#08131A] border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-300 text-black'
                       }`}>
                         <Lock className="w-8 h-8 text-emerald-500" />
                       </div>
                       <div>
-                        <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>
+                        <h3 className={`font-black text-lg ${isDark ? 'text-white' : 'text-black'}`}>
                           Nenhum Caixa Aberto no Momento (Terminal {terminalId})
                         </h3>
-                        <p className={`text-xs max-w-sm mx-auto mt-1 font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                        <p className={`text-sm leading-relaxed max-w-md mx-auto mt-1.5 font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                           Abra o caixa informando o fundo de troco inicial para registrar vendas, sangrias, suprimentos e controlar o turno.
                         </p>
                       </div>
                       <button
                         type="button"
                         onClick={() => setModalAberturaCaixa(true)}
-                        className={`px-6 py-3 text-xs rounded-2xl shadow-xs transition cursor-pointer inline-flex items-center gap-2 ${classeBotaoCtaClaro}`}
+                        className={`px-6 py-3 text-sm rounded-2xl shadow-xs transition cursor-pointer inline-flex items-center gap-2 ${classeBotaoCtaClaro}`}
                       >
                         <Unlock className="w-4 h-4" />
                         <span>Abrir Sessão de Caixa</span>
@@ -2573,12 +2573,12 @@ export const FinancasCaixa: React.FC = () => {
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1">
                         <div>
-                          <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Data Início</label>
+                          <label className={`text-sm font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Data Início</label>
                           <input
                             type="date"
                             value={filtrosHistorico.dataInicio}
                             onChange={(e) => setFiltrosHistorico(prev => ({ ...prev, dataInicio: e.target.value }))}
-                            className={`w-full rounded-xl px-2.5 py-1.5 text-xs font-bold focus:outline-none transition ${
+                            className={`w-full rounded-xl px-2.5 py-1.5 text-sm font-bold focus:outline-none transition ${
                               isDark
                                 ? 'bg-[#08131A] border border-slate-700 text-white focus:border-emerald-500'
                                 : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
@@ -2586,12 +2586,12 @@ export const FinancasCaixa: React.FC = () => {
                           />
                         </div>
                         <div>
-                          <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Data Fim</label>
+                          <label className={`text-sm font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Data Fim</label>
                           <input
                             type="date"
                             value={filtrosHistorico.dataFim}
                             onChange={(e) => setFiltrosHistorico(prev => ({ ...prev, dataFim: e.target.value }))}
-                            className={`w-full rounded-xl px-2.5 py-1.5 text-xs font-bold focus:outline-none transition ${
+                            className={`w-full rounded-xl px-2.5 py-1.5 text-sm font-bold focus:outline-none transition ${
                               isDark
                                 ? 'bg-[#08131A] border border-slate-700 text-white focus:border-emerald-500'
                                 : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
@@ -2599,11 +2599,11 @@ export const FinancasCaixa: React.FC = () => {
                           />
                         </div>
                         <div>
-                          <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Operador</label>
+                          <label className={`text-sm font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Operador</label>
                           <select
                             value={filtrosHistorico.usuarioId}
                             onChange={(e) => setFiltrosHistorico(prev => ({ ...prev, usuarioId: e.target.value }))}
-                            className={`w-full rounded-xl px-2.5 py-1.5 text-xs font-bold focus:outline-none transition cursor-pointer ${
+                            className={`w-full rounded-xl px-2.5 py-1.5 text-sm font-bold focus:outline-none transition cursor-pointer ${
                               isDark
                                 ? 'bg-[#08131A] border border-slate-700 text-white focus:border-emerald-500'
                                 : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
@@ -2616,11 +2616,11 @@ export const FinancasCaixa: React.FC = () => {
                           </select>
                         </div>
                         <div>
-                          <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Diferença</label>
+                          <label className={`text-sm font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>Diferença</label>
                           <select
                             value={filtrosHistorico.statusDiferenca}
                             onChange={(e) => setFiltrosHistorico(prev => ({ ...prev, statusDiferenca: e.target.value as any }))}
-                            className={`w-full rounded-xl px-2.5 py-1.5 text-xs font-bold focus:outline-none transition cursor-pointer ${
+                            className={`w-full rounded-xl px-2.5 py-1.5 text-sm font-bold focus:outline-none transition cursor-pointer ${
                               isDark
                                 ? 'bg-[#08131A] border border-slate-700 text-white focus:border-emerald-500'
                                 : 'bg-white border-2 border-slate-300 text-black focus:border-emerald-600'
@@ -2641,7 +2641,7 @@ export const FinancasCaixa: React.FC = () => {
                             if (filtrosHistorico.dataFim) setPeriodoRelatorioFim(filtrosHistorico.dataFim);
                             setModalRelatorioConsolidado(true);
                           }}
-                          className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
+                          className={`px-3.5 py-2 rounded-xl text-sm flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                         >
                           <FileText className="w-4 h-4" />
                           <span>Meios de Pagamento</span>
@@ -2653,7 +2653,7 @@ export const FinancasCaixa: React.FC = () => {
                             if (filtrosHistorico.dataFim) setPeriodoRelatorioFim(filtrosHistorico.dataFim);
                             setModalRelatorioSangriasDespesas(true);
                           }}
-                          className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
+                          className={`px-3.5 py-2 rounded-xl text-sm flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                         >
                           <SlidersHorizontal className="w-4 h-4" />
                           <span>Sangrias & Despesas</span>
@@ -2664,8 +2664,8 @@ export const FinancasCaixa: React.FC = () => {
 
                   {/* LISTAGEM DE SESSÕES */}
                   {historicoSessoes.length === 0 ? (
-                    <div className={`text-center py-16 text-sm rounded-3xl border font-medium ${
-                      isDark ? 'bg-[#000000] border-slate-700 text-slate-300' : 'bg-white border-2 border-slate-300 text-slate-900'
+                    <div className={`text-center py-16 text-sm leading-relaxed rounded-3xl border font-medium ${
+                      isDark ? 'bg-[#000000] border-slate-700 text-slate-300' : 'bg-white border-2 border-slate-300 text-black'
                     }`}>
                       Nenhuma sessão de caixa encontrada para os filtros selecionados.
                     </div>
@@ -2687,11 +2687,11 @@ export const FinancasCaixa: React.FC = () => {
                         >
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>
+                              <span className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>
                                 Terminal {cx.terminal_id}
                               </span>
                               <span
-                                className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase ${
+                                className={`text-xs font-black px-2.5 py-0.5 rounded-full uppercase ${
                                   cx.status === 'ABERTO'
                                     ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
                                     : isDark ? 'bg-[#08131A] text-slate-300 border border-slate-700' : 'bg-slate-100 text-black border border-slate-300'
@@ -2701,12 +2701,12 @@ export const FinancasCaixa: React.FC = () => {
                               </span>
                               {cx.status === 'FECHADO' && (
                                 <span
-                                  className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                                  className={`text-xs font-black px-2.5 py-0.5 rounded-full ${
                                     isExato
-                                      ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
                                       : isSobra
-                                      ? 'bg-cyan-500/10 text-cyan-500 border border-cyan-500/20'
-                                      : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
+                                      ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20'
+                                      : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
                                   }`}
                                 >
                                   {isExato
@@ -2718,7 +2718,7 @@ export const FinancasCaixa: React.FC = () => {
                               )}
                             </div>
 
-                            <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                            <p className={`text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-black'}`}>
                               Aberto em: <span className={`font-bold ${isDark ? 'text-white' : 'text-black'}`}>{new Date(cx.aberto_em).toLocaleString('pt-BR')}</span> por {cx.usuario_abertura?.nome_completo || 'Operador'}
                               {cx.fechado_em && (
                                 <>
@@ -2727,7 +2727,7 @@ export const FinancasCaixa: React.FC = () => {
                               )}
                             </p>
 
-                            <div className={`flex items-center gap-3 text-[11px] pt-1 flex-wrap ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                            <div className={`flex items-center gap-3 text-sm leading-relaxed pt-1 flex-wrap ${isDark ? 'text-slate-300' : 'text-black'}`}>
                               <span>Faturamento Total: <strong className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>{formatarMoeda(cx.faturamento_total || 0)}</strong></span>
                               <span>•</span>
                               <span>Esperado Dinheiro: <strong className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>{formatarMoeda(cx.saldo_dinheiro_calculado || 0)}</strong></span>
@@ -2744,7 +2744,7 @@ export const FinancasCaixa: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleAbrirDrillDown(cx)}
-                              className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
+                              className={`px-3.5 py-2 rounded-xl text-sm flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                             >
                               <Search className="w-4 h-4" />
                               <span>Inspecionar (Drill-Down)</span>
@@ -4347,18 +4347,18 @@ export const FinancasCaixa: React.FC = () => {
         {modalDetalhesMetrica && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
             <div
-              className={`rounded-3xl w-full max-w-xl p-6 space-y-4 shadow-2xl my-8 animate-in zoom-in-95 duration-150 ${
+              className={`rounded-3xl w-full max-w-2xl p-6 sm:p-7 space-y-5 shadow-2xl my-8 animate-in zoom-in-95 duration-150 ${
                 isDark
                   ? 'bg-[#08131A] text-white border-2 border-slate-400'
                   : 'bg-slate-100 text-black border-2 border-slate-300'
               }`}
             >
               <div
-                className={`flex items-center justify-between border-b pb-3 ${
+                className={`flex items-center justify-between border-b pb-3.5 ${
                   isDark ? 'border-slate-700' : 'border-slate-300'
                 }`}
               >
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-3">
                   <div
                     className={`w-10 h-10 rounded-2xl flex items-center justify-center border font-bold ${
                       isDark
@@ -4369,13 +4369,13 @@ export const FinancasCaixa: React.FC = () => {
                     <Info className="w-5 h-5 text-emerald-500" />
                   </div>
                   <div>
-                    <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>
+                    <h3 className={`font-black text-lg sm:text-xl ${isDark ? 'text-white' : 'text-black'}`}>
                       {modalDetalhesMetrica === 'entradas' && 'Detalhamento de Entradas (Receitas)'}
                       {modalDetalhesMetrica === 'saidas' && 'Detalhamento de Despesas'}
                       {modalDetalhesMetrica === 'pagar' && 'Detalhamento de Contas a Pagar'}
                       {modalDetalhesMetrica === 'lucro' && 'Resultado Acumulado'}
                     </h3>
-                    <span className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                    <span className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                       Composição detalhada dos valores apurados
                     </span>
                   </div>
@@ -4392,50 +4392,50 @@ export const FinancasCaixa: React.FC = () => {
 
               <div className="space-y-4">
                 {modalDetalhesMetrica === 'entradas' && (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     <div
-                      className={`p-4 rounded-2xl border flex justify-between items-center gap-3 ${
+                      className={`p-5 rounded-2xl border flex justify-between items-center gap-3 ${
                         isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                       }`}
                     >
                       <div>
-                        <span className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                        <span className={`text-sm font-bold block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                           Total de Entradas Recebidas:
                         </span>
-                        <span className={`text-xl font-black ${isDark ? 'text-white' : 'text-black'}`}>
+                        <span className={`text-2xl font-black ${isDark ? 'text-white' : 'text-black'}`}>
                           R$ {totalReceitas.toFixed(2)}
                         </span>
                       </div>
                       <button
                         type="button"
                         onClick={handleExportarEntradas}
-                        className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
+                        className={`px-4 py-2.5 rounded-xl text-sm flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                       >
                         <FileSpreadsheet className="w-4 h-4" />
                         <span>Exportar Excel</span>
                       </button>
                     </div>
-                    <div className="space-y-2">
-                      <span className={`text-xs font-black block ${isDark ? 'text-white' : 'text-black'}`}>
+                    <div className="space-y-2.5">
+                      <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                         Últimas Transações de Entrada:
                       </span>
-                      <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+                      <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
                         {listaTransacoesUnificada.filter(t => t.tipo === 'ENTRADA').slice(0, 20).map((t) => (
                           <div
                             key={t.id}
-                            className={`p-2.5 rounded-xl border flex justify-between items-center text-xs shadow-2xs ${
+                            className={`p-3.5 rounded-xl border flex justify-between items-center gap-3 text-base shadow-2xs ${
                               isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                             }`}
                           >
-                            <div>
-                              <span className={`font-black block truncate ${isDark ? 'text-white' : 'text-black'}`}>
+                            <div className="min-w-0 flex-1">
+                              <span className={`font-black text-base block truncate ${isDark ? 'text-white' : 'text-black'}`}>
                                 {t.descricao}
                               </span>
-                              <span className={`text-[10px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                              <span className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                 {t.categoria} • {new Date(t.data).toLocaleDateString('pt-BR')}
                               </span>
                             </div>
-                            <span className="font-black text-emerald-500 text-xs shrink-0">
+                            <span className="font-black text-emerald-600 dark:text-emerald-400 text-base shrink-0">
                               + R$ {t.valor.toFixed(2)}
                             </span>
                           </div>
@@ -4446,17 +4446,17 @@ export const FinancasCaixa: React.FC = () => {
                 )}
 
                 {modalDetalhesMetrica === 'saidas' && (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     <div
-                      className={`p-4 rounded-2xl border flex justify-between items-center gap-3 ${
+                      className={`p-5 rounded-2xl border flex justify-between items-center gap-3 ${
                         isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                       }`}
                     >
                       <div>
-                        <span className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                        <span className={`text-sm font-bold block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                           Total de Despesas:
                         </span>
-                        <span className={`text-xl font-black ${isDark ? 'text-white' : 'text-black'}`}>
+                        <span className={`text-2xl font-black ${isDark ? 'text-white' : 'text-black'}`}>
                           R$ {totalDespesasPagas.toFixed(2)}
                         </span>
                       </div>
@@ -4464,7 +4464,7 @@ export const FinancasCaixa: React.FC = () => {
                         <button
                           type="button"
                           onClick={handleExportarDespesas}
-                          className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
+                          className={`px-4 py-2.5 rounded-xl text-sm flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                         >
                           <FileSpreadsheet className="w-4 h-4" />
                           <span>Exportar Excel</span>
@@ -4476,38 +4476,38 @@ export const FinancasCaixa: React.FC = () => {
                               setModalDetalhesMetrica(null);
                               abrirModalNovaDespesa();
                             }}
-                            className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1 shadow-xs transition cursor-pointer ${classeBotaoNeutroClaro}`}
+                            className={`px-4 py-2.5 rounded-xl text-sm flex items-center gap-1 shadow-xs transition cursor-pointer ${classeBotaoNeutroClaro}`}
                           >
-                            <Plus className="w-3.5 h-3.5" />
+                            <Plus className="w-4 h-4" />
                             <span>Nova Despesa</span>
                           </button>
                         )}
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <span className={`text-xs font-black block ${isDark ? 'text-white' : 'text-black'}`}>
+                    <div className="space-y-2.5">
+                      <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                         Últimas Despesas Registradas:
                       </span>
-                      <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                      <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
                         {listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pago').slice(0, 25).map((t) => {
                           const descLimpa = t.descricao.replace(/\s*\(entrada manual\)/gi, '').trim();
                           return (
                             <div
                               key={t.id}
-                              className={`p-3 rounded-xl border flex items-center justify-between gap-3 text-xs shadow-2xs ${
+                              className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 text-base shadow-2xs ${
                                 isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                               }`}
                             >
                               <div className="flex-1 min-w-0">
-                                <span className={`font-black block truncate leading-tight ${isDark ? 'text-white' : 'text-black'}`}>
+                                <span className={`font-black text-base block truncate leading-tight ${isDark ? 'text-white' : 'text-black'}`}>
                                   {descLimpa}
                                 </span>
-                                <span className={`text-[10px] block mt-1 font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                                <span className={`text-sm leading-relaxed block mt-1 font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                   {t.categoria} • {new Date(t.data).toLocaleDateString('pt-BR')}
                                 </span>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
-                                <span className="font-black text-rose-500 text-xs block">
+                                <span className="font-black text-rose-600 dark:text-rose-400 text-base block">
                                   - R$ {t.valor.toFixed(2)}
                                 </span>
                                 {permissions.ehAdmin && !t.id.startsWith('ped_') && (
@@ -4550,17 +4550,17 @@ export const FinancasCaixa: React.FC = () => {
                 )}
 
                 {modalDetalhesMetrica === 'pagar' && (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     <div
-                      className={`p-4 rounded-2xl border flex justify-between items-center gap-3 ${
+                      className={`p-5 rounded-2xl border flex justify-between items-center gap-3 ${
                         isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                       }`}
                     >
                       <div>
-                        <span className={`text-xs font-bold block ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                        <span className={`text-sm font-bold block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                           Total de Contas Pendentes a Pagar:
                         </span>
-                        <span className={`text-xl font-black ${isDark ? 'text-white' : 'text-black'}`}>
+                        <span className={`text-2xl font-black ${isDark ? 'text-white' : 'text-black'}`}>
                           R$ {totalDespesasPendentes.toFixed(2)}
                         </span>
                       </div>
@@ -4568,7 +4568,7 @@ export const FinancasCaixa: React.FC = () => {
                         <button
                           type="button"
                           onClick={handleExportarContasPagar}
-                          className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
+                          className={`px-4 py-2.5 rounded-xl text-sm flex items-center gap-1.5 transition cursor-pointer shadow-xs ${classeBotaoNeutroClaro}`}
                         >
                           <FileSpreadsheet className="w-4 h-4" />
                           <span>Exportar Excel</span>
@@ -4580,36 +4580,36 @@ export const FinancasCaixa: React.FC = () => {
                               setModalDetalhesMetrica(null);
                               abrirModalNovaContaPagar();
                             }}
-                            className={`px-3.5 py-2 rounded-xl text-xs flex items-center gap-1 shadow-xs transition cursor-pointer ${classeBotaoNeutroClaro}`}
+                            className={`px-4 py-2.5 rounded-xl text-sm flex items-center gap-1 shadow-xs transition cursor-pointer ${classeBotaoNeutroClaro}`}
                           >
-                            <Plus className="w-3.5 h-3.5" />
+                            <Plus className="w-4 h-4" />
                             <span>Nova Conta</span>
                           </button>
                         )}
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <span className={`text-xs font-black block ${isDark ? 'text-white' : 'text-black'}`}>
+                    <div className="space-y-2.5">
+                      <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                         Lista de Contas a Pagar ({listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pendente').length}):
                       </span>
-                      <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+                      <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
                         {listaTransacoesUnificada.filter(t => t.tipo === 'SAIDA' && t.status === 'pendente').map((t) => (
                           <div
                             key={t.id}
-                            className={`p-2.5 rounded-xl border flex justify-between items-center text-xs shadow-2xs ${
+                            className={`p-3.5 rounded-xl border flex justify-between items-center text-base shadow-2xs ${
                               isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                             }`}
                           >
                             <div className="min-w-0 flex-1 pr-2">
-                              <span className={`font-black block truncate ${isDark ? 'text-white' : 'text-black'}`}>
+                              <span className={`font-black text-base block truncate ${isDark ? 'text-white' : 'text-black'}`}>
                                 {t.descricao}
                               </span>
-                              <span className={`text-[10px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                              <span className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                 Vencimento: {new Date(t.data).toLocaleDateString('pt-BR')} • {t.categoria}
                               </span>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              <span className={`font-black text-xs ${isDark ? 'text-white' : 'text-black'}`}>
+                              <span className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>
                                 R$ {t.valor.toFixed(2)}
                               </span>
                               {permissions.ehAdmin && (
@@ -4626,10 +4626,10 @@ export const FinancasCaixa: React.FC = () => {
                                         processando: false
                                       });
                                     }}
-                                    className={`px-2 py-1 rounded-lg text-[10px] flex items-center gap-0.5 cursor-pointer shadow-xs ${classeMiniBotaoNeutroClaro}`}
+                                    className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer shadow-xs ${classeMiniBotaoNeutroClaro}`}
                                     title="Pagar / Baixar Conta"
                                   >
-                                    <CheckCircle2 className="w-3 h-3" />
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
                                     <span>Pagar</span>
                                   </button>
                                   <button
@@ -4669,39 +4669,39 @@ export const FinancasCaixa: React.FC = () => {
                 )}
 
                 {modalDetalhesMetrica === 'lucro' && (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     <div
-                      className={`p-4 rounded-2xl border space-y-2.5 text-xs ${
+                      className={`p-5 rounded-2xl border space-y-3.5 text-base ${
                         isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
                       }`}
                     >
-                      <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
-                        <span className="flex items-center gap-1.5 font-bold">
-                          <ArrowUpRight className="w-4 h-4 text-emerald-500" /> (+) Entradas / Receitas Totais:
+                      <div className={`flex justify-between items-center gap-3 ${isDark ? 'text-slate-200' : 'text-black'}`}>
+                        <span className="flex items-center gap-2 text-base font-bold">
+                          <ArrowUpRight className="w-5 h-5 text-emerald-500 shrink-0" /> (+) Entradas / Receitas Totais:
                         </span>
-                        <span className="font-black text-emerald-500 text-sm">+ R$ {totalReceitas.toFixed(2)}</span>
+                        <span className="font-black text-emerald-600 dark:text-emerald-400 text-base">+ R$ {totalReceitas.toFixed(2)}</span>
                       </div>
 
-                      <div className={`flex justify-between items-center ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
-                        <span className="flex items-center gap-1.5 font-bold">
-                          <ArrowDownRight className="w-4 h-4 text-rose-500" /> (-) Saídas / Despesas Pagas:
+                      <div className={`flex justify-between items-center gap-3 ${isDark ? 'text-slate-200' : 'text-black'}`}>
+                        <span className="flex items-center gap-2 text-base font-bold">
+                          <ArrowDownRight className="w-5 h-5 text-rose-500 shrink-0" /> (-) Saídas / Despesas Pagas:
                         </span>
-                        <span className="font-black text-rose-500 text-sm">- R$ {totalDespesasPagas.toFixed(2)}</span>
+                        <span className="font-black text-rose-600 dark:text-rose-400 text-base">- R$ {totalDespesasPagas.toFixed(2)}</span>
                       </div>
 
-                      <div className={`pt-2 border-t flex justify-between items-center ${isDark ? 'border-slate-700' : 'border-slate-300'}`}>
-                        <span className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>(=) Resultado Acumulado em Caixa:</span>
-                        <span className={`text-lg font-black ${lucroLiquido >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                      <div className={`pt-3 border-t flex justify-between items-center gap-3 ${isDark ? 'border-slate-700' : 'border-slate-300'}`}>
+                        <span className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>(=) Resultado Acumulado em Caixa:</span>
+                        <span className={`text-xl font-black ${lucroLiquido >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                           R$ {lucroLiquido.toFixed(2)}
                         </span>
                       </div>
                     </div>
 
                     <div
-                      className={`p-3 rounded-2xl border text-[11px] leading-relaxed font-medium ${
+                      className={`p-4 rounded-2xl border text-sm leading-relaxed font-medium ${
                         isDark
                           ? 'bg-[#08131A] border-slate-700 text-slate-300'
-                          : 'bg-slate-50 border-2 border-slate-200 text-slate-900'
+                          : 'bg-slate-50 border-2 border-slate-300 text-black'
                       }`}
                     >
                       💡 O resultado acumulado considera o fluxo financeiro efetivamente realizado (dinheiro que entrou menos o dinheiro que já foi pago). Contas pendentes a pagar de R$ {totalDespesasPendentes.toFixed(2)} ainda não foram debitadas.
@@ -4710,11 +4710,11 @@ export const FinancasCaixa: React.FC = () => {
                 )}
               </div>
 
-              <div className={`p-2 border-t flex justify-end ${isDark ? 'border-slate-700' : 'border-slate-300'}`}>
+              <div className={`pt-3 border-t flex justify-end ${isDark ? 'border-slate-700' : 'border-slate-300'}`}>
                 <button
                   type="button"
                   onClick={() => setModalDetalhesMetrica(null)}
-                  className={`px-5 py-2 rounded-xl text-xs font-black transition cursor-pointer border ${
+                  className={`px-5 py-2.5 rounded-xl text-sm font-black transition cursor-pointer border ${
                     isDark
                       ? 'bg-[#08131A] hover:bg-slate-900 text-white border-slate-700'
                       : 'bg-slate-200 hover:bg-slate-300 text-black border border-slate-300'

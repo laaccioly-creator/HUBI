@@ -260,14 +260,14 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
                 Super Admin
               </span>
             </div>
-            <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            <p className={`text-sm leading-relaxed mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
               Gerencie prazos de degustação gratuita (trial), valores dos planos, regras comerciais e infraestrutura Meta.
             </p>
           </div>
         </div>
 
         {ultimaAtualizacao && (
-          <span className="text-[11px] text-slate-500 dark:text-slate-400 self-start sm:self-auto font-mono">
+          <span className="text-xs font-medium text-black dark:text-slate-300 self-start sm:self-auto font-mono">
             Última alteração: {new Date(ultimaAtualizacao).toLocaleString('pt-BR')}
           </span>
         )}
@@ -278,7 +278,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
         <div>
           <h4
             className={`text-xs font-black uppercase tracking-wider mb-2 flex items-center gap-1.5 ${
-              isDark ? 'text-slate-300' : 'text-slate-700'
+              isDark ? 'text-slate-300' : 'text-black'
             }`}
           >
             <Calendar className="w-3.5 h-3.5 text-emerald-500" />
@@ -291,8 +291,8 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
               }`}
             >
               <label
-                className={`text-xs font-bold block ${
-                  isDark ? 'text-slate-300' : 'text-slate-700'
+                className={`text-sm font-bold block ${
+                  isDark ? 'text-slate-300' : 'text-black'
                 }`}
               >
                 Prazo Padrão de Trial (Dias)
@@ -311,9 +311,9 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
                       : 'bg-white border-slate-300 text-slate-900 focus:border-emerald-500'
                   }`}
                 />
-                <span className="absolute right-3 top-2 text-[11px] text-slate-400 font-bold">dias</span>
+                <span className="absolute right-3 top-2 text-xs text-black dark:text-slate-300 font-bold">dias</span>
               </div>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              <p className="text-sm leading-relaxed text-black dark:text-slate-300 mt-1">
                 A tarja superior e os bloqueios de novas lojas consumirão este prazo a partir de <code>criado_em</code>.
               </p>
             </div>
@@ -324,8 +324,8 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
               }`}
             >
               <label
-                className={`text-xs font-bold block ${
-                  isDark ? 'text-slate-300' : 'text-slate-700'
+                className={`text-sm font-bold block ${
+                  isDark ? 'text-slate-300' : 'text-black'
                 }`}
               >
                 E-mail Mestre Super Admin
@@ -341,7 +341,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
                     : 'bg-white border-slate-300 text-slate-900 focus:border-emerald-500'
                 }`}
               />
-              <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              <p className="text-sm leading-relaxed text-black dark:text-slate-300 mt-1">
                 Apenas esta conta autenticada ({emailLogado}) tem autorização de gravação via RLS no banco de dados.
               </p>
             </div>
@@ -352,7 +352,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
         <div>
           <h4
             className={`text-xs font-black uppercase tracking-wider mb-2 flex items-center gap-1.5 ${
-              isDark ? 'text-slate-300' : 'text-slate-700'
+              isDark ? 'text-slate-300' : 'text-black'
             }`}
           >
             <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
@@ -365,14 +365,14 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
               }`}
             >
               <label
-                className={`text-xs font-bold block ${
-                  isDark ? 'text-slate-300' : 'text-slate-700'
+                className={`text-sm font-bold block ${
+                  isDark ? 'text-slate-300' : 'text-black'
                 }`}
               >
                 Plano Anual (Mensal Ref.)
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-2 text-xs text-slate-400 font-bold">R$</span>
+                <span className="absolute left-3 top-2 text-xs text-black dark:text-slate-300 font-bold">R$</span>
                 <input
                   type="number"
                   step="0.10"
@@ -387,7 +387,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
                   }`}
                 />
               </div>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              <p className="text-sm leading-relaxed text-black dark:text-slate-300 mt-1">
                 Valor exibido no banner de trial e no modal de assinatura.
               </p>
             </div>
@@ -398,8 +398,8 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
               }`}
             >
               <label
-                className={`text-xs font-bold block ${
-                  isDark ? 'text-slate-300' : 'text-slate-700'
+                className={`text-sm font-bold block ${
+                  isDark ? 'text-slate-300' : 'text-black'
                 }`}
               >
                 Total Anual Faturado
@@ -413,7 +413,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
               >
                 R$ {valorAnualCalculado.toFixed(2)} / ano
               </div>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              <p className="text-sm leading-relaxed text-black dark:text-slate-300 mt-1">
                 Calculado automaticamente: 12 parcelas de R$ {valorMensalAnual.toFixed(2)}.
               </p>
             </div>
@@ -424,14 +424,14 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
               }`}
             >
               <label
-                className={`text-xs font-bold block ${
-                  isDark ? 'text-slate-300' : 'text-slate-700'
+                className={`text-sm font-bold block ${
+                  isDark ? 'text-slate-300' : 'text-black'
                 }`}
               >
                 Plano Mensal Avulso
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-2 text-xs text-slate-400 font-bold">R$</span>
+                <span className="absolute left-3 top-2 text-xs text-black dark:text-slate-300 font-bold">R$</span>
                 <input
                   type="number"
                   step="0.10"
@@ -446,7 +446,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
                   }`}
                 />
               </div>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              <p className="text-sm leading-relaxed text-black dark:text-slate-300 mt-1">
                 Cobrança mensal avulsa sem fidelidade anual.
               </p>
             </div>
@@ -457,7 +457,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
         <div>
           <h4
             className={`text-xs font-black uppercase tracking-wider mb-2 flex items-center gap-1.5 ${
-              isDark ? 'text-slate-300' : 'text-slate-700'
+              isDark ? 'text-slate-300' : 'text-black'
             }`}
           >
             <CreditCard className="w-3.5 h-3.5 text-emerald-500" />
@@ -470,8 +470,8 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
               }`}
             >
               <label
-                className={`text-xs font-bold block ${
-                  isDark ? 'text-slate-300' : 'text-slate-700'
+                className={`text-sm font-bold block ${
+                  isDark ? 'text-slate-300' : 'text-black'
                 }`}
               >
                 Desconto PIX (%)
@@ -490,7 +490,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
                       : 'bg-white border-slate-300 text-slate-900 focus:border-emerald-500'
                   }`}
                 />
-                <Percent className="w-3 h-3 text-slate-400 absolute right-3 top-2.5" />
+                <Percent className="w-3.5 h-3.5 text-black dark:text-slate-300 absolute right-3 top-2.5" />
               </div>
             </div>
 
@@ -500,8 +500,8 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
               }`}
             >
               <label
-                className={`text-xs font-bold block ${
-                  isDark ? 'text-slate-300' : 'text-slate-700'
+                className={`text-sm font-bold block ${
+                  isDark ? 'text-slate-300' : 'text-black'
                 }`}
               >
                 Máximo de Parcelas
@@ -529,8 +529,8 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
               }`}
             >
               <label
-                className={`text-xs font-bold block ${
-                  isDark ? 'text-slate-300' : 'text-slate-700'
+                className={`text-sm font-bold block ${
+                  isDark ? 'text-slate-300' : 'text-black'
                 }`}
               >
                 Parcelas Sem Juros
@@ -559,13 +559,13 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
             >
               <div>
                 <span
-                  className={`text-xs font-bold block ${
-                    isDark ? 'text-slate-300' : 'text-slate-700'
+                  className={`text-sm font-bold block ${
+                    isDark ? 'text-slate-300' : 'text-black'
                   }`}
                 >
                   Aceitar Débito
                 </span>
-                <span className="text-[10px] text-slate-400 block">Cartão de débito no MP</span>
+                <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">Cartão de débito no MP</span>
               </div>
               <input
                 type="checkbox"
@@ -582,7 +582,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
           <div className="flex items-center justify-between gap-2 mb-2">
             <h4
               className={`text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${
-                isDark ? 'text-slate-300' : 'text-slate-700'
+                isDark ? 'text-slate-300' : 'text-black'
               }`}
             >
               <Shield className="w-3.5 h-3.5 text-emerald-500" />
@@ -598,7 +598,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
               {mpAmbiente === 'producao' ? 'Produção Ativa' : 'Sandbox (Teste)'}
             </span>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+          <p className="text-sm leading-relaxed text-black dark:text-slate-300 mb-3">
             Credenciais exclusivas da conta HUBI para recebimento de assinaturas anuais do sistema e recargas da carteira WhatsApp (totalmente isoladas do Mercado Pago das lojas).
           </p>
 
@@ -610,8 +610,8 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
             {/* Seletor de Ambiente */}
             <div>
               <label
-                className={`block text-xs font-bold mb-1.5 ${
-                  isDark ? 'text-slate-300' : 'text-slate-700'
+                className={`block text-sm font-bold mb-1.5 ${
+                  isDark ? 'text-slate-300' : 'text-black'
                 }`}
               >
                 Ambiente do Gateway
@@ -628,12 +628,12 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
                       ? 'bg-amber-500/15 border-amber-500 text-amber-400'
                       : isDark
                         ? 'bg-slate-950 border-slate-700 text-slate-300 hover:border-slate-600'
-                        : 'bg-white border-slate-300 text-slate-700 hover:border-slate-400'
+                        : 'bg-white border-slate-300 text-black hover:border-slate-400'
                   }`}
                 >
                   <div>
-                    <span className="text-xs font-black block">Modo Teste (Sandbox)</span>
-                    <span className="text-[10px] opacity-80 block">
+                    <span className="text-sm font-black block">Modo Teste (Sandbox)</span>
+                    <span className="text-sm leading-relaxed opacity-90 block">
                       Usa comprador de teste e checkout sandbox_init_point
                     </span>
                   </div>
@@ -651,12 +651,12 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
                       ? 'bg-emerald-500/15 border-emerald-500 text-emerald-400'
                       : isDark
                         ? 'bg-slate-950 border-slate-700 text-slate-300 hover:border-slate-600'
-                        : 'bg-white border-slate-300 text-slate-700 hover:border-slate-400'
+                        : 'bg-white border-slate-300 text-black hover:border-slate-400'
                   }`}
                 >
                   <div>
-                    <span className="text-xs font-black block">Modo Produção</span>
-                    <span className="text-[10px] opacity-80 block">
+                    <span className="text-sm font-black block">Modo Produção</span>
+                    <span className="text-sm leading-relaxed opacity-90 block">
                       Cobranças reais via Checkout Pro (init_point)
                     </span>
                   </div>
@@ -668,8 +668,8 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label
-                  className={`block text-xs font-bold mb-1 ${
-                    isDark ? 'text-slate-300' : 'text-slate-700'
+                  className={`block text-sm font-bold mb-1 ${
+                    isDark ? 'text-slate-300' : 'text-black'
                   }`}
                 >
                   Public Key
@@ -689,8 +689,8 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
 
               <div>
                 <label
-                  className={`block text-xs font-bold mb-1 ${
-                    isDark ? 'text-slate-300' : 'text-slate-700'
+                  className={`block text-sm font-bold mb-1 ${
+                    isDark ? 'text-slate-300' : 'text-black'
                   }`}
                 >
                   Webhook Secret (Opcional)
@@ -712,8 +712,8 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
             {/* Access Token + Botão Testar Credencial MP */}
             <div>
               <label
-                className={`block text-xs font-bold mb-1 ${
-                  isDark ? 'text-slate-300' : 'text-slate-700'
+                className={`block text-sm font-bold mb-1 ${
+                  isDark ? 'text-slate-300' : 'text-black'
                 }`}
               >
                 Access Token (Privado — Restrito ao Super Admin)
@@ -794,7 +794,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
                   : 'bg-white border-slate-200 text-slate-800'
               }`}
             >
-              <label className="block text-[11px] font-bold text-slate-400">
+              <label className="block text-sm font-bold text-black dark:text-slate-300 mb-1">
                 URL de Notificação Webhook (IPN / Webhooks v2)
               </label>
               <div className="flex items-center gap-2">
@@ -825,7 +825,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
         <div>
           <h4
             className={`text-xs font-black uppercase tracking-wider mb-2 flex items-center gap-1.5 ${
-              isDark ? 'text-slate-300' : 'text-slate-700'
+              isDark ? 'text-slate-300' : 'text-black'
             }`}
           >
             <Settings2 className="w-3.5 h-3.5 text-emerald-500" />
@@ -838,14 +838,14 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
               }`}
             >
               <label
-                className={`text-xs font-bold block ${
-                  isDark ? 'text-slate-300' : 'text-slate-700'
+                className={`text-sm font-bold block ${
+                  isDark ? 'text-slate-300' : 'text-black'
                 }`}
               >
                 Tarifa por Disparo Ativo (R$)
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-2 text-xs text-slate-400 font-bold">R$</span>
+                <span className="absolute left-3 top-2 text-xs text-black dark:text-slate-300 font-bold">R$</span>
                 <input
                   type="number"
                   step="0.01"
@@ -860,7 +860,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
                   }`}
                 />
               </div>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              <p className="text-sm leading-relaxed text-black dark:text-slate-300 mt-1">
                 Valor debitado da carteira por template enviado fora da janela de 24h.
               </p>
             </div>
@@ -871,14 +871,14 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
               }`}
             >
               <label
-                className={`text-xs font-bold block ${
-                  isDark ? 'text-slate-300' : 'text-slate-700'
+                className={`text-sm font-bold block ${
+                  isDark ? 'text-slate-300' : 'text-black'
                 }`}
               >
                 Recarga Mínima via Pix (R$)
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-2 text-xs text-slate-400 font-bold">R$</span>
+                <span className="absolute left-3 top-2 text-xs text-black dark:text-slate-300 font-bold">R$</span>
                 <input
                   type="number"
                   step="1.00"
@@ -893,7 +893,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
                   }`}
                 />
               </div>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              <p className="text-sm leading-relaxed text-black dark:text-slate-300 mt-1">
                 Depósito mínimo exigido para recarregar créditos na carteira.
               </p>
             </div>
@@ -904,14 +904,14 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
               }`}
             >
               <label
-                className={`text-xs font-bold block ${
-                  isDark ? 'text-slate-300' : 'text-slate-700'
+                className={`text-sm font-bold block ${
+                  isDark ? 'text-slate-300' : 'text-black'
                 }`}
               >
                 Bônus Inicial Trial (R$)
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-2 text-xs text-slate-400 font-bold">R$</span>
+                <span className="absolute left-3 top-2 text-xs text-black dark:text-slate-300 font-bold">R$</span>
                 <input
                   type="number"
                   step="0.50"
@@ -926,7 +926,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
                   }`}
                 />
               </div>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              <p className="text-sm leading-relaxed text-black dark:text-slate-300 mt-1">
                 Cortesia inicial (válida nos 7 primeiros dias de degustação).
               </p>
             </div>
@@ -938,7 +938,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
           <div className="flex items-center justify-between gap-2 mb-2">
             <h4
               className={`text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${
-                isDark ? 'text-slate-300' : 'text-slate-700'
+                isDark ? 'text-slate-300' : 'text-black'
               }`}
             >
               <Phone className="w-3.5 h-3.5 text-emerald-500" />
@@ -948,7 +948,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
               href="https://developers.facebook.com/apps/"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-[11px] text-emerald-500 hover:text-emerald-400 hover:underline"
+              className="flex items-center gap-1 text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
             >
               <span>Portal Meta Developers</span>
               <ExternalLink className="w-3 h-3" />
@@ -963,8 +963,8 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label
-                  className={`block text-xs font-bold mb-1 ${
-                    isDark ? 'text-slate-300' : 'text-slate-700'
+                  className={`block text-sm font-bold mb-1 ${
+                    isDark ? 'text-slate-300' : 'text-black'
                   }`}
                 >
                   Phone Number ID
@@ -984,8 +984,8 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
 
               <div>
                 <label
-                  className={`block text-xs font-bold mb-1 ${
-                    isDark ? 'text-slate-300' : 'text-slate-700'
+                  className={`block text-sm font-bold mb-1 ${
+                    isDark ? 'text-slate-300' : 'text-black'
                   }`}
                 >
                   WhatsApp Business Account ID (WABA)
@@ -1007,8 +1007,8 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
             {/* Token de Acesso Meta */}
             <div>
               <label
-                className={`block text-xs font-bold mb-1 ${
-                  isDark ? 'text-slate-300' : 'text-slate-700'
+                className={`block text-sm font-bold mb-1 ${
+                  isDark ? 'text-slate-300' : 'text-black'
                 }`}
               >
                 Token Permanente de Usuário do Sistema (System User Token)
@@ -1095,7 +1095,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
 
               <div className="space-y-2">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                  <label className="block text-sm font-bold text-black dark:text-slate-300 mb-1">
                     Callback URL
                   </label>
                   <div className="flex items-center gap-2">
@@ -1121,7 +1121,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                  <label className="block text-sm font-bold text-black dark:text-slate-300 mb-1">
                     Verify Token
                   </label>
                   <div className="flex items-center gap-2">
@@ -1147,7 +1147,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
                 </div>
               </div>
 
-              <p className="text-[11px] text-slate-400 leading-relaxed">
+              <p className="text-sm text-black dark:text-slate-300 leading-relaxed">
                 💡 No portal <strong>Meta for Developers &gt; WhatsApp &gt; Configuração &gt; Webhook</strong>, insira a URL e Token acima. Depois, em <strong>Campos do Webhook</strong>, assine o campo <code>messages</code>.
               </p>
             </div>
@@ -1160,7 +1160,7 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
             isDark ? 'border-slate-800' : 'border-slate-200'
           }`}
         >
-          <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+          <div className="text-sm font-medium text-black dark:text-slate-300 flex items-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
             <span>As mudanças refletirão imediatamente em toda a infraestrutura e checkouts do HUBI.</span>
           </div>

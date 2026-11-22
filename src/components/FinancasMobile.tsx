@@ -370,9 +370,9 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
       <div className={`p-2.5 sm:p-3 shrink-0 ${isDark ? 'bg-[#08131A] border-b border-slate-700' : 'bg-slate-100 border-b-2 border-slate-300'}`}>
         <div className="grid grid-cols-2 gap-2">
           {/* Entradas */}
-          <div className={`rounded-2xl p-2.5 shadow-xs space-y-1 ${isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'}`}>
-            <div className="flex items-center justify-between">
-              <span className={`text-[10px] font-bold flex items-center gap-1 ${isDark ? 'text-white' : 'text-black'}`}>
+          <div className={`rounded-2xl p-3 shadow-xs space-y-1.5 ${isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'}`}>
+            <div className="flex items-center justify-between gap-1">
+              <span className={`text-xs font-bold flex items-center gap-1 ${isDark ? 'text-white' : 'text-black'}`}>
                 <ArrowUpRight className="w-3.5 h-3.5 text-emerald-500" /> Entradas
               </span>
               <div className="flex items-center gap-1">
@@ -380,86 +380,86 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                   type="button"
                   onClick={onExportarEntradas}
                   title="Exportar Excel"
-                  className={`p-1 rounded-lg text-[9px] cursor-pointer transition ${classeMiniBotaoNeutroClaro}`}
+                  className={`p-1.5 rounded-lg text-xs cursor-pointer transition ${classeMiniBotaoNeutroClaro}`}
                 >
-                  <FileSpreadsheet className="w-3 h-3" />
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
                 </button>
                 <button
                   type="button"
                   onClick={() => onDetalhesMetrica('entradas')}
-                  className={`px-1.5 py-0.5 rounded-lg text-[9px] cursor-pointer transition ${classeMiniBotaoNeutroClaro}`}
+                  className={`px-2 py-1 rounded-lg text-xs font-bold cursor-pointer transition ${classeMiniBotaoNeutroClaro}`}
                 >
                   Detalhar
                 </button>
               </div>
             </div>
-            <span className={`text-sm font-black block truncate ${isDark ? 'text-white' : 'text-black'}`}>
+            <span className={`text-base font-black block truncate ${isDark ? 'text-white' : 'text-black'}`}>
               R$ {totalReceitas.toFixed(2)}
             </span>
           </div>
 
           {/* Despesas */}
-          <div className={`rounded-2xl p-2.5 shadow-xs space-y-1 ${isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'}`}>
-            <div className="flex items-center justify-between">
-              <span className={`text-[10px] font-bold flex items-center gap-1 ${isDark ? 'text-white' : 'text-black'}`}>
+          <div className={`rounded-2xl p-3 shadow-xs space-y-1.5 ${isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'}`}>
+            <div className="flex items-center justify-between gap-1">
+              <span className={`text-xs font-bold flex items-center gap-1 ${isDark ? 'text-white' : 'text-black'}`}>
                 <ArrowDownRight className="w-3.5 h-3.5 text-rose-500" /> Despesas
               </span>
               <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={onNovaDespesa}
-                  className={`px-1.5 py-0.5 rounded-lg text-[9px] flex items-center gap-0.5 cursor-pointer transition ${classeMiniBotaoNeutroClaro}`}
+                  className={`px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-0.5 cursor-pointer transition ${classeMiniBotaoNeutroClaro}`}
                 >
-                  <Plus className="w-2.5 h-2.5" /> Nova
+                  <Plus className="w-3 h-3" /> Nova
                 </button>
                 <button
                   type="button"
                   onClick={() => onDetalhesMetrica('saidas')}
-                  className={`px-1.5 py-0.5 rounded-lg text-[9px] cursor-pointer transition ${classeMiniBotaoNeutroClaro}`}
+                  className={`px-2 py-1 rounded-lg text-xs font-bold cursor-pointer transition ${classeMiniBotaoNeutroClaro}`}
                 >
                   Detalhar
                 </button>
               </div>
             </div>
-            <span className={`text-sm font-black block truncate ${isDark ? 'text-white' : 'text-black'}`}>
+            <span className={`text-base font-black block truncate ${isDark ? 'text-white' : 'text-black'}`}>
               R$ {totalDespesasPagas.toFixed(2)}
             </span>
           </div>
 
           {/* A Pagar */}
-          <div className={`rounded-2xl p-2.5 shadow-xs space-y-1 ${isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'}`}>
-            <div className="flex items-center justify-between">
-              <span className={`text-[10px] font-bold flex items-center gap-1 ${isDark ? 'text-white' : 'text-black'}`}>
+          <div className={`rounded-2xl p-3 shadow-xs space-y-1.5 ${isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'}`}>
+            <div className="flex items-center justify-between gap-1">
+              <span className={`text-xs font-bold flex items-center gap-1 ${isDark ? 'text-white' : 'text-black'}`}>
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> A Pagar
               </span>
               <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={onNovaContaPagar}
-                  className={`px-1.5 py-0.5 rounded-lg text-[9px] flex items-center gap-0.5 cursor-pointer transition ${classeMiniBotaoNeutroClaro}`}
+                  className={`px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-0.5 cursor-pointer transition ${classeMiniBotaoNeutroClaro}`}
                 >
-                  <Plus className="w-2.5 h-2.5" /> Nova
+                  <Plus className="w-3 h-3" /> Nova
                 </button>
                 <button
                   type="button"
                   onClick={() => onDetalhesMetrica('pagar')}
-                  className={`px-1.5 py-0.5 rounded-lg text-[9px] cursor-pointer transition ${classeMiniBotaoNeutroClaro}`}
+                  className={`px-2 py-1 rounded-lg text-xs font-bold cursor-pointer transition ${classeMiniBotaoNeutroClaro}`}
                 >
                   Detalhar
                 </button>
               </div>
             </div>
-            <span className={`text-sm font-black block truncate ${isDark ? 'text-white' : 'text-black'}`}>
+            <span className={`text-base font-black block truncate ${isDark ? 'text-white' : 'text-black'}`}>
               R$ {totalDespesasPendentes.toFixed(2)}
             </span>
           </div>
 
           {/* Resultado */}
-          <div className={`rounded-2xl p-2.5 shadow-xs space-y-1 ${isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'}`}>
-            <div className="flex items-center justify-between">
+          <div className={`rounded-2xl p-3 shadow-xs space-y-1.5 ${isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'}`}>
+            <div className="flex items-center justify-between gap-1">
               <div className="min-w-0">
-                <span className={`text-[10px] font-bold block truncate ${isDark ? 'text-white' : 'text-black'}`}>Resultado</span>
-                <span className="text-[8px] font-bold text-emerald-500 block truncate">
+                <span className={`text-xs font-bold block truncate ${isDark ? 'text-white' : 'text-black'}`}>Resultado</span>
+                <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 block truncate">
                   {filtroPeriodoFluxo === 'sessao_atual'
                     ? 'Turno'
                     : filtroPeriodoFluxo === 'hoje'
@@ -472,12 +472,12 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
               <button
                 type="button"
                 onClick={() => onDetalhesMetrica('lucro')}
-                className={`px-1.5 py-0.5 rounded-lg text-[9px] cursor-pointer transition ${classeMiniBotaoNeutroClaro}`}
+                className={`px-2 py-1 rounded-lg text-xs font-bold cursor-pointer transition ${classeMiniBotaoNeutroClaro}`}
               >
                 Detalhar
               </button>
             </div>
-            <span className={`text-sm font-black block truncate ${isDark ? 'text-white' : 'text-black'}`}>
+            <span className={`text-base font-black block truncate ${isDark ? 'text-white' : 'text-black'}`}>
               R$ {lucroLiquido.toFixed(2)}
             </span>
           </div>
@@ -598,16 +598,16 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                     <div className={`p-4 rounded-3xl shadow-xs space-y-3 ${
                       isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
                     }`}>
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2">
                         <div className="space-y-0.5">
-                          <span className={`text-[10px] uppercase font-bold tracking-wider flex items-center gap-1.5 ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
-                            <Banknote className="w-4 h-4 text-emerald-500" /> Saldo Esperado em Dinheiro na Gaveta
+                          <span className={`text-sm uppercase font-bold tracking-wider flex items-center gap-1.5 ${isDark ? 'text-slate-200' : 'text-black'}`}>
+                            <Banknote className="w-4 h-4 text-emerald-500 shrink-0" /> Saldo Esperado em Dinheiro na Gaveta
                           </span>
                           <span className={`text-2xl font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                             R$ {saldoDinheiroExibicao.toFixed(2)}
                           </span>
                         </div>
-                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-xl shadow-xs ${
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-xl shadow-xs shrink-0 ${
                           isDark
                             ? 'text-white bg-emerald-600 border border-emerald-500'
                             : 'text-emerald-900 bg-emerald-50 border border-emerald-300'
@@ -617,34 +617,34 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                       </div>
 
                       {/* FÓRMULA DETALHADA DA GAVETA */}
-                      <div className={`grid grid-cols-2 sm:grid-cols-3 gap-1.5 pt-2 border-t text-[10px] ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
-                        <div className={`p-2 rounded-xl shadow-xs ${isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-50 border border-slate-200 text-black'}`}>
-                          <span className={`block text-[9px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Fundo Inicial</span>
-                          <span className="font-bold">
+                      <div className={`grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2.5 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                        <div className={`p-2.5 rounded-xl shadow-xs ${isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-50 border border-slate-200 text-black'}`}>
+                          <span className={`block text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>Fundo Inicial</span>
+                          <span className="text-base font-bold">
                             + R$ {(resumoSessao.fundoInicial ?? Number(sessaoAtiva.fundo_inicial || 0)).toFixed(2)}
                           </span>
                         </div>
-                        <div className={`p-2 rounded-xl shadow-xs ${isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-50 border border-slate-200 text-black'}`}>
-                          <span className={`block text-[9px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Vendas em Dinheiro</span>
-                          <span className="font-bold text-emerald-500">
+                        <div className={`p-2.5 rounded-xl shadow-xs ${isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-50 border border-slate-200 text-black'}`}>
+                          <span className={`block text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>Vendas em Dinheiro</span>
+                          <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">
                             + R$ {resumoSessao.totaisPorMetodo.dinheiro.toFixed(2)}
                           </span>
                         </div>
-                        <div className={`p-2 rounded-xl shadow-xs ${isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-50 border border-slate-200 text-black'}`}>
-                          <span className={`block text-[9px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Suprimentos</span>
-                          <span className="font-bold text-cyan-500">
+                        <div className={`p-2.5 rounded-xl shadow-xs ${isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-50 border border-slate-200 text-black'}`}>
+                          <span className={`block text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>Suprimentos</span>
+                          <span className="text-base font-bold text-cyan-600 dark:text-cyan-400">
                             + R$ {resumoSessao.totalSuprimentos.toFixed(2)}
                           </span>
                         </div>
-                        <div className={`p-2 rounded-xl shadow-xs ${isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-50 border border-slate-200 text-black'}`}>
-                          <span className={`block text-[9px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Sangrias (Cofre)</span>
-                          <span className="font-bold text-rose-500">
+                        <div className={`p-2.5 rounded-xl shadow-xs ${isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-50 border border-slate-200 text-black'}`}>
+                          <span className={`block text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>Sangrias (Cofre)</span>
+                          <span className="text-base font-bold text-rose-600 dark:text-rose-400">
                             - R$ {resumoSessao.totalSangrias.toFixed(2)}
                           </span>
                         </div>
-                        <div className={`p-2 rounded-xl shadow-xs ${isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-50 border border-slate-200 text-black'}`}>
-                          <span className={`block text-[9px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Despesas de Gaveta</span>
-                          <span className="font-bold text-amber-500">
+                        <div className={`p-2.5 rounded-xl shadow-xs ${isDark ? 'bg-[#08131A] border border-slate-700 text-white' : 'bg-slate-50 border border-slate-200 text-black'}`}>
+                          <span className={`block text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>Despesas de Gaveta</span>
+                          <span className="text-base font-bold text-amber-600 dark:text-amber-400">
                             - R$ {resumoSessao.totalDespesas.toFixed(2)}
                           </span>
                         </div>
@@ -652,71 +652,71 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                     </div>
 
                     {/* VENDAS DO TURNO POR MEIO DE PAGAMENTO */}
-                    <div className={`rounded-3xl p-3.5 shadow-xs space-y-2.5 ${
+                    <div className={`rounded-3xl p-4 shadow-xs space-y-3 ${
                       isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
                     }`}>
-                      <div className={`flex items-center justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
-                        <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}>
+                      <div className={`flex items-center justify-between border-b pb-2.5 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                        <span className={`text-sm font-bold uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}>
                           Vendas por Meio de Pagamento
                         </span>
-                        <span className="text-xs font-black text-emerald-500">
+                        <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
                           Total: R$ {resumoSessao.faturamentoTotalVendas.toFixed(2)}
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 gap-2.5">
                         {/* Dinheiro */}
-                        <div className={`p-2.5 rounded-xl space-y-1 ${isDark ? 'bg-[#08131A] border border-slate-700' : 'bg-slate-50 border border-slate-200'}`}>
+                        <div className={`p-3.5 rounded-xl space-y-1.5 ${isDark ? 'bg-[#08131A] border border-slate-700' : 'bg-slate-50 border border-slate-200'}`}>
                           <div className="flex items-center justify-between">
-                            <span className={`text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>Dinheiro</span>
-                            <Banknote className="w-3.5 h-3.5 text-emerald-500" />
+                            <span className={`text-sm font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>Dinheiro</span>
+                            <Banknote className="w-4 h-4 text-emerald-500" />
                           </div>
-                          <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>
+                          <span className={`text-base font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                             R$ {resumoSessao.totaisPorMetodo.dinheiro.toFixed(2)}
                           </span>
-                          <span className={`text-[10px] block font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
+                          <span className={`text-sm block font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                             {resumoSessao.qtdVendasPorMetodo.dinheiro} vendas
                           </span>
                         </div>
 
                         {/* Pix */}
-                        <div className={`p-2.5 rounded-xl space-y-1 ${isDark ? 'bg-[#08131A] border border-slate-700' : 'bg-slate-50 border border-slate-200'}`}>
+                        <div className={`p-3.5 rounded-xl space-y-1.5 ${isDark ? 'bg-[#08131A] border border-slate-700' : 'bg-slate-50 border border-slate-200'}`}>
                           <div className="flex items-center justify-between">
-                            <span className={`text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>Pix</span>
-                            <Zap className="w-3.5 h-3.5 text-cyan-500" />
+                            <span className={`text-sm font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>Pix</span>
+                            <Zap className="w-4 h-4 text-cyan-500" />
                           </div>
-                          <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>
+                          <span className={`text-base font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                             R$ {resumoSessao.totaisPorMetodo.pix.toFixed(2)}
                           </span>
-                          <span className={`text-[10px] block font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
+                          <span className={`text-sm block font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                             {resumoSessao.qtdVendasPorMetodo.pix} vendas
                           </span>
                         </div>
 
                         {/* Cartão Débito */}
-                        <div className={`p-2.5 rounded-xl space-y-1 ${isDark ? 'bg-[#08131A] border border-slate-700' : 'bg-slate-50 border border-slate-200'}`}>
+                        <div className={`p-3.5 rounded-xl space-y-1.5 ${isDark ? 'bg-[#08131A] border border-slate-700' : 'bg-slate-50 border border-slate-200'}`}>
                           <div className="flex items-center justify-between">
-                            <span className={`text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>Débito</span>
-                            <CreditCard className="w-3.5 h-3.5 text-indigo-400" />
+                            <span className={`text-sm font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>Débito</span>
+                            <CreditCard className="w-4 h-4 text-indigo-400" />
                           </div>
-                          <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>
+                          <span className={`text-base font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                             R$ {resumoSessao.totaisPorMetodo.cartao_debito.toFixed(2)}
                           </span>
-                          <span className={`text-[10px] block font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
+                          <span className={`text-sm block font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                             {resumoSessao.qtdVendasPorMetodo.cartao_debito} vendas
                           </span>
                         </div>
 
                         {/* Cartão Crédito */}
-                        <div className={`p-2.5 rounded-xl space-y-1 ${isDark ? 'bg-[#08131A] border border-slate-700' : 'bg-slate-50 border border-slate-200'}`}>
+                        <div className={`p-3.5 rounded-xl space-y-1.5 ${isDark ? 'bg-[#08131A] border border-slate-700' : 'bg-slate-50 border border-slate-200'}`}>
                           <div className="flex items-center justify-between">
-                            <span className={`text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>Crédito</span>
-                            <CreditCard className="w-3.5 h-3.5 text-purple-400" />
+                            <span className={`text-sm font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>Crédito</span>
+                            <CreditCard className="w-4 h-4 text-purple-400" />
                           </div>
-                          <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>
+                          <span className={`text-base font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                             R$ {resumoSessao.totaisPorMetodo.cartao_credito.toFixed(2)}
                           </span>
-                          <span className={`text-[10px] block font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
+                          <span className={`text-sm block font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                             {resumoSessao.qtdVendasPorMetodo.cartao_credito} vendas
                           </span>
                         </div>
@@ -724,14 +724,14 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                     </div>
 
                     {/* MOVIMENTAÇÕES DO TURNO COM FILTROS */}
-                    <div className={`rounded-3xl p-3.5 shadow-xs space-y-3 ${
+                    <div className={`rounded-3xl p-4 shadow-xs space-y-3 ${
                       isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
                     }`}>
                       <div className="flex items-center justify-between">
-                        <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}>
+                        <span className={`text-sm font-bold uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}>
                           Movimentações do Turno
                         </span>
-                        <span className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
+                        <span className={`text-sm font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                           {movimentacoesTurnoFiltradas.length} registro(s)
                         </span>
                       </div>
@@ -743,7 +743,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                             key={filtro}
                             type="button"
                             onClick={() => setFiltroMovimentacoes(filtro)}
-                            className={`px-2.5 py-1 rounded-xl text-[10px] font-bold whitespace-nowrap transition cursor-pointer ${
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
                               filtroMovimentacoes === filtro
                                 ? classeChipAtivoNeutroClaro
                                 : isDark
@@ -763,7 +763,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                       {/* Lista de Movimentações */}
                       <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                         {movimentacoesTurnoFiltradas.length === 0 ? (
-                          <div className={`text-center py-6 text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
+                          <div className={`text-center py-6 text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                             Nenhuma movimentação registrada neste filtro.
                           </div>
                         ) : (
@@ -772,13 +772,13 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                             return (
                               <div
                                 key={m.id}
-                                className={`flex items-center justify-between p-2.5 rounded-xl text-xs ${
+                                className={`flex items-center justify-between p-3 rounded-xl text-sm ${
                                   isDark ? 'bg-[#08131A] border border-slate-700' : 'bg-slate-50 border border-slate-200'
                                 }`}
                               >
                                 <div className="flex items-center gap-2.5 min-w-0">
                                   <div
-                                    className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold shrink-0 ${
+                                    className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold shrink-0 ${
                                       m.tipo === 'VENDA'
                                         ? 'bg-emerald-500/20 text-emerald-400'
                                         : m.tipo === 'SUPRIMENTO'
@@ -788,27 +788,27 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                                         : 'bg-amber-500/20 text-amber-400'
                                     }`}
                                   >
-                                    {m.tipo === 'VENDA' && <ArrowUpRight className="w-3.5 h-3.5" />}
-                                    {m.tipo === 'SUPRIMENTO' && <ArrowDown className="w-3.5 h-3.5" />}
-                                    {m.tipo === 'SANGRIA' && <ArrowUp className="w-3.5 h-3.5" />}
-                                    {m.tipo === 'DESPESA' && <Banknote className="w-3.5 h-3.5" />}
+                                    {m.tipo === 'VENDA' && <ArrowUpRight className="w-4 h-4" />}
+                                    {m.tipo === 'SUPRIMENTO' && <ArrowDown className="w-4 h-4" />}
+                                    {m.tipo === 'SANGRIA' && <ArrowUp className="w-4 h-4" />}
+                                    {m.tipo === 'DESPESA' && <Banknote className="w-4 h-4" />}
                                   </div>
                                   <div className="min-w-0">
-                                    <span className={`font-bold block truncate ${isDark ? 'text-white' : 'text-black'}`}>
+                                    <span className={`font-bold text-sm block truncate ${isDark ? 'text-white' : 'text-black'}`}>
                                       {m.tipo === 'VENDA' && 'Venda Realizada'}
                                       {m.tipo === 'SUPRIMENTO' && 'Suprimento (Troco)'}
                                       {m.tipo === 'SANGRIA' && 'Sangria (Cofre)'}
                                       {m.tipo === 'DESPESA' && (m.descricao || 'Despesa de Gaveta')}
                                     </span>
-                                    <span className={`text-[10px] block truncate ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
+                                    <span className={`text-sm leading-relaxed block truncate ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                       {new Date(m.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} • {m.metodo_pagamento || 'Dinheiro'}
                                     </span>
                                   </div>
                                 </div>
 
                                 <span
-                                  className={`font-black text-xs shrink-0 ${
-                                    isEntrada ? 'text-emerald-500' : 'text-rose-500'
+                                  className={`font-black text-base shrink-0 ${
+                                    isEntrada ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                                   }`}
                                 >
                                   {isEntrada ? '+' : '-'} R$ {Number(m.valor || 0).toFixed(2)}
@@ -822,29 +822,29 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
 
                     {/* VENDAS DA SESSÃO */}
                     {vendasDaSessao && vendasDaSessao.length > 0 && (
-                      <div className={`rounded-3xl p-3.5 shadow-xs space-y-2 ${
+                      <div className={`rounded-3xl p-4 shadow-xs space-y-2.5 ${
                         isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
                       }`}>
-                        <span className={`text-xs font-bold uppercase tracking-wider block ${isDark ? 'text-white' : 'text-black'}`}>
+                        <span className={`text-sm font-bold uppercase tracking-wider block ${isDark ? 'text-white' : 'text-black'}`}>
                           Pedidos do Turno ({vendasDaSessao.length})
                         </span>
-                        <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                           {vendasDaSessao.map((p) => (
                             <div
                               key={p.id}
-                              className={`flex items-center justify-between p-2 rounded-xl text-xs ${
+                              className={`flex items-center justify-between p-3 rounded-xl text-sm ${
                                 isDark ? 'bg-[#08131A] border border-slate-700' : 'bg-slate-50 border border-slate-200'
                               }`}
                             >
                               <div>
-                                <span className={`font-bold block ${isDark ? 'text-white' : 'text-black'}`}>
+                                <span className={`font-bold text-sm block ${isDark ? 'text-white' : 'text-black'}`}>
                                   Pedido #{p.numero_pedido || p.id.slice(0, 6)}
                                 </span>
-                                <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
+                                <span className={`text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                   {p.cliente?.nome || p.cliente_nome_avulso || 'Consumidor Final'} • {p.criado_em ? new Date(p.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}
                                 </span>
                               </div>
-                              <span className="font-black text-emerald-500">
+                              <span className="font-black text-base text-emerald-600 dark:text-emerald-400">
                                 R$ {Number(p.valor_total || 0).toFixed(2)}
                               </span>
                             </div>
@@ -861,16 +861,16 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                     <div className="w-14 h-14 rounded-2xl bg-rose-500/20 text-rose-400 mx-auto flex items-center justify-center border border-rose-500/30">
                       <Lock className="w-7 h-7" />
                     </div>
-                    <div className="space-y-1">
-                      <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Turno de Caixa Fechado</h3>
-                      <p className={`text-xs max-w-xs mx-auto font-medium ${isDark ? 'text-slate-300' : 'text-slate-900'}`}>
+                    <div className="space-y-1.5">
+                      <h3 className={`font-black text-lg ${isDark ? 'text-white' : 'text-black'}`}>Turno de Caixa Fechado</h3>
+                      <p className={`text-sm leading-relaxed max-w-xs mx-auto font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                         Abra um novo turno com fundo de troco para iniciar vendas no PDV, receber pagamentos e controlar a gaveta física.
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={onAbrirCaixa}
-                      className={`w-full py-3 rounded-xl text-xs shadow-md flex items-center justify-center gap-2 cursor-pointer transition active:scale-98 ${classeBotaoCtaClaro}`}
+                      className={`w-full py-3 rounded-xl text-sm shadow-md flex items-center justify-center gap-2 cursor-pointer transition active:scale-98 ${classeBotaoCtaClaro}`}
                     >
                       <Unlock className="w-4 h-4" />
                       <span>Abrir Novo Turno de Caixa</span>
@@ -987,8 +987,8 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 {/* Lista de Transações */}
                 <div className="space-y-2">
                   {transacoesFluxoFiltradas.length === 0 ? (
-                    <div className={`text-center py-10 text-xs rounded-2xl p-4 font-medium ${
-                      isDark ? 'bg-[#000000] border border-slate-700 text-slate-400' : 'bg-white border-2 border-slate-300 text-slate-900'
+                    <div className={`text-center py-10 text-sm leading-relaxed rounded-2xl p-4 font-medium ${
+                      isDark ? 'bg-[#000000] border border-slate-700 text-slate-300' : 'bg-white border-2 border-slate-300 text-black'
                     }`}>
                       Nenhum registro encontrado no período selecionado.
                     </div>
@@ -998,34 +998,34 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                       return (
                         <div
                           key={t.id}
-                          className={`rounded-2xl p-3 shadow-xs space-y-1.5 ${
+                          className={`rounded-2xl p-3.5 shadow-xs space-y-2 ${
                             isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
                           }`}
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <span className={`font-bold text-xs block truncate ${isDark ? 'text-white' : 'text-black'}`}>
+                              <span className={`font-bold text-base block truncate ${isDark ? 'text-white' : 'text-black'}`}>
                                 {t.descricao}
                               </span>
-                              <span className={`text-[10px] block font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
+                              <span className={`text-sm leading-relaxed block font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                 {t.categoria || 'Geral'} • {new Date(t.data_vencimento || (t as any).criado_em || (t as any).data || Date.now()).toLocaleDateString('pt-BR')}
                               </span>
                             </div>
                             <span
-                              className={`font-black text-xs shrink-0 ${
-                                isEntrada ? 'text-emerald-500' : 'text-rose-500'
+                              className={`font-black text-base shrink-0 ${
+                                isEntrada ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                               }`}
                             >
                               {isEntrada ? '+' : '-'} R$ {Number(t.valor || 0).toFixed(2)}
                             </span>
                           </div>
 
-                          <div className={`flex items-center justify-between pt-1 border-t text-[10px] ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+                          <div className={`flex items-center justify-between pt-1.5 border-t text-xs ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
                             <span
-                              className={`px-2 py-0.5 rounded-full font-bold ${
+                              className={`px-2.5 py-0.5 rounded-full font-bold ${
                                 t.status === 'pago'
-                                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                  : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                  ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
+                                  : 'bg-amber-500/20 text-amber-800 dark:text-amber-400 border border-amber-500/30'
                               }`}
                             >
                               {t.status === 'pago' ? 'PAGO' : 'PENDENTE'}
@@ -1119,8 +1119,8 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 {/* Lista de Contas a Pagar */}
                 <div className="space-y-2">
                   {contasPagarFiltradas.length === 0 ? (
-                    <div className={`text-center py-10 text-xs rounded-2xl p-4 font-medium ${
-                      isDark ? 'bg-[#000000] border border-slate-700 text-slate-400' : 'bg-white border-2 border-slate-300 text-slate-900'
+                    <div className={`text-center py-10 text-sm leading-relaxed rounded-2xl p-4 font-medium ${
+                      isDark ? 'bg-[#000000] border border-slate-700 text-slate-300' : 'bg-white border-2 border-slate-300 text-black'
                     }`}>
                       Nenhuma conta a pagar encontrada neste filtro.
                     </div>
@@ -1134,32 +1134,32 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                       return (
                         <div
                           key={tr.id}
-                          className={`rounded-2xl p-3 shadow-xs space-y-2 ${
+                          className={`rounded-2xl p-3.5 shadow-xs space-y-2 ${
                             isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
                           }`}
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <span className={`font-bold text-xs block truncate ${isDark ? 'text-white' : 'text-black'}`}>
+                              <span className={`font-bold text-base block truncate ${isDark ? 'text-white' : 'text-black'}`}>
                                 {tr.descricao}
                               </span>
-                              <span className={`text-[10px] block font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
+                              <span className={`text-sm leading-relaxed block font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                 {tr.categoria || 'Geral'} • Vence em: {tr.data_vencimento ? new Date(tr.data_vencimento).toLocaleDateString('pt-BR') : 'Sem data'}
                               </span>
                             </div>
-                            <span className="font-black text-sm text-amber-500 shrink-0">
+                            <span className="font-black text-base text-amber-600 dark:text-amber-400 shrink-0">
                               R$ {Number(tr.valor || 0).toFixed(2)}
                             </span>
                           </div>
 
-                          <div className={`flex items-center justify-between pt-1 border-t text-xs ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+                          <div className={`flex items-center justify-between pt-1.5 border-t text-xs ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
                             <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
                                 tr.status === 'pago'
-                                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                  ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
                                   : isVencido
-                                  ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 font-black'
-                                  : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                  ? 'bg-rose-500/20 text-rose-700 dark:text-rose-400 border border-rose-500/30 font-black'
+                                  : 'bg-amber-500/20 text-amber-800 dark:text-amber-400 border border-amber-500/30'
                               }`}
                             >
                               {tr.status === 'pago' ? 'PAGA' : isVencido ? 'VENCIDA' : 'PENDENTE'}
@@ -1170,9 +1170,9 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => onBaixarConta(tr)}
-                                  className={`px-2.5 py-1 rounded-lg text-[10px] flex items-center gap-1 cursor-pointer shadow-xs transition ${classeMiniBotaoNeutroClaro}`}
+                                  className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer shadow-xs transition ${classeMiniBotaoNeutroClaro}`}
                                 >
-                                  <Check className="w-3 h-3 stroke-[3]" />
+                                  <Check className="w-3.5 h-3.5 stroke-[3]" />
                                   <span>Pagar</span>
                                 </button>
                               )}
@@ -1212,21 +1212,21 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
             {abaAtiva === 'historico_caixas' && (
               <div className="space-y-3">
                 {/* Filtros de Histórico */}
-                <div className={`rounded-3xl p-3.5 shadow-xs space-y-2 text-xs ${
+                <div className={`rounded-3xl p-4 shadow-xs space-y-2.5 text-sm ${
                   isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
                 }`}>
-                  <span className={`font-bold block uppercase tracking-wider text-[10px] ${isDark ? 'text-white' : 'text-black'}`}>
+                  <span className={`font-bold block uppercase tracking-wider text-xs ${isDark ? 'text-white' : 'text-black'}`}>
                     Filtrar Sessões
                   </span>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className={`text-[10px] block mb-0.5 font-semibold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Operador</label>
+                      <label className={`text-sm block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>Operador</label>
                       <select
                         value={filtrosHistorico.usuarioId}
                         onChange={(e) =>
                           setFiltrosHistorico((prev) => ({ ...prev, usuarioId: e.target.value }))
                         }
-                        className={`w-full rounded-xl px-2 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500 ${
+                        className={`w-full rounded-xl px-2.5 py-2 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500 ${
                           isDark
                             ? 'bg-[#08131A] border border-slate-700 text-white'
                             : 'bg-slate-50 border border-slate-300 text-black'
@@ -1242,7 +1242,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                     </div>
 
                     <div>
-                      <label className={`text-[10px] block mb-0.5 font-semibold ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Conferência</label>
+                      <label className={`text-sm block mb-1 font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>Conferência</label>
                       <select
                         value={filtrosHistorico.statusDiferenca}
                         onChange={(e) =>
@@ -1251,7 +1251,7 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                             statusDiferenca: e.target.value as any
                           }))
                         }
-                        className={`w-full rounded-xl px-2 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500 ${
+                        className={`w-full rounded-xl px-2.5 py-2 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500 ${
                           isDark
                             ? 'bg-[#08131A] border border-slate-700 text-white'
                             : 'bg-slate-50 border border-slate-300 text-black'
@@ -1268,8 +1268,8 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                 {/* Lista de Sessões Anteriores */}
                 <div className="space-y-2">
                   {historicoFiltrado.length === 0 ? (
-                    <div className={`text-center py-10 text-xs rounded-2xl p-4 font-medium ${
-                      isDark ? 'bg-[#000000] border border-slate-700 text-slate-400' : 'bg-white border-2 border-slate-300 text-slate-900'
+                    <div className={`text-center py-10 text-sm leading-relaxed rounded-2xl p-4 font-medium ${
+                      isDark ? 'bg-[#000000] border border-slate-700 text-slate-300' : 'bg-white border-2 border-slate-300 text-black'
                     }`}>
                       Nenhuma sessão de caixa encontrada no histórico.
                     </div>
@@ -1282,34 +1282,34 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                       return (
                         <div
                           key={cx.id}
-                          className={`rounded-2xl p-3 shadow-xs space-y-2.5 ${
+                          className={`rounded-2xl p-3.5 shadow-xs space-y-2.5 ${
                             isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
                           }`}
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <span className={`font-bold text-xs block ${isDark ? 'text-white' : 'text-black'}`}>
+                              <span className={`font-bold text-sm block ${isDark ? 'text-white' : 'text-black'}`}>
                                 Terminal {cx.terminal_id} • {cx.usuario_abertura?.nome_completo || 'Operador'}
                               </span>
-                              <span className={`text-[10px] block font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
+                              <span className={`text-sm leading-relaxed block font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                 Aberto: {new Date(cx.aberto_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
                               </span>
                               {cx.fechado_em && (
-                                <span className={`text-[10px] block font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>
+                                <span className={`text-sm leading-relaxed block font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                   Fechado: {new Date(cx.fechado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
                                 </span>
                               )}
                             </div>
 
                             <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-black shrink-0 ${
+                              className={`px-2.5 py-0.5 rounded-full text-xs font-black shrink-0 ${
                                 !cx.fechado_em
-                                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                  ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
                                   : !temDiferenca
                                   ? isDark ? 'bg-slate-800 text-slate-300 border border-slate-700' : 'bg-slate-100 text-black border border-slate-200'
                                   : isSobra
-                                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                                  : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                                  ? 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-400 border border-cyan-500/30'
+                                  : 'bg-rose-500/20 text-rose-700 dark:text-rose-400 border border-rose-500/30'
                               }`}
                             >
                               {!cx.fechado_em
@@ -1322,18 +1322,18 @@ export const FinancasMobile: React.FC<FinancasMobileProps> = ({
                             </span>
                           </div>
 
-                          <div className={`grid grid-cols-2 gap-2 p-2 rounded-xl text-[10px] ${
+                          <div className={`grid grid-cols-2 gap-2 p-2.5 rounded-xl text-sm ${
                             isDark ? 'bg-[#08131A] border border-slate-700' : 'bg-slate-50 border border-slate-200'
                           }`}>
                             <div>
-                              <span className={`block font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Fundo Inicial:</span>
-                              <strong className={isDark ? 'text-white' : 'text-black'}>
+                              <span className={`block text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>Fundo Inicial:</span>
+                              <strong className={`text-base font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                                 R$ {Number(cx.fundo_inicial || 0).toFixed(2)}
                               </strong>
                             </div>
                             <div>
-                              <span className={`block font-medium ${isDark ? 'text-slate-400' : 'text-slate-900'}`}>Faturamento Total:</span>
-                              <strong className="text-emerald-500">
+                              <span className={`block text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>Faturamento Total:</span>
+                              <strong className="text-base font-bold text-emerald-600 dark:text-emerald-400">
                                 R$ {Number(cx.faturamento_total || 0).toFixed(2)}
                               </strong>
                             </div>

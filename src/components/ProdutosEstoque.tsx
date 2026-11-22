@@ -515,7 +515,7 @@ export const ProdutosEstoque: React.FC = () => {
                   {produtos.length}
                 </span>
               </h1>
-              <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
+              <p className={`text-sm leading-relaxed mt-0.5 ${isDark ? 'text-slate-300' : 'text-black font-semibold'}`}>
                 Gerencie seus produtos e serviços, dê entrada em compras, controle custos e agendamentos
               </p>
             </div>
@@ -579,7 +579,7 @@ export const ProdutosEstoque: React.FC = () => {
                     {totalItensEstoque} un
                   </span>
                 ) : (
-                  <span className={`text-xs font-semibold block pt-1 text-center ${isDark ? 'text-slate-400' : 'text-black'}`}>
+                  <span className={`text-sm leading-relaxed font-semibold block pt-1 text-center ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     Sem controle de estoque
                   </span>
                 )}
@@ -596,7 +596,7 @@ export const ProdutosEstoque: React.FC = () => {
                     {formatarMoeda(valorTotalEstoque)}
                   </span>
                 ) : (
-                  <span className={`text-xs font-semibold block pt-1 text-center ${isDark ? 'text-slate-400' : 'text-black'}`}>
+                  <span className={`text-sm leading-relaxed font-semibold block pt-1 text-center ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     Sem controle de estoque
                   </span>
                 )}
@@ -614,7 +614,7 @@ export const ProdutosEstoque: React.FC = () => {
                       {formatarMoeda(valorCustoEstoque)}
                     </span>
                   ) : (
-                    <span className={`text-xs font-semibold block pt-1 text-center ${isDark ? 'text-slate-400' : 'text-black'}`}>
+                    <span className={`text-sm leading-relaxed font-semibold block pt-1 text-center ${isDark ? 'text-slate-300' : 'text-black'}`}>
                       Sem controle de estoque
                     </span>
                   )}
@@ -761,14 +761,14 @@ export const ProdutosEstoque: React.FC = () => {
       {/* Grid / Tabela de Produtos com cabeçalho fixo no scroll */}
       <div className="flex-1 min-h-0 overflow-hidden p-4 md:p-6 flex flex-col">
         {carregando ? (
-          <div className="text-center py-16 text-slate-500 text-sm">Carregando estoque...</div>
+          <div className={`text-center py-16 text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-black'}`}>Carregando estoque...</div>
         ) : produtosFiltrados.length === 0 ? (
-          <div className="text-center py-16 text-slate-500 text-sm space-y-3">
+          <div className={`text-center py-16 text-sm leading-relaxed space-y-3 ${isDark ? 'text-slate-300' : 'text-black'}`}>
             <Package className="w-12 h-12 opacity-30 mx-auto" />
             <p>Nenhum produto cadastrado com esses filtros.</p>
             <Link
               to="/products/create"
-              className="inline-flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 font-bold underline"
+              className={`inline-flex items-center gap-1.5 text-sm font-bold underline ${isDark ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-700 hover:text-emerald-800'}`}
             >
               <Plus className="w-4 h-4" />
               <span>+ Cadastrar Primeiro Produto ou Serviço</span>
@@ -884,7 +884,7 @@ export const ProdutosEstoque: React.FC = () => {
                           ) : produto.preco_venda_atacado ? (
                             <span className="font-bold font-mono">
                               {formatarMoeda(produto.preco_venda_atacado)}{' '}
-                              <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>({produto.qtd_minima_atacado}+ un)</span>
+                              <span className={`text-sm font-sans ${isDark ? 'text-slate-300' : 'text-black'}`}>({produto.qtd_minima_atacado}+ un)</span>
                             </span>
                           ) : (
                             <span className={isDark ? 'text-slate-500' : 'text-slate-400'}>-</span>
@@ -1176,7 +1176,7 @@ export const ProdutosEstoque: React.FC = () => {
                 </div>
                 <div>
                   <h3 className={`font-black text-base leading-tight ${isDark ? 'text-white' : 'text-black'}`}>Filtrar Produtos & Estoque</h3>
-                  <p className={`text-[11px] font-bold ${isDark ? 'text-white' : 'text-black'}`}>Escolha as categorias e a situação de estoque desejadas</p>
+                  <p className={`text-sm leading-relaxed font-semibold ${isDark ? 'text-slate-200' : 'text-black'}`}>Escolha as categorias e a situação de estoque desejadas</p>
                 </div>
               </div>
               <button

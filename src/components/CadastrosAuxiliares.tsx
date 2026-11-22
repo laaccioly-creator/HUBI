@@ -1834,7 +1834,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                   <span>Cadastros Base & Parâmetros</span>
                 </div>
                 <h1 className={`text-2xl sm:text-3xl font-black ${isDark ? 'text-white' : 'text-black'}`}>Cadastros & Tabelas</h1>
-                <p className={`text-xs sm:text-sm font-semibold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                <p className={`text-sm leading-relaxed font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Gerencie categorias, unidades de medida, fornecedores, formas de pagamento e padronize regras da loja.
                 </p>
               </div>
@@ -1875,8 +1875,8 @@ export const CadastrosAuxiliares: React.FC = () => {
                     }`}>
                       {item.label}
                     </span>
-                    <span className={`text-xs font-semibold mt-1 block leading-snug line-clamp-2 ${
-                      isDark ? 'text-slate-400' : 'text-slate-600'
+                    <span className={`text-sm leading-relaxed font-medium mt-1.5 block line-clamp-2 ${
+                      isDark ? 'text-slate-300' : 'text-black'
                     }`}>
                       {item.descricao}
                     </span>
@@ -1932,7 +1932,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                     {modalSecaoAberta === 'apps_corrida' && 'Aplicativos de Corrida & Entregas Rápidas'}
                     {modalSecaoAberta === 'transportadoras' && 'Transportadoras Privadas & Cargas'}
                   </h2>
-                  <p className={`text-xs font-semibold hidden sm:block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  <p className={`text-sm leading-relaxed font-semibold hidden sm:block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     {modalSecaoAberta === 'categorias' && 'Gerencie os departamentos e categorias do seu catálogo'}
                     {modalSecaoAberta === 'unidades' && 'Gerencie siglas e regras de fracionamento de medidas'}
                     {modalSecaoAberta === 'fornecedores' && 'Cadastre parceiros, contatos e faturamentos'}
@@ -2141,8 +2141,8 @@ export const CadastrosAuxiliares: React.FC = () => {
                 carregando ? (
                   <div className="py-12 flex justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin text-emerald-500" /></div>
                 ) : categoriasPrincipaisFiltradas.length === 0 ? (
-                  <div className={`text-center py-12 border border-dashed rounded-2xl text-xs font-semibold ${
-                    isDark ? 'border-slate-800 text-slate-400' : 'border-slate-300 text-slate-600'
+                  <div className={`text-center py-12 border border-dashed rounded-2xl text-sm font-semibold ${
+                    isDark ? 'border-slate-800 text-slate-300' : 'border-slate-300 text-black'
                   }`}>
                     Nenhuma categoria encontrada. Clique em <strong>Nova Categoria</strong> para adicionar.
                   </div>
@@ -2172,12 +2172,12 @@ export const CadastrosAuxiliares: React.FC = () => {
                               }`} title={cat.nome}>
                                 {cat.nome}
                               </h3>
-                              <span className={`text-xs font-medium block mt-0.5 ${
-                                isDark ? 'text-slate-400' : 'text-slate-600'
+                              <span className={`text-sm font-medium block mt-0.5 ${
+                                isDark ? 'text-slate-300' : 'text-black'
                               }`}>
                                 {qtdProdsTotal} {qtdProdsTotal === 1 ? 'produto' : 'produtos'}
                                 {(cat.subcategorias || []).length > 0 && (
-                                  <span className="text-[10px] text-emerald-500 font-bold ml-1.5">
+                                  <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold ml-1.5">
                                     • {(cat.subcategorias || []).length} subcat(s)
                                   </span>
                                 )}
@@ -2211,7 +2211,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                           {/* SUBCATEGORIAS ANINHADAS/RECUADAS */}
                           {cat.subcategorias && cat.subcategorias.length > 0 && (
                             <div className={`mt-3 pt-2.5 border-t ${isDark ? 'border-slate-800' : 'border-slate-100'} space-y-1.5`}>
-                              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-0.5">
+                              <span className="text-xs font-black uppercase tracking-wider text-black dark:text-slate-300 block px-0.5">
                                 Subcategorias:
                               </span>
                               <div className="space-y-1 pl-2 border-l-2 border-emerald-500/40">
@@ -2229,7 +2229,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                                         <span className={`font-semibold truncate ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                                           {sub.nome}
                                         </span>
-                                        <span className="text-[10px] font-medium text-slate-400 shrink-0">
+                                        <span className="text-xs font-semibold text-black dark:text-slate-300 shrink-0">
                                           ({qtdSub})
                                         </span>
                                       </div>
@@ -2270,8 +2270,8 @@ export const CadastrosAuxiliares: React.FC = () => {
                 carregando ? (
                   <div className="py-12 flex justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin text-emerald-500" /></div>
                 ) : unidadesFiltradas.length === 0 ? (
-                  <div className={`text-center py-12 border border-dashed rounded-2xl text-xs font-semibold ${
-                    isDark ? 'border-slate-800 text-slate-400' : 'border-slate-300 text-slate-600'
+                  <div className={`text-center py-12 border border-dashed rounded-2xl text-sm font-semibold ${
+                    isDark ? 'border-slate-800 text-slate-300' : 'border-slate-300 text-black'
                   }`}>
                     Nenhuma unidade encontrada.
                   </div>
@@ -2279,9 +2279,9 @@ export const CadastrosAuxiliares: React.FC = () => {
                   <div className={`rounded-2xl overflow-hidden shadow-2xs border ${
                     isDark ? 'border-slate-700' : 'border-2 border-slate-300'
                   }`}>
-                    <table className="w-full text-left text-xs">
-                      <thead className={`font-black border-b uppercase text-[10px] tracking-wider ${
-                        isDark ? 'bg-[#000000] text-slate-300 border-slate-800' : 'bg-slate-100 text-slate-700 border-slate-300'
+                    <table className="w-full text-left text-sm">
+                      <thead className={`font-black border-b uppercase text-xs tracking-wider ${
+                        isDark ? 'bg-[#000000] text-slate-300 border-slate-800' : 'bg-slate-100 text-black border-slate-300'
                       }`}>
                         <tr>
                           <th className="p-3.5">Sigla</th>
@@ -2305,12 +2305,12 @@ export const CadastrosAuxiliares: React.FC = () => {
                             </td>
                             <td className="p-3.5">
                               {u.permite_fracionado ? (
-                                <span className="text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded text-[11px] font-bold">
+                                <span className="text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded text-xs font-bold">
                                   Sim (decimais)
                                 </span>
                               ) : (
-                                <span className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${
-                                  isDark ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-600'
+                                <span className={`px-2 py-0.5 rounded text-xs font-semibold border ${
+                                  isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-300 text-black'
                                 }`}>
                                   Apenas Inteiro
                                 </span>
@@ -2361,8 +2361,8 @@ export const CadastrosAuxiliares: React.FC = () => {
                 carregando ? (
                   <div className="py-12 flex justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin text-emerald-500" /></div>
                 ) : fornecedoresFiltrados.length === 0 ? (
-                  <div className={`text-center py-12 border border-dashed rounded-2xl text-xs font-semibold ${
-                    isDark ? 'border-slate-800 text-slate-400' : 'border-slate-300 text-slate-600'
+                  <div className={`text-center py-12 border border-dashed rounded-2xl text-sm font-semibold ${
+                    isDark ? 'border-slate-800 text-slate-300' : 'border-slate-300 text-black'
                   }`}>
                     Nenhum fornecedor cadastrado. Clique em <strong>Novo Fornecedor</strong> para adicionar.
                   </div>
@@ -2386,7 +2386,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                                 {forn.nome}
                               </h3>
                               {forn.pessoa_contato && (
-                                <p className={`text-xs font-semibold flex items-center gap-1 mt-0.5 ${
+                                <p className={`text-sm font-semibold flex items-center gap-1 mt-0.5 ${
                                   isDark ? 'text-slate-300' : 'text-slate-700'
                                 }`}>
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
@@ -2428,7 +2428,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                             </div>
                           </div>
 
-                          <div className={`text-xs space-y-1 pt-2 border-t font-medium ${
+                          <div className={`text-sm space-y-1 pt-2 border-t font-medium ${
                             isDark ? 'text-slate-300 border-slate-800' : 'text-slate-700 border-slate-200'
                           }`}>
                             {forn.numero_documento && (
@@ -2450,7 +2450,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                               </div>
                             )}
                             {forn.observacoes && (
-                              <p className={`text-[11px] italic mt-1 p-2 rounded-lg border line-clamp-2 ${
+                              <p className={`text-sm italic mt-1 p-2 rounded-lg border line-clamp-2 ${
                                 isDark ? 'text-slate-300 bg-[#08131A] border-slate-800' : 'text-slate-700 bg-slate-50 border-slate-200'
                               }`}>
                                 "{forn.observacoes}"
@@ -2469,8 +2469,8 @@ export const CadastrosAuxiliares: React.FC = () => {
                 carregando ? (
                   <div className="py-12 flex justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin text-emerald-500" /></div>
                 ) : formasPagamentoFiltradas.length === 0 ? (
-                  <div className={`text-center py-12 border border-dashed rounded-2xl text-xs space-y-2 font-semibold ${
-                    isDark ? 'border-slate-800 text-slate-400' : 'border-slate-300 text-slate-600'
+                  <div className={`text-center py-12 border border-dashed rounded-2xl text-sm space-y-2 font-semibold ${
+                    isDark ? 'border-slate-800 text-slate-300' : 'border-slate-300 text-black'
                   }`}>
                     <p>Nenhuma forma de pagamento cadastrada.</p>
                     <button
@@ -2506,7 +2506,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                                 fp.tipo === 'cartao_credito' ? 'bg-purple-500/10 border-purple-500/20 text-purple-500' :
                                 fp.tipo === 'cartao_debito' ? 'bg-blue-500/10 border-blue-500/20 text-blue-500' :
                                 fp.tipo === 'fiado' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
-                                isDark ? 'bg-[#08131A] border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
+                                isDark ? 'bg-[#08131A] border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-300 text-black'
                               }`}>
                                 {fp.tipo === 'dinheiro' && <Banknote className="w-4 h-4" />}
                                 {fp.tipo === 'pix' && <Zap className="w-4 h-4" />}
@@ -2521,7 +2521,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                                 <h3 className={`font-bold text-xs sm:text-sm truncate ${isDark ? 'text-white' : 'text-black'}`}>
                                   {fp.nome}
                                 </h3>
-                                <span className={`text-[10px] uppercase font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                <span className={`text-xs uppercase font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                   {fp.tipo === 'dinheiro' && 'Dinheiro'}
                                   {fp.tipo === 'pix' && 'PIX'}
                                   {fp.tipo === 'cartao_credito' && 'Crédito'}
@@ -2561,8 +2561,8 @@ export const CadastrosAuxiliares: React.FC = () => {
                             <div className={`p-2 rounded-xl border ${
                               isDark ? 'bg-[#08131A] border-slate-800' : 'bg-slate-50 border-slate-200'
                             }`}>
-                              <span className={`text-[10px] block font-semibold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Taxa:</span>
-                              <span className={`font-bold text-[11px] ${isDark ? 'text-white' : 'text-black'}`}>
+                              <span className={`text-xs block font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>Taxa:</span>
+                              <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>
                                 {Number(fp.taxa_percentual || 0) > 0 ? `${fp.taxa_percentual}%` : 'Sem taxa'}
                               </span>
                             </div>
@@ -2570,10 +2570,10 @@ export const CadastrosAuxiliares: React.FC = () => {
                             <div className={`p-2 rounded-xl border ${
                               isDark ? 'bg-[#08131A] border-slate-800' : 'bg-slate-50 border-slate-200'
                             }`}>
-                              <span className={`text-[10px] block font-semibold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                              <span className={`text-xs block font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                 {fp.tipo === 'fiado' ? 'Prazo de Pagamento:' : 'Parcelamento:'}
                               </span>
-                              <span className={`font-bold text-[11px] ${isDark ? 'text-white' : 'text-black'}`}>
+                              <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-black'}`}>
                                 {fp.tipo === 'fiado'
                                   ? `${fp.prazo_dias || 30} dias`
                                   : fp.tipo === 'cartao_credito'
@@ -2587,7 +2587,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                           <div className="flex items-center justify-between pt-1 text-xs">
                             <div className="flex items-center gap-1.5">
                               <span className={`w-2 h-2 rounded-full ${fp.exibir_catalogo ? 'bg-cyan-500' : 'bg-slate-400'}`} />
-                              <span className={`text-[11px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                              <span className={`text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                 {fp.exibir_catalogo ? 'No Catálogo' : 'Apenas PDV'}
                               </span>
                             </div>
@@ -2620,7 +2620,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                     <Sparkles className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
                     <div className="text-xs space-y-0.5">
                       <h4 className={`font-black text-xs sm:text-sm ${isDark ? 'text-white' : 'text-black'}`}>Sugestão de Preços no HUBI</h4>
-                      <p className={`text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      <p className={`text-sm leading-relaxed font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                         Defina os descontos padrão e o critério de ativação para vendas no atacado e para distribuidores (por valor em R$ ou quantidade de peças).
                       </p>
                     </div>
@@ -2647,7 +2647,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
                       <div className={`space-y-3.5 ${!atacadoHabilitado ? 'pointer-events-none select-none' : ''}`}>
                         <div>
-                          <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
+                          <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                             Desconto Padrão (%):
                           </label>
                           <div className="relative">
@@ -2664,7 +2664,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                                   : 'bg-slate-50 border-slate-300 text-emerald-600 focus:border-emerald-500'
                               }`}
                             />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">%</span>
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-black dark:text-slate-300">%</span>
                           </div>
                         </div>
 
@@ -2762,7 +2762,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
                           <div className="grid grid-cols-2 gap-2 pt-1">
                             <div>
-                              <label className={`text-[10px] font-bold block mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Qtd Total:</label>
+                              <label className={`text-xs font-bold block mb-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>Qtd Total:</label>
                               <input
                                 type="number"
                                 min="1"
@@ -2778,7 +2778,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                               />
                             </div>
                             <div>
-                              <label className={`text-[10px] font-bold block mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Mín por SKU:</label>
+                              <label className={`text-xs font-bold block mb-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>Mín por SKU:</label>
                               <input
                                 type="number"
                                 min="1"
@@ -2818,7 +2818,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
                       <div className={`space-y-3.5 ${!distribuidorHabilitado ? 'pointer-events-none select-none' : ''}`}>
                         <div>
-                          <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
+                          <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                             Desconto Padrão (%):
                           </label>
                           <div className="relative">
@@ -2835,7 +2835,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                                   : 'bg-slate-50 border-slate-300 text-indigo-600 focus:border-indigo-500'
                               }`}
                             />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">%</span>
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-black dark:text-slate-300">%</span>
                           </div>
                         </div>
 
@@ -2933,7 +2933,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
                           <div className="grid grid-cols-2 gap-2 pt-1">
                             <div>
-                              <label className={`text-[10px] font-bold block mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Qtd Total:</label>
+                              <label className={`text-xs font-bold block mb-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>Qtd Total:</label>
                               <input
                                 type="number"
                                 min="1"
@@ -2949,7 +2949,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                               />
                             </div>
                             <div>
-                              <label className={`text-[10px] font-bold block mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Mín por SKU:</label>
+                              <label className={`text-xs font-bold block mb-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>Mín por SKU:</label>
                               <input
                                 type="number"
                                 min="1"
@@ -2996,8 +2996,8 @@ export const CadastrosAuxiliares: React.FC = () => {
                 carregando ? (
                   <div className="py-12 flex justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin text-emerald-500" /></div>
                 ) : formasEntregaFiltradas.length === 0 ? (
-                  <div className={`text-center py-12 border border-dashed rounded-2xl text-xs font-semibold ${
-                    isDark ? 'border-slate-800 text-slate-400' : 'border-slate-300 text-slate-600'
+                  <div className={`text-center py-12 border border-dashed rounded-2xl text-sm font-semibold ${
+                    isDark ? 'border-slate-800 text-slate-300' : 'border-slate-300 text-black'
                   }`}>
                     Nenhuma modalidade de envio encontrada. Clique em <strong>Nova Forma de Envio</strong> para adicionar.
                   </div>
@@ -3042,7 +3042,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                             </div>
 
                             <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                              <span className={`text-[10px] font-semibold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                              <span className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                 {forma.tipo === 'retirada' ? 'Retirada na Loja' :
                                  forma.tipo === 'frota_propria' || forma.tipo === 'proprio' ? 'Frota Própria' :
                                  forma.tipo === 'motoboy' ? 'Motoboy' :
@@ -3125,8 +3125,8 @@ export const CadastrosAuxiliares: React.FC = () => {
                 carregando ? (
                   <div className="py-12 flex justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin text-emerald-500" /></div>
                 ) : appsEntregaFiltrados.length === 0 ? (
-                  <div className={`text-center py-12 border border-dashed rounded-2xl text-xs font-semibold ${
-                    isDark ? 'border-slate-800 text-slate-400' : 'border-slate-300 text-slate-600'
+                  <div className={`text-center py-12 border border-dashed rounded-2xl text-sm font-semibold ${
+                    isDark ? 'border-slate-800 text-slate-300' : 'border-slate-300 text-black'
                   }`}>
                     Nenhum aplicativo cadastrado. Clique em <strong>Novo Aplicativo</strong> para adicionar (ex: Uber Flash, 99Entrega, Lalamove).
                   </div>
@@ -3187,8 +3187,8 @@ export const CadastrosAuxiliares: React.FC = () => {
                 carregando ? (
                   <div className="py-12 flex justify-center text-slate-400"><Loader2 className="w-6 h-6 animate-spin text-emerald-500" /></div>
                 ) : transportadorasFiltradas.length === 0 ? (
-                  <div className={`text-center py-12 border border-dashed rounded-2xl text-xs font-semibold ${
-                    isDark ? 'border-slate-800 text-slate-400' : 'border-slate-300 text-slate-600'
+                  <div className={`text-center py-12 border border-dashed rounded-2xl text-sm font-semibold ${
+                    isDark ? 'border-slate-800 text-slate-300' : 'border-slate-300 text-black'
                   }`}>
                     Nenhuma transportadora cadastrada. Clique em <strong>Nova Transportadora</strong> para adicionar (ex: Jadlog, Braspress, Total Express).
                   </div>
@@ -3217,7 +3217,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                                 {t.nome}
                               </span>
                               {t.pessoa_contato && (
-                                <span className={`text-[11px] font-semibold block truncate ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                                <span className={`text-sm font-medium block truncate ${isDark ? 'text-slate-300' : 'text-black'}`}>
                                   Contato: {t.pessoa_contato}
                                 </span>
                               )}
@@ -3260,12 +3260,12 @@ export const CadastrosAuxiliares: React.FC = () => {
                         </div>
 
                         {/* Detalhes de contato e rastreio */}
-                        <div className={`space-y-1.5 pt-2 border-t text-[11px] ${
-                          isDark ? 'border-slate-800 text-slate-400' : 'border-slate-200 text-slate-600'
+                        <div className={`space-y-1.5 pt-2 border-t text-sm font-medium ${
+                          isDark ? 'border-slate-800 text-slate-300' : 'border-slate-200 text-black'
                         }`}>
                           {t.site && (
                             <div className="flex items-center gap-1.5 truncate">
-                              <Globe className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+                              <Globe className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-slate-400' : 'text-black'}`} />
                               <a
                                 href={t.site.startsWith('http') ? t.site : `https://${t.site}`}
                                 target="_blank"
@@ -3279,7 +3279,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                           <div className="flex items-center gap-3 flex-wrap pt-0.5">
                             {t.telefone && (
                               <div className="flex items-center gap-1">
-                                <Phone className="w-3 h-3 text-slate-400" />
+                                <Phone className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-black'}`} />
                                 <span>{t.telefone}</span>
                               </div>
                             )}
@@ -3328,7 +3328,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
             <form onSubmit={salvarCategoria} className="space-y-4">
               <div>
-                <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Nome da Categoria:*</label>
+                <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>Nome da Categoria:*</label>
                 <input
                   type="text"
                   placeholder="Ex: BEBIDAS, ROUPAS..."
@@ -3346,11 +3346,11 @@ export const CadastrosAuxiliares: React.FC = () => {
               {/* SEÇÃO DE SUBCATEGORIAS VINCULADAS (OPCIONAL) */}
               <div className={`pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className={`text-xs font-bold flex items-center gap-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                    <Tags className="w-3.5 h-3.5 text-emerald-500" />
+                  <label className={`text-sm font-bold flex items-center gap-1.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                    <Tags className="w-4 h-4 text-emerald-500" />
                     <span>Subcategorias vinculadas (Opcional)</span>
                   </label>
-                  <span className="text-[10px] text-slate-400 font-medium">
+                  <span className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     {subcategoriasForm.length} vinculada(s)
                   </span>
                 </div>
@@ -3461,7 +3461,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
             <form onSubmit={salvarUnidade} className="space-y-4">
               <div>
-                <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Sigla (ex: un, kg, cx, par):*</label>
+                <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>Sigla (ex: un, kg, cx, par):*</label>
                 <input
                   type="text"
                   maxLength={10}
@@ -3478,7 +3478,7 @@ export const CadastrosAuxiliares: React.FC = () => {
               </div>
 
               <div>
-                <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Descrição Completa:*</label>
+                <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>Descrição Completa:*</label>
                 <input
                   type="text"
                   placeholder="Ex: Caixa com 12 unidades, Quilograma, Metro..."
@@ -3503,8 +3503,8 @@ export const CadastrosAuxiliares: React.FC = () => {
                   className="w-4 h-4 rounded text-emerald-600 focus:ring-0"
                 />
                 <div>
-                  <span className={`font-bold text-xs ${isDark ? 'text-white' : 'text-black'}`}>Permite Venda Fracionada (Decimais)</span>
-                  <span className={`text-[11px] font-semibold block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Ex: 0.500 kg, 1.25 metros</span>
+                  <span className={`text-sm font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Permite Venda Fracionada (Decimais)</span>
+                  <span className={`text-sm leading-relaxed font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>Ex: 0.500 kg, 1.25 metros</span>
                 </div>
               </label>
 
@@ -3558,7 +3558,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
             <form onSubmit={salvarFornecedor} className="space-y-3">
               <div>
-                <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Nome / Razão Social:*</label>
+                <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>Nome / Razão Social:*</label>
                 <input
                   type="text"
                   placeholder="Ex: Distribuidora Nacional de Bebidas Ltda"
@@ -3575,7 +3575,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Pessoa de Contato:</label>
+                  <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>Pessoa de Contato:</label>
                   <input
                     type="text"
                     placeholder="Ex: Carlos Representante"
@@ -3589,7 +3589,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>CNPJ / CPF:</label>
+                  <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>CNPJ / CPF:</label>
                   <input
                     type="text"
                     placeholder="00.000.000/0000-00"
@@ -3606,7 +3606,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>WhatsApp / Telefone:</label>
+                  <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>WhatsApp / Telefone:</label>
                   <input
                     type="text"
                     placeholder="(11) 99999-9999"
@@ -3620,7 +3620,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>E-mail:</label>
+                  <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>E-mail:</label>
                   <input
                     type="email"
                     placeholder="pedidos@fornecedor.com.br"
@@ -3636,7 +3636,7 @@ export const CadastrosAuxiliares: React.FC = () => {
               </div>
 
               <div>
-                <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Observações / Condições Comerciais:</label>
+                <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>Observações / Condições Comerciais:</label>
                 <textarea
                   rows={2}
                   placeholder="Ex: Prazo de entrega de 3 dias úteis, faturamento mínimo de R$ 500,00..."
@@ -3697,7 +3697,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
             <form onSubmit={salvarFormaPagamento} className="space-y-3.5">
               <div>
-                <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Nome de Exibição:*
                 </label>
                 <input
@@ -3712,7 +3712,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                  <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     Tipo / Modalidade:*
                   </label>
                   <select
@@ -3730,7 +3730,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                  <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     Parcelamento Máximo:
                   </label>
                   <input
@@ -3762,7 +3762,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                     className={`w-full rounded-xl px-3.5 py-2 text-xs font-black focus:outline-none border ${isDark ? 'bg-[#08131A] border-amber-500/50 text-white focus:border-amber-400' : 'bg-white border-2 border-amber-400 text-black focus:border-amber-600'}`}
                     required
                   />
-                  <span className={`text-[10px] block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  <span className={`text-sm leading-relaxed block mt-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     Ao realizar uma venda com fiado, a data de vencimento será calculada automaticamente: <b>Data da Compra + este prazo em dias</b>.
                   </span>
                 </div>
@@ -3770,7 +3770,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                  <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     Taxa da Maquininha (%):
                   </label>
                   <div className="relative">
@@ -3784,16 +3784,16 @@ export const CadastrosAuxiliares: React.FC = () => {
                       onChange={(e) => setPagTaxaPercentual(e.target.value)}
                       className={`w-full rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none transition border pr-8 ${isDark ? 'bg-[#08131A] border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-500'}`}
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">%</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-black dark:text-slate-300">%</span>
                   </div>
                 </div>
 
                 <div>
-                  <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                  <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     Taxa Fixa por Venda (R$):
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">R$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-black dark:text-slate-300">R$</span>
                     <input
                       type="number"
                       step="0.01"
@@ -3811,8 +3811,8 @@ export const CadastrosAuxiliares: React.FC = () => {
               <div className={`p-3.5 rounded-2xl space-y-2.5 border ${isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-50 border-2 border-slate-300'}`}>
                 <label className="flex items-center justify-between cursor-pointer">
                   <div className="space-y-0.5">
-                    <span className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Ativo para Vendas</span>
-                    <span className={`text-[11px] block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Disponibilizar esta opção no PDV e fechamento de vendas</span>
+                    <span className={`text-sm font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Ativo para Vendas</span>
+                    <span className={`text-sm leading-relaxed block ${isDark ? 'text-slate-300' : 'text-black'}`}>Disponibilizar esta opção no PDV e fechamento de vendas</span>
                   </div>
                   <input
                     type="checkbox"
@@ -3825,8 +3825,8 @@ export const CadastrosAuxiliares: React.FC = () => {
                 <div className={`border-t pt-2.5 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                   <label className="flex items-center justify-between cursor-pointer">
                     <div className="space-y-0.5">
-                      <span className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Exibir no Catálogo Online</span>
-                      <span className={`text-[11px] block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Mostrar este meio de pagamento aos clientes no catálogo público</span>
+                      <span className={`text-sm font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Exibir no Catálogo Online</span>
+                      <span className={`text-sm leading-relaxed block ${isDark ? 'text-slate-300' : 'text-black'}`}>Mostrar este meio de pagamento aos clientes no catálogo público</span>
                     </div>
                     <input
                       type="checkbox"
@@ -3892,7 +3892,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
             <form onSubmit={salvarFormaEnvio} className="space-y-4">
               <div>
-                <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Nome da Modalidade *
                 </label>
                 <input
@@ -3907,7 +3907,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                  <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     Tipo de Entrega:
                   </label>
                   <select
@@ -3925,11 +3925,11 @@ export const CadastrosAuxiliares: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                  <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     Taxa Base (R$):
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">R$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-black dark:text-slate-300">R$</span>
                     <input
                       type="number"
                       step="0.01"
@@ -3945,7 +3945,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
               {/* Requisitos Operacionais para o Despacho */}
               <div className={`p-3.5 rounded-2xl border space-y-2.5 text-xs ${isDark ? 'bg-[#08131A] border-slate-700' : 'bg-slate-50 border-2 border-slate-300'}`}>
-                <span className={`text-[10px] font-black uppercase tracking-wider block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                <span className={`text-xs font-black uppercase tracking-wider block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Requisitos ao Despachar Pedidos
                 </span>
 
@@ -4044,7 +4044,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
             <form onSubmit={salvarAppCorrida} className="space-y-4">
               <div>
-                <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Nome do Aplicativo *
                 </label>
                 <input
@@ -4111,7 +4111,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
             <form onSubmit={salvarTransportadora} className="space-y-3.5 text-xs">
               <div>
-                <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Nome da Transportadora *
                 </label>
                 <input
@@ -4126,7 +4126,7 @@ export const CadastrosAuxiliares: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                  <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     Website Oficial:
                   </label>
                   <input
@@ -4139,7 +4139,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                  <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     Pessoa / Setor de Contato:
                   </label>
                   <input
@@ -4153,7 +4153,7 @@ export const CadastrosAuxiliares: React.FC = () => {
               </div>
 
               <div>
-                <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   URL Direta para Rastreamento (Opcional):
                 </label>
                 <input
@@ -4163,14 +4163,14 @@ export const CadastrosAuxiliares: React.FC = () => {
                   onChange={(e) => setTranspUrlRastreio(e.target.value)}
                   className={`w-full rounded-xl px-3.5 py-2 text-xs font-bold focus:outline-none transition border font-mono ${isDark ? 'bg-[#08131A] border-slate-700 text-white placeholder:text-slate-500 focus:border-amber-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 focus:border-amber-500'}`}
                 />
-                <span className={`text-[10px] mt-1 block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                  Dica: Utilize a tag <strong className="text-amber-500 font-mono">{'{{codigo}}'}</strong> onde o código de rastreio deve ser inserido dinamicamente.
+                <span className={`text-sm leading-relaxed mt-1 block ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                  Dica: Utilize a tag <strong className="text-amber-600 dark:text-amber-500 font-mono">{'{{codigo}}'}</strong> onde o código de rastreio deve ser inserido dinamicamente.
                 </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                  <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     Telefone Comercial:
                   </label>
                   <input
@@ -4183,7 +4183,7 @@ export const CadastrosAuxiliares: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                  <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     WhatsApp:
                   </label>
                   <input
@@ -4197,7 +4197,7 @@ export const CadastrosAuxiliares: React.FC = () => {
               </div>
 
               <div>
-                <label className={`text-xs font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                <label className={`text-sm font-bold block mb-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Observações / Horário de Coleta:
                 </label>
                 <textarea

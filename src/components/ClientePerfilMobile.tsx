@@ -862,8 +862,8 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                     {permissions.ehAdmin && (
                       <div className={`flex items-center justify-between pt-2 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                         <div>
-                          <span className={`text-xs font-black block ${isDark ? 'text-white' : 'text-black'}`}>Cadastro Ativo</span>
-                          <span className={`text-[10px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
+                          <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>Cadastro Ativo</span>
+                          <span className={`text-sm leading-relaxed font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                             {ativo ? 'Liberado para compras' : 'Inativo no sistema'}
                           </span>
                         </div>
@@ -889,8 +889,8 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                 <>
                   <div className={`flex items-center justify-between py-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                     <div>
-                      <span className={`text-xs font-black block ${isDark ? 'text-white' : 'text-black'}`}>Permitir fiado</span>
-                      <span className={`text-[10px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
+                      <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>Permitir fiado</span>
+                      <span className={`text-sm leading-relaxed font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                         {permiteFiado ? 'Vendas a prazo liberadas' : 'Apenas pagamentos à vista'}
                       </span>
                     </div>
@@ -919,9 +919,9 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                           ? 'bg-[#000000] border-emerald-500/40 text-white'
                           : 'bg-emerald-50/50 border-2 border-emerald-300 text-black'
                       }`}>
-                        <label className={`text-[11px] font-black flex items-center justify-between ${isDark ? 'text-white' : 'text-black'}`}>
+                        <label className={`text-sm font-black flex items-center justify-between gap-2 ${isDark ? 'text-white' : 'text-black'}`}>
                           <span>Limite de Crédito / Fiado (R$) *</span>
-                          <span className={`text-[10px] font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>Teto máximo de débito</span>
+                          <span className={`text-xs font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-800'}`}>Teto máximo de débito</span>
                         </label>
                         <div className="relative">
                           <span className={`absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-black ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>R$</span>
@@ -950,11 +950,11 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                 <>
                   <div className={`flex items-center justify-between py-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                     <div>
-                      <span className={`text-xs font-black flex items-center gap-1.5 ${isDark ? 'text-white' : 'text-black'}`}>
+                      <span className={`text-sm font-black flex items-center gap-1.5 ${isDark ? 'text-white' : 'text-black'}`}>
                         <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
                         <span>Habilitar Caderneta de Mercadinho</span>
                       </span>
-                      <span className={`text-[10px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      <span className={`text-sm leading-relaxed font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                         {permiteCaderneta ? 'Conta corrente contínua ativa no PDV e Catálogo' : 'Caderneta desabilitada para este cliente'}
                       </span>
                     </div>
@@ -980,7 +980,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                       }`}>
                         <div className="grid grid-cols-2 gap-2.5">
                           <div>
-                            <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>
+                            <label className={`text-sm font-black block mb-1 ${isDark ? 'text-slate-200' : 'text-black'}`}>
                               Limite da Caderneta (R$)
                             </label>
                             <div className="relative">
@@ -1001,7 +1001,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                             </div>
                           </div>
                           <div>
-                            <label className={`text-[10px] font-black block mb-1 ${isDark ? 'text-white' : 'text-black'}`}>
+                            <label className={`text-sm font-black block mb-1 ${isDark ? 'text-slate-200' : 'text-black'}`}>
                               Dia de Vencimento
                             </label>
                             <select
@@ -1024,7 +1024,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
 
                         <div className="flex items-center justify-between pt-1">
                           <div>
-                            <span className={`text-[10px] font-bold block ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
+                            <span className={`text-sm font-bold block ${isDark ? 'text-slate-200' : 'text-black'}`}>
                               Saldo Devedor na Caderneta
                             </span>
                             <span className={`text-sm font-black font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>
@@ -1164,7 +1164,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   }`}>
                     <Receipt className="w-8 h-8 stroke-1" />
                   </div>
-                  <p className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Sem vendas concluídas para este cliente</p>
+                  <p className={`text-sm leading-relaxed font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>Sem vendas concluídas para este cliente</p>
                 </div>
               ) : (
                 vendasFiltradas.map((pedido) => (
@@ -1173,11 +1173,11 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   }`}>
                     <div className="flex items-center justify-between text-xs font-black">
                       <span className="font-mono">R$ {Number(pedido.valor_total).toFixed(2)}</span>
-                      <span className={`text-[10px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      <span className={`text-sm leading-relaxed font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                         {new Date(pedido.data_venda).toLocaleDateString('pt-BR')}
                       </span>
                     </div>
-                    <p className={`text-[11px] font-medium truncate ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    <p className={`text-sm leading-relaxed font-medium truncate ${isDark ? 'text-slate-300' : 'text-black'}`}>
                       {(pedido.itens || pedido.itens_pedido)?.map((i: any) => `${i.quantidade}x ${i.nome_produto}`).join(', ')}
                     </p>
                   </div>
@@ -1186,10 +1186,10 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
             </div>
 
             {/* Rodapé da Aba Vendas */}
-            <div className={`p-3 border-t flex items-center justify-between text-xs shrink-0 ${
+            <div className={`p-3 border-t flex items-center justify-between text-sm shrink-0 ${
               isDark ? 'bg-[#08131A] border-slate-700 text-white' : 'bg-slate-200 border-slate-300 text-black'
             }`}>
-              <span className={`font-bold ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Total em vendas concluídas</span>
+              <span className={`font-bold leading-relaxed ${isDark ? 'text-slate-300' : 'text-black'}`}>Total em vendas concluídas</span>
               <span className="font-black text-emerald-500 font-mono">
                 R$ {totalVendasPeriodo.toFixed(2)} em {vendasFiltradas.length} venda(s)
               </span>
@@ -1221,7 +1221,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
 
             <div className="flex-1 p-4 space-y-3">
               {pedidosFiltrados.length === 0 ? (
-                <div className={`text-center py-20 text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                <div className={`text-center py-20 text-sm leading-relaxed font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Nenhum pedido em andamento para este cliente.
                 </div>
               ) : (
@@ -1233,20 +1233,20 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                     }`}>
                       <div className="flex items-center justify-between text-xs font-black">
                         <div className="flex items-center gap-1.5 font-mono">
-                          <Clock className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
+                          <Clock className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-black'}`} />
                           <span>R$ {Number(pedido.valor_total).toFixed(2)}</span>
                         </div>
-                        <span className={`text-[10px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        <span className={`text-sm leading-relaxed font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                           {new Date(pedido.data_venda).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
 
-                      <p className={`text-[10px] font-medium truncate ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      <p className={`text-sm leading-relaxed font-medium truncate ${isDark ? 'text-slate-300' : 'text-black'}`}>
                         {its.length} itens: {its.map((i: any) => `${i.quantidade}x ${i.nome_produto}`).join(', ')}
                       </p>
-                      <div className="flex items-center justify-between text-[9px] font-black">
-                        <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>#{pedido.numero_pedido}</span>
-                        <span className="text-emerald-500 uppercase">{pedido.status}</span>
+                      <div className="flex items-center justify-between text-sm leading-relaxed font-black">
+                        <span className={isDark ? 'text-slate-300' : 'text-black'}>#{pedido.numero_pedido}</span>
+                        <span className="text-emerald-600 dark:text-emerald-400 uppercase">{pedido.status}</span>
                       </div>
                     </div>
                   );
@@ -1255,10 +1255,10 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
             </div>
 
             {/* Rodapé da Aba Pedidos */}
-            <div className={`p-3 border-t flex items-center justify-between text-xs shrink-0 ${
+            <div className={`p-3 border-t flex items-center justify-between text-sm shrink-0 ${
               isDark ? 'bg-[#08131A] border-slate-700 text-white' : 'bg-slate-200 border-slate-300 text-black'
             }`}>
-              <span className={`font-bold ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Total em pedidos ativos</span>
+              <span className={`font-bold leading-relaxed ${isDark ? 'text-slate-300' : 'text-black'}`}>Total em pedidos ativos</span>
               <span className="font-black text-emerald-500 font-mono">
                 R$ {totalPedidosPeriodo.toFixed(2)} em {pedidosFiltrados.length} pedido(s)
               </span>
@@ -1279,8 +1279,8 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-slate-300 text-black'
                 }`}>
                   <div className="flex items-center justify-between">
-                    <span className={`text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                      <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
+                    <span className={`text-sm font-black uppercase tracking-wider flex items-center gap-1.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                      <BookOpen className="w-4 h-4 text-emerald-500" />
                       <span>Caderneta de Mercadinho</span>
                     </span>
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
@@ -1297,13 +1297,13 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   </div>
 
                   <div>
-                    <span className={`text-xs uppercase tracking-wider font-bold block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    <span className={`text-sm leading-relaxed uppercase tracking-wider font-bold block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                       Saldo Devedor na Caderneta
                     </span>
                     <div className={`text-3xl sm:text-4xl font-black tracking-tight font-mono ${isDark ? 'text-white' : 'text-slate-900'}`}>
                       R$ {saldoDevedorCaderneta.toFixed(2)}
                     </div>
-                    <span className={`text-[11px] font-medium block mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    <span className={`text-sm leading-relaxed font-medium block mt-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                       Limite Disponível: R$ {Math.max(0, (parseFloat(limiteCaderneta.replace(',', '.')) || 0) - saldoDevedorCaderneta).toFixed(2)}
                     </span>
                   </div>
@@ -1325,7 +1325,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-slate-300 text-black'
                 }`}>
                   <div className="flex items-center justify-between">
-                    <span className={`text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    <span className={`text-sm font-black uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-black'}`}>
                       Conta a Prazo (Fiado)
                     </span>
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${
@@ -1342,7 +1342,7 @@ export const ClientePerfilMobile: React.FC<ClientePerfilMobileProps> = ({
                   </div>
 
                   <div>
-                    <span className={`text-xs uppercase tracking-wider font-bold block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    <span className={`text-sm leading-relaxed uppercase tracking-wider font-bold block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                       Saldo Devedor
                     </span>
                     <div className={`text-3xl sm:text-4xl font-black tracking-tight font-mono ${

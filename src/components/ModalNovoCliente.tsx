@@ -826,7 +826,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
               <h2 className={`text-base sm:text-lg font-black ${isDark ? 'text-white' : 'text-black'}`}>
                 {clienteEditar ? 'Editar Dados do Cliente' : 'Cadastrar Novo Cliente'}
               </h2>
-              <p className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              <p className={`text-sm leading-relaxed font-semibold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 {clienteEditar
                   ? 'Atualize os dados de contato, endereço e condições de crédito'
                   : 'Preencha os dados de contato, endereço e controle de crédito'}
@@ -868,8 +868,8 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
             }`}>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className={`text-xs font-black ${isDark ? 'text-white' : 'text-black'}`}>Status do Cadastro:</span>
-                  <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                  <span className={`text-sm font-black ${isDark ? 'text-white' : 'text-black'}`}>Status do Cadastro:</span>
+                  <span className={`text-xs font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
                     ativo
                       ? isDark
                         ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
@@ -881,7 +881,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                     {ativo ? 'Ativo' : 'Inativo'}
                   </span>
                 </div>
-                <span className={`text-[11px] font-medium block mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                <span className={`text-sm leading-relaxed font-medium block mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   {ativo ? 'Cliente ativo e disponível para vendas e emissão de fiado.' : 'Cliente inativado no sistema.'}
                 </span>
               </div>
@@ -899,8 +899,8 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                   <span>{ativo ? 'Inativar Cliente' : 'Ativar Cliente'}</span>
                 </button>
               ) : (
-                <div className={`flex items-center gap-1 text-[11px] font-bold px-2.5 py-1.5 rounded-xl border ${
-                  isDark ? 'bg-[#000000] border-slate-700 text-slate-400' : 'bg-slate-100 border-slate-300 text-slate-700'
+                <div className={`flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-xl border ${
+                  isDark ? 'bg-[#000000] border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-300 text-black'
                 }`}>
                   <Lock className="w-3.5 h-3.5" />
                   <span>Apenas Owner / Admin</span>
@@ -1111,8 +1111,8 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                         <ShieldCheck className="w-5 h-5" />
                       </div>
                       <div>
-                        <span className={`text-xs font-black block ${isDark ? 'text-white' : 'text-black'}`}>Permite Venda no Fiado / A Prazo?</span>
-                        <span className={`text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                        <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>Permite Venda no Fiado / A Prazo?</span>
+                        <span className={`text-sm leading-relaxed font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                           {permiteFiado
                             ? 'Cliente habilitado para compras a prazo com limite de crédito'
                             : 'Cliente bloqueado para fiado (apenas pagamentos à vista)'}
@@ -1134,7 +1134,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                       className="flex items-center gap-2 cursor-pointer select-none shrink-0 self-start sm:self-auto"
                       title={permiteFiado ? 'Desativar fiado' : 'Ativar fiado'}
                     >
-                      <span className={`text-xs font-bold transition ${permiteFiado ? (isDark ? 'text-emerald-400' : 'text-emerald-700') : (isDark ? 'text-slate-400' : 'text-slate-600')}`}>
+                      <span className={`text-sm font-bold transition ${permiteFiado ? (isDark ? 'text-emerald-400' : 'text-emerald-700') : (isDark ? 'text-slate-300' : 'text-black')}`}>
                         {permiteFiado ? 'Habilitado' : 'Desabilitado'}
                       </span>
                       <div
@@ -1160,10 +1160,10 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                         : 'bg-emerald-50/50 border-2 border-emerald-300 text-black'
                     }`}>
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                        <label className={`text-xs font-black ${isDark ? 'text-white' : 'text-black'}`}>
+                        <label className={`text-sm font-black ${isDark ? 'text-white' : 'text-black'}`}>
                           Limite de Crédito / Fiado (R$) <span className="text-rose-500">*</span>
                         </label>
-                        <span className={`text-[11px] font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                        <span className={`text-sm leading-relaxed font-semibold ${isDark ? 'text-emerald-400' : 'text-emerald-800'}`}>
                           Valor máximo de débito pendente permitido
                         </span>
                       </div>
@@ -1210,8 +1210,8 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                             <FileText className="w-5 h-5" />
                           </div>
                           <div>
-                            <span className={`text-xs font-black block ${isDark ? 'text-white' : 'text-black'}`}>Permite Caderneta de Mercadinho?</span>
-                            <span className={`text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                            <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>Permite Caderneta de Mercadinho?</span>
+                            <span className={`text-sm leading-relaxed font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                               {permiteCaderneta
                                 ? 'Cliente autorizado para conta corrente contínua com ciclo de acerto mensal'
                                 : 'Cliente não participa da caderneta'}
@@ -1227,7 +1227,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                           className="flex items-center gap-2 cursor-pointer select-none shrink-0 self-start sm:self-auto"
                           title={permiteCaderneta ? 'Desativar caderneta' : 'Ativar caderneta'}
                         >
-                          <span className={`text-xs font-bold transition ${permiteCaderneta ? (isDark ? 'text-emerald-400' : 'text-emerald-700') : (isDark ? 'text-slate-400' : 'text-slate-600')}`}>
+                          <span className={`text-sm font-bold transition ${permiteCaderneta ? (isDark ? 'text-emerald-400' : 'text-emerald-700') : (isDark ? 'text-slate-300' : 'text-black')}`}>
                             {permiteCaderneta ? 'Habilitado' : 'Bloqueado'}
                           </span>
                           <div
@@ -1253,7 +1253,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                         }`}>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                             <div className="space-y-1">
-                              <label className={`text-xs font-black block ${isDark ? 'text-white' : 'text-black'}`}>
+                              <label className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                                 Limite da Caderneta (R$) <span className="text-rose-500">*</span>
                               </label>
                               <div className="relative">
@@ -1277,7 +1277,7 @@ export const ModalNovoCliente: React.FC<ModalNovoClienteProps> = ({
                             </div>
 
                             <div className="space-y-1">
-                              <label className={`text-xs font-black block ${isDark ? 'text-white' : 'text-black'}`}>
+                              <label className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>
                                 Dia Fixo de Fechamento/Acerto <span className="text-rose-500">*</span>
                               </label>
                               <select

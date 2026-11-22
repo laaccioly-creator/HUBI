@@ -578,7 +578,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
               <div>
                 <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>Publicar Catálogo Online</span>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{slugCatalogo || 'minhaloja'}.hubi.app</span>
+                  <span className={`text-sm font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>{slugCatalogo || 'minhaloja'}.hubi.app</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -880,9 +880,9 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
             }`}>
               <div className="flex items-start gap-2.5">
                 <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                <span className={`text-xs font-bold ${isDark ? 'text-white' : 'text-black'}`}>Estes dados não serão exibidos no catálogo.</span>
+                <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-black'}`}>Estes dados não serão exibidos no catálogo.</span>
               </div>
-              <p className={`text-[11px] leading-relaxed pl-7 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              <p className={`text-sm leading-relaxed font-medium pl-7 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 Informar o CPF ou CNPJ é uma medida para validar a sua conta, preservar sua privacidade e garantir a conformidade e qualidade de todos os catálogos do HUBI.
               </p>
             </div>
@@ -957,7 +957,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
             <div className={`w-full p-4 flex items-center justify-between ${isDark ? 'bg-[#000000]/40' : 'bg-white'}`}>
               <div>
                 <span className={`text-sm font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Exibir produtos sem foto</span>
-                <span className={`text-xs block mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                <span className={`text-sm leading-relaxed font-medium block mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   {exibirProdutosSemFoto ? 'Exibindo produtos sem imagem' : 'Apenas produtos com foto (Padrão)'}
                 </span>
               </div>
@@ -1048,7 +1048,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
               >
                 <div className="pr-3">
                   <h3 className={`text-sm font-black ${isDark ? 'text-white' : 'text-black'}`}>Modo Lista</h3>
-                  <p className={`text-xs font-medium mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  <p className={`text-sm leading-relaxed font-medium mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     Navegação mais rápida, ideal para grandes quantidades de produtos.
                   </p>
                 </div>
@@ -1070,7 +1070,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
               >
                 <div className="pr-3">
                   <h3 className={`text-sm font-black ${isDark ? 'text-white' : 'text-black'}`}>Modo Grade</h3>
-                  <p className={`text-xs font-medium mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  <p className={`text-sm leading-relaxed font-medium mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     Ideal para ver vários produtos com fotos ao mesmo tempo.
                   </p>
                 </div>
@@ -1092,7 +1092,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
               >
                 <div className="pr-3">
                   <h3 className={`text-sm font-black ${isDark ? 'text-white' : 'text-black'}`}>Modo Instaview</h3>
-                  <p className={`text-xs font-medium mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  <p className={`text-sm leading-relaxed font-medium mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     Melhor para ver o produto, ideal para fotos bem produzidas no estilo rede social.
                   </p>
                 </div>
@@ -1233,7 +1233,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
                 )}
               </div>
               <h2 className={`text-sm font-black pt-2 ${isDark ? 'text-white' : 'text-black'}`}>Deixe o seu catálogo com a cara da sua marca</h2>
-              <p className={`text-xs max-w-xs leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              <p className={`text-sm max-w-xs leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 O banner ajuda a dar mais identidade e possibilidades de comunicação com seus clientes.
               </p>
             </div>
@@ -1242,21 +1242,21 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
             <div className="space-y-3">
               <div className={`p-3.5 rounded-2xl border ${isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
                 <span className={`text-xs font-black uppercase tracking-wider block ${isDark ? 'text-white' : 'text-black'}`}>Orientação da imagem:</span>
-                <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                <p className={`text-sm leading-relaxed font-medium mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Para que o banner tenha uma exibição otimizada, utilize imagens em formato <strong>Paisagem (horizontal)</strong>.
                 </p>
               </div>
 
               <div className={`p-3.5 rounded-2xl border ${isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
                 <span className={`text-xs font-black uppercase tracking-wider block ${isDark ? 'text-white' : 'text-black'}`}>Tamanho máximo:</span>
-                <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                <p className={`text-sm leading-relaxed font-medium mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Recomendamos que você utilize imagens de até <strong>1136px de largura por 284px de altura</strong>.
                 </p>
               </div>
 
               <div className={`p-3.5 rounded-2xl border ${isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'}`}>
                 <span className={`text-xs font-black uppercase tracking-wider block ${isDark ? 'text-white' : 'text-black'}`}>Formatos:</span>
-                <p className={`text-[11px] mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                <p className={`text-sm leading-relaxed font-medium mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Os formatos suportados são <strong>JPG</strong> ou <strong>PNG</strong>.
                 </p>
               </div>
@@ -1332,7 +1332,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
             <div className={`p-4 flex items-center justify-between ${isDark ? 'bg-[#000000]/40' : 'bg-white'}`}>
               <div className="pr-3">
                 <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>Aceitar pedidos online</span>
-                <p className={`text-xs mt-0.5 leading-snug ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                <p className={`text-sm leading-relaxed font-medium mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Seus pedidos virão como <strong>Pendente</strong> até que você os aceite como <strong>Confirmado</strong>.
                 </p>
               </div>
@@ -1353,7 +1353,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
             <div className={`p-4 flex items-center justify-between ${isDark ? 'bg-[#000000]/40' : 'bg-white'}`}>
               <div className="pr-3">
                 <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>Resumo via WhatsApp</span>
-                <p className={`text-xs mt-0.5 leading-snug ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                <p className={`text-sm leading-relaxed font-medium mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Além de ter seu pedido criado no HUBI, seus clientes serão direcionados para enviar o resumo do pedido para seu WhatsApp cadastrado.
                 </p>
               </div>
@@ -1374,7 +1374,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
             <div className={`p-4 flex items-center justify-between border-t ${isDark ? 'bg-[#000000]/40 border-slate-800' : 'bg-white border-slate-200'}`}>
               <div className="pr-3">
                 <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>Exigir pesagem prévia para itens vendidos por quilo</span>
-                <p className={`text-xs mt-0.5 leading-snug ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                <p className={`text-sm leading-relaxed font-medium mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Quando ativado, pedidos no catálogo com produtos vendidos por quilo (kg) terão o pagamento bloqueado inicialmente e só serão liberados após o lojista informar o peso real aferido na balança. Quando desativado, o pagamento é liberado imediatamente com o valor estimado.
                 </p>
               </div>
@@ -1466,7 +1466,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
             >
               <div>
                 <span className={`text-sm font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Meios de pagamento</span>
-                <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Configure pagamentos online ou presenciais.</span>
+                <span className={`text-sm leading-relaxed font-medium block mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>Configure pagamentos online ou presenciais.</span>
               </div>
               <ChevronRight className={`w-5 h-5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
             </button>
@@ -1504,7 +1504,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-5 space-y-5">
-            <p className={`text-xs font-medium leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+            <p className={`text-sm font-medium leading-relaxed ${isDark ? 'text-slate-300' : 'text-black'}`}>
               Personalize a <strong>mensagem que seus clientes verão após concluírem o pedido</strong>. Agradeça pela compra, informe sobre prazos de entrega e retirada, formas de pagamento ou qualquer outra informação relevante.
             </p>
 
@@ -1524,12 +1524,12 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
                 value={orientacoesPosPedido}
                 onChange={(e) => setOrientacoesPosPedido(e.target.value)}
                 placeholder="Escreva as instruções para seu cliente..."
-                className={`w-full p-3.5 rounded-2xl border text-xs sm:text-sm font-medium focus:outline-none resize-none leading-relaxed transition ${
-                  isDark ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-500'
+                className={`w-full p-3.5 rounded-2xl border text-sm font-medium focus:outline-none resize-none leading-relaxed transition ${
+                  isDark ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-400 focus:border-emerald-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-500 focus:border-emerald-500'
                 }`}
               />
               <div className="text-right">
-                <span className={`text-[11px] font-semibold ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                <span className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   {orientacoesPosPedido.length}/200
                 </span>
               </div>
@@ -1587,7 +1587,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
                   isDark ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-500'
                 }`}
               />
-              <span className={`text-[11px] block pt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              <span className={`text-sm leading-relaxed font-medium block pt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 Descreva resumidamente suas opções de entrega.
               </span>
             </div>
@@ -1607,8 +1607,8 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
               </div>
 
               {opcoesEntrega.length === 0 ? (
-                <div className={`p-4 rounded-2xl border text-center text-xs ${
-                  isDark ? 'bg-[#000000] border-slate-700 text-slate-400' : 'bg-slate-50 border-2 border-slate-200 text-slate-500'
+                <div className={`p-4 rounded-2xl border text-center text-sm leading-relaxed font-medium ${
+                  isDark ? 'bg-[#000000] border-slate-700 text-slate-300' : 'bg-slate-50 border-2 border-slate-200 text-black'
                 }`}>
                   Nenhuma taxa específica adicionada. Você pode cadastrar frete fixo, motoboy ou correios.
                 </div>
@@ -1619,8 +1619,8 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
                       isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
                     }`}>
                       <div>
-                        <span className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-black'}`}>{op.nome}</span>
-                        <span className={`text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        <span className={`text-sm font-bold block ${isDark ? 'text-white' : 'text-black'}`}>{op.nome}</span>
+                        <span className={`text-sm leading-relaxed font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                           {(op.valor_taxa || 0) > 0 ? `R$ ${(op.valor_taxa || 0).toFixed(2)}` : 'Grátis'} {op.tempo_estimado ? `• ${op.tempo_estimado}` : ''}
                         </span>
                       </div>
@@ -1673,7 +1673,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
             <div className={`flex items-center justify-between pb-3 border-b ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
               <div className="pr-3">
                 <span className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>Trabalho com retirada no local</span>
-                <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                <p className={`text-sm leading-relaxed font-medium mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Seu endereço será informado durante o fechamento do pedido:
                 </p>
                 {endereco && (
@@ -1882,8 +1882,8 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
             {/* Seção 1: INTEGRAÇÕES */}
             <div className="space-y-3">
               <div>
-                <h3 className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>INTEGRAÇÕES</h3>
-                <p className={`text-xs font-medium mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Receba pagamentos diretamente em sua conta</p>
+                <h3 className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-black'}`}>INTEGRAÇÕES</h3>
+                <p className={`text-sm leading-relaxed font-medium mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>Receba pagamentos diretamente em sua conta</p>
               </div>
 
               <div className={`p-4 rounded-2xl border flex items-center justify-between ${
@@ -1915,8 +1915,8 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
             {/* Seção 2: OPÇÕES DE PAGAMENTO */}
             <div className="space-y-3 pt-2">
               <div>
-                <h3 className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>OPÇÕES DE PAGAMENTO</h3>
-                <p className={`text-xs font-medium mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                <h3 className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-black'}`}>OPÇÕES DE PAGAMENTO</h3>
+                <p className={`text-sm leading-relaxed font-medium mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Ative as opções que você quer mostrar para seus clientes no catálogo
                 </p>
               </div>
@@ -1956,7 +1956,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
                     </div>
                     <div>
                       <span className={`text-sm font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Dinheiro</span>
-                      <span className={`text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Pagamento presencial</span>
+                      <span className={`text-sm leading-relaxed font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>Pagamento presencial</span>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -1980,7 +1980,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
                     </div>
                     <div>
                       <span className={`text-sm font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Cartão de Débito</span>
-                      <span className={`text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Maquininha na entrega/retirada</span>
+                      <span className={`text-sm leading-relaxed font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>Maquininha na entrega/retirada</span>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -2004,7 +2004,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
                     </div>
                     <div>
                       <span className={`text-sm font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Cartão de Crédito</span>
-                      <span className={`text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Maquininha ou Link de pagamento</span>
+                      <span className={`text-sm leading-relaxed font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>Maquininha ou Link de pagamento</span>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -2030,7 +2030,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
                     </div>
                     <div>
                       <span className={`text-sm font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Outros</span>
-                      <span className={`text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Vale, transferência, etc.</span>
+                      <span className={`text-sm leading-relaxed font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>Vale, transferência, etc.</span>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -2148,7 +2148,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
                     isDark ? 'bg-[#000000] border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500' : 'bg-white border-2 border-slate-300 text-black placeholder:text-slate-400 focus:border-emerald-500'
                   }`}
                 />
-                <span className={`text-[11px] block pt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                <span className={`text-sm leading-relaxed font-medium block pt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Neste campo você pode adicionar o endereço do seu negócio, horário de funcionamento e o que mais você precisar.
                 </span>
               </div>
@@ -2169,7 +2169,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
                   </div>
                   <div>
                     <span className={`text-sm font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Integrar com parceiros</span>
-                    <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Instagram, Facebook, Google Shopping e mais...</span>
+                    <span className={`text-sm leading-relaxed font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>Instagram, Facebook, Google Shopping e mais...</span>
                   </div>
                 </div>
                 <ChevronRight className={`w-5 h-5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
@@ -2212,7 +2212,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
             {/* Bloco 1: Facebook / Instagram */}
             <div className="space-y-2">
               <div className="flex items-center gap-2 px-1">
-                <span className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Facebook / Instagram</span>
+                <span className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-black'}`}>Facebook / Instagram</span>
               </div>
 
               <div className={`divide-y border rounded-2xl overflow-hidden ${
@@ -2227,7 +2227,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
                 >
                   <div>
                     <span className={`text-sm font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Shopping</span>
-                    <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Conecte seu catálogo de produtos às lojas do Facebook e Instagram</span>
+                    <span className={`text-sm leading-relaxed font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>Conecte seu catálogo de produtos às lojas do Facebook e Instagram</span>
                   </div>
                   <ChevronRight className={`w-5 h-5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
                 </button>
@@ -2241,7 +2241,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
                 >
                   <div>
                     <span className={`text-sm font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Pedidos de comida</span>
-                    <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Receba pedidos no seu cardápio digital pelo Facebook e Instagram</span>
+                    <span className={`text-sm leading-relaxed font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>Receba pedidos no seu cardápio digital pelo Facebook e Instagram</span>
                   </div>
                   <ChevronRight className={`w-5 h-5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
                 </button>
@@ -2255,7 +2255,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
                 >
                   <div>
                     <span className={`text-sm font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Facebook Pixel</span>
-                    <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Saiba o impacto dos seus anúncios</span>
+                    <span className={`text-sm leading-relaxed font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>Saiba o impacto dos seus anúncios</span>
                   </div>
                   <ChevronRight className={`w-5 h-5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
                 </button>
@@ -2265,7 +2265,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
             {/* Bloco 2: Google */}
             <div className="space-y-2">
               <div className="flex items-center gap-2 px-1">
-                <span className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Google</span>
+                <span className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-black'}`}>Google</span>
               </div>
 
               <div className={`border rounded-2xl overflow-hidden ${
@@ -2280,7 +2280,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
                 >
                   <div>
                     <span className={`text-sm font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Shopping</span>
-                    <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Alcance clientes no Google Merchant</span>
+                    <span className={`text-sm leading-relaxed font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>Alcance clientes no Google Merchant</span>
                   </div>
                   <ChevronRight className={`w-5 h-5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
                 </button>
@@ -2290,7 +2290,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
             {/* Bloco 3: TikTok */}
             <div className="space-y-2">
               <div className="flex items-center gap-2 px-1">
-                <span className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>TikTok</span>
+                <span className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-black'}`}>TikTok</span>
               </div>
 
               <div className={`border rounded-2xl overflow-hidden ${
@@ -2305,7 +2305,7 @@ export const ConfiguracaoCatalogoMobile: React.FC = () => {
                 >
                   <div>
                     <span className={`text-sm font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Business</span>
-                    <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Divulgue seus produtos para o público do TikTok</span>
+                    <span className={`text-sm leading-relaxed font-medium block ${isDark ? 'text-slate-300' : 'text-black'}`}>Divulgue seus produtos para o público do TikTok</span>
                   </div>
                   <ChevronRight className={`w-5 h-5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
                 </button>

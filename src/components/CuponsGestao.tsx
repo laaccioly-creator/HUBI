@@ -256,19 +256,19 @@ export const CuponsGestao: React.FC = () => {
                   </span>
                 </div>
                 <h3 className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>Crie cupons promocionais</h3>
-                <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                <p className={`text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Ofereça cupons de porcentagem, valor fixo ou frete grátis para seus clientes no catálogo online.
                 </p>
               </div>
 
               {/* Lista de Cupons */}
               <div className="space-y-2.5">
-                <h2 className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                <h2 className={`text-xs font-black uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Cupons Criados ({cupons.length})
                 </h2>
 
                 {carregando ? (
-                  <div className={`text-center py-12 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Carregando cupons...</div>
+                  <div className={`text-center py-12 text-sm font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>Carregando cupons...</div>
                 ) : cupons.length === 0 ? (
                   <div className={`text-center py-12 rounded-2xl p-6 space-y-2 ${
                     isDark
@@ -277,7 +277,7 @@ export const CuponsGestao: React.FC = () => {
                   }`}>
                     <Ticket className={`w-8 h-8 mx-auto ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
                     <p className={`text-xs font-bold ${isDark ? 'text-white' : 'text-black'}`}>Nenhum cupom cadastrado ainda</p>
-                    <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Clique em "+ Novo" acima para criar seu primeiro cupom.</p>
+                    <p className={`text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-black'}`}>Clique em "+ Novo" acima para criar seu primeiro cupom.</p>
                   </div>
                 ) : (
                   cupons.map((cupom) => (
@@ -325,8 +325,8 @@ export const CuponsGestao: React.FC = () => {
                         </label>
                       </div>
 
-                      <div className={`flex items-center justify-between text-xs pt-1 border-t ${
-                        isDark ? 'border-slate-800 text-slate-300' : 'border-slate-200 text-slate-600'
+                      <div className={`flex items-center justify-between text-sm font-medium pt-1.5 border-t ${
+                        isDark ? 'border-slate-800 text-slate-300' : 'border-slate-200 text-black'
                       }`}>
                         <span className="font-bold text-emerald-500 dark:text-emerald-400">
                           {cupom.tipo === 'frete_gratis'
@@ -385,7 +385,7 @@ export const CuponsGestao: React.FC = () => {
                   </div>
                   <div>
                     <h3 className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>Frete Grátis</h3>
-                    <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Zere a taxa de entrega no catálogo</p>
+                    <p className={`text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-black'}`}>Zere a taxa de entrega no catálogo</p>
                   </div>
                 </div>
                 <ChevronRight className={`w-5 h-5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
@@ -408,7 +408,7 @@ export const CuponsGestao: React.FC = () => {
                   </div>
                   <div>
                     <h3 className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>Desconto no Pedido</h3>
-                    <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Desconto em % ou em reais no valor total</p>
+                    <p className={`text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-black'}`}>Desconto em % ou em reais no valor total</p>
                   </div>
                 </div>
                 <ChevronRight className={`w-5 h-5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
@@ -423,7 +423,7 @@ export const CuponsGestao: React.FC = () => {
                 : 'bg-white border-2 border-slate-300 text-black'
             }`}>
               <div className="space-y-1">
-                <label className={`text-xs font-bold ${isDark ? 'text-white' : 'text-black'}`}>Código do Cupom</label>
+                <label className={`text-sm font-bold ${isDark ? 'text-white' : 'text-black'}`}>Código do Cupom</label>
                 <input
                   type="text"
                   placeholder="Ex: PROMO10, NATAL"
@@ -488,7 +488,7 @@ export const CuponsGestao: React.FC = () => {
               )}
 
               <div className={`pt-2 border-t space-y-3 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
-                <label className={`flex items-center gap-2 text-xs font-bold cursor-pointer ${isDark ? 'text-white' : 'text-black'}`}>
+                <label className={`flex items-center gap-2 text-sm font-bold cursor-pointer ${isDark ? 'text-white' : 'text-black'}`}>
                   <input
                     type="checkbox"
                     checked={temValorMinimo}
@@ -554,7 +554,7 @@ export const CuponsGestao: React.FC = () => {
               </div>
               <div>
                 <h1 className={`text-xl md:text-2xl font-black ${isDark ? 'text-white' : 'text-black'}`}>Cupons</h1>
-                <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Crie promoções e cupons de frete grátis para sua loja</p>
+                <p className={`text-sm leading-relaxed mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>Crie promoções e cupons de frete grátis para sua loja</p>
               </div>
             </div>
 
@@ -593,7 +593,7 @@ export const CuponsGestao: React.FC = () => {
               <h2 className={`text-lg md:text-xl font-black ${isDark ? 'text-white' : 'text-black'}`}>
                 Venda mais com cupons!
               </h2>
-              <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              <p className={`text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 Aumente suas vendas criando promoções, descontos no carrinho e frete grátis, do jeitinho que você quiser.
               </p>
             </div>
@@ -607,9 +607,9 @@ export const CuponsGestao: React.FC = () => {
             </h3>
 
             {carregando ? (
-              <div className={`flex flex-col items-center justify-center p-12 space-y-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              <div className={`flex flex-col items-center justify-center p-12 space-y-2 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
-                <span className="text-xs">Carregando seus cupons...</span>
+                <span className="text-sm font-medium">Carregando seus cupons...</span>
               </div>
             ) : cupons.length === 0 ? (
               <div className={`rounded-3xl p-8 text-center space-y-3 ${
@@ -618,7 +618,7 @@ export const CuponsGestao: React.FC = () => {
                   : 'bg-white border-2 border-dashed border-slate-300 text-black'
               }`}>
                 <Tag className={`w-10 h-10 mx-auto ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
-                <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Você ainda não tem nenhum cupom cadastrado.</p>
+                <p className={`text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-black'}`}>Você ainda não tem nenhum cupom cadastrado.</p>
                 <button
                   type="button"
                   onClick={abrirCriarNovo}
@@ -680,7 +680,7 @@ export const CuponsGestao: React.FC = () => {
                                 )}
                               </button>
                             </div>
-                            <span className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                            <span className={`text-base font-semibold ${isDark ? 'text-slate-200' : 'text-black'}`}>
                               {isFrete
                                 ? 'Frete Grátis'
                                 : cupom.tipo === 'desconto_percentual'
@@ -699,7 +699,7 @@ export const CuponsGestao: React.FC = () => {
                               ? 'bg-emerald-500/15 text-emerald-500 dark:text-emerald-400 border-emerald-500/30'
                               : isDark
                               ? 'bg-slate-900 text-slate-400 border-slate-800'
-                              : 'bg-slate-200 text-slate-600 border-slate-300'
+                              : 'bg-slate-200 text-black border-slate-300'
                           }`}
                         >
                           {cupom.ativo ? 'Ativo' : 'Inativo'}
@@ -707,8 +707,8 @@ export const CuponsGestao: React.FC = () => {
                       </div>
 
                       {/* Regras e Ações */}
-                      <div className={`pt-2 border-t flex items-center justify-between text-xs ${
-                        isDark ? 'border-slate-800 text-slate-300' : 'border-slate-200 text-slate-600'
+                      <div className={`pt-2 border-t flex items-center justify-between text-sm font-medium ${
+                        isDark ? 'border-slate-800 text-slate-300' : 'border-slate-200 text-black'
                       }`}>
                         <span>
                           {cupom.tem_valor_minimo && Number(cupom.valor_minimo_carrinho) > 0
@@ -753,7 +753,7 @@ export const CuponsGestao: React.FC = () => {
       {/* TELA 2: ESCOLHER TIPO DE CUPOM (TELA002)                                  */}
       {/* ========================================================================= */}
       {visao === 'selecionar_tipo' && (
-        <div className="flex-1 max-w-md mx-auto w-full p-4 md:p-6 space-y-6 animate-in fade-in">
+        <div className="flex-1 max-w-2xl mx-auto w-full p-4 md:p-6 space-y-6 animate-in fade-in">
           <div className={`flex items-center gap-2 pb-3 border-b ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
             <button
               type="button"
@@ -819,7 +819,7 @@ export const CuponsGestao: React.FC = () => {
       {/* TELA 3: CUPOM DE FRETE GRÁTIS (TELA003)                                   */}
       {/* ========================================================================= */}
       {visao === 'criar_frete_gratis' && (
-        <div className="flex-1 max-w-md mx-auto w-full p-4 md:p-6 space-y-6 animate-in fade-in">
+        <div className="flex-1 max-w-2xl mx-auto w-full p-4 md:p-6 space-y-6 animate-in fade-in">
           {/* Header */}
           <div className={`flex items-center gap-2 pb-3 border-b ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
             <button
@@ -858,8 +858,8 @@ export const CuponsGestao: React.FC = () => {
               </span>
             </div>
 
-            <div className={`flex items-center gap-1.5 text-xs font-bold ${
-              isDark ? 'text-slate-300' : 'text-slate-700'
+            <div className={`flex items-center gap-1.5 text-sm font-bold ${
+              isDark ? 'text-slate-300' : 'text-black'
             }`}>
               <Truck className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
               <span>Frete grátis</span>
@@ -879,7 +879,7 @@ export const CuponsGestao: React.FC = () => {
           <div className={`p-4 rounded-2xl space-y-2 border ${
             isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
           }`}>
-            <label className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Código de cupom</label>
+            <label className={`text-sm font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Código de cupom</label>
             <input
               type="text"
               placeholder="Ex: 25OFF"
@@ -891,7 +891,7 @@ export const CuponsGestao: React.FC = () => {
                   : 'bg-slate-50 border-slate-300 focus:border-emerald-500 text-black placeholder:text-slate-400'
               }`}
             />
-            <span className={`text-[11px] block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Este é o código que os clientes vão digitar</span>
+            <span className={`text-sm leading-relaxed block ${isDark ? 'text-slate-300' : 'text-black'}`}>Este é o código que os clientes vão digitar</span>
           </div>
 
           {/* Card 2: Definir Valor Mínimo do Carrinho (TELA003) */}
@@ -899,7 +899,7 @@ export const CuponsGestao: React.FC = () => {
             isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
           }`}>
             <div className="flex items-center justify-between">
-              <label className={`text-xs font-bold ${isDark ? 'text-white' : 'text-black'}`}>Definir valor mínimo do carrinho</label>
+              <label className={`text-sm font-bold ${isDark ? 'text-white' : 'text-black'}`}>Definir valor mínimo do carrinho</label>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
@@ -916,7 +916,7 @@ export const CuponsGestao: React.FC = () => {
             {temValorMinimo && (
               <div className="space-y-1.5 pt-2 animate-in fade-in">
                 <div className="relative">
-                  <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     R$
                   </span>
                   <input
@@ -931,7 +931,7 @@ export const CuponsGestao: React.FC = () => {
                     }`}
                   />
                 </div>
-                <span className={`text-[11px] block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                <span className={`text-sm leading-relaxed block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Defina o valor mínimo do carrinho necessário para o uso do cupom
                 </span>
               </div>
@@ -961,7 +961,7 @@ export const CuponsGestao: React.FC = () => {
       {/* TELA 4: CUPOM DE DESCONTO (TELA004)                                       */}
       {/* ========================================================================= */}
       {visao === 'criar_desconto' && (
-        <div className="flex-1 max-w-md mx-auto w-full p-4 md:p-6 space-y-6 animate-in fade-in">
+        <div className="flex-1 max-w-2xl mx-auto w-full p-4 md:p-6 space-y-6 animate-in fade-in">
           {/* Header */}
           <div className={`flex items-center gap-2 pb-3 border-b ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
             <button
@@ -1000,8 +1000,8 @@ export const CuponsGestao: React.FC = () => {
               </span>
             </div>
 
-            <div className={`flex items-center gap-1.5 text-xs font-bold ${
-              isDark ? 'text-slate-300' : 'text-slate-700'
+            <div className={`flex items-center gap-1.5 text-sm font-bold ${
+              isDark ? 'text-slate-300' : 'text-black'
             }`}>
               <Tag className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
               <span>
@@ -1027,7 +1027,7 @@ export const CuponsGestao: React.FC = () => {
           <div className={`p-4 rounded-2xl space-y-2 border ${
             isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
           }`}>
-            <label className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Código de cupom</label>
+            <label className={`text-sm font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Código de cupom</label>
             <input
               type="text"
               placeholder="Ex: 25OFF"
@@ -1039,7 +1039,7 @@ export const CuponsGestao: React.FC = () => {
                   : 'bg-slate-50 border-slate-300 focus:border-emerald-500 text-black placeholder:text-slate-400'
               }`}
             />
-            <span className={`text-[11px] block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Este é o código que os clientes vão digitar</span>
+            <span className={`text-sm leading-relaxed block ${isDark ? 'text-slate-300' : 'text-black'}`}>Este é o código que os clientes vão digitar</span>
           </div>
 
           {/* Card 2: Tipo de Desconto (TELA004) */}
@@ -1047,8 +1047,8 @@ export const CuponsGestao: React.FC = () => {
             isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
           }`}>
             <div>
-              <label className={`text-xs font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Tipo de desconto</label>
-              <p className={`text-[11px] leading-relaxed mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+              <label className={`text-sm font-bold block ${isDark ? 'text-white' : 'text-black'}`}>Tipo de desconto</label>
+              <p className={`text-sm leading-relaxed mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 O desconto será aplicado ao valor total dos produtos, mesmo que tenham produtos com preço promocional
               </p>
             </div>
@@ -1086,7 +1086,7 @@ export const CuponsGestao: React.FC = () => {
 
             {/* Input do Valor */}
             <div className="relative pt-1">
-              <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 {tipoDesconto === 'fixo' ? 'R$' : '%'}
               </span>
               <input
@@ -1108,7 +1108,7 @@ export const CuponsGestao: React.FC = () => {
             isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
           }`}>
             <div className="flex items-center justify-between">
-              <label className={`text-xs font-bold ${isDark ? 'text-white' : 'text-black'}`}>Definir valor mínimo do carrinho</label>
+              <label className={`text-sm font-bold ${isDark ? 'text-white' : 'text-black'}`}>Definir valor mínimo do carrinho</label>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
@@ -1125,7 +1125,7 @@ export const CuponsGestao: React.FC = () => {
             {temValorMinimo && (
               <div className="space-y-1.5 pt-2 animate-in fade-in">
                 <div className="relative">
-                  <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     R$
                   </span>
                   <input
@@ -1140,7 +1140,7 @@ export const CuponsGestao: React.FC = () => {
                     }`}
                   />
                 </div>
-                <span className={`text-[11px] block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                <span className={`text-sm leading-relaxed block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Defina o valor mínimo do carrinho necessário para o uso do cupom
                 </span>
               </div>

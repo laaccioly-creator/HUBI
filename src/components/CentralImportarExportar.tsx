@@ -139,7 +139,7 @@ export const CentralImportarExportar: React.FC<CentralImportarExportarProps> = (
               <FileSpreadsheet className="w-5 h-5 text-emerald-600 md:text-emerald-400" />
               <span>Importar / Exportar</span>
             </h2>
-            <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-400 mt-0.5 font-medium">
+            <p className="text-sm leading-relaxed text-black dark:text-slate-300 mt-0.5 font-medium">
               Gerencie a importação e exportação em massa de Clientes, Produtos e Pedidos via planilhas Excel (.xlsx) e CSV.
             </p>
           </div>
@@ -153,10 +153,10 @@ export const CentralImportarExportar: React.FC<CentralImportarExportarProps> = (
             <AlertTriangle className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="font-extrabold text-xs sm:text-sm text-slate-100">
+            <h3 className="font-extrabold text-sm text-white">
               Atenção à Ordem Obrigatória de Importação
             </h3>
-            <p className="text-[11px] sm:text-xs text-slate-400">
+            <p className="text-sm leading-relaxed text-slate-300">
               Para evitar erros de relacionamento entre as tabelas do sistema, siga rigorosamente esta sequência:
             </p>
           </div>
@@ -165,31 +165,31 @@ export const CentralImportarExportar: React.FC<CentralImportarExportarProps> = (
         {/* Linha do Tempo da Sequência */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
           <div className="p-3.5 rounded-2xl bg-slate-950 border border-emerald-500/30 space-y-1 relative">
-            <span className="inline-block px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 font-bold text-[10px] uppercase tracking-wider border border-emerald-500/30">
+            <span className="inline-block px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 font-bold text-xs uppercase tracking-wider border border-emerald-500/30">
               1º Passo: Clientes
             </span>
-            <p className="text-xs text-slate-200 font-bold pt-1">Pessoas & Compradores</p>
-            <p className="text-[11px] text-slate-400 leading-snug">
+            <p className="text-sm text-white font-bold pt-1">Pessoas & Compradores</p>
+            <p className="text-sm text-slate-300 leading-relaxed">
               Os clientes devem ser cadastrados primeiro para que os pedidos possam ser vinculados a eles.
             </p>
           </div>
 
           <div className="p-3.5 rounded-2xl bg-slate-950 border border-emerald-500/30 space-y-1 relative">
-            <span className="inline-block px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 font-bold text-[10px] uppercase tracking-wider border border-emerald-500/30">
+            <span className="inline-block px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 font-bold text-xs uppercase tracking-wider border border-emerald-500/30">
               2º Passo: Produtos
             </span>
-            <p className="text-xs text-slate-200 font-bold pt-1">Catálogo & Estoque</p>
-            <p className="text-[11px] text-slate-400 leading-snug">
+            <p className="text-sm text-white font-bold pt-1">Catálogo & Estoque</p>
+            <p className="text-sm text-slate-300 leading-relaxed">
               Os produtos, códigos e preços precisam existir antes para compor os itens dos pedidos.
             </p>
           </div>
 
           <div className="p-3.5 rounded-2xl bg-slate-950 border border-emerald-500/30 space-y-1 relative">
-            <span className="inline-block px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 font-bold text-[10px] uppercase tracking-wider border border-emerald-500/30">
+            <span className="inline-block px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 font-bold text-xs uppercase tracking-wider border border-emerald-500/30">
               3º Passo: Pedidos
             </span>
-            <p className="text-xs text-slate-200 font-bold pt-1">Vendas & Histórico</p>
-            <p className="text-[11px] text-slate-400 leading-snug">
+            <p className="text-sm text-white font-bold pt-1">Vendas & Histórico</p>
+            <p className="text-sm text-slate-300 leading-relaxed">
               Importados por último, vinculando com precisão os clientes e produtos já cadastrados.
             </p>
           </div>
@@ -207,7 +207,7 @@ export const CentralImportarExportar: React.FC<CentralImportarExportarProps> = (
               className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-850 hover:shadow-lg hover:shadow-emerald-500/5 flex flex-col items-center justify-center text-center gap-3 transition-all duration-200 cursor-pointer group relative"
             >
               {btn.badge && (
-                <span className={`absolute top-3 right-3 text-[10px] px-2.5 py-1 rounded-xl shadow-xs ${btn.badgeCor}`}>
+                <span className={`absolute top-3 right-3 text-xs font-bold px-2.5 py-1 rounded-xl shadow-xs ${btn.badgeCor}`}>
                   {btn.badge}
                 </span>
               )}
@@ -224,10 +224,10 @@ export const CentralImportarExportar: React.FC<CentralImportarExportarProps> = (
               </div>
 
               <div>
-                <span className="font-bold text-xs sm:text-sm text-slate-200 group-hover:text-emerald-400 transition leading-tight block">
+                <span className="font-bold text-sm text-white group-hover:text-emerald-400 transition leading-tight block">
                   {btn.label}
                 </span>
-                <span className="text-[11px] text-slate-400 mt-1 block">
+                <span className="text-sm leading-relaxed text-slate-300 mt-1 block">
                   {btn.sublabel}
                 </span>
               </div>

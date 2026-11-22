@@ -503,7 +503,7 @@ export const ShippingSettingsScreen: React.FC = () => {
             <Truck className="w-7 h-7 text-emerald-500" />
             Configurações de Frete e Entregas
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-sm leading-relaxed font-medium text-black dark:text-slate-300 mt-1">
             Configure o endereço de despacho, credenciais da Uber Direct e Melhor Envio para cotação automatizada.
           </p>
         </div>
@@ -551,7 +551,7 @@ export const ShippingSettingsScreen: React.FC = () => {
               <h2 className="text-base font-bold text-slate-900 dark:text-white">
                 1. Endereço de Origem da Loja
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-sm leading-relaxed font-medium text-black dark:text-slate-300">
                 Ponto de partida para cálculo das rotas (Uber e transportadoras) e local exibido para Retirada na Loja.
               </p>
             </div>
@@ -559,7 +559,7 @@ export const ShippingSettingsScreen: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                 CEP de Origem *
               </label>
               <div className="relative">
@@ -586,7 +586,7 @@ export const ShippingSettingsScreen: React.FC = () => {
             </div>
 
             <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                 Logradouro / Rua *
               </label>
               <input
@@ -600,7 +600,7 @@ export const ShippingSettingsScreen: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                 Número *
               </label>
               <input
@@ -614,7 +614,7 @@ export const ShippingSettingsScreen: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                 Complemento
               </label>
               <input
@@ -627,7 +627,7 @@ export const ShippingSettingsScreen: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                 Bairro *
               </label>
               <input
@@ -641,7 +641,7 @@ export const ShippingSettingsScreen: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                 Cidade *
               </label>
               <input
@@ -655,7 +655,7 @@ export const ShippingSettingsScreen: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                 UF (Estado) *
               </label>
               <input
@@ -682,7 +682,7 @@ export const ShippingSettingsScreen: React.FC = () => {
                 <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   2. Integração Uber Direct (Entregas Instantâneas / Flash)
                 </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-sm leading-relaxed font-medium text-black dark:text-slate-300">
                   Despachos automáticos com motoboys parceiros da Uber para entregas em minutos no mesmo dia.
                 </p>
               </div>
@@ -717,7 +717,7 @@ export const ShippingSettingsScreen: React.FC = () => {
                   {uberAtivo && <Check className="w-3.5 h-3.5 stroke-[3] text-white" />}
                 </div>
               </div>
-              <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+              <span className="text-sm font-semibold text-black dark:text-slate-200">
                 Ativar Uber Direct no Checkout
               </span>
             </label>
@@ -740,7 +740,7 @@ export const ShippingSettingsScreen: React.FC = () => {
                   {uberSandboxMode && <Check className="w-3.5 h-3.5 stroke-[3] text-white" />}
                 </div>
               </div>
-              <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+              <span className="text-sm font-semibold text-black dark:text-slate-200">
                 Modo Sandbox (Ambiente de Testes)
               </span>
             </label>
@@ -748,7 +748,7 @@ export const ShippingSettingsScreen: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                 Customer ID (Organização)
               </label>
               <input
@@ -761,7 +761,7 @@ export const ShippingSettingsScreen: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                 Client ID (App)
               </label>
               <input
@@ -774,7 +774,7 @@ export const ShippingSettingsScreen: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                 Client Secret
               </label>
               <input
@@ -799,7 +799,7 @@ export const ShippingSettingsScreen: React.FC = () => {
                 <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   3. Integração Melhor Envio (Jadlog, Correios, Loggi e mais)
                 </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-sm leading-relaxed font-medium text-black dark:text-slate-300">
                   Cotações simultâneas de transportadoras com desconto de contrato integrado.
                 </p>
               </div>
@@ -834,7 +834,7 @@ export const ShippingSettingsScreen: React.FC = () => {
                   {melhorEnvioAtivo && <Check className="w-3.5 h-3.5 stroke-[3] text-white" />}
                 </div>
               </div>
-              <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+              <span className="text-sm font-semibold text-black dark:text-slate-200">
                 Ativar Melhor Envio no Checkout
               </span>
             </label>
@@ -857,14 +857,14 @@ export const ShippingSettingsScreen: React.FC = () => {
                   {melhorEnvioSandboxMode && <Check className="w-3.5 h-3.5 stroke-[3] text-white" />}
                 </div>
               </div>
-              <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+              <span className="text-sm font-semibold text-black dark:text-slate-200">
                 Modo Sandbox (Ambiente de Testes)
               </span>
             </label>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
               Token de Acesso Pessoal (JWT Bearer Token com escopo &apos;shipping-calculate&apos;)
             </label>
             <input
@@ -877,7 +877,7 @@ export const ShippingSettingsScreen: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
               Limite para Declaração de Conteúdo sem NF-e (R$)
             </label>
             <div className="relative max-w-xs">
@@ -894,7 +894,7 @@ export const ShippingSettingsScreen: React.FC = () => {
                 className="w-full pl-9 pr-3.5 py-2 rounded-xl text-sm font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none"
               />
             </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-sm leading-relaxed font-medium text-black dark:text-slate-300 mt-1">
               Pedidos com valor de produtos acima deste teto e sem NF-e associada serão direcionados para envio manual, evitando cotações que falhariam na emissão da etiqueta.
             </p>
           </div>
@@ -904,10 +904,10 @@ export const ShippingSettingsScreen: React.FC = () => {
             <div className="flex items-center gap-2">
               <Package className="w-4 h-4 text-sky-500" />
               <div>
-                <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                <h3 className="text-sm font-bold text-black dark:text-slate-200">
                   Embalagem Padrão para Envios (Fallback para Cotações Jadlog / Correios)
                 </h3>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                <p className="text-sm leading-relaxed font-medium text-black dark:text-slate-300">
                   Valores padrão utilizados quando o produto ou pedido não possuir dimensões/peso individualmente definidos.
                 </p>
               </div>
@@ -915,7 +915,7 @@ export const ShippingSettingsScreen: React.FC = () => {
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                   Peso Padrão (kg)
                 </label>
                 <input
@@ -925,12 +925,12 @@ export const ShippingSettingsScreen: React.FC = () => {
                   placeholder="0.30"
                   value={embalagemPadraoPesoKg}
                   onChange={(e) => setEmbalagemPadraoPesoKg(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none"
+                  className="w-full px-3 py-1.5 rounded-xl text-sm font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-black dark:text-white focus:ring-2 focus:ring-sky-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                   Altura (cm)
                 </label>
                 <input
@@ -940,12 +940,12 @@ export const ShippingSettingsScreen: React.FC = () => {
                   placeholder="4"
                   value={embalagemPadraoAlturaCm}
                   onChange={(e) => setEmbalagemPadraoAlturaCm(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none"
+                  className="w-full px-3 py-1.5 rounded-xl text-sm font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-black dark:text-white focus:ring-2 focus:ring-sky-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                   Largura (cm)
                 </label>
                 <input
@@ -955,12 +955,12 @@ export const ShippingSettingsScreen: React.FC = () => {
                   placeholder="12"
                   value={embalagemPadraoLarguraCm}
                   onChange={(e) => setEmbalagemPadraoLarguraCm(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none"
+                  className="w-full px-3 py-1.5 rounded-xl text-sm font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-black dark:text-white focus:ring-2 focus:ring-sky-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                   Comprimento (cm)
                 </label>
                 <input
@@ -970,7 +970,7 @@ export const ShippingSettingsScreen: React.FC = () => {
                   placeholder="17"
                   value={embalagemPadraoComprimentoCm}
                   onChange={(e) => setEmbalagemPadraoComprimentoCm(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none"
+                  className="w-full px-3 py-1.5 rounded-xl text-sm font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-black dark:text-white focus:ring-2 focus:ring-sky-500 outline-none"
                 />
               </div>
             </div>
@@ -991,7 +991,7 @@ export const ShippingSettingsScreen: React.FC = () => {
                     Motoboy Local
                   </span>
                 </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-sm leading-relaxed font-medium text-black dark:text-slate-300">
                   Ideal para motoboy particular, entregador da equipe ou delivery no mesmo bairro.
                 </p>
               </div>
@@ -1012,7 +1012,7 @@ export const ShippingSettingsScreen: React.FC = () => {
             <div className="pt-2 space-y-4 animate-in fade-in duration-200">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="sm:col-span-1">
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                     Nome da Opção no Catálogo
                   </label>
                   <input
@@ -1020,18 +1020,18 @@ export const ShippingSettingsScreen: React.FC = () => {
                     value={freteProprioNome}
                     onChange={(e) => setFreteProprioNome(e.target.value)}
                     placeholder="Ex: Entrega Própria da Loja"
-                    className="w-full px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3 py-2 rounded-xl text-sm font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-black dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                     Cobrança
                   </label>
                   <select
                     value={freteProprioTipoCobranca}
                     onChange={(e) => setFreteProprioTipoCobranca(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
+                    className="w-full px-3 py-2 rounded-xl text-sm font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-black dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
                   >
                     <option value="fixo">Taxa Fixa (R$)</option>
                     <option value="gratis">Frete Grátis (R$ 0,00)</option>
@@ -1041,11 +1041,11 @@ export const ShippingSettingsScreen: React.FC = () => {
 
                 {freteProprioTipoCobranca === 'fixo' && (
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                       Valor Padrão (R$)
                     </label>
                     <div className="relative">
-                      <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">R$</span>
+                      <span className="absolute left-3 top-2.5 text-xs font-bold text-slate-500 dark:text-slate-400">R$</span>
                       <input
                         type="number"
                         step="0.01"
@@ -1053,7 +1053,7 @@ export const ShippingSettingsScreen: React.FC = () => {
                         value={freteProprioValorPadrao}
                         onChange={(e) => setFreteProprioValorPadrao(e.target.value)}
                         placeholder="10.00"
-                        className="w-full pl-8 pr-3 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                        className="w-full pl-8 pr-3 py-2 rounded-xl text-sm font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-black dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
                       />
                     </div>
                   </div>
@@ -1061,7 +1061,7 @@ export const ShippingSettingsScreen: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                   Prazo Estimado de Entrega
                 </label>
                 <input
@@ -1069,12 +1069,12 @@ export const ShippingSettingsScreen: React.FC = () => {
                   value={freteProprioPrazoEstimado}
                   onChange={(e) => setFreteProprioPrazoEstimado(e.target.value)}
                   placeholder="Ex: Entrega hoje até 18h ou em até 2 horas"
-                  className="w-full px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="w-full px-3 py-2 rounded-xl text-sm font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-black dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                   Raio Máximo de Atendimento (km)
                 </label>
                 <input
@@ -1084,9 +1084,9 @@ export const ShippingSettingsScreen: React.FC = () => {
                   value={freteProprioRaioMaximoKm}
                   onChange={(e) => setFreteProprioRaioMaximoKm(e.target.value)}
                   placeholder="5.00"
-                  className="w-full px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="w-full px-3 py-2 rounded-xl text-sm font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-black dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                <p className="text-sm leading-relaxed font-medium text-black dark:text-slate-300 mt-1">
                   Distância máxima da loja atendida por motoboy próprio.
                 </p>
               </div>
@@ -1104,7 +1104,7 @@ export const ShippingSettingsScreen: React.FC = () => {
               <h2 className="text-base font-bold text-slate-900 dark:text-white">
                 4. Retirada na Loja
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-sm leading-relaxed font-medium text-black dark:text-slate-300">
                 Permita que os clientes retirem o pedido diretamente no balcão da sua loja física.
               </p>
             </div>
@@ -1132,10 +1132,10 @@ export const ShippingSettingsScreen: React.FC = () => {
               </div>
             </div>
             <div>
-              <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 block">
+              <span className="text-sm font-semibold text-black dark:text-slate-200 block">
                 Permitir opção de &quot;Retirar na Loja&quot;
               </span>
-              <span className="text-xs text-slate-500 dark:text-slate-400">
+              <span className="text-sm leading-relaxed font-medium text-black dark:text-slate-300 block mt-0.5">
                 Quando ativada, os clientes podem optar por buscar a mercadoria na loja. Se desativada, a opção de retirada não será exibida no Catálogo Online ou PDV.
               </span>
             </div>
@@ -1152,7 +1152,7 @@ export const ShippingSettingsScreen: React.FC = () => {
               <h2 className="text-base font-bold text-slate-900 dark:text-white">
                 5. Frete Grátis com Subsídio em Upgrade
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-sm leading-relaxed font-medium text-black dark:text-slate-300">
                 Incentive carrinhos maiores oferecendo entrega gratuita ou descontada com subsídio inteligente.
               </p>
             </div>
@@ -1177,10 +1177,10 @@ export const ShippingSettingsScreen: React.FC = () => {
               </div>
             </div>
             <div>
-              <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 block">
+              <span className="text-sm font-semibold text-black dark:text-slate-200 block">
                 Ativar Frete Grátis por Valor Mínimo de Pedido
               </span>
-              <span className="text-xs text-slate-500 dark:text-slate-400">
+              <span className="text-sm leading-relaxed font-medium text-black dark:text-slate-300 block mt-0.5">
                 Ao atingir a meta no carrinho, o menor frete válido torna-se 100% gratuito (R$ 0,00) e os métodos expressos/mais caros recebem o mesmo valor como desconto (cobrando apenas a diferença).
               </span>
             </div>
@@ -1189,7 +1189,7 @@ export const ShippingSettingsScreen: React.FC = () => {
           {freteGratisAtivo && (
             <div className="pt-2 pl-2 sm:pl-4 border-l-2 border-emerald-500/30 space-y-3">
               <div className="max-w-xs">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                   Valor Mínimo do Pedido (R$) *
                 </label>
                 <div className="relative">
@@ -1207,7 +1207,7 @@ export const ShippingSettingsScreen: React.FC = () => {
                   />
                 </div>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-sm leading-relaxed font-medium text-black dark:text-slate-300">
                 💡 Exemplo: Se o valor mínimo for R$ 150,00 e o cliente atingir esse valor, uma entrega econômica de R$ 21,00 sai <strong>Grátis</strong>, e um frete expresso de R$ 49,00 receberá R$ 21,00 de desconto, saindo por apenas <strong>R$ 28,00</strong>.
               </p>
             </div>
@@ -1224,7 +1224,7 @@ export const ShippingSettingsScreen: React.FC = () => {
               <h2 className="text-base font-bold text-slate-900 dark:text-white">
                 Atendimento a Domicílio & Visita Técnica
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-sm leading-relaxed font-medium text-black dark:text-slate-300">
                 Configure a taxa de deslocamento padrão da loja para serviços executados no endereço do cliente.
               </p>
             </div>
@@ -1232,7 +1232,7 @@ export const ShippingSettingsScreen: React.FC = () => {
 
           <div className="space-y-4">
             <div className="max-w-md">
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                 Taxa Padrão de Atendimento a Domicílio (R$)
               </label>
               <MoneyInput
@@ -1240,7 +1240,7 @@ export const ShippingSettingsScreen: React.FC = () => {
                 onChange={(val) => setTaxaPadraoDomicilio(val)}
                 className="w-full px-3.5 py-2.5 rounded-xl text-sm font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
               />
-              <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 block leading-tight">
+              <span className="text-sm leading-relaxed font-medium text-black dark:text-slate-300 mt-1 block">
                 Valor único cobrado por visita quando o cliente solicitar serviço em seu endereço (aplicado a todos os serviços, salvo exceções).
               </span>
             </div>
@@ -1264,10 +1264,10 @@ export const ShippingSettingsScreen: React.FC = () => {
                 </div>
               </div>
               <div>
-                <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 block">
+                <span className="text-sm font-semibold text-black dark:text-slate-200 block">
                   Isentar / abater esta taxa quando o serviço principal for fechado
                 </span>
-                <span className="text-xs text-slate-500 dark:text-slate-400 block mt-0.5">
+                <span className="text-sm leading-relaxed font-medium text-black dark:text-slate-300 block mt-0.5">
                   Ideal para visitas de orçamento: cobra apenas se o cliente não aprovar o serviço.
                 </span>
               </div>
@@ -1289,7 +1289,7 @@ export const ShippingSettingsScreen: React.FC = () => {
                     Despacho Manual
                   </span>
                 </h3>
-                <p className="text-xs sm:text-sm text-slate-300 font-medium mt-0.5">
+                <p className="text-sm leading-relaxed text-black dark:text-slate-300 font-medium mt-0.5">
                   Cadastre os apps que sua equipe utiliza para solicitar motoboys (Uber Flash, 99Entrega, Lalamove, etc.)
                 </p>
               </div>
@@ -1324,7 +1324,7 @@ export const ShippingSettingsScreen: React.FC = () => {
 
           {/* Lista de Apps Cadastrados */}
           {appsEntrega.length === 0 ? (
-            <p className="text-xs text-slate-400 italic py-2">
+            <p className="text-sm leading-relaxed font-medium text-black dark:text-slate-300 italic py-2">
               Nenhum aplicativo cadastrado no momento. Cadastre acima para facilitar a seleção no despacho.
             </p>
           ) : (
@@ -1340,7 +1340,7 @@ export const ShippingSettingsScreen: React.FC = () => {
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${app.ativo ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                    <span className="text-xs font-bold truncate">{app.nome}</span>
+                    <span className="text-sm font-bold truncate">{app.nome}</span>
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0">
@@ -1381,7 +1381,7 @@ export const ShippingSettingsScreen: React.FC = () => {
                     Rastreamento
                   </span>
                 </h3>
-                <p className="text-xs sm:text-sm text-slate-300 font-medium mt-0.5">
+                <p className="text-sm leading-relaxed text-black dark:text-slate-300 font-medium mt-0.5">
                   Cadastre empresas parceiras com link direto de rastreio.
                 </p>
               </div>
@@ -1399,7 +1399,7 @@ export const ShippingSettingsScreen: React.FC = () => {
 
           {/* Listagem de Transportadoras */}
           {transportadoras.length === 0 ? (
-            <p className="text-xs text-slate-400 italic py-2">
+            <p className="text-sm leading-relaxed font-medium text-black dark:text-slate-300 italic py-2">
               Nenhuma transportadora parceira cadastrada. Adicione para vincular despachos e gerar links automáticos de rastreio.
             </p>
           ) : (
@@ -1417,21 +1417,21 @@ export const ShippingSettingsScreen: React.FC = () => {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${transp.ativo ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                        <h4 className="text-sm font-bold text-white truncate">{transp.nome}</h4>
+                        <h4 className="text-sm font-bold text-black dark:text-white truncate">{transp.nome}</h4>
                       </div>
                       {transp.pessoa_contato && (
-                        <p className="text-xs text-slate-300 mt-1">
-                          Contato: <span className="text-white font-medium">{transp.pessoa_contato}</span>
+                        <p className="text-sm leading-relaxed text-black dark:text-slate-300 mt-1">
+                          Contato: <span className="text-black dark:text-white font-medium">{transp.pessoa_contato}</span>
                         </p>
                       )}
                       {(transp.telefone || transp.whatsapp) && (
-                        <p className="text-xs text-slate-300 flex items-center gap-1.5 mt-0.5">
-                          <Phone className="w-3 h-3 text-emerald-400" />
+                        <p className="text-sm leading-relaxed text-black dark:text-slate-300 flex items-center gap-1.5 mt-0.5">
+                          <Phone className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
                           <span>{transp.whatsapp || transp.telefone}</span>
                         </p>
                       )}
                       {transp.url_rastreio && (
-                        <p className="text-xs text-slate-700 hover:text-slate-900 hover:underline dark:text-slate-300 dark:hover:text-white truncate mt-1 font-mono cursor-pointer">
+                        <p className="text-sm leading-relaxed text-black dark:text-slate-300 hover:underline dark:hover:text-white truncate mt-1 font-mono cursor-pointer">
                           🔗 {transp.url_rastreio}
                         </p>
                       )}
@@ -1517,8 +1517,8 @@ export const ShippingSettingsScreen: React.FC = () => {
 
             <form onSubmit={handleSalvarTransp} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
-                  Nome da Transportadora <span className="text-rose-400">*</span>
+                <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
+                  Nome da Transportadora <span className="text-rose-500 dark:text-rose-400">*</span>
                 </label>
                 <input
                   type="text"
@@ -1526,12 +1526,12 @@ export const ShippingSettingsScreen: React.FC = () => {
                   placeholder="Ex: Jadlog, Braspress, Total Express, Azul Cargo"
                   value={transpNome}
                   onChange={(e) => setTranspNome(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl text-sm border border-slate-700 bg-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl text-sm border border-slate-700 bg-slate-800 text-black dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:ring-2 focus:ring-purple-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
+                <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                   URL Direta de Rastreamento
                 </label>
                 <input
@@ -1539,16 +1539,16 @@ export const ShippingSettingsScreen: React.FC = () => {
                   placeholder="https://exemplo.com.br/rastreio?codigo={{codigo}}"
                   value={transpUrlRastreio}
                   onChange={(e) => setTranspUrlRastreio(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl text-sm border border-slate-700 bg-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 outline-none font-mono text-xs"
+                  className="w-full px-4 py-2.5 rounded-xl text-sm border border-slate-700 bg-slate-800 text-black dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:ring-2 focus:ring-purple-500 outline-none font-mono"
                 />
-                <p className="text-[11px] text-purple-300/80 mt-1">
-                  💡 Use <code className="bg-purple-950 px-1 py-0.5 rounded text-white">{'{{codigo}}'}</code> no lugar do código. O HUBI criará o link de rastreio com um clique.
+                <p className="text-sm leading-relaxed font-medium text-black dark:text-purple-300 mt-1">
+                  💡 Use <code className="bg-purple-100 text-purple-900 dark:bg-purple-950 px-1 py-0.5 rounded dark:text-white">{'{{codigo}}'}</code> no lugar do código. O HUBI criará o link de rastreio com um clique.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                  <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                     Website Oficial
                   </label>
                   <input
@@ -1556,11 +1556,11 @@ export const ShippingSettingsScreen: React.FC = () => {
                     placeholder="https://..."
                     value={transpSite}
                     onChange={(e) => setTranspSite(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl text-xs border border-slate-700 bg-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 outline-none"
+                    className="w-full px-3.5 py-2 rounded-xl text-sm border border-slate-700 bg-slate-800 text-black dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:ring-2 focus:ring-purple-500 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                  <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                     Pessoa de Contato / SAC
                   </label>
                   <input
@@ -1568,14 +1568,14 @@ export const ShippingSettingsScreen: React.FC = () => {
                     placeholder="Ex: Carlos (Comercial)"
                     value={transpContato}
                     onChange={(e) => setTranspContato(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl text-xs border border-slate-700 bg-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 outline-none"
+                    className="w-full px-3.5 py-2 rounded-xl text-sm border border-slate-700 bg-slate-800 text-black dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:ring-2 focus:ring-purple-500 outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                  <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                     Telefone
                   </label>
                   <input
@@ -1583,11 +1583,11 @@ export const ShippingSettingsScreen: React.FC = () => {
                     placeholder="(00) 0000-0000"
                     value={transpTelefone}
                     onChange={(e) => setTranspTelefone(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl text-xs border border-slate-700 bg-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 outline-none"
+                    className="w-full px-3.5 py-2 rounded-xl text-sm border border-slate-700 bg-slate-800 text-black dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:ring-2 focus:ring-purple-500 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                  <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                     WhatsApp Comercial
                   </label>
                   <input
@@ -1595,13 +1595,13 @@ export const ShippingSettingsScreen: React.FC = () => {
                     placeholder="(00) 00000-0000"
                     value={transpWhatsapp}
                     onChange={(e) => setTranspWhatsapp(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl text-xs border border-slate-700 bg-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 outline-none"
+                    className="w-full px-3.5 py-2 rounded-xl text-sm border border-slate-700 bg-slate-800 text-black dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:ring-2 focus:ring-purple-500 outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
+                <label className="block text-sm font-semibold text-black dark:text-slate-200 mb-1">
                   Observações
                 </label>
                 <textarea
@@ -1609,7 +1609,7 @@ export const ShippingSettingsScreen: React.FC = () => {
                   placeholder="Horários de coleta, restrições ou dados da conta"
                   value={transpObservacoes}
                   onChange={(e) => setTranspObservacoes(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl text-xs border border-slate-700 bg-slate-800 text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 outline-none resize-none"
+                  className="w-full px-3.5 py-2 rounded-xl text-sm border border-slate-700 bg-slate-800 text-black dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:ring-2 focus:ring-purple-500 outline-none resize-none"
                 />
               </div>
 

@@ -691,7 +691,7 @@ export const ClientesFiado: React.FC = () => {
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className={`text-[9px] font-bold uppercase truncate ${isDark ? 'text-slate-300' : 'text-black'}`}>Clientes</span>
+              <span className={`text-xs font-bold uppercase truncate ${isDark ? 'text-slate-300' : 'text-black'}`}>Clientes</span>
               {filtroStatus === 'todos' && (
                 <span className={`w-1.5 h-1.5 rounded-full ${isDark ? 'bg-white' : 'bg-black'}`}></span>
               )}
@@ -719,7 +719,7 @@ export const ClientesFiado: React.FC = () => {
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[9px] font-bold uppercase">Fiado</span>
+              <span className="text-xs font-bold uppercase truncate">Fiado</span>
               {filtroStatus === 'fiado' && (
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
               )}
@@ -747,7 +747,7 @@ export const ClientesFiado: React.FC = () => {
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[9px] font-bold uppercase">Vencido</span>
+              <span className="text-xs font-bold uppercase truncate">Vencido</span>
               {filtroStatus === 'vencido' && (
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
               )}
@@ -776,7 +776,7 @@ export const ClientesFiado: React.FC = () => {
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-[9px] font-bold uppercase">Caderneta</span>
+                <span className="text-xs font-bold uppercase truncate">Caderneta</span>
                 {filtroStatus === 'caderneta' && (
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                 )}
@@ -791,9 +791,9 @@ export const ClientesFiado: React.FC = () => {
         {/* Lista de Clientes em Cards */}
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {carregando ? (
-            <div className="text-center py-16 text-xs text-slate-500 font-bold">Carregando clientes...</div>
+            <div className={`text-center py-16 text-sm leading-relaxed font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>Carregando clientes...</div>
           ) : clientesFiltrados.length === 0 ? (
-            <div className="text-center py-16 text-xs text-slate-500 font-bold">Nenhum cliente encontrado.</div>
+            <div className={`text-center py-16 text-sm leading-relaxed font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>Nenhum cliente encontrado.</div>
           ) : (
             clientesFiltrados.map((cliente) => {
               const emDebito = Number(cliente.saldo_devedor_fiado || 0) > 0;
@@ -821,11 +821,11 @@ export const ClientesFiado: React.FC = () => {
                         {getIniciais(cliente.nome)}
                       </div>
                       <div className="min-w-0">
-                        <span className={`font-bold block truncate text-xs sm:text-sm ${isDark ? 'text-white' : 'text-black'}`}>
+                        <span className={`font-bold block truncate text-sm ${isDark ? 'text-white' : 'text-black'}`}>
                           {cliente.nome}
                         </span>
                         {phoneWhatsapp && (
-                          <span className={`text-[11px] block truncate font-medium ${isDark ? 'text-slate-400' : 'text-slate-800'}`}>
+                          <span className={`text-sm leading-relaxed block truncate font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                             {formatarTelefone(phoneWhatsapp)}
                           </span>
                         )}
@@ -885,7 +885,7 @@ export const ClientesFiado: React.FC = () => {
                           </span>
                         </button>
                       ) : (
-                        <span className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Em dia</span>
+                        <span className={`text-sm font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>Em dia</span>
                       )}
                     </div>
                   </div>
@@ -1045,10 +1045,10 @@ export const ClientesFiado: React.FC = () => {
               </thead>
 
               {/* Corpo da Tabela */}
-              <tbody className={`divide-y text-xs ${isDark ? 'divide-slate-800 bg-[#000000]' : 'divide-slate-200 bg-white'}`}>
+              <tbody className={`divide-y text-sm ${isDark ? 'divide-slate-800 bg-[#000000]' : 'divide-slate-200 bg-white'}`}>
                 {carregando ? (
                   <tr>
-                    <td colSpan={5} className={`py-16 text-center font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    <td colSpan={5} className={`py-16 text-center text-sm leading-relaxed font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                       Carregando clientes...
                     </td>
                   </tr>
@@ -1056,15 +1056,15 @@ export const ClientesFiado: React.FC = () => {
                   <tr>
                     <td colSpan={5} className="py-16 text-center">
                       <div className="flex flex-col items-center justify-center space-y-2">
-                        <Users className={`w-8 h-8 opacity-40 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
-                        <p className={`text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Nenhum cliente cadastrado.</p>
+                        <Users className={`w-8 h-8 opacity-40 ${isDark ? 'text-slate-400' : 'text-black'}`} />
+                        <p className={`text-sm leading-relaxed font-bold ${isDark ? 'text-slate-200' : 'text-black'}`}>Nenhum cliente cadastrado.</p>
                         <button
                           type="button"
                           onClick={() => {
                             setClienteEditar(null);
                             setModalNovoCliente(true);
                           }}
-                          className={`text-xs font-black underline cursor-pointer ${isDark ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-700 hover:text-emerald-800'}`}
+                          className={`text-sm font-black underline cursor-pointer ${isDark ? 'text-emerald-400 hover:text-emerald-300' : 'text-emerald-700 hover:text-emerald-800'}`}
                         >
                           Clique aqui para cadastrar seu primeiro cliente
                         </button>
@@ -1131,12 +1131,12 @@ export const ClientesFiado: React.FC = () => {
                               <span>{formatarTelefone(phoneWhatsapp)}</span>
                             </a>
                           ) : (
-                            <span className={isDark ? 'text-slate-500 font-bold' : 'text-slate-400 font-bold'}>-</span>
+                            <span className={isDark ? 'text-slate-400 font-bold' : 'text-black font-bold'}>-</span>
                           )}
                         </td>
 
                         {/* Coluna 3: E-mail */}
-                        <td className={`py-3 px-4 hidden md:table-cell truncate max-w-[200px] font-medium ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
+                        <td className={`py-3 px-4 hidden md:table-cell truncate max-w-[200px] font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                           {cliente.email && !cliente.email.endsWith('@hubi.app') ? cliente.email : '-'}
                         </td>
 
@@ -1160,7 +1160,7 @@ export const ClientesFiado: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => setClienteExtratoCaderneta(cliente)}
-                                className={`font-mono font-bold cursor-pointer hover:underline ${isDark ? 'text-slate-500 hover:text-slate-300' : 'text-slate-400 hover:text-slate-700'}`}
+                                className={`font-mono font-bold cursor-pointer hover:underline ${isDark ? 'text-slate-400 hover:text-slate-200' : 'text-black hover:text-emerald-700'}`}
                                 title="Ver Extrato da Caderneta"
                               >
                                 R$ 0,00
@@ -1180,7 +1180,7 @@ export const ClientesFiado: React.FC = () => {
                               <span>{formatarMoeda(cliente.saldo_devedor_fiado)}</span>
                             </button>
                           ) : (
-                            <span className={`font-mono font-bold ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>R$ 0,00</span>
+                            <span className={`font-mono font-bold ${isDark ? 'text-slate-400' : 'text-black'}`}>R$ 0,00</span>
                           )}
                         </td>
 
@@ -1273,7 +1273,7 @@ export const ClientesFiado: React.FC = () => {
                 </div>
                 <div>
                   <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>{clienteDetalhes.nome}</h3>
-                  <span className={`text-xs capitalize font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  <span className={`text-sm leading-relaxed capitalize font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>
                     Tabela: {clienteDetalhes.tabela_preco_padrao || 'Varejo'}
                   </span>
                 </div>
@@ -1292,19 +1292,19 @@ export const ClientesFiado: React.FC = () => {
               </button>
             </div>
 
-            <div className={`p-4 rounded-2xl border space-y-2.5 text-xs ${
+            <div className={`p-4 rounded-2xl border space-y-2.5 text-sm leading-relaxed ${
               isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
             }`}>
               {clienteDetalhes.numero_documento && (
                 <div className="flex items-center gap-2 font-medium">
-                  <FileText className={`w-4 h-4 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
+                  <FileText className={`w-4 h-4 ${isDark ? 'text-slate-400' : 'text-black'}`} />
                   <span>CPF/CNPJ: {clienteDetalhes.numero_documento}</span>
                 </div>
               )}
 
               {clienteDetalhes.email && (
                 <div className="flex items-center gap-2 font-medium">
-                  <Mail className={`w-4 h-4 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
+                  <Mail className={`w-4 h-4 ${isDark ? 'text-slate-400' : 'text-black'}`} />
                   <span>{clienteDetalhes.email}</span>
                 </div>
               )}
@@ -1318,7 +1318,7 @@ export const ClientesFiado: React.FC = () => {
 
               {clienteDetalhes.telefone2 && (
                 <div className="flex items-center gap-2 font-medium">
-                  <Phone className={`w-4 h-4 ${isDark ? 'text-slate-400' : 'text-slate-600'}`} />
+                  <Phone className={`w-4 h-4 ${isDark ? 'text-slate-400' : 'text-black'}`} />
                   <span>Telefone 2: {clienteDetalhes.telefone2}</span>
                 </div>
               )}
@@ -1337,8 +1337,8 @@ export const ClientesFiado: React.FC = () => {
 
               <div className={`pt-2 border-t space-y-1 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                 <span className={`font-black block ${isDark ? 'text-white' : 'text-black'}`}>Endereço Completo:</span>
-                <div className={`flex items-start gap-2 font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                  <MapPin className={`w-4 h-4 shrink-0 mt-0.5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                <div className={`flex items-start gap-2 text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
+                  <MapPin className={`w-4 h-4 shrink-0 mt-1 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
                   <span>
                     {clienteDetalhes.endereco_principal ||
                       `${clienteDetalhes.endereco_logradouro || ''}, ${clienteDetalhes.endereco_numero || 'S/N'} - ${clienteDetalhes.endereco_bairro || ''}, ${clienteDetalhes.endereco_cidade || ''} - ${clienteDetalhes.endereco_estado || ''}`}
@@ -1349,7 +1349,7 @@ export const ClientesFiado: React.FC = () => {
               {clienteDetalhes.observacoes && (
                 <div className={`pt-2 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                   <span className={`font-black block mb-0.5 ${isDark ? 'text-white' : 'text-black'}`}>Observações:</span>
-                  <p className={`italic ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>"{clienteDetalhes.observacoes}"</p>
+                  <p className={`text-sm leading-relaxed italic ${isDark ? 'text-slate-300' : 'text-black'}`}>"{clienteDetalhes.observacoes}"</p>
                 </div>
               )}
             </div>
@@ -1399,7 +1399,7 @@ export const ClientesFiado: React.FC = () => {
             </div>
             <div className="space-y-1">
               <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Excluir Cliente</h3>
-              <p className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+              <p className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 Tem certeza que deseja remover o cadastro de <strong className={isDark ? 'text-white' : 'text-black'}>{clienteExcluir.nome}</strong>?
               </p>
             </div>
@@ -1452,7 +1452,7 @@ export const ClientesFiado: React.FC = () => {
             <div className={`flex items-center justify-between border-b pb-3 ${isDark ? 'border-slate-700' : 'border-slate-300'}`}>
               <div>
                 <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-black'}`}>Quitar / Abater Fiado</h3>
-                <p className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{clienteQuitar.nome}</p>
+                <p className={`text-sm leading-relaxed font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>{clienteQuitar.nome}</p>
               </div>
               <button
                 type="button"
@@ -1471,14 +1471,14 @@ export const ClientesFiado: React.FC = () => {
             <div className={`p-4 rounded-2xl border text-center space-y-1 ${
               isDark ? 'bg-[#000000] border-slate-700' : 'bg-white border-2 border-slate-300'
             }`}>
-              <span className={`text-xs font-bold block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Saldo Devedor Atual</span>
+              <span className={`text-sm leading-relaxed font-bold block ${isDark ? 'text-slate-300' : 'text-black'}`}>Saldo Devedor Atual</span>
               <span className="text-2xl font-black text-amber-500 font-mono">
                 R$ {Number(clienteQuitar.saldo_devedor_fiado).toFixed(2)}
               </span>
             </div>
 
             <div className="space-y-1">
-              <label className={`text-xs font-black block ${isDark ? 'text-white' : 'text-black'}`}>Valor a Abater (R$):</label>
+              <label className={`text-sm font-black block ${isDark ? 'text-white' : 'text-black'}`}>Valor a Abater (R$):</label>
               <input
                 type="number"
                 step="0.01"

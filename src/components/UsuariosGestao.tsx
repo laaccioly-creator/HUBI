@@ -425,7 +425,7 @@ export const UsuariosGestao: React.FC = () => {
             </span>
 
             {carregando ? (
-              <div className="text-center py-12 text-xs text-slate-400">Carregando equipe...</div>
+              <div className={`text-center py-12 text-sm font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>Carregando equipe...</div>
             ) : (
               usuarios.map((u) => {
                 const isAdmin = u.perfil === 'admin' || u.perfil === 'owner';
@@ -456,7 +456,7 @@ export const UsuariosGestao: React.FC = () => {
                             <Shield className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                           )}
                         </div>
-                        <span className={`text-[11px] block truncate ${isDark ? 'text-slate-400' : 'text-slate-600 font-semibold'}`}>
+                        <span className={`text-sm leading-relaxed block truncate font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                           {u.whatsapp_atendimento ? formatarTelefone(u.whatsapp_atendimento) : ((u.email?.includes('@hubi.app') || u.email?.includes('@hubi.internal')) ? formatarTelefone(u.email.split('@')[0]) : (u.email || (isAdmin ? 'Administrador' : 'Vendedor')))}
                         </span>
                       </div>
@@ -467,7 +467,7 @@ export const UsuariosGestao: React.FC = () => {
                         <span className={`font-black text-xs sm:text-sm block ${isDark ? 'text-white' : 'text-black'}`}>
                           R$ {fat.toFixed(2)}
                         </span>
-                        <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-600 font-bold'}`}>30 dias</span>
+                        <span className={`text-sm font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>30 dias</span>
                       </div>
                       {u.presta_servicos && (
                         <>
@@ -527,7 +527,7 @@ export const UsuariosGestao: React.FC = () => {
             <h1 className={`text-2xl sm:text-3xl font-black flex items-center gap-3 ${isDark ? 'text-white' : 'text-black'}`}>
               <span>Usuários</span>
             </h1>
-            <p className={`text-xs sm:text-sm mt-1 ${isDark ? 'text-slate-400' : 'text-slate-700 font-semibold'}`}>
+            <p className={`text-sm leading-relaxed font-medium mt-1 ${isDark ? 'text-slate-300' : 'text-black'}`}>
               Gerencie sua equipe, permissões de acesso e acompanhe o faturamento por colaborador.
             </p>
           </div>
@@ -553,14 +553,14 @@ export const UsuariosGestao: React.FC = () => {
           <div className={`border rounded-3xl p-6 shadow-sm flex flex-col items-center justify-between min-h-[380px] text-center space-y-4 ${isDark ? 'bg-[#000000] border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'}`}>
             <div className="w-full text-left space-y-1">
               <h2 className={`text-base font-black ${isDark ? 'text-white' : 'text-black'}`}>Faturamento por usuário</h2>
-              <span className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Últimos 30 dias</span>
+              <span className={`text-sm leading-relaxed font-semibold block ${isDark ? 'text-slate-300' : 'text-black'}`}>Últimos 30 dias</span>
             </div>
 
             {/* Gráfico de Pizza / Donut Interativo */}
             {renderGraficoPizza(isDark ? 'escuro' : 'claro')}
 
             <div className="space-y-1">
-              <span className={`text-xs font-black uppercase tracking-wider block ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
+              <span className={`text-sm font-black uppercase tracking-wider block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 {totalVendas30d} {totalVendas30d === 1 ? 'VENDA' : 'VENDAS'}
               </span>
               <span className={`text-2xl sm:text-3xl font-black block ${isDark ? 'text-white' : 'text-black'}`}>
@@ -595,12 +595,12 @@ export const UsuariosGestao: React.FC = () => {
 
             {/* Linhas da Tabela */}
             {carregando ? (
-              <div className="py-16 flex flex-col items-center justify-center space-y-3 text-slate-400 text-xs">
+              <div className={`py-16 flex flex-col items-center justify-center space-y-3 text-sm font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 <Loader2 className="w-7 h-7 animate-spin text-emerald-500" />
                 <span>Carregando equipe de usuários...</span>
               </div>
             ) : usuarios.length === 0 ? (
-              <div className="py-16 text-center text-slate-400 text-xs space-y-2">
+              <div className={`py-16 text-center text-sm font-medium space-y-2 ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 <Users className="w-8 h-8 text-slate-400 dark:text-slate-600 mx-auto" />
                 <p>Nenhum usuário cadastrado além do proprietário principal.</p>
               </div>
@@ -683,7 +683,7 @@ export const UsuariosGestao: React.FC = () => {
                               </span>
                             )}
 
-                            <span className={`text-xs truncate font-semibold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                            <span className={`text-sm leading-relaxed truncate font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                               {user.whatsapp_atendimento ? formatarTelefone(user.whatsapp_atendimento) : ((user.email?.includes('@hubi.app') || user.email?.includes('@hubi.internal')) ? formatarTelefone(user.email.split('@')[0]) : user.email)}
                             </span>
                           </div>

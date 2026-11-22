@@ -244,15 +244,15 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
             </span>
           </div>
 
-          <p className={`text-xs sm:text-sm leading-snug font-medium ${
-            isDark ? 'text-slate-300' : 'text-slate-700'
+          <p className={`text-sm leading-relaxed font-medium ${
+            isDark ? 'text-slate-300' : 'text-black'
           }`}>
             Faturamento bruto mensal total projetado para a loja.
           </p>
 
           <div className="relative pt-1">
             <span className={`absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold pt-1 ${
-              isDark ? 'text-slate-400' : 'text-slate-600'
+              isDark ? 'text-slate-300' : 'text-black'
             }`}>
               R$
             </span>
@@ -304,8 +304,8 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
             </span>
           </div>
 
-          <p className={`text-xs sm:text-sm leading-snug font-medium ${
-            isDark ? 'text-slate-300' : 'text-slate-700'
+          <p className={`text-sm leading-relaxed font-medium ${
+            isDark ? 'text-slate-300' : 'text-black'
           }`}>
             Quantidade de pedidos/vendas concluídas no mês.
           </p>
@@ -359,15 +359,15 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
             </span>
           </div>
 
-          <p className={`text-xs sm:text-sm leading-snug font-medium ${
-            isDark ? 'text-slate-300' : 'text-slate-700'
+          <p className={`text-sm leading-relaxed font-medium ${
+            isDark ? 'text-slate-300' : 'text-black'
           }`}>
             Lucro após dedução de CMV, taxas financeiras e despesas operacionais pagas.
           </p>
 
           <div className="relative pt-1">
             <span className={`absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold pt-1 ${
-              isDark ? 'text-slate-400' : 'text-slate-600'
+              isDark ? 'text-slate-300' : 'text-black'
             }`}>
               R$
             </span>
@@ -419,15 +419,15 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
             </span>
           </div>
 
-          <p className={`text-xs sm:text-sm leading-snug font-medium ${
-            isDark ? 'text-slate-300' : 'text-slate-700'
+          <p className={`text-sm leading-relaxed font-medium ${
+            isDark ? 'text-slate-300' : 'text-black'
           }`}>
             Teto orçamentário mensal para saídas operacionais e despesas/sangrias de caixa.
           </p>
 
           <div className="relative pt-1">
             <span className={`absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold pt-1 ${
-              isDark ? 'text-slate-400' : 'text-slate-600'
+              isDark ? 'text-slate-300' : 'text-black'
             }`}>
               R$
             </span>
@@ -479,8 +479,8 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
             </span>
           </div>
 
-          <p className={`text-xs sm:text-sm leading-snug font-medium ${
-            isDark ? 'text-slate-300' : 'text-slate-700'
+          <p className={`text-sm leading-relaxed font-medium ${
+            isDark ? 'text-slate-300' : 'text-black'
           }`}>
             Teto limite de tolerância para contas/fiados com atraso superior a 30 dias.
           </p>
@@ -511,7 +511,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               }`}
             />
             <span className={`absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold pt-1 ${
-              isDark ? 'text-slate-400' : 'text-slate-600'
+              isDark ? 'text-slate-300' : 'text-black'
             }`}>
               %
             </span>
@@ -540,8 +540,8 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
             </span>
           </div>
 
-          <p className={`text-xs sm:text-sm leading-snug font-medium ${
-            isDark ? 'text-slate-300' : 'text-slate-700'
+          <p className={`text-sm leading-relaxed font-medium ${
+            isDark ? 'text-slate-300' : 'text-black'
           }`}>
             Teto máximo tolerável de produtos ativos com estoque zerado ou abaixo do mínimo configurado (ex: meta de 0 rupturas).
           </p>
@@ -572,7 +572,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               }`}
             />
             <span className={`absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold pt-1 ${
-              isDark ? 'text-slate-400' : 'text-slate-600'
+              isDark ? 'text-slate-300' : 'text-black'
             }`}>
               itens
             </span>
@@ -663,7 +663,7 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               </div>
               <div>
                 <h3 className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>Configurar Metas da Loja</h3>
-                <p className={`text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Parâmetros executivos mensais para os velocímetros F1</p>
+                <p className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>Parâmetros executivos mensais para os velocímetros F1</p>
               </div>
             </div>
 
@@ -725,8 +725,8 @@ export const ConfiguracoesMetas: React.FC<ConfiguracoesMetasProps> = ({
               <Target className="w-5 h-5 text-emerald-500" />
               <span>Metas da Loja (Cockpit Executivo)</span>
             </h2>
-            <p className={`text-xs mt-0.5 font-medium ${
-              isDark ? 'text-slate-400' : 'text-slate-600'
+            <p className={`text-sm leading-relaxed mt-0.5 font-medium ${
+              isDark ? 'text-slate-300' : 'text-black'
             }`}>
               Configure as metas operacionais mensais que guiam os velocímetros de alta performance
             </p>

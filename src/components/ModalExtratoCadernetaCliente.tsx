@@ -200,7 +200,7 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
               <h2 className={`font-black text-sm sm:text-base leading-tight ${isDark ? 'text-white' : 'text-black'}`}>
                 Extrato da Caderneta
               </h2>
-              <p className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+              <p className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
                 Cliente: <strong className={`font-black ${isDark ? 'text-white' : 'text-black'}`}>{cliente.nome}</strong>
               </p>
             </div>
@@ -221,14 +221,14 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
           {carregando ? (
             <div className="py-16 flex flex-col items-center justify-center gap-2">
               <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
-              <span className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Carregando extrato da caderneta...</span>
+              <span className={`text-sm leading-relaxed font-bold ${isDark ? 'text-slate-300' : 'text-black'}`}>Carregando extrato da caderneta...</span>
             </div>
           ) : (
             <>
               {/* Cards de Resumo */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 <div className={`p-3 rounded-2xl ${isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'}`}>
-                  <span className={`text-[10px] font-bold block uppercase ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Limite Total</span>
+                  <span className={`text-xs font-bold block uppercase ${isDark ? 'text-slate-300' : 'text-black'}`}>Limite Total</span>
                   <span className="text-sm sm:text-base font-black font-mono">
                     {formatarMoeda(resumo?.limiteTotal || 0)}
                   </span>
@@ -239,14 +239,14 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                     ? isDark ? 'bg-[#000000] border border-amber-500/60 text-amber-400' : 'bg-amber-50 border-2 border-amber-400 text-amber-900'
                     : isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
                 }`}>
-                  <span className="text-[10px] font-bold block uppercase opacity-85">Saldo Devedor</span>
+                  <span className="text-xs font-bold block uppercase">Saldo Devedor</span>
                   <span className="text-sm sm:text-base font-black font-mono">
                     {formatarMoeda(resumo?.saldoDevedor || 0)}
                   </span>
                 </div>
 
                 <div className={`p-3 rounded-2xl ${isDark ? 'bg-[#000000] border border-emerald-500/50 text-emerald-400' : 'bg-emerald-50 border-2 border-emerald-300 text-emerald-900'}`}>
-                  <span className="text-[10px] font-bold block uppercase opacity-85">Disponível</span>
+                  <span className="text-xs font-bold block uppercase">Disponível</span>
                   <span className="text-sm sm:text-base font-black font-mono">
                     {formatarMoeda(resumo?.limiteDisponivel || 0)}
                   </span>
@@ -257,11 +257,11 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                     ? isDark ? 'bg-[#000000] border border-rose-500/60 text-rose-400' : 'bg-rose-50 border-2 border-rose-400 text-rose-900'
                     : isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
                 }`}>
-                  <span className={`text-[10px] font-bold block uppercase ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Vencimento</span>
+                  <span className={`text-xs font-bold block uppercase ${isDark ? 'text-slate-300' : 'text-black'}`}>Vencimento</span>
                   <span className="text-xs sm:text-sm font-black block truncate">
                     {resumo?.proximoVencimento ? new Date(resumo.proximoVencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '--'}
                   </span>
-                  <span className={`text-[10px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Todo dia {resumo?.diaVencimento}</span>
+                  <span className={`text-sm leading-relaxed font-semibold block ${isDark ? 'text-slate-300' : 'text-black'}`}>Todo dia {resumo?.diaVencimento}</span>
                 </div>
               </div>
 
@@ -298,7 +298,7 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                               </span>
                               <span className="font-bold">{descLimpa}</span>
                             </div>
-                            <span className={`text-[11px] block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                            <span className={`text-sm leading-relaxed block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                               Enviado em {new Date(pend.criado_em || Date.now()).toLocaleString('pt-BR')}
                             </span>
                           </div>
@@ -390,14 +390,14 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
 
               {/* Extrato de Linha do Tempo */}
               <div className="space-y-2.5 pt-2">
-                <h3 className={`text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
-                  <Clock className="w-3.5 h-3.5 text-emerald-500" />
+                <h3 className={`text-sm font-black uppercase tracking-wider flex items-center gap-1.5 ${isDark ? 'text-slate-200' : 'text-black'}`}>
+                  <Clock className="w-4 h-4 text-emerald-500" />
                   <span>Histórico da Conta Corrente ({extrato.length} {extrato.length === 1 ? 'lançamento' : 'lançamentos'})</span>
                 </h3>
 
                 {extrato.length === 0 ? (
-                  <div className={`p-8 text-center rounded-2xl text-xs font-bold ${
-                    isDark ? 'bg-[#000000] border border-slate-700 text-slate-400' : 'bg-white border-2 border-slate-300 text-slate-600'
+                  <div className={`p-8 text-center rounded-2xl text-sm leading-relaxed font-bold ${
+                    isDark ? 'bg-[#000000] border border-slate-700 text-slate-300' : 'bg-white border-2 border-slate-300 text-black'
                   }`}>
                     Nenhuma movimentação registrada na caderneta deste cliente.
                   </div>
@@ -417,16 +417,16 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                       return (
                         <div
                           key={lanc.id}
-                          className={`p-3 rounded-2xl text-xs transition space-y-2 ${
+                          className={`p-3 rounded-2xl text-sm leading-relaxed transition space-y-2 ${
                             isDark ? 'bg-[#000000] border border-slate-700 text-white' : 'bg-white border-2 border-slate-300 text-black'
                           }`}
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
-                              <span className={`text-[11px] font-semibold font-mono shrink-0 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                              <span className={`text-sm leading-relaxed font-semibold font-mono shrink-0 ${isDark ? 'text-slate-200' : 'text-black'}`}>
                                 {dataHoraExibicao}
                               </span>
-                              <span className={`font-black truncate ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                              <span className={`font-black truncate ${isDark ? 'text-slate-100' : 'text-black'}`}>
                                 {numeroPedidoExibicao}
                               </span>
                               {ehPendente && (
@@ -532,7 +532,7 @@ export const ModalExtratoCadernetaCliente: React.FC<ModalExtratoCadernetaCliente
                           {expandido && itensCompra.length > 0 && (
                             <div className={`pt-2 border-t space-y-1 animate-in fade-in duration-150 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                               {itensCompra.map((item: any, idx: number) => (
-                                <div key={item.id || idx} className={`flex items-center justify-between text-[11px] ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                                <div key={item.id || idx} className={`flex items-center justify-between text-sm leading-relaxed ${isDark ? 'text-slate-200' : 'text-black'}`}>
                                   <span className="truncate pr-2 font-medium">
                                     <strong className="font-bold">{Math.round(Number(item.quantidade || 1))}x</strong> {item.nome_produto}
                                     {item.rotulo_variacao ? ` (${item.rotulo_variacao})` : ''}

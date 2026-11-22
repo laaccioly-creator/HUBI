@@ -3268,8 +3268,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           <div className="space-y-4 pt-4">
             <div className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-emerald-50 to-indigo-50 dark:from-[#000000] dark:to-[#0B0F17] border border-emerald-200/60 dark:border-[#1E293B] shadow-sm">
               <div className="text-left">
-                <p className="text-xs sm:text-sm font-black text-slate-800 dark:text-slate-100">Melhorar com Inteligência Artificial</p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Gera um texto exclusivo, detalhado e persuasivo</p>
+                <p className="text-sm font-black text-black dark:text-slate-100">Melhorar com Inteligência Artificial</p>
+                <p className="text-sm leading-relaxed text-black dark:text-slate-300 font-medium mt-0.5">Gera um texto exclusivo, detalhado e persuasivo</p>
               </div>
               <button
                 type="button"
@@ -3950,8 +3950,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 className="w-full flex items-center justify-between text-left cursor-pointer"
               >
                 <div>
-                  <h3 className="font-extrabold text-xs sm:text-sm" style={{ color: temaCores.textoPrincipal }}>Opcionais</h3>
-                  <p className="text-[11px] font-medium" style={{ color: temaCores.textoSecundario }}>Experimente a descrição gerada com IA</p>
+                  <h3 className="font-extrabold text-sm" style={{ color: temaCores.textoPrincipal }}>Opcionais</h3>
+                  <p className="text-sm leading-relaxed font-medium" style={{ color: temaCores.textoSecundario }}>Experimente a descrição gerada com IA</p>
                 </div>
                 {opcionaisExpandido ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
               </button>
@@ -3984,7 +3984,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                         </button>
                       )}
                     </div>
-                    <p className="text-xs mt-1 font-medium" style={{ color: temaCores.textoSecundario }}>
+                    <p className="text-sm leading-relaxed mt-1 font-medium" style={{ color: temaCores.textoSecundario }}>
                        O preço de venda será riscado (ex: de R$ 10,00 por R$ 5,00)
                     </p>
                   </div>
@@ -4129,10 +4129,10 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div>
-                          <span className="text-xs font-bold block" style={{ color: temaCores.textoPrincipal }}>
+                          <span className="text-sm font-bold block" style={{ color: temaCores.textoPrincipal }}>
                             Venda por Peso / Fracionada (Balança)
                           </span>
-                          <span className="text-[10px] block" style={{ color: temaCores.textoSecundario }}>
+                          <span className="text-sm leading-relaxed block" style={{ color: temaCores.textoSecundario }}>
                             Permite quantidades decimais (ex: 0,350 kg) e leitura de etiquetas EAN-13
                           </span>
                         </div>
@@ -4205,11 +4205,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                     style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
                   >
                     <div>
-                      <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5" style={{ color: temaCores.textoPrincipal }}>
+                      <span className="text-sm font-black uppercase tracking-wider flex items-center gap-1.5" style={{ color: temaCores.textoPrincipal }}>
                         <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                         <span>Tabelas de Atacado & Distribuidor</span>
                       </span>
-                      <p className="text-[11px] mt-0.5" style={{ color: temaCores.textoSecundario }}>Preços diferenciados ativados por regra da loja no PDV</p>
+                      <p className="text-sm leading-relaxed mt-0.5" style={{ color: temaCores.textoSecundario }}>Preços diferenciados ativados por regra da loja no PDV</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
@@ -4381,7 +4381,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                         </>
                       )}
                     </div>
-                    <p className="text-[10px] italic" style={{ color: temaCores.textoSecundario }}>
+                    <p className="text-sm leading-relaxed italic" style={{ color: temaCores.textoSecundario }}>
                       * Condições de ativação mínima seguem as Regras de Precificação da loja.
                     </p>
                   </div>
@@ -4395,11 +4395,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                         className="p-4 border rounded-2xl space-y-1"
                         style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
                       >
-                        <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
+                        <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-sm">
                           <Wrench className="w-4 h-4" />
                           <span>Controle de Estoque (Dispensado para Serviços / Taxas)</span>
                         </div>
-                        <p className="text-[11px]" style={{ color: temaCores.textoSecundario }}>
+                        <p className="text-sm leading-relaxed" style={{ color: temaCores.textoSecundario }}>
                           Itens de serviço não movimentam estoque físico. Vendas são ilimitadas e não bloqueiam por falta de saldo.
                         </p>
                       </div>
@@ -4410,11 +4410,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                         style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
                       >
                         <div>
-                          <h4 className="text-xs font-bold flex items-center gap-1.5" style={{ color: temaCores.textoPrincipal }}>
+                          <h4 className="text-sm font-bold flex items-center gap-1.5" style={{ color: temaCores.textoPrincipal }}>
                             <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                             <span>Agendamento e Execução do Serviço</span>
                           </h4>
-                          <p className="text-[11px] mt-0.5" style={{ color: temaCores.textoSecundario }}>
+                          <p className="text-sm leading-relaxed mt-0.5" style={{ color: temaCores.textoSecundario }}>
                             Configure a grade de horários e os atendentes habilitados para este serviço.
                           </p>
                         </div>
@@ -4425,10 +4425,10 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                           style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput }}
                         >
                           <div className="space-y-0.5 pr-2">
-                            <span className="text-xs font-bold block" style={{ color: temaCores.textoPrincipal }}>
+                            <span className="text-sm font-bold block" style={{ color: temaCores.textoPrincipal }}>
                               Serviço com Hora Marcada
                             </span>
-                            <span className="text-[10px] block" style={{ color: temaCores.textoSecundario }}>
+                            <span className="text-sm leading-relaxed block" style={{ color: temaCores.textoSecundario }}>
                               Exige agendamento prévio de data/hora no catálogo ou PDV
                             </span>
                           </div>
@@ -4586,10 +4586,10 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                                         className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                                       />
                                       <div>
-                                        <span className="text-xs font-bold block" style={{ color: temaCores.textoPrincipal }}>
+                                        <span className="text-sm font-bold block" style={{ color: temaCores.textoPrincipal }}>
                                           Isentar / abater esta taxa se o cliente fechar o serviço
                                         </span>
-                                        <span className="text-[10px] block" style={{ color: temaCores.textoSecundario }}>
+                                        <span className="text-sm leading-relaxed block" style={{ color: temaCores.textoSecundario }}>
                                           Ideal para orçamentos técnicos: cobra apenas se o cliente não aprovar o serviço.
                                         </span>
                                       </div>
@@ -4642,11 +4642,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                                           className="rounded border-slate-300 dark:border-slate-700 text-emerald-600 focus:ring-emerald-500"
                                         />
                                         <div className="min-w-0">
-                                          <span className="text-xs font-bold block truncate">
+                                          <span className="text-sm font-bold block truncate">
                                             {colab.nome_completo || colab.nome}
                                           </span>
                                           {colab.especialidade_cargo && (
-                                            <span className="text-[10px] text-slate-400 block truncate">
+                                            <span className="text-sm leading-relaxed text-black dark:text-slate-300 block truncate">
                                               {colab.especialidade_cargo}
                                             </span>
                                           )}
@@ -4667,18 +4667,18 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                       style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
                     >
                       <div>
-                        <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5" style={{ color: temaCores.textoPrincipal }}>
+                        <span className="text-sm font-black uppercase tracking-wider flex items-center gap-1.5" style={{ color: temaCores.textoPrincipal }}>
                           <Package className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                           <span>4. Controle de Estoque & Entrada Inicial</span>
                         </span>
-                        <p className="text-[11px] mt-0.5" style={{ color: temaCores.textoSecundario }}>
+                        <p className="text-sm leading-relaxed mt-0.5" style={{ color: temaCores.textoSecundario }}>
                           Informe a quantidade inicial em loja e parâmetros de estoque
                         </p>
                       </div>
 
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase block mb-1">
+                          <label className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase block mb-1">
                             Estoque Inicial em Loja
                           </label>
                           <input
@@ -4688,11 +4688,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                             className="w-full px-3.5 py-2.5 rounded-xl border focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-xs sm:text-sm font-bold transition"
                             style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
                           />
-                          <span className="text-[9px] block mt-1" style={{ color: temaCores.textoSecundario }}>Saldo inicial para venda</span>
+                          <span className="text-sm leading-relaxed block mt-1" style={{ color: temaCores.textoSecundario }}>Saldo inicial para venda</span>
                         </div>
 
                         <div>
-                          <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: temaCores.textoSecundario }}>
+                          <label className="text-xs font-semibold uppercase block mb-1" style={{ color: temaCores.textoSecundario }}>
                             Alerta Estoque Mínimo
                           </label>
                           <input
@@ -4702,12 +4702,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                             className="w-full px-3.5 py-2.5 rounded-xl border focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-xs sm:text-sm font-bold transition"
                             style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
                           />
-                          <span className="text-[9px] block mt-1" style={{ color: temaCores.textoSecundario }}>Avisa quando estiver acabando</span>
+                          <span className="text-sm leading-relaxed block mt-1" style={{ color: temaCores.textoSecundario }}>Avisa quando estiver acabando</span>
                         </div>
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-semibold uppercase block mb-1" style={{ color: temaCores.textoSecundario }}>
+                        <label className="text-xs font-semibold uppercase block mb-1" style={{ color: temaCores.textoSecundario }}>
                           Data de Validade (Opcional)
                         </label>
                         <input
@@ -4717,7 +4717,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                           className="w-full px-3.5 py-2.5 rounded-xl border focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-xs sm:text-sm font-semibold transition"
                           style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
                         />
-                        <span className="text-[9px] block mt-1" style={{ color: temaCores.textoSecundario }}>Para perecíveis / cosméticos</span>
+                        <span className="text-sm leading-relaxed block mt-1" style={{ color: temaCores.textoSecundario }}>Para perecíveis / cosméticos</span>
                       </div>
                     </div>
                   )}
@@ -4766,13 +4766,13 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               className="p-4 border rounded-2xl space-y-4 shadow-sm"
               style={{ backgroundColor: temaCores.bgCard, borderColor: temaCores.bordaCard }}
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <div>
-                  <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5" style={{ color: temaCores.textoPrincipal }}>
+                  <span className="text-sm font-black uppercase tracking-wider flex items-center gap-1.5" style={{ color: temaCores.textoPrincipal }}>
                     <Layers className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     <span>5. Variações do Produto</span>
                   </span>
-                  <p className="text-[11px] mt-0.5" style={{ color: temaCores.textoSecundario }}>
+                  <p className="text-sm leading-relaxed mt-0.5" style={{ color: temaCores.textoSecundario }}>
                     Cor, tamanho, sabor, voltagem com estoque individual
                   </p>
                 </div>
@@ -4847,7 +4847,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
                   {/* Lista de Variações Cadastradas */}
                   <div className="space-y-2.5">
-                    <div className="flex items-center justify-between text-[11px] font-semibold" style={{ color: temaCores.textoSecundario }}>
+                    <div className="flex items-center justify-between text-sm font-semibold" style={{ color: temaCores.textoSecundario }}>
                       <span>Opções ({formData.variacoes.length}):</span>
                       <span>Estoque individual</span>
                     </div>
@@ -4892,7 +4892,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                                 style={{ backgroundColor: temaCores.bgInput, borderColor: temaCores.bordaInput, color: temaCores.textoInput }}
                               />
                             ) : (
-                              <div className="flex items-center text-[10px] text-slate-400 italic px-1">
+                              <div className="flex items-center text-sm leading-relaxed text-black dark:text-slate-300 italic px-1">
                                 Atributo único
                               </div>
                             )}
@@ -5133,11 +5133,11 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               >
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5" style={{ color: temaCores.textoPrincipal }}>
+                    <span className="text-sm font-black uppercase tracking-wider flex items-center gap-1.5" style={{ color: temaCores.textoPrincipal }}>
                       <Truck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                       <span>6. Dimensões e Peso para Envio</span>
                     </span>
-                    <p className="text-[11px] mt-0.5" style={{ color: temaCores.textoSecundario }}>
+                    <p className="text-sm leading-relaxed mt-0.5" style={{ color: temaCores.textoSecundario }}>
                       Melhor Envio / Correios / Jadlog / Uber Direct
                     </p>
                   </div>
@@ -5322,7 +5322,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 >
                   <div>
                     <span className="block">Data de Validade (Opcional)</span>
-                    <span className="text-[10px] font-normal" style={{ color: temaCores.textoSecundario }}>Para perecíveis / cosméticos</span>
+                    <span className="text-sm leading-relaxed font-normal" style={{ color: temaCores.textoSecundario }}>Para perecíveis / cosméticos</span>
                   </div>
                   <input
                     type="date"
@@ -5510,8 +5510,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
             <div className="bg-white dark:bg-[#000000] border border-slate-200 dark:border-[#1E293B] rounded-t-3xl sm:rounded-3xl w-full max-w-sm p-6 shadow-2xl space-y-5 animate-in slide-in-from-bottom duration-200 text-slate-900 dark:text-slate-100">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#1E293B] pb-3">
                 <div>
-                  <h3 className="font-black text-sm sm:text-base text-slate-800 dark:text-white">Cor da Tarja Inferior</h3>
-                  <p className="text-[11px] text-slate-400 font-semibold">Selecione o tom desejado</p>
+                  <h3 className="font-black text-sm sm:text-base text-black dark:text-white">Cor da Tarja Inferior</h3>
+                  <p className="text-sm leading-relaxed text-black dark:text-slate-300 font-semibold">Selecione o tom desejado</p>
                 </div>
                 <button
                   type="button"
@@ -5579,8 +5579,8 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                         className="text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
                       />
                       <div>
-                        <span className="text-xs font-black text-slate-800 dark:text-slate-200 block">Todos os produtos da loja</span>
-                        <span className="text-[10px] text-slate-400 font-medium">Define como padrão para todo o catálogo</span>
+                        <span className="text-sm font-black text-black dark:text-slate-200 block">Todos os produtos da loja</span>
+                        <span className="text-sm leading-relaxed text-black dark:text-slate-300 font-medium block">Define como padrão para todo o catálogo</span>
                       </div>
                     </div>
                     <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[10px] font-extrabold uppercase">
@@ -6861,7 +6861,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               Total: R$ {valorTotalEstoque.toFixed(2).replace('.', ',')}
             </h3>
             {permissions.podeVerPrecoCusto && (
-              <p className="text-[11px] font-medium" style={{ color: temaCores.textoSecundario }}>
+              <p className="text-sm leading-relaxed font-medium" style={{ color: temaCores.textoSecundario }}>
                 Custo do estoque: R$ {valorCustoTotalEstoque.toFixed(2).replace('.', ',')}
               </p>
             )}

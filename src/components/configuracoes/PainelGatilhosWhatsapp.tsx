@@ -228,7 +228,7 @@ export const PainelGatilhosWhatsapp: React.FC<PainelGatilhosWhatsappProps> = ({
               : 'bg-slate-800/30 border-slate-800/50 text-slate-400'
             : ativo
             ? 'bg-slate-50 border-slate-200'
-            : 'bg-slate-50/40 border-slate-100 text-slate-500'
+            : 'bg-slate-50/40 border-slate-200 text-black'
         }`}
       >
         <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -247,12 +247,12 @@ export const PainelGatilhosWhatsapp: React.FC<PainelGatilhosWhatsappProps> = ({
           </div>
           <div className="space-y-1 flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className={`text-xs font-bold leading-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              <span className={`text-sm font-bold leading-snug ${isDark ? 'text-white' : 'text-black'}`}>
                 {item.titulo}
               </span>
               {renderBadge(item.badge, item.badgeTexto)}
             </div>
-            <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            <p className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
               {item.descricao}
             </p>
           </div>
@@ -400,7 +400,7 @@ export const PainelGatilhosWhatsapp: React.FC<PainelGatilhosWhatsappProps> = ({
             <h3 className={`text-sm md:text-base font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
               Quais avisos enviar automaticamente com seu saldo?
             </h3>
-            <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            <p className={`text-sm leading-relaxed font-medium mt-0.5 ${isDark ? 'text-slate-300' : 'text-black'}`}>
               Escolha exatamente quais eventos devem disparar mensagens automáticas em segundo plano. Eventos desligados
               abaixo não consumirão seu saldo e usarão o envio manual gratuito.
             </p>
@@ -423,7 +423,7 @@ export const PainelGatilhosWhatsapp: React.FC<PainelGatilhosWhatsappProps> = ({
 
       {/* Aviso de Disjuntor Mestre Desligado */}
       {!autoAtivoGeral && (
-        <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-700 dark:text-amber-300 font-medium animate-in fade-in">
+        <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-sm leading-relaxed text-amber-800 dark:text-amber-300 font-medium animate-in fade-in">
           <AlertCircle size={16} className="shrink-0 text-amber-500" />
           <span>
             O <strong>Envio Automático Geral</strong> está desativado no topo. Ative a chave geral acima para que as
@@ -481,14 +481,14 @@ export const PainelGatilhosWhatsapp: React.FC<PainelGatilhosWhatsappProps> = ({
           <div className={`p-4 rounded-xl border space-y-3.5 transition-colors ${
             isDark ? 'bg-slate-800/40 border-slate-800' : 'bg-slate-50/80 border-slate-200'
           }`}>
-            <span className={`text-xs font-bold block ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+            <span className={`text-sm font-bold block ${isDark ? 'text-slate-200' : 'text-black'}`}>
               Parâmetros de Disparo e Regras de Remarcação:
             </span>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Antecedência do Lembrete */}
               <div className="space-y-1.5">
-                <label className={`text-[11px] font-semibold block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                <label className={`text-sm leading-relaxed font-semibold block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Antecedência do Lembrete Automático:
                 </label>
                 <div className="grid grid-cols-3 gap-1.5">
@@ -518,7 +518,7 @@ export const PainelGatilhosWhatsapp: React.FC<PainelGatilhosWhatsappProps> = ({
 
               {/* Limite de Remarcações pelo Cliente */}
               <div className="space-y-1.5">
-                <label className={`text-[11px] font-semibold block ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                <label className={`text-sm leading-relaxed font-semibold block ${isDark ? 'text-slate-300' : 'text-black'}`}>
                   Limite de Remarcações Diretas pelo Cliente:
                 </label>
                 <div className="grid grid-cols-3 gap-1.5">

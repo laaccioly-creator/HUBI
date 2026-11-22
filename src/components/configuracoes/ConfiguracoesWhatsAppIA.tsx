@@ -184,7 +184,7 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
           </div>
           <div>
             <h1 className="text-xl md:text-2xl font-bold tracking-tight">Atendimento WhatsApp com IA</h1>
-            <p className={`text-xs md:text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            <p className={`text-sm leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-black'}`}>
               Carteira Pré-Paga e Motor Híbrido de Notificações Inteligentes
             </p>
           </div>
@@ -237,7 +237,7 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
                     {whatsappIaReceptivaAtiva ? 'Ativo' : 'Inativo'}
                   </span>
                 </div>
-                <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mt-0.5">
+                <p className="text-sm leading-relaxed font-medium text-black dark:text-slate-300 mt-0.5">
                   Configure seu número oficial na Meta para recepcionar clientes com o Rubi IA ou rotear filiais.
                 </p>
               </div>
@@ -255,7 +255,7 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
           {acordeaoMetaAberto && (
             <div className="p-4 sm:p-5 pt-0 sm:pt-0 border-t-2 border-slate-200 dark:border-slate-800 space-y-4 animate-in fade-in">
               {carregandoMeta ? (
-                <div className="py-4 flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
+                <div className="py-4 flex items-center gap-2 text-sm font-medium text-black dark:text-slate-300">
                   <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
                   <span>Carregando configurações Meta da loja...</span>
                 </div>
@@ -264,10 +264,10 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
                   {/* Toggle Atendimento Receptivo */}
                   <div className="mt-4 flex items-center justify-between gap-3 p-4 rounded-xl bg-slate-50 dark:bg-zinc-950 border-2 border-slate-300 dark:border-slate-700">
                     <div className="space-y-0.5">
-                      <span className="text-sm font-black text-slate-900 dark:text-white block">
+                      <span className="text-sm font-black text-black dark:text-white block">
                         Ativar Atendimento Receptivo com Rubi IA neste número
                       </span>
-                      <span className="text-xs font-medium text-slate-600 dark:text-slate-400 block">
+                      <span className="text-sm leading-relaxed font-medium text-black dark:text-slate-300 block">
                         Quando ativado, mensagens recebidas neste Phone Number ID serão respondidas automaticamente pelo Rubi IA.
                       </span>
                     </div>
@@ -285,7 +285,7 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
                   {/* Campos Phone Number ID e WABA ID */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-800 dark:text-slate-200 block">
+                      <label className="text-sm font-semibold text-black dark:text-slate-200 block">
                         Phone Number ID
                       </label>
                       <input
@@ -296,12 +296,12 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
                           if (resultadoTesteMeta) setResultadoTesteMeta(null);
                         }}
                         placeholder="Ex: 109283746510293"
-                        className="w-full bg-slate-50 dark:bg-zinc-950 border-2 border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-hidden focus:border-emerald-500"
+                        className="w-full bg-slate-50 dark:bg-zinc-950 border-2 border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-mono font-bold text-black dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 outline-hidden focus:border-emerald-500"
                       />
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-black text-slate-800 dark:text-slate-200 block">
+                      <label className="text-sm font-semibold text-black dark:text-slate-200 block">
                         WABA ID
                       </label>
                       <input
@@ -309,14 +309,14 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
                         value={metaWabaId}
                         onChange={(e) => setMetaWabaId(e.target.value)}
                         placeholder="Ex: 405968712345678"
-                        className="w-full bg-slate-50 dark:bg-zinc-950 border-2 border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-hidden focus:border-emerald-500"
+                        className="w-full bg-slate-50 dark:bg-zinc-950 border-2 border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-mono font-bold text-black dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 outline-hidden focus:border-emerald-500"
                       />
                     </div>
                   </div>
 
                   {/* Token Permanente Meta + Botão Testar Conexão Meta */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-black text-slate-800 dark:text-slate-200 block">
+                    <label className="text-sm font-semibold text-black dark:text-slate-200 block">
                       Token Permanente Meta
                     </label>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -329,7 +329,7 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
                             if (resultadoTesteMeta) setResultadoTesteMeta(null);
                           }}
                           placeholder="EAA..."
-                          className="w-full bg-slate-50 dark:bg-zinc-950 border-2 border-slate-300 dark:border-slate-700 rounded-xl pl-3.5 pr-10 py-2.5 text-xs sm:text-sm font-mono font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-hidden focus:border-emerald-500"
+                          className="w-full bg-slate-50 dark:bg-zinc-950 border-2 border-slate-300 dark:border-slate-700 rounded-xl pl-3.5 pr-10 py-2.5 text-sm font-mono font-bold text-black dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 outline-hidden focus:border-emerald-500"
                         />
                         <button
                           type="button"
@@ -384,7 +384,7 @@ export const ConfiguracoesWhatsAppIA: React.FC<ConfiguracoesWhatsAppIAProps> = (
                   </div>
 
                   {/* Nota explicativa multi-filial */}
-                  <div className="p-3.5 rounded-xl bg-sky-50 dark:bg-sky-950/30 border-2 border-sky-500/40 text-sky-950 dark:text-sky-200 text-xs font-semibold flex items-start gap-2.5 leading-relaxed">
+                  <div className="p-3.5 rounded-xl bg-sky-50 dark:bg-sky-950/30 border-2 border-sky-500/40 text-black dark:text-sky-200 text-sm font-medium flex items-start gap-2.5 leading-relaxed">
                     <Info className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
                     <span>
                       Se você possui mais de uma loja/filial, informe o mesmo Phone Number ID nas filiais para que o Rubi IA identifique automaticamente o cliente ou ofereça a escolha da unidade.

@@ -2278,7 +2278,7 @@ export const ProdutoCadastro: React.FC = () => {
               <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100">
                 {ehEdicao ? 'Editar Produto / Serviço' : 'Cadastrar Produto / Serviço'}
               </h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-sm leading-relaxed text-black dark:text-slate-300 mt-1">
                 Preencha as informações abaixo ou tire uma foto para preenchimento automático por IA
               </p>
             </div>
@@ -2328,10 +2328,10 @@ export const ProdutoCadastro: React.FC = () => {
                 <div className="w-full aspect-square max-w-[280px] rounded-2xl border-2 border-emerald-500/50 bg-emerald-50 dark:bg-emerald-950/40 flex flex-col items-center justify-center p-6 text-center space-y-3 animate-pulse">
                   <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
                   <div>
-                    <span className="font-bold text-xs text-emerald-800 dark:text-emerald-200 block">
+                    <span className="font-bold text-sm text-emerald-800 dark:text-emerald-200 block">
                       {uploadStatusMsg || 'Comprimindo & Enviando...'}
                     </span>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                    <span className="text-sm leading-relaxed text-black dark:text-slate-300 block mt-0.5">
                       Salvando foto otimizada na nuvem
                     </span>
                   </div>
@@ -2377,10 +2377,10 @@ export const ProdutoCadastro: React.FC = () => {
                     <Camera className="w-7 h-7" />
                   </div>
                   <div>
-                    <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 block">
+                    <span className="font-bold text-sm text-black dark:text-slate-100 block">
                       Toque para Selecionar Foto
                     </span>
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                    <span className="text-sm leading-relaxed text-black dark:text-slate-300 block mt-0.5">
                       JPG, PNG ou WebP até 7 fotos
                     </span>
                   </div>
@@ -2445,7 +2445,7 @@ export const ProdutoCadastro: React.FC = () => {
                     )}
                     <span className="font-bold truncate">Preencher com nossa IA</span>
                   </div>
-                  <span className="text-[10px] text-slate-400 font-normal shrink-0 hidden sm:inline">
+                  <span className="text-sm text-black dark:text-slate-300 font-normal shrink-0 hidden sm:inline">
                     (a partir da foto ou nome do produto)
                   </span>
                 </button>
@@ -2460,10 +2460,10 @@ export const ProdutoCadastro: React.FC = () => {
                 title="Escolher fotos do dispositivo"
               >
                 <div className="flex items-center gap-2 truncate">
-                  <Upload className="w-4 h-4 text-slate-400 dark:text-slate-300 shrink-0" />
+                  <Upload className="w-4 h-4 text-slate-500 dark:text-slate-300 shrink-0" />
                   <span className="font-bold truncate">Galeria (Até 7 fotos)</span>
                 </div>
-                <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                <span className="text-xs text-black dark:text-slate-300 font-mono shrink-0">
                   ({fotosUrls.length}/7)
                 </span>
               </button>
@@ -2477,7 +2477,7 @@ export const ProdutoCadastro: React.FC = () => {
                 title="Pesquisar fotos na internet com boa qualidade"
               >
                 <div className="flex items-center gap-2 truncate">
-                  <Globe className="w-4 h-4 text-slate-400 dark:text-slate-300 shrink-0" />
+                  <Globe className="w-4 h-4 text-slate-500 dark:text-slate-300 shrink-0" />
                   <span className="font-bold truncate">Pesquisar Fotos na Internet</span>
                 </div>
               </button>
@@ -2485,9 +2485,9 @@ export const ProdutoCadastro: React.FC = () => {
               {/* Miniaturas das Fotos Cadastradas e Botão + Foto */}
               {fotosUrls.length > 0 && (
                 <div className="pt-2.5 mt-1 border-t border-slate-200 dark:border-[#1E293B] space-y-2">
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
-                    <span>Fotos Cadastradas ({fotosUrls.length}/7):</span>
-                    <span className="text-[10px] text-slate-500">Clique para definir a foto principal</span>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm font-semibold text-black dark:text-slate-200">Fotos Cadastradas ({fotosUrls.length}/7):</span>
+                    <span className="text-sm leading-relaxed text-black dark:text-slate-300">Clique para definir a foto principal</span>
                   </div>
 
                   <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
@@ -2563,7 +2563,7 @@ export const ProdutoCadastro: React.FC = () => {
 
               {/* Interruptor (Toggle Switch) Produto Ativo */}
               <div className="flex items-center gap-3">
-                <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Produto:</span>
+                <span className="text-sm font-semibold text-black dark:text-slate-200">Produto:</span>
                 <button
                   type="button"
                   role="switch"
@@ -2572,7 +2572,7 @@ export const ProdutoCadastro: React.FC = () => {
                   className="flex items-center gap-2.5 cursor-pointer select-none group"
                   title={ativo ? 'Clique para inativar o produto' : 'Clique para ativar o produto'}
                 >
-                  <span className={`text-xs font-bold transition ${ativo ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                  <span className={`text-sm font-bold transition ${ativo ? 'text-emerald-600 dark:text-emerald-400' : 'text-black dark:text-slate-400'}`}>
                     {ativo ? 'Ativo' : 'Inativo'}
                   </span>
                   <div
@@ -2594,8 +2594,8 @@ export const ProdutoCadastro: React.FC = () => {
             {/* Compactação do Tipo do Item (Posicionado logo abaixo do toggle de ativo em linha única) */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 py-1">
               <div>
-                <label className="text-xs font-medium text-slate-700 dark:text-slate-300 block">Tipo do Item *</label>
-                <span className="text-xs text-slate-500 dark:text-slate-400">Mercadoria física ou serviço / cobrança de taxa</span>
+                <label className="text-sm font-semibold text-black dark:text-slate-200 block">Tipo do Item *</label>
+                <span className="text-sm leading-relaxed text-black dark:text-slate-300">Mercadoria física ou serviço / cobrança de taxa</span>
               </div>
               <div className="inline-flex p-1 bg-slate-100 dark:bg-[#000000] rounded-xl border border-slate-200 dark:border-[#1E293B] gap-1 self-start sm:self-auto">
                 <button
@@ -2642,7 +2642,7 @@ export const ProdutoCadastro: React.FC = () => {
 
               {/* Nome do Produto / Serviço */}
               <div className="md:col-span-2 space-y-1">
-                <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                <label className="text-sm font-semibold text-black dark:text-slate-200">
                   {tipoItem === 'servico' ? 'Nome do Serviço *' : 'Nome do Produto *'}
                 </label>
                 <input
@@ -2655,18 +2655,18 @@ export const ProdutoCadastro: React.FC = () => {
                   }
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
-                  className="w-full h-11 bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-medium"
+                  className="w-full h-11 bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 text-sm focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-medium"
                 />
               </div>
 
               {/* LINHA 1: Categoria * ao lado de Unidade de Medida */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Categoria *</label>
+                  <label className="text-sm font-semibold text-black dark:text-slate-200">Categoria *</label>
                   <button
                     type="button"
                     onClick={() => setModalCategorias(true)}
-                    className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-bold flex items-center gap-1 cursor-pointer"
+                    className="text-sm text-emerald-700 dark:text-emerald-400 hover:text-emerald-600 font-bold flex items-center gap-1 cursor-pointer"
                   >
                     <FolderPlus className="w-3.5 h-3.5" />
                     <span>+ Criar / Gerenciar</span>
@@ -2686,11 +2686,11 @@ export const ProdutoCadastro: React.FC = () => {
               {tipoItem === 'produto' && (
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Unidade de Medida</label>
+                    <label className="text-sm font-semibold text-black dark:text-slate-200">Unidade de Medida</label>
                     <button
                       type="button"
                       onClick={() => handleNavegarParaAuxiliares('unidades')}
-                      className="text-[10px] text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 font-semibold cursor-pointer"
+                      className="text-sm text-black dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 font-semibold cursor-pointer"
                       title="Gerenciar Unidades de Medida"
                     >
                       + Gerenciar
@@ -2719,7 +2719,7 @@ export const ProdutoCadastro: React.FC = () => {
               {/* LOGO ABAIXO DESSA LINHA: Subcategoria Condicional */}
               {subcategoriasDisponiveis.length > 0 && (
                 <div className={`space-y-1 animate-in fade-in ${tipoItem === 'servico' ? '' : 'md:col-span-2'}`}>
-                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300 block">
+                  <label className="text-sm font-semibold text-black dark:text-slate-200 block">
                     Subcategoria (Opcional)
                   </label>
                   <select
@@ -2738,14 +2738,14 @@ export const ProdutoCadastro: React.FC = () => {
               {/* Configuração de Balança e Fracionamento - Exibido apenas para Produto Físico */}
               {tipoItem === 'produto' && (
                 <div className="sm:col-span-2 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <Scale className="w-4 h-4 text-emerald-500 shrink-0" />
                       <div>
-                        <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                        <span className="text-sm font-bold text-black dark:text-slate-100 block">
                           Venda por Peso / Fracionado (Balança Comercial)
                         </span>
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                        <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">
                           Permite pesar no PDV (kg/gramas) e ler etiquetas de balança iniciando com 2
                         </span>
                       </div>
@@ -2764,7 +2764,7 @@ export const ProdutoCadastro: React.FC = () => {
                   {vendaPorPeso && (
                     <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center gap-3">
                       <div className="flex-1">
-                        <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                        <label className="text-sm font-semibold text-black dark:text-slate-200 block mb-1">
                           Código do Produto na Balança (PLU de 4 a 6 dígitos):
                         </label>
                         <input
@@ -2777,7 +2777,7 @@ export const ProdutoCadastro: React.FC = () => {
                           className="w-full bg-white dark:bg-[#000000] border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
                         />
                       </div>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 sm:max-w-xs leading-tight">
+                      <p className="text-sm leading-relaxed text-black dark:text-slate-300 sm:max-w-xs">
                         Ao ler o código impresso pela balança (ex: 2001040008005), o PDV identifica este produto e o peso/preço automaticamente.
                       </p>
                     </div>
@@ -2788,9 +2788,9 @@ export const ProdutoCadastro: React.FC = () => {
               {/* LINHA 2: Código Interno (SKU) */}
               <div className={`space-y-1 ${tipoItem === 'servico' && subcategoriasDisponiveis.length > 0 ? 'md:col-span-2' : ''}`}>
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Código Interno (SKU)</label>
+                  <label className="text-sm font-semibold text-black dark:text-slate-200">Código Interno (SKU)</label>
                   {codigoInterno && (
-                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Sugerido p/ Categoria</span>
+                    <span className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold">Sugerido p/ Categoria</span>
                   )}
                 </div>
                 <input
@@ -2805,7 +2805,7 @@ export const ProdutoCadastro: React.FC = () => {
               {/* Código de Barras - Exibido apenas para Produto Físico */}
               {tipoItem === 'produto' && (
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Código de Barras (EAN / Leitor)</label>
+                  <label className="text-sm font-semibold text-black dark:text-slate-200">Código de Barras (EAN / Leitor)</label>
                   <input
                     type="text"
                     placeholder="Ex: 789123456789"
@@ -2820,11 +2820,11 @@ export const ProdutoCadastro: React.FC = () => {
               {tipoItem === 'produto' && (
                 <div className="space-y-1 md:col-span-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Fornecedor (Opcional)</label>
+                    <label className="text-sm font-semibold text-black dark:text-slate-200">Fornecedor (Opcional)</label>
                     <button
                       type="button"
                       onClick={() => handleNavegarParaAuxiliares('fornecedores')}
-                      className="text-[10px] text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 font-semibold cursor-pointer"
+                      className="text-sm text-black dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 font-semibold cursor-pointer"
                       title="Gerenciar Fornecedores"
                     >
                       + Gerenciar
@@ -2845,7 +2845,7 @@ export const ProdutoCadastro: React.FC = () => {
               <div className="md:col-span-2 space-y-1">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                    <label className="text-sm font-semibold text-black dark:text-slate-200">
                       Descrição Comercial (Catálogo & WhatsApp)
                     </label>
                     {redigindoDescricaoIA && (
@@ -2914,7 +2914,7 @@ export const ProdutoCadastro: React.FC = () => {
 
             <div className={`grid grid-cols-1 sm:grid-cols-2 ${tipoItem === 'servico' ? '' : 'md:grid-cols-4'} gap-4`}>
               <div className="space-y-1">
-                <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                <label className="text-sm font-semibold text-black dark:text-slate-200">
                   {tipoItem === 'servico' ? 'Custo Estimado (R$) (Opcional)' : 'Preço de Custo (R$)'}
                 </label>
                 <MoneyInput
@@ -2923,13 +2923,13 @@ export const ProdutoCadastro: React.FC = () => {
                   placeholder="0,00"
                   className="py-2"
                 />
-                <span className="text-xs text-slate-500 dark:text-slate-400 block">
+                <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">
                   {tipoItem === 'servico' ? 'Custo com insumos ou execução' : 'Custo de compra/produção'}
                 </span>
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                <label className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
                   {tipoItem === 'servico' ? 'Preço do Serviço (R$) *' : 'Preço Varejo (R$) *'}
                 </label>
                 <MoneyInput
@@ -2938,7 +2938,7 @@ export const ProdutoCadastro: React.FC = () => {
                   placeholder="0,00"
                   className="py-2 border-2 border-emerald-500/70 dark:border-emerald-500/50 text-emerald-700 dark:text-emerald-400"
                 />
-                <span className="text-xs text-slate-500 dark:text-slate-400 block">
+                <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">
                   {tipoItem === 'servico' ? 'Preço cobrado pelo serviço' : 'Preço base de balcão'}
                 </span>
               </div>
@@ -2946,9 +2946,9 @@ export const ProdutoCadastro: React.FC = () => {
               {tipoItem === 'produto' && (
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Preço Atacado (R$)</label>
+                    <label className="text-sm font-semibold text-black dark:text-slate-200">Preço Atacado (R$)</label>
                     {precoVendaVarejo && (
-                      <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-[#000000] dark:text-emerald-400 dark:border-emerald-800/40 px-1.5 py-0.5 rounded-lg font-bold">
+                      <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-[#000000] dark:text-emerald-400 dark:border-emerald-800/40 px-1.5 py-0.5 rounded-lg font-bold">
                         -{regrasPrecificacao.descontoAtacado}%
                       </span>
                     )}
@@ -2960,16 +2960,16 @@ export const ProdutoCadastro: React.FC = () => {
                     placeholder="0,00"
                     className="py-2"
                   />
-                  <span className="text-xs text-slate-500 dark:text-slate-400 block">Conforme regra da loja</span>
+                  <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">Conforme regra da loja</span>
                 </div>
               )}
 
               {tipoItem === 'produto' && (
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Preço Distribuidor (R$)</label>
+                    <label className="text-sm font-semibold text-black dark:text-slate-200">Preço Distribuidor (R$)</label>
                     {precoVendaVarejo && (
-                      <span className="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-100 dark:bg-[#000000] dark:text-indigo-300 dark:border-indigo-800/40 px-1.5 py-0.5 rounded-lg font-bold">
+                      <span className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-[#000000] dark:text-indigo-300 dark:border-indigo-800/40 px-1.5 py-0.5 rounded-lg font-bold">
                         -{regrasPrecificacao.descontoAutoatacado}%
                       </span>
                     )}
@@ -2981,7 +2981,7 @@ export const ProdutoCadastro: React.FC = () => {
                     placeholder="0,00"
                     className="py-2"
                   />
-                  <span className="text-xs text-slate-500 dark:text-slate-400 block">Conforme regra da loja</span>
+                  <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">Conforme regra da loja</span>
                 </div>
               )}
             </div>
@@ -3013,10 +3013,10 @@ export const ProdutoCadastro: React.FC = () => {
                         <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-600"></div>
                       </label>
                       <div>
-                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
+                        <span className="text-sm font-bold text-black dark:text-slate-100 block">
                           Ativar Preço Promocional
                         </span>
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                        <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">
                           Exibe o preço de varejo riscado no PDV e catálogo vitrine
                         </span>
                       </div>
@@ -3024,10 +3024,10 @@ export const ProdutoCadastro: React.FC = () => {
 
                     {promocaoAtiva && (
                       <div className="w-full space-y-1 animate-in fade-in">
-                        <label className="text-xs font-semibold text-amber-600 dark:text-amber-400 flex items-center justify-between">
+                        <label className="text-sm font-semibold text-amber-700 dark:text-amber-400 flex items-center justify-between">
                           <span>Preço Promocional (R$) *</span>
                           {precoVendaVarejo && Number(precoPromocional) > 0 && (
-                            <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/40 px-1.5 py-0.2 rounded-lg font-bold">
+                            <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/40 px-1.5 py-0.2 rounded-lg font-bold">
                               {Math.round(((Number(precoVendaVarejo) - Number(precoPromocional)) / Number(precoVendaVarejo)) * 100)}% OFF
                             </span>
                           )}
@@ -3038,7 +3038,7 @@ export const ProdutoCadastro: React.FC = () => {
                           placeholder="0,00"
                           className="py-2 border-2 border-amber-500/70 dark:border-amber-500/50 text-amber-600 dark:text-amber-400 font-bold"
                         />
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                        <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">
                           Substitui o preço de varejo nas vendas enquanto ativo
                         </span>
                       </div>
@@ -3063,10 +3063,10 @@ export const ProdutoCadastro: React.FC = () => {
                           <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-600"></div>
                         </label>
                         <div>
-                          <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
+                          <span className="text-sm font-bold text-black dark:text-slate-100 block">
                             Ativar Atacado
                           </span>
-                          <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                          <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">
                             Aplica preço de atacado por quantidade mínima deste produto
                           </span>
                         </div>
@@ -3074,7 +3074,7 @@ export const ProdutoCadastro: React.FC = () => {
 
                       {atacadoMinimoAtivo && (
                         <div className="w-full space-y-1 animate-in fade-in">
-                          <label className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 block">
+                          <label className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 block">
                             Quantidade Mínima para Atacado (Un) *
                           </label>
                           <input
@@ -3086,7 +3086,7 @@ export const ProdutoCadastro: React.FC = () => {
                             placeholder="Informe a quantidade mínima"
                             className="w-full px-3 py-2 text-sm font-bold rounded-xl border-2 border-emerald-500/70 dark:border-emerald-500/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
                           />
-                          <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                          <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">
                             Atacarejo direto ao atingir esta quantidade no carrinho
                           </span>
                         </div>
@@ -3112,10 +3112,10 @@ export const ProdutoCadastro: React.FC = () => {
                           <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
                         </label>
                         <div>
-                          <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
+                          <span className="text-sm font-bold text-black dark:text-slate-100 block">
                             Ativar Distribuidor
                           </span>
-                          <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                          <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">
                             Aplica preço de distribuidor por quantidade mínima deste produto
                           </span>
                         </div>
@@ -3123,7 +3123,7 @@ export const ProdutoCadastro: React.FC = () => {
 
                       {distribuidorMinimoAtivo && (
                         <div className="w-full space-y-1 animate-in fade-in">
-                          <label className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 block">
+                          <label className="text-sm font-semibold text-indigo-700 dark:text-indigo-400 block">
                             Quantidade Mínima para Distribuidor (Un) *
                           </label>
                           <input
@@ -3135,7 +3135,7 @@ export const ProdutoCadastro: React.FC = () => {
                             placeholder="Informe a quantidade mínima"
                             className="w-full px-3 py-2 text-sm font-bold rounded-xl border-2 border-indigo-500/70 dark:border-indigo-500/50 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
                           />
-                          <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                          <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">
                             Preço de distribuidor ao atingir esta quantidade no carrinho
                           </span>
                         </div>
@@ -3155,18 +3155,18 @@ export const ProdutoCadastro: React.FC = () => {
                   <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <span>Configurações de Agendamento e Execução do Serviço</span>
                 </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                <p className="text-sm leading-relaxed text-black dark:text-slate-300 mt-1">
                   Defina se este serviço exige reserva de horário na grade de atendimentos e quais colaboradores estão habilitados.
                 </p>
               </div>
 
                 {/* Switch: Serviço com Hora Marcada */}
-                <div className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
                   <div className="space-y-0.5">
-                    <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                    <span className="text-sm font-bold text-black dark:text-white block">
                       Serviço com Hora Marcada (Exige Agendamento)
                     </span>
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                    <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">
                       Habilita o fluxo de escolha de profissional, data e horário no catálogo e no PDV.
                     </span>
                   </div>
@@ -3186,11 +3186,11 @@ export const ProdutoCadastro: React.FC = () => {
                     {/* Duração Estimada & Atalhos */}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold text-slate-900 dark:text-slate-200 flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5 text-emerald-500" />
+                        <label className="text-sm font-bold text-black dark:text-slate-200 flex items-center gap-1.5">
+                          <Clock className="w-4 h-4 text-emerald-500" />
                           <span>Duração Estimada do Atendimento</span>
                         </label>
-                        <span className="text-xs font-mono font-black text-emerald-600 dark:text-emerald-400">
+                        <span className="text-sm font-mono font-black text-emerald-700 dark:text-emerald-400">
                           {duracaoEstimadaMinutos} minutos
                         </span>
                       </div>
@@ -3211,7 +3211,7 @@ export const ProdutoCadastro: React.FC = () => {
                           </button>
                         ))}
                         <div className="flex items-center gap-1.5 ml-2">
-                          <span className="text-xs text-slate-400">Outro:</span>
+                          <span className="text-sm text-black dark:text-slate-300">Outro:</span>
                           <input
                             type="number"
                             min="5"
@@ -3221,15 +3221,15 @@ export const ProdutoCadastro: React.FC = () => {
                             onChange={(e) => setDuracaoEstimadaMinutos(Math.max(5, parseInt(e.target.value || '30', 10)))}
                             className="w-20 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent text-xs font-bold focus:outline-none focus:border-emerald-500"
                           />
-                          <span className="text-xs text-slate-400">min</span>
+                          <span className="text-sm text-black dark:text-slate-300">min</span>
                         </div>
                       </div>
                     </div>
 
                     {/* Local de Prestação do Serviço */}
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-900 dark:text-slate-200 flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-emerald-500" />
+                      <label className="text-sm font-bold text-black dark:text-slate-200 flex items-center gap-1.5">
+                        <MapPin className="w-4 h-4 text-emerald-500" />
                         <span>Local de Prestação do Serviço</span>
                       </label>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -3244,12 +3244,12 @@ export const ProdutoCadastro: React.FC = () => {
                             onClick={() => setLocalPrestacaoServico(loc.id as LocalPrestacaoServico)}
                             className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
                               localPrestacaoServico === loc.id
-                                ? 'bg-emerald-500/10 border-emerald-500 text-emerald-950 dark:text-white ring-1 ring-emerald-500/30'
-                                : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+                                ? 'bg-emerald-500/10 border-emerald-500 text-black dark:text-white ring-1 ring-emerald-500/30'
+                                : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-black dark:text-slate-300 hover:border-slate-300'
                             }`}
                           >
-                            <span className="text-xs font-bold">{loc.rotulo}</span>
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">{loc.desc}</span>
+                            <span className="text-sm font-bold">{loc.rotulo}</span>
+                            <span className="text-sm leading-relaxed text-black dark:text-slate-300 mt-1">{loc.desc}</span>
                           </button>
                         ))}
                       </div>
@@ -3263,10 +3263,10 @@ export const ProdutoCadastro: React.FC = () => {
                             <Home className="w-4 h-4" />
                           </div>
                           <div>
-                            <span className="text-xs font-bold text-slate-900 dark:text-slate-100 block">
+                            <span className="text-sm font-bold text-black dark:text-slate-100 block">
                               Taxa de Deslocamento / Atendimento a Domicílio
                             </span>
-                            <span className="text-[11px] text-slate-500 dark:text-slate-400 block leading-tight">
+                            <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">
                               Defina se este serviço segue a taxa padrão da loja ou possui regra diferenciada.
                             </span>
                           </div>
@@ -3277,8 +3277,8 @@ export const ProdutoCadastro: React.FC = () => {
                           <label
                             className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
                               modoTaxaDomicilio === 'padrao'
-                                ? 'bg-emerald-500/10 border-emerald-500 text-emerald-950 dark:text-white ring-1 ring-emerald-500/30'
-                                : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+                                ? 'bg-emerald-500/10 border-emerald-500 text-black dark:text-white ring-1 ring-emerald-500/30'
+                                : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-black dark:text-slate-300 hover:border-slate-300'
                             }`}
                           >
                             <div className="flex items-center gap-2">
@@ -3290,13 +3290,13 @@ export const ProdutoCadastro: React.FC = () => {
                                 onChange={() => setModoTaxaDomicilio('padrao')}
                                 className="text-emerald-500 focus:ring-emerald-500"
                               />
-                              <span className="text-xs font-bold">Padrão da Loja</span>
+                              <span className="text-sm font-bold">Padrão da Loja</span>
                             </div>
                             <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-700/50">
-                              <span className="text-xs font-mono font-black text-emerald-600 dark:text-emerald-400 block">
+                              <span className="text-sm font-mono font-black text-emerald-700 dark:text-emerald-400 block">
                                 R$ {Number(loja?.taxa_padrao_domicilio ?? 0).toFixed(2).replace('.', ',')}
                               </span>
-                              <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                              <span className="text-sm leading-relaxed text-black dark:text-slate-300 block mt-0.5">
                                 {loja?.abater_taxa_domicilio_ao_fechar ? 'Abate ao fechar' : 'Taxa não abatida'}
                               </span>
                             </div>
@@ -3306,8 +3306,8 @@ export const ProdutoCadastro: React.FC = () => {
                           <label
                             className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
                               modoTaxaDomicilio === 'especifico'
-                                ? 'bg-emerald-500/10 border-emerald-500 text-emerald-950 dark:text-white ring-1 ring-emerald-500/30'
-                                : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+                                ? 'bg-emerald-500/10 border-emerald-500 text-black dark:text-white ring-1 ring-emerald-500/30'
+                                : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-black dark:text-slate-300 hover:border-slate-300'
                             }`}
                           >
                             <div className="flex items-center gap-2">
@@ -3319,13 +3319,13 @@ export const ProdutoCadastro: React.FC = () => {
                                 onChange={() => setModoTaxaDomicilio('especifico')}
                                 className="text-emerald-500 focus:ring-emerald-500"
                               />
-                              <span className="text-xs font-bold">Valor Específico</span>
+                              <span className="text-sm font-bold">Valor Específico</span>
                             </div>
                             <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-700/50">
-                              <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block">
+                              <span className="text-sm font-semibold text-black dark:text-slate-200 block">
                                 Personalizar taxa
                               </span>
-                              <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                              <span className="text-sm leading-relaxed text-black dark:text-slate-300 block mt-0.5">
                                 Definir valor exclusivo
                               </span>
                             </div>
@@ -3335,8 +3335,8 @@ export const ProdutoCadastro: React.FC = () => {
                           <label
                             className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
                               modoTaxaDomicilio === 'gratis'
-                                ? 'bg-emerald-500/10 border-emerald-500 text-emerald-950 dark:text-white ring-1 ring-emerald-500/30'
-                                : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+                                ? 'bg-emerald-500/10 border-emerald-500 text-black dark:text-white ring-1 ring-emerald-500/30'
+                                : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-black dark:text-slate-300 hover:border-slate-300'
                             }`}
                           >
                             <div className="flex items-center gap-2">
@@ -3348,13 +3348,13 @@ export const ProdutoCadastro: React.FC = () => {
                                 onChange={() => setModoTaxaDomicilio('gratis')}
                                 className="text-emerald-500 focus:ring-emerald-500"
                               />
-                              <span className="text-xs font-bold">Deslocamento Grátis</span>
+                              <span className="text-sm font-bold">Deslocamento Grátis</span>
                             </div>
                             <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-700/50">
-                              <span className="text-xs font-mono font-black text-emerald-600 dark:text-emerald-400 block">
+                              <span className="text-sm font-mono font-black text-emerald-700 dark:text-emerald-400 block">
                                 R$ 0,00
                               </span>
-                              <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                              <span className="text-sm leading-relaxed text-black dark:text-slate-300 block mt-0.5">
                                 Sem taxa para o cliente
                               </span>
                             </div>
@@ -3365,7 +3365,7 @@ export const ProdutoCadastro: React.FC = () => {
                         {modoTaxaDomicilio === 'especifico' && (
                           <div className="pt-2 pl-3 sm:pl-4 border-l-2 border-emerald-500/50 space-y-3 animate-in fade-in">
                             <div className="max-w-xs">
-                              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                              <label className="block text-sm font-bold text-black dark:text-slate-200 mb-1">
                                 Valor da Taxa para este Serviço (R$) *
                               </label>
                               <MoneyInput
@@ -3373,7 +3373,7 @@ export const ProdutoCadastro: React.FC = () => {
                                 onChange={(val) => setTaxaDeslocamentoEspecifica(val)}
                                 className="w-full px-3 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
                               />
-                              <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block">
+                              <span className="text-sm leading-relaxed text-black dark:text-slate-300 mt-1 block">
                                 Cobrado na visita para a realização deste serviço no local do cliente.
                               </span>
                             </div>
@@ -3383,13 +3383,13 @@ export const ProdutoCadastro: React.FC = () => {
                                 type="checkbox"
                                 checked={abaterTaxaDomicilioAoFecharServico}
                                 onChange={(e) => setAbaterTaxaDomicilioAoFecharServico(e.target.checked)}
-                                className="mt-0.5 rounded text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                                className="mt-1 rounded text-emerald-500 focus:ring-emerald-500 cursor-pointer"
                               />
                               <div>
-                                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
+                                <span className="text-sm font-semibold text-black dark:text-slate-100 block">
                                   Isentar / abater esta taxa se o cliente fechar o serviço
                                 </span>
-                                <span className="text-[10px] text-slate-500 dark:text-slate-400 block">
+                                <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">
                                   Ideal para orçamentos técnicos: cobra apenas se o cliente não autorizar o conserto/serviço.
                                 </span>
                               </div>
@@ -3402,8 +3402,8 @@ export const ProdutoCadastro: React.FC = () => {
                     {/* Colaboradores Habilitados */}
                     <div className="space-y-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold text-slate-900 dark:text-slate-200 flex items-center gap-1.5">
-                          <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
+                        <label className="text-sm font-bold text-black dark:text-slate-200 flex items-center gap-1.5">
+                          <UserCheck className="w-4 h-4 text-emerald-500" />
                           <span>Profissionais Habilitados para este Serviço</span>
                         </label>
                         {colaboradoresPrestadoresLoja.length > 0 && (
@@ -3420,7 +3420,7 @@ export const ProdutoCadastro: React.FC = () => {
                                 setProfissionaisHabilitadosIds(Array.from(new Set(idsPrestadoresAtivos)));
                               }
                             }}
-                            className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                            className="text-sm font-bold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer"
                           >
                             {colaboradoresPrestadoresLoja.every(c => profissionaisHabilitadosIds.includes(c.id))
                               ? 'Desmarcar todos'
@@ -3430,11 +3430,11 @@ export const ProdutoCadastro: React.FC = () => {
                       </div>
 
                       {colaboradoresPrestadoresLoja.length === 0 ? (
-                        <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300 text-xs flex items-start gap-2.5">
-                          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                        <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-black dark:text-amber-200 text-sm flex items-start gap-2.5">
+                          <AlertCircle className="w-4 h-4 shrink-0 mt-1 text-amber-600 dark:text-amber-400" />
                           <div>
                             <span className="font-bold block">Nenhum colaborador com serviços agendáveis ativo</span>
-                            <span className="text-[11px] block mt-0.5">
+                            <span className="text-sm leading-relaxed block mt-0.5">
                               Acesse a aba <strong>Usuários</strong> e ative a opção <em>"Este funcionário presta serviços agendáveis"</em> nos colaboradores que executam serviços.
                             </span>
                           </div>
@@ -3448,8 +3448,8 @@ export const ProdutoCadastro: React.FC = () => {
                                 key={colab.id}
                                 className={`flex items-center gap-3 p-3 rounded-xl border transition cursor-pointer select-none ${
                                   checked
-                                    ? 'bg-emerald-500/10 border-emerald-500/50 text-slate-900 dark:text-white'
-                                    : 'bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+                                    ? 'bg-emerald-500/10 border-emerald-500/50 text-black dark:text-white'
+                                    : 'bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 text-black dark:text-slate-300 hover:border-slate-300'
                                 }`}
                               >
                                 <input
@@ -3467,11 +3467,11 @@ export const ProdutoCadastro: React.FC = () => {
                                   className="rounded border-slate-300 dark:border-slate-700 text-emerald-600 focus:ring-emerald-500"
                                 />
                                 <div className="min-w-0">
-                                  <span className="text-xs font-bold block truncate">
+                                  <span className="text-sm font-bold block truncate">
                                     {colab.nome_completo || colab.nome}
                                   </span>
                                   {colab.especialidade_cargo && (
-                                    <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate">
+                                    <span className="text-sm leading-relaxed text-black dark:text-slate-300 block truncate">
                                       {colab.especialidade_cargo}
                                     </span>
                                   )}
@@ -3495,43 +3495,43 @@ export const ProdutoCadastro: React.FC = () => {
                   <Boxes className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <span>4. Controle de Estoque & Entrada Inicial</span>
                 </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                <p className="text-sm leading-relaxed text-black dark:text-slate-300 mt-1">
                   Informe a quantidade inicial que você tem agora em loja. Você poderá dar entrada em novas compras a qualquer momento.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Estoque Inicial em Loja</label>
+                  <label className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Estoque Inicial em Loja</label>
                   <input
                     type="number"
                     value={quantidadeEstoque}
                     onChange={(e) => setQuantidadeEstoque(e.target.value)}
                     className="w-full bg-white dark:bg-[#000000] border-2 border-emerald-500/70 dark:border-emerald-500/50 rounded-xl px-3.5 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-400"
                   />
-                  <span className="text-xs text-slate-500 dark:text-slate-400">Saldo inicial para venda</span>
+                  <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">Saldo inicial para venda</span>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Alerta de Estoque Mínimo</label>
+                  <label className="text-sm font-semibold text-black dark:text-slate-200">Alerta de Estoque Mínimo</label>
                   <input
                     type="number"
                     value={estoqueMinimoAlerta}
                     onChange={(e) => setEstoqueMinimoAlerta(e.target.value)}
                     className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
                   />
-                  <span className="text-xs text-slate-500 dark:text-slate-400">Avisa quando estiver acabando</span>
+                  <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">Avisa quando estiver acabando</span>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Data de Validade (Opcional)</label>
+                  <label className="text-sm font-semibold text-black dark:text-slate-200">Data de Validade (Opcional)</label>
                   <input
                     type="date"
                     value={dataValidade}
                     onChange={(e) => setDataValidade(e.target.value)}
                     className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
                   />
-                  <span className="text-xs text-slate-500 dark:text-slate-400">Para perecíveis / cosméticos</span>
+                  <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">Para perecíveis / cosméticos</span>
                 </div>
               </div>
             </div>
@@ -3540,13 +3540,13 @@ export const ProdutoCadastro: React.FC = () => {
           {/* SEÇÃO 5: GRADE DE VARIAÇÕES (SIMPLIFICADA E INTUITIVA) */}
           {tipoItem === 'produto' && (
             <div className="bg-white dark:bg-[#000000] border border-slate-200/80 dark:border-[#1E293B] rounded-2xl p-5 md:p-6 space-y-4 shadow-sm">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                   <Layers className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <span>5. Variações do Produto (Cor, Tamanho, Sabor...)</span>
                 </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                <p className="text-sm leading-relaxed text-black dark:text-slate-300 mt-1">
                   Ative se o produto tiver opções diferentes com controle de estoque individual.
                 </p>
               </div>
@@ -3572,7 +3572,7 @@ export const ProdutoCadastro: React.FC = () => {
                 {/* ETAPA 1: Definir o Nome do Tipo da Variação */}
                 {etapaVariacao === 1 ? (
                   <div className="bg-slate-50 dark:bg-[#000000] border border-slate-200 dark:border-slate-800 rounded-xl p-4 sm:p-5 space-y-3">
-                    <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
+                    <label className="text-sm font-semibold text-black dark:text-slate-200 block">
                       Qual é o tipo de variação deste produto?
                     </label>
                     <div className="flex flex-col sm:flex-row gap-2.5">
@@ -3611,15 +3611,15 @@ export const ProdutoCadastro: React.FC = () => {
                     {/* Header do Tipo Ativo */}
                     <div className="flex items-center justify-between bg-slate-50 dark:bg-[#000000] px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-500 dark:text-slate-400">Tipo de variação:</span>
-                        <span className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wide bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 px-2.5 py-0.5 rounded-lg">
+                        <span className="text-sm text-black dark:text-slate-300">Tipo de variação:</span>
+                        <span className="text-sm font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wide bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 px-2.5 py-0.5 rounded-lg">
                           {nomeTipoVariacao}
                         </span>
                       </div>
                       <button
                         type="button"
                         onClick={() => setEtapaVariacao(1)}
-                        className="text-[11px] text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 underline cursor-pointer"
+                        className="text-sm text-black dark:text-slate-300 hover:text-emerald-700 dark:hover:text-slate-100 font-semibold underline cursor-pointer"
                       >
                         Alterar tipo
                       </button>
@@ -3627,10 +3627,10 @@ export const ProdutoCadastro: React.FC = () => {
 
                     {/* Formulário para Inserir Nova Opção */}
                     <div className="bg-slate-50 dark:bg-[#000000] border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-3">
-                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-300 block">Adicionar nova opção:</span>
+                      <span className="text-sm font-semibold text-black dark:text-slate-200 block">Adicionar nova opção:</span>
                       <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
                         <div className="sm:col-span-7 space-y-1">
-                          <label className="text-xs text-slate-500 dark:text-slate-400 block">
+                          <label className="text-sm text-black dark:text-slate-300 block">
                             Digite uma opção para {nomeTipoVariacao || 'a variação'}
                           </label>
                           <input
@@ -3649,7 +3649,7 @@ export const ProdutoCadastro: React.FC = () => {
                         </div>
 
                         <div className="sm:col-span-3 space-y-1">
-                          <label className="text-xs text-slate-500 dark:text-slate-400 block">Estoque da opção</label>
+                          <label className="text-sm text-black dark:text-slate-300 block">Estoque da opção</label>
                           <input
                             type="number"
                             min="0"
@@ -3682,7 +3682,7 @@ export const ProdutoCadastro: React.FC = () => {
                     {/* Lista de Opções Cadastradas */}
                     {opcoesVariacao.length > 0 ? (
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 px-1">
+                        <div className="flex items-center justify-between text-sm text-black dark:text-slate-300 px-1">
                           <span className="font-semibold">Opções cadastradas ({opcoesVariacao.length}):</span>
                           <span>Estoque individual</span>
                         </div>
@@ -3695,12 +3695,12 @@ export const ProdutoCadastro: React.FC = () => {
                             >
                               <div className="flex items-center gap-2.5">
                                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{opc.nome}</span>
+                                <span className="text-sm font-bold text-black dark:text-slate-100">{opc.nome}</span>
                               </div>
 
                               <div className="flex items-center gap-3">
                                 <div className="flex items-center gap-1.5">
-                                  <span className="text-xs text-slate-500 dark:text-slate-400">Estoque:</span>
+                                  <span className="text-sm text-black dark:text-slate-300">Estoque:</span>
                                   <input
                                     type="number"
                                     min="0"
@@ -3708,13 +3708,13 @@ export const ProdutoCadastro: React.FC = () => {
                                     onChange={(e) => handleAtualizarEstoqueOpcao(opc.id, e.target.value)}
                                     className="w-16 bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 rounded-lg px-2 py-1 text-xs text-center font-bold text-emerald-700 dark:text-emerald-400 focus:outline-none focus:border-emerald-600 dark:focus:border-emerald-500"
                                   />
-                                  <span className="text-xs text-slate-400">un</span>
+                                  <span className="text-sm text-black dark:text-slate-300">un</span>
                                 </div>
 
                                 <button
                                   type="button"
                                   onClick={() => handleRemoverOpcao(opc.id)}
-                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition cursor-pointer"
+                                  className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition cursor-pointer"
                                   title="Remover opção"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -3725,21 +3725,21 @@ export const ProdutoCadastro: React.FC = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="text-center p-4 bg-slate-50 dark:bg-[#000000] rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+                      <div className="text-center p-4 bg-slate-50 dark:bg-[#000000] rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-sm leading-relaxed text-black dark:text-slate-300">
                         Nenhuma opção adicionada ainda. Digite uma opção acima (ex: Azul, P, Sabor Morango) e clique em Adicionar.
                       </div>
                     )}
 
                     {/* Resumo de Conferência de Estoque */}
                     {opcoesVariacao.length > 0 && (
-                      <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-500/30 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                        <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
+                      <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-500/30 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-sm">
+                        <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-300">
                           <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                           <span>
                             Soma do estoque das variações: <strong>{opcoesVariacao.reduce((acc, o) => acc + (Number(o.estoque) || 0), 0)} un</strong>
                           </span>
                         </div>
-                        <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+                        <span className="text-sm leading-relaxed text-emerald-900 dark:text-emerald-400 font-medium">
                           O estoque total do produto será sincronizado com {opcoesVariacao.reduce((acc, o) => acc + (Number(o.estoque) || 0), 0)} un
                         </span>
                       </div>
@@ -3760,7 +3760,7 @@ export const ProdutoCadastro: React.FC = () => {
                     <Truck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     <span>6. Dimensões e Peso para Envio (Melhor Envio / Correios / Jadlog)</span>
                   </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  <p className="text-sm leading-relaxed text-black dark:text-slate-300 mt-1">
                     Preenchido automaticamente pela IA do HUBI. Usado para cotação exata de frete e emissão de etiquetas.
                   </p>
                 </div>
@@ -3818,8 +3818,8 @@ export const ProdutoCadastro: React.FC = () => {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Peso (kg)</label>
-                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Balança</span>
+                    <label className="text-sm font-semibold text-black dark:text-slate-200">Peso (kg)</label>
+                    <span className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold">Balança</span>
                   </div>
                   <input
                     type="number"
@@ -3830,11 +3830,11 @@ export const ProdutoCadastro: React.FC = () => {
                     onChange={(e) => setPesoKg(e.target.value)}
                     className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white font-mono focus:outline-none"
                   />
-                  <span className="text-xs text-slate-500 dark:text-slate-400 block">Ex: 0.500 para 500g</span>
+                  <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">Ex: 0.500 para 500g</span>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Altura (cm)</label>
+                  <label className="text-sm font-semibold text-black dark:text-slate-200">Altura (cm)</label>
                   <input
                     type="number"
                     step="0.1"
@@ -3844,11 +3844,11 @@ export const ProdutoCadastro: React.FC = () => {
                     onChange={(e) => setAlturaCm(e.target.value)}
                     className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white font-mono focus:outline-none"
                   />
-                  <span className="text-xs text-slate-500 dark:text-slate-400 block">Mínimo: 4 cm</span>
+                  <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">Mínimo: 4 cm</span>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Largura (cm)</label>
+                  <label className="text-sm font-semibold text-black dark:text-slate-200">Largura (cm)</label>
                   <input
                     type="number"
                     step="0.1"
@@ -3858,11 +3858,11 @@ export const ProdutoCadastro: React.FC = () => {
                     onChange={(e) => setLarguraCm(e.target.value)}
                     className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white font-mono focus:outline-none"
                   />
-                  <span className="text-xs text-slate-500 dark:text-slate-400 block">Mínimo: 10 cm</span>
+                  <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">Mínimo: 10 cm</span>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Comprimento (cm)</label>
+                  <label className="text-sm font-semibold text-black dark:text-slate-200">Comprimento (cm)</label>
                   <input
                     type="number"
                     step="0.1"
@@ -3872,7 +3872,7 @@ export const ProdutoCadastro: React.FC = () => {
                     onChange={(e) => setComprimentoCm(e.target.value)}
                     className="w-full bg-white dark:bg-[#000000] border border-slate-200 dark:border-slate-800 focus:border-emerald-600 dark:focus:border-emerald-500 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white font-mono focus:outline-none"
                   />
-                  <span className="text-xs text-slate-500 dark:text-slate-400 block">Mínimo: 15 cm</span>
+                  <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">Mínimo: 15 cm</span>
                 </div>
               </div>
             </div>
@@ -3894,8 +3894,8 @@ export const ProdutoCadastro: React.FC = () => {
                   className="w-4 h-4 rounded text-emerald-600 focus:ring-0"
                 />
                 <div>
-                  <span className="font-semibold text-xs text-slate-900 dark:text-slate-100 block">Exibir no Catálogo Online</span>
-                  <span className="text-xs text-slate-500 dark:text-slate-400 block">Ficará visível para os clientes comprarem pelo link</span>
+                  <span className="font-bold text-sm text-black dark:text-slate-100 block">Exibir no Catálogo Online</span>
+                  <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">Ficará visível para os clientes comprarem pelo link</span>
                 </div>
               </label>
 
@@ -3907,11 +3907,11 @@ export const ProdutoCadastro: React.FC = () => {
                   className="w-4 h-4 rounded text-amber-500 focus:ring-0"
                 />
                 <div>
-                  <span className="font-semibold text-xs text-slate-900 dark:text-slate-100 flex items-center gap-1">
+                  <span className="font-bold text-sm text-black dark:text-slate-100 flex items-center gap-1">
                     <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
                     <span>Destacar Produto na Vitrine</span>
                   </span>
-                  <span className="text-xs text-slate-500 dark:text-slate-400 block">Aparecerá no topo da página de vendas</span>
+                  <span className="text-sm leading-relaxed text-black dark:text-slate-300 block">Aparecerá no topo da página de vendas</span>
                 </div>
               </label>
             </div>
