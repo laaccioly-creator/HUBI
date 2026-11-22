@@ -1929,30 +1929,38 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
   // PREENCHIMENTO AUTOMÁTICO VIA IA (FOTO, TEXTO, CÓDIGO DE BARRAS)
   // =========================================================================
-  const processarPreenchimentoIA = async (tipo: 'foto' | 'texto' | 'codigo', valor?: string) => {
+  const processarPreenchimentoIA = async (
+    tipo: 'foto' | 'texto' | 'codigo',
+    valor?: string,
+    fotoGaleriaUrl?: string
+  ) => {
     try {
       setProcessandoIA(true);
       let sugestao: any = null;
 
       if (tipo === 'foto' && valor) {
         sugestao = await identificarProdutoPorFoto(valor, segmentoLoja, loja);
-      } else if (tipo === 'texto' && promptTextoIA.trim()) {
-        sugestao = await identificarProdutoPorTextoOuEan('texto', promptTextoIA.trim(), segmentoLoja, loja);
+      } else if (tipo === 'texto') {
+        const textoAlvo = (valor || promptTextoIA).trim();
+        if (textoAlvo) {
+          sugestao = await identificarProdutoPorTextoOuEan('texto', textoAlvo, segmentoLoja, loja);
+        }
       } else if (tipo === 'codigo' && (valor || promptCodigoIA.trim())) {
         const cod = valor || promptCodigoIA.trim();
         sugestao = await identificarProdutoPorTextoOuEan('barcode', cod, segmentoLoja, loja);
       }
 
       if (sugestao) {
+        const fotoReferenciaFinal = fotoGaleriaUrl || valor;
         if (tipo === 'foto' && sugestao.duvida && sugestao.opcoes_sugeridas && sugestao.opcoes_sugeridas.length > 1) {
           setOpcoesDuvidaIA(sugestao.opcoes_sugeridas);
-          setFotoTemporariaDuvida(valor || null);
+          setFotoTemporariaDuvida(fotoReferenciaFinal || null);
           setModalDuvidaAberto(true);
           setModalCriarComIAAberto(false);
           return;
         }
 
-        await aplicarSugestaoMobile(sugestao, tipo === 'foto' && valor ? valor : undefined);
+        await aplicarSugestaoMobile(sugestao, tipo === 'foto' && fotoReferenciaFinal ? fotoReferenciaFinal : undefined);
         setModalCriarComIAAberto(false);
         setMensagemFeedback({ texto: 'Dados e descrição preenchidos com sucesso pela IA!', tipo: 'sucesso' });
       }
@@ -1962,6 +1970,22 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     } finally {
       setProcessandoIA(false);
     }
+  };
+
+  // Reaproveita foto ou nome já presentes no formulário antes de abrir modal de captura
+  const handleBotaoPreencherComIA = async () => {
+    const fotoExistente = formData.fotos[0];
+    if (fotoExistente) {
+      await processarPreenchimentoIA('foto', fotoExistente);
+      return;
+    }
+
+    if (formData.nome.trim()) {
+      await processarPreenchimentoIA('texto', formData.nome.trim());
+      return;
+    }
+
+    setModalCriarComIAAberto(true);
   };
 
   // Criar Categoria rápida (TELA016)
@@ -2004,15 +2028,16 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
     try {
       audioService.playBeep();
+      const urlFinal = await ProdutoService.uploadFotoDataUrl(resultado.dataUrl, loja?.id);
+
+      setFormData(prev => ({
+        ...prev,
+        fotos: [urlFinal, ...prev.fotos.filter(f => f !== urlFinal)].slice(0, 7)
+      }));
 
       if (modoAtual === 'ia') {
-        await processarPreenchimentoIA('foto', resultado.dataUrl);
+        await processarPreenchimentoIA('foto', resultado.dataUrl, urlFinal);
       } else {
-        const urlFinal = await ProdutoService.uploadFotoDataUrl(resultado.dataUrl, loja?.id);
-        setFormData(prev => ({
-          ...prev,
-          fotos: [urlFinal, ...prev.fotos.filter(f => f !== urlFinal)].slice(0, 7)
-        }));
         setMensagemFeedback({ texto: 'Foto capturada e salva com sucesso!', tipo: 'sucesso' });
       }
     } catch (e: unknown) {
@@ -3699,8 +3724,9 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 ) : (
                   <button
                     type="button"
-                    onClick={() => setModalCriarComIAAberto(true)}
-                    className="h-9 px-3 rounded-xl text-xs font-medium border flex items-center justify-between transition-all w-full shadow-sm bg-white hover:bg-emerald-500/15 dark:bg-slate-900/90 dark:hover:bg-emerald-500/20 border-slate-200 hover:border-emerald-500/70 dark:border-slate-800 dark:hover:border-emerald-500/70 text-slate-700 hover:text-emerald-950 dark:text-slate-200 dark:hover:text-white cursor-pointer"
+                    disabled={processandoIA}
+                    onClick={handleBotaoPreencherComIA}
+                    className="h-9 px-3 rounded-xl text-xs font-medium border flex items-center justify-between transition-all w-full shadow-sm bg-white hover:bg-emerald-500/15 dark:bg-slate-900/90 dark:hover:bg-emerald-500/20 border-slate-200 hover:border-emerald-500/70 dark:border-slate-800 dark:hover:border-emerald-500/70 text-slate-700 hover:text-emerald-950 dark:text-slate-200 dark:hover:text-white cursor-pointer disabled:opacity-50"
                     title="Preencher com nossa Inteligência Artificial"
                   >
                     <div className="flex items-center gap-2 truncate">
@@ -5865,7 +5891,15 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                             previewGerada = resultado.previewUrl;
                             registrarPreviewUrl(previewGerada);
                             if (resultado.dataUrl) {
-                              await processarPreenchimentoIA('foto', resultado.dataUrl);
+                              const urlFinal = await ProdutoService.uploadFotoDataUrl(
+                                resultado.dataUrl,
+                                loja?.id
+                              );
+                              setFormData(prev => ({
+                                ...prev,
+                                fotos: [urlFinal, ...prev.fotos.filter(f => f !== urlFinal)].slice(0, 7)
+                              }));
+                              await processarPreenchimentoIA('foto', resultado.dataUrl, urlFinal);
                             }
                           } catch (err: unknown) {
                             const msg =
@@ -5985,7 +6019,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           codigoBarrasInicial={formData.codigoBarras}
           fotosAtuaisCount={formData.fotos.length}
           maxFotos={7}
-          fotoReferencia={!formData.nome?.trim() ? formData.fotos[0] : undefined}
+          fotoReferencia={formData.fotos[0] || undefined}
           segmentoLoja={segmentoLoja}
           loja={loja}
           onAbrirConfiguracaoChave={() => setModalOnboardingSerpApiAberto(true)}

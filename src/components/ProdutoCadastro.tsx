@@ -660,6 +660,7 @@ export const ProdutoCadastro: React.FC = () => {
 
   // Câmera Ao Vivo In-App (ModalCameraCapturaMobile - anti-OOM no Android)
   const [modalCameraAoVivoAberto, setModalCameraAoVivoAberto] = useState<boolean>(false);
+  const capturaCameraParaIARef = useRef<boolean>(false);
 
   const CHAVE_RASCUNHO = `hubi_rascunho_novo_produto_${loja?.id || 'padrao'}`;
 
@@ -1647,6 +1648,8 @@ export const ProdutoCadastro: React.FC = () => {
 
   // Recebe foto já comprimida da Câmera In-App (ModalCameraCapturaMobile)
   const handleFotoCapturadaCamera = async (resultado: CompressResult) => {
+    const dispararAnaliseIA = capturaCameraParaIARef.current;
+    capturaCameraParaIARef.current = false;
     registrarPreviewUrl(resultado.previewUrl);
 
     if (fotosUrls.length >= 7) {
@@ -1674,6 +1677,10 @@ export const ProdutoCadastro: React.FC = () => {
         if (!fotoPrincipal) {
           setFotoPrincipal(urlFinal);
         }
+      }
+
+      if (dispararAnaliseIA) {
+        await analisarFotoParaPreenchimentoIA(resultado.dataUrl);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Falha ao enviar a foto capturada.';
@@ -1802,14 +1809,54 @@ export const ProdutoCadastro: React.FC = () => {
     }
   };
 
+  // Analisa uma foto específica com IA multimodal (reaproveitada tanto na foto já existente quanto após captura)
+  const analisarFotoParaPreenchimentoIA = async (fotoAlvoParaAnalise: string) => {
+    try {
+      setAnalisandoIA(true);
+      setRedigindoDescricaoIA(false);
+      descricaoEditadaManualRef.current = false;
+      setSucessoIAMsg(null);
+
+      const fotoParaIA = fotoBase64Cache.get(fotoAlvoParaAnalise) || fotoAlvoParaAnalise;
+      const dadosSugeridos = await identificarProdutoPorFoto(fotoParaIA, segmentoLoja, loja);
+
+      if (dadosSugeridos) {
+        if (dadosSugeridos.duvida && dadosSugeridos.opcoes_sugeridas && dadosSugeridos.opcoes_sugeridas.length > 1) {
+          setOpcoesDuvidaIA(dadosSugeridos.opcoes_sugeridas);
+          setModalDuvidaAberto(true);
+        } else {
+          await aplicarDadosSugeridosIA(dadosSugeridos, { preservarNome: false });
+          setSucessoIAMsg('✨ Informações e preços de mercado do produto identificados com sucesso a partir da foto!');
+        }
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Tente novamente';
+      console.error('Erro na rotina de IA por foto:', err);
+      mostrarErro(`Não foi possível processar a foto com a IA: ${msg}`);
+    } finally {
+      setAnalisandoIA(false);
+      setRedigindoDescricaoIA(false);
+    }
+  };
+
   // Rotina Unificada de Preenchimento / Atualização com Inteligência Artificial
   const handleExecutarPreenchimentoIA = async (modoAcao: 'atualizar' | 'preencher' = 'preencher') => {
     const nomeInformado = nome.trim();
     const fotoAlvo = fotoPrincipal || fotosUrls[0];
 
-    // 1. Validação Obrigatória de Entrada:
+    // 1. Validação / Captura sob demanda:
     if (!nomeInformado && !fotoAlvo) {
-      mostrarAviso('Para usar a Inteligência Artificial, informe pelo menos o nome do produto ou adicione uma foto.');
+      if (modoAcao === 'preencher') {
+        capturaCameraParaIARef.current = true;
+        setModalCameraAoVivoAberto(true);
+      } else {
+        mostrarAviso('Para usar a Inteligência Artificial, informe pelo menos o nome do produto ou adicione uma foto.');
+      }
+      return;
+    }
+
+    if (!nomeInformado && fotoAlvo) {
+      await analisarFotoParaPreenchimentoIA(fotoAlvo);
       return;
     }
 
@@ -1823,53 +1870,37 @@ export const ProdutoCadastro: React.FC = () => {
       // - NUNCA envia as imagens da galeria na requisição para o Gemini (reduz drasticamente a latência)
       // - NUNCA sobrescreve o Nome do Produto digitado pelo usuário
       // - Opera em 2 estágios progressivos: Estágio 1 (Preços/Categoria) destrava a tela; Estágio 2 (Descrição) preenche em background
-      if (nomeInformado) {
-        const catNome = categorias.find(c => c.id === categoriaId)?.nome;
-        const dadosAtualizados = await atualizarProdutoExistenteComIA({
-          nome: nomeInformado,
-          descricao: descricao.trim(),
-          fotos: fotosUrls,
-          possuiImagens: Boolean(fotoPrincipal || fotosUrls.length > 0),
-          categoriaNome: catNome,
-          codigoBarras: codigoBarras.trim(),
-          precoVendaAtual: Number(precoVendaVarejo) || undefined,
-          segmentoLoja,
-          loja,
-          onEstagio1Pronto: (parcialEstagio1) => {
-            void aplicarDadosSugeridosIA(parcialEstagio1, {
-              preservarNome: true,
-              preservarDescricao: true
-            });
-            setAnalisandoIA(false);
-            setRedigindoDescricaoIA(true);
-          }
-        });
-
-        if (dadosAtualizados) {
-          await aplicarDadosSugeridosIA(dadosAtualizados, {
+      const catNome = categorias.find(c => c.id === categoriaId)?.nome;
+      const dadosAtualizados = await atualizarProdutoExistenteComIA({
+        nome: nomeInformado,
+        descricao: descricao.trim(),
+        fotos: fotosUrls,
+        possuiImagens: Boolean(fotoPrincipal || fotosUrls.length > 0),
+        categoriaNome: catNome,
+        codigoBarras: codigoBarras.trim(),
+        precoVendaAtual: Number(precoVendaVarejo) || undefined,
+        segmentoLoja,
+        loja,
+        onEstagio1Pronto: (parcialEstagio1) => {
+          void aplicarDadosSugeridosIA(parcialEstagio1, {
             preservarNome: true,
-            preservarDescricao: descricaoEditadaManualRef.current
+            preservarDescricao: true
           });
-          setSucessoIAMsg(
-            modoAcao === 'atualizar'
-              ? '✨ Informações e ficha técnica do produto atualizadas com sucesso pela IA!'
-              : '✨ Informações comerciais preenchidas com sucesso a partir do nome do produto!'
-          );
+          setAnalisandoIA(false);
+          setRedigindoDescricaoIA(true);
         }
-      } else if (fotoAlvo) {
-        // Apenas quando o Nome do Produto está completamente vazio utiliza a foto para identificar o item
-        const fotoParaIA = fotoBase64Cache.get(fotoAlvo) || fotoAlvo;
-        const dadosSugeridos = await identificarProdutoPorFoto(fotoParaIA, segmentoLoja, loja);
+      });
 
-        if (dadosSugeridos) {
-          if (dadosSugeridos.duvida && dadosSugeridos.opcoes_sugeridas && dadosSugeridos.opcoes_sugeridas.length > 1) {
-            setOpcoesDuvidaIA(dadosSugeridos.opcoes_sugeridas);
-            setModalDuvidaAberto(true);
-          } else {
-            await aplicarDadosSugeridosIA(dadosSugeridos, { preservarNome: false });
-            setSucessoIAMsg('✨ Informações e preços de mercado do produto identificados com sucesso a partir da foto!');
-          }
-        }
+      if (dadosAtualizados) {
+        await aplicarDadosSugeridosIA(dadosAtualizados, {
+          preservarNome: true,
+          preservarDescricao: descricaoEditadaManualRef.current
+        });
+        setSucessoIAMsg(
+          modoAcao === 'atualizar'
+            ? '✨ Informações e ficha técnica do produto atualizadas com sucesso pela IA!'
+            : '✨ Informações comerciais preenchidas com sucesso a partir do nome do produto!'
+        );
       }
     } catch (err: any) {
       console.error('Erro na rotina de IA:', err);
@@ -4227,7 +4258,7 @@ export const ProdutoCadastro: React.FC = () => {
         codigoBarrasInicial={codigoBarras}
         fotosAtuaisCount={fotosUrls.length}
         maxFotos={7}
-        fotoReferencia={!nome.trim() ? (fotoPrincipal || fotosUrls[0]) : undefined}
+        fotoReferencia={fotoPrincipal || fotosUrls[0] || undefined}
         segmentoLoja={segmentoLoja}
         loja={loja}
         onAbrirConfiguracaoChave={() => setModalOnboardingSerpApiAberto(true)}
@@ -4290,7 +4321,10 @@ export const ProdutoCadastro: React.FC = () => {
       {/* Modal Câmera Ao Vivo In-App Unificado (WebRTC Stream - Anti-OOM no Mobile) */}
       <ModalCameraCapturaMobile
         isOpen={modalCameraAoVivoAberto}
-        onClose={() => setModalCameraAoVivoAberto(false)}
+        onClose={() => {
+          capturaCameraParaIARef.current = false;
+          setModalCameraAoVivoAberto(false);
+        }}
         onCapturar={handleFotoCapturadaCamera}
         titulo="Câmera do Produto"
         subtitulo="Enquadre o produto na guia"

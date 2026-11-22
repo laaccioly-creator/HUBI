@@ -1,9 +1,39 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { X, Search, Check, Image as ImageIcon, AlertCircle, Plus, Globe, Loader2, ExternalLink, Key, RefreshCw } from 'lucide-react';
-import { pesquisarFotosProdutoNaInternet, obterNomeSegmentoLoja, FotoResultadoInternet, SerpApiQuotaError, SerpApiAuthError } from '../services/geminiService';
+import {
+  pesquisarFotosProdutoNaInternet,
+  identificarTermoBuscaPorFotoIA,
+  obterNomeSegmentoLoja,
+  FotoResultadoInternet,
+  SerpApiQuotaError,
+  SerpApiAuthError
+} from '../services/geminiService';
 import { limparTermoParaBuscaGoogle, extrairRamoCurtoLoja, montarQueryEnriquecidaComRamo } from '../services/serpApiService';
 import { SpinnerPesquisandoIA } from './SpinnerPesquisandoIA';
 import { ModalQuotaExcedidaSerpApi } from './ModalQuotaExcedidaSerpApi';
+
+const NOMES_TERMO_GENERICO = new Set([
+  '',
+  'produto',
+  'novo produto',
+  'item',
+  'sem nome',
+  'serviço',
+  'servico'
+]);
+
+function ehTermoBuscaGenerico(termo: string): boolean {
+  return NOMES_TERMO_GENERICO.has(termo.trim().toLowerCase());
+}
+
+function simplificarTermoFallback(termo: string): string {
+  const palavras = termo
+    .trim()
+    .split(/\s+/)
+    .filter((p) => p.length > 1 && !/^(de|da|do|das|dos|para|com|em|e|ou)$/i.test(p));
+  if (palavras.length <= 2) return termo.trim();
+  return `${palavras[0]} ${palavras[1]}`.trim();
+}
 
 interface ModalPesquisaFotosInternetProps {
   isOpen: boolean;
@@ -35,6 +65,8 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
   const [termoBusca, setTermoBusca] = useState<string>('');
   const [urlManual, setUrlManual] = useState<string>('');
   const [carregando, setCarregando] = useState<boolean>(false);
+  const [identificandoFotoIA, setIdentificandoFotoIA] = useState<boolean>(false);
+  const termoSimplificadoIARef = useRef<string>('');
   const [fotosEncontradas, setFotosEncontradas] = useState<FotoResultadoInternet[]>([]);
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
   const [erro, setErro] = useState<string | null>(null);
@@ -104,68 +136,153 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
     return () => window.removeEventListener('paste', handlePaste);
   }, [isOpen]);
 
-  useEffect(() => {
-    if (isOpen) {
-      const termo = nomeInicial.trim() || codigoBarrasInicial.trim();
-      const termoTratado = limparTermoParaBuscaGoogle(termo) || termo;
+  const realizarBusca = useCallback(
+    async (termo: string, termoSimplificadoOpcional?: string) => {
+      const termoTratado = limparTermoParaBuscaGoogle(termo) || termo.trim();
 
-      setTermoBusca(termoTratado);
-      setSelecionadas(new Set());
+      if (!termoTratado && !fotoReferencia) {
+        setErro('Digite o nome do produto ou selecione uma foto para pesquisar.');
+        return;
+      }
+
+      setCarregando(true);
       setErro(null);
+      setErroAutenticacao(false);
+      setSelecionadas(new Set());
       setImagensCarregadas(new Set());
       setImagensComErro(new Set());
       setFalhasOriginal(new Set());
 
-      if (termoTratado || fotoReferencia) {
-        realizarBusca(termoTratado);
-      } else {
-        setFotosEncontradas([]);
+      try {
+        let resultados = await pesquisarFotosProdutoNaInternet(
+          termoTratado,
+          codigoBarrasInicial,
+          fotoReferencia,
+          segmentoEfetivo,
+          loja
+        );
+
+        // Segunda tentativa automática com termo simplificado (Marca + Produto Principal)
+        if (resultados.length === 0 && termoTratado) {
+          const termoFallback = (
+            termoSimplificadoOpcional ||
+            termoSimplificadoIARef.current ||
+            simplificarTermoFallback(termoTratado)
+          ).trim();
+
+          if (termoFallback && termoFallback.toLowerCase() !== termoTratado.toLowerCase()) {
+            setTermoBusca(termoFallback);
+            resultados = await pesquisarFotosProdutoNaInternet(
+              termoFallback,
+              codigoBarrasInicial,
+              fotoReferencia,
+              segmentoEfetivo,
+              loja
+            );
+          }
+        }
+
+        setFotosEncontradas(resultados);
+        if (resultados.length === 0) {
+          setErro(
+            'Nenhuma foto encontrada para este produto na web. Você também pode colar fotos copiadas da internet usando Ctrl+V ou colar o link abaixo.'
+          );
+        }
+      } catch (err: unknown) {
+        console.error('Erro na busca de fotos:', err);
+        const mensagemErr = err instanceof Error ? err.message : '';
+        const errName = err instanceof Error ? err.name : '';
+        if (err instanceof SerpApiQuotaError || errName === 'SerpApiQuotaError') {
+          setModalQuotaAberta(true);
+          setErro(
+            'Limite de cota de pesquisas gratuitas do Serper.dev atingido. Suas buscas gratuitas renovam ou adquira novos créditos.'
+          );
+        } else if (err instanceof SerpApiAuthError || errName === 'SerpApiAuthError') {
+          setErroAutenticacao(true);
+          setErro(
+            mensagemErr ||
+              'Chave do Serper.dev não configurada ou inválida. Cadastre sua chave gratuita (2.500 consultas gratuitas em https://serper.dev/api-key) nas Configurações da Loja.'
+          );
+        } else if (mensagemErr.includes('Tempo limite')) {
+          setErro(
+            'A busca na web demorou mais de 30 segundos para responder. Tente pesquisar novamente ou cole a imagem diretamente com Ctrl+V.'
+          );
+        } else {
+          setErro(mensagemErr || 'Erro ao buscar fotos na internet. Tente novamente.');
+        }
+      } finally {
+        setCarregando(false);
       }
-    }
-  }, [isOpen, nomeInicial, codigoBarrasInicial, fotoReferencia, segmentoEfetivo]);
+    },
+    [codigoBarrasInicial, fotoReferencia, loja, segmentoEfetivo]
+  );
 
-  const realizarBusca = async (termo: string) => {
-    const termoTratado = limparTermoParaBuscaGoogle(termo) || termo.trim();
-
-    if (!termoTratado && !fotoReferencia) {
-      setErro('Digite o nome do produto ou selecione uma foto para pesquisar.');
+  useEffect(() => {
+    if (!isOpen) {
+      setIdentificandoFotoIA(false);
+      termoSimplificadoIARef.current = '';
       return;
     }
 
-    setCarregando(true);
+    let cancelado = false;
+    const termo = nomeInicial.trim() || codigoBarrasInicial.trim();
+    const termoTratado = limparTermoParaBuscaGoogle(termo) || termo;
+
+    setTermoBusca(termoTratado);
+    setSelecionadas(new Set());
     setErro(null);
     setErroAutenticacao(false);
-    setSelecionadas(new Set());
     setImagensCarregadas(new Set());
     setImagensComErro(new Set());
     setFalhasOriginal(new Set());
+    termoSimplificadoIARef.current = '';
 
-    try {
-      const resultados = await pesquisarFotosProdutoNaInternet(termoTratado, codigoBarrasInicial, fotoReferencia, segmentoEfetivo, loja);
-      setFotosEncontradas(resultados);
-      if (resultados.length === 0) {
-        setErro('Nenhuma foto encontrada para este produto na web. Você também pode colar fotos copiadas da internet usando Ctrl+V ou colar o link abaixo.');
-      }
-    } catch (err: any) {
-      console.error('Erro na busca de fotos:', err);
-      if (err instanceof SerpApiQuotaError || err?.name === 'SerpApiQuotaError') {
-        setModalQuotaAberta(true);
-        setErro('Limite de cota de pesquisas gratuitas do Serper.dev atingido. Suas buscas gratuitas renovam ou adquira novos créditos.');
-      } else if (err instanceof SerpApiAuthError || err?.name === 'SerpApiAuthError') {
-        setErroAutenticacao(true);
-        setErro(
-          err?.message ||
-            'Chave do Serper.dev não configurada ou inválida. Cadastre sua chave gratuita (2.500 consultas gratuitas em https://serper.dev/api-key) nas Configurações da Loja.'
-        );
-      } else if (err?.message?.includes('Tempo limite')) {
-        setErro('A busca na web demorou mais de 30 segundos para responder. Tente pesquisar novamente ou cole a imagem diretamente com Ctrl+V.');
-      } else {
-        setErro(err.message || 'Erro ao buscar fotos na internet. Tente novamente.');
-      }
-    } finally {
-      setCarregando(false);
+    if (fotoReferencia && ehTermoBuscaGenerico(termoTratado)) {
+      const identificarEBuscarPorFoto = async () => {
+        setCarregando(true);
+        setIdentificandoFotoIA(true);
+        try {
+          const ident = await identificarTermoBuscaPorFotoIA(
+            fotoReferencia,
+            segmentoEfetivo,
+            loja
+          );
+          if (cancelado) return;
+          setIdentificandoFotoIA(false);
+
+          if (ident?.termoCompleto) {
+            setTermoBusca(ident.termoCompleto);
+            termoSimplificadoIARef.current = ident.termoSimplificado || '';
+            await realizarBusca(ident.termoCompleto, ident.termoSimplificado);
+          } else {
+            setCarregando(false);
+            setFotosEncontradas([]);
+            setErro(
+              'Não foi possível identificar o produto automaticamente pela foto. Digite o nome ou marca do produto na barra de busca acima.'
+            );
+          }
+        } catch {
+          if (cancelado) return;
+          setIdentificandoFotoIA(false);
+          setCarregando(false);
+          setFotosEncontradas([]);
+          setErro(
+            'Não foi possível identificar o produto automaticamente pela foto. Digite o nome ou marca do produto na barra de busca acima.'
+          );
+        }
+      };
+
+      void identificarEBuscarPorFoto();
+    } else if (termoTratado) {
+      void realizarBusca(termoTratado);
+    } else {
+      setFotosEncontradas([]);
     }
-  };
+
+    return () => {
+      cancelado = true;
+    };
+  }, [isOpen, nomeInicial, codigoBarrasInicial, fotoReferencia, segmentoEfetivo, loja, realizarBusca]);
 
   const toggleSelecao = (foto: FotoResultadoInternet) => {
     const urlAlvo = foto.urlOriginal || foto.url;
@@ -312,7 +429,10 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
               <input
                 type="text"
                 value={termoBusca}
-                onChange={(e) => setTermoBusca(e.target.value)}
+                onChange={(e) => {
+                  termoSimplificadoIARef.current = '';
+                  setTermoBusca(e.target.value);
+                }}
                 placeholder="Ex: Coca Cola Lata 350ml, Camiseta Preta..."
                 className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:border-teal-500 rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none transition shadow-2xs"
               />
@@ -353,8 +473,12 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
           {carregando ? (
             <div className="py-12 flex items-center justify-center">
               <SpinnerPesquisandoIA
-                texto="Pesquisando"
-                subtexto={`Buscando fotos de boa qualidade para "${consultaEnriquecidaPreview}"...`}
+                texto={identificandoFotoIA ? 'Analisando foto' : 'Pesquisando'}
+                subtexto={
+                  identificandoFotoIA
+                    ? 'Identificando produto pela foto com Inteligência Artificial...'
+                    : `Buscando fotos de boa qualidade para "${consultaEnriquecidaPreview}"...`
+                }
               />
             </div>
           ) : erro ? (

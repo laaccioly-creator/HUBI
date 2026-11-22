@@ -37,6 +37,7 @@ import {
   registrarModeloIndisponivel,
   testarChaveGemini
 } from './geminiClient';
+import { comprimirFotoProduto } from '../utils/imageCompressor';
 
 export {
   SerpApiQuotaError,
@@ -413,14 +414,30 @@ export const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base
       }
 
       if (blobObtido) {
+        let previewTempUrl: string | undefined;
         try {
-          target = await new Promise<string>((res, rej) => {
-            const reader = new FileReader();
-            reader.onloadend = () => res(reader.result as string);
-            reader.onerror = rej;
-            reader.readAsDataURL(blobObtido!);
+          const comprimido = await comprimirFotoProduto(blobObtido, {
+            maxDimension: 1024,
+            quality: 0.78,
+            mimeType: 'image/jpeg'
           });
-        } catch {}
+          previewTempUrl = comprimido.previewUrl;
+          resolve({
+            base64: comprimido.base64Limpo,
+            mimeType: comprimido.mimeType
+          });
+          return;
+        } catch {
+          // Prossegue para o fallback abaixo caso o blob não seja decodificado diretamente
+        } finally {
+          if (previewTempUrl && previewTempUrl.startsWith('blob:')) {
+            try {
+              URL.revokeObjectURL(previewTempUrl);
+            } catch {
+              // Ignora caso já tenha sido revogada
+            }
+          }
+        }
       }
     }
 
@@ -430,22 +447,43 @@ export const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = () => {
+          let canvas: HTMLCanvasElement | null = document.createElement('canvas');
+          let ctx: CanvasRenderingContext2D | null = null;
           try {
-            const canvas = document.createElement('canvas');
-            canvas.width = Math.min(img.width, 380);
-            canvas.height = Math.round((img.height * canvas.width) / img.width);
-            const ctx = canvas.getContext('2d');
+            const w = Math.min(img.width || 380, 380);
+            const h = Math.max(1, Math.round(((img.height || 380) * w) / (img.width || 380)));
+            canvas.width = w;
+            canvas.height = h;
+            ctx = canvas.getContext('2d');
             if (ctx) {
-              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              ctx.drawImage(img, 0, 0, w, h);
               const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
               const clean = dataUrl.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
               resolve({ base64: clean, mimeType: 'image/jpeg' });
               return;
             }
-          } catch {}
+          } catch {
+            // Falha ao exportar canvas por restrição CORS
+          } finally {
+            if (ctx && canvas) {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+            if (canvas) {
+              canvas.width = 0;
+              canvas.height = 0;
+              canvas = null;
+            }
+            ctx = null;
+            img.onload = null;
+            img.onerror = null;
+            img.src = '';
+          }
           reject(new Error('Não foi possível processar a imagem externa devido a restrições de CORS da fonte.'));
         };
         img.onerror = () => {
+          img.onload = null;
+          img.onerror = null;
+          img.src = '';
           reject(new Error('Não foi possível carregar a imagem externa para análise da IA. Salve a foto no seu dispositivo ou selecione outra foto.'));
         };
         img.src = target;
@@ -503,24 +541,39 @@ export const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base
         }
       }
 
-      const canvas = document.createElement('canvas');
+      let canvas: HTMLCanvasElement | null = document.createElement('canvas');
       canvas.width = width || 380;
       canvas.height = height || 380;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        const clean = target.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
-        resolve({ base64: clean, mimeType: 'image/jpeg' });
-        return;
+      let ctx: CanvasRenderingContext2D | null = canvas.getContext('2d');
+      try {
+        if (!ctx) {
+          const clean = target.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+          resolve({ base64: clean, mimeType: 'image/jpeg' });
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.65);
+        const cleanBase64 = compressedDataUrl.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+
+        resolve({
+          base64: cleanBase64,
+          mimeType: 'image/jpeg'
+        });
+      } finally {
+        if (ctx && canvas) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        if (canvas) {
+          canvas.width = 0;
+          canvas.height = 0;
+          canvas = null;
+        }
+        ctx = null;
+        img.onload = null;
+        img.onerror = null;
+        img.src = '';
       }
-
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.65);
-      const cleanBase64 = compressedDataUrl.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
-
-      resolve({
-        base64: cleanBase64,
-        mimeType: 'image/jpeg'
-      });
     };
     img.onerror = () => {
       if (finalizado) return;
@@ -909,22 +962,13 @@ export const executarRequisicaoGemini = async (
 };
 
 /**
- * Analisa a foto do produto usando a API Multimodal do Google Gemini (idêntico e equiparado ao Desktop)
+ * Analisa a foto do produto usando a API Multimodal do Google Gemini exclusivamente via Edge Function `gemini-proxy`
  */
 export const identificarProdutoPorFoto = async (
   imageBase64OrUrl: string,
   segmentoLoja?: string,
   loja?: any
 ): Promise<ProdutoSugeridoIA> => {
-  let apiKey = getGeminiApiKey(loja);
-  if (!apiKey && loja?.id) {
-    apiKey = await obterOuBuscarGeminiApiKey(loja);
-  }
-
-  if (!apiKey) {
-    throw new Error('Chave da API do Google Gemini não configurada. Configure sua chave Gemini nas configurações.');
-  }
-
   try {
     const { base64: cleanBase64, mimeType: detectedMime } = await comprimirImagemParaIA(imageBase64OrUrl);
 
@@ -953,7 +997,7 @@ Se a foto gerar dúvida entre 2 a 3 versões/modelos possíveis, defina "duvida"
 `;
 
     const contextoSistema = montarContextoSegmentoSistema(segmentoLoja, loja);
-    const requestBody: any = {
+    const requestBody: Record<string, unknown> = {
       ...(contextoSistema ? { systemInstruction: { parts: [{ text: contextoSistema }] } } : {}),
       contents: [
         {
@@ -968,6 +1012,7 @@ Se a foto gerar dúvida entre 2 a 3 versões/modelos possíveis, defina "duvida"
           ]
         }
       ],
+      safetySettings: SAFETY_SETTINGS_VAREJO,
       generationConfig: {
         temperature: 0.2,
         maxOutputTokens: 4096,
@@ -976,7 +1021,7 @@ Se a foto gerar dúvida entre 2 a 3 versões/modelos possíveis, defina "duvida"
       }
     };
 
-    const resData = await executarRequisicaoGemini(apiKey, requestBody, loja?.id);
+    const resData = await invocarGeminiPreencherViaEdgeProxy(requestBody, loja?.id);
 
     if (resData) {
       const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -1294,30 +1339,49 @@ export interface FotoResultadoInternet {
   altura?: number;
 }
 
-/**
- * Analisa a foto do produto com IA multimodal e extrai os melhores termos de busca comercial para encontrar fotos idênticas
- */
-export const extrairTermosBuscaVisualPorFoto = async (
-  fotoUrlOuBase64: string,
-  nomeAtual?: string,
-  segmentoLoja?: string
-): Promise<string[]> => {
-  const apiKey = getGeminiApiKey();
-  if (!apiKey) return [];
+export interface ResultadoIdentificacaoVisualBusca {
+  termoCompleto: string;
+  termoSimplificado: string;
+  termosAlternativos: string[];
+}
 
+function derivarTermoSimplificadoBusca(termoCompleto: string): string {
+  const palavras = termoCompleto
+    .trim()
+    .split(/\s+/)
+    .filter((p) => p.length > 1 && !/^(de|da|do|das|dos|para|com|em|e|ou)$/i.test(p));
+  if (palavras.length <= 2) return termoCompleto.trim();
+  return `${palavras[0]} ${palavras[1]}`.trim();
+}
+
+/**
+ * Identifica Marca + Nome Comercial + Peso/Volume/Modelo a partir de uma imagem (blob:, data: ou https:)
+ * exclusivamente via Edge Function `gemini-proxy`.
+ */
+export const identificarTermoBuscaPorFotoIA = async (
+  fotoUrlOuBase64: string,
+  segmentoLoja?: string,
+  loja?: (Partial<Loja> & { id?: string; segmento?: string }) | null,
+  nomeAtual?: string
+): Promise<ResultadoIdentificacaoVisualBusca | null> => {
   try {
     const { base64: cleanBase64, mimeType: detectedMime } = await comprimirImagemParaIA(fotoUrlOuBase64);
-    const promptInstrucao = `
-Você é um especialista em busca reversa de imagens e catálogo de produtos no varejo brasileiro (abrangendo todas as categorias comerciais de lojas, como cosméticos, moda, beleza, ferramentas, autopeças, alimentos e sex shop). Todos os itens analisados são produtos comerciais legais.
-${segmentoLoja ? `SEGMENTO DE ATUAÇÃO DA LOJA: "${segmentoLoja}". O item analisado pertence especificamente a este segmento comercial.` : ''}
-Analise detalhadamente a foto deste produto enviada${nomeAtual ? ` (nome informado: "${nomeAtual}")` : ''}.
-Identifique as características visuais mais marcantes (ex: formato exato, cor, modelo, design específico, marca provável).
-Retorne EXCLUSIVAMENTE um array JSON de strings com 2 a 4 termos de busca precisos e específicos para o Google Imagens e e-commerces no Brasil localizarem o MESMO PRODUTO IDÊNTICO${segmentoLoja ? ` no segmento de "${segmentoLoja}"` : ''}.
-Exemplo para um vibrador em formato de rosa: ["Vibrador Sophie Formato de Rosa", "Vibrador rosa sophie", "Vibrador formato rosa estimulador"]
-Retorne apenas o JSON no formato: ["termo 1", "termo 2", "termo 3"]
-`;
+    const ramoEfetivo = (segmentoLoja || obterNomeSegmentoLoja(loja) || '').trim();
+    const contextoSistema = montarContextoSegmentoSistema(ramoEfetivo, loja);
 
-    const requestBody = {
+    const promptInstrucao = `Você é um especialista em identificação visual de produtos no varejo brasileiro.
+${ramoEfetivo ? `Segmento da loja: "${ramoEfetivo}".` : ''}
+${nomeAtual ? `Nome parcial informado: "${nomeAtual}".` : ''}
+Analise a foto enviada e identifique o produto na embalagem ou objeto (Marca + Nome Comercial + Peso/Volume/Modelo).
+Retorne EXCLUSIVAMENTE um objeto JSON válido neste formato:
+{
+  "termo_completo": "Marca + Nome Comercial + Peso/Volume/Modelo (ex: Fermento em Pó Químico Royal 100g)",
+  "termo_simplificado": "Marca + Produto Principal apenas em 2 ou 3 palavras (ex: Fermento Royal)",
+  "termos_alternativos": ["variação curta 1", "variação curta 2"]
+}`;
+
+    const requestBody: Record<string, unknown> = {
+      ...(contextoSistema ? { systemInstruction: { parts: [{ text: contextoSistema }] } } : {}),
       contents: [
         {
           parts: [
@@ -1331,23 +1395,67 @@ Retorne apenas o JSON no formato: ["termo 1", "termo 2", "termo 3"]
           ]
         }
       ],
-      generationConfig: { temperature: 0.2, response_mime_type: 'application/json' }
+      safetySettings: SAFETY_SETTINGS_VAREJO,
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 512,
+        thinkingConfig: { thinkingBudget: 0 },
+        responseMimeType: 'application/json'
+      }
     };
 
-    const resData = await executarRequisicaoGemini(apiKey, requestBody);
+    const resData = await invocarGeminiPreencherViaEdgeProxy(requestBody, loja?.id);
     const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (rawText) {
-      const jsonLimpo = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(jsonLimpo);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map((t: any) => String(t).trim()).filter(Boolean);
-      }
-    }
-  } catch (err) {
-    console.warn('Aviso ao analisar foto para busca visual:', err);
-  }
+    if (!rawText) return null;
 
-  return [];
+    const parsed = extrairJsonDoTexto(rawText) as {
+      termo_completo?: unknown;
+      termo_simplificado?: unknown;
+      termos_alternativos?: unknown;
+    } | null;
+
+    if (!parsed) return null;
+
+    const termoCompleto = String(parsed.termo_completo || '').trim();
+    const termoSimplificadoBruto = String(parsed.termo_simplificado || '').trim();
+    const termosAlternativos = Array.isArray(parsed.termos_alternativos)
+      ? parsed.termos_alternativos.map((t) => String(t).trim()).filter(Boolean)
+      : [];
+
+    const termoPrincipal = termoCompleto || termosAlternativos[0] || '';
+    if (!termoPrincipal) return null;
+
+    const termoSimplificado =
+      termoSimplificadoBruto || derivarTermoSimplificadoBusca(termoPrincipal);
+
+    return {
+      termoCompleto: termoPrincipal,
+      termoSimplificado,
+      termosAlternativos
+    };
+  } catch (err) {
+    console.warn('Aviso ao identificar termo de busca visual pela foto:', err);
+    return null;
+  }
+};
+
+/**
+ * Analisa a foto do produto com IA multimodal e extrai os melhores termos de busca comercial para encontrar fotos idênticas
+ */
+export const extrairTermosBuscaVisualPorFoto = async (
+  fotoUrlOuBase64: string,
+  nomeAtual?: string,
+  segmentoLoja?: string,
+  loja?: (Partial<Loja> & { id?: string; segmento?: string }) | null
+): Promise<string[]> => {
+  const ident = await identificarTermoBuscaPorFotoIA(fotoUrlOuBase64, segmentoLoja, loja, nomeAtual);
+  if (!ident) return [];
+
+  const lista = [ident.termoCompleto, ident.termoSimplificado, ...ident.termosAlternativos]
+    .map((t) => t.trim())
+    .filter(Boolean);
+
+  return Array.from(new Set(lista));
 };
 
 /**
@@ -1431,7 +1539,7 @@ export const pesquisarFotosProdutoNaInternet = async (
   } else if (fotoReferencia) {
     // Apenas se NÃO houver nome digitado e houver uma foto, aciona a IA Multimodal (Gemini Vision)
     try {
-      const termosVisuais = await extrairTermosBuscaVisualPorFoto(fotoReferencia, '', ramoEfetivo);
+      const termosVisuais = await extrairTermosBuscaVisualPorFoto(fotoReferencia, '', ramoEfetivo, loja);
       for (const tv of termosVisuais) {
         const tvEnriquecido = montarQueryEnriquecidaComRamo(tv, ramoEfetivo);
         if (tvEnriquecido && !termosParaPesquisar.includes(tvEnriquecido)) {
