@@ -8,6 +8,8 @@ import {
   buscarPrecosShoppingSerpApi,
   limparTermoParaBuscaGoogle,
   extrairTermoEnxutoBusca,
+  extrairRamoCurtoLoja,
+  montarQueryEnriquecidaComRamo,
   extrairPrecoNumericoBr,
   normalizarNomeLojaBr,
   desembrulharUrlGoogle,
@@ -338,6 +340,34 @@ export const obterNomeSegmentoLoja = (loja?: any): string => {
 
   if (!segmentoId) return '';
   return mapaNomes[segmentoId] || segmentoId;
+};
+
+/**
+ * Monta o contexto de sistema com o ramo de atividade e o perfil (`sobre_loja`)
+ * para evitar ambiguidades de nicho na geração de descrições e enriquecimento por IA.
+ */
+const montarContextoSegmentoSistema = (
+  segmentoLoja?: string,
+  loja?: (Partial<Loja> & { id?: string; segmento?: string }) | null
+): string => {
+  const ramoEfetivo = (segmentoLoja || obterNomeSegmentoLoja(loja) || '').trim();
+  const sobreLoja = (loja?.sobre_loja || '').trim();
+  if (!ramoEfetivo && !sobreLoja) return '';
+
+  const partes: string[] = [
+    'Você é o assistente de catálogo comercial do sistema HUBI (varejo brasileiro).'
+  ];
+
+  if (ramoEfetivo) {
+    partes.push(
+      `RAMO DE ATIVIDADE DA LOJA (OBRIGATÓRIO): "${ramoEfetivo}". Interprete o nome do produto, materiais, uso e público-alvo estritamente dentro deste segmento comercial. Nunca interprete palavras ambíguas fora desse nicho.`
+    );
+  }
+  if (sobreLoja) {
+    partes.push(`PERFIL / SOBRE A LOJA: "${sobreLoja.slice(0, 300)}".`);
+  }
+
+  return partes.join('\n');
 };
 
 /**
@@ -922,7 +952,9 @@ Analise a foto do produto enviada. Identifique o item e retorne EXCLUSIVAMENTE u
 Se a foto gerar dúvida entre 2 a 3 versões/modelos possíveis, defina "duvida": true e liste as alternativas concisas em "opcoes_sugeridas". Se tiver certeza, defina "duvida": false e "opcoes_sugeridas": [].
 `;
 
+    const contextoSistema = montarContextoSegmentoSistema(segmentoLoja, loja);
     const requestBody: any = {
+      ...(contextoSistema ? { systemInstruction: { parts: [{ text: contextoSistema }] } } : {}),
       contents: [
         {
           parts: [
@@ -1145,16 +1177,21 @@ export const gerarDescricaoExclusivaIA = async (
 ): Promise<string> => {
   const tInicioDesc = performance.now();
   const nomeExato = (nomeProduto || '').trim();
+  const ramoEfetivo = (segmentoLoja || obterNomeSegmentoLoja(loja) || '').trim();
+  const sobreLoja = (loja?.sobre_loja || '').trim();
+  const contextoSistema = montarContextoSegmentoSistema(ramoEfetivo, loja);
 
   if (nomeExato) {
     try {
-      const prompt = `Crie uma descrição comercial direta em pt-BR para Catálogo Online e WhatsApp do produto exato "${nomeExato}"${categoria ? ` (categoria: "${categoria}")` : ''}${segmentoLoja ? ` (segmento: "${segmentoLoja}")` : ''}${descricaoAtual ? `. Base/observações: "${descricaoAtual.slice(0, 220)}"` : ''}.
+      const prompt = `Crie uma descrição comercial direta em pt-BR para Catálogo Online e WhatsApp do produto exato "${nomeExato}"${categoria ? ` (categoria: "${categoria}")` : ''}${ramoEfetivo ? ` (ramo de atividade da loja: "${ramoEfetivo}")` : ''}${sobreLoja ? ` (sobre a loja: "${sobreLoja.slice(0, 180)}")` : ''}${descricaoAtual ? `. Base/observações: "${descricaoAtual.slice(0, 220)}"` : ''}.
 Regras:
+- Interprete e redija o texto estritamente para o segmento comercial informado${ramoEfetivo ? ` ("${ramoEfetivo}")` : ''}.
 - Retorne APENAS o texto final pronto (proibido preâmbulos como "Aqui está a descrição:" ou aspas).
 - Use 3 a 5 bullet points objetivos com emojis discretos destacando especificações reais e benefícios do modelo "${nomeExato}" (sem inventar versões Plus/Pro/Combo).
 - Finalize com 1 frase curta de chamada para compra.`;
 
       const requestBody: Record<string, unknown> = {
+        ...(contextoSistema ? { systemInstruction: { parts: [{ text: contextoSistema }] } } : {}),
         contents: [{ parts: [{ text: prompt }] }],
         safetySettings: SAFETY_SETTINGS_VAREJO,
         generationConfig: {
@@ -1291,43 +1328,49 @@ export const pesquisarFotosProdutoNaInternet = async (
     });
   };
 
-  // Limpa o termo removendo códigos de SKU, variações de tamanho (- Tamanho G) e hifens excludentes
+  // Limpa o termo removendo códigos de SKU, dimensões entre parênteses, variações de tamanho e hifens excludentes
+  const ramoEfetivo = segmentoLoja || obterNomeSegmentoLoja(loja) || '';
+  const ramoCurto = extrairRamoCurtoLoja(ramoEfetivo);
   const termoLimpo = limparTermoParaBuscaGoogle(termo) || termo.trim();
   const palavrasTermo = termoLimpo ? termoLimpo.split(' ').filter(Boolean) : [];
 
-  // Quando o usuário informa o nome do produto, usamos o nome limpo e contextualizado
+  // Quando o usuário informa o nome do produto, usamos o nome limpo enriquecido com o ramo da loja
   // diretamente para a busca no Google Images, sem chamar IA de visão nem LLMs intermediários.
-  // Isso reduz a latência drasticamente de ~10-15s para ~800ms!
   const termosParaPesquisar: string[] = [];
 
   if (termoLimpo) {
     const termoCanonicoJev = await catalogJevService.extrairTermoCanonicoBusca(
       termoLimpo,
-      segmentoLoja || loja?.segmento,
+      ramoEfetivo,
       'FOTOS'
     );
     const termoEnxuto = extrairTermoEnxutoBusca(termoLimpo, 4);
-    const segCurto = (segmentoLoja || loja?.segmento || '').split('/')[0].trim();
+    const termoPrincipalEnriquecido = montarQueryEnriquecidaComRamo(
+      termoCanonicoJev || termoLimpo,
+      ramoEfetivo
+    );
 
-    if (termoCanonicoJev) {
-      termosParaPesquisar.push(termoCanonicoJev);
+    if (termoPrincipalEnriquecido) {
+      termosParaPesquisar.push(termoPrincipalEnriquecido);
     }
-    if (palavrasTermo.length > 4 && termoEnxuto && !termosParaPesquisar.includes(termoEnxuto)) {
-      termosParaPesquisar.push(termoEnxuto);
+    if (palavrasTermo.length > 4 && termoEnxuto) {
+      const enxutoEnriquecido = montarQueryEnriquecidaComRamo(termoEnxuto, ramoEfetivo);
+      if (enxutoEnriquecido && !termosParaPesquisar.includes(enxutoEnriquecido)) {
+        termosParaPesquisar.push(enxutoEnriquecido);
+      }
     }
-    if (!termosParaPesquisar.includes(termoLimpo)) {
-      termosParaPesquisar.push(termoLimpo);
-    }
-    if (segCurto && !termoLimpo.toLowerCase().includes(segCurto.toLowerCase())) {
-      termosParaPesquisar.push(`${termoLimpo} ${segCurto}`);
+    const limpoEnriquecido = montarQueryEnriquecidaComRamo(termoLimpo, ramoEfetivo);
+    if (limpoEnriquecido && !termosParaPesquisar.includes(limpoEnriquecido)) {
+      termosParaPesquisar.push(limpoEnriquecido);
     }
   } else if (fotoReferencia) {
     // Apenas se NÃO houver nome digitado e houver uma foto, aciona a IA Multimodal (Gemini Vision)
     try {
-      const termosVisuais = await extrairTermosBuscaVisualPorFoto(fotoReferencia, '', segmentoLoja);
+      const termosVisuais = await extrairTermosBuscaVisualPorFoto(fotoReferencia, '', ramoEfetivo);
       for (const tv of termosVisuais) {
-        if (tv && !termosParaPesquisar.includes(tv)) {
-          termosParaPesquisar.push(tv);
+        const tvEnriquecido = montarQueryEnriquecidaComRamo(tv, ramoEfetivo);
+        if (tvEnriquecido && !termosParaPesquisar.includes(tvEnriquecido)) {
+          termosParaPesquisar.push(tvEnriquecido);
         }
       }
     } catch (e) {
@@ -1347,8 +1390,8 @@ export const pesquisarFotosProdutoNaInternet = async (
     );
   }
 
-  // O termo prioritário para Serper.dev é o termo otimizado
-  const termoPrincipal = termosParaPesquisar[0] || termoLimpo;
+  // O termo prioritário para Serper.dev combina termo limpo + ramo de atividade da loja
+  const termoPrincipal = termosParaPesquisar[0] || montarQueryEnriquecidaComRamo(termoLimpo, ramoEfetivo) || termoLimpo;
 
   console.log(
     '%c[HUBI IMAGENS]%c Buscando fotos no Google Images via Serper.dev...',
@@ -1358,6 +1401,7 @@ export const pesquisarFotosProdutoNaInternet = async (
       temChave: Boolean(serpApiKey),
       lojaId: loja?.id,
       lojaNome: loja?.nome_fantasia,
+      ramoAtividade: ramoCurto || ramoEfetivo || 'N/A',
       termoPrincipal
     }
   );
@@ -1367,7 +1411,7 @@ export const pesquisarFotosProdutoNaInternet = async (
       const resultadosSerpApi = await buscarFotosGoogleImagesSerpApi(
         termoPrincipal,
         serpApiKey,
-        { lojaId: loja?.id, numResultados: 20 }
+        { lojaId: loja?.id, numResultados: 20, ramoAtividade: ramoEfetivo }
       );
       console.log(
         `%c[HUBI IMAGENS]%c SerpApi retornou ${resultadosSerpApi.length} fotos para "${termoPrincipal}"`,
@@ -1379,8 +1423,8 @@ export const pesquisarFotosProdutoNaInternet = async (
       let fotosParaRegistrar = resultadosSerpApi;
       try {
         fotosParaRegistrar = await catalogJevService.filtrarFotosCompativeisComJev(
-          termo.trim() || termoLimpo,
-          segmentoLoja || loja?.segmento,
+          termoLimpo || termo.trim(),
+          ramoEfetivo,
           resultadosSerpApi
         );
       } catch (errJev) {
@@ -1399,19 +1443,19 @@ export const pesquisarFotosProdutoNaInternet = async (
         );
       }
 
-      // Se ainda restarem menos de 6 fotos válidas e houver um termo alternativo diferente, busca complemento
+      // Se ainda restarem menos de 6 fotos válidas e houver um termo alternativo diferente, busca complemento focado em fundo branco/produto
       if (fotos.length < 6 && termoLimpo) {
-        const termoAlternativo = `${termoLimpo} oficial`;
+        const termoAlternativo = montarQueryEnriquecidaComRamo(`${termoLimpo} produto fundo branco`, ramoEfetivo);
         const resultadosComplementares = await buscarFotosGoogleImagesSerpApi(
           termoAlternativo,
           serpApiKey,
-          { lojaId: loja?.id, numResultados: 15 }
+          { lojaId: loja?.id, numResultados: 15, ramoAtividade: ramoEfetivo }
         ).catch(() => []);
         if (resultadosComplementares.length > 0) {
           const filtradosComp = await catalogJevService
             .filtrarFotosCompativeisComJev(
-              termo.trim() || termoLimpo,
-              segmentoLoja || loja?.segmento,
+              termoLimpo || termo.trim(),
+              ramoEfetivo,
               resultadosComplementares
             )
             .catch(() => resultadosComplementares);
@@ -1596,16 +1640,19 @@ export const atualizarProdutoExistenteComIA = async (dados: {
     ? dados.nome.trim()
     : '';
   const termoReferencia = nomeInformadoPeloUsuario || (dados.descricao?.trim() || 'Produto');
+  const ramoEfetivo = (dados.segmentoLoja || obterNomeSegmentoLoja(dados.loja) || '').trim();
+  const sobreLoja = (dados.loja?.sobre_loja || '').trim();
+  const contextoSistema = montarContextoSegmentoSistema(ramoEfetivo, dados.loja);
   const jaPossuiImagens = Boolean(
     dados.possuiImagens ||
     (dados.fotoUrl && dados.fotoUrl.trim().length > 0) ||
     (dados.fotos && dados.fotos.length > 0)
   );
 
-  // Cache híbrido resiliente (Memória + sessionStorage, TTL 15 min) escopado por lojaId e termo normalizado
+  // Cache híbrido resiliente (Memória + sessionStorage, TTL 15 min) escopado por lojaId, ramo e termo normalizado
   const chaveCache = criarChaveCacheEscopada(
-    'hubi_preencher_ia_sessao_v22',
-    termoReferencia,
+    'hubi_preencher_ia_sessao_v23',
+    `${termoReferencia}::${ramoEfetivo}`,
     dados.loja?.id
   );
   const emCacheSessao = lerCacheHibridoSessao(cachePreencherIAMemoria, chaveCache);
@@ -1630,7 +1677,7 @@ export const atualizarProdutoExistenteComIA = async (dados: {
   const contextoUnificadoPromise = catalogJevService.obterContextoUnificadoProdutoJev({
     nomeProduto: termoReferencia,
     categoriaNome: dados.categoriaNome,
-    segmentoLoja: dados.segmentoLoja || dados.loja?.segmento,
+    segmentoLoja: ramoEfetivo || undefined,
     loja: dados.loja ?? undefined,
     etapa: 'PREENCHER_IA',
     permitirComplementoGemini: false
@@ -1639,8 +1686,8 @@ export const atualizarProdutoExistenteComIA = async (dados: {
   const geminiPromise = (async (): Promise<RespostaGeminiPreencherIA | null> => {
     if (termoReferencia.length < 2) return null;
     const chaveCacheGemini = criarChaveCacheEscopada(
-      'hubi_gemini_texto_v22',
-      termoReferencia,
+      'hubi_gemini_texto_v23',
+      `${termoReferencia}::${ramoEfetivo}`,
       dados.loja?.id
     );
     const geminiEmCache = lerCacheHibridoSessao(cacheGeminiTextoPreencherMemoria, chaveCacheGemini);
@@ -1654,20 +1701,25 @@ export const atualizarProdutoExistenteComIA = async (dados: {
     }
 
     const tGemini = performance.now();
-    const promptTexto = `Retorne EXCLUSIVAMENTE um JSON válido em pt-BR para o produto abaixo${dados.segmentoLoja ? ` (segmento: "${dados.segmentoLoja}")` : ''}:
+    const termoLimpoContexto = limparTermoParaBuscaGoogle(termoReferencia) || termoReferencia;
+    const promptTexto = `Retorne EXCLUSIVAMENTE um JSON válido em pt-BR para o produto abaixo${ramoEfetivo ? ` (ramo de atividade da loja: "${ramoEfetivo}")` : ''}:
 PRODUTO: "${termoReferencia}"
+${termoLimpoContexto !== termoReferencia ? `NOME COMERCIAL LIMPO (referência): "${termoLimpoContexto}"` : ''}
+${ramoEfetivo ? `RAMO DE ATIVIDADE DA LOJA: "${ramoEfetivo}"` : ''}
+${sobreLoja ? `SOBRE A LOJA: "${sobreLoja.slice(0, 220)}"` : ''}
 ${dados.categoriaNome ? `CATEGORIA ATUAL: "${dados.categoriaNome}"` : ''}
 ${dados.codigoBarras ? `EAN: "${dados.codigoBarras}"` : ''}
 
 Campos obrigatórios do JSON:
 - "nome_padronizado": string limpa e comercial do modelo exato "${termoReferencia}" (sem inventar versões como Plus/Pro/Combo).
-- "descricao_curta": texto objetivo em 3 a 4 bullet points curtos destacando especificações técnicas principais (máximo absoluto de 400 caracteres, sem textos longos).
-- "categoria_sugerida": categoria comercial em pt-BR.
+- "descricao_curta": texto comercial objetivo e assertivo estritamente dentro do segmento da loja${ramoEfetivo ? ` ("${ramoEfetivo}")` : ''}, em 3 a 4 bullet points curtos destacando características reais e benefícios (máximo absoluto de 400 caracteres).
+- "categoria_sugerida": categoria comercial em pt-BR compatível com o ramo da loja.
 - "tipo_unidade": "un" | "kg" | "cx" | "pct" | "par" | "m".
 - "peso_kg", "altura_cm", "largura_cm", "comprimento_cm": números reais estimados da embalagem.`;
 
     try {
       const requestBody: Record<string, unknown> = {
+        ...(contextoSistema ? { systemInstruction: { parts: [{ text: contextoSistema }] } } : {}),
         contents: [{ parts: [{ text: promptTexto }] }],
         safetySettings: SAFETY_SETTINGS_VAREJO,
         generationConfig: {
@@ -1840,8 +1892,8 @@ Campos obrigatórios do JSON:
     salvarCacheHibridoSessao(cachePreencherIAMemoria, chaveCache, resultadoFinal);
     if (contextoJev.termoCanonico) {
       const chaveCanonico = criarChaveCacheEscopada(
-        'hubi_preencher_ia_sessao_v22',
-        contextoJev.termoCanonico,
+        'hubi_preencher_ia_sessao_v23',
+        `${contextoJev.termoCanonico}::${ramoEfetivo}`,
         dados.loja?.id
       );
       if (chaveCanonico !== chaveCache) {

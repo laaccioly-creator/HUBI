@@ -12,6 +12,7 @@ import { ErrorBoundary, inicializarCapturaErrosGlobais } from './components/comm
 inicializarCapturaErrosGlobais();
 
 import { DashboardCockpit } from './pages/DashboardCockpit';
+import { AreaHubiCockpit } from './pages/AreaHubiCockpit';
 import { PosCheckout } from './components/PosCheckout';
 import { PedidosLista } from './components/PedidosLista';
 import { VendasHistorico } from './components/VendasHistorico';
@@ -247,6 +248,14 @@ const AppRotasInternas: React.FC = () => {
           element={
             <RotaProtegida permitido={permissions.podeAcessarConfig}>
               <ConfiguracoesLoja />
+            </RotaProtegida>
+          }
+        />
+        <Route
+          path="area-hubi"
+          element={
+            <RotaProtegida permitido={permissions.ehSuperAdmin} redirecionarPara="/config">
+              <AreaHubiCockpit />
             </RotaProtegida>
           }
         />

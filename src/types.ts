@@ -254,6 +254,12 @@ export interface ConfiguracoesPlataformaHubi {
   mp_public_key?: string | null;
   mp_access_token?: string | null;
   mp_webhook_secret?: string | null;
+  meta_hubi_faturamento?: number;
+  meta_hubi_vendas?: number;
+  meta_hubi_conversao_percentual?: number;
+  meta_hubi_max_nao_renovados?: number;
+  meta_hubi_lojas_ativas?: number;
+  meta_hubi_receita_whatsapp?: number;
   atualizado_em?: string;
   atualizado_por?: string | null;
 }
@@ -331,6 +337,7 @@ export interface HubiAssinaturaPagamento {
   periodo_fim_em?: string | null;
   link_checkout?: string | null;
   aprovado_em?: string | null;
+  observacoes_admin?: string | null;
   criado_em?: string;
   atualizado_em?: string;
 }

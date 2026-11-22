@@ -3,6 +3,7 @@
 // Governança: supabase-rls-guard, anti-jsonb-linter, pii-leak-detector
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ShieldAlert,
   Save,
@@ -21,12 +22,14 @@ import {
   Check,
   Shield,
   AlertTriangle,
-  Sliders
+  Sliders,
+  Gauge
 } from 'lucide-react';
 import { configuracoesPlataformaService } from '../../services/configuracoesPlataformaService';
 import { testarConexaoMeta, salvarConfiguracoesWhatsApp } from '../../services/whatsappIaService';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useFeedbackModal } from '../../contexts/FeedbackContext';
+import { usePermissions } from '../../hooks/usePermissions';
 
 interface CardParametrosHubiAdminProps {
   emailLogado: string;
@@ -37,8 +40,10 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
   emailLogado,
   lojaId,
 }) => {
+  const navigate = useNavigate();
   const { isDark } = useTheme();
   const { mostrarSucesso, mostrarErro } = useFeedbackModal();
+  const { ehSuperAdmin } = usePermissions();
 
   const [carregando, setCarregando] = useState<boolean>(true);
   const [salvando, setSalvando] = useState<boolean>(false);
@@ -1160,23 +1165,40 @@ export const CardParametrosHubiAdmin: React.FC<CardParametrosHubiAdminProps> = (
             <span>As mudanças refletirão imediatamente em toda a infraestrutura e checkouts do HUBI.</span>
           </div>
 
-          <button
-            type="submit"
-            disabled={salvando}
-            className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 text-xs shadow-sm"
-          >
-            {salvando ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>Gravando Parâmetros...</span>
-              </>
-            ) : (
-              <>
-                <Save className="w-3.5 h-3.5" />
-                <span>Salvar Parâmetros Globais</span>
-              </>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
+            {ehSuperAdmin && (
+              <button
+                type="button"
+                onClick={() => navigate('/area-hubi')}
+                className={`w-full sm:w-auto px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition cursor-pointer text-xs shadow-sm border ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-100 font-semibold'
+                    : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-black font-semibold'
+                }`}
+              >
+                <Gauge className="w-3.5 h-3.5" />
+                <span>Área HUBI</span>
+              </button>
             )}
-          </button>
+
+            <button
+              type="submit"
+              disabled={salvando}
+              className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50 text-xs shadow-sm"
+            >
+              {salvando ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Gravando Parâmetros...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Salvar Parâmetros Globais</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </form>
     </div>

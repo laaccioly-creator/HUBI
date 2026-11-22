@@ -105,6 +105,8 @@ function setupBuscaFotosMiddleware(middlewares: any) {
       const q = urlObj.searchParams.get('q') || '';
       const engine = urlObj.searchParams.get('engine') || 'google_images';
       const num = Math.min(parseInt(urlObj.searchParams.get('num') || '12', 10), 20);
+      const safeParam = (urlObj.searchParams.get('safe') || '').trim().toLowerCase();
+      const ramoAtividade = (urlObj.searchParams.get('ramo_atividade') || '').trim().toLowerCase();
       if (!apiKey) {
         res.statusCode = 401;
         res.setHeader('Content-Type', 'application/json');
@@ -126,6 +128,10 @@ function setupBuscaFotosMiddleware(middlewares: any) {
           ? 'https://google.serper.dev/search'
           : 'https://google.serper.dev/images';
 
+      const ramoNorm = ramoAtividade.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const ehNichoAdulto = /\b(sex\s*shop|sexshop|erotic[oa]s?|intim[oa]s?|adult[oa]s?|sensua(?:l|is))\b/i.test(ramoNorm);
+      const safeOff = safeParam === 'off' || ehNichoAdulto;
+
       // Tenta consultar primeiramente a API oficial do Serper.dev
       const serperRes = await fetch(serperEndpoint, {
         method: 'POST',
@@ -137,7 +143,8 @@ function setupBuscaFotosMiddleware(middlewares: any) {
           q: q.trim(),
           gl: 'br',
           hl: 'pt-br',
-          num
+          num: engine === 'google_images' ? Math.min(Math.max(num * 2, 20), 40) : num,
+          ...(safeOff ? { safe: 'off' } : {})
         })
       });
 

@@ -66,17 +66,96 @@ const logSerpErro = (titulo: string, ...detalhes: any[]) => {
   );
 };
 
+const normalizarSemAcentos = (texto: string): string =>
+  String(texto || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
+/**
+ * Extrai o rótulo curto do ramo de atividade da loja (ex: "Sex Shop / Produtos Eróticos" -> "Sex Shop").
+ */
+export const extrairRamoCurtoLoja = (ramoAtividade?: string): string => {
+  const raw = String(ramoAtividade || '').trim();
+  if (!raw) return '';
+  const primeiro = raw.split('/')[0].trim();
+  if (!primeiro) return '';
+
+  const norm = normalizarSemAcentos(primeiro);
+  if (
+    norm === 'varejo comercial geral' ||
+    norm === 'geral' ||
+    norm === 'varejo geral' ||
+    norm === 'outros'
+  ) {
+    return '';
+  }
+
+  const mapaIds: Record<string, string> = {
+    sexshop: 'Sex Shop',
+    motepecas: 'Motopeças',
+    petshop: 'Pet Shop',
+    construcao: 'Material de Construção',
+  };
+
+  return mapaIds[norm] || primeiro;
+};
+
+/**
+ * Identifica se o nicho da loja ou contexto do produto exige SafeSearch desativado (`safe: "off"`).
+ */
+export const ehRamoAtividadeAdulto = (ramoAtividade?: string, contextoExtra?: string): boolean => {
+  const combinado = normalizarSemAcentos(`${ramoAtividade || ''} ${contextoExtra || ''}`);
+  if (!combinado) return false;
+  return /\b(sex\s*shop|sexshop|erotic[oa]s?|intim[oa]s?|adult[oa]s?|sensua(?:l|is)|bem[\s-]*estar\s+intimo|vibrador(?:es)?|dildo|masturbador|plug\s+anal)\b/i.test(
+    combinado
+  );
+};
+
+/**
+ * Higieniza o termo do produto (removendo códigos internos e dimensões entre parênteses)
+ * e concatena o ramo de atividade curto da loja quando ainda não estiver presente.
+ */
+export const montarQueryEnriquecidaComRamo = (termo: string, ramoAtividade?: string): string => {
+  const termoLimpo = limparTermoParaBuscaGoogle(termo) || String(termo || '').trim();
+  if (!termoLimpo) return '';
+
+  const ramoCurto = extrairRamoCurtoLoja(ramoAtividade);
+  if (!ramoCurto) return termoLimpo;
+
+  const termoNorm = normalizarSemAcentos(termoLimpo);
+  const ramoNorm = normalizarSemAcentos(ramoCurto);
+  if (termoNorm.includes(ramoNorm)) {
+    return termoLimpo;
+  }
+
+  return `${termoLimpo} ${ramoCurto}`.trim();
+};
+
 /**
  * Sanitiza o termo de busca para o Google Imagens:
- * - Remove códigos internos ou numerações de início (ex: "7633 - ")
+ * - Remove códigos internos ou numerações de início (ex: "005V - ", "7633 - ")
+ * - Remove medidas e dimensões entre parênteses/colchetes (ex: "(15×3cm)", "(15x3cm)", "(200ml)")
  * - Remove variações e tamanhos com hífen (ex: " - Tamanho G", " - Tam P", " - G")
  * - Remove hifens isolados (para o Google não interpretar como operador de exclusão NOT)
  */
 export const limparTermoParaBuscaGoogle = (termo: string): string => {
   if (!termo) return '';
   return termo
-    .replace(/^[\d\w#.-]+\s*-\s*/, '')
+    .replace(
+      /^(?:(?:c[oó]d(?:igo)?|sku|ref)\.?\s*[:#-]?\s*[A-Za-z0-9#._-]+\s*[-–—:]?\s*|[\[\(][A-Za-z0-9#._-]+[\]\)]\s*[-–—:]\s*|(?=[A-Za-z0-9#._-]*\d)[A-Za-z0-9#._-]+\s*[-–—:]\s*|[A-Za-z0-9#._-]+\s+[-–—]\s+)/i,
+      ''
+    )
     .replace(/^[0-9]+\s+/, '')
+    .replace(
+      /\s*[\(\[]\s*\d+(?:[.,]\d+)?(?:\s*[xX×*]\s*\d+(?:[.,]\d+)?)*\s*(?:cm|mm|m|ml|l|g|kg|pol|oz|un)?\s*[\)\]]/gi,
+      ''
+    )
+    .replace(
+      /\b\d+(?:[.,]\d+)?\s*[xX×]\s*\d+(?:[.,]\d+)?(?:\s*[xX×]\s*\d+(?:[.,]\d+)?)?\s*(?:cm|mm|m|pol)\b/gi,
+      ''
+    )
     .replace(/\s*[-–—(]\s*tamanho\s+[a-z0-9]+\s*\)?/gi, '')
     .replace(/\s*[-–—(]\s*tam\s+[a-z0-9]+\s*\)?/gi, '')
     .replace(/\s*[-–—(]\s*(p|m|g|gg|xg|xgg)\b\s*\)?/gi, '')
@@ -210,17 +289,34 @@ export const extrairQueryCurtaModelo = (termo: string): string => {
 };
 
 /**
- * Formata os itens brutos retornados pela SerpApi em FotoResultadoSerpApi
- * Prioriza imagens em alta resolução e filtra miniaturas excessivamente pequenas
+ * Formata os itens brutos retornados pela SerpApi em FotoResultadoSerpApi.
+ * Filtra PDFs/Scribd/logos genéricas, prioriza imagens de produto em boa resolução e evita duplicatas.
  */
 export const formatarResultadosSerpApi = (
   imagesResults: any[],
   queryTratada: string,
   num: number = 20
 ): FotoResultadoSerpApi[] => {
-  const fotosFormatadas: FotoResultadoSerpApi[] = [];
+  const fotosPrioritarias: FotoResultadoSerpApi[] = [];
+  const fotosSecundarias: FotoResultadoSerpApi[] = [];
   const fotosReserva: FotoResultadoSerpApi[] = [];
   const urlsVistas = new Set<string>();
+
+  const dominiosBloqueados = [
+    'scribd.com',
+    'slideshare.net',
+    'issuu.com',
+    'calameo.com',
+    'academia.edu',
+    'researchgate.net',
+    'docplayer',
+    'dreamstime.com',
+    'depositphotos.com',
+    '123rf.com',
+    'alamy.com',
+    'shutterstock.com',
+    'istockphoto.com'
+  ];
 
   for (let idx = 0; idx < imagesResults.length; idx++) {
     const item = imagesResults[idx];
@@ -268,11 +364,23 @@ export const formatarResultadosSerpApi = (
       ? item.original_height
       : undefined;
 
-    const fonteLower = (item.source || item.domain || '').toLowerCase();
-    const linkLower = (item.link || item.original || '').toLowerCase();
-    const tituloLower = (item.title || '').toLowerCase();
+    const fonteLower = (item.fonte || item.source || item.domain || '').toLowerCase();
+    const linkLower = `${originalUrl} ${item.link || ''} ${item.original || ''}`.toLowerCase();
+    const tituloLower = (item.titulo || item.title || '').toLowerCase();
 
-    if (tituloLower.includes('meme') || tituloLower.includes('viral') || tituloLower.includes('animal mais feio')) {
+    if (
+      tituloLower.includes('meme') ||
+      tituloLower.includes('viral') ||
+      tituloLower.includes('animal mais feio') ||
+      dominiosBloqueados.some(d => linkLower.includes(d) || fonteLower.includes(d)) ||
+      linkLower.includes('.pdf') ||
+      linkLower.includes('.svg') ||
+      linkLower.includes('favicon') ||
+      linkLower.includes('placeholder') ||
+      linkLower.includes('watermark') ||
+      /[/._-](logo|icon|brand)[/._-]/i.test(linkLower) ||
+      tituloLower.startsWith('logo ')
+    ) {
       continue;
     }
 
@@ -287,7 +395,7 @@ export const formatarResultadosSerpApi = (
     };
 
     const ehResolucaoBaixa = Boolean(largura && largura < 200 && altura && altura < 200);
-    const fontesNaoComerciais = ['tiktok', 'giphy', 'tenor', 'shutterstock', 'istockphoto'];
+    const fontesNaoComerciais = ['tiktok', 'giphy', 'tenor'];
     const ehFonteReserva = fontesNaoComerciais.some(f => fonteLower.includes(f) || linkLower.includes(f));
 
     urlsVistas.add(originalUrl);
@@ -295,11 +403,20 @@ export const formatarResultadosSerpApi = (
     if (ehResolucaoBaixa || ehFonteReserva) {
       fotosReserva.push(fotoObj);
     } else {
-      fotosFormatadas.push(fotoObj);
+      const proporcaoProduto =
+        largura && altura
+          ? Math.max(largura / Math.max(altura, 1), altura / Math.max(largura, 1))
+          : 1;
+      const boaResolucao = Boolean(largura && altura && largura >= 400 && altura >= 400 && proporcaoProduto <= 2.2);
+      if (boaResolucao) {
+        fotosPrioritarias.push(fotoObj);
+      } else {
+        fotosSecundarias.push(fotoObj);
+      }
     }
-
-    if (fotosFormatadas.length >= num) break;
   }
+
+  const fotosFormatadas = [...fotosPrioritarias, ...fotosSecundarias].slice(0, num);
 
   // Garante no mínimo 8 fotos disponíveis quando houver reservas válidas
   if (fotosFormatadas.length < 8 && fotosReserva.length > 0) {
@@ -557,11 +674,17 @@ export const buscarMiniaturaProduto = async (
 ): Promise<string | null> => {
   if (!termo || !termo.trim()) return null;
 
-  const queryFinal = limparTermoParaBuscaGoogle(termo);
+  const ramoLoja = String(
+    loja?.configuracoes_extras?.perfil_negocio?.segmento || loja?.segmento || ''
+  ).trim();
+  const queryFinal = montarQueryEnriquecidaComRamo(termo, ramoLoja);
   if (!queryFinal) return null;
 
+  const safeOff = ehRamoAtividadeAdulto(ramoLoja, queryFinal);
+  const chaveCache = safeOff ? `${queryFinal}|safe_off` : queryFinal;
+
   // 1. Tenta obter do cache instantâneo (0ms)
-  const emCache = obterCacheSerp(queryFinal);
+  const emCache = obterCacheSerp(chaveCache);
   if (emCache && emCache.length > 0) {
     return emCache[0].urlThumbnail || null;
   }
@@ -576,9 +699,10 @@ export const buscarMiniaturaProduto = async (
 
   if (serpApiKey || loja?.id) {
     try {
-      const buscaPromise = buscarFotosGoogleImagesSerpApi(queryFinal, serpApiKey, {
+      const buscaPromise = buscarFotosGoogleImagesSerpApi(termo, serpApiKey, {
         lojaId: loja?.id,
-        numResultados: 2
+        numResultados: 2,
+        ramoAtividade: ramoLoja || undefined
       });
 
       const timeoutPromise = new Promise<never>((_, reject) =>
@@ -607,10 +731,12 @@ export const buscarFotosGoogleImagesSerpApi = async (
   opcoes?: {
     lojaId?: string;
     numResultados?: number;
+    ramoAtividade?: string;
   }
 ): Promise<FotoResultadoSerpApi[]> => {
   let chaveLimpa = (apiKey || '').trim();
   const lojaId = opcoes?.lojaId;
+  const ramoAtividade = opcoes?.ramoAtividade;
 
   // Se não foi passada diretamente, consulta exclusivamente lojas.serper_api_key
   if (!chaveLimpa && lojaId) {
@@ -621,7 +747,10 @@ export const buscarFotosGoogleImagesSerpApi = async (
     ? `${chaveLimpa.slice(0, 4)}...${chaveLimpa.slice(-4)}`
     : chaveLimpa ? '***' : '(ausente)';
 
-  const queryFinal = limparTermoParaBuscaGoogle(termo);
+  const queryFinal = montarQueryEnriquecidaComRamo(termo, ramoAtividade);
+  const ramoCurto = extrairRamoCurtoLoja(ramoAtividade);
+  const safeOff = ehRamoAtividadeAdulto(ramoAtividade, queryFinal);
+  const chaveCache = safeOff ? `${queryFinal}|safe_off` : queryFinal;
   const num = Math.min(opcoes?.numResultados || 20, 20);
 
   if (!chaveLimpa) {
@@ -632,7 +761,7 @@ export const buscarFotosGoogleImagesSerpApi = async (
   }
 
   // 1. Verificação instantânea no Cache Local (Memória + sessionStorage)
-  const fotosEmCache = obterCacheSerp(queryFinal);
+  const fotosEmCache = obterCacheSerp(chaveCache);
   if (fotosEmCache && fotosEmCache.length > 0) {
     logSerpSucesso(`⚡ [CACHE INSTANTÂNEO] Recuperadas ${fotosEmCache.length} fotos em 0ms para "${queryFinal}"`);
     return fotosEmCache;
@@ -641,6 +770,8 @@ export const buscarFotosGoogleImagesSerpApi = async (
   logSerp(`🔍 Iniciando busca de fotos Google Images no Serper.dev...`, {
     termoOriginal: termo,
     termoPesquisa: queryFinal,
+    ramoAtividade: ramoCurto || 'N/A',
+    safeSearch: safeOff ? 'off' : 'default',
     chave: chaveMascarada,
     lojaId: lojaId || 'N/A',
     quantidadeDesejada: num
@@ -659,6 +790,12 @@ export const buscarFotosGoogleImagesSerpApi = async (
     api_key: chaveLimpa,
     num: String(num)
   });
+  if (ramoCurto) {
+    params.set('ramo_atividade', ramoCurto);
+  }
+  if (safeOff) {
+    params.set('safe', 'off');
+  }
 
   // =========================================================================
   // MÉTODO 1: Proxy local de desenvolvimento (/api/buscar-fotos-serpapi)
@@ -698,7 +835,7 @@ export const buscarFotosGoogleImagesSerpApi = async (
           const fotos = formatarResultadosSerpApi(itens, queryFinal, num);
           if (fotos.length > 0) {
             logSerpSucesso(`Encontradas ${fotos.length} fotos via proxy local!`, fotos);
-            salvarCacheSerp(queryFinal, fotos);
+            salvarCacheSerp(chaveCache, fotos);
             return fotos;
           }
         }
@@ -721,6 +858,8 @@ export const buscarFotosGoogleImagesSerpApi = async (
       const { data: edgeData, error: edgeError } = await supabase.functions.invoke('buscar-fotos-serpapi', {
         body: {
           q: queryFinal,
+          ramo_atividade: ramoCurto || undefined,
+          safe: safeOff ? 'off' : undefined,
           serpApiKey: chaveLimpa,
           api_key: chaveLimpa,
           loja_id: lojaId || undefined,
@@ -774,17 +913,19 @@ export const buscarFotosGoogleImagesSerpApi = async (
     const fotos = await Promise.race([promessaEdge, timeoutGlobal]);
     if (fotos && fotos.length > 0) {
       logSerpSucesso(`⚡ Encontradas ${fotos.length} fotos via Serper.dev!`, fotos);
-      salvarCacheSerp(queryFinal, fotos);
+      salvarCacheSerp(chaveCache, fotos);
       return fotos;
     }
 
-    // Fallback Automático: Se o termo completo não encontrou fotos e era extenso (> 4 palavras), tenta termo enxuto
-    const termoEnxuto = extrairTermoEnxutoBusca(queryFinal, 4);
-    if (termoEnxuto && termoEnxuto.toLowerCase() !== queryFinal.toLowerCase()) {
-      logSerpAviso(`[FALLBACK AUTOMÁTICO] Query longa "${queryFinal}" sem fotos. Buscando termo enxuto: "${termoEnxuto}"...`);
+    // Fallback Automático: Se o termo completo não encontrou fotos e era extenso (> 4 palavras), tenta termo enxuto com ramo
+    const termoBaseLimpo = limparTermoParaBuscaGoogle(termo);
+    const termoEnxuto = extrairTermoEnxutoBusca(termoBaseLimpo, 4);
+    const queryEnxutaComRamo = montarQueryEnriquecidaComRamo(termoEnxuto, ramoAtividade);
+    if (queryEnxutaComRamo && queryEnxutaComRamo.toLowerCase() !== queryFinal.toLowerCase()) {
+      logSerpAviso(`[FALLBACK AUTOMÁTICO] Query longa "${queryFinal}" sem fotos. Buscando termo enxuto: "${queryEnxutaComRamo}"...`);
       const fotosEnxutas = await buscarFotosGoogleImagesSerpApi(termoEnxuto, chaveLimpa, opcoes);
       if (fotosEnxutas && fotosEnxutas.length > 0) {
-        salvarCacheSerp(queryFinal, fotosEnxutas);
+        salvarCacheSerp(chaveCache, fotosEnxutas);
         return fotosEnxutas;
       }
     }

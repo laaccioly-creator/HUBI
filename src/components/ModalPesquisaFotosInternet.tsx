@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Search, Check, Image as ImageIcon, AlertCircle, Plus, Globe, Loader2, ExternalLink, Key, RefreshCw } from 'lucide-react';
-import { pesquisarFotosProdutoNaInternet, FotoResultadoInternet, SerpApiQuotaError, SerpApiAuthError } from '../services/geminiService';
-import { limparTermoParaBuscaGoogle } from '../services/serpApiService';
+import { pesquisarFotosProdutoNaInternet, obterNomeSegmentoLoja, FotoResultadoInternet, SerpApiQuotaError, SerpApiAuthError } from '../services/geminiService';
+import { limparTermoParaBuscaGoogle, extrairRamoCurtoLoja, montarQueryEnriquecidaComRamo } from '../services/serpApiService';
 import { SpinnerPesquisandoIA } from './SpinnerPesquisandoIA';
 import { ModalQuotaExcedidaSerpApi } from './ModalQuotaExcedidaSerpApi';
 
@@ -47,6 +47,9 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
   const [arrastandoSobre, setArrastandoSobre] = useState<boolean>(false);
 
   const vagasDisponiveis = Math.max(0, maxFotos - fotosAtuaisCount);
+  const segmentoEfetivo = segmentoLoja || obterNomeSegmentoLoja(loja);
+  const ramoCurtoLoja = extrairRamoCurtoLoja(segmentoEfetivo);
+  const consultaEnriquecidaPreview = montarQueryEnriquecidaComRamo(termoBusca, segmentoEfetivo) || termoBusca;
 
   // Captura direta via Ctrl+V (Colar Imagem da área de transferência)
   useEffect(() => {
@@ -119,7 +122,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
         setFotosEncontradas([]);
       }
     }
-  }, [isOpen, nomeInicial, codigoBarrasInicial, fotoReferencia, segmentoLoja]);
+  }, [isOpen, nomeInicial, codigoBarrasInicial, fotoReferencia, segmentoEfetivo]);
 
   const realizarBusca = async (termo: string) => {
     const termoTratado = limparTermoParaBuscaGoogle(termo) || termo.trim();
@@ -138,7 +141,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
     setFalhasOriginal(new Set());
 
     try {
-      const resultados = await pesquisarFotosProdutoNaInternet(termoTratado, codigoBarrasInicial, fotoReferencia, segmentoLoja, loja);
+      const resultados = await pesquisarFotosProdutoNaInternet(termoTratado, codigoBarrasInicial, fotoReferencia, segmentoEfetivo, loja);
       setFotosEncontradas(resultados);
       if (resultados.length === 0) {
         setErro('Nenhuma foto encontrada para este produto na web. Você também pode colar fotos copiadas da internet usando Ctrl+V ou colar o link abaixo.');
@@ -257,9 +260,9 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
                 <span className="text-[10px] bg-teal-50 dark:bg-teal-500/20 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-500/30 px-2 py-0.5 rounded-full font-bold">
                   Galeria Online
                 </span>
-                {segmentoLoja && (
-                  <span className="text-[10px] bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30 px-2 py-0.5 rounded-full font-bold truncate max-w-[130px] sm:max-w-xs" title={`Segmento Ativo: ${segmentoLoja}`}>
-                    {segmentoLoja.split('/')[0].trim()}
+                {ramoCurtoLoja && (
+                  <span className="text-[10px] bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30 px-2 py-0.5 rounded-full font-bold truncate max-w-[130px] sm:max-w-xs" title={`Segmento Ativo: ${segmentoEfetivo}`}>
+                    {ramoCurtoLoja}
                   </span>
                 )}
               </div>
@@ -351,7 +354,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
             <div className="py-12 flex items-center justify-center">
               <SpinnerPesquisandoIA
                 texto="Pesquisando"
-                subtexto={`Buscando fotos de boa qualidade para "${termoBusca}"...`}
+                subtexto={`Buscando fotos de boa qualidade para "${consultaEnriquecidaPreview}"...`}
               />
             </div>
           ) : erro ? (

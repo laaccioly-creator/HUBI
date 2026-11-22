@@ -14,7 +14,7 @@ const COLUNAS_COBRANCA_PUBLICAS =
   'dias_trial, valor_mensal_anual, valor_anual_total, valor_plano_mensal_avulso, desconto_pix_percentual, aceita_cartao_debito, max_parcelas_cartao, parcelas_sem_juros';
 
 const COLUNAS_OPERACIONAIS_LOJISTA =
-  'id, dias_trial, valor_mensal_anual, valor_anual_total, valor_plano_mensal_avulso, desconto_pix_percentual, aceita_cartao_debito, max_parcelas_cartao, parcelas_sem_juros, email_super_admin, custo_disparo_whatsapp, valor_minimo_recarga_whatsapp, credito_bonus_trial_whatsapp, meta_phone_number_id, meta_waba_id, meta_access_token, meta_verify_token, mp_ambiente, mp_public_key, atualizado_em, atualizado_por';
+  'id, dias_trial, valor_mensal_anual, valor_anual_total, valor_plano_mensal_avulso, desconto_pix_percentual, aceita_cartao_debito, max_parcelas_cartao, parcelas_sem_juros, email_super_admin, custo_disparo_whatsapp, valor_minimo_recarga_whatsapp, credito_bonus_trial_whatsapp, meta_phone_number_id, meta_waba_id, meta_access_token, meta_verify_token, mp_ambiente, mp_public_key, meta_hubi_faturamento, meta_hubi_vendas, meta_hubi_conversao_percentual, meta_hubi_max_nao_renovados, meta_hubi_lojas_ativas, meta_hubi_receita_whatsapp, atualizado_em, atualizado_por';
 
 const COLUNAS_SUPER_ADMIN_COMPLETAS =
   `${COLUNAS_OPERACIONAIS_LOJISTA}, mp_access_token, mp_webhook_secret`;
@@ -74,6 +74,12 @@ const mapearLinhaPlataforma = (
   mp_public_key: data.mp_public_key || null,
   mp_access_token: incluirSegredosMp ? (data.mp_access_token || null) : null,
   mp_webhook_secret: incluirSegredosMp ? (data.mp_webhook_secret || null) : null,
+  meta_hubi_faturamento: toNumberSafe(data.meta_hubi_faturamento, 0.00),
+  meta_hubi_vendas: toNumberSafe(data.meta_hubi_vendas, 0),
+  meta_hubi_conversao_percentual: toNumberSafe(data.meta_hubi_conversao_percentual, 0.00),
+  meta_hubi_max_nao_renovados: toNumberSafe(data.meta_hubi_max_nao_renovados, 0),
+  meta_hubi_lojas_ativas: toNumberSafe(data.meta_hubi_lojas_ativas, 0),
+  meta_hubi_receita_whatsapp: toNumberSafe(data.meta_hubi_receita_whatsapp, 0.00),
   atualizado_em: data.atualizado_em,
   atualizado_por: data.atualizado_por,
 });
@@ -100,6 +106,12 @@ export const CONFIG_PLATAFORMA_PADRAO: ConfiguracoesPlataformaHubi = {
   mp_public_key: null,
   mp_access_token: null,
   mp_webhook_secret: null,
+  meta_hubi_faturamento: 0.00,
+  meta_hubi_vendas: 0,
+  meta_hubi_conversao_percentual: 0.00,
+  meta_hubi_max_nao_renovados: 0,
+  meta_hubi_lojas_ativas: 0,
+  meta_hubi_receita_whatsapp: 0.00,
 };
 
 export const configuracoesPlataformaService = {
