@@ -75,6 +75,9 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
   const [identificandoFotoIA, setIdentificandoFotoIA] = useState<boolean>(false);
   const termoSimplificadoIARef = useRef<string>('');
   const usuarioEditouBuscaRef = useRef<boolean>(false);
+  const analiseIniciadaRef = useRef<string | null>(null);
+  const modalAbertoRef = useRef<boolean>(isOpen);
+  modalAbertoRef.current = isOpen;
   const [fotosEncontradas, setFotosEncontradas] = useState<FotoResultadoInternet[]>([]);
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
   const [erro, setErro] = useState<string | null>(null);
@@ -229,15 +232,21 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
 
   useEffect(() => {
     if (!isOpen) {
+      analiseIniciadaRef.current = null;
       setIdentificandoFotoIA(false);
       termoSimplificadoIARef.current = '';
       usuarioEditouBuscaRef.current = false;
       return;
     }
 
-    let cancelado = false;
     const termo = nomeInicial.trim() || codigoBarrasInicial.trim();
     const termoTratado = limparTermoParaBuscaGoogle(termo) || termo;
+    const chaveAnalise = `${fotoReferencia || ''}::${termoTratado}`;
+
+    if (analiseIniciadaRef.current === chaveAnalise) {
+      return;
+    }
+    analiseIniciadaRef.current = chaveAnalise;
 
     setTermoBusca(termoTratado);
     setSelecionadas(new Set());
@@ -279,7 +288,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
                 }, TIMEOUT_IDENTIFICACAO_FOTO_IA_MS);
               })
             ]);
-            if (cancelado) return;
+            if (!modalAbertoRef.current || analiseIniciadaRef.current !== chaveAnalise) return;
             setIdentificandoFotoIA(false);
 
             if (ident?.termoCompleto) {
@@ -294,7 +303,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
               );
             }
           } catch (err: unknown) {
-            if (cancelado) return;
+            if (!modalAbertoRef.current || analiseIniciadaRef.current !== chaveAnalise) return;
             setIdentificandoFotoIA(false);
             setCarregando(false);
             setFotosEncontradas([]);
@@ -333,7 +342,13 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
 
         void Promise.all([buscaInicialPromise, identParalelaPromise]).then(
           async ([qtdInicial, ident]) => {
-            if (cancelado || usuarioEditouBuscaRef.current) return;
+            if (
+              !modalAbertoRef.current ||
+              analiseIniciadaRef.current !== chaveAnalise ||
+              usuarioEditouBuscaRef.current
+            ) {
+              return;
+            }
             if (
               qtdInicial === 0 &&
               ident?.termoCompleto &&
@@ -349,10 +364,6 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
     } else {
       setFotosEncontradas([]);
     }
-
-    return () => {
-      cancelado = true;
-    };
   }, [isOpen, nomeInicial, codigoBarrasInicial, fotoReferencia, segmentoEfetivo, loja, realizarBusca]);
 
   const toggleSelecao = (foto: FotoResultadoInternet) => {

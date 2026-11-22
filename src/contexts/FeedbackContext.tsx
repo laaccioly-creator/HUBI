@@ -90,12 +90,26 @@ export const FeedbackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return;
     }
 
-    const traduzido = traduzirErroMercadoLivre(mensagem);
+    const ehErroMercadoLivre = /mercadolivre|mercado\s+livre|\bml_/i.test(
+      `${titulo || ''} ${mensagem}`
+    );
+
+    if (ehErroMercadoLivre) {
+      const traduzido = traduzirErroMercadoLivre(mensagem);
+      mostrarAlerta({
+        tipo: 'erro',
+        titulo: titulo || 'Erro',
+        mensagem: traduzido.mensagemAmigavel,
+        detalhes: traduzido.detalheTecnico,
+        textoBotaoConfirmar: 'Fechar'
+      });
+      return;
+    }
+
     mostrarAlerta({
       tipo: 'erro',
       titulo: titulo || 'Erro',
-      mensagem: traduzido.mensagemAmigavel,
-      detalhes: traduzido.detalheTecnico,
+      mensagem,
       textoBotaoConfirmar: 'Fechar'
     });
   }, [mostrarAlerta]);

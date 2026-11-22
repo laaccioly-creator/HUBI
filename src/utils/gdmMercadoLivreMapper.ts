@@ -271,7 +271,7 @@ const REGRAS_TRADUCAO_ERRO_ML: Array<{ padrao: RegExp; mensagem: string }> = [
       'Esta categoria do Mercado Livre exige código de barras (EAN/GTIN) válido ou justificativa automática de produto sem código.',
   },
   {
-    padrao: /\b(attributes|missing_required|brand|model)\b/i,
+    padrao: /\b(attributes|missing_required)\b/i,
     mensagem:
       'Faltam informações obrigatórias exigidas pelo Mercado Livre para esta categoria (como Marca ou Modelo). Preencha todos os campos e tente novamente.',
   },
@@ -307,6 +307,14 @@ export function traduzirErroMercadoLivre(mensagemBruta: string): ErroMercadoLivr
     return {
       mensagemAmigavel: 'Não foi possível concluir a operação no Mercado Livre. Tente novamente em instantes.',
     };
+  }
+
+  if (
+    !/mercadolivre|mercado\s+livre|\bml_|family_name|invalid_fields|empty_gtin_reason|category_id|not_leaf|listing_allowed|catalog_required|Erro ML:/i.test(
+      texto
+    )
+  ) {
+    return { mensagemAmigavel: texto };
   }
 
   for (const regra of REGRAS_TRADUCAO_ERRO_ML) {

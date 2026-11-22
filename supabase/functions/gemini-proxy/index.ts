@@ -12,11 +12,13 @@ const corsHeaders = {
 
 const MODELOS_RAPIDOS_HOMOLOGADOS = [
   "gemini-3.8-flash",
+  "gemini-3.8-flash-lite",
   "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
 ] as const;
 
-const TIMEOUT_CHAMADA_GOOGLE_MS = 8000;
-const TIMEOUT_HANDLER_GLOBAL_MS = 8500;
+const TIMEOUT_CHAMADA_GOOGLE_MS = 6000;
+const TIMEOUT_HANDLER_GLOBAL_MS = 13500;
 
 interface ResultadoChamadaGoogle {
   ok: boolean;
@@ -344,7 +346,7 @@ serve(async (req: Request) => {
         if (tools) googlePayload.tools = tools;
       }
 
-      // 4. 'gemini-3.8-flash' como primário e fallback para 'gemini-2.5-flash' apenas em HTTP 404
+      // 4. Iteração com fallback imediato em 503, 429, 500, 404 ou timeout
       etapaAtual = "chamando_google_gemini";
       const requestedModel = String(model || "").replace(/^models\//i, "").trim();
       const filaModelos: string[] = requestedModel.toLowerCase().includes("-tts")
@@ -368,24 +370,18 @@ serve(async (req: Request) => {
 
         ultimoResultado = res;
         const detalheAtual = extrairDetalheErroGoogle(res.data, res.status);
-        const eh404Modelo = res.status === 404;
+        const deveTentarProximoModelo =
+          res.status === 503 ||
+          res.status === 429 ||
+          res.status === 500 ||
+          res.status === 404 ||
+          res.timeout;
 
-        // Fallback imediato para 'gemini-2.5-flash' apenas se HTTP 404
-        if (eh404Modelo) {
-          continue;
-        }
-
-        if (res.timeout) {
-          return jsonResponse(
-            {
-              ok: false,
-              timeout: true,
-              etapaTravada: etapaAtual,
-              error: `Timeout interno na etapa: ${etapaAtual}`,
-              statusGoogle: 504,
-            },
-            200
+        if (deveTentarProximoModelo) {
+          console.warn(
+            `[gemini-proxy] Modelo ${modeloAtual} retornou ${res.status} — tentando próximo modelo.`
           );
+          continue;
         }
 
         const traduzido = traduzirErroGooglePtBr(res.status, detalheAtual);
@@ -397,6 +393,19 @@ serve(async (req: Request) => {
             statusGoogle: res.status,
           },
           traduzido.statusHttp
+        );
+      }
+
+      if (ultimoResultado?.timeout) {
+        return jsonResponse(
+          {
+            ok: false,
+            timeout: true,
+            etapaTravada: etapaAtual,
+            error: `Timeout interno na etapa: ${etapaAtual}`,
+            statusGoogle: 504,
+          },
+          200
         );
       }
 
