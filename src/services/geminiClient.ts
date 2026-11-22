@@ -8,18 +8,18 @@
 const cacheModeloAtivo = new Map<string, string>();
 // Cache em memória de todos os modelos compatíveis ordenados por chave de API
 const cacheModelosValidos = new Map<string, string[]>();
-// Registro em memória de modelos que retornaram 404 para nunca repetir tentativa lenta
+// Registro em memória de modelos obsoletos/indisponíveis para nunca repetir tentativa lenta
 const modelosIndisponiveis404 = new Set<string>([
-  'gemini-3.8-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-8b',
   'gemini-2.5-flash-lite',
   'gemini-3.5-flash-lite'
 ]);
 
 // Fallback de contingência caso a rede do cliente oscile ou a listagem falhe temporariamente
 export const MODELOS_FALLBACK_CONTINGENCIA = [
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash'
+  'gemini-3.8-flash'
 ];
 
 export const isModeloIndisponivel = (modelo: string): boolean => {
@@ -64,17 +64,19 @@ export const invalidarCacheGemini = (apiKey?: string): void => {
 
 /**
  * Extrai o peso/score de um modelo Gemini para ordenação:
- * Prioriza a família Flash e o modelo oficial estável (gemini-2.5-flash).
+ * Prioriza a família Flash e o modelo oficial mais recente (gemini-3.8-flash).
  */
 export const calcularScoreModelo = (nome: string): number => {
   const limpo = nome.toLowerCase().replace('models/', '');
   let score = 0;
 
-  // Bloqueio imediato de modelos descontinuados ou inexistentes na Google API
+  // Bloqueio imediato de modelos descontinuados ou obsoletos na Google API
   if (
-    limpo.includes('gemini-2.5-flash-lite') ||
-    limpo.includes('gemini-3.8-flash') ||
-    limpo.includes('gemini-3.5-flash-lite')
+    limpo.includes('gemini-1.0') ||
+    limpo.includes('gemini-1.5') ||
+    limpo.includes('gemini-2.0') ||
+    limpo.includes('gemini-2.5') ||
+    limpo.includes('flash-lite')
   ) {
     return -1000;
   }
@@ -84,17 +86,11 @@ export const calcularScoreModelo = (nome: string): number => {
     score += 1000;
   }
   // Modelo primário recomendado para visão multimodal, Radar de Preços e Varejo
-  if (limpo === 'gemini-2.5-flash') {
+  if (limpo === 'gemini-3.8-flash') {
     score += 1500;
   }
-  if (limpo === 'gemini-2.0-flash') {
+  if (limpo === 'gemini-3.5-flash') {
     score += 600;
-  }
-  if (limpo === 'gemini-1.5-flash') {
-    score += 450;
-  }
-  if (limpo === 'gemini-1.5-flash-8b') {
-    score += 400;
   }
   // Penaliza modelos pesados (pro), que costumam ter latência maior para varejo/chat
   if (limpo.includes('pro')) {
@@ -162,9 +158,13 @@ export const getAvailableGeminiModels = async (
 
           if (!suportaGenerate) return false;
 
-          // Ignora modelos especializados não-conversacionais (TTS, embedding, etc.) e descontinuados
+          // Ignora modelos especializados não-conversacionais (TTS, embedding, etc.) e obsoletos
           if (
-            nome.includes('gemini-2.5-flash-lite') ||
+            nome.includes('gemini-1.0') ||
+            nome.includes('gemini-1.5') ||
+            nome.includes('gemini-2.0') ||
+            nome.includes('gemini-2.5') ||
+            nome.includes('flash-lite') ||
             nome.includes('embedding') ||
             nome.includes('aqa') ||
             nome.includes('bison') ||

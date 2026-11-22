@@ -10,13 +10,16 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const MODELO_PADRAO_GEMINI = "gemini-2.5-flash";
-const MODELO_FALLBACK_GEMINI = "gemini-2.0-flash";
-const MODELOS_DESCONTINUADOS = new Set([
-  "gemini-3.8-flash",
-  "gemini-2.5-flash-lite",
-  "gemini-3.5-flash-lite",
-]);
+const MODELO_FALLBACK_SEGURO = "gemini-3.8-flash";
+const TTL_CACHE_MODELO_MS = 60 * 60 * 1000; // 60 minutos
+const REGEX_MODELO_FLASH_PADRAO = /^models\/gemini-(\d+(?:\.\d+)?)-flash$/i;
+
+interface EntradaCacheModelo {
+  modelo: string;
+  expiraEm: number;
+}
+
+const cacheModeloPorChave = new Map<string, EntradaCacheModelo>();
 
 function jsonResponse(payload: Record<string, unknown>, status: number): Response {
   return new Response(JSON.stringify(payload), {
@@ -28,13 +31,97 @@ function jsonResponse(payload: Record<string, unknown>, status: number): Respons
   });
 }
 
+function ehModeloObsoleto(modelo: string): boolean {
+  const limpo = modelo.replace(/^models\//, "").trim().toLowerCase();
+  if (!limpo) return true;
+  return /gemini-(?:1\.0|1\.5|2\.0|2\.5)|flash-lite/i.test(limpo);
+}
+
+/**
+ * Descobre dinamicamente o modelo gemini-*-flash mais recente disponível na conta Google AI Studio
+ * com cache em memória de 60 minutos por chave.
+ */
+async function resolverModeloFlashMaisRecente(
+  apiKey: string,
+  forcarAtualizacao = false
+): Promise<string> {
+  const agora = Date.now();
+  if (!forcarAtualizacao) {
+    const emCache = cacheModeloPorChave.get(apiKey);
+    if (emCache && agora < emCache.expiraEm) {
+      return emCache.modelo;
+    }
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+    const res = await fetch(listUrl, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const json = (await res.json().catch(() => ({}))) as {
+        models?: Array<{
+          name?: string;
+          supportedGenerationMethods?: string[];
+        }>;
+      };
+      const lista = Array.isArray(json.models) ? json.models : [];
+
+      const candidatos = lista
+        .filter((m) => {
+          const metodos = Array.isArray(m.supportedGenerationMethods)
+            ? m.supportedGenerationMethods
+            : [];
+          return metodos.includes("generateContent");
+        })
+        .map((m) => {
+          const nomeOriginal = String(m.name || "").trim();
+          const match = REGEX_MODELO_FLASH_PADRAO.exec(nomeOriginal);
+          if (!match) return null;
+          const versao = parseFloat(match[1]);
+          if (Number.isNaN(versao) || versao < 2.5) return null;
+          return {
+            nomeLimpo: nomeOriginal.replace(/^models\//i, ""),
+            versao,
+          };
+        })
+        .filter((item): item is { nomeLimpo: string; versao: number } => item !== null)
+        .sort((a, b) => b.versao - a.versao);
+
+      if (candidatos.length > 0) {
+        const escolhido = candidatos[0].nomeLimpo;
+        cacheModeloPorChave.set(apiKey, {
+          modelo: escolhido,
+          expiraEm: agora + TTL_CACHE_MODELO_MS,
+        });
+        return escolhido;
+      }
+    }
+  } catch (err) {
+    console.warn("[gemini-proxy] Falha ao consultar ListModels do Google Gemini:", err);
+  }
+
+  cacheModeloPorChave.set(apiKey, {
+    modelo: MODELO_FALLBACK_SEGURO,
+    expiraEm: agora + 5 * 60 * 1000, // Cache curto em caso de fallback para tentar ListModels novamente em breve
+  });
+  return MODELO_FALLBACK_SEGURO;
+}
+
 function sanitizarPayloadParaModelo(
   payloadBase: Record<string, unknown>,
   modelo: string
 ): Record<string, unknown> {
   const clone: Record<string, unknown> = { ...payloadBase };
+  const suportaThinking = /^gemini-(?:2\.5|3)/i.test(modelo);
   if (
-    !modelo.startsWith("gemini-2.5") &&
+    !suportaThinking &&
     clone.generationConfig &&
     typeof clone.generationConfig === "object"
   ) {
@@ -136,7 +223,7 @@ serve(async (req: Request) => {
       safetySettings,
       systemInstruction,
       tools,
-      model = MODELO_PADRAO_GEMINI,
+      model,
       action = "generateContent",
       api_key,
       apiKey,
@@ -218,10 +305,11 @@ serve(async (req: Request) => {
       if (tools) googlePayload.tools = tools;
     }
 
-    let cleanModel = String(model || MODELO_PADRAO_GEMINI).replace(/^models\//, "").trim();
-    if (!cleanModel || MODELOS_DESCONTINUADOS.has(cleanModel.toLowerCase())) {
-      cleanModel = MODELO_PADRAO_GEMINI;
-    }
+    // 4. Sanitização obrigatória e auto-descoberta dinâmica do modelo Flash mais recente
+    const requestedModel = String(model || "").replace(/^models\//i, "").trim();
+    let cleanModel = ehModeloObsoleto(requestedModel)
+      ? await resolverModeloFlashMaisRecente(resolvedApiKey)
+      : requestedModel;
 
     const actionLimpa = String(action || "generateContent").trim() || "generateContent";
 
@@ -232,15 +320,29 @@ serve(async (req: Request) => {
       googlePayload
     );
 
-    // Fallback automático caso a Google API retorne 404 para o modelo primário
-    if (resultadoGoogle.response.status === 404 && cleanModel !== MODELO_FALLBACK_GEMINI) {
-      console.warn(`[gemini-proxy] Modelo ${cleanModel} retornou 404. Tentando fallback ${MODELO_FALLBACK_GEMINI}...`);
-      resultadoGoogle = await chamarGoogleGemini(
-        MODELO_FALLBACK_GEMINI,
-        actionLimpa,
-        resolvedApiKey,
-        googlePayload
+    // 5. Retry automático se o modelo estiver indisponível ou descontinuado
+    const errInicial = resultadoGoogle.data?.error as { message?: string } | string | undefined;
+    const msgInicial =
+      typeof errInicial === "string" ? errInicial : String(errInicial?.message || "");
+    const modeloIndisponivel =
+      resultadoGoogle.response.status === 404 ||
+      /no longer available|not found|is not supported/i.test(msgInicial);
+
+    if (!resultadoGoogle.response.ok && modeloIndisponivel) {
+      console.warn(
+        `[gemini-proxy] Modelo ${cleanModel} indisponível (${resultadoGoogle.response.status}). Invalidando cache e consultando ListModels...`
       );
+      cacheModeloPorChave.delete(resolvedApiKey);
+      const modeloAtualizado = await resolverModeloFlashMaisRecente(resolvedApiKey, true);
+      if (modeloAtualizado && modeloAtualizado !== cleanModel) {
+        cleanModel = modeloAtualizado;
+        resultadoGoogle = await chamarGoogleGemini(
+          cleanModel,
+          actionLimpa,
+          resolvedApiKey,
+          googlePayload
+        );
+      }
     }
 
     if (!resultadoGoogle.response.ok) {

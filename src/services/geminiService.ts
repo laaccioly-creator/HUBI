@@ -845,7 +845,7 @@ export const executarRequisicaoGemini = async (
     safetySettings: restRequestBody.safetySettings || SAFETY_SETTINGS_VAREJO
   };
 
-  const modeloDesejado = modelInBody || 'gemini-2.5-flash';
+  const modeloDesejado = modelInBody || 'gemini-3.8-flash';
 
   // 1. Resolver chave local/loja para chamada direta de baixa latência (1 salto direto à Google API)
   let chaveParaContingencia = (apiKey || '').trim() || getGeminiApiKey();
@@ -894,7 +894,7 @@ export const executarRequisicaoGemini = async (
   }
 
   if (modelos.length === 0) {
-    modelos = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+    modelos = ['gemini-3.8-flash'];
   }
 
   let primeiroErro: string | null = null;
@@ -1287,7 +1287,7 @@ const MAPA_LOCAL_ATENDIMENTO_IA: Record<'loja' | 'externo' | 'ambos', string> = 
 
 /**
  * Gera ou melhora a descrição comercial do produto ou serviço para Catálogo Online e WhatsApp
- * em baixa latência via Edge Function `gemini-proxy` (`gemini-2.5-flash`, fallback `gemini-2.0-flash`).
+ * em baixa latência via Edge Function `gemini-proxy` (auto-descoberta dinâmica do Flash mais recente).
  */
 export const gerarDescricaoExclusivaIA = async (
   params: ParametrosDescricaoItemIA
@@ -1815,56 +1815,33 @@ interface GeminiProxyResponse {
 }
 
 /**
- * Invoca o Gemini estritamente via Edge Function `gemini-proxy` (Zero-Trust BYOK, sem chaves no front-end),
- * utilizando `gemini-2.5-flash` como modelo primário e `gemini-2.0-flash` como fallback.
+ * Invoca o Gemini estritamente via Edge Function `gemini-proxy` (Zero-Trust BYOK, sem chaves no front-end).
+ * A Edge Function resolve e faz cache dinâmico do modelo `gemini-*-flash` mais recente via ListModels.
  */
 async function invocarGeminiPreencherViaEdgeProxy(
   requestBody: Record<string, unknown>,
   lojaId?: string
 ): Promise<GeminiProxyResponse> {
-  const modelos: readonly string[] = ['gemini-2.5-flash', 'gemini-2.0-flash'];
-  let ultimoErro = 'Falha ao consultar Edge Function gemini-proxy.';
-
-  for (const modelo of modelos) {
-    let payloadModelo = requestBody;
-    if (
-      !modelo.startsWith('gemini-2.5') &&
-      requestBody.generationConfig &&
-      typeof requestBody.generationConfig === 'object' &&
-      'thinkingConfig' in requestBody.generationConfig
-    ) {
-      const { thinkingConfig: _omitido, ...genConfigSemThinking } =
-        requestBody.generationConfig as Record<string, unknown>;
-      payloadModelo = {
-        ...requestBody,
-        generationConfig: genConfigSemThinking
-      };
+  const { data, error } = await supabase.functions.invoke<GeminiProxyResponse>('gemini-proxy', {
+    body: {
+      model: 'gemini-3.8-flash',
+      action: 'generateContent',
+      requestBody,
+      loja_id: lojaId,
+      lojaId
     }
+  });
 
-    const { data, error } = await supabase.functions.invoke<GeminiProxyResponse>('gemini-proxy', {
-      body: {
-        model: modelo,
-        action: 'generateContent',
-        requestBody: payloadModelo,
-        loja_id: lojaId,
-        lojaId
-      }
-    });
-
-    if (!error && data && !data.error) {
-      return data;
-    }
-
-    const msgErro = await extrairMensagemErroEdgeFunction(error, data);
-    ultimoErro = msgErro || `Falha no modelo ${modelo}`;
-    console.warn(`[GeminiService] Fallback de modelo no proxy (${modelo}):`, ultimoErro);
+  if (!error && data && !data.error) {
+    return data;
   }
 
-  throw new Error(ultimoErro);
+  const msgErro = await extrairMensagemErroEdgeFunction(error, data);
+  throw new Error(msgErro || 'Falha ao consultar Edge Function gemini-proxy.');
 }
 
 /**
- * Atualiza/preenche um produto a partir do NOME COMERCIAL através do SerpApi Shopping + Jev (System One) + Gemini 2.5 Flash (via Edge Function).
+ * Atualiza/preenche um produto a partir do NOME COMERCIAL através do SerpApi Shopping + Jev (System One) + Gemini Flash (via Edge Function).
  * NUNCA envia imagens, NUNCA dispara busca redundante de fotos quando o formulário já possui imagens e NUNCA sobrescreve o nome informado pelo usuário.
  */
 export const atualizarProdutoExistenteComIA = async (dados: {
@@ -1916,7 +1893,7 @@ export const atualizarProdutoExistenteComIA = async (dados: {
   // 1. Disparo 100% paralelo (Promise.all):
   //    a) Pipeline Unificado Serper + JEV (passada única em PREENCHER_IA)
   //    b) Unidade de venda JEV
-  //    c) Chamada enxuta ao gemini-2.5-flash via Edge Function gemini-proxy (thinkingBudget: 0, maxOutputTokens: 450)
+  //    c) Chamada enxuta via Edge Function gemini-proxy (thinkingBudget: 0, maxOutputTokens: 450)
   //    Obs.: Desacoplado de busca de fotos (especialmente quando jaPossuiImagens === true).
   const unidadeJevPromise = catalogJevService.classificarUnidadeVenda({ nome: termoReferencia, descricao: dados.descricao }).catch(() => 'un');
   const contextoUnificadoPromise = catalogJevService.obterContextoUnificadoProdutoJev({

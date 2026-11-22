@@ -1058,7 +1058,7 @@ export const mercadoLivreJevService = {
     try {
       const requisicao = supabase.functions.invoke('gemini-proxy', {
         body: {
-          model: 'gemini-2.5-flash',
+          model: 'gemini-3.8-flash',
           action: 'generateContent',
           loja_id: lojaId,
           requestBody: {
