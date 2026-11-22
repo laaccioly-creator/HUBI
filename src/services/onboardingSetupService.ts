@@ -270,11 +270,13 @@ async function garantirSessaoAuthAtiva(lojaId: string): Promise<boolean> {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       sessaoAtual = sessionData?.session ?? null;
 
-      if (!sessionError && sessaoAtual?.access_token) {
-        const expiraEm = sessaoAtual.expires_at ?? 0;
-        if (expiraEm === 0 || expiraEm - agoraSegundos > MARGEM_EXPIRACAO_SESSAO_SEGUNDOS) {
-          return true;
-        }
+      if (sessionError || !sessaoAtual?.access_token) {
+        return false;
+      }
+
+      const expiraEm = sessaoAtual.expires_at ?? 0;
+      if (expiraEm === 0 || expiraEm - agoraSegundos > MARGEM_EXPIRACAO_SESSAO_SEGUNDOS) {
+        return true;
       }
 
       const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
@@ -284,25 +286,29 @@ async function garantirSessaoAuthAtiva(lojaId: string): Promise<boolean> {
 
       if (refreshError) {
         const errMeta = refreshError as { code?: string; status?: number; message?: string };
+        const msgRefresh = errMeta.message || 'erro desconhecido';
+        if (!msgRefresh.toLowerCase().includes('auth session missing')) {
+          logger.warn(
+            'onboardingSetupService',
+            'garantirSessaoAuthAtiva',
+            `[${errMeta.code || errMeta.status || 'AUTH'}] Falha ao renovar sessão Auth: ${msgRefresh}`,
+            {
+              loja_id: lojaId,
+              codigo_erro: errMeta.code || (errMeta.status ? String(errMeta.status) : null),
+            }
+          );
+        }
+      }
+    } catch (err) {
+      const msgCatch = err instanceof Error ? err.message : '';
+      if (!msgCatch.toLowerCase().includes('auth session missing')) {
         logger.warn(
           'onboardingSetupService',
           'garantirSessaoAuthAtiva',
-          `[${errMeta.code || errMeta.status || 'AUTH'}] Falha ao renovar sessão Auth: ${
-            errMeta.message || 'erro desconhecido'
-          }`,
-          {
-            loja_id: lojaId,
-            codigo_erro: errMeta.code || (errMeta.status ? String(errMeta.status) : null),
-          }
+          msgCatch || 'Exceção ao validar/renovar sessão Auth.',
+          { loja_id: lojaId }
         );
       }
-    } catch (err) {
-      logger.warn(
-        'onboardingSetupService',
-        'garantirSessaoAuthAtiva',
-        err instanceof Error ? err.message : 'Exceção ao validar/renovar sessão Auth.',
-        { loja_id: lojaId }
-      );
     }
 
     const expiraEm = sessaoAtual?.expires_at ?? 0;

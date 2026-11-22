@@ -417,8 +417,8 @@ export const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base
         let previewTempUrl: string | undefined;
         try {
           const comprimido = await comprimirFotoProduto(blobObtido, {
-            maxDimension: 1024,
-            quality: 0.78,
+            maxDimension: 800,
+            quality: 0.72,
             mimeType: 'image/jpeg'
           });
           previewTempUrl = comprimido.previewUrl;
@@ -779,6 +779,61 @@ export const SAFETY_SETTINGS_VAREJO = [
   }
 ];
 
+async function extrairMensagemErroEdgeFunction(
+  error: unknown,
+  data?: { error?: string | { message?: string }; detalhe?: string } | null
+): Promise<string> {
+  if (data?.error) {
+    const msgData = typeof data.error === 'string' ? data.error : data.error?.message;
+    if (msgData && msgData.trim()) return msgData.trim();
+  }
+
+  const errRecord = error as { context?: unknown; message?: string } | null;
+  const ctx = errRecord?.context;
+  if (ctx && typeof ctx === 'object') {
+    const respLike = ctx as {
+      clone?: () => Response;
+      json?: () => Promise<unknown>;
+      text?: () => Promise<string>;
+    };
+
+    try {
+      const fonte = typeof respLike.clone === 'function' ? respLike.clone() : respLike;
+      if (typeof fonte.json === 'function') {
+        const parsed = (await fonte.json()) as {
+          error?: string | { message?: string };
+          message?: string;
+        } | null;
+        const msgJson =
+          typeof parsed?.error === 'string'
+            ? parsed.error
+            : parsed?.error?.message || parsed?.message;
+        if (msgJson && msgJson.trim()) {
+          return msgJson.trim();
+        }
+      }
+    } catch {
+      try {
+        const fonteTxt = typeof respLike.clone === 'function' ? respLike.clone() : respLike;
+        if (typeof fonteTxt.text === 'function') {
+          const textoBruto = (await fonteTxt.text()).trim();
+          if (textoBruto && !textoBruto.startsWith('<')) {
+            return textoBruto.slice(0, 220);
+          }
+        }
+      } catch {
+        // Ignora falha caso o corpo da resposta já tenha sido lido
+      }
+    }
+  }
+
+  const msgCrua = errRecord?.message || '';
+  if (msgCrua.includes('non-2xx')) {
+    return 'O serviço de IA não conseguiu processar a solicitação no momento. Verifique a foto ou tente novamente.';
+  }
+  return msgCrua || 'Falha ao consultar o serviço de Inteligência Artificial.';
+}
+
 export const executarRequisicaoGemini = async (
   apiKey: string,
   requestBody: any,
@@ -790,7 +845,7 @@ export const executarRequisicaoGemini = async (
     safetySettings: restRequestBody.safetySettings || SAFETY_SETTINGS_VAREJO
   };
 
-  const modeloDesejado = modelInBody || 'gemini-3.8-flash';
+  const modeloDesejado = modelInBody || 'gemini-2.5-flash';
 
   // 1. Resolver chave local/loja para chamada direta de baixa latência (1 salto direto à Google API)
   let chaveParaContingencia = (apiKey || '').trim() || getGeminiApiKey();
@@ -808,20 +863,24 @@ export const executarRequisicaoGemini = async (
           model: modeloDesejado,
           action: 'generateContent',
           requestBody: payloadCompleto,
-          loja_id: lojaId
+          loja_id: lojaId,
+          lojaId
         }
       });
 
       if (!edgeErr && edgeData && !edgeData.error) {
         return edgeData;
       }
-      if (edgeData?.error) {
-        throw new Error(edgeData.error);
-      }
-    } catch (edgeCallErr: any) {
-      throw new Error(edgeCallErr?.message || 'Chave da API do Google Gemini não configurada no servidor ou na loja.');
+
+      const msgReal = await extrairMensagemErroEdgeFunction(edgeErr, edgeData);
+      throw new Error(msgReal);
+    } catch (edgeCallErr: unknown) {
+      const msg =
+        edgeCallErr instanceof Error
+          ? edgeCallErr.message
+          : 'Chave da API do Google Gemini não configurada no servidor ou na loja.';
+      throw new Error(msg);
     }
-    throw new Error('Chave da API do Google Gemini não configurada no servidor ou na loja.');
   }
 
   // 3. Execução direta ultrarrápida com cache inteligente de modelo ativo (evita GET /v1beta/models desnecessário)
@@ -1787,7 +1846,8 @@ async function invocarGeminiPreencherViaEdgeProxy(
         model: modelo,
         action: 'generateContent',
         requestBody: payloadModelo,
-        loja_id: lojaId
+        loja_id: lojaId,
+        lojaId
       }
     });
 
@@ -1795,12 +1855,9 @@ async function invocarGeminiPreencherViaEdgeProxy(
       return data;
     }
 
-    const msgErro =
-      typeof data?.error === 'string'
-        ? data.error
-        : data?.error?.message || error?.message || `Falha no modelo ${modelo}`;
-    ultimoErro = msgErro;
-    console.warn(`[GeminiService] Fallback de modelo no proxy (${modelo}):`, msgErro);
+    const msgErro = await extrairMensagemErroEdgeFunction(error, data);
+    ultimoErro = msgErro || `Falha no modelo ${modelo}`;
+    console.warn(`[GeminiService] Fallback de modelo no proxy (${modelo}):`, ultimoErro);
   }
 
   throw new Error(ultimoErro);

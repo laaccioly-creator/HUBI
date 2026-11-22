@@ -67,6 +67,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
   const [carregando, setCarregando] = useState<boolean>(false);
   const [identificandoFotoIA, setIdentificandoFotoIA] = useState<boolean>(false);
   const termoSimplificadoIARef = useRef<string>('');
+  const usuarioEditouBuscaRef = useRef<boolean>(false);
   const [fotosEncontradas, setFotosEncontradas] = useState<FotoResultadoInternet[]>([]);
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
   const [erro, setErro] = useState<string | null>(null);
@@ -137,12 +138,12 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
   }, [isOpen]);
 
   const realizarBusca = useCallback(
-    async (termo: string, termoSimplificadoOpcional?: string) => {
+    async (termo: string, termoSimplificadoOpcional?: string): Promise<number> => {
       const termoTratado = limparTermoParaBuscaGoogle(termo) || termo.trim();
 
       if (!termoTratado && !fotoReferencia) {
         setErro('Digite o nome do produto ou selecione uma foto para pesquisar.');
-        return;
+        return 0;
       }
 
       setCarregando(true);
@@ -188,6 +189,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
             'Nenhuma foto encontrada para este produto na web. Você também pode colar fotos copiadas da internet usando Ctrl+V ou colar o link abaixo.'
           );
         }
+        return resultados.length;
       } catch (err: unknown) {
         console.error('Erro na busca de fotos:', err);
         const mensagemErr = err instanceof Error ? err.message : '';
@@ -210,6 +212,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
         } else {
           setErro(mensagemErr || 'Erro ao buscar fotos na internet. Tente novamente.');
         }
+        return 0;
       } finally {
         setCarregando(false);
       }
@@ -221,6 +224,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
     if (!isOpen) {
       setIdentificandoFotoIA(false);
       termoSimplificadoIARef.current = '';
+      usuarioEditouBuscaRef.current = false;
       return;
     }
 
@@ -236,6 +240,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
     setImagensComErro(new Set());
     setFalhasOriginal(new Set());
     termoSimplificadoIARef.current = '';
+    usuarioEditouBuscaRef.current = false;
 
     if (fotoReferencia && ehTermoBuscaGenerico(termoTratado)) {
       const identificarEBuscarPorFoto = async () => {
@@ -258,7 +263,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
             setCarregando(false);
             setFotosEncontradas([]);
             setErro(
-              'Não foi possível identificar o produto automaticamente pela foto. Digite o nome ou marca do produto na barra de busca acima.'
+              'Não foi possível ler o rótulo pela IA; digite o nome do produto acima para buscar.'
             );
           }
         } catch {
@@ -267,14 +272,39 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
           setCarregando(false);
           setFotosEncontradas([]);
           setErro(
-            'Não foi possível identificar o produto automaticamente pela foto. Digite o nome ou marca do produto na barra de busca acima.'
+            'Não foi possível ler o rótulo pela IA; digite o nome do produto acima para buscar.'
           );
         }
       };
 
       void identificarEBuscarPorFoto();
     } else if (termoTratado) {
-      void realizarBusca(termoTratado);
+      // Caso o nome já esteja preenchido, busca imediatamente em paralelo com eventual leitura da foto
+      const buscaInicialPromise = realizarBusca(termoTratado);
+
+      if (fotoReferencia) {
+        const identParalelaPromise = identificarTermoBuscaPorFotoIA(
+          fotoReferencia,
+          segmentoEfetivo,
+          loja,
+          termoTratado
+        ).catch(() => null);
+
+        void Promise.all([buscaInicialPromise, identParalelaPromise]).then(
+          async ([qtdInicial, ident]) => {
+            if (cancelado || usuarioEditouBuscaRef.current) return;
+            if (
+              qtdInicial === 0 &&
+              ident?.termoCompleto &&
+              ident.termoCompleto.toLowerCase() !== termoTratado.toLowerCase()
+            ) {
+              setTermoBusca(ident.termoCompleto);
+              termoSimplificadoIARef.current = ident.termoSimplificado || '';
+              await realizarBusca(ident.termoCompleto, ident.termoSimplificado);
+            }
+          }
+        );
+      }
     } else {
       setFotosEncontradas([]);
     }
@@ -430,6 +460,7 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
                 type="text"
                 value={termoBusca}
                 onChange={(e) => {
+                  usuarioEditouBuscaRef.current = true;
                   termoSimplificadoIARef.current = '';
                   setTermoBusca(e.target.value);
                 }}

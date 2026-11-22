@@ -9,10 +9,18 @@ const cacheModeloAtivo = new Map<string, string>();
 // Cache em memória de todos os modelos compatíveis ordenados por chave de API
 const cacheModelosValidos = new Map<string, string[]>();
 // Registro em memória de modelos que retornaram 404 para nunca repetir tentativa lenta
-const modelosIndisponiveis404 = new Set<string>(['gemini-2.5-flash-lite', 'gemini-3.5-flash-lite']);
+const modelosIndisponiveis404 = new Set<string>([
+  'gemini-3.8-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-3.5-flash-lite'
+]);
 
 // Fallback de contingência caso a rede do cliente oscile ou a listagem falhe temporariamente
-export const MODELOS_FALLBACK_CONTINGENCIA = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-8b'];
+export const MODELOS_FALLBACK_CONTINGENCIA = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash'
+];
 
 export const isModeloIndisponivel = (modelo: string): boolean => {
   return modelosIndisponiveis404.has((modelo || '').replace(/^models\//, '').toLowerCase());
@@ -56,14 +64,18 @@ export const invalidarCacheGemini = (apiKey?: string): void => {
 
 /**
  * Extrai o peso/score de um modelo Gemini para ordenação:
- * Prioriza a família Flash e o modelo oficial mais recente (gemini-3.8-flash).
+ * Prioriza a família Flash e o modelo oficial estável (gemini-2.5-flash).
  */
 export const calcularScoreModelo = (nome: string): number => {
   const limpo = nome.toLowerCase().replace('models/', '');
   let score = 0;
 
-  // Bloqueio imediato de modelos descontinuados pela Google API
-  if (limpo.includes('gemini-2.5-flash-lite')) {
+  // Bloqueio imediato de modelos descontinuados ou inexistentes na Google API
+  if (
+    limpo.includes('gemini-2.5-flash-lite') ||
+    limpo.includes('gemini-3.8-flash') ||
+    limpo.includes('gemini-3.5-flash-lite')
+  ) {
     return -1000;
   }
 
@@ -71,15 +83,12 @@ export const calcularScoreModelo = (nome: string): number => {
   if (limpo.includes('flash')) {
     score += 1000;
   }
-  // Modelo primário recomendado para o Radar de Preços com Google Search e Varejo
-  if (limpo === 'gemini-3.8-flash') {
+  // Modelo primário recomendado para visão multimodal, Radar de Preços e Varejo
+  if (limpo === 'gemini-2.5-flash') {
     score += 1500;
   }
-  if (limpo === 'gemini-3.5-flash-lite' || limpo === 'gemini-3.5-flash') {
-    score += 600;
-  }
   if (limpo === 'gemini-2.0-flash') {
-    score += 500;
+    score += 600;
   }
   if (limpo === 'gemini-1.5-flash') {
     score += 450;
