@@ -37,7 +37,7 @@ import {
   registrarModeloIndisponivel,
   testarChaveGemini
 } from './geminiClient';
-import { comprimirFotoProduto } from '../utils/imageCompressor';
+import { comprimirFotoProduto, OPCOES_COMPRESSAO_VISAO_IA } from '../utils/imageCompressor';
 
 export {
   SerpApiQuotaError,
@@ -416,11 +416,7 @@ export const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base
       if (blobObtido) {
         let previewTempUrl: string | undefined;
         try {
-          const comprimido = await comprimirFotoProduto(blobObtido, {
-            maxDimension: 800,
-            quality: 0.72,
-            mimeType: 'image/jpeg'
-          });
+          const comprimido = await comprimirFotoProduto(blobObtido, OPCOES_COMPRESSAO_VISAO_IA);
           previewTempUrl = comprimido.previewUrl;
           resolve({
             base64: comprimido.base64Limpo,
@@ -501,8 +497,8 @@ export const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base
       return;
     }
 
-    // Fast-path: Se já for data:image e for leve (< 250KB), extrai direto em < 1ms sem sobrecarga de canvas
-    if (target.startsWith('data:image') && target.length < 250000) {
+    // Fast-path: Se já for data:image e for leve (< 95KB / ~70KB binário), extrai direto em < 1ms
+    if (target.startsWith('data:image') && target.length < 95000) {
       const mimeMatch = target.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,/);
       const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
       const clean = target.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
@@ -527,7 +523,8 @@ export const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base
       finalizado = true;
       clearTimeout(timerFallback);
 
-      const maxDim = 380;
+      const maxDim = OPCOES_COMPRESSAO_VISAO_IA.maxDimension ?? 640;
+      const qualidadeVisao = OPCOES_COMPRESSAO_VISAO_IA.quality ?? 0.70;
       let width = img.width;
       let height = img.height;
 
@@ -542,8 +539,8 @@ export const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base
       }
 
       let canvas: HTMLCanvasElement | null = document.createElement('canvas');
-      canvas.width = width || 380;
-      canvas.height = height || 380;
+      canvas.width = width || maxDim;
+      canvas.height = height || maxDim;
       let ctx: CanvasRenderingContext2D | null = canvas.getContext('2d');
       try {
         if (!ctx) {
@@ -553,7 +550,7 @@ export const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base
         }
 
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.65);
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', qualidadeVisao);
         const cleanBase64 = compressedDataUrl.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
 
         resolve({
@@ -1494,6 +1491,20 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido neste formato:
     };
   } catch (err) {
     console.warn('Aviso ao identificar termo de busca visual pela foto:', err);
+    if (err instanceof Error) {
+      const msgLower = err.message.toLowerCase();
+      if (
+        msgLower.includes('chave') ||
+        msgLower.includes('cota') ||
+        msgLower.includes('permiss') ||
+        msgLower.includes('configurada') ||
+        msgLower.includes('inválida') ||
+        msgLower.includes('recusou') ||
+        msgLower.includes('demorou')
+      ) {
+        throw err;
+      }
+    }
     return null;
   }
 };
@@ -1824,7 +1835,7 @@ async function invocarGeminiPreencherViaEdgeProxy(
 ): Promise<GeminiProxyResponse> {
   const { data, error } = await supabase.functions.invoke<GeminiProxyResponse>('gemini-proxy', {
     body: {
-      model: 'gemini-3.8-flash',
+      model: 'gemini-2.5-flash',
       action: 'generateContent',
       requestBody,
       loja_id: lojaId,

@@ -10,16 +10,22 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const MODELO_FALLBACK_SEGURO = "gemini-3.8-flash";
-const TTL_CACHE_MODELO_MS = 60 * 60 * 1000; // 60 minutos
+const MODELOS_RAPIDOS_HOMOLOGADOS = [
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-3.8-flash",
+] as const;
+
+const TIMEOUT_CHAMADA_GOOGLE_MS = 12000;
+const TIMEOUT_LIST_MODELS_MS = 4000;
 const REGEX_MODELO_FLASH_PADRAO = /^models\/gemini-(\d+(?:\.\d+)?)-flash$/i;
 
-interface EntradaCacheModelo {
-  modelo: string;
-  expiraEm: number;
+interface ResultadoChamadaGoogle {
+  ok: boolean;
+  status: number;
+  timeout: boolean;
+  data: Record<string, unknown>;
 }
-
-const cacheModeloPorChave = new Map<string, EntradaCacheModelo>();
 
 function jsonResponse(payload: Record<string, unknown>, status: number): Response {
   return new Response(JSON.stringify(payload), {
@@ -31,107 +37,47 @@ function jsonResponse(payload: Record<string, unknown>, status: number): Respons
   });
 }
 
-function ehModeloObsoleto(modelo: string): boolean {
-  const limpo = modelo.replace(/^models\//, "").trim().toLowerCase();
-  if (!limpo) return true;
-  return /gemini-(?:1\.0|1\.5|2\.0|2\.5)|flash-lite/i.test(limpo);
-}
-
-/**
- * Descobre dinamicamente o modelo gemini-*-flash mais recente disponível na conta Google AI Studio
- * com cache em memória de 60 minutos por chave.
- */
-async function resolverModeloFlashMaisRecente(
-  apiKey: string,
-  forcarAtualizacao = false
-): Promise<string> {
-  const agora = Date.now();
-  if (!forcarAtualizacao) {
-    const emCache = cacheModeloPorChave.get(apiKey);
-    if (emCache && agora < emCache.expiraEm) {
-      return emCache.modelo;
-    }
-  }
-
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-    const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
-    const res = await fetch(listUrl, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-
-    if (res.ok) {
-      const json = (await res.json().catch(() => ({}))) as {
-        models?: Array<{
-          name?: string;
-          supportedGenerationMethods?: string[];
-        }>;
-      };
-      const lista = Array.isArray(json.models) ? json.models : [];
-
-      const candidatos = lista
-        .filter((m) => {
-          const metodos = Array.isArray(m.supportedGenerationMethods)
-            ? m.supportedGenerationMethods
-            : [];
-          return metodos.includes("generateContent");
-        })
-        .map((m) => {
-          const nomeOriginal = String(m.name || "").trim();
-          const match = REGEX_MODELO_FLASH_PADRAO.exec(nomeOriginal);
-          if (!match) return null;
-          const versao = parseFloat(match[1]);
-          if (Number.isNaN(versao) || versao < 2.5) return null;
-          return {
-            nomeLimpo: nomeOriginal.replace(/^models\//i, ""),
-            versao,
-          };
-        })
-        .filter((item): item is { nomeLimpo: string; versao: number } => item !== null)
-        .sort((a, b) => b.versao - a.versao);
-
-      if (candidatos.length > 0) {
-        const escolhido = candidatos[0].nomeLimpo;
-        cacheModeloPorChave.set(apiKey, {
-          modelo: escolhido,
-          expiraEm: agora + TTL_CACHE_MODELO_MS,
-        });
-        return escolhido;
-      }
-    }
-  } catch (err) {
-    console.warn("[gemini-proxy] Falha ao consultar ListModels do Google Gemini:", err);
-  }
-
-  cacheModeloPorChave.set(apiKey, {
-    modelo: MODELO_FALLBACK_SEGURO,
-    expiraEm: agora + 5 * 60 * 1000, // Cache curto em caso de fallback para tentar ListModels novamente em breve
-  });
-  return MODELO_FALLBACK_SEGURO;
-}
-
 function sanitizarPayloadParaModelo(
   payloadBase: Record<string, unknown>,
   modelo: string
 ): Record<string, unknown> {
   const clone: Record<string, unknown> = { ...payloadBase };
   const suportaThinking = /^gemini-(?:2\.5|3)/i.test(modelo);
-  if (
-    !suportaThinking &&
-    clone.generationConfig &&
-    typeof clone.generationConfig === "object"
-  ) {
-    const genCfg = clone.generationConfig as Record<string, unknown>;
-    if ("thinkingConfig" in genCfg) {
-      const { thinkingConfig: _tc, ...restoGenCfg } = genCfg;
-      clone.generationConfig = restoGenCfg;
+  const ehTts = modelo.toLowerCase().includes("-tts");
+
+  const genCfgAtual =
+    clone.generationConfig && typeof clone.generationConfig === "object"
+      ? ({ ...(clone.generationConfig as Record<string, unknown>) })
+      : {};
+
+  if (suportaThinking && !ehTts) {
+    if (!("thinkingConfig" in genCfgAtual)) {
+      genCfgAtual.thinkingConfig = { thinkingBudget: 0 };
     }
+    clone.generationConfig = genCfgAtual;
+  } else if ("thinkingConfig" in genCfgAtual) {
+    const { thinkingConfig: _tc, ...restoGenCfg } = genCfgAtual;
+    clone.generationConfig = restoGenCfg;
   }
+
   return clone;
+}
+
+async function fetchComTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 async function chamarGoogleGemini(
@@ -139,70 +85,158 @@ async function chamarGoogleGemini(
   action: string,
   apiKey: string,
   payloadBase: Record<string, unknown>
-): Promise<{ response: Response; data: Record<string, unknown> }> {
+): Promise<ResultadoChamadaGoogle> {
   const googleUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:${action}?key=${apiKey}`;
   let payloadAtual = sanitizarPayloadParaModelo(payloadBase, modelo);
 
-  let response = await fetch(googleUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payloadAtual),
-  });
-
-  if (
-    response.status === 400 &&
-    payloadAtual.generationConfig &&
-    typeof payloadAtual.generationConfig === "object"
-  ) {
-    const genCfg = payloadAtual.generationConfig as Record<string, unknown>;
-    if (genCfg.thinkingConfig || genCfg.responseSchema) {
-      const { thinkingConfig: _tc, responseSchema: _rs, ...cleanGenCfg } = genCfg;
-      payloadAtual = {
-        ...payloadAtual,
-        generationConfig: cleanGenCfg,
-      };
-      response = await fetch(googleUrl, {
+  try {
+    let response = await fetchComTimeout(
+      googleUrl,
+      {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payloadAtual),
-      });
-    }
-  }
+      },
+      TIMEOUT_CHAMADA_GOOGLE_MS
+    );
 
-  const data = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-  return { response, data };
+    if (
+      response.status === 400 &&
+      payloadAtual.generationConfig &&
+      typeof payloadAtual.generationConfig === "object"
+    ) {
+      const genCfg = payloadAtual.generationConfig as Record<string, unknown>;
+      if (genCfg.thinkingConfig || genCfg.responseSchema) {
+        const { thinkingConfig: _tc, responseSchema: _rs, ...cleanGenCfg } = genCfg;
+        payloadAtual = {
+          ...payloadAtual,
+          generationConfig: cleanGenCfg,
+        };
+        response = await fetchComTimeout(
+          googleUrl,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payloadAtual),
+          },
+          TIMEOUT_CHAMADA_GOOGLE_MS
+        );
+      }
+    }
+
+    const data = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+    return {
+      ok: response.ok,
+      status: response.status,
+      timeout: false,
+      data,
+    };
+  } catch (err: unknown) {
+    const isTimeout = err instanceof Error && err.name === "AbortError";
+    if (isTimeout) {
+      console.warn(`[gemini-proxy] Timeout (${TIMEOUT_CHAMADA_GOOGLE_MS}ms) no modelo ${modelo}.`);
+      return { ok: false, status: 504, timeout: true, data: {} };
+    }
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[gemini-proxy] Falha de rede no modelo ${modelo}:`, msg);
+    return {
+      ok: false,
+      status: 502,
+      timeout: false,
+      data: { error: { message: msg } },
+    };
+  }
+}
+
+async function resolverModeloFlashViaListModels(apiKey: string): Promise<string | null> {
+  try {
+    const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+    const res = await fetchComTimeout(
+      listUrl,
+      {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      },
+      TIMEOUT_LIST_MODELS_MS
+    );
+
+    if (!res.ok) return null;
+
+    const json = (await res.json().catch(() => ({}))) as {
+      models?: Array<{
+        name?: string;
+        supportedGenerationMethods?: string[];
+      }>;
+    };
+    const lista = Array.isArray(json.models) ? json.models : [];
+
+    const candidatos = lista
+      .filter((m) => {
+        const metodos = Array.isArray(m.supportedGenerationMethods)
+          ? m.supportedGenerationMethods
+          : [];
+        return metodos.includes("generateContent");
+      })
+      .map((m) => {
+        const nomeOriginal = String(m.name || "").trim();
+        const match = REGEX_MODELO_FLASH_PADRAO.exec(nomeOriginal);
+        if (!match) return null;
+        const versao = parseFloat(match[1]);
+        if (Number.isNaN(versao) || versao < 2.5) return null;
+        return {
+          nomeLimpo: nomeOriginal.replace(/^models\//i, ""),
+          versao,
+        };
+      })
+      .filter((item): item is { nomeLimpo: string; versao: number } => item !== null)
+      .sort((a, b) => b.versao - a.versao);
+
+    return candidatos[0]?.nomeLimpo || null;
+  } catch {
+    return null;
+  }
+}
+
+function extrairDetalheErroGoogle(data: Record<string, unknown>, status: number): string {
+  const errObj = data?.error as { message?: string } | string | undefined;
+  if (typeof errObj === "string" && errObj.trim()) return errObj.trim();
+  if (errObj && typeof errObj === "object" && errObj.message) {
+    return String(errObj.message).trim();
+  }
+  return `HTTP ${status}`;
 }
 
 function traduzirErroGooglePtBr(status: number, detalhe: string): { statusHttp: number; error: string } {
   if (status === 401 || status === 403) {
     return {
       statusHttp: 422,
-      error: "Chave da API do Google Gemini inválida ou sem permissão.",
+      error: "Chave de API do Google Gemini inválida ou sem cota. Verifique em Configurações > IA.",
     };
   }
   if (status === 429) {
     return {
       statusHttp: 429,
-      error: "Limite temporário de requisições da IA atingido. Aguarde alguns segundos e tente novamente.",
+      error: "Limite de cota da API do Google Gemini atingido. Aguarde alguns segundos ou verifique em Configurações > IA.",
     };
   }
   if (status === 400) {
+    const resumo = detalhe ? detalhe.slice(0, 180) : "parâmetros ou imagem inválidos";
     return {
       statusHttp: 400,
-      error: "Não foi possível processar o conteúdo enviado para a IA. Tente com outra foto ou texto.",
+      error: `A API do Google Gemini recusou a solicitação: ${resumo}.`,
     };
   }
-  if (status >= 500) {
+  if (status === 504) {
     return {
-      statusHttp: 502,
-      error: "O serviço do Google Gemini está temporariamente indisponível. Tente novamente em instantes.",
+      statusHttp: 504,
+      error: "A leitura pela IA demorou mais que o esperado. Tente novamente em instantes.",
     };
   }
   return {
-    statusHttp: 422,
+    statusHttp: status >= 500 ? 502 : 422,
     error: detalhe
-      ? "Não foi possível obter resposta válida da IA para esta solicitação."
-      : "Falha ao consultar o motor de Inteligência Artificial.",
+      ? `Erro ao consultar a API do Google Gemini (${status}): ${detalhe.slice(0, 180)}`
+      : "Não foi possível obter resposta válida da API do Google Gemini.",
   };
 }
 
@@ -285,8 +319,9 @@ serve(async (req: Request) => {
       return jsonResponse(
         {
           ok: false,
-          error: "Chave da API do Google Gemini não configurada no servidor ou na loja.",
+          error: "Chave de API do Google Gemini não configurada. Verifique em Configurações > IA.",
           detalhe: "chave_ausente",
+          statusGoogle: 401,
         },
         400
       );
@@ -305,72 +340,95 @@ serve(async (req: Request) => {
       if (tools) googlePayload.tools = tools;
     }
 
-    // 4. Sanitização obrigatória e auto-descoberta dinâmica do modelo Flash mais recente
+    // 4. Montagem da lista ordenada de modelos rápidos homologados (sem bloquear no ListModels)
     const requestedModel = String(model || "").replace(/^models\//i, "").trim();
-    let cleanModel = ehModeloObsoleto(requestedModel)
-      ? await resolverModeloFlashMaisRecente(resolvedApiKey)
-      : requestedModel;
+    const filaModelos: string[] = requestedModel.toLowerCase().includes("-tts")
+      ? [requestedModel, ...MODELOS_RAPIDOS_HOMOLOGADOS]
+      : (MODELOS_RAPIDOS_HOMOLOGADOS as readonly string[]).includes(requestedModel)
+        ? [requestedModel, ...MODELOS_RAPIDOS_HOMOLOGADOS.filter((m) => m !== requestedModel)]
+        : [...MODELOS_RAPIDOS_HOMOLOGADOS];
 
     const actionLimpa = String(action || "generateContent").trim() || "generateContent";
 
-    let resultadoGoogle = await chamarGoogleGemini(
-      cleanModel,
-      actionLimpa,
-      resolvedApiKey,
-      googlePayload
-    );
+    let ultimoResultado: ResultadoChamadaGoogle | null = null;
+    let todosForam404 = true;
 
-    // 5. Retry automático se o modelo estiver indisponível ou descontinuado
-    const errInicial = resultadoGoogle.data?.error as { message?: string } | string | undefined;
-    const msgInicial =
-      typeof errInicial === "string" ? errInicial : String(errInicial?.message || "");
-    const modeloIndisponivel =
-      resultadoGoogle.response.status === 404 ||
-      /no longer available|not found|is not supported/i.test(msgInicial);
-
-    if (!resultadoGoogle.response.ok && modeloIndisponivel) {
-      console.warn(
-        `[gemini-proxy] Modelo ${cleanModel} indisponível (${resultadoGoogle.response.status}). Invalidando cache e consultando ListModels...`
+    for (const modeloAtual of filaModelos) {
+      const res = await chamarGoogleGemini(
+        modeloAtual,
+        actionLimpa,
+        resolvedApiKey,
+        googlePayload
       );
-      cacheModeloPorChave.delete(resolvedApiKey);
-      const modeloAtualizado = await resolverModeloFlashMaisRecente(resolvedApiKey, true);
-      if (modeloAtualizado && modeloAtualizado !== cleanModel) {
-        cleanModel = modeloAtualizado;
-        resultadoGoogle = await chamarGoogleGemini(
-          cleanModel,
+
+      if (res.ok) {
+        return jsonResponse(res.data, 200);
+      }
+
+      ultimoResultado = res;
+      const detalheAtual = extrairDetalheErroGoogle(res.data, res.status);
+      const ehIndisponibilidadeModelo =
+        res.status === 404 ||
+        /no longer available|not found|is not supported/i.test(detalheAtual);
+
+      // Erros definitivos de chave/cota/payload não devem esperar outros modelos
+      if (res.status === 400 || res.status === 401 || res.status === 403 || res.status === 429) {
+        const traduzido = traduzirErroGooglePtBr(res.status, detalheAtual);
+        return jsonResponse(
+          {
+            ok: false,
+            error: traduzido.error,
+            detalhe: detalheAtual,
+            statusGoogle: res.status,
+          },
+          traduzido.statusHttp
+        );
+      }
+
+      if (!ehIndisponibilidadeModelo) {
+        todosForam404 = false;
+      }
+    }
+
+    // 5. Contingência extrema: consulta ListModels (timeout 4s) apenas se todos retornaram 404
+    if (todosForam404) {
+      const modeloDescoberto = await resolverModeloFlashViaListModels(resolvedApiKey);
+      if (modeloDescoberto && !filaModelos.includes(modeloDescoberto)) {
+        const resDescoberto = await chamarGoogleGemini(
+          modeloDescoberto,
           actionLimpa,
           resolvedApiKey,
           googlePayload
         );
+        if (resDescoberto.ok) {
+          return jsonResponse(resDescoberto.data, 200);
+        }
+        ultimoResultado = resDescoberto;
       }
     }
 
-    if (!resultadoGoogle.response.ok) {
-      const errObj = resultadoGoogle.data?.error as { message?: string } | string | undefined;
-      const detalheGoogle =
-        typeof errObj === "string"
-          ? errObj
-          : String(errObj?.message || resultadoGoogle.response.statusText || "");
-      const traduzido = traduzirErroGooglePtBr(resultadoGoogle.response.status, detalheGoogle);
+    const statusFinal = ultimoResultado?.status || 502;
+    const detalheFinal = ultimoResultado
+      ? extrairDetalheErroGoogle(ultimoResultado.data, statusFinal)
+      : "timeout_ou_rede";
+    const traduzidoFinal = traduzirErroGooglePtBr(statusFinal, detalheFinal);
 
-      return jsonResponse(
-        {
-          ok: false,
-          error: traduzido.error,
-          detalhe: detalheGoogle || `HTTP ${resultadoGoogle.response.status}`,
-        },
-        traduzido.statusHttp
-      );
-    }
-
-    return jsonResponse(resultadoGoogle.data, 200);
+    return jsonResponse(
+      {
+        ok: false,
+        error: traduzidoFinal.error,
+        detalhe: ultimoResultado?.timeout ? "timeout_12s" : detalheFinal,
+        statusGoogle: statusFinal,
+      },
+      traduzidoFinal.statusHttp
+    );
   } catch (err: unknown) {
     const detalhe = err instanceof Error ? err.message : String(err);
     console.error("[gemini-proxy] Erro ao processar requisição:", err);
     return jsonResponse(
       {
         ok: false,
-        error: "Falha interna ao processar requisição Gemini.",
+        error: `Falha interna no proxy de IA: ${detalhe.slice(0, 160)}`,
         detalhe,
       },
       500

@@ -22,6 +22,8 @@ const NOMES_TERMO_GENERICO = new Set([
   'servico'
 ]);
 
+const TIMEOUT_IDENTIFICACAO_FOTO_IA_MS = 15000;
+
 function ehTermoBuscaGenerico(termo: string): boolean {
   return NOMES_TERMO_GENERICO.has(termo.trim().toLowerCase());
 }
@@ -246,12 +248,16 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
       const identificarEBuscarPorFoto = async () => {
         setCarregando(true);
         setIdentificandoFotoIA(true);
+        let timerTimeoutId: number | undefined;
         try {
-          const ident = await identificarTermoBuscaPorFotoIA(
-            fotoReferencia,
-            segmentoEfetivo,
-            loja
-          );
+          const ident = await Promise.race([
+            identificarTermoBuscaPorFotoIA(fotoReferencia, segmentoEfetivo, loja),
+            new Promise<never>((_, reject) => {
+              timerTimeoutId = window.setTimeout(() => {
+                reject(new Error('TIMEOUT_VISAO_IA'));
+              }, TIMEOUT_IDENTIFICACAO_FOTO_IA_MS);
+            })
+          ]);
           if (cancelado) return;
           setIdentificandoFotoIA(false);
 
@@ -266,14 +272,26 @@ export const ModalPesquisaFotosInternet: React.FC<ModalPesquisaFotosInternetProp
               'Não foi possível ler o rótulo pela IA; digite o nome do produto acima para buscar.'
             );
           }
-        } catch {
+        } catch (err: unknown) {
           if (cancelado) return;
           setIdentificandoFotoIA(false);
           setCarregando(false);
           setFotosEncontradas([]);
-          setErro(
-            'Não foi possível ler o rótulo pela IA; digite o nome do produto acima para buscar.'
-          );
+          if (err instanceof Error && err.message === 'TIMEOUT_VISAO_IA') {
+            setErro(
+              'A leitura da foto pela IA demorou mais que o esperado. Digite o nome do produto acima para buscar.'
+            );
+          } else if (err instanceof Error && err.message.trim()) {
+            setErro(err.message.trim());
+          } else {
+            setErro(
+              'Não foi possível ler o rótulo pela IA; digite o nome do produto acima para buscar.'
+            );
+          }
+        } finally {
+          if (timerTimeoutId !== undefined) {
+            window.clearTimeout(timerTimeoutId);
+          }
         }
       };
 

@@ -24,6 +24,12 @@ const MAX_DIMENSION_PADRAO = 1024;
 const QUALITY_PADRAO = 0.78;
 const MIME_TYPE_PADRAO = 'image/jpeg';
 
+export const OPCOES_COMPRESSAO_VISAO_IA: CompressOptions = {
+  maxDimension: 640,
+  quality: 0.70,
+  mimeType: 'image/jpeg'
+};
+
 function calcularDimensoesProporcionais(
   origWidth: number,
   origHeight: number,
