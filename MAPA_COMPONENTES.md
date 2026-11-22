@@ -127,6 +127,7 @@
 | **Estoque de Produtos Desktop** | `src/components/ProdutosEstoque.tsx` | Catálogo geral desktop com filtros por categoria, saldo de estoque, custo, margens e ações em lote. |
 | **Gestão de Produtos Mobile** | `src/components/ProdutosMobile.tsx` | Gestão completa e fluida de produtos no celular com cards responsivos e edição rápida. |
 | **Cadastro e Edição de Produto** | `src/components/ProdutoCadastro.tsx` | Formulário completo com grade de até 2 eixos de variação, preços progressivos (Atacado/Autoatacado) e fotos. |
+| **Câmera In-App Mobile (Anti-OOM)** | `src/components/ui/ModalCameraCapturaMobile.tsx` | Modal leve de captura fotográfica via WebRTC (`getUserMedia`) com downsampling nativo, fallback sem `capture` e liberação imediata de memória para cadastro de produtos e análise IA. |
 | **Detalhes Rápidos do Produto** | `src/components/ModalDetalhesProduto.tsx` | Ficha técnica com estoque de cada variação, SKU e código de barras. |
 | **Entrada Rápida de Estoque** | `src/components/ModalEntradaEstoque.tsx` | Lançamento ágil de compras e ajustes com atualização do custo médio e auditoria de movimentação. |
 | **Gestão de Categorias** | `src/components/ModalGerenciarCategorias.tsx` | Modal para criação, edição e ordenação de categorias da loja. |

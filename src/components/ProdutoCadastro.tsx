@@ -91,7 +91,8 @@ import {
   ofertaCorrespondeAoModeloPesquisado
 } from '../services/serpApiService';
 import { catalogJevService } from '../services/catalogJevService';
-import { comprimirFotoProduto } from '../utils/imageCompressor';
+import { comprimirFotoProduto, type CompressResult } from '../utils/imageCompressor';
+import { ModalCameraCapturaMobile } from './ui/ModalCameraCapturaMobile';
 
 export interface PrecoConcorrente {
   loja: string;
@@ -131,22 +132,24 @@ export interface ProdutoSugeridoIA {
   foto_url?: string;
 }
 
-const comprimirArquivoImagem = async (file: File | Blob): Promise<{ blob: Blob; dataUrl: string }> => {
-  const { file: blob, base64: dataUrl } = await comprimirFotoProduto(file, {
-    maxDimension: 800,
-    quality: 0.50
+const comprimirArquivoImagem = async (
+  file: File | Blob
+): Promise<{ blob: Blob; dataUrl: string; previewUrl: string }> => {
+  const { blob, dataUrl, previewUrl } = await comprimirFotoProduto(file, {
+    maxDimension: 1024,
+    quality: 0.78
   });
-  return { blob, dataUrl };
+  return { blob, dataUrl, previewUrl };
 };
 
 // Cache em memória do Base64 das fotos para análise instantânea pela IA sem precisar baixar da nuvem
 const fotoBase64Cache = new Map<string, string>();
 
-const uploadFotoParaSupabase = async (
-  file: File,
+const uploadResultadoComprimidoParaSupabase = async (
+  blob: Blob,
+  dataUrl: string,
   lojaId: string
 ): Promise<{ publicUrl: string; dataUrl: string }> => {
-  const { blob, dataUrl } = await comprimirArquivoImagem(file);
   const ext = 'jpg';
   const nomeArquivo = `${lojaId || 'geral'}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
 
@@ -181,6 +184,20 @@ const uploadFotoParaSupabase = async (
   } catch (err) {
     console.warn('Erro ao salvar no Storage:', err);
     return { publicUrl: dataUrl, dataUrl };
+  }
+};
+
+const uploadFotoParaSupabase = async (
+  file: File,
+  lojaId: string
+): Promise<{ publicUrl: string; dataUrl: string }> => {
+  const { blob, dataUrl, previewUrl } = await comprimirArquivoImagem(file);
+  try {
+    return await uploadResultadoComprimidoParaSupabase(blob, dataUrl, lojaId);
+  } finally {
+    if (previewUrl && previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewUrl);
+    }
   }
 };
 
@@ -603,15 +620,46 @@ export const ProdutoCadastro: React.FC = () => {
   const [modalDuvidaAberto, setModalDuvidaAberto] = useState<boolean>(false);
   const [opcoesDuvidaIA, setOpcoesDuvidaIA] = useState<ProdutoSugeridoIA[]>([]);
 
-  // Refs de Câmera e Arquivo
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+  // Refs de Galeria e Controle de ObjectURLs temporárias
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const previewUrlsRef = useRef<Set<string>>(new Set());
 
-  // Câmera Ao Vivo In-App (WebRTC Stream) para evitar OOM no Android
+  const registrarPreviewUrl = useCallback((url?: string) => {
+    if (url && url.startsWith('blob:')) {
+      previewUrlsRef.current.add(url);
+    }
+  }, []);
+
+  const revogarPreviewUrl = useCallback((url?: string) => {
+    if (url && url.startsWith('blob:')) {
+      try {
+        URL.revokeObjectURL(url);
+      } catch {
+        // Ignora caso já tenha sido revogada
+      }
+      previewUrlsRef.current.delete(url);
+    }
+  }, []);
+
+  const revogarPreviewUrls = useCallback(() => {
+    previewUrlsRef.current.forEach((url) => {
+      try {
+        URL.revokeObjectURL(url);
+      } catch {
+        // Ignora caso já tenha sido revogada
+      }
+    });
+    previewUrlsRef.current.clear();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      revogarPreviewUrls();
+    };
+  }, [revogarPreviewUrls]);
+
+  // Câmera Ao Vivo In-App (ModalCameraCapturaMobile - anti-OOM no Android)
   const [modalCameraAoVivoAberto, setModalCameraAoVivoAberto] = useState<boolean>(false);
-  const [cameraAoVivoCarregando, setCameraAoVivoCarregando] = useState<boolean>(false);
-  const [streamCameraAoVivo, setStreamCameraAoVivo] = useState<MediaStream | null>(null);
-  const videoAoVivoRef = useRef<HTMLVideoElement | null>(null);
 
   const CHAVE_RASCUNHO = `hubi_rascunho_novo_produto_${loja?.id || 'padrao'}`;
 
@@ -977,8 +1025,9 @@ export const ProdutoCadastro: React.FC = () => {
     setDadosMercado(null);
     setSucessoIAMsg(null);
     setOpcoesDuvidaIA([]);
+    revogarPreviewUrls();
     setTemAlteracoesNaoSalvas(false);
-  }, [CHAVE_RASCUNHO, setTemAlteracoesNaoSalvas]);
+  }, [CHAVE_RASCUNHO, revogarPreviewUrls, setTemAlteracoesNaoSalvas]);
 
   // Listener para evento global de descarte de alterações
   useEffect(() => {
@@ -994,6 +1043,7 @@ export const ProdutoCadastro: React.FC = () => {
   // Saída confirmada para a listagem de produtos
   const handleVoltarParaProdutos = useCallback(() => {
     verificarSaidaComConfirmacao(() => {
+      revogarPreviewUrls();
       setTemAlteracoesNaoSalvas(false);
       setSnapshotInicial('');
       try {
@@ -1002,7 +1052,7 @@ export const ProdutoCadastro: React.FC = () => {
       } catch {}
       navigate('/products');
     });
-  }, [verificarSaidaComConfirmacao, setTemAlteracoesNaoSalvas, CHAVE_RASCUNHO, navigate]);
+  }, [verificarSaidaComConfirmacao, revogarPreviewUrls, setTemAlteracoesNaoSalvas, CHAVE_RASCUNHO, navigate]);
 
   // Interceptação de ESC para sair do formulário com confirmação de alterações pendentes
   useEffect(() => {
@@ -1595,92 +1645,44 @@ export const ProdutoCadastro: React.FC = () => {
     }
   };
 
-  // Câmera Ao Vivo In-App (WebRTC Stream): 1280x720 ideal sem estourar memória do Android
-  const iniciarCameraAoVivo = async () => {
-    try {
-      setCameraAoVivoCarregando(true);
-      setModalCameraAoVivoAberto(true);
+  // Recebe foto já comprimida da Câmera In-App (ModalCameraCapturaMobile)
+  const handleFotoCapturadaCamera = async (resultado: CompressResult) => {
+    registrarPreviewUrl(resultado.previewUrl);
 
-      if (streamCameraAoVivo) {
-        streamCameraAoVivo.getTracks().forEach(t => t.stop());
-        setStreamCameraAoVivo(null);
-      }
-
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1024, max: 1280 },
-          height: { ideal: 768, max: 720 }
-        },
-        audio: false
-      });
-
-      setStreamCameraAoVivo(mediaStream);
-      if (videoAoVivoRef.current) {
-        videoAoVivoRef.current.srcObject = mediaStream;
-        await videoAoVivoRef.current.play();
-      }
-    } catch (err) {
-      console.warn('Erro ao abrir câmera WebRTC:', err);
-      mostrarAviso('Não foi possível abrir a câmera diretamente. Selecione uma foto da galeria.');
-      setModalCameraAoVivoAberto(false);
-      cameraInputRef.current?.click();
-    } finally {
-      setCameraAoVivoCarregando(false);
+    if (fotosUrls.length >= 7) {
+      revogarPreviewUrl(resultado.previewUrl);
+      mostrarAviso('Você já atingiu o limite máximo de 7 fotos para este produto.');
+      return;
     }
-  };
-
-  const encerrarCameraAoVivo = () => {
-    if (streamCameraAoVivo) {
-      streamCameraAoVivo.getTracks().forEach(t => t.stop());
-      setStreamCameraAoVivo(null);
-    }
-    setModalCameraAoVivoAberto(false);
-  };
-
-  const capturarFotoAoVivo = async () => {
-    const video = videoAoVivoRef.current;
-    if (!video || video.readyState < 2) return;
 
     try {
-      const maxDim = 800;
-      let width = video.videoWidth || 800;
-      let height = video.videoHeight || 800;
+      setFazendoUploadFoto(true);
+      setUploadStatusMsg('Enviando foto capturada...');
 
-      if (width > maxDim || height > maxDim) {
-        if (width > height) {
-          height = Math.round((height * maxDim) / width);
-          width = maxDim;
-        } else {
-          width = Math.round((width * maxDim) / height);
-          height = maxDim;
+      const { publicUrl, dataUrl } = await uploadResultadoComprimidoParaSupabase(
+        resultado.blob,
+        resultado.dataUrl,
+        loja?.id || 'geral'
+      );
+      const urlFinal = publicUrl || dataUrl;
+
+      if (urlFinal) {
+        setFotosUrls(prev => {
+          if (prev.includes(urlFinal)) return prev;
+          return [urlFinal, ...prev].slice(0, 7);
+        });
+        if (!fotoPrincipal) {
+          setFotoPrincipal(urlFinal);
         }
       }
-
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      ctx.drawImage(video, 0, 0, width, height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.50);
-
-      // Limpeza imediata do canvas
-      ctx.clearRect(0, 0, width, height);
-      canvas.width = 0;
-      canvas.height = 0;
-
-      // Parar stream para liberar memória imediatamente
-      encerrarCameraAoVivo();
-
-      // Converter dataUrl em Blob para envio ao Supabase Storage / Fotos do Produto
-      const resBlob = await fetch(dataUrl).then(r => r.blob());
-      const fileFromBlob = new File([resBlob], `foto_${Date.now()}.jpg`, { type: 'image/jpeg' });
-      await handleProcessarArquivosImagens([fileFromBlob]);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Falha ao enviar a foto capturada.';
       console.error('Erro ao capturar foto in-app:', err);
-      mostrarErro('Não foi possível capturar o frame da foto.');
+      mostrarErro(msg);
+    } finally {
+      revogarPreviewUrl(resultado.previewUrl);
+      setFazendoUploadFoto(false);
+      setUploadStatusMsg('');
     }
   };
 
@@ -1888,21 +1890,26 @@ export const ProdutoCadastro: React.FC = () => {
     }
     setMelhorandoDescricaoIA(true);
     try {
-      const catNome = categorias.find(c => c.id === categoriaId)?.nome || 'Geral';
-      const novaDescricao = await gerarDescricaoExclusivaIA(
-        nome || 'Produto',
-        catNome,
-        descricao,
+      const catNome = categorias.find(c => c.id === categoriaId)?.nome;
+      const tipoItemAtual: 'produto' | 'servico' = tipoItem === 'servico' ? 'servico' : 'produto';
+      const novaDescricao = await gerarDescricaoExclusivaIA({
+        nome: nome.trim(),
+        tipoItem: tipoItemAtual,
+        descricaoAtual: descricao,
+        categoriaNome: catNome || undefined,
+        duracaoMinutos: tipoItemAtual === 'servico' ? duracaoEstimadaMinutos : undefined,
+        localPrestacao: tipoItemAtual === 'servico' ? localPrestacaoServico : undefined,
         segmentoLoja,
         loja
-      );
+      });
       if (novaDescricao) {
         setDescricao(novaDescricao);
         mostrarSucesso('Descrição comercial aprimorada com sucesso!');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Não foi possível gerar a descrição com IA.';
       console.error('Erro ao aprimorar descrição com IA:', err);
-      mostrarErro('Não foi possível gerar a descrição com IA.');
+      mostrarErro(msg);
     } finally {
       setMelhorandoDescricaoIA(false);
     }
@@ -2222,6 +2229,7 @@ export const ProdutoCadastro: React.FC = () => {
         }
       }
 
+      revogarPreviewUrls();
       sessionStorage.removeItem(CHAVE_RASCUNHO);
       sessionStorage.removeItem('hubi_origem_cadastro_produto');
       setTemAlteracoesNaoSalvas(false);
@@ -2297,17 +2305,7 @@ export const ProdutoCadastro: React.FC = () => {
             </div>
           )}
 
-          {/* Inputs invisíveis para Câmera Direta e Galeria (Múltiplas Fotos) */}
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              if (e.target.files) handleProcessarArquivosImagens(e.target.files);
-              e.target.value = '';
-            }}
-          />
+          {/* Input invisível para Galeria (Múltiplas Fotos, sem capture para evitar OOM no Android) */}
           <input
             ref={galleryInputRef}
             type="file"
@@ -2394,7 +2392,7 @@ export const ProdutoCadastro: React.FC = () => {
               <button
                 type="button"
                 disabled={fotosUrls.length >= 7}
-                onClick={iniciarCameraAoVivo}
+                onClick={() => setModalCameraAoVivoAberto(true)}
                 className="w-full h-10 px-3.5 rounded-xl text-xs font-semibold flex md:hidden items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 dark:bg-[#000000] dark:hover:bg-[#0D111A] border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 transition-all duration-150 disabled:opacity-40"
               >
                 <div className="flex items-center gap-2 truncate">
@@ -2877,7 +2875,11 @@ export const ProdutoCadastro: React.FC = () => {
                 </div>
                 <textarea
                   rows={3}
-                  placeholder="Informações adicionais do produto, material, diferenciais e modo de uso..."
+                  placeholder={
+                    tipoItem === 'servico'
+                      ? 'Escopo do serviço, o que está incluso, prazos e diferenciais de atendimento...'
+                      : 'Informações adicionais do produto, material, diferenciais e modo de uso...'
+                  }
                   value={descricao}
                   onChange={(e) => {
                     descricaoEditadaManualRef.current = true;
@@ -4285,68 +4287,15 @@ export const ProdutoCadastro: React.FC = () => {
         }}
       />
 
-      {/* Modal Câmera Ao Vivo In-App (WebRTC Stream - Sem Crash OOM no Mobile) */}
-      {modalCameraAoVivoAberto && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between select-none p-4 text-white">
-          {/* Header */}
-          <div className="flex items-center justify-between z-10 pb-3 border-b border-slate-800">
-            <button
-              type="button"
-              onClick={encerrarCameraAoVivo}
-              className="p-2.5 rounded-full bg-white/20 text-white backdrop-blur-md hover:bg-white/30 transition cursor-pointer"
-            >
-              <X className="w-6 h-6" />
-            </button>
-            <span className="text-white font-bold text-xs uppercase tracking-wider">Câmera do Produto</span>
-            <div className="w-10" />
-          </div>
-
-          {/* Viewfinder da Câmera */}
-          <div className="relative flex-1 max-h-[60vh] md:max-h-none bg-black rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center my-3 shadow-2xl">
-            <video
-              ref={videoAoVivoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-cover"
-            />
-
-            {/* Guia visual de enquadramento translúcida pontilhada */}
-            <div className="absolute inset-6 sm:inset-10 border-2 border-dashed border-emerald-500/50 rounded-xl pointer-events-none flex items-center justify-center">
-              <span className="text-[11px] font-bold text-emerald-400/80 bg-black/60 px-3 py-1 rounded-full uppercase tracking-wider backdrop-blur-sm shadow-sm">
-                Posicione o produto aqui
-              </span>
-            </div>
-
-            {cameraAoVivoCarregando && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 text-white gap-3 z-20">
-                <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
-                <p className="text-xs font-bold uppercase tracking-wider">Iniciando câmera...</p>
-              </div>
-            )}
-          </div>
-
-          {/* Barra Ergonômica Inferior */}
-          <div className="flex items-center gap-3 w-full pt-1 pb-2">
-            <button
-              type="button"
-              onClick={encerrarCameraAoVivo}
-              className="flex-1 h-12 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm flex items-center justify-center transition cursor-pointer active:scale-98"
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={capturarFotoAoVivo}
-              disabled={cameraAoVivoCarregando}
-              className="hubi-btn-cta flex-[2] h-12 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition cursor-pointer disabled:opacity-50"
-            >
-              <Camera className="w-5 h-5" />
-              <span>Tirar Foto</span>
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Modal Câmera Ao Vivo In-App Unificado (WebRTC Stream - Anti-OOM no Mobile) */}
+      <ModalCameraCapturaMobile
+        isOpen={modalCameraAoVivoAberto}
+        onClose={() => setModalCameraAoVivoAberto(false)}
+        onCapturar={handleFotoCapturadaCamera}
+        titulo="Câmera do Produto"
+        subtitulo="Enquadre o produto na guia"
+        overlayId="modal-camera-cadastro-produto"
+      />
 
       {/* Overlay com Spinner circular e "Pesquisando" centralizado durante operações de IA */}
       {analisandoIA && (

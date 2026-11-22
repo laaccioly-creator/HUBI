@@ -100,9 +100,10 @@ import { ModalOnboardingSerpApi } from './ModalOnboardingSerpApi';
 import { SpinnerPesquisandoIA } from './SpinnerPesquisandoIA';
 import { ModalDuvidaProdutoIA } from './ModalDuvidaProdutoIA';
 import { obterSerpApiKey, obterOuBuscarSerpApiKey } from '../services/serpApiService';
-import { comprimirFotoProduto } from '../utils/imageCompressor';
+import { comprimirFotoProduto, type CompressResult } from '../utils/imageCompressor';
 import { formatarMoeda } from '../utils/formatters';
 import { ProdutoService } from '../services/produtoService';
+import { ModalCameraCapturaMobile } from './ui/ModalCameraCapturaMobile';
 
 interface ProdutosMobileProps {
   produtos: Produto[];
@@ -125,17 +126,6 @@ const CORES_ETIQUETA = [
   '#1F2937', // Preto / Grafite
   '#84CC16'  // Verde Limão
 ];
-
-// Utilitário de compressão segura via HTML5 Canvas (evita OOM no Android/iOS)
-const comprimirArquivoImagem = async (file: File | Blob, maxDim = 800, quality = 0.50): Promise<string> => {
-  try {
-    const res = await comprimirFotoProduto(file, { maxDimension: maxDim, quality });
-    return res.base64;
-  } catch (err) {
-    console.warn('Erro ao comprimir imagem:', err);
-    return '';
-  }
-};
 
 export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   produtos,
@@ -645,6 +635,42 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
     snapshotAtualForm !== snapshotInicialForm
   );
 
+  const previewUrlsRef = useRef<Set<string>>(new Set());
+
+  const registrarPreviewUrl = (url?: string) => {
+    if (url && url.startsWith('blob:')) {
+      previewUrlsRef.current.add(url);
+    }
+  };
+
+  const revogarPreviewUrl = (url?: string) => {
+    if (url && url.startsWith('blob:')) {
+      try {
+        URL.revokeObjectURL(url);
+      } catch {
+        // Ignora caso já tenha sido revogada
+      }
+      previewUrlsRef.current.delete(url);
+    }
+  };
+
+  const revogarPreviewUrls = () => {
+    previewUrlsRef.current.forEach((url) => {
+      try {
+        URL.revokeObjectURL(url);
+      } catch {
+        // Ignora caso já tenha sido revogada
+      }
+    });
+    previewUrlsRef.current.clear();
+  };
+
+  useEffect(() => {
+    return () => {
+      revogarPreviewUrls();
+    };
+  }, []);
+
   const fecharFormularioComConfirmacao = () => {
     if (temAlteracoesFormulario) {
       confirmar({
@@ -653,11 +679,13 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         textoConfirmar: 'Descartar e Sair',
         textoCancelar: 'Continuar Editando',
         onConfirmar: () => {
+          revogarPreviewUrls();
           setSnapshotInicialForm('');
           setTelaAtiva('lista');
         }
       });
     } else {
+      revogarPreviewUrls();
       setSnapshotInicialForm('');
       setTelaAtiva('lista');
     }
@@ -713,25 +741,27 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
 
   // Estados para Scanner de Câmera / Barcode (TELA018)
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const fileInputCameraRef = useRef<HTMLInputElement | null>(null);
   const fileInputGaleriaRef = useRef<HTMLInputElement | null>(null);
-  const fileInputCameraIARef = useRef<HTMLInputElement | null>(null);
   const [streamCamera, setStreamCamera] = useState<MediaStream | null>(null);
   const [torchLigado, setTorchLigado] = useState<boolean>(false);
   const [somScannerMudo, setSomScannerMudo] = useState<boolean>(false);
   const [scannerErro, setScannerErro] = useState<string | null>(null);
   const animFrameScannerRef = useRef<number | null>(null);
 
-  // Estados para Câmera In-App de Foto (Ultra-leve, sem abrir app externo que estoura RAM no Android)
-  const [modalCameraFotoAberto, setModalCameraFotoAberto] = useState<boolean>(false);
-  const [streamCameraFoto, setStreamCameraFoto] = useState<MediaStream | null>(null);
-  const [cameraFotoFacingMode, setCameraFotoFacingMode] = useState<'environment' | 'user'>('environment');
-  const [cameraFotoFlash, setCameraFotoFlash] = useState<boolean>(false);
-  const [cameraFotoCarregando, setCameraFotoCarregando] = useState<boolean>(false);
-  const [cameraFotoErro, setCameraFotoErro] = useState<string | null>(null);
-  const [origemCameraParaIA, setOrigemCameraParaIA] = useState<boolean>(false);
+  // Estado para Câmera In-App Unificada (ModalCameraCapturaMobile - anti-OOM)
+  const [modoCameraCaptura, setModoCameraCaptura] = useState<'produto' | 'ia' | null>(null);
+  const modoCameraCapturaRef = useRef<'produto' | 'ia' | null>(null);
   const [origemScannerParaIA, setOrigemScannerParaIA] = useState<boolean>(false);
-  const videoFotoRef = useRef<HTMLVideoElement | null>(null);
+
+  const abrirCameraCaptura = (modo: 'produto' | 'ia') => {
+    modoCameraCapturaRef.current = modo;
+    setModoCameraCaptura(modo);
+  };
+
+  const fecharCameraCaptura = () => {
+    modoCameraCapturaRef.current = null;
+    setModoCameraCaptura(null);
+  };
 
   // Estados de IA para Descrição (TELA017)
   const [gerandoDescricaoIA, setGerandoDescricaoIA] = useState<boolean>(false);
@@ -1593,6 +1623,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       }
 
       await onRecarregar();
+      revogarPreviewUrls();
       setSnapshotInicialForm('');
       setTelaAtiva('lista');
     } catch (err: any) {
@@ -1804,21 +1835,34 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   // MELHORAR DESCRIÇÃO COM IA (TELA017)
   // =========================================================================
   const melhorarDescricaoComIA = async () => {
+    if (!formData.nome.trim() && !formData.descricao.trim()) {
+      setMensagemFeedback({
+        texto: 'Informe o nome ou um rascunho da descrição antes de melhorar com IA.',
+        tipo: 'erro'
+      });
+      return;
+    }
+
     setGerandoDescricaoIA(true);
     try {
-      const catNome = mapaCategorias.get(formData.categoriaId) || 'Geral';
-      const novaDescricao = await gerarDescricaoExclusivaIA(
-        formData.nome || 'PRODUTO',
-        catNome,
-        formData.descricao,
+      const catNome = mapaCategorias.get(formData.categoriaId);
+      const tipoItemAtual: 'produto' | 'servico' = formData.tipoItem === 'servico' ? 'servico' : 'produto';
+      const novaDescricao = await gerarDescricaoExclusivaIA({
+        nome: formData.nome.trim(),
+        tipoItem: tipoItemAtual,
+        descricaoAtual: formData.descricao,
+        categoriaNome: catNome || undefined,
+        duracaoMinutos: tipoItemAtual === 'servico' ? formData.duracaoEstimadaMinutos : undefined,
+        localPrestacao: tipoItemAtual === 'servico' ? formData.localPrestacaoServico : undefined,
         segmentoLoja,
         loja
-      );
+      });
       setFormData(prev => ({ ...prev, descricao: novaDescricao }));
       setMensagemFeedback({ texto: 'Descrição exclusiva gerada com sucesso!', tipo: 'sucesso' });
-    } catch (err) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Não foi possível gerar a descrição com IA no momento.';
       console.warn('Erro ao gerar descrição com IA:', err);
-      setMensagemFeedback({ texto: 'Não foi possível gerar a descrição com IA no momento.', tipo: 'erro' });
+      setMensagemFeedback({ texto: msg, tipo: 'erro' });
     } finally {
       setGerandoDescricaoIA(false);
     }
@@ -1952,137 +1996,45 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   };
 
   // =========================================================================
-  // CÂMERA AO VIVO IN-APP DE FOTOS (SEM ESTOURAR MEMÓRIA NO ANDROID)
+  // PROCESSAMENTO DE FOTO CAPTURADA / GALERIA (ANTI-OOM)
   // =========================================================================
-  const iniciarCameraFoto = async (facingModeParam?: 'environment' | 'user') => {
-    try {
-      setCameraFotoCarregando(true);
-      setCameraFotoErro(null);
-      setModalOpcoesFotoAberto(false);
-      setModalCameraFotoAberto(true);
-
-      if (streamCameraFoto) {
-        streamCameraFoto.getTracks().forEach(t => t.stop());
-        setStreamCameraFoto(null);
-      }
-
-      const targetFacing = facingModeParam || cameraFotoFacingMode;
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1280, max: 1280 },
-          height: { ideal: 720, max: 720 },
-          facingMode: { ideal: targetFacing }
-        },
-        audio: false
-      });
-
-      setStreamCameraFoto(mediaStream);
-      if (videoFotoRef.current) {
-        videoFotoRef.current.srcObject = mediaStream;
-        await videoFotoRef.current.play();
-      }
-    } catch (err: any) {
-      console.warn('Erro ao abrir câmera interna:', err);
-      setCameraFotoErro('Não foi possível acessar a câmera diretamente. Tente selecionar da galeria.');
-      // Fallback para input simples
-      setTimeout(() => {
-        fileInputGaleriaRef.current?.click();
-      }, 500);
-    } finally {
-      setCameraFotoCarregando(false);
-    }
-  };
-
-  const alternarCameraFoto = async () => {
-    const novoFacing = cameraFotoFacingMode === 'environment' ? 'user' : 'environment';
-    setCameraFotoFacingMode(novoFacing);
-    await iniciarCameraFoto(novoFacing);
-  };
-
-  const alternarFlashCameraFoto = async () => {
-    if (!streamCameraFoto) return;
-    const track = streamCameraFoto.getVideoTracks()[0];
-    if (!track) return;
-    try {
-      const novoEstado = !cameraFotoFlash;
-      await (track as any).applyConstraints({
-        advanced: [{ torch: novoEstado }]
-      });
-      setCameraFotoFlash(novoEstado);
-    } catch (err) {
-      console.warn('Lanterna não suportada neste dispositivo', err);
-    }
-  };
-
-  const capturarFotoCanvas = async () => {
-    const video = videoFotoRef.current;
-    if (!video || video.readyState < 2) return;
+  const handleFotoCapturadaMobile = async (resultado: CompressResult) => {
+    const modoAtual = modoCameraCapturaRef.current;
+    registrarPreviewUrl(resultado.previewUrl);
 
     try {
-      const maxDim = 800;
-      let width = video.videoWidth || 800;
-      let height = video.videoHeight || 800;
-
-      if (width > maxDim || height > maxDim) {
-        if (width > height) {
-          height = Math.round((height * maxDim) / width);
-          width = maxDim;
-        } else {
-          width = Math.round((width * maxDim) / height);
-          height = maxDim;
-        }
-      }
-
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      ctx.drawImage(video, 0, 0, width, height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.50);
-
-      // Limpeza imediata do buffer gráfico do canvas
-      ctx.clearRect(0, 0, width, height);
-      canvas.width = 0;
-      canvas.height = 0;
-
       audioService.playBeep();
-      encerrarCameraFoto();
 
-      if (origemCameraParaIA) {
-        setOrigemCameraParaIA(false);
-        processarPreenchimentoIA('foto', dataUrl);
+      if (modoAtual === 'ia') {
+        await processarPreenchimentoIA('foto', resultado.dataUrl);
       } else {
-        const urlFinal = await ProdutoService.uploadFotoDataUrl(dataUrl, loja?.id);
+        const urlFinal = await ProdutoService.uploadFotoDataUrl(resultado.dataUrl, loja?.id);
         setFormData(prev => ({
           ...prev,
           fotos: [urlFinal, ...prev.fotos.filter(f => f !== urlFinal)].slice(0, 7)
         }));
         setMensagemFeedback({ texto: 'Foto capturada e salva com sucesso!', tipo: 'sucesso' });
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Erro ao processar foto capturada.';
       console.error('Erro ao capturar foto:', e);
-      setMensagemFeedback({ texto: 'Erro ao capturar foto.', tipo: 'erro' });
+      setMensagemFeedback({ texto: msg, tipo: 'erro' });
+    } finally {
+      revogarPreviewUrl(resultado.previewUrl);
     }
   };
 
-  const encerrarCameraFoto = () => {
-    if (streamCameraFoto) {
-      streamCameraFoto.getTracks().forEach(t => t.stop());
-      setStreamCameraFoto(null);
-    }
-    setCameraFotoFlash(false);
-    setModalCameraFotoAberto(false);
-  };
-
-  // Upload / Captura de Foto com Compressão Automática + Supabase Storage (bucket produtos)
+  // Upload / Seleção de Foto da Galeria com Compressão Nativa + Supabase Storage (bucket produtos)
   const handleProcessarArquivoFoto = async (file?: File) => {
     if (!file) return;
+    let previewGerada: string | undefined;
     try {
-      const { base64: dataUrl } = await comprimirFotoProduto(file, { maxDimension: 800, quality: 0.50 });
-      if (dataUrl) {
-        const urlFinal = await ProdutoService.uploadFotoDataUrl(dataUrl, loja?.id);
+      const resultado = await comprimirFotoProduto(file, { maxDimension: 1024, quality: 0.78 });
+      previewGerada = resultado.previewUrl;
+      registrarPreviewUrl(previewGerada);
+
+      if (resultado.dataUrl) {
+        const urlFinal = await ProdutoService.uploadFotoDataUrl(resultado.dataUrl, loja?.id);
         setFormData(prev => ({
           ...prev,
           fotos: [urlFinal, ...prev.fotos.filter(f => f !== urlFinal)].slice(0, 7)
@@ -2090,9 +2042,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
         setModalOpcoesFotoAberto(false);
         setMensagemFeedback({ texto: 'Foto adicionada e salva com sucesso!', tipo: 'sucesso' });
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Não foi possível carregar e comprimir a foto.';
       console.error('Erro ao processar arquivo de foto:', e);
-      setMensagemFeedback({ texto: e?.message || 'Não foi possível carregar e comprimir a foto.', tipo: 'erro' });
+      setMensagemFeedback({ texto: msg, tipo: 'erro' });
+    } finally {
+      revogarPreviewUrl(previewGerada);
     }
   };
 
@@ -2116,7 +2071,6 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
   useRegisterOverlay(modalFotosInternetAberto, () => setModalFotosInternetAberto(false), 'modal-fotos-internet-mobile', 'modal');
   useRegisterOverlay(modalOnboardingSerpApiAberto, () => setModalOnboardingSerpApiAberto(false), 'modal-onboarding-serpapi-mobile', 'modal');
   useRegisterOverlay(modalDuvidaAberto, () => setModalDuvidaAberto(false), 'modal-duvida-ia-mobile', 'modal');
-  useRegisterOverlay(modalCameraFotoAberto, encerrarCameraFoto, 'modal-camera-foto-mobile');
   useRegisterOverlay(modalScannerAberto, encerrarScannerCamera, 'modal-scanner-mobile');
   useRegisterOverlay(Boolean(modalFotoFullscreen), () => setModalFotoFullscreen(null), 'modal-foto-fullscreen-mobile');
   useRegisterOverlay(modalCatalogoAberto, () => setModalCatalogoAberto(false), 'modal-catalogo-mobile');
@@ -3259,8 +3213,12 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                 descricaoEditadaManualRef.current = true;
                 setFormData(prev => ({ ...prev, descricao: e.target.value }));
               }}
-              placeholder="Digite os detalhes do produto, benefícios, modo de uso ou deixe a IA criar uma descrição exclusiva para você..."
-              className="w-full p-4 border-2 border-emerald-500/80 text-xs sm:text-sm font-medium uppercase leading-relaxed text-slate-800 dark:text-white focus:outline-none bg-slate-50/60 dark:bg-[#000000] dark:border-[#1E293B] rounded-2xl resize-none shadow-sm"
+              placeholder={
+                formData.tipoItem === 'servico'
+                  ? 'Descreva o que está incluso no serviço, prazos, diferenciais ou deixe a IA aprimorar seu texto...'
+                  : 'Digite os detalhes do produto, benefícios, modo de uso ou deixe a IA criar uma descrição exclusiva para você...'
+              }
+              className="w-full p-4 border-2 border-emerald-500/80 text-xs sm:text-sm font-medium leading-relaxed text-slate-800 dark:text-white focus:outline-none bg-slate-50/60 dark:bg-[#000000] dark:border-[#1E293B] rounded-2xl resize-none shadow-sm"
             />
           </div>
 
@@ -3350,7 +3308,10 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) => handleProcessarArquivoFoto(e.target.files?.[0])}
+                onChange={(e) => {
+                  handleProcessarArquivoFoto(e.target.files?.[0]);
+                  e.target.value = '';
+                }}
                 className="hidden"
               />
             </label>
@@ -3531,7 +3492,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           </div>
 
           {formData.descricao && (
-            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed uppercase pt-2">
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed pt-2">
               {formData.descricao}
             </p>
           )}
@@ -3576,18 +3537,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
       >
         {renderToast()}
 
-        {/* Inputs de arquivo ocultos para Captura de Câmera e Galeria */}
-        <input
-          ref={fileInputCameraRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={(e) => {
-            handleProcessarArquivoFoto(e.target.files?.[0]);
-            e.target.value = '';
-          }}
-          className="hidden"
-        />
+        {/* Input de arquivo oculto para seleção de fotos da Galeria (sem capture para evitar OOM no Android) */}
         <input
           ref={fileInputGaleriaRef}
           type="file"
@@ -4048,7 +3998,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                           </span>
                         )}
                       </div>
-                      <span className="text-xs sm:text-sm font-semibold uppercase line-clamp-2" style={{ color: temaCores.textoPrincipal }}>
+                      <span className="text-xs sm:text-sm font-semibold line-clamp-2" style={{ color: temaCores.textoPrincipal }}>
                         {formData.descricao || 'Toque para adicionar uma descrição exclusiva...'}
                       </span>
                     </div>
@@ -5378,7 +5328,7 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
                   type="button"
                   onClick={() => {
                     setModalOpcoesFotoAberto(false);
-                    fileInputCameraRef.current?.click();
+                    abrirCameraCaptura('produto');
                   }}
                   className="w-full p-4 rounded-2xl bg-emerald-50 dark:bg-black text-emerald-800 dark:text-emerald-300 font-extrabold text-xs sm:text-sm flex items-center gap-3 border border-emerald-200 dark:border-emerald-500/30 hover:bg-emerald-100 dark:hover:bg-slate-900 transition shadow-sm cursor-pointer active:scale-98"
                 >
@@ -5425,84 +5375,19 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
           </div>
         )}
 
-        {/* MODAL CÂMERA AO VIVO IN-APP (TIRAR FOTO SEM ESTOURAR MEMÓRIA DO ANDROID) */}
-        {modalCameraFotoAberto && (
-          <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between select-none">
-            {/* Header com controles da Câmera */}
-            <div className="p-4 flex items-center justify-between z-10 bg-gradient-to-b from-black/80 to-transparent">
-              <button
-                type="button"
-                onClick={encerrarCameraFoto}
-                className="p-2.5 rounded-full bg-white/20 text-white backdrop-blur-md hover:bg-white/30 transition cursor-pointer"
-              >
-                <X className="w-6 h-6" />
-              </button>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={alternarFlashCameraFoto}
-                  className={`p-2.5 rounded-full backdrop-blur-md transition cursor-pointer ${
-                    cameraFotoFlash ? 'bg-amber-400 text-slate-900' : 'bg-white/20 text-white hover:bg-white/30'
-                  }`}
-                  title="Lanterna"
-                >
-                  {cameraFotoFlash ? <Flashlight className="w-5 h-5" /> : <FlashlightOff className="w-5 h-5" />}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={alternarCameraFoto}
-                  className="p-2.5 rounded-full bg-white/20 text-white backdrop-blur-md hover:bg-white/30 transition cursor-pointer"
-                  title="Alternar Câmera"
-                >
-                  <RefreshCw className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Viewfinder da Câmera */}
-            <div className="relative flex-1 flex items-center justify-center overflow-hidden">
-              <video
-                ref={videoFotoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover"
-              />
-
-              {cameraFotoCarregando && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white gap-3">
-                  <Loader2 className="w-8 h-8 animate-spin text-teal-400" />
-                  <p className="text-xs font-bold uppercase tracking-wider">Iniciando câmera...</p>
-                </div>
-              )}
-
-              {/* Guia visual de enquadramento do produto */}
-              <div className="absolute w-64 h-64 border-2 border-white/40 rounded-3xl pointer-events-none shadow-2xl flex items-center justify-center">
-                <div className="w-4 h-4 border-t-2 border-l-2 border-teal-400 absolute top-2 left-2 rounded-tl" />
-                <div className="w-4 h-4 border-t-2 border-r-2 border-teal-400 absolute top-2 right-2 rounded-tr" />
-                <div className="w-4 h-4 border-b-2 border-l-2 border-teal-400 absolute bottom-2 left-2 rounded-bl" />
-                <div className="w-4 h-4 border-b-2 border-r-2 border-teal-400 absolute bottom-2 right-2 rounded-br" />
-              </div>
-            </div>
-
-            {/* Footer com Botão de Disparo / Shutter */}
-            <div className="p-6 pb-10 flex flex-col items-center justify-center z-10 bg-gradient-to-t from-black/90 to-transparent gap-2">
-              <button
-                type="button"
-                onClick={capturarFotoCanvas}
-                disabled={cameraFotoCarregando}
-                className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center bg-white/20 active:scale-95 transition shadow-2xl disabled:opacity-50 cursor-pointer"
-              >
-                <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center shadow-inner hover:bg-slate-100">
-                  <Camera className="w-7 h-7 text-slate-800" />
-                </div>
-              </button>
-              <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider">Toque para fotografar</span>
-            </div>
-          </div>
-        )}
+        {/* MODAL CÂMERA AO VIVO IN-APP UNIFICADO (ANTI-OOM) */}
+        <ModalCameraCapturaMobile
+          isOpen={modoCameraCaptura !== null}
+          onClose={fecharCameraCaptura}
+          onCapturar={handleFotoCapturadaMobile}
+          titulo={modoCameraCaptura === 'ia' ? 'Cadastrar Produto com Foto (IA)' : 'Fotografar Produto'}
+          subtitulo={
+            modoCameraCaptura === 'ia'
+              ? 'Tire uma foto nítida para a IA identificar o produto'
+              : 'Enquadre o produto na guia'
+          }
+          overlayId="modal-camera-captura-produtos-mobile"
+        />
 
         {/* Modal Cor da Etiqueta / Tarja (TELA013) com Opção Individual vs Todos os Produtos da Loja */}
         {modalCorEtiquetaAberto && (
@@ -5942,208 +5827,61 @@ export const ProdutosMobile: React.FC<ProdutosMobileProps> = ({
               {/* Conteúdo Aba Foto */}
               {abaModalIA === 'foto' && (
                 <div className="space-y-4">
-                  {cameraFotoCarregando || streamCameraFoto ? (
-                    /* Visor Ergonômico de Câmera em Tela Cheia no Mobile */
-                    <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col justify-between p-4 text-white">
-                      {/* Top Header com Título e Fechar */}
-                      <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
-                            <Camera className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <h3 className="font-extrabold text-sm text-white leading-tight">Fotografar Produto</h3>
-                            <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Enquadre o produto na guia</p>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (videoFotoRef.current && videoFotoRef.current.srcObject) {
-                              const st = videoFotoRef.current.srcObject as MediaStream;
-                              st.getTracks().forEach((t: MediaStreamTrack) => t.stop());
-                              videoFotoRef.current.srcObject = null;
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                    Envie ou tire uma foto do produto para preencher nome, categoria, preço sugerido e descrição comercial completa automaticamente.
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModalCriarComIAAberto(false);
+                        abrirCameraCaptura('ia');
+                      }}
+                      className="p-4 rounded-2xl border-2 border-dashed border-emerald-500/80 dark:border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/20 flex flex-col items-center justify-center text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition cursor-pointer text-center active:scale-95"
+                    >
+                      <Camera className="w-8 h-8 mb-1.5" />
+                      <span className="text-xs font-extrabold">Tirar Foto</span>
+                    </button>
+
+                    <label className="p-4 rounded-2xl border-2 border-dashed border-slate-300 dark:border-[#1E293B] bg-slate-50 dark:bg-[#000000] flex flex-col items-center justify-center text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#0D111A] transition cursor-pointer text-center active:scale-95">
+                      <Upload className="w-8 h-8 mb-1.5 text-slate-500 dark:text-slate-400" />
+                      <span className="text-xs font-extrabold">Carregar da Galeria</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = '';
+                          if (!file) return;
+
+                          setModalCriarComIAAberto(false);
+                          let previewGerada: string | undefined;
+                          try {
+                            const resultado = await comprimirFotoProduto(file, {
+                              maxDimension: 1024,
+                              quality: 0.78
+                            });
+                            previewGerada = resultado.previewUrl;
+                            registrarPreviewUrl(previewGerada);
+                            if (resultado.dataUrl) {
+                              await processarPreenchimentoIA('foto', resultado.dataUrl);
                             }
-                            setStreamCameraFoto(null);
-                            setCameraFotoCarregando(false);
-                          }}
-                          className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
-                        >
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-
-                      {/* Visor do Vídeo com Moldura Guia Translúcida */}
-                      <div className="w-full flex-1 max-h-[60vh] md:max-h-none bg-black rounded-2xl overflow-hidden relative border border-slate-800 flex items-center justify-center my-3 shadow-2xl">
-                        <video
-                          ref={videoFotoRef}
-                          autoPlay
-                          playsInline
-                          muted
-                          className="w-full h-full object-cover"
-                        />
-
-                        {/* Guia translúcida pontilhada de enquadramento */}
-                        <div className="absolute inset-6 sm:inset-10 border-2 border-dashed border-emerald-500/50 rounded-xl pointer-events-none flex items-center justify-center">
-                          <span className="text-[11px] font-bold text-emerald-400/80 bg-black/60 px-3 py-1 rounded-full uppercase tracking-wider backdrop-blur-sm shadow-sm">
-                            Posicione o produto aqui
-                          </span>
-                        </div>
-
-                        {cameraFotoCarregando && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-white gap-2.5 z-20">
-                            <Loader2 className="w-9 h-9 animate-spin text-emerald-400" />
-                            <span className="text-xs font-bold uppercase tracking-wider">Iniciando câmera...</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Barra de Ações Inferior Ergonômica */}
-                      <div className="flex items-center gap-3 w-full pt-1 pb-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (videoFotoRef.current && videoFotoRef.current.srcObject) {
-                              const st = videoFotoRef.current.srcObject as MediaStream;
-                              st.getTracks().forEach((t: MediaStreamTrack) => t.stop());
-                              videoFotoRef.current.srcObject = null;
-                            }
-                            setStreamCameraFoto(null);
-                            setCameraFotoCarregando(false);
-                          }}
-                          className="flex-1 h-12 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm flex items-center justify-center transition cursor-pointer active:scale-98"
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const video = videoFotoRef.current;
-                            if (!video || video.readyState < 2) return;
-                            try {
-                              const origW = video.videoWidth || 800;
-                              const origH = video.videoHeight || 600;
-                              const maxDim = 800;
-                              let targetW = origW;
-                              let targetH = origH;
-                              if (origW > maxDim || origH > maxDim) {
-                                if (origW > origH) {
-                                  targetH = Math.round((origH * maxDim) / origW);
-                                  targetW = maxDim;
-                                } else {
-                                  targetW = Math.round((origW * maxDim) / origH);
-                                  targetH = maxDim;
-                                }
-                              }
-
-                              const canvas = document.createElement('canvas');
-                              canvas.width = targetW;
-                              canvas.height = targetH;
-                              const ctx = canvas.getContext('2d', { alpha: false });
-                              if (ctx) {
-                                ctx.fillStyle = '#FFFFFF';
-                                ctx.fillRect(0, 0, targetW, targetH);
-                                ctx.drawImage(video, 0, 0, targetW, targetH);
-                                const base64 = canvas.toDataURL('image/jpeg', 0.50);
-                                ctx.clearRect(0, 0, targetW, targetH);
-                                canvas.width = 0;
-                                canvas.height = 0;
-
-                                // Limpeza imediata dos tracks da câmera
-                                if (video.srcObject) {
-                                  const st = video.srcObject as MediaStream;
-                                  st.getTracks().forEach((t: MediaStreamTrack) => t.stop());
-                                  video.srcObject = null;
-                                }
-                                setStreamCameraFoto(null);
-                                setCameraFotoCarregando(false);
-                                setModalCriarComIAAberto(false);
-                                processarPreenchimentoIA('foto', base64);
-                              }
-                            } catch (err: any) {
-                              console.error('Erro ao capturar frame:', err);
-                              setMensagemFeedback({ texto: 'Não foi possível capturar o frame da foto.', tipo: 'erro' });
-                            }
-                          }}
-                          className="hubi-btn-cta flex-[2] h-12 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition cursor-pointer"
-                        >
-                          <Camera className="w-5 h-5" />
-                          <span>Capturar Foto</span>
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                        Envie ou tire uma foto do produto para preencher nome, categoria, preço sugerido e descrição comercial completa automaticamente.
-                      </p>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            try {
-                              setCameraFotoCarregando(true);
-                              if (videoFotoRef.current && videoFotoRef.current.srcObject) {
-                                const st = videoFotoRef.current.srcObject as MediaStream;
-                                st.getTracks().forEach((t: MediaStreamTrack) => t.stop());
-                                videoFotoRef.current.srcObject = null;
-                              }
-                              setStreamCameraFoto(null);
-                              const mediaStream = await navigator.mediaDevices.getUserMedia({
-                                video: {
-                                  facingMode: { ideal: 'environment' },
-                                  width: { ideal: 1024, max: 1280 },
-                                  height: { ideal: 768, max: 720 }
-                                },
-                                audio: false
-                              });
-                              setStreamCameraFoto(mediaStream);
-                              if (videoFotoRef.current) {
-                                videoFotoRef.current.srcObject = mediaStream;
-                                await videoFotoRef.current.play();
-                              }
-                            } catch (err) {
-                              console.error('Erro ao acessar câmera:', err);
-                              setMensagemFeedback({ texto: 'Não foi possível abrir a câmera diretamente. Use o botão Carregar da Galeria.', tipo: 'erro' });
-                            } finally {
-                              setCameraFotoCarregando(false);
-                            }
-                          }}
-                          className="p-4 rounded-2xl border-2 border-dashed border-emerald-500/80 dark:border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/20 flex flex-col items-center justify-center text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition cursor-pointer text-center active:scale-95"
-                        >
-                          <Camera className="w-8 h-8 mb-1.5" />
-                          <span className="text-xs font-extrabold">Tirar Foto</span>
-                        </button>
-
-                        <label className="p-4 rounded-2xl border-2 border-dashed border-slate-300 dark:border-[#1E293B] bg-slate-50 dark:bg-[#000000] flex flex-col items-center justify-center text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#0D111A] transition cursor-pointer text-center active:scale-95">
-                          <Upload className="w-8 h-8 mb-1.5 text-slate-500 dark:text-slate-400" />
-                          <span className="text-xs font-extrabold">Carregar da Galeria</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={async (e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                setModalCriarComIAAberto(false);
-                                try {
-                                  const { base64 } = await comprimirFotoProduto(file, { maxDimension: 800, quality: 0.50 });
-                                  if (base64) {
-                                    processarPreenchimentoIA('foto', base64);
-                                  }
-                                } catch (err: any) {
-                                  console.error('Erro ao comprimir imagem para IA:', err);
-                                  setMensagemFeedback({ texto: err?.message || 'Não foi possível processar a imagem selecionada.', tipo: 'erro' });
-                                }
-                              }
-                              e.target.value = '';
-                            }}
-                            className="hidden"
-                          />
-                        </label>
-                      </div>
-                    </>
-                  )}
+                          } catch (err: unknown) {
+                            const msg =
+                              err instanceof Error
+                                ? err.message
+                                : 'Não foi possível processar a imagem selecionada.';
+                            console.error('Erro ao comprimir imagem para IA:', err);
+                            setMensagemFeedback({ texto: msg, tipo: 'erro' });
+                          } finally {
+                            revogarPreviewUrl(previewGerada);
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
                 </div>
               )}
 

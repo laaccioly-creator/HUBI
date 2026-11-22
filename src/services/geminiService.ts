@@ -1164,59 +1164,124 @@ Estime com inteligência o peso bruto do produto embalado em kg ('peso_kg', ex: 
   throw new Error('Não foi possível processar a resposta da IA.');
 };
 
+export interface ParametrosDescricaoItemIA {
+  nome: string;
+  tipoItem: 'produto' | 'servico';
+  descricaoAtual?: string;
+  categoriaNome?: string;
+  duracaoMinutos?: number;
+  localPrestacao?: 'loja' | 'externo' | 'ambos';
+  segmentoLoja?: string;
+  loja?: (Partial<Loja> & { id?: string; segmento?: string }) | null;
+}
+
+const MAPA_LOCAL_ATENDIMENTO_IA: Record<'loja' | 'externo' | 'ambos', string> = {
+  loja: 'Atendimento na loja',
+  externo: 'Atendimento em domicílio / externo',
+  ambos: 'Atendimento na loja ou em domicílio'
+};
+
 /**
- * Gera ou melhora a descrição comercial do produto para Catálogo Online e WhatsApp
+ * Gera ou melhora a descrição comercial do produto ou serviço para Catálogo Online e WhatsApp
  * em baixa latência via Edge Function `gemini-proxy` (`gemini-2.5-flash`, fallback `gemini-2.0-flash`).
  */
 export const gerarDescricaoExclusivaIA = async (
-  nomeProduto: string,
-  categoria?: string,
-  descricaoAtual?: string,
-  segmentoLoja?: string,
-  loja?: (Partial<Loja> & { id?: string; segmento?: string }) | null
+  params: ParametrosDescricaoItemIA
 ): Promise<string> => {
   const tInicioDesc = performance.now();
-  const nomeExato = (nomeProduto || '').trim();
-  const ramoEfetivo = (segmentoLoja || obterNomeSegmentoLoja(loja) || '').trim();
-  const sobreLoja = (loja?.sobre_loja || '').trim();
-  const contextoSistema = montarContextoSegmentoSistema(ramoEfetivo, loja);
+  const nomeExato = (params.nome || '').trim();
+  const descricaoBase = (params.descricaoAtual || '').trim();
 
-  if (nomeExato) {
-    try {
-      const prompt = `Crie uma descrição comercial direta em pt-BR para Catálogo Online e WhatsApp do produto exato "${nomeExato}"${categoria ? ` (categoria: "${categoria}")` : ''}${ramoEfetivo ? ` (ramo de atividade da loja: "${ramoEfetivo}")` : ''}${sobreLoja ? ` (sobre a loja: "${sobreLoja.slice(0, 180)}")` : ''}${descricaoAtual ? `. Base/observações: "${descricaoAtual.slice(0, 220)}"` : ''}.
-Regras:
-- Interprete e redija o texto estritamente para o segmento comercial informado${ramoEfetivo ? ` ("${ramoEfetivo}")` : ''}.
-- Retorne APENAS o texto final pronto (proibido preâmbulos como "Aqui está a descrição:" ou aspas).
-- Use 3 a 5 bullet points objetivos com emojis discretos destacando especificações reais e benefícios do modelo "${nomeExato}" (sem inventar versões Plus/Pro/Combo).
-- Finalize com 1 frase curta de chamada para compra.`;
+  if (!nomeExato && !descricaoBase) {
+    throw new Error('Informe o nome ou um rascunho de descrição antes de usar a IA.');
+  }
 
-      const requestBody: Record<string, unknown> = {
-        ...(contextoSistema ? { systemInstruction: { parts: [{ text: contextoSistema }] } } : {}),
-        contents: [{ parts: [{ text: prompt }] }],
-        safetySettings: SAFETY_SETTINGS_VAREJO,
-        generationConfig: {
-          temperature: 0.4,
-          maxOutputTokens: 350,
-          thinkingConfig: { thinkingBudget: 0 }
-        }
-      };
+  const ehServico = params.tipoItem === 'servico';
+  const ramoEfetivo = (params.segmentoLoja || obterNomeSegmentoLoja(params.loja) || '').trim();
+  const sobreLoja = (params.loja?.sobre_loja || '').trim();
+  const categoriaLimpa = (params.categoriaNome || '').trim();
+  const contextoSistema = montarContextoSegmentoSistema(ramoEfetivo, params.loja);
 
-      const resData = await invocarGeminiPreencherViaEdgeProxy(requestBody, loja?.id);
-      const texto = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (texto && texto.trim()) {
+  const detalhesContexto: string[] = [];
+  if (categoriaLimpa && categoriaLimpa.toLowerCase() !== 'geral') {
+    detalhesContexto.push(`Categoria: "${categoriaLimpa}"`);
+  }
+  if (ehServico) {
+    if (params.duracaoMinutos && params.duracaoMinutos > 0) {
+      detalhesContexto.push(`Duração estimada: ${params.duracaoMinutos} minutos`);
+    }
+    if (params.localPrestacao) {
+      detalhesContexto.push(`Modalidade: ${MAPA_LOCAL_ATENDIMENTO_IA[params.localPrestacao]}`);
+    }
+  }
+  if (ramoEfetivo) {
+    detalhesContexto.push(`Segmento da loja: "${ramoEfetivo}"`);
+  }
+  if (sobreLoja) {
+    detalhesContexto.push(`Sobre a loja: "${sobreLoja.slice(0, 180)}"`);
+  }
+
+  const blocoContexto = detalhesContexto.length > 0 ? `\nContexto:\n- ${detalhesContexto.join('\n- ')}` : '';
+  const blocoBaseLojista = descricaoBase
+    ? `\nDescrição atual escrita pelo lojista (OBRIGATÓRIO preservar e expandir todos os detalhes originais):\n"${descricaoBase.slice(0, 800)}"`
+    : '';
+
+  const prompt = ehServico
+    ? `Crie e aprimore uma descrição comercial em português do Brasil (pt-BR) para Catálogo Online e WhatsApp de um SERVIÇO chamado "${nomeExato || 'Serviço'}"${blocoContexto}${blocoBaseLojista}
+
+Regras obrigatórias:
+- Este item é um SERVIÇO (não é uma mercadoria física). É PROIBIDO usar termos de produto físico como "item original", "produto selecionado", "especificações de fábrica", "embalagem" ou "estoque".
+- Se houver uma descrição atual do lojista, preserve integralmente o escopo, etapas e informações citadas por ele, enriquecendo a clareza e o poder de convencimento.
+- Redija em escrita natural (Sentence Case, com maiúsculas apenas no início de frases e nomes próprios — NUNCA devolva o texto todo em CAIXA ALTA).
+- Estruture com uma breve abertura natural (quando enriquecer o escopo) seguida de 3 a 5 bullet points objetivos com emojis discretos destacando o que está incluso no serviço, segurança/cuidado, agilidade e modalidade de atendimento.
+- Finalize com 1 frase curta convidando o cliente para agendar ou chamar no WhatsApp.
+- Retorne APENAS o texto final pronto, sem preâmbulos como "Aqui está a descrição:" e sem aspas ao redor.`
+    : `Crie e aprimore uma descrição comercial em português do Brasil (pt-BR) para Catálogo Online e WhatsApp de um PRODUTO chamado "${nomeExato || 'Produto'}"${blocoContexto}${blocoBaseLojista}
+
+Regras obrigatórias:
+- Se houver uma descrição atual do lojista, preserve e aprimore todas as informações e diferenciais citados por ele.
+- Interprete o produto estritamente dentro do segmento comercial informado${ramoEfetivo ? ` ("${ramoEfetivo}")` : ''}.
+- Redija em escrita natural (Sentence Case, com maiúsculas apenas no início de frases e nomes próprios — NUNCA devolva o texto todo em CAIXA ALTA).
+- Use 3 a 5 bullet points objetivos com emojis discretos destacando características reais e benefícios práticos do produto${nomeExato ? ` "${nomeExato}"` : ''} (sem inventar versões Plus/Pro/Combo ou especificações fictícias).
+- Finalize com 1 frase curta de chamada para compra.
+- Retorne APENAS o texto final pronto, sem preâmbulos como "Aqui está a descrição:" e sem aspas ao redor.`;
+
+  const requestBody: Record<string, unknown> = {
+    ...(contextoSistema ? { systemInstruction: { parts: [{ text: contextoSistema }] } } : {}),
+    contents: [{ parts: [{ text: prompt }] }],
+    safetySettings: SAFETY_SETTINGS_VAREJO,
+    generationConfig: {
+      temperature: 0.4,
+      maxOutputTokens: 500,
+      thinkingConfig: { thinkingBudget: 0 }
+    }
+  };
+
+  try {
+    const resData = await invocarGeminiPreencherViaEdgeProxy(requestBody, params.loja?.id);
+    const textoBruto = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (textoBruto && textoBruto.trim()) {
+      let textoFinal = textoBruto.trim();
+      if (
+        (textoFinal.startsWith('"') && textoFinal.endsWith('"')) ||
+        (textoFinal.startsWith("'") && textoFinal.endsWith("'"))
+      ) {
+        textoFinal = textoFinal.slice(1, -1).trim();
+      }
+      if (textoFinal) {
         console.log(
-          `%c[HUBI PERF ⏱️]%c [DESCRICAO_IA] Concluído em ${Math.round(performance.now() - tInicioDesc)}ms para "${nomeExato}"`,
+          `%c[HUBI PERF ⏱️]%c [DESCRICAO_IA] Concluído em ${Math.round(performance.now() - tInicioDesc)}ms para "${nomeExato || 'rascunho'}" (${params.tipoItem})`,
           'color: #0ea5e9; font-weight: bold;',
           'color: #38bdf8;'
         );
-        return texto.trim();
+        return textoFinal;
       }
-    } catch (err) {
-      console.warn('[GeminiService] Erro ao gerar descrição comercial via gemini-proxy:', err);
     }
+  } catch (err) {
+    console.warn('[GeminiService] Erro ao gerar descrição comercial via gemini-proxy:', err);
   }
 
-  return `${nomeExato || 'Produto'} — item original selecionado com alto padrão de qualidade, especificações verificadas e excelente desempenho para sua necessidade.`;
+  throw new Error('Não foi possível melhorar a descrição com IA no momento. Seu texto atual foi mantido.');
 };
 
 export interface FotoResultadoInternet {
@@ -1594,11 +1659,26 @@ async function invocarGeminiPreencherViaEdgeProxy(
   let ultimoErro = 'Falha ao consultar Edge Function gemini-proxy.';
 
   for (const modelo of modelos) {
+    let payloadModelo = requestBody;
+    if (
+      !modelo.startsWith('gemini-2.5') &&
+      requestBody.generationConfig &&
+      typeof requestBody.generationConfig === 'object' &&
+      'thinkingConfig' in requestBody.generationConfig
+    ) {
+      const { thinkingConfig: _omitido, ...genConfigSemThinking } =
+        requestBody.generationConfig as Record<string, unknown>;
+      payloadModelo = {
+        ...requestBody,
+        generationConfig: genConfigSemThinking
+      };
+    }
+
     const { data, error } = await supabase.functions.invoke<GeminiProxyResponse>('gemini-proxy', {
       body: {
         model: modelo,
         action: 'generateContent',
-        requestBody,
+        requestBody: payloadModelo,
         loja_id: lojaId
       }
     });
