@@ -1049,29 +1049,8 @@ export const identificarProdutoPorFoto = async (
     }
     console.log(`[IA-Produto] Etapa 1: Base64 pronto em ${Math.round(performance.now() - tEtapa1)}ms`);
 
-    const promptInstrucao = `
-Você é um especialista em catálogo de e-commerce e varejo no Brasil${segmentoLoja ? ` (segmento da loja: "${segmentoLoja}")` : ''}.
-Analise a foto do produto enviada. Identifique o item e retorne EXCLUSIVAMENTE um objeto JSON válido:
-{
-  "duvida": false,
-  "nome": "Nome comercial preciso e oficial do produto em português",
-  "categoria_sugerida": "Categoria no varejo",
-  "preco_venda_estimado": 0.00,
-  "preco_custo_estimado": 0.00,
-  "descricao": "Descrição concisa de 1 frase com benefícios principais.",
-  "tipo_unidade": "un",
-  "codigo_barras": "Código numérico se legível na foto, senão vazio",
-  "diferencial": "Ex: Versão Original",
-  "peso_kg": 0.3,
-  "altura_cm": 10,
-  "largura_cm": 15,
-  "comprimento_cm": 20,
-  "opcoes_sugeridas": [
-    { "nome": "Opção Alternativa 1", "diferencial": "Ex: Versão Sem Açúcar", "preco_venda_estimado": 0.00, "categoria_sugerida": "Categoria" }
-  ]
-}
-Se a foto gerar dúvida entre 2 a 3 versões/modelos possíveis, defina "duvida": true e liste as alternativas concisas em "opcoes_sugeridas". Se tiver certeza, defina "duvida": false e "opcoes_sugeridas": [].
-`;
+    const promptInstrucao = `Identifique o produto da foto${segmentoLoja ? ` (segmento: "${segmentoLoja}")` : ''}. Retorne APENAS JSON válido:
+{"nome":"Nome comercial completo com marca e peso/volume","marca":"Marca","unidade":"un","categoria_sugerida":"Categoria","preco_venda_estimado":0,"descricao_curta":"Frase curta de 1 linha"}`;
 
     const contextoSistema = montarContextoSegmentoSistema(segmentoLoja, loja);
     const requestBody: Record<string, unknown> = {
@@ -1091,16 +1070,17 @@ Se a foto gerar dúvida entre 2 a 3 versões/modelos possíveis, defina "duvida"
       ],
       safetySettings: SAFETY_SETTINGS_VAREJO,
       generationConfig: {
-        temperature: 0.2,
-        maxOutputTokens: 500,
-        thinkingConfig: { thinkingBudget: 0 },
+        temperature: 0.1,
+        maxOutputTokens: 256,
         responseMimeType: 'application/json'
       }
     };
 
     const tEtapa2 = performance.now();
     const resData = await invocarGeminiPreencherViaEdgeProxy(requestBody, loja?.id);
-    console.log(`[IA-Produto] Etapa 2: Gemini 3.8 Flash em ${Math.round(performance.now() - tEtapa2)}ms`);
+    console.log(
+      `[IA-Produto] Etapa 2: ${resData?.modeloUsado || 'Gemini'} (tentativa ${resData?.tentativaNumero ?? '?'}) em ${Math.round(performance.now() - tEtapa2)}ms`
+    );
 
     if (resData) {
       const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -1134,7 +1114,7 @@ Se a foto gerar dúvida entre 2 a 3 versões/modelos possíveis, defina "duvida"
         // Se houver dúvida e opções sugeridas, inclui a opção principal também na lista se ela não estiver presente
         const temDuvida = Boolean(parsed.duvida && opcoesFormatadas && opcoesFormatadas.length > 1);
 
-        const extraidos = extrairDimensoesEPesoTexto(`${parsed.nome || ''} ${parsed.descricao || ''}`);
+        const extraidos = extrairDimensoesEPesoTexto(`${parsed.nome || ''} ${parsed.descricao_curta || parsed.descricao || ''}`);
         let pesoKgFinal = Number(parsed.peso_kg) > 0 ? Number(parsed.peso_kg) : extraidos.peso_kg;
         let alturaFinal = Number(parsed.altura_cm) > 0 ? Number(parsed.altura_cm) : extraidos.altura_cm;
         let larguraFinal = Number(parsed.largura_cm) > 0 ? Number(parsed.largura_cm) : extraidos.largura_cm;
@@ -1146,7 +1126,7 @@ Se a foto gerar dúvida entre 2 a 3 versões/modelos possíveis, defina "duvida"
             const dimsJev = await catalogJevService.estimarDimensoesComJev(
               parsed.nome || '',
               parsed.categoria_sugerida,
-              parsed.descricao
+              parsed.descricao_curta || parsed.descricao
             );
             pesoKgFinal = pesoKgFinal || dimsJev.peso_kg;
             alturaFinal = alturaFinal || dimsJev.altura_cm;
@@ -1162,8 +1142,8 @@ Se a foto gerar dúvida entre 2 a 3 versões/modelos possíveis, defina "duvida"
           categoria_sugerida: parsed.categoria_sugerida || 'Geral',
           preco_venda_estimado: semCentavos,
           preco_custo_estimado: Number(parsed.preco_custo_estimado) || 0,
-          descricao: parsed.descricao || '',
-          tipo_unidade: parsed.tipo_unidade || 'un',
+          descricao: parsed.descricao_curta || parsed.descricao || '',
+          tipo_unidade: parsed.unidade || parsed.tipo_unidade || 'un',
           codigo_barras: parsed.codigo_barras || '',
           diferencial: parsed.diferencial || '',
           peso_kg: pesoKgFinal,
@@ -1466,16 +1446,8 @@ export const identificarTermoBuscaPorFotoIA = async (
     const ramoEfetivo = (segmentoLoja || obterNomeSegmentoLoja(loja) || '').trim();
     const contextoSistema = montarContextoSegmentoSistema(ramoEfetivo, loja);
 
-    const promptInstrucao = `Você é um especialista em identificação visual de produtos no varejo brasileiro.
-${ramoEfetivo ? `Segmento da loja: "${ramoEfetivo}".` : ''}
-${nomeAtual ? `Nome parcial informado: "${nomeAtual}".` : ''}
-Analise a foto enviada e identifique o produto na embalagem ou objeto (Marca + Nome Comercial + Peso/Volume/Modelo).
-Retorne EXCLUSIVAMENTE um objeto JSON válido neste formato:
-{
-  "termo_completo": "Marca + Nome Comercial + Peso/Volume/Modelo (ex: Fermento em Pó Químico Royal 100g)",
-  "termo_simplificado": "Marca + Produto Principal apenas em 2 ou 3 palavras (ex: Fermento Royal)",
-  "termos_alternativos": ["variação curta 1", "variação curta 2"]
-}`;
+    const promptInstrucao = `Identifique o produto da foto${ramoEfetivo ? ` (segmento: "${ramoEfetivo}")` : ''}${nomeAtual ? ` (dica: "${nomeAtual}")` : ''}. Retorne APENAS JSON válido:
+{"termo_completo":"Marca + Produto + Peso/Volume","termo_simplificado":"Marca + Produto (2-3 palavras)","termos_alternativos":["variação 1"]}`;
 
     const requestBody: Record<string, unknown> = {
       ...(contextoSistema ? { systemInstruction: { parts: [{ text: contextoSistema }] } } : {}),
@@ -1494,16 +1466,17 @@ Retorne EXCLUSIVAMENTE um objeto JSON válido neste formato:
       ],
       safetySettings: SAFETY_SETTINGS_VAREJO,
       generationConfig: {
-        temperature: 0.2,
-        maxOutputTokens: 500,
-        thinkingConfig: { thinkingBudget: 0 },
+        temperature: 0.1,
+        maxOutputTokens: 256,
         responseMimeType: 'application/json'
       }
     };
 
     const tEtapa2 = performance.now();
     const resData = await invocarGeminiPreencherViaEdgeProxy(requestBody, loja?.id);
-    console.log(`[IA-Produto] Etapa 2: Gemini 3.8 Flash em ${Math.round(performance.now() - tEtapa2)}ms`);
+    console.log(
+      `[IA-Produto] Etapa 2: ${resData?.modeloUsado || 'Gemini'} (tentativa ${resData?.tentativaNumero ?? '?'}) em ${Math.round(performance.now() - tEtapa2)}ms`
+    );
     const rawText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!rawText) return null;
 
@@ -1861,6 +1834,9 @@ interface RespostaGeminiPreencherIA {
 }
 
 interface GeminiProxyResponse {
+  ok?: boolean;
+  modeloUsado?: string;
+  tentativaNumero?: number;
   candidates?: Array<{
     content?: {
       parts?: Array<{ text?: string }>;

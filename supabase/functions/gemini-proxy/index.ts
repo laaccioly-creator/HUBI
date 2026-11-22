@@ -11,13 +11,13 @@ const corsHeaders = {
 };
 
 const MODELOS_RAPIDOS_HOMOLOGADOS = [
-  "gemini-3.8-flash",
+  "gemini-3.5-flash-lite",
   "gemini-3.8-flash-lite",
+  "gemini-3.8-flash",
   "gemini-2.5-flash",
-  "gemini-2.5-flash-lite",
 ] as const;
 
-const TIMEOUT_CHAMADA_GOOGLE_MS = 6000;
+const TIMEOUT_CHAMADA_GOOGLE_MS = 4000;
 const TIMEOUT_HANDLER_GLOBAL_MS = 13500;
 
 interface ResultadoChamadaGoogle {
@@ -67,6 +67,17 @@ function sanitizarPayloadParaModelo(
 ): Record<string, unknown> {
   const clone: Record<string, unknown> = { ...payloadBase };
   const ehTts = modelo.toLowerCase().includes("-tts");
+  const contents = Array.isArray(clone.contents) ? clone.contents : [];
+  const ehMultimodal = contents.some((c: unknown) => {
+    const parts = (c as { parts?: unknown[] })?.parts;
+    return (
+      Array.isArray(parts) &&
+      parts.some((p: unknown) => {
+        const obj = p as Record<string, unknown> | null;
+        return Boolean(obj && (obj.inline_data || obj.inlineData));
+      })
+    );
+  });
 
   const genCfgAtual =
     clone.generationConfig && typeof clone.generationConfig === "object"
@@ -77,11 +88,19 @@ function sanitizarPayloadParaModelo(
   delete genCfgAtual.thinkingConfig;
 
   if (!ehTts) {
-    if (genCfgAtual.temperature === undefined) {
-      genCfgAtual.temperature = 0.2;
-    }
-    if (genCfgAtual.maxOutputTokens === undefined) {
-      genCfgAtual.maxOutputTokens = 512;
+    if (ehMultimodal) {
+      genCfgAtual.temperature = 0.1;
+      const maxAtual = Number(genCfgAtual.maxOutputTokens);
+      genCfgAtual.maxOutputTokens = Number.isFinite(maxAtual) && maxAtual > 0
+        ? Math.min(maxAtual, 256)
+        : 256;
+    } else {
+      if (genCfgAtual.temperature === undefined) {
+        genCfgAtual.temperature = 0.2;
+      }
+      if (genCfgAtual.maxOutputTokens === undefined) {
+        genCfgAtual.maxOutputTokens = 512;
+      }
     }
     clone.generationConfig = genCfgAtual;
   } else if (Object.keys(genCfgAtual).length > 0) {
@@ -356,7 +375,10 @@ serve(async (req: Request) => {
       const actionLimpa = String(action || "generateContent").trim() || "generateContent";
       let ultimoResultado: ResultadoChamadaGoogle | null = null;
 
-      for (const modeloAtual of filaModelos) {
+      for (let idx = 0; idx < filaModelos.length; idx++) {
+        const modeloAtual = filaModelos[idx];
+        const tentativaNumero = idx + 1;
+
         const res = await chamarGoogleGemini(
           modeloAtual,
           actionLimpa,
@@ -365,7 +387,15 @@ serve(async (req: Request) => {
         );
 
         if (res.ok) {
-          return jsonResponse(res.data, 200);
+          return jsonResponse(
+            {
+              ...res.data,
+              ok: true,
+              modeloUsado: modeloAtual,
+              tentativaNumero,
+            },
+            200
+          );
         }
 
         ultimoResultado = res;
