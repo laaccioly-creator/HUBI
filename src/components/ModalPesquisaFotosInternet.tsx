@@ -22,7 +22,7 @@ const NOMES_TERMO_GENERICO = new Set([
   'servico'
 ]);
 
-const TIMEOUT_IDENTIFICACAO_FOTO_IA_MS = 15000;
+const TIMEOUT_IDENTIFICACAO_FOTO_IA_MS = 10000;
 
 function ehTermoBuscaGenerico(termo: string): boolean {
   return NOMES_TERMO_GENERICO.has(termo.trim().toLowerCase());

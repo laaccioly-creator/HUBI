@@ -85,6 +85,7 @@ import { CardConexaoMercadoLivre } from './mercadolivre/CardConexaoMercadoLivre'
 import { CardParametrosHubiAdmin } from './configuracoes/CardParametrosHubiAdmin';
 import { ModalComoObterGeminiApiKey } from './configuracoes/ModalComoObterGeminiApiKey';
 import { ModalChecklistConfiguracao } from './configuracoes/ModalChecklistConfiguracao';
+import { comprimirFotoProduto } from '../utils/imageCompressor';
 import { useLojaProntidao } from '../hooks/useLojaProntidao';
 import {
   notificarConfiguracaoSalvaParaOnboarding,
@@ -775,6 +776,7 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const [especialidadeNegocio, setEspecialidadeNegocio] = useState<string>('');
   const [tomVozRubi, setTomVozRubi] = useState<'consultivo' | 'tecnico' | 'amigavel' | 'formal'>('consultivo');
   const [geminiApiKey, setGeminiApiKey] = useState<string>('');
+  const [mostrarGeminiKey, setMostrarGeminiKey] = useState<boolean>(false);
   const [modalComoObterGeminiApiKeyAberto, setModalComoObterGeminiApiKeyAberto] = useState<boolean>(false);
   const [googleSearchApiKey, setGoogleSearchApiKey] = useState<string>('');
   const [googleSearchCx, setGoogleSearchCx] = useState<string>('');
@@ -1679,6 +1681,11 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       setGoogleSearchConfig(googleSearchApiKey.trim(), googleSearchCx.trim());
       setLoja({
         ...loja,
+        nome_fantasia: nomeLoja,
+        telefone,
+        whatsapp,
+        url_logo: urlLogo,
+        gemini_api_key: geminiApiKey.trim() || null,
         serper_api_key: serpApiKey.trim() || null,
         caderneta_ativa: Boolean(cadernetaAtiva),
         dia_vencimento_padrao_caderneta: Number(diaVencimentoPadraoCaderneta || 10),
@@ -1709,33 +1716,51 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
   const handleUploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !loja?.id) return;
+    let previewUrlParaRevogar: string | undefined;
     try {
-      const ext = file.name.split('.').pop() || 'jpg';
-      const fileName = `logos/${loja.id}_${Date.now()}.${ext}`;
+      const comprimido = await comprimirFotoProduto(file, {
+        maxDimension: 512,
+        quality: 0.82,
+        mimeType: 'image/jpeg'
+      });
+      previewUrlParaRevogar = comprimido.previewUrl;
+
+      const fileName = `logos/${loja.id}_${Date.now()}.jpg`;
 
       let bucketEscolhido = 'produtos';
-      let uploadRes = await supabase.storage.from(bucketEscolhido).upload(fileName, file, { upsert: true });
+      let uploadRes = await supabase.storage
+        .from(bucketEscolhido)
+        .upload(fileName, comprimido.blob, { upsert: true, contentType: 'image/jpeg' });
 
       if (uploadRes.error) {
         bucketEscolhido = 'fotos';
-        uploadRes = await supabase.storage.from(bucketEscolhido).upload(fileName, file, { upsert: true });
+        uploadRes = await supabase.storage
+          .from(bucketEscolhido)
+          .upload(fileName, comprimido.blob, { upsert: true, contentType: 'image/jpeg' });
       }
 
       if (!uploadRes.error) {
         const { data } = supabase.storage.from(bucketEscolhido).getPublicUrl(fileName);
         if (data?.publicUrl) {
           setUrlLogo(data.publicUrl);
+          marcarInteracaoFisica();
           return;
         }
       }
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') setUrlLogo(reader.result);
-      };
-      reader.readAsDataURL(file);
+      setUrlLogo(comprimido.dataUrl);
+      marcarInteracaoFisica();
     } catch (err) {
       console.error('Erro no upload logo:', err);
+    } finally {
+      if (previewUrlParaRevogar && previewUrlParaRevogar.startsWith('blob:')) {
+        try {
+          URL.revokeObjectURL(previewUrlParaRevogar);
+        } catch {
+          // Ignora caso já tenha sido revogada
+        }
+      }
+      e.target.value = '';
     }
   };
 
@@ -2361,169 +2386,582 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
 
           {/* SUBTELA DADOS DA LOJA MOBILE */}
           {subTela === 'dados-loja' && (
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3.5">
-              <span className="text-sm font-bold text-black uppercase tracking-wider block">Identificação</span>
-              <div className="space-y-1">
-                <label className="text-sm font-bold text-black">Nome Fantasia da Loja</label>
-                <input
-                  type="text"
-                  value={nomeLoja}
-                  onChange={(e) => setNomeLoja(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-black font-bold focus:border-emerald-500"
-                />
-              </div>
+            <div className="space-y-4 pb-6">
+              {/* Bloco 1: Logo + Identificação + Endereço */}
+              <div
+                className={`rounded-2xl p-4 shadow-xs space-y-4 border ${
+                  isDark
+                    ? 'bg-[#000000] border-slate-700 text-white'
+                    : 'bg-white border-slate-200 text-black'
+                }`}
+              >
+                <span className={`text-sm font-black uppercase tracking-wider block ${isDark ? 'text-white' : 'text-black'}`}>
+                  Logo da Loja
+                </span>
 
-              <div className="space-y-1">
-                <label className="text-sm font-bold text-black">WhatsApp da Loja</label>
-                <input
-                  type="text"
-                  value={whatsapp}
-                  onChange={(e) => setWhatsapp(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-black focus:border-emerald-500"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-sm font-bold text-black">CPF ou CNPJ</label>
-                <input
-                  type="text"
-                  value={documento}
-                  onChange={(e) => setDocumento(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-black font-mono focus:border-emerald-500"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-sm font-bold text-black">Razão Social</label>
-                <input
-                  type="text"
-                  value={razaoSocial}
-                  onChange={(e) => setRazaoSocial(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-black focus:border-emerald-500"
-                />
-              </div>
-
-              <p className="text-sm text-black font-medium leading-relaxed bg-slate-100/70 p-3 rounded-xl border border-slate-200">
-                Estes dados não serão exibidos no catálogo público. O CPF ou CNPJ é utilizado para emissão fiscal e integrações de logística.
-              </p>
-
-              <div className="space-y-2.5 pt-1">
-                <span className="text-sm font-bold text-black uppercase tracking-wider block">Endereço</span>
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-bold text-black">CEP</label>
-                    {buscandoCepLoja && (
-                      <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>Buscando...</span>
+                <div
+                  className={`flex flex-col items-center justify-center p-4 rounded-2xl border space-y-3 ${
+                    isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+                  }`}
+                >
+                  {urlLogo ? (
+                    <div className="flex flex-col items-center gap-2.5">
+                      <div className="w-24 h-24 rounded-2xl overflow-hidden border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
+                        <img src={urlLogo} alt="Logo da Loja" className="w-full h-full object-contain p-2" />
+                      </div>
+                      <label className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs inline-flex items-center gap-1.5 cursor-pointer active:scale-95 transition shadow-xs">
+                        <input type="file" accept="image/*" onChange={handleUploadLogo} className="hidden" />
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Trocar Logo</span>
+                      </label>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center cursor-pointer space-y-2 py-2">
+                      <input type="file" accept="image/*" onChange={handleUploadLogo} className="hidden" />
+                      <div
+                        className={`w-16 h-16 rounded-2xl border flex items-center justify-center shadow-xs ${
+                          isDark
+                            ? 'bg-slate-900 border-slate-700 text-emerald-400'
+                            : 'bg-white border-slate-200 text-emerald-600'
+                        }`}
+                      >
+                        <Upload className="w-6 h-6" />
+                      </div>
+                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                        Upload de sua marca
                       </span>
-                    )}
-                  </div>
+                    </label>
+                  )}
+                </div>
+
+                <span className={`text-sm font-black uppercase tracking-wider block pt-1 ${isDark ? 'text-white' : 'text-black'}`}>
+                  Identificação
+                </span>
+
+                <div className="space-y-1">
+                  <label className={`text-sm font-bold block ${isDark ? 'text-slate-100' : 'text-black'}`}>
+                    Nome Fantasia da Loja
+                  </label>
                   <input
                     type="text"
-                    inputMode="numeric"
-                    maxLength={9}
-                    value={enderecoCep}
-                    onChange={(e) => handleCepLojaChange(e.target.value)}
-                    placeholder="00000-000"
-                    className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-black font-mono focus:border-emerald-500"
+                    value={nomeLoja}
+                    onChange={(e) => setNomeLoja(e.target.value)}
+                    placeholder="Nome Fantasia da sua loja"
+                    className={`w-full rounded-xl px-3.5 py-2.5 text-sm font-bold border focus:border-emerald-500 outline-hidden ${
+                      isDark
+                        ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
+                        : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
+                    }`}
                   />
                 </div>
 
-                <div className="grid grid-cols-12 gap-2.5">
-                  <div className="col-span-8 space-y-1">
-                    <label className="text-sm font-bold text-black">Logradouro / Rua</label>
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="space-y-1">
+                    <label className={`text-sm font-bold block ${isDark ? 'text-slate-100' : 'text-black'}`}>
+                      WhatsApp Principal
+                    </label>
                     <input
-                      type="text"
-                      value={enderecoLogradouro}
-                      onChange={(e) => setEnderecoLogradouro(e.target.value)}
-                      placeholder="Ex: Rua Bélgica"
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-black focus:border-emerald-500"
+                      type="tel"
+                      value={whatsapp}
+                      onChange={(e) => setWhatsapp(e.target.value)}
+                      placeholder="5585986072144"
+                      className={`w-full rounded-xl px-3.5 py-2.5 text-sm border focus:border-emerald-500 outline-hidden ${
+                        isDark
+                          ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
+                          : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
+                      }`}
                     />
                   </div>
-                  <div className="col-span-4 space-y-1">
-                    <label className="text-sm font-bold text-black">Número</label>
+
+                  <div className="space-y-1">
+                    <label className={`text-sm font-bold block ${isDark ? 'text-slate-100' : 'text-black'}`}>
+                      Telefone / Celular (Opcional)
+                    </label>
                     <input
-                      type="text"
-                      value={enderecoNumero}
-                      onChange={(e) => setEnderecoNumero(e.target.value)}
-                      placeholder="945 ou S/N"
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black focus:border-emerald-500"
+                      type="tel"
+                      value={telefone}
+                      onChange={(e) => setTelefone(e.target.value)}
+                      placeholder="Telefone adicional"
+                      className={`w-full rounded-xl px-3.5 py-2.5 text-sm border focus:border-emerald-500 outline-hidden ${
+                        isDark
+                          ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
+                          : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
+                      }`}
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div className="space-y-1">
-                    <label className="text-sm font-bold text-black">Complemento</label>
-                    <input
-                      type="text"
-                      value={enderecoComplemento}
-                      onChange={(e) => setEnderecoComplemento(e.target.value)}
-                      placeholder="Apto, Sala..."
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-black focus:border-emerald-500"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-sm font-bold text-black">Bairro</label>
-                    <input
-                      type="text"
-                      value={enderecoBairro}
-                      onChange={(e) => setEnderecoBairro(e.target.value)}
-                      placeholder="Bairro"
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-black focus:border-emerald-500"
-                    />
-                  </div>
+                <div className="space-y-1">
+                  <label className={`text-sm font-bold block ${isDark ? 'text-slate-100' : 'text-black'}`}>
+                    CPF ou CNPJ
+                  </label>
+                  <input
+                    type="text"
+                    value={documento}
+                    onChange={(e) => setDocumento(e.target.value)}
+                    placeholder="00.000.000/0001-00"
+                    className={`w-full rounded-xl px-3.5 py-2.5 text-sm font-mono border focus:border-emerald-500 outline-hidden ${
+                      isDark
+                        ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
+                        : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
+                    }`}
+                  />
                 </div>
 
-                <div className="grid grid-cols-12 gap-2.5">
-                  <div className="col-span-8 space-y-1">
-                    <label className="text-sm font-bold text-black">Cidade</label>
+                <div className="space-y-1">
+                  <label className={`text-sm font-bold block ${isDark ? 'text-slate-100' : 'text-black'}`}>
+                    Razão Social
+                  </label>
+                  <input
+                    type="text"
+                    value={razaoSocial}
+                    onChange={(e) => setRazaoSocial(e.target.value)}
+                    placeholder="NOME DA EMPRESA LTDA"
+                    className={`w-full rounded-xl px-3.5 py-2.5 text-sm uppercase border focus:border-emerald-500 outline-hidden ${
+                      isDark
+                        ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
+                        : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
+                    }`}
+                  />
+                </div>
+
+                <p
+                  className={`text-sm font-medium leading-relaxed p-3 rounded-xl border ${
+                    isDark
+                      ? 'bg-slate-950 border-slate-800 text-slate-300'
+                      : 'bg-slate-100/70 border-slate-200 text-black'
+                  }`}
+                >
+                  Estes dados não serão exibidos no catálogo público. O CPF ou CNPJ é utilizado para emissão fiscal e integrações de logística.
+                </p>
+
+                <div className="space-y-2.5 pt-1">
+                  <span className={`text-sm font-black uppercase tracking-wider block ${isDark ? 'text-white' : 'text-black'}`}>
+                    Endereço
+                  </span>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className={`text-sm font-bold ${isDark ? 'text-slate-100' : 'text-black'}`}>CEP</label>
+                      {buscandoCepLoja && (
+                        <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Buscando...</span>
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="text"
-                      value={enderecoCidade}
-                      onChange={(e) => setEnderecoCidade(e.target.value)}
-                      placeholder="Cidade"
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-black focus:border-emerald-500"
+                      inputMode="numeric"
+                      maxLength={9}
+                      value={enderecoCep}
+                      onChange={(e) => handleCepLojaChange(e.target.value)}
+                      placeholder="00000-000"
+                      className={`w-full rounded-xl px-3.5 py-2.5 text-sm font-mono border focus:border-emerald-500 outline-hidden ${
+                        isDark
+                          ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
+                          : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
+                      }`}
                     />
                   </div>
-                  <div className="col-span-4 space-y-1">
-                    <label className="text-sm font-bold text-black">UF</label>
-                    <input
-                      type="text"
-                      maxLength={2}
-                      value={enderecoEstado}
-                      onChange={(e) => setEnderecoEstado(e.target.value.toUpperCase())}
-                      placeholder="CE"
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-black uppercase focus:border-emerald-500"
-                    />
+
+                  <div className="grid grid-cols-12 gap-2.5">
+                    <div className="col-span-8 space-y-1">
+                      <label className={`text-sm font-bold block ${isDark ? 'text-slate-100' : 'text-black'}`}>
+                        Logradouro / Rua
+                      </label>
+                      <input
+                        type="text"
+                        value={enderecoLogradouro}
+                        onChange={(e) => setEnderecoLogradouro(e.target.value)}
+                        placeholder="Ex: Rua Bélgica"
+                        className={`w-full rounded-xl px-3.5 py-2.5 text-sm border focus:border-emerald-500 outline-hidden ${
+                          isDark
+                            ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
+                            : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
+                        }`}
+                      />
+                    </div>
+                    <div className="col-span-4 space-y-1">
+                      <label className={`text-sm font-bold block ${isDark ? 'text-slate-100' : 'text-black'}`}>
+                        Número
+                      </label>
+                      <input
+                        type="text"
+                        value={enderecoNumero}
+                        onChange={(e) => setEnderecoNumero(e.target.value)}
+                        placeholder="945 ou S/N"
+                        className={`w-full rounded-xl px-3 py-2.5 text-sm border focus:border-emerald-500 outline-hidden ${
+                          isDark
+                            ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
+                            : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="space-y-1">
+                      <label className={`text-sm font-bold block ${isDark ? 'text-slate-100' : 'text-black'}`}>
+                        Complemento
+                      </label>
+                      <input
+                        type="text"
+                        value={enderecoComplemento}
+                        onChange={(e) => setEnderecoComplemento(e.target.value)}
+                        placeholder="Apto, Sala..."
+                        className={`w-full rounded-xl px-3.5 py-2.5 text-sm border focus:border-emerald-500 outline-hidden ${
+                          isDark
+                            ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
+                            : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
+                        }`}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className={`text-sm font-bold block ${isDark ? 'text-slate-100' : 'text-black'}`}>
+                        Bairro
+                      </label>
+                      <input
+                        type="text"
+                        value={enderecoBairro}
+                        onChange={(e) => setEnderecoBairro(e.target.value)}
+                        placeholder="Bairro"
+                        className={`w-full rounded-xl px-3.5 py-2.5 text-sm border focus:border-emerald-500 outline-hidden ${
+                          isDark
+                            ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
+                            : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-12 gap-2.5">
+                    <div className="col-span-8 space-y-1">
+                      <label className={`text-sm font-bold block ${isDark ? 'text-slate-100' : 'text-black'}`}>
+                        Cidade
+                      </label>
+                      <input
+                        type="text"
+                        value={enderecoCidade}
+                        onChange={(e) => setEnderecoCidade(e.target.value)}
+                        placeholder="Cidade"
+                        className={`w-full rounded-xl px-3.5 py-2.5 text-sm border focus:border-emerald-500 outline-hidden ${
+                          isDark
+                            ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
+                            : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
+                        }`}
+                      />
+                    </div>
+                    <div className="col-span-4 space-y-1">
+                      <label className={`text-sm font-bold block ${isDark ? 'text-slate-100' : 'text-black'}`}>
+                        UF
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={2}
+                        value={enderecoEstado}
+                        onChange={(e) => setEnderecoEstado(e.target.value.toUpperCase())}
+                        placeholder="CE"
+                        className={`w-full rounded-xl px-3 py-2.5 text-sm uppercase border focus:border-emerald-500 outline-hidden ${
+                          isDark
+                            ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
+                            : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
+                        }`}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-slate-200 space-y-1.5">
-                <div className="flex flex-wrap items-center justify-between gap-1.5">
-                  <label className="text-sm font-bold text-black flex items-center gap-1.5">
-                    <Key className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Serper.dev API Key (Busca de Fotos e Radar de Preços)</span>
-                  </label>
-                  <a
-                    href="https://serper.dev/api-key"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-sm font-bold text-emerald-700 hover:underline"
-                  >
-                    <span>Criar conta gratuita (2.500 consultas grátis)</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
+              {/* Bloco 2: Segmento de Atuação & Especialização da Rubi IA */}
+              <div
+                className={`rounded-2xl p-4 shadow-xs space-y-4 border ${
+                  isDark
+                    ? 'bg-[#000000] border-slate-700 text-white'
+                    : 'bg-white border-slate-200 text-black'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <h3 className={`font-black text-sm ${isDark ? 'text-white' : 'text-black'}`}>
+                        Segmento de Atuação & Especialização da Rubi IA
+                      </h3>
+                    </div>
+                    <p className={`text-xs mt-1 font-medium leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      Direcione o comportamento, vocabulário e papel de vendedora da IA para o nicho da sua empresa no Catálogo Online.
+                    </p>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider shrink-0">
+                    IA
+                  </span>
                 </div>
-                <input
-                  type={mostrarSerperKey ? 'text' : 'password'}
-                  value={serpApiKey}
-                  onChange={(e) => setSerpApiKey(e.target.value)}
-                  placeholder="Cole a sua chave API do Serper.dev..."
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-black font-mono focus:border-emerald-500"
-                />
+
+                <div className="space-y-2">
+                  <label className={`text-sm font-bold block ${isDark ? 'text-slate-100' : 'text-black'}`}>
+                    Selecione o Ramo do seu Negócio:
+                  </label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {SEGMENTOS_NEGOCIO.map((seg) => {
+                      const isSelected = segmentoNegocio === seg.id;
+                      return (
+                        <button
+                          key={seg.id}
+                          type="button"
+                          onClick={() => handleSelecionarSegmento(seg.id)}
+                          className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${
+                            isSelected
+                              ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 ring-1 ring-emerald-500 shadow-xs'
+                              : isDark
+                                ? 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                                : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          <span
+                            className={`text-lg shrink-0 p-1.5 rounded-xl border ${
+                              isSelected
+                                ? 'bg-emerald-100 dark:bg-slate-900 border-emerald-200 dark:border-slate-700'
+                                : isDark
+                                  ? 'bg-slate-900 border-slate-800'
+                                  : 'bg-white border-slate-200'
+                            }`}
+                          >
+                            {seg.icone}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span
+                                className={`font-bold text-sm leading-snug ${
+                                  isSelected
+                                    ? 'text-emerald-950 dark:text-emerald-300'
+                                    : isDark
+                                      ? 'text-white'
+                                      : 'text-black'
+                                }`}
+                              >
+                                {seg.nome}
+                              </span>
+                              {isSelected && (
+                                <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                              )}
+                            </div>
+                            <span
+                              className={`text-xs block font-semibold mt-0.5 ${
+                                isSelected
+                                  ? 'text-emerald-900 dark:text-slate-200'
+                                  : isDark
+                                    ? 'text-slate-300'
+                                    : 'text-slate-700'
+                              }`}
+                            >
+                              {seg.papel}
+                            </span>
+                            <span
+                              className={`text-xs block mt-1 leading-relaxed ${
+                                isDark ? 'text-slate-400' : 'text-slate-600'
+                              }`}
+                            >
+                              {seg.descricao}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className={`text-sm font-bold block ${isDark ? 'text-slate-100' : 'text-black'}`}>
+                    Especialidade ou Foco Principal da Loja (Opcional):
+                  </label>
+                  <input
+                    type="text"
+                    value={especialidadeNegocio}
+                    onChange={(e) => setEspecialidadeNegocio(e.target.value)}
+                    placeholder="Ex: Roupas femininas, peças Honda e Yamaha, mercadinho de bairro..."
+                    className={`w-full rounded-xl px-3.5 py-2.5 text-sm border focus:border-emerald-500 outline-hidden ${
+                      isDark
+                        ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
+                        : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
+                    }`}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className={`text-sm font-bold block ${isDark ? 'text-slate-100' : 'text-black'}`}>
+                    Estilo e Tom de Voz da Rubi:
+                  </label>
+                  <select
+                    value={tomVozRubi}
+                    onChange={(e) => setTomVozRubi(e.target.value as any)}
+                    className={`w-full rounded-xl px-3.5 py-2.5 text-sm font-medium border focus:border-emerald-500 outline-hidden ${
+                      isDark
+                        ? 'bg-slate-950 border-slate-700 text-white'
+                        : 'bg-white border-slate-300 text-black'
+                    }`}
+                  >
+                    <option value="consultivo">🤝 Consultivo & Atencioso (Recomendado)</option>
+                    <option value="tecnico">🔧 Técnico & Especialista (Foco em compatibilidade e precisão)</option>
+                    <option value="amigavel">✨ Amigável & Descontraído (Linguagem leve e calorosa)</option>
+                    <option value="formal">👔 Formal & Elegante (Atendimento requintado e polido)</option>
+                  </select>
+                </div>
+
+                <div
+                  className={`p-3 rounded-xl border space-y-1 ${
+                    isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+                  }`}
+                >
+                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" /> Exemplo de Saudação da Rubi
+                  </span>
+                  <p className={`text-xs font-medium italic leading-relaxed ${isDark ? 'text-slate-200' : 'text-black'}`}>
+                    "{SEGMENTOS_NEGOCIO.find((s) => s.id === segmentoNegocio)?.exemploFala || SEGMENTOS_NEGOCIO[0].exemploFala}"
+                  </p>
+                </div>
+              </div>
+
+              {/* Bloco 3: Credenciais de Inteligência Artificial */}
+              <div
+                className={`rounded-2xl p-4 shadow-xs space-y-4 border ${
+                  isDark
+                    ? 'bg-[#000000] border-slate-700 text-white'
+                    : 'bg-white border-slate-200 text-black'
+                }`}
+              >
+                <span className={`text-sm font-black uppercase tracking-wider block ${isDark ? 'text-white' : 'text-black'}`}>
+                  Credenciais de IA
+                </span>
+
+                {/* Google Gemini API Key (Obrigatório) */}
+                <div className="space-y-1.5">
+                  <div className="flex flex-wrap items-center justify-between gap-1.5">
+                    <label className={`text-sm font-bold flex items-center gap-1.5 ${isDark ? 'text-slate-100' : 'text-black'}`}>
+                      <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
+                      <span>Chave de API do Google Gemini (Obrigatório)</span>
+                      <span className="text-rose-500 font-black">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setModalComoObterGeminiApiKeyAberto(true)}
+                      className="inline-flex items-center gap-1 text-xs text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 font-bold hover:underline cursor-pointer"
+                    >
+                      <HelpCircle className="w-3.5 h-3.5" />
+                      <span>[ Como obter a chave ]</span>
+                    </button>
+                  </div>
+
+                  <div className="relative">
+                    <input
+                      type={mostrarGeminiKey ? 'text' : 'password'}
+                      value={geminiApiKey}
+                      onChange={(e) => setGeminiApiKey(e.target.value)}
+                      placeholder="AIzaSy..."
+                      required
+                      className={`w-full rounded-xl px-3.5 pr-11 py-2.5 text-sm font-mono border focus:border-emerald-500 outline-hidden ${
+                        isDark
+                          ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
+                          : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setMostrarGeminiKey((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 dark:text-slate-400 hover:text-black dark:hover:text-slate-200 p-1 cursor-pointer"
+                      title={mostrarGeminiKey ? 'Ocultar chave Gemini' : 'Exibir chave Gemini'}
+                    >
+                      {mostrarGeminiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+
+                  <p className={`text-xs leading-relaxed font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Credencial oficial do <strong>Google AI Studio</strong> usada pela Rubi IA, autopreenchimento por foto e leitura de rótulos. Se uma filial não tiver chave própria, pode herdar automaticamente da matriz da mesma organização.
+                  </p>
+                </div>
+
+                {/* Serper.dev API Key */}
+                <div className={`pt-3 border-t space-y-2 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-1.5">
+                    <label className={`text-sm font-bold flex items-center gap-1.5 ${isDark ? 'text-slate-100' : 'text-black'}`}>
+                      <Key className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span>Serper.dev API Key (Busca de Fotos e Radar de Preços)</span>
+                    </label>
+                    <a
+                      href="https://serper.dev/api-key"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:underline"
+                    >
+                      <span>Criar conta grátis</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+
+                  <div className="relative">
+                    <input
+                      type={mostrarSerperKey ? 'text' : 'password'}
+                      value={serpApiKey}
+                      onChange={(e) => {
+                        setSerpApiKey(e.target.value);
+                        if (resultadoTesteSerpApi) setResultadoTesteSerpApi(null);
+                      }}
+                      placeholder="Cole a sua chave API do Serper.dev..."
+                      className={`w-full rounded-xl px-3.5 pr-11 py-2.5 text-sm font-mono border focus:border-emerald-500 outline-hidden ${
+                        isDark
+                          ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500'
+                          : 'bg-white border-slate-300 text-black placeholder:text-slate-400'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setMostrarSerperKey((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 dark:text-slate-400 hover:text-black dark:hover:text-slate-200 p-1 cursor-pointer"
+                      title={mostrarSerperKey ? 'Ocultar chave Serper' : 'Exibir chave Serper'}
+                    >
+                      {mostrarSerperKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleTestarSerperKey}
+                    disabled={testandoSerpApi || !serpApiKey.trim()}
+                    className={`w-full min-h-[42px] px-3.5 py-2.5 rounded-xl border font-bold text-sm flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50 ${
+                      isDark
+                        ? 'bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-100'
+                        : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-black'
+                    }`}
+                  >
+                    {testandoSerpApi ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+                        <span>Testando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4 text-emerald-500" />
+                        <span>Testar Chave</span>
+                      </>
+                    )}
+                  </button>
+
+                  {resultadoTesteSerpApi && (
+                    <div
+                      className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center gap-2 ${
+                        resultadoTesteSerpApi.sucesso
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
+                          : 'bg-rose-500/10 border-rose-500/30 text-rose-800 dark:text-rose-300'
+                      }`}
+                    >
+                      {resultadoTesteSerpApi.sucesso ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                      )}
+                      <span>{resultadoTesteSerpApi.mensagem}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -6345,7 +6783,10 @@ export const ConfiguracoesLoja: React.FC<ConfiguracoesLojaProps> = ({ subTelaIni
       <ModalComoObterGeminiApiKey
         isOpen={modalComoObterGeminiApiKeyAberto}
         onClose={() => setModalComoObterGeminiApiKeyAberto(false)}
-        onPreencherChave={(chave) => setGeminiApiKey(chave)}
+        onPreencherChave={(chave) => {
+          setGeminiApiKey(chave);
+          marcarInteracaoFisica();
+        }}
       />
 
       {/* MODAL CHECKLIST DE CONFIGURAÇÃO DA LOJA */}

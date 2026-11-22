@@ -1,5 +1,5 @@
 // Serviço de Inteligência Artificial Google Gemini (Visão Multimodal e Processamento de Produtos)
-import { supabase } from '../lib/supabase';
+import { supabase, supabaseFunctionsBaseUrl, supabaseAnonKey } from '../lib/supabase';
 import { Loja } from '../types';
 import {
   obterSerpApiKey,
@@ -523,8 +523,8 @@ export const comprimirImagemParaIA = async (base64OrUrl: string): Promise<{ base
       finalizado = true;
       clearTimeout(timerFallback);
 
-      const maxDim = OPCOES_COMPRESSAO_VISAO_IA.maxDimension ?? 640;
-      const qualidadeVisao = OPCOES_COMPRESSAO_VISAO_IA.quality ?? 0.70;
+      const maxDim = OPCOES_COMPRESSAO_VISAO_IA.maxDimension ?? 512;
+      const qualidadeVisao = OPCOES_COMPRESSAO_VISAO_IA.quality ?? 0.68;
       let width = img.width;
       let height = img.height;
 
@@ -776,59 +776,78 @@ export const SAFETY_SETTINGS_VAREJO = [
   }
 ];
 
-async function extrairMensagemErroEdgeFunction(
-  error: unknown,
-  data?: { error?: string | { message?: string }; detalhe?: string } | null
-): Promise<string> {
-  if (data?.error) {
-    const msgData = typeof data.error === 'string' ? data.error : data.error?.message;
-    if (msgData && msgData.trim()) return msgData.trim();
+async function invocarGeminiProxyDireto<T = any>(
+  body: Record<string, unknown>,
+  timeoutMs = 14000
+): Promise<T> {
+  let token = supabaseAnonKey;
+  try {
+    const sessaoRes = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 500))
+    ]);
+    const accessToken =
+      sessaoRes && typeof sessaoRes === 'object' && 'data' in sessaoRes
+        ? sessaoRes.data?.session?.access_token
+        : null;
+    if (accessToken && accessToken.trim()) {
+      token = accessToken.trim();
+    }
+  } catch {
+    // Segue imediatamente com supabaseAnonKey quando não há sessão auth.users
   }
 
-  const errRecord = error as { context?: unknown; message?: string } | null;
-  const ctx = errRecord?.context;
-  if (ctx && typeof ctx === 'object') {
-    const respLike = ctx as {
-      clone?: () => Response;
-      json?: () => Promise<unknown>;
-      text?: () => Promise<string>;
-    };
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
 
-    try {
-      const fonte = typeof respLike.clone === 'function' ? respLike.clone() : respLike;
-      if (typeof fonte.json === 'function') {
-        const parsed = (await fonte.json()) as {
-          error?: string | { message?: string };
-          message?: string;
-        } | null;
-        const msgJson =
-          typeof parsed?.error === 'string'
-            ? parsed.error
-            : parsed?.error?.message || parsed?.message;
-        if (msgJson && msgJson.trim()) {
-          return msgJson.trim();
-        }
-      }
-    } catch {
+  try {
+    const response = await fetch(`${supabaseFunctionsBaseUrl}/gemini-proxy`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${token || supabaseAnonKey}`
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
+
+    const rawText = await response.text().catch(() => '');
+    let data: any = null;
+    if (rawText) {
       try {
-        const fonteTxt = typeof respLike.clone === 'function' ? respLike.clone() : respLike;
-        if (typeof fonteTxt.text === 'function') {
-          const textoBruto = (await fonteTxt.text()).trim();
-          if (textoBruto && !textoBruto.startsWith('<')) {
-            return textoBruto.slice(0, 220);
-          }
-        }
+        data = JSON.parse(rawText);
       } catch {
-        // Ignora falha caso o corpo da resposta já tenha sido lido
+        data = null;
       }
     }
-  }
 
-  const msgCrua = errRecord?.message || '';
-  if (msgCrua.includes('non-2xx')) {
-    return 'O serviço de IA não conseguiu processar a solicitação no momento. Verifique a foto ou tente novamente.';
+    if (!response.ok || (data && typeof data === 'object' && data.error)) {
+      const errObj = data?.error;
+      const msgJson =
+        typeof errObj === 'string'
+          ? errObj
+          : errObj?.message || (typeof data?.message === 'string' ? data.message : '');
+      if (msgJson && String(msgJson).trim()) {
+        throw new Error(String(msgJson).trim());
+      }
+      if (rawText && !rawText.trim().startsWith('<')) {
+        throw new Error(rawText.trim().slice(0, 220));
+      }
+      throw new Error(
+        'O serviço de IA não conseguiu processar a solicitação no momento. Verifique a foto ou tente novamente.'
+      );
+    }
+
+    return data as T;
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('A leitura pela IA demorou mais que o esperado. Tente novamente em instantes.');
+    }
+    throw err;
+  } finally {
+    window.clearTimeout(timeoutId);
   }
-  return msgCrua || 'Falha ao consultar o serviço de Inteligência Artificial.';
 }
 
 export const executarRequisicaoGemini = async (
@@ -842,7 +861,7 @@ export const executarRequisicaoGemini = async (
     safetySettings: restRequestBody.safetySettings || SAFETY_SETTINGS_VAREJO
   };
 
-  const modeloDesejado = modelInBody || 'gemini-3.8-flash';
+  const modeloDesejado = modelInBody || 'gemini-2.5-flash';
 
   // 1. Resolver chave local/loja para chamada direta de baixa latência (1 salto direto à Google API)
   let chaveParaContingencia = (apiKey || '').trim() || getGeminiApiKey();
@@ -854,30 +873,13 @@ export const executarRequisicaoGemini = async (
 
   // 2. Se NÃO houver chave disponível no cliente, recorrer à Supabase Edge Function (gemini-proxy)
   if (!chaveParaContingencia) {
-    try {
-      const { data: edgeData, error: edgeErr } = await supabase.functions.invoke('gemini-proxy', {
-        body: {
-          model: modeloDesejado,
-          action: 'generateContent',
-          requestBody: payloadCompleto,
-          loja_id: lojaId,
-          lojaId
-        }
-      });
-
-      if (!edgeErr && edgeData && !edgeData.error) {
-        return edgeData;
-      }
-
-      const msgReal = await extrairMensagemErroEdgeFunction(edgeErr, edgeData);
-      throw new Error(msgReal);
-    } catch (edgeCallErr: unknown) {
-      const msg =
-        edgeCallErr instanceof Error
-          ? edgeCallErr.message
-          : 'Chave da API do Google Gemini não configurada no servidor ou na loja.';
-      throw new Error(msg);
-    }
+    return await invocarGeminiProxyDireto({
+      model: modeloDesejado,
+      action: 'generateContent',
+      requestBody: payloadCompleto,
+      loja_id: lojaId,
+      lojaId
+    });
   }
 
   // 3. Execução direta ultrarrápida com cache inteligente de modelo ativo (evita GET /v1beta/models desnecessário)
@@ -891,7 +893,7 @@ export const executarRequisicaoGemini = async (
   }
 
   if (modelos.length === 0) {
-    modelos = ['gemini-3.8-flash'];
+    modelos = ['gemini-2.5-flash'];
   }
 
   let primeiroErro: string | null = null;
@@ -1833,22 +1835,13 @@ async function invocarGeminiPreencherViaEdgeProxy(
   requestBody: Record<string, unknown>,
   lojaId?: string
 ): Promise<GeminiProxyResponse> {
-  const { data, error } = await supabase.functions.invoke<GeminiProxyResponse>('gemini-proxy', {
-    body: {
-      model: 'gemini-2.5-flash',
-      action: 'generateContent',
-      requestBody,
-      loja_id: lojaId,
-      lojaId
-    }
+  return await invocarGeminiProxyDireto<GeminiProxyResponse>({
+    model: 'gemini-2.5-flash',
+    action: 'generateContent',
+    requestBody,
+    loja_id: lojaId,
+    lojaId
   });
-
-  if (!error && data && !data.error) {
-    return data;
-  }
-
-  const msgErro = await extrairMensagemErroEdgeFunction(error, data);
-  throw new Error(msgErro || 'Falha ao consultar Edge Function gemini-proxy.');
 }
 
 /**

@@ -12,11 +12,11 @@ const corsHeaders = {
 
 const MODELOS_RAPIDOS_HOMOLOGADOS = [
   "gemini-2.5-flash",
-  "gemini-2.5-flash-lite",
   "gemini-3.8-flash",
+  "gemini-2.5-flash-lite",
 ] as const;
 
-const TIMEOUT_CHAMADA_GOOGLE_MS = 12000;
+const TIMEOUT_CHAMADA_GOOGLE_MS = 9000;
 const TIMEOUT_LIST_MODELS_MS = 4000;
 const REGEX_MODELO_FLASH_PADRAO = /^models\/gemini-(\d+(?:\.\d+)?)-flash$/i;
 
@@ -37,6 +37,30 @@ function jsonResponse(payload: Record<string, unknown>, status: number): Respons
   });
 }
 
+function extrairChaveGeminiDaLoja(
+  registro: { gemini_api_key?: unknown; configuracoes_extras?: unknown } | null | undefined
+): string {
+  if (!registro) return "";
+  if (typeof registro.gemini_api_key === "string" && registro.gemini_api_key.trim()) {
+    return registro.gemini_api_key.trim();
+  }
+  let extras = registro.configuracoes_extras;
+  if (typeof extras === "string") {
+    try {
+      extras = JSON.parse(extras);
+    } catch {
+      extras = null;
+    }
+  }
+  if (extras && typeof extras === "object") {
+    const iaObj = (extras as { ia?: { gemini_api_key?: unknown } }).ia;
+    if (typeof iaObj?.gemini_api_key === "string" && iaObj.gemini_api_key.trim()) {
+      return iaObj.gemini_api_key.trim();
+    }
+  }
+  return "";
+}
+
 function sanitizarPayloadParaModelo(
   payloadBase: Record<string, unknown>,
   modelo: string
@@ -50,9 +74,19 @@ function sanitizarPayloadParaModelo(
       ? ({ ...(clone.generationConfig as Record<string, unknown>) })
       : {};
 
-  if (suportaThinking && !ehTts) {
-    if (!("thinkingConfig" in genCfgAtual)) {
-      genCfgAtual.thinkingConfig = { thinkingBudget: 0 };
+  if (!ehTts) {
+    if (genCfgAtual.temperature === undefined) {
+      genCfgAtual.temperature = 0.2;
+    }
+    if (genCfgAtual.maxOutputTokens === undefined) {
+      genCfgAtual.maxOutputTokens = 600;
+    }
+    if (suportaThinking) {
+      if (!("thinkingConfig" in genCfgAtual)) {
+        genCfgAtual.thinkingConfig = { thinkingBudget: 0 };
+      }
+    } else if ("thinkingConfig" in genCfgAtual) {
+      delete genCfgAtual.thinkingConfig;
     }
     clone.generationConfig = genCfgAtual;
   } else if ("thinkingConfig" in genCfgAtual) {
@@ -270,7 +304,7 @@ serve(async (req: Request) => {
     const apiKeyPayload = String(apiKey || api_key || "").trim();
     let resolvedApiKey = apiKeyPayload;
 
-    // 1. Validação de loja ativa (sem exigir JWT auth.users) e resolução da chave BYOK da loja
+    // 1. Validação de loja ativa (sem exigir JWT auth.users) e resolução da chave BYOK (própria ou herdada da organização)
     if (lojaIdResolvido) {
       try {
         const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -279,7 +313,7 @@ serve(async (req: Request) => {
           const supabaseAdmin = createClient(supabaseUrl, serviceKey);
           const { data: loja, error: lojaError } = await supabaseAdmin
             .from("lojas")
-            .select("id, ativo, gemini_api_key, configuracoes_extras")
+            .select("id, ativo, organizacao_id, gemini_api_key, configuracoes_extras")
             .eq("id", lojaIdResolvido)
             .maybeSingle();
 
@@ -295,10 +329,31 @@ serve(async (req: Request) => {
           }
 
           if (!resolvedApiKey && loja) {
-            const extras = loja.configuracoes_extras as { ia?: { gemini_api_key?: string } } | null;
-            resolvedApiKey = String(
-              loja.gemini_api_key || extras?.ia?.gemini_api_key || ""
-            ).trim();
+            resolvedApiKey = extrairChaveGeminiDaLoja(loja);
+
+            // Herança multi-loja: se filial não possui chave própria, herda da matriz/irmã na mesma organização
+            if (!resolvedApiKey && loja.organizacao_id) {
+              const { data: lojasIrmas } = await supabaseAdmin
+                .from("lojas")
+                .select("ativo, gemini_api_key, configuracoes_extras")
+                .eq("organizacao_id", loja.organizacao_id)
+                .neq("id", loja.id)
+                .limit(20);
+
+              if (Array.isArray(lojasIrmas)) {
+                const irmasOrdenadas = [
+                  ...lojasIrmas.filter((item) => item.ativo !== false),
+                  ...lojasIrmas.filter((item) => item.ativo === false),
+                ];
+                for (const irma of irmasOrdenadas) {
+                  const chaveIrma = extrairChaveGeminiDaLoja(irma);
+                  if (chaveIrma) {
+                    resolvedApiKey = chaveIrma;
+                    break;
+                  }
+                }
+              }
+            }
           }
         }
       } catch (err) {
@@ -387,6 +442,7 @@ serve(async (req: Request) => {
 
       if (!ehIndisponibilidadeModelo) {
         todosForam404 = false;
+        break;
       }
     }
 
@@ -417,7 +473,7 @@ serve(async (req: Request) => {
       {
         ok: false,
         error: traduzidoFinal.error,
-        detalhe: ultimoResultado?.timeout ? "timeout_12s" : detalheFinal,
+        detalhe: ultimoResultado?.timeout ? "timeout_9s" : detalheFinal,
         statusGoogle: statusFinal,
       },
       traduzidoFinal.statusHttp

@@ -46,6 +46,31 @@ function extrairRamoCurto(ramoBruto: string): string {
   return MAPA_SEGMENTOS_LOJA[norm] || primeiro;
 }
 
+function extrairChaveSerperDaLoja(
+  registro: { serper_api_key?: unknown; configuracoes_extras?: unknown } | null | undefined
+): string {
+  if (!registro) return "";
+  if (typeof registro.serper_api_key === "string" && registro.serper_api_key.trim()) {
+    return registro.serper_api_key.trim();
+  }
+  let extras = registro.configuracoes_extras;
+  if (typeof extras === "string") {
+    try {
+      extras = JSON.parse(extras);
+    } catch {
+      extras = null;
+    }
+  }
+  if (extras && typeof extras === "object") {
+    const iaObj = (extras as { ia?: { serper_api_key?: unknown; serpapi_key?: unknown } }).ia;
+    const candidata = iaObj?.serper_api_key || iaObj?.serpapi_key;
+    if (typeof candidata === "string" && candidata.trim()) {
+      return candidata.trim();
+    }
+  }
+  return "";
+}
+
 function ehNichoAdulto(texto: string): boolean {
   const norm = normalizarSemAcentos(texto);
   if (!norm) return false;
@@ -137,28 +162,91 @@ serve(async (req: Request) => {
       safeParam = String(url.searchParams.get("safe") || "").trim().toLowerCase();
     }
 
-    // 1. Resolução da Chave de API e contexto do segmento da loja no banco (BYOK + multi-tenant):
+    // 1. Resolução da Chave de API (própria -> herdada da organização -> plataforma/env) e contexto do segmento:
     let sobreLoja = "";
-    if (lojaId && (!apiKey || !ramoAtividade || safeParam !== "off")) {
-      const supabaseAdmin = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-      );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const supabaseAdmin =
+      supabaseUrl && serviceRoleKey ? createClient(supabaseUrl, serviceRoleKey) : null;
 
+    if (lojaId && supabaseAdmin && (!apiKey || !ramoAtividade || safeParam !== "off")) {
       const { data: loja } = await supabaseAdmin
         .from("lojas")
-        .select("serper_api_key, configuracoes_extras, sobre_loja")
+        .select("id, organizacao_id, serper_api_key, configuracoes_extras, sobre_loja")
         .eq("id", lojaId)
         .maybeSingle();
 
-      if (!apiKey) {
-        apiKey = typeof loja?.serper_api_key === "string" ? loja.serper_api_key.trim() : "";
+      if (!apiKey && loja) {
+        apiKey = extrairChaveSerperDaLoja(loja);
+
+        // Herança multi-loja: se filial não possui chave própria, busca irmã/matriz da mesma organização
+        if (!apiKey && loja.organizacao_id) {
+          const { data: lojasIrmas } = await supabaseAdmin
+            .from("lojas")
+            .select("ativo, serper_api_key, configuracoes_extras")
+            .eq("organizacao_id", loja.organizacao_id)
+            .neq("id", loja.id)
+            .limit(20);
+
+          if (Array.isArray(lojasIrmas)) {
+            const irmasOrdenadas = [
+              ...lojasIrmas.filter((item) => item.ativo !== false),
+              ...lojasIrmas.filter((item) => item.ativo === false),
+            ];
+            for (const irma of irmasOrdenadas) {
+              const chaveIrma = extrairChaveSerperDaLoja(irma);
+              if (chaveIrma) {
+                apiKey = chaveIrma;
+                break;
+              }
+            }
+          }
+        }
       }
+
       sobreLoja = typeof loja?.sobre_loja === "string" ? loja.sobre_loja.trim() : "";
-      const segDb = String(loja?.configuracoes_extras?.perfil_negocio?.segmento || "").trim();
+      const extrasLoja =
+        typeof loja?.configuracoes_extras === "string"
+          ? (() => {
+              try {
+                return JSON.parse(loja.configuracoes_extras);
+              } catch {
+                return {};
+              }
+            })()
+          : loja?.configuracoes_extras;
+      const segDb = String(extrasLoja?.perfil_negocio?.segmento || "").trim();
       if (!ramoAtividade && segDb) {
         ramoAtividade = MAPA_SEGMENTOS_LOJA[normalizarSemAcentos(segDb)] || segDb;
       }
+    }
+
+    // Fallback global opcional em configuracoes_plataforma e depois variável de ambiente SERPER_API_KEY
+    if (!apiKey && supabaseAdmin) {
+      try {
+        const { data: cfgs } = await supabaseAdmin
+          .from("configuracoes_plataforma")
+          .select("*")
+          .limit(10);
+        if (Array.isArray(cfgs)) {
+          for (const row of cfgs as Array<Record<string, unknown>>) {
+            if (typeof row.serper_api_key === "string" && row.serper_api_key.trim()) {
+              apiKey = row.serper_api_key.trim();
+              break;
+            }
+            if (row.chave === "serper_api_key" && typeof row.valor === "string" && row.valor.trim()) {
+              apiKey = row.valor.trim();
+              break;
+            }
+          }
+        }
+      } catch {
+        // Tabela ou coluna opcional ausente; segue para fallback de Secret
+      }
+    }
+
+    if (!apiKey) {
+      apiKey = String(Deno.env.get("SERPER_API_KEY") || "").trim();
     }
 
     if (!apiKey) {

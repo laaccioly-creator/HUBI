@@ -13,13 +13,14 @@ const modelosIndisponiveis404 = new Set<string>([
   'gemini-2.0-flash',
   'gemini-1.5-flash',
   'gemini-1.5-flash-8b',
-  'gemini-2.5-flash-lite',
   'gemini-3.5-flash-lite'
 ]);
 
 // Fallback de contingência caso a rede do cliente oscile ou a listagem falhe temporariamente
 export const MODELOS_FALLBACK_CONTINGENCIA = [
-  'gemini-3.8-flash'
+  'gemini-2.5-flash',
+  'gemini-3.8-flash',
+  'gemini-2.5-flash-lite'
 ];
 
 export const isModeloIndisponivel = (modelo: string): boolean => {
@@ -74,9 +75,7 @@ export const calcularScoreModelo = (nome: string): number => {
   if (
     limpo.includes('gemini-1.0') ||
     limpo.includes('gemini-1.5') ||
-    limpo.includes('gemini-2.0') ||
-    limpo.includes('gemini-2.5') ||
-    limpo.includes('flash-lite')
+    limpo.includes('gemini-2.0')
   ) {
     return -1000;
   }
@@ -85,8 +84,8 @@ export const calcularScoreModelo = (nome: string): number => {
   if (limpo.includes('flash')) {
     score += 1000;
   }
-  // Modelo primário recomendado para visão multimodal, Radar de Preços e Varejo
-  if (limpo === 'gemini-3.8-flash') {
+  // Modelos primários recomendados para visão multimodal, Radar de Preços e Varejo
+  if (limpo === 'gemini-2.5-flash' || limpo === 'gemini-3.8-flash') {
     score += 1500;
   }
   if (limpo === 'gemini-3.5-flash') {
@@ -163,8 +162,6 @@ export const getAvailableGeminiModels = async (
             nome.includes('gemini-1.0') ||
             nome.includes('gemini-1.5') ||
             nome.includes('gemini-2.0') ||
-            nome.includes('gemini-2.5') ||
-            nome.includes('flash-lite') ||
             nome.includes('embedding') ||
             nome.includes('aqa') ||
             nome.includes('bison') ||
