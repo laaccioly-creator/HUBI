@@ -12,12 +12,11 @@ const corsHeaders = {
 
 const MODELOS_RAPIDOS_HOMOLOGADOS = [
   "gemini-3.8-flash",
-  "gemini-3.8-flash-lite",
+  "gemini-2.5-flash",
 ] as const;
 
 const TIMEOUT_CHAMADA_GOOGLE_MS = 8000;
-const TIMEOUT_LIST_MODELS_MS = 4000;
-const REGEX_MODELO_FLASH_PADRAO = /^models\/gemini-(\d+(?:\.\d+)?)-flash$/i;
+const TIMEOUT_HANDLER_GLOBAL_MS = 8500;
 
 interface ResultadoChamadaGoogle {
   ok: boolean;
@@ -65,7 +64,6 @@ function sanitizarPayloadParaModelo(
   modelo: string
 ): Record<string, unknown> {
   const clone: Record<string, unknown> = { ...payloadBase };
-  const suportaThinking = /^gemini-(?:2\.5|3)/i.test(modelo);
   const ehTts = modelo.toLowerCase().includes("-tts");
 
   const genCfgAtual =
@@ -73,24 +71,21 @@ function sanitizarPayloadParaModelo(
       ? ({ ...(clone.generationConfig as Record<string, unknown>) })
       : {};
 
+  // Remove thinkingConfig para evitar rejeições ou travamentos entre versões dos modelos Flash
+  delete genCfgAtual.thinkingConfig;
+
   if (!ehTts) {
     if (genCfgAtual.temperature === undefined) {
       genCfgAtual.temperature = 0.2;
     }
     if (genCfgAtual.maxOutputTokens === undefined) {
-      genCfgAtual.maxOutputTokens = 500;
-    }
-    if (suportaThinking) {
-      if (!("thinkingConfig" in genCfgAtual)) {
-        genCfgAtual.thinkingConfig = { thinkingBudget: 0 };
-      }
-    } else if ("thinkingConfig" in genCfgAtual) {
-      delete genCfgAtual.thinkingConfig;
+      genCfgAtual.maxOutputTokens = 512;
     }
     clone.generationConfig = genCfgAtual;
-  } else if ("thinkingConfig" in genCfgAtual) {
-    const { thinkingConfig: _tc, ...restoGenCfg } = genCfgAtual;
-    clone.generationConfig = restoGenCfg;
+  } else if (Object.keys(genCfgAtual).length > 0) {
+    clone.generationConfig = genCfgAtual;
+  } else {
+    delete clone.generationConfig;
   }
 
   return clone;
@@ -139,8 +134,8 @@ async function chamarGoogleGemini(
       typeof payloadAtual.generationConfig === "object"
     ) {
       const genCfg = payloadAtual.generationConfig as Record<string, unknown>;
-      if (genCfg.thinkingConfig || genCfg.responseSchema) {
-        const { thinkingConfig: _tc, responseSchema: _rs, ...cleanGenCfg } = genCfg;
+      if (genCfg.responseSchema) {
+        const { responseSchema: _rs, ...cleanGenCfg } = genCfg;
         payloadAtual = {
           ...payloadAtual,
           generationConfig: cleanGenCfg,
@@ -178,55 +173,6 @@ async function chamarGoogleGemini(
       timeout: false,
       data: { error: { message: msg } },
     };
-  }
-}
-
-async function resolverModeloFlashViaListModels(apiKey: string): Promise<string | null> {
-  try {
-    const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
-    const res = await fetchComTimeout(
-      listUrl,
-      {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      },
-      TIMEOUT_LIST_MODELS_MS
-    );
-
-    if (!res.ok) return null;
-
-    const json = (await res.json().catch(() => ({}))) as {
-      models?: Array<{
-        name?: string;
-        supportedGenerationMethods?: string[];
-      }>;
-    };
-    const lista = Array.isArray(json.models) ? json.models : [];
-
-    const candidatos = lista
-      .filter((m) => {
-        const metodos = Array.isArray(m.supportedGenerationMethods)
-          ? m.supportedGenerationMethods
-          : [];
-        return metodos.includes("generateContent");
-      })
-      .map((m) => {
-        const nomeOriginal = String(m.name || "").trim();
-        const match = REGEX_MODELO_FLASH_PADRAO.exec(nomeOriginal);
-        if (!match) return null;
-        const versao = parseFloat(match[1]);
-        if (Number.isNaN(versao) || versao < 2.5) return null;
-        return {
-          nomeLimpo: nomeOriginal.replace(/^models\//i, ""),
-          versao,
-        };
-      })
-      .filter((item): item is { nomeLimpo: string; versao: number } => item !== null)
-      .sort((a, b) => b.versao - a.versao);
-
-    return candidatos[0]?.nomeLimpo || null;
-  } catch {
-    return null;
   }
 }
 
@@ -278,153 +224,170 @@ serve(async (req: Request) => {
     return new Response("ok", { headers: corsHeaders, status: 200 });
   }
 
-  try {
-    if (req.method !== "POST") {
-      return jsonResponse({ ok: false, error: "Método não permitido.", detalhe: "method_not_allowed" }, 405);
-    }
+  let etapaAtual = "inicio";
 
-    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-    const {
-      contents,
-      generationConfig,
-      safetySettings,
-      systemInstruction,
-      tools,
-      model,
-      action = "generateContent",
-      api_key,
-      apiKey,
-      loja_id,
-      lojaId,
-      requestBody,
-    } = body;
+  const executarHandler = async (): Promise<Response> => {
+    try {
+      if (req.method !== "POST") {
+        return jsonResponse({ ok: false, error: "Método não permitido.", detalhe: "method_not_allowed" }, 405);
+      }
 
-    const lojaIdResolvido = String(lojaId || loja_id || "").trim();
-    const apiKeyPayload = String(apiKey || api_key || "").trim();
-    let resolvedApiKey = apiKeyPayload;
+      etapaAtual = "lendo_body";
+      const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+      const {
+        contents,
+        generationConfig,
+        safetySettings,
+        systemInstruction,
+        tools,
+        model,
+        action = "generateContent",
+        api_key,
+        apiKey,
+        loja_id,
+        lojaId,
+        requestBody,
+      } = body;
 
-    // 1. Validação de loja ativa (sem exigir JWT auth.users) e resolução da chave BYOK (própria ou herdada da organização)
-    if (lojaIdResolvido) {
-      try {
-        const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-        if (supabaseUrl && serviceKey) {
-          const supabaseAdmin = createClient(supabaseUrl, serviceKey);
-          const { data: loja, error: lojaError } = await supabaseAdmin
-            .from("lojas")
-            .select("id, ativo, organizacao_id, gemini_api_key, configuracoes_extras")
-            .eq("id", lojaIdResolvido)
-            .maybeSingle();
+      const lojaIdResolvido = String(lojaId || loja_id || "").trim();
+      const apiKeyPayload = String(apiKey || api_key || "").trim();
+      let resolvedApiKey = apiKeyPayload;
 
-          if (!lojaError && (!loja || loja.ativo === false)) {
-            return jsonResponse(
-              {
-                ok: false,
-                error: "Loja não encontrada ou inativa para uso da IA.",
-                detalhe: "loja_invalida",
-              },
-              403
-            );
-          }
+      // 1. Consulta rápida da chave BYOK (própria ou herdada da mesma organizacao_id)
+      etapaAtual = "buscando_chave_db";
+      if (!resolvedApiKey && lojaIdResolvido) {
+        try {
+          const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+          const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+          if (supabaseUrl && serviceKey) {
+            const supabaseAdmin = createClient(supabaseUrl, serviceKey);
+            const { data: loja, error: lojaError } = await supabaseAdmin
+              .from("lojas")
+              .select("id, ativo, organizacao_id, gemini_api_key, configuracoes_extras")
+              .eq("id", lojaIdResolvido)
+              .maybeSingle();
 
-          if (!resolvedApiKey && loja) {
-            resolvedApiKey = extrairChaveGeminiDaLoja(loja);
+            if (!lojaError && loja && loja.ativo === false) {
+              return jsonResponse(
+                {
+                  ok: false,
+                  error: "Loja não encontrada ou inativa para uso da IA.",
+                  detalhe: "loja_invalida",
+                },
+                403
+              );
+            }
 
-            // Herança multi-loja: se filial não possui chave própria, herda da matriz/irmã na mesma organização
-            if (!resolvedApiKey && loja.organizacao_id) {
-              const { data: lojasIrmas } = await supabaseAdmin
-                .from("lojas")
-                .select("ativo, gemini_api_key, configuracoes_extras")
-                .eq("organizacao_id", loja.organizacao_id)
-                .neq("id", loja.id)
-                .limit(20);
+            if (loja) {
+              resolvedApiKey = extrairChaveGeminiDaLoja(loja);
 
-              if (Array.isArray(lojasIrmas)) {
-                const irmasOrdenadas = [
-                  ...lojasIrmas.filter((item) => item.ativo !== false),
-                  ...lojasIrmas.filter((item) => item.ativo === false),
-                ];
-                for (const irma of irmasOrdenadas) {
-                  const chaveIrma = extrairChaveGeminiDaLoja(irma);
-                  if (chaveIrma) {
-                    resolvedApiKey = chaveIrma;
-                    break;
+              if (!resolvedApiKey && loja.organizacao_id) {
+                const { data: lojasIrmas } = await supabaseAdmin
+                  .from("lojas")
+                  .select("ativo, gemini_api_key, configuracoes_extras")
+                  .eq("organizacao_id", loja.organizacao_id)
+                  .neq("id", loja.id)
+                  .limit(20);
+
+                if (Array.isArray(lojasIrmas)) {
+                  const irmasOrdenadas = [
+                    ...lojasIrmas.filter((item) => item.ativo !== false),
+                    ...lojasIrmas.filter((item) => item.ativo === false),
+                  ];
+                  for (const irma of irmasOrdenadas) {
+                    const chaveIrma = extrairChaveGeminiDaLoja(irma);
+                    if (chaveIrma) {
+                      resolvedApiKey = chaveIrma;
+                      break;
+                    }
                   }
                 }
               }
             }
           }
+        } catch (err) {
+          console.warn("[gemini-proxy] Falha ao consultar loja:", err);
         }
-      } catch (err) {
-        console.warn("[gemini-proxy] Falha ao consultar loja:", err);
-      }
-    }
-
-    // 2. Fallback para segredo da plataforma nos Secrets do Supabase
-    if (!resolvedApiKey) {
-      resolvedApiKey = (
-        Deno.env.get("GEMINI_API_KEY") ||
-        Deno.env.get("GOOGLE_AI_STUDIO_API_KEY") ||
-        ""
-      ).trim();
-    }
-
-    if (!resolvedApiKey) {
-      return jsonResponse(
-        {
-          ok: false,
-          error: "Chave de API do Google Gemini não configurada. Verifique em Configurações > IA.",
-          detalhe: "chave_ausente",
-          statusGoogle: 401,
-        },
-        400
-      );
-    }
-
-    // 3. Construção do payload da Google Generative Language API
-    const googlePayload: Record<string, unknown> = {};
-    if (requestBody && typeof requestBody === "object") {
-      Object.assign(googlePayload, requestBody as Record<string, unknown>);
-      delete googlePayload.model;
-    } else {
-      if (contents) googlePayload.contents = contents;
-      if (generationConfig) googlePayload.generationConfig = generationConfig;
-      if (safetySettings) googlePayload.safetySettings = safetySettings;
-      if (systemInstruction) googlePayload.systemInstruction = systemInstruction;
-      if (tools) googlePayload.tools = tools;
-    }
-
-    // 4. Montagem da lista ordenada: 'gemini-3.8-flash' é sempre o modelo primário absoluto
-    const requestedModel = String(model || "").replace(/^models\//i, "").trim();
-    const filaModelos: string[] = requestedModel.toLowerCase().includes("-tts")
-      ? [requestedModel, ...MODELOS_RAPIDOS_HOMOLOGADOS]
-      : [...MODELOS_RAPIDOS_HOMOLOGADOS];
-
-    const actionLimpa = String(action || "generateContent").trim() || "generateContent";
-
-    let ultimoResultado: ResultadoChamadaGoogle | null = null;
-    let todosForam404 = true;
-
-    for (const modeloAtual of filaModelos) {
-      const res = await chamarGoogleGemini(
-        modeloAtual,
-        actionLimpa,
-        resolvedApiKey,
-        googlePayload
-      );
-
-      if (res.ok) {
-        return jsonResponse(res.data, 200);
       }
 
-      ultimoResultado = res;
-      const detalheAtual = extrairDetalheErroGoogle(res.data, res.status);
-      const ehIndisponibilidadeModelo =
-        res.status === 404 ||
-        /no longer available|not found|is not supported/i.test(detalheAtual);
+      // 2. Fallback para segredo da plataforma nos Secrets do Supabase
+      if (!resolvedApiKey) {
+        resolvedApiKey = (
+          Deno.env.get("GEMINI_API_KEY") ||
+          Deno.env.get("GOOGLE_AI_STUDIO_API_KEY") ||
+          ""
+        ).trim();
+      }
 
-      // Erros definitivos de chave/cota/payload não devem esperar outros modelos
-      if (res.status === 400 || res.status === 401 || res.status === 403 || res.status === 429) {
+      if (!resolvedApiKey) {
+        return jsonResponse(
+          {
+            ok: false,
+            error: "Chave de API do Google Gemini não configurada. Verifique em Configurações > IA.",
+            detalhe: "chave_ausente",
+            statusGoogle: 401,
+          },
+          400
+        );
+      }
+
+      // 3. Construção do payload limpo da Google Generative Language API
+      const googlePayload: Record<string, unknown> = {};
+      if (requestBody && typeof requestBody === "object") {
+        Object.assign(googlePayload, requestBody as Record<string, unknown>);
+        delete googlePayload.model;
+      } else {
+        if (contents) googlePayload.contents = contents;
+        if (generationConfig) googlePayload.generationConfig = generationConfig;
+        if (safetySettings) googlePayload.safetySettings = safetySettings;
+        if (systemInstruction) googlePayload.systemInstruction = systemInstruction;
+        if (tools) googlePayload.tools = tools;
+      }
+
+      // 4. 'gemini-3.8-flash' como primário e fallback para 'gemini-2.5-flash' apenas em HTTP 404
+      etapaAtual = "chamando_google_gemini";
+      const requestedModel = String(model || "").replace(/^models\//i, "").trim();
+      const filaModelos: string[] = requestedModel.toLowerCase().includes("-tts")
+        ? [requestedModel, ...MODELOS_RAPIDOS_HOMOLOGADOS]
+        : [...MODELOS_RAPIDOS_HOMOLOGADOS];
+
+      const actionLimpa = String(action || "generateContent").trim() || "generateContent";
+      let ultimoResultado: ResultadoChamadaGoogle | null = null;
+
+      for (const modeloAtual of filaModelos) {
+        const res = await chamarGoogleGemini(
+          modeloAtual,
+          actionLimpa,
+          resolvedApiKey,
+          googlePayload
+        );
+
+        if (res.ok) {
+          return jsonResponse(res.data, 200);
+        }
+
+        ultimoResultado = res;
+        const detalheAtual = extrairDetalheErroGoogle(res.data, res.status);
+        const eh404Modelo = res.status === 404;
+
+        // Fallback imediato para 'gemini-2.5-flash' apenas se HTTP 404
+        if (eh404Modelo) {
+          continue;
+        }
+
+        if (res.timeout) {
+          return jsonResponse(
+            {
+              ok: false,
+              timeout: true,
+              etapaTravada: etapaAtual,
+              error: `Timeout interno na etapa: ${etapaAtual}`,
+              statusGoogle: 504,
+            },
+            200
+          );
+        }
+
         const traduzido = traduzirErroGooglePtBr(res.status, detalheAtual);
         return jsonResponse(
           {
@@ -437,54 +400,58 @@ serve(async (req: Request) => {
         );
       }
 
-      if (!ehIndisponibilidadeModelo) {
-        todosForam404 = false;
-        break;
-      }
+      const statusFinal = ultimoResultado?.status || 502;
+      const detalheFinal = ultimoResultado
+        ? extrairDetalheErroGoogle(ultimoResultado.data, statusFinal)
+        : "modelo_indisponivel";
+      const traduzidoFinal = traduzirErroGooglePtBr(statusFinal, detalheFinal);
+
+      return jsonResponse(
+        {
+          ok: false,
+          error: traduzidoFinal.error,
+          detalhe: detalheFinal,
+          statusGoogle: statusFinal,
+        },
+        traduzidoFinal.statusHttp
+      );
+    } catch (err: unknown) {
+      const detalhe = err instanceof Error ? err.message : String(err);
+      console.error("[gemini-proxy] Erro ao processar requisição:", err);
+      return jsonResponse(
+        {
+          ok: false,
+          etapaTravada: etapaAtual,
+          error: `Falha interna no proxy de IA (${etapaAtual}): ${detalhe.slice(0, 160)}`,
+          detalhe,
+        },
+        500
+      );
     }
+  };
 
-    // 5. Contingência extrema: consulta ListModels (timeout 4s) apenas se todos retornaram 404
-    if (todosForam404) {
-      const modeloDescoberto = await resolverModeloFlashViaListModels(resolvedApiKey);
-      if (modeloDescoberto && !filaModelos.includes(modeloDescoberto)) {
-        const resDescoberto = await chamarGoogleGemini(
-          modeloDescoberto,
-          actionLimpa,
-          resolvedApiKey,
-          googlePayload
-        );
-        if (resDescoberto.ok) {
-          return jsonResponse(resDescoberto.data, 200);
-        }
-        ultimoResultado = resDescoberto;
-      }
+  let timerGlobalId: number | undefined;
+  const timeoutGlobalPromise = new Promise<Response>((resolve) => {
+    timerGlobalId = setTimeout(() => {
+      resolve(
+        jsonResponse(
+          {
+            ok: false,
+            timeout: true,
+            etapaTravada: etapaAtual,
+            error: `Timeout interno na etapa: ${etapaAtual}`,
+          },
+          200
+        )
+      );
+    }, TIMEOUT_HANDLER_GLOBAL_MS);
+  });
+
+  try {
+    return await Promise.race([executarHandler(), timeoutGlobalPromise]);
+  } finally {
+    if (timerGlobalId !== undefined) {
+      clearTimeout(timerGlobalId);
     }
-
-    const statusFinal = ultimoResultado?.status || 502;
-    const detalheFinal = ultimoResultado
-      ? extrairDetalheErroGoogle(ultimoResultado.data, statusFinal)
-      : "timeout_ou_rede";
-    const traduzidoFinal = traduzirErroGooglePtBr(statusFinal, detalheFinal);
-
-    return jsonResponse(
-      {
-        ok: false,
-        error: traduzidoFinal.error,
-        detalhe: ultimoResultado?.timeout ? "timeout_8s" : detalheFinal,
-        statusGoogle: statusFinal,
-      },
-      traduzidoFinal.statusHttp
-    );
-  } catch (err: unknown) {
-    const detalhe = err instanceof Error ? err.message : String(err);
-    console.error("[gemini-proxy] Erro ao processar requisição:", err);
-    return jsonResponse(
-      {
-        ok: false,
-        error: `Falha interna no proxy de IA: ${detalhe.slice(0, 160)}`,
-        detalhe,
-      },
-      500
-    );
   }
 });
